@@ -4,8 +4,8 @@ import types
 # internal imports
 from slideflow.clam.utils.file_utils import save_pkl
 from slideflow.clam.utils import *
-from slideflow.clam.utils.core_utils import train
 from slideflow.clam.datasets.dataset_generic import Generic_MIL_Dataset
+from slideflow.clam.utils.core_utils import train
 from slideflow.clam.utils.eval_utils import *
 
 # pytorch imports

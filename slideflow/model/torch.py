@@ -1,3 +1,5 @@
+'''PyTorch backend for the slideflow.model submodule.'''
+
 import os
 import types
 import time
@@ -18,6 +20,8 @@ from tqdm import tqdm
 from torch.utils.tensorboard import SummaryWriter
 
 class LinearBlock(torch.nn.Module):
+    '''Block module that includes a linear layer -> ReLU -> BatchNorm'''
+
     def __init__(self, in_ftrs, out_ftrs):
         super().__init__()
         self.in_ftrs = in_ftrs
@@ -34,6 +38,8 @@ class LinearBlock(torch.nn.Module):
         return x
 
 class ModelWrapper(torch.nn.Module):
+    '''Wrapper for PyTorch modules to support multiple outcomes, clinical inputs, and additional hidden layers.'''
+
     def __init__(self, model, n_classes, num_slide_features=0, hidden_layers=None, drop_images=False):
         super().__init__()
         self.model = model
@@ -226,9 +232,43 @@ class ModelParams(_base._ModelParams):
             return 'categorical'
 
 class Trainer:
-    def __init__(self, hp, outdir, labels, patients, name=None, manifest=None, slide_input=None, feature_sizes=None,
-                 feature_names=None, outcome_names=None, mixed_precision=True,
-                 config=None, use_neptune=None, neptune_api=None, neptune_workspace=None):
+    """Base trainer class containing functionality for model building, input processing, training, and evaluation.
+
+    This base class requires categorical outcome(s). Additional outcome types are supported by
+    :class:`slideflow.model.LinearTrainer` and :class:`slideflow.model.CPHTrainer`.
+
+    Slide-level (e.g. clinical) features can be used as additional model input by providing slide labels
+    in the slide annotations dictionary, under the key 'input'.
+    """
+
+    _model_type = 'categorical'
+
+    def __init__(self, hp, outdir, labels, patients, slide_input=None, name=None, manifest=None, feature_sizes=None,
+                 feature_names=None, outcome_names=None, mixed_precision=True, config=None, use_neptune=None,
+                 neptune_api=None, neptune_workspace=None):
+
+        """Sets base configuration, preparing model inputs and outputs.
+
+        Args:
+            hp (:class:`slideflow.model.ModelParams`): ModelParams object.
+            outdir (str): Location where event logs and checkpoints will be written.
+            labels (dict): Dict mapping slide names to outcome labels (int or float format).
+            patients (dict): Dict mapping slide names to patient ID, as some patients may have multiple slides.
+                If not provided, assumes 1:1 mapping between slide names and patients.
+            slide_input (dict): Dict mapping slide names to additional slide-level input, concatenated after post-conv.
+            name (str, optional): Optional name describing the model, used for model saving. Defaults to None.
+            manifest (dict, optional): Manifest dictionary mapping TFRecords to number of tiles. Defaults to None.
+            model_type (str, optional): Type of model outcome, 'categorical' or 'linear'. Defaults to 'categorical'.
+            feature_sizes (list, optional): List of sizes of input features. Required if providing additional
+                input features as input to the model.
+            feature_names (list, optional): List of names for input features. Used when permuting feature importance.
+            outcome_names (list, optional): Name of each outcome. Defaults to "Outcome {X}" for each outcome.
+            mixed_precision (bool, optional): Use FP16 mixed precision (rather than FP32). Defaults to True.
+            config (dict, optional): Training configuration dictionary, used for logging. Defaults to None.
+            use_neptune (bool, optional): Use Neptune API logging. Defaults to False
+            neptune_api (str, optional): Neptune API token, used for logging. Defaults to None.
+            neptune_workspace (str, optional): Neptune workspace, used for logging. Defaults to None.
+        """
 
         self.hp = hp
         self.outdir = outdir
@@ -258,6 +298,13 @@ class Trainer:
                                     f"the number of outcomes ({outcome_labels.shape[1]})")
         if not os.path.exists(outdir): os.makedirs(outdir)
 
+        # Neptune logging
+        self.config = config
+        self.use_neptune = use_neptune
+        self.neptune_run = None
+        if self.use_neptune:
+            self.neptune_logger = sf.util.neptune_utils.NeptuneLog(neptune_api, neptune_workspace)
+
     @property
     def num_outcomes(self):
         if self.hp.model_type() == 'categorical':
@@ -266,10 +313,29 @@ class Trainer:
             return 1
 
     def load(self, model):
+        """Loads a state dict at the given model location. Requires that the Trainer's hyperparameters (Trainer.hp)
+        match the hyperparameters of the model to be loaded."""
+
         self.model = self.hp.build_model(labels=self.labels, num_slide_features=self.num_slide_features)
         self.model.load_state_dict(torch.load(model))
 
     def evaluate(self, dataset, batch_size=None, histogram=False, save_predictions=False, permutation_importance=False):
+
+        """Evaluate model, saving metrics and predictions.
+
+        Args:
+            dataset (:class:`slideflow.dataset.Dataset`): Dataset containing TFRecords to evaluate.
+            batch_size (int, optional): Evaluation batch size. Defaults to the same as training (per self.hp)
+
+            histogram (bool, optional): Save histogram of tile predictions. Poorly optimized, uses seaborn, may
+                drastically increase evaluation time. Defaults to False.
+            save_predictions (bool, optional): Save tile, slide, and patient-level predictions to CSV. Defaults to False.
+            permutation_importance (bool, optional): Currently not supported for the PyTorch backend; argument exists
+                for compatibility. Will raise a NotImplementedError if used. Planned as an update for a future version.
+
+        Returns:
+            Dictionary of evaluation metrics.
+        """
 
         # Load and initialize model
         if permutation_importance:
@@ -282,6 +348,12 @@ class Trainer:
         loss_fn = self.hp.get_loss()
         log_manifest(None, dataset.tfrecords(), self.labels, join(self.outdir, 'slide_manifest.csv'))
         if not batch_size: batch_size = self.hp.batch_size
+
+        # Prepare neptune run
+        if self.use_neptune:
+            self.neptune_run = self.neptune_logger.start_run(self.name, self.config['project'], dataset, tags='eval')
+            self.neptune_logger.log_config(self.config, 'eval')
+            self.neptune_run['data/slide_manifest'].upload(os.path.join(self.outdir, 'slide_manifest.csv'))
 
         # Setup dataloaders
         interleave_args = types.SimpleNamespace(
@@ -306,6 +378,7 @@ class Trainer:
             outcome_names=self.outcome_names,
             data_dir=self.outdir,
             num_tiles=dataset.num_tiles,
+            neptune_run=self.neptune_run,
             label='eval'
         )
 
@@ -351,6 +424,12 @@ class Trainer:
 
         results_log = os.path.join(self.outdir, 'results_log.csv')
         sf.util.update_results_log(results_log, 'eval_model', results_dict)
+
+        # Update neptune log
+        if self.neptune_run:
+            self.neptune_run['eval/results'] = results_dict['eval']
+            self.neptune_run.stop()
+
         return results_dict
 
     def labels_to_device(self, labels, device):
@@ -407,10 +486,38 @@ class Trainer:
         elapsed = time.strftime('%H:%M:%S', time.gmtime(time.time() - starttime))
         log.info(f'{sf.util.bold(sf.util.blue(phase))} Epoch {epoch} | loss: {loss:.4f} {accuracy_description} (Elapsed: {elapsed})')
 
-    def train(self, train_dts, val_dts, validate_on_batch=512, validation_batch_size=32, validation_steps=50,
-              save_predictions=False, skip_metrics=False, seed=0, log_frequency=20, starting_epoch=0,
-              ema_observations=20, ema_smoothing=2, use_tensorboard=True, steps_per_epoch_override=0,
-              multi_gpu=True, pretrain='imagenet', checkpoint=None, resume_training=None):
+    def train(self, train_dts, val_dts, log_frequency=20, validate_on_batch=512, validation_batch_size=32,
+              validation_steps=50, starting_epoch=0, ema_observations=20, ema_smoothing=2, use_tensorboard=True,
+              steps_per_epoch_override=0, save_predictions=False, skip_metrics=False, resume_training=None,
+              pretrain='imagenet', checkpoint=None, multi_gpu=True, seed=0):
+
+        """Builds and trains a model from hyperparameters.
+
+        Args:
+            train_dts (:class:`slideflow.dataset.Dataset`): Dataset containing TFRecords for training.
+            val_dts (:class:`slideflow.dataset.Dataset`): Dataset containing TFRecords for validation.
+            log_frequency (int, optional): How frequent to update Tensorboard logs, in batches. Defaults to 100.
+            validate_on_batch (int, optional): How frequent o perform validation, in batches. Defaults to 512.
+            validation_batch_size (int, optional): Batch size to use during validation. Defaults to 32.
+            validation_steps (int, optional): Number of batches to use for each instance of validation. Defaults to 200.
+            starting_epoch (int, optional): Starts training at the specified epoch. Defaults to 0.
+            ema_observations (int, optional): Number of observations over which to perform exponential moving average
+                smoothing. Defaults to 20.
+            ema_smoothing (int, optional): Exponential average smoothing value. Defaults to 2.
+            use_tensoboard (bool, optional): Enable tensorboard callbacks. Defaults to False.
+            steps_per_epoch_override (int, optional): Manually set the number of steps per epoch. Defaults to None.
+            save_predictions (bool, optional): Save tile, slide, and patient-level predictions at each evaluation.
+                Defaults to False.
+            skip_metrics (bool, optional): Skip validation metrics. Defaults to False.
+            resume_training (str, optional): Not applicable to PyTorch backend. Included as argument for compatibility
+                with Tensorflow backend. Will raise NotImplementedError if supplied.
+            pretrain (str, optional): Either 'imagenet' or path to Tensorflow model from which to load weights.
+                Defaults to 'imagenet'.
+            checkpoint (str, optional): Path to cp.ckpt from which to load weights. Defaults to None.
+
+        Returns:
+            Nested results dictionary containing metrics for each evaluated epoch.
+        """
 
         if resume_training is not None:
             raise NotImplementedError("PyTorch backend does not support `resume_training`; please use `checkpoint`")
@@ -445,6 +552,21 @@ class Trainer:
         if use_tensorboard:
             writer = SummaryWriter(self.outdir, flush_secs=60)
 
+        # Prepare neptune run
+        if self.use_neptune:
+            tags = ['train']
+            if 'k-fold' in self.config['validation_strategy']:
+	            tags += [f'k-fold{self.config["k_fold_i"]}']
+            self.neptune_run = self.neptune_logger.start_run(self.name, self.config['project'], train_dts, tags=tags)
+            self.neptune_logger.log_config(self.config, 'train')
+            self.neptune_run['data/slide_manifest'].upload(os.path.join(self.outdir, 'slide_manifest.csv'))
+            try:
+                config_path = join(self.outdir, 'params.json')
+                config = sf.util.load_json(config_path)
+                config['neptune_id'] = self.neptune_run['sys/id'].fetch()
+            except:
+                log.info("Unable to log model parameters file (params.json) with Neptune.")
+
         # Build model
         if checkpoint:
             log.info(f"Loading checkpoint at {sf.util.green(checkpoint)}")
@@ -457,7 +579,9 @@ class Trainer:
         if self.num_slide_features:
             empty_inp += [torch.empty([self.hp.batch_size, self.num_slide_features])]
         if log.getEffectiveLevel() <= 20:
-            torch_utils.print_module_summary(self.model, empty_inp)
+            model_summary = torch_utils.print_module_summary(self.model, empty_inp)
+            if self.neptune_run:
+                self.neptune_run['model_info/summary'] = model_summary
 
         # Multi-GPU
         inference_model = self.model
@@ -554,7 +678,7 @@ class Trainer:
                         # Record accuracy and loss
                         num_records += images.size(0)
                         running_corrects = self.update_corrects(outputs, labels, running_corrects)
-                        acc_desc, _ = self.accuracy_description(running_corrects, num_records)
+                        acc_desc, train_acc = self.accuracy_description(running_corrects, num_records)
                         running_loss += loss.item() * images.size(0)
                         pb.set_description(f'{sf.util.bold(sf.util.blue(phase))} loss: {running_loss / num_records:.4f} {acc_desc}')
                         pb.update(images.size(0))
@@ -568,6 +692,16 @@ class Trainer:
                                         writer.add_scalar(f'Accuracy-{o}/train', running_corrects[f'out-{o}'] / num_records, global_step)
                                 else:
                                     writer.add_scalar('Accuracy/train', running_corrects / num_records, global_step)
+
+                        # Log to neptune
+                        if self.neptune_run:
+                            self.neptune_run[f"metrics/train/batch/loss"].log(round(loss.item(), 3))
+                            if self.hp.model_type() == 'categorical':
+                                if isinstance(train_acc, list):
+                                    for acc_idx, acc in enumerate(train_acc):
+                                        self.neptune_run[f"metrics/train/batch/accuracy-{acc_idx}"].log(round(acc.item(), 3))
+                                else:
+                                    self.neptune_run[f"metrics/train/batch/accuracy"].log(round(train_acc.item(), 3))
 
                         # === Mid-training validation =================================================================
                         if val_dts and validate_on_batch and (step % validate_on_batch == 0) and step > 0:
@@ -597,8 +731,17 @@ class Trainer:
                                 num_val += val_img.size(0)
                             val_loss = running_val_loss / num_val
                             val_acc_desc, val_acc = self.accuracy_description(running_val_correct, num_val)
+                            log_msg = f'Batch {step}: val loss: {val_loss:.4f} {val_acc_desc}'
 
-                            log_msg = f'Batch {step}: val loss: {val_loss:.4f}{val_acc_desc}'
+                            # Log validation metrics to neptune
+                            if self.neptune_run:
+                                self.neptune_run[f"metrics/test/batch/loss"].log(round(val_loss, 3))
+                                if self.hp.model_type() == 'categorical':
+                                    if isinstance(val_acc, list):
+                                        for acc_idx, acc in enumerate(val_acc):
+                                            self.neptune_run[f"metrics/test/batch/accuracy-{acc_idx}"].log(round(acc.item(), 3))
+                                    else:
+                                        self.neptune_run[f"metrics/test/batch/accuracy"].log(round(val_acc.item(), 3))
 
                             # EMA & early stopping --------------------------------------------------------------------
                             early_stop_val = val_acc if self.hp.early_stop_method == 'accuracy' else val_loss
@@ -612,16 +755,26 @@ class Trainer:
                                     last_ema = (early_stop_val * (ema_smoothing / (1 + ema_observations))) + \
                                                (last_ema * (1 - (ema_smoothing / (1 + ema_observations))))
                                     log_msg += f' (EMA: {last_ema:.3f})'
+                                    if self.neptune_run:
+                                        self.neptune_run["metrics/batch/exp_moving_average"].log(round(last_ema, 3))
 
                                 if self.hp.early_stop and ema_two_checks_prior != -1 and epoch > self.hp.early_stop_patience:
                                     if ((self.hp.early_stop_method == 'accuracy' and last_ema <= ema_two_checks_prior) or
                                         (self.hp.early_stop_method == 'loss'     and last_ema >= ema_two_checks_prior)):
 
                                         log.info(f'Early stop triggered: epoch {epoch}, step {step}')
+
+                                        # Log early stop to neptune
+                                        if self.neptune_run:
+                                            self.neptune_run["early_stop/early_stop_epoch"] = epoch
+                                            self.neptune_run["early_stop/early_stop_batch"] = step
+                                            self.neptune_run["early_stop/method"] = self.hp.early_stop_method
+                                            self.neptune_run["sys/tags"].add("early_stopped")
+
                                         if epoch not in self.hp.epochs:
                                             self.hp.epochs += [epoch]
-                                            early_stop = True
-                                            break
+                                        early_stop = True
+                                        break
 
                                 ema_two_checks_prior = ema_one_check_prior
                                 ema_one_check_prior = last_ema
@@ -661,6 +814,16 @@ class Trainer:
                         else:
                             epoch_metrics.update({'accuracy': epoch_accuracy.cpu().numpy().tolist()})
                     results['epochs'][f'epoch{epoch}'].update({f'train_metrics': epoch_metrics})
+
+                    # Log epoch-level validation metrics to neptune
+                    if self.neptune_run:
+                        self.neptune_run[f"metrics/train/epoch/loss"].log(round(epoch_loss, 3))
+                        if self.hp.model_type() == 'categorical':
+                            if isinstance(epoch_accuracy, list):
+                                for acc_idx, acc in enumerate(epoch_accuracy):
+                                    self.neptune_run[f"metrics/train/epoch/accuracy-{acc_idx}"].log(round(acc.item(), 3))
+                            else:
+                                self.neptune_run[f"metrics/train/epoch/accuracy"].log(round(epoch_accuracy.item(), 3))
 
                 # === Full dataset validation =========================================================================
                 # Perform full evaluation if the epoch is one of the predetermined epochs at which to save/eval a model
@@ -703,6 +866,7 @@ class Trainer:
                                                                                 data_dir=self.outdir,
                                                                                 outcome_names=self.outcome_names,
                                                                                 save_predictions=save_predictions,
+                                                                                neptune_run=self.neptune_run,
                                                                                 pred_args=pred_args)
 
                         epoch_metrics = {'loss': epoch_loss}
@@ -719,15 +883,37 @@ class Trainer:
                             epoch_results['patient'] = metrics[metric]['patient']
                     results['epochs'][f'epoch{epoch}'].update(epoch_results)
                     sf.util.update_results_log(results_log, 'trained_model', {f'epoch{epoch}': results['epochs'][f'epoch{epoch}']})
+
+                    if self.use_neptune:
+                        self.neptune_run['results/logged_epochs'] = [int(e[5:]) for e in results['epochs'] if e[:5] == 'epoch']
+                        self.neptune_run['results/epochs'] = results['epochs']
                 # =====================================================================================================
 
+        if self.neptune_run:
+            self.neptune_run['sys/tags'].add('training_complete')
+            self.neptune_run.stop()
         return results
 
 class LinearTrainer(Trainer):
+
+    """Extends the base :class:`slideflow.model.Trainer` class to add support for linear outcomes. Requires that all
+    outcomes be linear, with appropriate linear loss function. Uses R-squared as the evaluation metric, rather
+    than AUROC.
+
+    In this case, for the PyTorch backend, the linear outcomes support is already baked into the base Trainer class,
+    so no additional modifications are required. This class is written to inherit the Trainer class without modification
+    to maintain consistency with the Tensorflow backend.
+    """
+
+    _model_type = 'linear'
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
 class CPHTrainer(Trainer):
+
+    """Cox proportional hazards (CPH) models are not yet implemented, but are planned for a future update."""
+
     def __init__(self, *args, **kwargs):
         raise NotImplementedError
 

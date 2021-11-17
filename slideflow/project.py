@@ -5,7 +5,6 @@ import json
 import logging
 import itertools
 import csv
-import git
 import copy
 import pickle
 import numpy as np
@@ -24,6 +23,11 @@ from slideflow import project_utils
 from slideflow.dataset import Dataset
 from slideflow.util import log
 from slideflow.project_utils import get_validation_settings
+
+try:
+    import git
+except ImportError: # git is not needed for pypi distribution
+    git = None
 
 logging.getLogger('tensorflow').setLevel(logging.ERROR)
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -553,10 +557,12 @@ class Project:
         outcome_labels = None if hp.model_type() != 'categorical' else dict(zip(range(len(unique_labels)), unique_labels))
 
         # Check git commit if running from source
-        try:
-            git_commit = git.Repo(search_parent_directories=True).head.object.hexsha
-        except:
-            git_commit = None
+        git_commit = None
+        if git is not None:
+            try:
+                git_commit = git.Repo(search_parent_directories=True).head.object.hexsha
+            except:
+                pass
 
         hp_file = join(model_dir, 'params.json')
 
@@ -757,12 +763,12 @@ class Project:
             stride_div (int, optional): Stride divisor to use when extracting tiles. Defaults to 1.
                 A stride of 1 will extract non-overlapping tiles.
                 A stride_div of 2 will extract overlapping tiles, with a stride equal to 50% of the tile width.
-            enable_downsample (bool, optional): Enable downsampling when reading slide images. Defaults to False.
+            enable_downsample (bool, optional): Enable downsampling when reading slide images. Defaults to True.
                 This may result in corrupted image tiles if downsampled slide layers are corrupted or incomplete.
                 Recommend manual confirmation of tile integrity.
             roi_method (str, optional): Either 'inside', 'outside', or 'ignore'. Defaults to 'inside'.
                 Indicates whether tiles are extracted inside or outside ROIs, or if ROIs are ignored entirely.
-            skip_missing_roi (bool, optional): Skip slides that are missing ROIs. Defaults to True.
+            skip_missing_roi (bool, optional): Skip slides that are missing ROIs. Defaults to False.
             skip_extracted (bool, optional): Skip slides that have already been extracted. Defaults to True.
             tma (bool, optional): Reads slides as Tumor Micro-Arrays (TMAs), detecting and extracting tumor cores.
                 Defaults to False. Experimental function with limited testing.
@@ -770,9 +776,10 @@ class Project:
             buffer (str, optional): Slides will be copied to this directory before extraction. Defaults to None.
                 Using an SSD or ramdisk buffer vastly improves tile extraction speed.
             num_workers (int, optional): Extract tiles from this many slides simultaneously. Defaults to 4.
-            qc (str, optional): 'otsu', 'blur', or 'both'. Perform quality control with blur detection - discarding
+            q_size (int, optional): Size of queue when using a buffer. Defaults to 4.
+            qc (str, optional): 'otsu', 'blur', 'both', or None. Perform blur detection quality control - discarding
                 tiles with detected out-of-focus regions or artifact - and/or otsu's method. Increases tile extraction
-                time. Defaults to False.
+                time. Defaults to None.
             report (bool, optional): Save a PDF report of tile extraction. Defaults to True.
 
         Keyword Args:
@@ -1412,11 +1419,8 @@ class Project:
             Dictionary mapping slide names to dict of statistics (mean, median, above_0, and above_1)
         """
 
-        from slideflow.io.tensorflow import get_locations_from_tfrecord
-        from slideflow.slide import WSI
-
         slide_name = sf.util.path_to_name(tfrecord)
-        loc_dict = get_locations_from_tfrecord(tfrecord)
+        loc_dict = sf.io.get_locations_from_tfrecord(tfrecord)
         dataset = self.dataset(tile_px=tile_px, tile_um=tile_um)
         slide_paths = {sf.util.path_to_name(sp):sp for sp in dataset.slide_paths()}
 
@@ -1430,7 +1434,7 @@ class Project:
                                 f'number of tiles stored in the TFRecord ({len(list(loc_dict.keys()))}).')
 
         print(f'Generating TFRecord heatmap for {sf.util.green(tfrecord)}...')
-        slide = WSI(slide_path, tile_px, tile_um, skip_missing_roi=False)
+        slide = sf.slide.WSI(slide_path, tile_px, tile_um, skip_missing_roi=False)
 
         stats = {}
 
@@ -1588,12 +1592,8 @@ class Project:
             self._settings = sf.util.load_json(join(path, 'settings.json'))
         else:
             raise OSError(f'Unable to locate settings.json at location "{path}".')
-
         # Enable logging
         #log.logfile = join(self.root, 'log.log')
-
-    def neptune_logger(self):
-        return sf.util.neptune_utils.NeptuneLog(self.neptune_api, self.neptune_workspace)
 
     def predict_wsi(self, model, outdir, dataset=None, filters=None, filter_blank=None, stride_div=1,
                     enable_downsample=True, roi_method='inside', skip_missing_roi=False, source=None,
@@ -2052,10 +2052,12 @@ class Project:
                 os.makedirs(model_dir)
 
                 # Check git commit if running from source
-                try:
-                    git_commit = git.Repo(search_parent_directories=True).head.object.hexsha
-                except:
-                    git_commit = None
+                git_commit = None
+                if git is not None:
+                    try:
+                        git_commit = git.Repo(search_parent_directories=True).head.object.hexsha
+                    except:
+                        pass
 
                 # Log model settings and hyperparameters
                 config_file = join(model_dir, 'params.json')

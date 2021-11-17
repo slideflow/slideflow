@@ -1,3 +1,5 @@
+"""PyTorch model utility functions."""
+
 import torch
 import types
 
@@ -70,8 +72,11 @@ def print_module_summary(module, inputs, max_nesting=3, skip_redundant=True):
 
     # Print table.
     widths = [max(len(cell) for cell in column) for column in zip(*rows)]
+    summary_rows = []
     print()
     for row in rows:
-        print('  '.join(cell + ' ' * (width - len(cell)) for cell, width in zip(row, widths)))
+        str_row = '  '.join(cell + ' ' * (width - len(cell)) for cell, width in zip(row, widths))
+        summary_rows += [str_row]
+        print(str_row)
     print()
-    return outputs
+    return '\n'.join(summary_rows)

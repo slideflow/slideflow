@@ -1,11 +1,11 @@
+'''Submodule that includes base classes to be extended by framework-specific implementations.'''
+
 import json
 import os
 import csv
 import numpy as np
 from slideflow.util import log
 from slideflow.slide import StainNormalizer
-
-"""Base classes to be extended by framework-specific implementations."""
 
 class FeatureError(Exception):
     pass

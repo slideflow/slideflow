@@ -38,8 +38,13 @@ setuptools.setup(
         'fpdf',
         'spams',
         'lifelines',
-        'gitpython',
         'scikit-image',
-        'tqdm'
+        'tqdm',
+        'click',
+        'protobuf',
+        'tensorboard',
+        'crc32c',
+        'h5py',
+        'numpy<1.21'
     ],
 )

@@ -61,6 +61,15 @@
 <link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size3-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
 <link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Caligraphic-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
   <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.15.2/css/all.css" integrity="sha384-vSIIfh2YWi9wW0r9iZe7RJPrKwp6bG+s9QZMoITbCckVJqGCCRhc+ccxNcdpHuYu" crossorigin="anonymous">
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-43E5QNVXH2"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-43E5QNVXH2');
+  </script>
 </head>
 
 <div class="container-fluid header-holder tutorials-header" id="header-holder">
@@ -485,9 +494,7 @@ Using an SSD or ramdisk buffer vastly improves tile extraction speed.</p></li>
 <li><p><strong>qc</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – ‘otsu’, ‘blur’, or ‘both’. Perform quality control with blur detection - discarding
 tiles with detected out-of-focus regions or artifact - and/or otsu’s method. Increases tile extraction
 time. Defaults to False.</p></li>
-<li><p><strong>process_isolated</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Isolated each slide’s tile extraction into a separate process.
-May circumvent libvips errors when multiple slides are being accessed simultaneously. Small performance
-penalty when used. Defaults to False.</p></li>
+<li><p><strong>report</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Save a PDF report of tile extraction. Defaults to True.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Keyword Arguments</dt>
@@ -504,7 +511,7 @@ Threshold above which a pixel (RGB average) is considered whitespace.</p></li>
 Discard tiles with this fraction of grayspace. If 1, will not perform grayspace filtering.</p></li>
 <li><p><strong>grayspace_threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.10)"><em>float</em></a><em>, </em><em>optional</em>) – Range 0-1. Defaults to 0.05.
 Pixels in HSV format with saturation below this threshold are considered grayspace.</p></li>
-<li><p><strong>img_format</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – ‘png’ or ‘jpg’. Defaults to ‘png’. Image format to use in tfrecords.
+<li><p><strong>img_format</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – ‘png’ or ‘jpg’. Defaults to ‘jpg’. Image format to use in tfrecords.
 PNG (lossless) format recommended for fidelity, JPG (lossy) for efficiency.</p></li>
 <li><p><strong>full_core</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Only used if extracting from TMA. If True, will save entire TMA core as image.
 Otherwise, will extract sub-images from each core using the given tile micron size. Defaults to False.</p></li>
@@ -518,6 +525,8 @@ Only used if qc=True. Defaults to 0.1</p></li>
 will be discarded. Only used if qc=True. Defaults to 0.6.</p></li>
 <li><p><strong>qc_mpp</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.10)"><em>float</em></a><em>, </em><em>optional</em>) – Microns-per-pixel indicating image magnification level at which quality control
 is performed. Defaults to mpp=4 (effective magnification 2.5 X)</p></li>
+<li><p><strong>dry_run</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Determine tiles that would be extracted, but do not export any images.
+Defaults to None.</p></li>
 </ul>
 </dd>
 </dl>
@@ -999,8 +1008,9 @@ filename in project root directory. Defaults to “splits.json”.</p></li>
 Options include bootstrap, k-fold, k-fold-manual, k-fold-preserved-site, fixed, and none.</p></li>
 <li><p><strong>val_k_fold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a>) – Total number of K if using K-fold validation. Defaults to 3.</p></li>
 <li><p><strong>val_k</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a>) – Iteration of K-fold to train, starting at 1. Defaults to None (training all k-folds).</p></li>
-<li><p><strong>val_k_fold_header</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Annotations file header column for manually specifying k-fold.
-Only used if validation strategy is ‘k-fold-manual’. Defaults to None.</p></li>
+<li><p><strong>val_k_fold_header</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Annotations file header column for manually specifying k-fold or for preserved-site
+cross validation. Only used if validation strategy is ‘k-fold-manual’ or ‘k-fold-preserved-site’.
+Defaults to None for k-fold-manual and ‘site’ for k-fold-preserved-site.</p></li>
 <li><p><strong>val_fraction</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.10)"><em>float</em></a>) – Fraction of dataset to use for validation testing, if strategy is ‘fixed’.</p></li>
 <li><p><strong>val_source</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Dataset source to use for validation. Defaults to None (same as training).</p></li>
 <li><p><strong>val_annotations</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Path to annotations file for validation dataset. Defaults to None (same as training).</p></li>

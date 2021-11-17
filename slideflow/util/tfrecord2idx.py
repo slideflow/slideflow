@@ -3,7 +3,6 @@ from __future__ import print_function
 import sys
 import struct
 
-
 def create_index(tfrecord_file: str, index_file: str) -> None:
     """Create index from the tfrecords file.
 
