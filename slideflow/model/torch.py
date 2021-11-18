@@ -824,15 +824,18 @@ class Trainer:
                                 self.neptune_run[f"metrics/train/epoch/accuracy"].log(round(epoch_accuracy.item(), 3))
 
                 # === Full dataset validation =========================================================================
+                # Save the model
+                if phase == 'train' and epoch in self.hp.epochs:
+                    model_name = self.name if self.name else 'trained_model'
+                    save_path = os.path.join(self.outdir, f'{model_name}_epoch{epoch}')
+                    torch.save(self.model.state_dict(), save_path)
+                    log.info(f"Model saved to {sf.util.green(save_path)}")
+
                 # Perform full evaluation if the epoch is one of the predetermined epochs at which to save/eval a model
                 if phase == 'val' and (val_dts is not None) and epoch in self.hp.epochs:
                     optimizer.zero_grad()
                     self.model.eval()
-                    model_name = self.name if self.name else 'trained_model'
                     results_log = os.path.join(self.outdir, 'results_log.csv')
-                    save_path = os.path.join(self.outdir, f'{model_name}_epoch{epoch}')
-                    torch.save(self.model.state_dict(), save_path)
-                    log.info(f"Model saved to {sf.util.green(save_path)}")
 
                     epoch_results = {}
                     # Preparations for calculating accuracy/loss in metrics_from_dataset()
@@ -1055,13 +1058,14 @@ class Features:
                 self.parent = parent
             def __iter__(self):
                 for image_dict in generator():
-                    np_image = torch.from_numpy(image_dict['image'])
+                    img = image_dict['image']
                     if self.parent.wsi_normalizer:
-                        np_image = self.parent.wsi_normalizer.rgb_to_rgb(np_image)
-                    np_image = np_image.permute(2, 0, 1) # WHC => CWH
+                        img = self.parent.wsi_normalizer.rgb_to_rgb(img)
+                    img = torch.from_numpy(img)
+                    img = img.permute(2, 0, 1) # WHC => CWH
                     loc = np.array(image_dict['loc'])
-                    np_image = np_image / 127.5 - 1
-                    yield np_image, loc
+                    img = img / 127.5 - 1
+                    yield img, loc
 
         tile_dataset = torch.utils.data.DataLoader(SlideIterator(self), batch_size=batch_size)
 

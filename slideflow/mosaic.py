@@ -358,8 +358,11 @@ class Mosaic:
         """Saves the mosaic map figure to the given filename."""
 
         log.info('Exporting figure...')
-        if not os.path.exists(os.path.dirname(filename)):
-            os.makedirs(os.path.dirname(filename))
+        try:
+            if not os.path.exists(os.path.dirname(filename)):
+                os.makedirs(os.path.dirname(filename))
+        except FileNotFoundError:
+            pass
         plt.savefig(filename, bbox_inches='tight')
         log.info(f'Saved figure to {sf.util.green(filename)}')
         plt.close()

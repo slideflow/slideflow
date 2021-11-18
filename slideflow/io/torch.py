@@ -390,6 +390,8 @@ def interleave(tfrecords, prob_weights=None, incl_loc=False, clip=None, infinite
         rank (int, optional): Worker ID to identify which worker this represents. Used to interleave results
             among workers without duplications. Defaults to 0 (first worker).
     """
+    if not len(tfrecords):
+        raise ValueError("Interleaving failed: no tfrecords found.")
     if rank == 0:
         log.debug(f'Interleaving {len(tfrecords)} tfrecords: infinite={infinite}, num_replicas={num_replicas}')
 
