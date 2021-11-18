@@ -91,7 +91,7 @@ class Project:
             self._settings = project_utils._project_config(**project_kwargs)
             if not exists(root):
                 os.makedirs(root)
-            sf.util.write_json(self._settings, join(self.root, 'settings.json'))
+            self.save()
         else:
             raise sf.util.UserError(f"Project folder {root} does not exist.")
 
@@ -306,6 +306,7 @@ class Project:
         project_utils.add_source(name, slides, roi, tiles, tfrecords, path)
         if name not in self.sources:
             self.sources += [name]
+        self.save()
 
     def associate_slide_names(self):
         """Automatically associate patient names with slide filenames in the annotations file."""
@@ -1789,8 +1790,6 @@ class Project:
                 Default epoch length is the number of total tiles.
             save_predicitons (bool): Save predictions with each validation. Defaults to False.
                 May increase validation time for large projects.
-            skip_metrics (bool): Skip metrics (ROC, AP, F1) during validation. Defaults to False.
-                May improve training time for large projects.
             validate_on_batch (int): Validation will be performed every N batches. Defaults to 512.
             validation_batch_size (int): Validation dataset batch size. Defaults to 32.
             use_tensorboard (bool): Add tensorboard callback for realtime training monitoring. Defaults to False.

@@ -493,23 +493,22 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
     def evaluate_model(self, logs={}):
         epoch = self.epoch_count
         epoch_label = f'val_epoch{epoch}'
-        if not self.cb_args.skip_metrics:
-            pred_args = types.SimpleNamespace(loss=self.hp.get_loss())
-            metrics, acc, loss = sf.statistics.metrics_from_dataset(
-                self.model,
-                model_type=self.hp.model_type(),
-                labels=self.parent.labels,
-                patients=self.parent.patients,
-                dataset=self.cb_args.validation_data_with_slidenames,
-                outcome_names=self.parent.outcome_names,
-                label=epoch_label,
-                data_dir=self.parent.outdir,
-                num_tiles=self.cb_args.num_val_tiles,
-                histogram=False,
-                verbose=True,
-                save_predictions=self.cb_args.save_predictions,
-                pred_args=pred_args
-            )
+        pred_args = types.SimpleNamespace(loss=self.hp.get_loss())
+        metrics, acc, loss = sf.statistics.metrics_from_dataset(
+            self.model,
+            model_type=self.hp.model_type(),
+            labels=self.parent.labels,
+            patients=self.parent.patients,
+            dataset=self.cb_args.validation_data_with_slidenames,
+            outcome_names=self.parent.outcome_names,
+            label=epoch_label,
+            data_dir=self.parent.outdir,
+            num_tiles=self.cb_args.num_val_tiles,
+            histogram=False,
+            verbose=True,
+            save_predictions=self.cb_args.save_predictions,
+            pred_args=pred_args
+        )
 
         # Note that Keras loss during training includes regularization losses,
         #  so this loss will not match validation loss calculated during training
@@ -518,12 +517,11 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
         log.info(f'Validation metrics: ' + json.dumps(val_metrics, indent=4))
         self.results['epochs'][f'epoch{epoch}'] = {'train_metrics': {k:v for k,v in logs.items() if k[:3] != 'val'},
                                                    'val_metrics': val_metrics }
-        if not self.cb_args.skip_metrics:
-            for metric in metrics:
-                if metrics[metric]['tile'] is None: continue
-                self.results['epochs'][f'epoch{epoch}']['tile'] = metrics[metric]['tile']
-                self.results['epochs'][f'epoch{epoch}']['slide'] = metrics[metric]['slide']
-                self.results['epochs'][f'epoch{epoch}']['patient'] = metrics[metric]['patient']
+        for metric in metrics:
+            if metrics[metric]['tile'] is None: continue
+            self.results['epochs'][f'epoch{epoch}']['tile'] = metrics[metric]['tile']
+            self.results['epochs'][f'epoch{epoch}']['slide'] = metrics[metric]['slide']
+            self.results['epochs'][f'epoch{epoch}']['patient'] = metrics[metric]['patient']
 
         epoch_results = self.results['epochs'][f'epoch{epoch}']
         sf.util.update_results_log(self.cb_args.results_log, 'trained_model', {f'epoch{epoch}': epoch_results})
@@ -796,7 +794,7 @@ class Trainer:
 
     def train(self, train_dts, val_dts, log_frequency=100, validate_on_batch=512, validation_batch_size=32,
               validation_steps=200, starting_epoch=0, ema_observations=20, ema_smoothing=2, use_tensorboard=True,
-              steps_per_epoch_override=None, save_predictions=False, skip_metrics=False, resume_training=None,
+              steps_per_epoch_override=None, save_predictions=False, resume_training=None,
               pretrain='imagenet', checkpoint=None, multi_gpu=False):
 
         """Builds and trains a model from hyperparameters.
@@ -816,7 +814,6 @@ class Trainer:
             steps_per_epoch_override (int, optional): Manually set the number of steps per epoch. Defaults to None.
             save_predictions (bool, optional): Save tile, slide, and patient-level predictions at each evaluation.
                 Defaults to False.
-            skip_metrics (bool, optional): Skip validation metrics. Defaults to False.
             resume_training (str, optional): Path to Tensorflow model to continue training. Defaults to None.
             pretrain (str, optional): Either 'imagenet' or path to Tensorflow model from which to load weights.
                 Defaults to 'imagenet'.
@@ -913,7 +910,6 @@ class Trainer:
                 ema_observations=ema_observations,
                 ema_smoothing=ema_smoothing,
                 steps_per_epoch=steps_per_epoch,
-                skip_metrics=skip_metrics,
                 validation_data_with_slidenames=val_data_w_slidenames,
                 num_val_tiles=(0 if val_dts is None else val_dts.num_tiles),
                 save_predictions=save_predictions,

@@ -517,7 +517,8 @@ class ExtractionReport:
                 warn_txt = f'\nwarn = {num_warn}'
             else:
                 warn_txt = ''
-            log_b = np.log(blur_arr)
+            with np.errstate(divide='ignore'):
+                log_b = np.log(blur_arr)
             plt.rc('font', size=14)
             h = sns.histplot(log_b, bins=20)
             plt.title('Quality Control: Blur Burden'+warn_txt)
@@ -1044,6 +1045,7 @@ class _BaseLoader:
         sample_tiles = []
         generator_iterator = generator()
         locations = []
+        num_wrote_to_tfr = 0
         dry_run = kwargs['dry_run'] if 'dry_run' in kwargs else False
 
         for index, tile_dict in enumerate(generator_iterator):
@@ -1067,8 +1069,12 @@ class _BaseLoader:
             if tfrecord_dir:
                 record = sf.io.serialized_record(slidename_bytes, image_string, location[0], location[1])
                 writer.write(record)
+                num_wrote_to_tfr += 1
         if tfrecord_dir:
             writer.close()
+            if not num_wrote_to_tfr:
+                os.remove(join(tfrecord_dir, self.name+".tfrecords"))
+                log.info(f'No tiles extracted for slide {sf.util.green(self.name)}')
         if self.counter_lock is None:
             generator_iterator.close()
 
