@@ -608,7 +608,7 @@ class Trainer:
         }
         if val_dts is not None:
             dataloaders['val'] = val_dts.torch(infinite=False, batch_size=validation_batch_size, augment=False, **vars(interleave_args))
-            mid_train_val_dts = torch_utils.cycle(dataloaders['val'])
+            mid_train_val_dts = torch_utils.cycle(dataloaders['val']) # Mid-training validation dataset
             val_log_msg = '' if not validate_on_batch else f'every {str(validate_on_batch)} steps and '
             log.debug(f'Validation during training: {val_log_msg}at epoch end')
             if validation_steps:
@@ -646,7 +646,6 @@ class Trainer:
                 if phase == 'train':
                     self.model.train()
 
-                    # Setup up mid-training validation
                     # === Loop through training dataset ===============================================================
                     pb = tqdm(total=(steps_per_epoch * self.hp.batch_size), unit='img', leave=False)
                     while step < steps_per_epoch:

@@ -1,3 +1,4 @@
+import os
 import imghdr
 import numpy as np
 import random
@@ -408,7 +409,11 @@ def interleave(tfrecords, prob_weights=None, incl_loc=False, clip=None, infinite
             index_name = join(dirname(tfr), sf.util.path_to_name(tfr)+'.index')
             if not exists(index_name):
                 raise TFRecordsError(f"Could not find index path for TFRecord {tfr}")
-            return np.loadtxt(index_name, dtype=np.int64)
+            if os.stat(index_name).st_size == 0:
+                index = None
+            else:
+                index = np.loadtxt(index_name, dtype=np.int64)
+            return index
 
         pool = mp.dummy.Pool(16)
         if rank == 0:
