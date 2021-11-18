@@ -901,7 +901,11 @@ class Dataset:
             tfr_name = sf.util.path_to_name(tfr)
             if not exists(index_name):
                 raise OSError(f"Could not find index path for TFRecord {tfr}")
-            return tfr_name, np.loadtxt(index_name, dtype=np.int64)
+            if os.stat(index_name).st_size == 0:
+                index = None
+            else:
+                index = np.loadtxt(index_name, dtype=np.int64)
+            return tfr_name, index
 
         pool = DPool(16)
         tfrecords = self.tfrecords()
@@ -1461,6 +1465,8 @@ class Dataset:
         # Assemble dictionary of patients linking to list of slides and outcome labels
         # dataset.labels() ensures no duplicate outcome labels are found in a single patient
         tfrecord_dir_list = self.tfrecords()
+        if not len(tfrecord_dir_list):
+            raise ValueError("Unable to generate training/val split; no tfrecords found")
         tfrecord_dir_list_names = [tfr.split('/')[-1][:-10] for tfr in tfrecord_dir_list]
         patients_dict = {}
         num_warned = 0
