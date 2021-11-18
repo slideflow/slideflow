@@ -488,7 +488,7 @@ class Trainer:
 
     def train(self, train_dts, val_dts, log_frequency=20, validate_on_batch=512, validation_batch_size=32,
               validation_steps=50, starting_epoch=0, ema_observations=20, ema_smoothing=2, use_tensorboard=True,
-              steps_per_epoch_override=0, save_predictions=False, skip_metrics=False, resume_training=None,
+              steps_per_epoch_override=0, save_predictions=False, resume_training=None,
               pretrain='imagenet', checkpoint=None, multi_gpu=True, seed=0):
 
         """Builds and trains a model from hyperparameters.
@@ -508,7 +508,6 @@ class Trainer:
             steps_per_epoch_override (int, optional): Manually set the number of steps per epoch. Defaults to None.
             save_predictions (bool, optional): Save tile, slide, and patient-level predictions at each evaluation.
                 Defaults to False.
-            skip_metrics (bool, optional): Skip validation metrics. Defaults to False.
             resume_training (str, optional): Not applicable to PyTorch backend. Included as argument for compatibility
                 with Tensorflow backend. Will raise NotImplementedError if supplied.
             pretrain (str, optional): Either 'imagenet' or path to Tensorflow model from which to load weights.
@@ -836,50 +835,49 @@ class Trainer:
                     log.info(f"Model saved to {sf.util.green(save_path)}")
 
                     epoch_results = {}
-                    if not skip_metrics:
-                        # Preparations for calculating accuracy/loss in metrics_from_dataset()
-                        def update_corrects(pred, labels, running_corrects):
-                            labels = self.labels_to_device(labels, device)
-                            return self.update_corrects(pred, labels, running_corrects)
+                    # Preparations for calculating accuracy/loss in metrics_from_dataset()
+                    def update_corrects(pred, labels, running_corrects):
+                        labels = self.labels_to_device(labels, device)
+                        return self.update_corrects(pred, labels, running_corrects)
 
-                        def update_loss(pred, labels, running_loss, size):
-                            labels = self.labels_to_device(labels, device)
-                            loss = self.calculate_loss(pred, labels, loss_fn)
-                            return running_loss + (loss.item() * size)
+                    def update_loss(pred, labels, running_loss, size):
+                        labels = self.labels_to_device(labels, device)
+                        loss = self.calculate_loss(pred, labels, loss_fn)
+                        return running_loss + (loss.item() * size)
 
-                        pred_args = types.SimpleNamespace(
-                            multi_outcome=(self.num_outcomes > 1),
-                            update_corrects=update_corrects,
-                            update_loss=update_loss,
-                            running_corrects=(0 if not multi_outcome else {f'out-{o}':0 for o in range(self.num_outcomes)}),
-                            num_slide_features=self.num_slide_features,
-                            slide_input=self.slide_input
-                        )
+                    pred_args = types.SimpleNamespace(
+                        multi_outcome=(self.num_outcomes > 1),
+                        update_corrects=update_corrects,
+                        update_loss=update_loss,
+                        running_corrects=(0 if not multi_outcome else {f'out-{o}':0 for o in range(self.num_outcomes)}),
+                        num_slide_features=self.num_slide_features,
+                        slide_input=self.slide_input
+                    )
 
-                        # Calculate patient/slide/tile - level metrics (AUC, R-squared, C-index, etc)
-                        metrics, acc, loss = sf.statistics.metrics_from_dataset(inference_model,
-                                                                                model_type=self.hp.model_type(),
-                                                                                labels=self.labels,
-                                                                                patients=self.patients,
-                                                                                dataset=dataloaders['val'],
-                                                                                data_dir=self.outdir,
-                                                                                outcome_names=self.outcome_names,
-                                                                                save_predictions=save_predictions,
-                                                                                neptune_run=self.neptune_run,
-                                                                                pred_args=pred_args)
+                    # Calculate patient/slide/tile - level metrics (AUC, R-squared, C-index, etc)
+                    metrics, acc, loss = sf.statistics.metrics_from_dataset(inference_model,
+                                                                            model_type=self.hp.model_type(),
+                                                                            labels=self.labels,
+                                                                            patients=self.patients,
+                                                                            dataset=dataloaders['val'],
+                                                                            data_dir=self.outdir,
+                                                                            outcome_names=self.outcome_names,
+                                                                            save_predictions=save_predictions,
+                                                                            neptune_run=self.neptune_run,
+                                                                            pred_args=pred_args)
 
-                        epoch_metrics = {'loss': epoch_loss}
-                        if self.hp.model_type() == 'categorical':
-                            epoch_metrics.update({'accuracy': acc})
-                        results['epochs'][f'epoch{epoch}'].update({f'val_metrics': epoch_metrics})
+                    epoch_metrics = {'loss': epoch_loss}
+                    if self.hp.model_type() == 'categorical':
+                        epoch_metrics.update({'accuracy': acc})
+                    results['epochs'][f'epoch{epoch}'].update({f'val_metrics': epoch_metrics})
 
-                        self.log_epoch('val', epoch, loss, self.accuracy_description(acc)[0], starttime)
+                    self.log_epoch('val', epoch, loss, self.accuracy_description(acc)[0], starttime)
 
-                        for metric in metrics:
-                            if metrics[metric]['tile'] is None: continue
-                            epoch_results['tile'] = metrics[metric]['tile']
-                            epoch_results['slide'] = metrics[metric]['slide']
-                            epoch_results['patient'] = metrics[metric]['patient']
+                    for metric in metrics:
+                        if metrics[metric]['tile'] is None: continue
+                        epoch_results['tile'] = metrics[metric]['tile']
+                        epoch_results['slide'] = metrics[metric]['slide']
+                        epoch_results['patient'] = metrics[metric]['patient']
                     results['epochs'][f'epoch{epoch}'].update(epoch_results)
                     sf.util.update_results_log(results_log, 'trained_model', {f'epoch{epoch}': results['epochs'][f'epoch{epoch}']})
 
