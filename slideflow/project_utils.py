@@ -217,8 +217,6 @@ def interactive_project_setup(project_folder):
     # Save settings as relative paths
     settings = _project_config(**project)
 
-    sf.util.write_json(settings, join(project_folder, 'settings.json'))
-
     # Write a sample actions.py file
     with open(join(os.path.dirname(os.path.realpath(__file__)), 'sample_actions.py'), 'r') as sample_file:
         sample_actions = sample_file.read()

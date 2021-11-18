@@ -185,10 +185,12 @@ class _ModelParams:
 
     def load_dict(self, hp_dict):
         for key, value in hp_dict.items():
+            if not hasattr(self, key):
+                log.error(f'Unrecognized hyperparameter {key}; unable to load')
             try:
                 setattr(self, key, value)
             except:
-                log.error(f'Unrecognized hyperparameter {key}; unable to load')
+                log.error(f'Error setting hyperparameter {key} to {value}; unable to hyperparameters')
 
     def __str__(self):
         args = sorted(self._get_args(), key=lambda arg: arg.lower())

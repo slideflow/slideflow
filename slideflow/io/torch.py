@@ -262,7 +262,7 @@ def _decode_image(img_string, img_type, standardize=False, normalizer=None, augm
         if np.random.random() < 0.5:
             image = torch.flipud(image)
     if normalizer:
-        image = normalizer.rgb_to_rgb(image.numpy())
+        image = torch.from_numpy(normalizer.rgb_to_rgb(image.numpy()))
     if standardize:
         # Not the same as tensorflow's per_image_standardization
         # Convert back: image = (image + 1) * (255/2)
