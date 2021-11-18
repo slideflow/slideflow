@@ -70,7 +70,7 @@ class Heatmap:
                          rois=rois,
                          roi_method=roi_method,
                          buffer=buffer,
-                         skip_missing_roi=(roi_method == 'inside'))
+                         skip_missing_roi=False)
 
         if not self.slide.loaded_correctly():
             raise HeatmapError(f'Unable to load slide {self.slide.name} for heatmap generation')

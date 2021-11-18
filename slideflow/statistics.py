@@ -465,7 +465,7 @@ class SlideMap:
         df['umap_x'] = x
         df['umap_y'] = y
 
-        if self.labels:
+        if len(self.labels):
             labels = self.labels[ri]
             df['category'] = labels if use_float else pd.Series(labels, dtype='category')
         else:
@@ -962,27 +962,28 @@ def generate_roc(y_true, y_pred, save_dir=None, name='ROC', neptune_run=None):
     precision, recall, pr_thresholds = metrics.precision_recall_curve(y_true, y_pred)
     average_precision = metrics.average_precision_score(y_true, y_pred)
 
-    # Binomial scores
-    def binomial_p(n1, p1, n2, p2):
-        n=n1+n2
-        p0=(n1*p1+n2*p2)/(n1+n2)
-        z = ((p1-p2)-0)/(np.sqrt(2*(p0*(1-p0)/n)))
-        return z, 1-stats.norm.cdf(abs(z))
+    # --- Binomal Z score -----------------------------------------------------
+    #def binomial_p(n1, p1, n2, p2):
+    #    n=n1+n2
+    #    p0=(n1*p1+n2*p2)/(n1+n2)
+    #    z = ((p1-p2)-0)/(np.sqrt(2*(p0*(1-p0)/n)))
+    #    return z, 1-stats.norm.cdf(abs(z))
 
-    def str_num(n):
-        if n < 0.001: return f"{n:.2e}"
-        else: return f"{n:.4f}"
+    #def str_num(n):
+    #    if n < 0.001: return f"{n:.2e}"
+    #    else: return f"{n:.4f}"
 
     # True category = 1
-    n1 = np.sum(y_true)
-    p1 = np.sum(y_pred[np.argwhere(y_true == 1)]) / n1
+    #n1 = np.sum(y_true)
+    #p1 = np.sum(y_pred[np.argwhere(y_true == 1)]) / n1
 
     # True category = 0
-    n2 = y_true.shape[0] - n1
-    p2 = np.sum(y_pred[np.argwhere(y_true == 0)]) / n2
+    #n2 = y_true.shape[0] - n1
+    #p2 = np.sum(y_pred[np.argwhere(y_true == 0)]) / n2
 
-    binom_z, binom_p = binomial_p(n1, p1, n2, p2)
-    log.debug(sf.util.blue("Binomial Z: ") + f"{binom_z:.3f} {sf.util.blue('P')}: {str_num(binom_p)}")
+    #binom_z, binom_p = binomial_p(n1, p1, n2, p2)
+    #log.debug(sf.util.blue("Binomial Z: ") + f"{binom_z:.3f} {sf.util.blue('P')}: {str_num(binom_p)}")
+    # -------------------------------------------------------------------------
 
     # Calculate optimal cutoff via maximizing Youden's J statistic (sens+spec-1, or TPR - FPR)
     try:

@@ -91,6 +91,7 @@ class Project:
             self._settings = project_utils._project_config(**project_kwargs)
             if not exists(root):
                 os.makedirs(root)
+            sf.util.write_json(self._settings, join(self.root, 'settings.json'))
         else:
             raise sf.util.UserError(f"Project folder {root} does not exist.")
 
@@ -2145,13 +2146,15 @@ class Project:
                 last_epoch = max([int(e.split('epoch')[-1]) for e in results_dict[model]['epochs'].keys()
                                                             if 'epoch' in e ])
                 final_train_metrics = results_dict[model]['epochs'][f'epoch{last_epoch}']['train_metrics']
-                final_val_metrics = results_dict[model]['epochs'][f'epoch{last_epoch}']['val_metrics']
                 log.info(f'{sf.util.green(model)} training metrics:')
                 for m in final_train_metrics:
                     log.info(f'{m}: {final_train_metrics[m]}')
-                log.info(f'{sf.util.green(model)} validation metrics:')
-                for m in final_val_metrics:
-                    log.info(f'{m}: {final_val_metrics[m]}')
+
+                if 'val_metrics' in results_dict[model]['epochs'][f'epoch{last_epoch}']:
+                    final_val_metrics = results_dict[model]['epochs'][f'epoch{last_epoch}']['val_metrics']
+                    log.info(f'{sf.util.green(model)} validation metrics:')
+                    for m in final_val_metrics:
+                        log.info(f'{m}: {final_val_metrics[m]}')
             except ValueError:
                 pass
 

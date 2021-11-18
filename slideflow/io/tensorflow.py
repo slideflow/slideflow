@@ -230,6 +230,8 @@ def interleave(tfrecords, img_size, batch_size, prob_weights=None, clip=None, la
         num_parallel_reads (int, optional): Number of parallel reads for each TFRecordDataset. Defaults to 4.
     """
 
+    if not len(tfrecords):
+        raise ValueError("Interleaving failed: no tfrecords found.")
     log.debug(f'Interleaving {len(tfrecords)} tfrecords: infinite={infinite}')
     if num_shards:
         log.debug(f'num_shards={num_shards}, shard_idx={shard_idx}')

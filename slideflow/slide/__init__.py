@@ -1211,8 +1211,10 @@ class WSI(_BaseLoader):
             return None
         elif not len(self.rois):
             info_msg = f"No ROI found for {sf.util.green(self.name)}, using whole slide."
-            if not silent:  log.info(info_msg)
-            else:           log.debug(info_msg)
+            if not silent and roi_method != 'ignore':
+                log.info(info_msg)
+            else:
+                log.debug(info_msg)
             self.roi_method = 'ignore'
 
         mpp_roi_msg = f'{self.mpp} um/px | {len(self.rois)} ROI(s)'
