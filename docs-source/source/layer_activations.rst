@@ -62,7 +62,7 @@ To calculate layer features across an entire slide, the same interface can be ca
 
 .. code-block:: python
 
-    slide = sf.slide.WSI(...)
+    slide = sf.WSI(...)
     interface = Features('/model/path', layers='postconv')
     feature_grid = interface(slide)
 
