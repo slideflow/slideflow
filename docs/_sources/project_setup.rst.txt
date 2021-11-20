@@ -53,7 +53,7 @@ Alternatively, you can use the bundled ``run_project.py`` script to execute proj
 
 To create a new project with this script, or execute functions on an existing project, use the following syntax:
 
-.. code-block:: console
+.. code-block:: bash
 
     james@example:~/slideflow/source$ python3 run_project.py -p /path/to/project/directory
 
@@ -150,6 +150,6 @@ The ``main()`` function contains several example functions. These serve as examp
 
 To execute the commands you have prepared in this file, execute the ``run_project.py`` script pointing to your project directory.
 
-.. code-block:: console
+.. code-block:: bash
 
     james@example:~/slideflow/source$ python3 run_project.py -p /path/to/project/directory

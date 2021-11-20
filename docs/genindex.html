@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Index &mdash; slideflow 1.0.0 documentation</title>
+  <title>Index &mdash; slideflow 1.0.4 documentation</title>
   
 
   
@@ -148,14 +148,15 @@
               <p class="caption" role="heading"><span class="caption-text">Overview</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="pipeline.html">Pipeline Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="project_setup.html">Setting up a Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="validation.html">Validation Planning</a></li>
 <li class="toctree-l1"><a class="reference internal" href="extract_tiles.html">Tile extraction</a></li>
 <li class="toctree-l1"><a class="reference internal" href="training.html">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="evaluation.html">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="layer_activations.html">Features / layer activations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="backend.html">Switching backends</a></li>
 <li class="toctree-l1"><a class="reference internal" href="clam.html">CLAM</a></li>
-<li class="toctree-l1"><a class="reference internal" href="torch.html">PyTorch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
 <li class="toctree-l1"><a class="reference internal" href="appendix.html">Appendix</a></li>
 </ul>
@@ -164,8 +165,8 @@
 <li class="toctree-l1"><a class="reference internal" href="project.html">slideflow.Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="dataset.html">slideflow.dataset</a></li>
 <li class="toctree-l1"><a class="reference internal" href="heatmap.html">slideflow.heatmap</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tfrecords.html">slideflow.io.tensorflow</a></li>
-<li class="toctree-l1"><a class="reference internal" href="reader.html">slideflow.io.torch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="io_tensorflow.html">slideflow.io.tensorflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="io_torch.html">slideflow.io.torch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="model.html">slideflow.model</a></li>
 <li class="toctree-l1"><a class="reference internal" href="mosaic.html">slideflow.mosaic</a></li>
 <li class="toctree-l1"><a class="reference internal" href="slide.html">slideflow.slide</a></li>
@@ -176,6 +177,7 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="tutorial1.html">Tutorial 1: Model training (simple)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorial2.html">Tutorial 2: Model training (advanced)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial3.html">Tutorial 3: Model evaluation &amp; heatmaps</a></li>
 </ul>
 
             
@@ -283,7 +285,7 @@
       <ul>
         <li><a href="heatmap.html#slideflow.Heatmap.__init__">(slideflow.Heatmap method)</a>
 </li>
-        <li><a href="reader.html#slideflow.io.torch.InterleaveIterator.__init__">(slideflow.io.torch.InterleaveIterator method)</a>
+        <li><a href="io_torch.html#slideflow.io.torch.InterleaveIterator.__init__">(slideflow.io.torch.InterleaveIterator method)</a>
 </li>
         <li><a href="model.html#slideflow.model.CPHTrainer.__init__">(slideflow.model.CPHTrainer method)</a>
 </li>
@@ -360,7 +362,7 @@
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="statistics.html#slideflow.statistics.calculate_centroid">calculate_centroid() (in module slideflow.statistics)</a>
 </li>
-      <li><a href="tfrecords.html#slideflow.io.tensorflow.checkpoint_to_tf_model">checkpoint_to_tf_model() (in module slideflow.io.tensorflow)</a>
+      <li><a href="io_tensorflow.html#slideflow.io.tensorflow.checkpoint_to_tf_model">checkpoint_to_tf_model() (in module slideflow.io.tensorflow)</a>
 </li>
       <li><a href="util.html#slideflow.util.choice_input">choice_input() (in module slideflow.util)</a>
 </li>
@@ -398,10 +400,10 @@
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="model.html#slideflow.model.DatasetFeatures">DatasetFeatures (class in slideflow.model)</a>
 </li>
-      <li><a href="tfrecords.html#slideflow.io.tensorflow.detect_tfrecord_format">detect_tfrecord_format() (in module slideflow.io.tensorflow)</a>
+      <li><a href="io_tensorflow.html#slideflow.io.tensorflow.detect_tfrecord_format">detect_tfrecord_format() (in module slideflow.io.tensorflow)</a>
 
       <ul>
-        <li><a href="reader.html#slideflow.io.torch.detect_tfrecord_format">(in module slideflow.io.torch)</a>
+        <li><a href="io_torch.html#slideflow.io.torch.detect_tfrecord_format">(in module slideflow.io.torch)</a>
 </li>
       </ul></li>
       <li><a href="heatmap.html#slideflow.Heatmap.display">display() (slideflow.Heatmap method)</a>
@@ -414,7 +416,7 @@
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="util.html#slideflow.util.TqdmLoggingHandler.emit">emit() (slideflow.util.TqdmLoggingHandler method)</a>
 </li>
-      <li><a href="reader.html#slideflow.io.torch.EmptyTFRecordsError">EmptyTFRecordsError</a>
+      <li><a href="io_torch.html#slideflow.io.torch.EmptyTFRecordsError">EmptyTFRecordsError</a>
 </li>
       <li><a href="project.html#slideflow.Project.eval_dir">eval_dir (slideflow.Project property)</a>
 </li>
@@ -530,7 +532,7 @@
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="statistics.html#slideflow.statistics.get_centroid_index">get_centroid_index() (in module slideflow.statistics)</a>
 </li>
-      <li><a href="reader.html#slideflow.io.torch.InterleaveIterator.get_label">get_label() (slideflow.io.torch.InterleaveIterator method)</a>
+      <li><a href="io_torch.html#slideflow.io.torch.InterleaveIterator.get_label">get_label() (slideflow.io.torch.InterleaveIterator method)</a>
 </li>
       <li><a href="util.html#slideflow.util.get_model_config">get_model_config() (in module slideflow.util)</a>
 </li>
@@ -542,10 +544,10 @@
 </li>
       <li><a href="util.html#slideflow.util.get_slides_from_model_manifest">get_slides_from_model_manifest() (in module slideflow.util)</a>
 </li>
-      <li><a href="tfrecords.html#slideflow.io.tensorflow.get_tfrecord_parser">get_tfrecord_parser() (in module slideflow.io.tensorflow)</a>
+      <li><a href="io_tensorflow.html#slideflow.io.tensorflow.get_tfrecord_parser">get_tfrecord_parser() (in module slideflow.io.tensorflow)</a>
 
       <ul>
-        <li><a href="reader.html#slideflow.io.torch.get_tfrecord_parser">(in module slideflow.io.torch)</a>
+        <li><a href="io_torch.html#slideflow.io.torch.get_tfrecord_parser">(in module slideflow.io.torch)</a>
 </li>
       </ul></li>
       <li><a href="statistics.html#slideflow.SlideMap.get_tiles_in_area">get_tiles_in_area() (slideflow.SlideMap method)</a>
@@ -568,17 +570,17 @@
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="util.html#slideflow.util.int_input">int_input() (in module slideflow.util)</a>
 </li>
-      <li><a href="tfrecords.html#slideflow.io.tensorflow.interleave">interleave() (in module slideflow.io.tensorflow)</a>
+      <li><a href="io_tensorflow.html#slideflow.io.tensorflow.interleave">interleave() (in module slideflow.io.tensorflow)</a>
 
       <ul>
-        <li><a href="reader.html#slideflow.io.torch.interleave">(in module slideflow.io.torch)</a>
+        <li><a href="io_torch.html#slideflow.io.torch.interleave">(in module slideflow.io.torch)</a>
 </li>
       </ul></li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="reader.html#slideflow.io.torch.interleave_dataloader">interleave_dataloader() (in module slideflow.io.torch)</a>
+      <li><a href="io_torch.html#slideflow.io.torch.interleave_dataloader">interleave_dataloader() (in module slideflow.io.torch)</a>
 </li>
-      <li><a href="reader.html#slideflow.io.torch.InterleaveIterator">InterleaveIterator (class in slideflow.io.torch)</a>
+      <li><a href="io_torch.html#slideflow.io.torch.InterleaveIterator">InterleaveIterator (class in slideflow.io.torch)</a>
 </li>
       <li><a href="dataset.html#slideflow.Dataset.is_float">is_float() (slideflow.Dataset method)</a>
 </li>
@@ -588,7 +590,7 @@
 <h2 id="J">J</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="tfrecords.html#slideflow.io.tensorflow.join_tfrecord">join_tfrecord() (in module slideflow.io.tensorflow)</a>
+      <li><a href="io_tensorflow.html#slideflow.io.tensorflow.join_tfrecord">join_tfrecord() (in module slideflow.io.tensorflow)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -602,7 +604,7 @@
 </li>
       <li><a href="statistics.html#slideflow.SlideMap.label_by_tile_meta">label_by_tile_meta() (slideflow.SlideMap method)</a>
 </li>
-      <li><a href="reader.html#slideflow.io.torch.InterleaveIterator.label_shape">label_shape (slideflow.io.torch.InterleaveIterator property)</a>
+      <li><a href="io_torch.html#slideflow.io.torch.InterleaveIterator.label_shape">label_shape (slideflow.io.torch.InterleaveIterator property)</a>
 </li>
       <li><a href="dataset.html#slideflow.Dataset.labels">labels() (slideflow.Dataset method)</a>
 </li>
@@ -646,7 +648,7 @@
 </li>
       <li><a href="model.html#slideflow.model.DatasetFeatures.map_to_predictions">map_to_predictions() (slideflow.model.DatasetFeatures method)</a>
 </li>
-      <li><a href="tfrecords.html#slideflow.io.tensorflow.merge_split_tfrecords">merge_split_tfrecords() (in module slideflow.io.tensorflow)</a>
+      <li><a href="io_tensorflow.html#slideflow.io.tensorflow.merge_split_tfrecords">merge_split_tfrecords() (in module slideflow.io.tensorflow)</a>
 </li>
       <li><a href="statistics.html#slideflow.statistics.metrics_from_dataset">metrics_from_dataset() (in module slideflow.statistics)</a>
 </li>
@@ -668,16 +670,16 @@
     module
 
       <ul>
-        <li><a href="tfrecords.html#module-slideflow.io.tensorflow">slideflow.io.tensorflow</a>
+        <li><a href="io_tensorflow.html#module-slideflow.io.tensorflow">slideflow.io.tensorflow</a>
 </li>
-        <li><a href="reader.html#module-slideflow.io.torch">slideflow.io.torch</a>
+        <li><a href="io_torch.html#module-slideflow.io.torch">slideflow.io.torch</a>
 </li>
         <li><a href="util.html#module-slideflow.util">slideflow.util</a>
 </li>
       </ul></li>
       <li><a href="mosaic.html#slideflow.Mosaic">Mosaic (class in slideflow)</a>
 </li>
-      <li><a href="tfrecords.html#slideflow.io.tensorflow.multi_image_example">multi_image_example() (in module slideflow.io.tensorflow)</a>
+      <li><a href="io_tensorflow.html#slideflow.io.tensorflow.multi_image_example">multi_image_example() (in module slideflow.io.tensorflow)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -705,7 +707,7 @@
 <h2 id="P">P</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="tfrecords.html#slideflow.io.tensorflow.parser_from_labels">parser_from_labels() (in module slideflow.io.tensorflow)</a>
+      <li><a href="io_tensorflow.html#slideflow.io.tensorflow.parser_from_labels">parser_from_labels() (in module slideflow.io.tensorflow)</a>
 </li>
       <li><a href="util.html#slideflow.util.path_input">path_input() (in module slideflow.util)</a>
 </li>
@@ -733,7 +735,7 @@
         <li><a href="slide.html#slideflow.slide.WSI.preview">(slideflow.slide.WSI method)</a>
 </li>
       </ul></li>
-      <li><a href="tfrecords.html#slideflow.io.tensorflow.print_tfrecord">print_tfrecord() (in module slideflow.io.tensorflow)</a>
+      <li><a href="io_tensorflow.html#slideflow.io.tensorflow.print_tfrecord">print_tfrecord() (in module slideflow.io.tensorflow)</a>
 </li>
       <li><a href="util.html#slideflow.util.ProgressBar">ProgressBar (class in slideflow.util)</a>
 </li>
@@ -761,7 +763,7 @@
 </li>
       <li><a href="statistics.html#slideflow.statistics.read_predictions">read_predictions() (in module slideflow.statistics)</a>
 </li>
-      <li><a href="reader.html#slideflow.io.torch.InterleaveIterator.reinforce_type">reinforce_type() (slideflow.io.torch.InterleaveIterator method)</a>
+      <li><a href="io_torch.html#slideflow.io.torch.InterleaveIterator.reinforce_type">reinforce_type() (slideflow.io.torch.InterleaveIterator method)</a>
 </li>
       <li><a href="dataset.html#slideflow.Dataset.remove_filter">remove_filter() (slideflow.Dataset method)</a>
 </li>
@@ -809,21 +811,21 @@
 </li>
       <li><a href="project.html#slideflow.Project.select_gpu">select_gpu() (slideflow.Project method)</a>
 </li>
-      <li><a href="tfrecords.html#slideflow.io.tensorflow.serialized_record">serialized_record() (in module slideflow.io.tensorflow)</a>
+      <li><a href="io_tensorflow.html#slideflow.io.tensorflow.serialized_record">serialized_record() (in module slideflow.io.tensorflow)</a>
 
       <ul>
-        <li><a href="reader.html#slideflow.io.torch.serialized_record">(in module slideflow.io.torch)</a>
+        <li><a href="io_torch.html#slideflow.io.torch.serialized_record">(in module slideflow.io.torch)</a>
 </li>
       </ul></li>
       <li><a href="mosaic.html#slideflow.Mosaic.show">show() (slideflow.Mosaic method)</a>
 </li>
       <li><a href="statistics.html#slideflow.SlideMap.show_neighbors">show_neighbors() (slideflow.SlideMap method)</a>
 </li>
-      <li><a href="tfrecords.html#slideflow.io.tensorflow.shuffle_tfrecord">shuffle_tfrecord() (in module slideflow.io.tensorflow)</a>
+      <li><a href="io_tensorflow.html#slideflow.io.tensorflow.shuffle_tfrecord">shuffle_tfrecord() (in module slideflow.io.tensorflow)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="tfrecords.html#slideflow.io.tensorflow.shuffle_tfrecords_by_dir">shuffle_tfrecords_by_dir() (in module slideflow.io.tensorflow)</a>
+      <li><a href="io_tensorflow.html#slideflow.io.tensorflow.shuffle_tfrecords_by_dir">shuffle_tfrecords_by_dir() (in module slideflow.io.tensorflow)</a>
 </li>
       <li><a href="dataset.html#slideflow.Dataset.slide_paths">slide_paths() (slideflow.Dataset method)</a>
 </li>
@@ -837,14 +839,14 @@
     slideflow.io.tensorflow
 
       <ul>
-        <li><a href="tfrecords.html#module-slideflow.io.tensorflow">module</a>
+        <li><a href="io_tensorflow.html#module-slideflow.io.tensorflow">module</a>
 </li>
       </ul></li>
       <li>
     slideflow.io.torch
 
       <ul>
-        <li><a href="reader.html#module-slideflow.io.torch">module</a>
+        <li><a href="io_torch.html#module-slideflow.io.torch">module</a>
 </li>
       </ul></li>
       <li>
@@ -860,7 +862,7 @@
 </li>
       <li><a href="project.html#slideflow.Project.sources">sources (slideflow.Project property)</a>
 </li>
-      <li><a href="tfrecords.html#slideflow.io.tensorflow.split_tfrecord">split_tfrecord() (in module slideflow.io.tensorflow)</a>
+      <li><a href="io_tensorflow.html#slideflow.io.tensorflow.split_tfrecord">split_tfrecord() (in module slideflow.io.tensorflow)</a>
 </li>
       <li><a href="dataset.html#slideflow.Dataset.split_tfrecords_by_roi">split_tfrecords_by_roi() (slideflow.Dataset method)</a>
 </li>
@@ -880,7 +882,7 @@
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="dataset.html#slideflow.Dataset.tensorflow">tensorflow() (slideflow.Dataset method)</a>
 </li>
-      <li><a href="tfrecords.html#slideflow.io.tensorflow.tfrecord_example">tfrecord_example() (in module slideflow.io.tensorflow)</a>
+      <li><a href="io_tensorflow.html#slideflow.io.tensorflow.tfrecord_example">tfrecord_example() (in module slideflow.io.tensorflow)</a>
 </li>
       <li><a href="dataset.html#slideflow.Dataset.tfrecord_report">tfrecord_report() (slideflow.Dataset method)</a>
 
@@ -896,7 +898,7 @@
 </li>
       <li><a href="dataset.html#slideflow.Dataset.tfrecords_from_tiles">tfrecords_from_tiles() (slideflow.Dataset method)</a>
 </li>
-      <li><a href="reader.html#slideflow.io.torch.TFRecordsError">TFRecordsError</a>, <a href="tfrecords.html#slideflow.io.tensorflow.TFRecordsError">[1]</a>
+      <li><a href="io_tensorflow.html#slideflow.io.tensorflow.TFRecordsError">TFRecordsError</a>, <a href="io_torch.html#slideflow.io.torch.TFRecordsError">[1]</a>
 </li>
       <li><a href="slide.html#slideflow.slide.TMA.thumb">thumb() (slideflow.slide.TMA method)</a>
 
@@ -936,7 +938,7 @@
 </li>
       <li><a href="dataset.html#slideflow.Dataset.training_validation_split">training_validation_split() (slideflow.Dataset method)</a>
 </li>
-      <li><a href="tfrecords.html#slideflow.io.tensorflow.transform_tfrecord">transform_tfrecord() (in module slideflow.io.tensorflow)</a>
+      <li><a href="io_tensorflow.html#slideflow.io.tensorflow.transform_tfrecord">transform_tfrecord() (in module slideflow.io.tensorflow)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -954,9 +956,9 @@
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="util.html#slideflow.util.update_results_log">update_results_log() (in module slideflow.util)</a>
 </li>
-      <li><a href="tfrecords.html#slideflow.io.tensorflow.update_tfrecord">update_tfrecord() (in module slideflow.io.tensorflow)</a>
+      <li><a href="io_tensorflow.html#slideflow.io.tensorflow.update_tfrecord">update_tfrecord() (in module slideflow.io.tensorflow)</a>
 </li>
-      <li><a href="tfrecords.html#slideflow.io.tensorflow.update_tfrecord_dir">update_tfrecord_dir() (in module slideflow.io.tensorflow)</a>
+      <li><a href="io_tensorflow.html#slideflow.io.tensorflow.update_tfrecord_dir">update_tfrecord_dir() (in module slideflow.io.tensorflow)</a>
 </li>
       <li><a href="util.html#slideflow.util.UserError">UserError</a>
 </li>

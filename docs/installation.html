@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>PyTorch &mdash; slideflow 1.0.0 documentation</title>
+  <title>Installation &mdash; slideflow 1.0.4 documentation</title>
   
 
   
@@ -31,8 +31,8 @@
   <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Troubleshooting" href="troubleshooting.html" />
-    <link rel="prev" title="CLAM" href="clam.html" />
+    <link rel="next" title="Setting up a Project" href="project_setup.html" />
+    <link rel="prev" title="Pipeline Overview" href="pipeline.html" />
   <!-- Google Analytics -->
   
   <!-- End Google Analytics -->
@@ -150,14 +150,15 @@
               <p class="caption" role="heading"><span class="caption-text">Overview</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="pipeline.html">Pipeline Overview</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="project_setup.html">Setting up a Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="validation.html">Validation Planning</a></li>
 <li class="toctree-l1"><a class="reference internal" href="extract_tiles.html">Tile extraction</a></li>
 <li class="toctree-l1"><a class="reference internal" href="training.html">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="evaluation.html">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="layer_activations.html">Features / layer activations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="backend.html">Switching backends</a></li>
 <li class="toctree-l1"><a class="reference internal" href="clam.html">CLAM</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">PyTorch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
 <li class="toctree-l1"><a class="reference internal" href="appendix.html">Appendix</a></li>
 </ul>
@@ -166,8 +167,8 @@
 <li class="toctree-l1"><a class="reference internal" href="project.html">slideflow.Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="dataset.html">slideflow.dataset</a></li>
 <li class="toctree-l1"><a class="reference internal" href="heatmap.html">slideflow.heatmap</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tfrecords.html">slideflow.io.tensorflow</a></li>
-<li class="toctree-l1"><a class="reference internal" href="reader.html">slideflow.io.torch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="io_tensorflow.html">slideflow.io.tensorflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="io_torch.html">slideflow.io.torch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="model.html">slideflow.model</a></li>
 <li class="toctree-l1"><a class="reference internal" href="mosaic.html">slideflow.mosaic</a></li>
 <li class="toctree-l1"><a class="reference internal" href="slide.html">slideflow.slide</a></li>
@@ -178,6 +179,7 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="tutorial1.html">Tutorial 1: Model training (simple)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorial2.html">Tutorial 2: Model training (advanced)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial3.html">Tutorial 3: Model evaluation &amp; heatmaps</a></li>
 </ul>
 
             
@@ -218,13 +220,13 @@
       </li>
 
         
-      <li>PyTorch</li>
+      <li>Installation</li>
     
     
       <li class="pytorch-breadcrumbs-aside">
         
             
-            <a href="_sources/torch.rst.txt" rel="nofollow"><img src="_static/images/view-page-source-icon.svg"></a>
+            <a href="_sources/installation.rst.txt" rel="nofollow"><img src="_static/images/view-page-source-icon.svg"></a>
           
         
       </li>
@@ -250,38 +252,62 @@
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
               
-  <div class="section" id="pytorch">
-<h1>PyTorch<a class="headerlink" href="#pytorch" title="Permalink to this headline">¶</a></h1>
-<p>While the default backend for this package is Tensorflow/Keras, it also includes a PyTorch backend, including a dedicated TFRecord reader/writer that ensures saved image tiles can be served to both Tensorflow or PyTorch models in cross-compatible fashion.</p>
-<p>If using the Tensorflow backend, PyTorch does not need to be installed; the reverse is true as well.</p>
-<p>To switch backends, simply set the environmental variable <code class="docutils literal notranslate"><span class="pre">SF_BACKEND</span></code> equal to either <code class="docutils literal notranslate"><span class="pre">torch</span></code> or <code class="docutils literal notranslate"><span class="pre">tensorflow</span></code>:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">export</span> <span class="nv">SF_BACKEND</span><span class="o">=</span>torch
+  <div class="section" id="installation">
+<h1>Installation<a class="headerlink" href="#installation" title="Permalink to this headline">¶</a></h1>
+<p>Slideflow has been tested and is supported on the following systems:</p>
+<ul class="simple">
+<li><p>Python 3.7 - 3.9</p></li>
+<li><p>Ubuntu 18.04 or later</p></li>
+<li><p>CentOS 7 and 8</p></li>
+</ul>
+<div class="section" id="software-requirements">
+<h2>Software Requirements<a class="headerlink" href="#software-requirements" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><p><a class="reference external" href="https://openslide.org/download/">OpenSlide</a></p></li>
+<li><p><a class="reference external" href="https://libvips.github.io/libvips/">Libvips 8.9+</a></p></li>
+<li><p><a class="reference external" href="https://www.ibm.com/docs/en/icos/12.10.0?topic=v12100-installing-cplex-optimization-studio">CPLEX 20.1.0</a> with <a class="reference external" href="https://www.ibm.com/docs/en/icos/12.10.0?topic=cplex-setting-up-python-api">Python API</a> [<em>optional</em>] - used for preserved-site cross-validation</p></li>
+<li><p><a class="reference external" href="https://qupath.github.io">QuPath</a> [<em>optional</em>] - used for ROI annotations</p></li>
+<li><p><a class="reference external" href="https://www.tensorflow.org/install">Tensorflow 2.5+</a> or <a class="reference external" href="https://pytorch.org/get-started/locally/">PyTorch 1.9+</a></p></li>
+</ul>
+</div>
+<div class="section" id="download-with-pip">
+<h2>Download with pip<a class="headerlink" href="#download-with-pip" title="Permalink to this headline">¶</a></h2>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Update to latest pip</span>
+$ pip install --upgrade pip
+
+<span class="c1"># Current stable release</span>
+$ pip install slideflow
 </pre></div>
 </div>
-<div class="section" id="tfrecord-dataloader">
-<h2>TFRecord DataLoader<a class="headerlink" href="#tfrecord-dataloader" title="Permalink to this headline">¶</a></h2>
-<p>In addition to using the built-in training tools, you can use tiles that have been extracted with Slideflow with completely external projects. The <a class="reference internal" href="dataset.html#slideflow.Dataset" title="slideflow.Dataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.Dataset</span></code></a> class includes both <code class="xref py py-func docutils literal notranslate"><span class="pre">torch()</span></code> and <code class="xref py py-func docutils literal notranslate"><span class="pre">tensorflow()</span></code> functions to prepare a DataLoader or Tensorflow tf.data.Dataset instance that interleaves and processs images from stored TFRecords.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">P</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">Project</span><span class="p">(</span><span class="s1">&#39;/project/path&#39;</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
-<span class="n">dts</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">dataset</span><span class="p">(</span><span class="n">tile_px</span><span class="o">=</span><span class="mi">299</span><span class="p">,</span> <span class="n">tile_um</span><span class="o">=</span><span class="mi">302</span><span class="p">,</span> <span class="n">filters</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+</div>
+<div class="section" id="run-a-docker-container">
+<h2>Run a Docker container<a class="headerlink" href="#run-a-docker-container" title="Permalink to this headline">¶</a></h2>
+<p>The <a class="reference external" href="https://hub.docker.com/repository/docker/jamesdolezal/slideflow">Slideflow docker images</a> have been pre-configured with OpenSlide, Libvips, and either PyTorch 1.10 or Tensorflow 2.7. Using a preconfigured <a class="reference external" href="https://docs.docker.com/install/">Docker</a> container is the easiest way to get started with compatible dependencies and GPU support.</p>
+<p>To install with the Tensorflow 2.7 backend:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ docker pull jamesdolezal/slideflow:latest-tf
+$ docker run -it --gpus all jamesdolezal/slideflow:latest-tf
 </pre></div>
 </div>
-<p>If you want to perform any balancing, use the <code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Datset.balance()</span></code> method:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">dts</span> <span class="o">=</span> <span class="n">dts</span><span class="o">.</span><span class="n">balance</span><span class="p">(</span><span class="s1">&#39;HPV_status&#39;</span><span class="p">,</span> <span class="n">strategy</span><span class="o">=</span><span class="s1">&#39;category&#39;</span><span class="p">)</span>
+<p>To install with the PyTorch 1.10 backend:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ docker pull jamesdolezal/slideflow:latest-torch
+$ docker run -it --shm-size<span class="o">=</span>2g --gpus all jamesdolezal/slideflow:latest-torch
 </pre></div>
 </div>
-<p>Finally, use the <a class="reference internal" href="dataset.html#slideflow.Dataset.torch" title="slideflow.Dataset.torch"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Dataset.torch()</span></code></a> method to create a DataLoader object:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">dataloader</span> <span class="o">=</span> <span class="n">dts</span><span class="o">.</span><span class="n">torch</span><span class="p">(</span>
-    <span class="n">labels</span>       <span class="o">=</span> <span class="o">...</span>       <span class="c1"># Your outcome label</span>
-    <span class="n">batch_size</span>   <span class="o">=</span> <span class="mi">64</span><span class="p">,</span>       <span class="c1"># Batch size</span>
-    <span class="n">num_workers</span>  <span class="o">=</span> <span class="mi">6</span><span class="p">,</span>        <span class="c1"># Number of workers reading tfrecords</span>
-    <span class="n">infinite</span>     <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>     <span class="c1"># True for training, False for validation</span>
-    <span class="n">augment</span>      <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>     <span class="c1"># Flip/rotate/compression augmentation</span>
-    <span class="n">standardize</span>  <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>     <span class="c1"># Standardize images: mean 0, variance of 1</span>
-    <span class="n">pin_memory</span>   <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>    <span class="c1"># Pin memory to GPUs</span>
-<span class="p">)</span>
+</div>
+<div class="section" id="build-from-source">
+<h2>Build from source<a class="headerlink" href="#build-from-source" title="Permalink to this headline">¶</a></h2>
+<p>To build Slideflow from source, clone the repository from the project <a class="reference external" href="https://github.com/jamesdolezal/slideflow">Github page</a>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ git clone https://github.com/jamesdolezal/slideflow
+$ <span class="nb">cd</span> slideflow
+$ pip install -r requirements.txt
+$ python setup.py bdist_wheel
+$ pip install dist/slideflow-1.X.X-py3-any.whl
 </pre></div>
 </div>
-<p>The returned dataloader can then be used directly with your external PyTorch applications.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>A bug in the pixman library (version=0.38) will corrupt downsampled slide images, resulting in large black boxes across the slide. We have provided a patch for version 0.38 that has been tested for Ubuntu, which is provided in the project <a class="reference external" href="https://github.com/jamesdolezal/slideflow">Github page</a> (<code class="docutils literal notranslate"><span class="pre">pixman_repair.sh</span></code>), although it may not be suitable for all environments and we make no guarantees regarding its use. The <a class="reference external" href="https://hub.docker.com/repository/docker/jamesdolezal/slideflow">Slideflow docker images</a> already have this applied. If you are installing from source, have pixman version 0.38, and are unable to apply this patch, the use of downsampled image layers must be disabled to avoid corruption (pass <code class="docutils literal notranslate"><span class="pre">enable_downsample=False</span></code> to tile extraction functions).</p>
+</div>
 </div>
 </div>
 
@@ -293,10 +319,10 @@
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="troubleshooting.html" class="btn btn-neutral float-right" title="Troubleshooting" accesskey="n" rel="next">Next <img src="_static/images/chevron-right-orange.svg" class="next-page"></a>
+        <a href="project_setup.html" class="btn btn-neutral float-right" title="Setting up a Project" accesskey="n" rel="next">Next <img src="_static/images/chevron-right-orange.svg" class="next-page"></a>
       
       
-        <a href="clam.html" class="btn btn-neutral" title="CLAM" accesskey="p" rel="prev"><img src="_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
+        <a href="pipeline.html" class="btn btn-neutral" title="Pipeline Overview" accesskey="p" rel="prev"><img src="_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
       
     </div>
   
@@ -328,8 +354,11 @@
           <div class="pytorch-right-menu" id="pytorch-right-menu">
             <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
               <ul>
-<li><a class="reference internal" href="#">PyTorch</a><ul>
-<li><a class="reference internal" href="#tfrecord-dataloader">TFRecord DataLoader</a></li>
+<li><a class="reference internal" href="#">Installation</a><ul>
+<li><a class="reference internal" href="#software-requirements">Software Requirements</a></li>
+<li><a class="reference internal" href="#download-with-pip">Download with pip</a></li>
+<li><a class="reference internal" href="#run-a-docker-container">Run a Docker container</a></li>
+<li><a class="reference internal" href="#build-from-source">Build from source</a></li>
 </ul>
 </li>
 </ul>

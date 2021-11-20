@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>slideflow.io.torch &mdash; slideflow 1.0.0 documentation</title>
+  <title>slideflow.io.torch &mdash; slideflow 1.0.4 documentation</title>
   
 
   
@@ -32,7 +32,7 @@
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="slideflow.model" href="model.html" />
-    <link rel="prev" title="slideflow.io.tensorflow" href="tfrecords.html" />
+    <link rel="prev" title="slideflow.io.tensorflow" href="io_tensorflow.html" />
   <!-- Google Analytics -->
   
   <!-- End Google Analytics -->
@@ -150,14 +150,15 @@
               <p class="caption" role="heading"><span class="caption-text">Overview</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="pipeline.html">Pipeline Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="project_setup.html">Setting up a Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="validation.html">Validation Planning</a></li>
 <li class="toctree-l1"><a class="reference internal" href="extract_tiles.html">Tile extraction</a></li>
 <li class="toctree-l1"><a class="reference internal" href="training.html">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="evaluation.html">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="layer_activations.html">Features / layer activations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="backend.html">Switching backends</a></li>
 <li class="toctree-l1"><a class="reference internal" href="clam.html">CLAM</a></li>
-<li class="toctree-l1"><a class="reference internal" href="torch.html">PyTorch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
 <li class="toctree-l1"><a class="reference internal" href="appendix.html">Appendix</a></li>
 </ul>
@@ -166,7 +167,7 @@
 <li class="toctree-l1"><a class="reference internal" href="project.html">slideflow.Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="dataset.html">slideflow.dataset</a></li>
 <li class="toctree-l1"><a class="reference internal" href="heatmap.html">slideflow.heatmap</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tfrecords.html">slideflow.io.tensorflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="io_tensorflow.html">slideflow.io.tensorflow</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">slideflow.io.torch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="model.html">slideflow.model</a></li>
 <li class="toctree-l1"><a class="reference internal" href="mosaic.html">slideflow.mosaic</a></li>
@@ -178,6 +179,7 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="tutorial1.html">Tutorial 1: Model training (simple)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorial2.html">Tutorial 2: Model training (advanced)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial3.html">Tutorial 3: Model evaluation &amp; heatmaps</a></li>
 </ul>
 
             
@@ -224,7 +226,7 @@
       <li class="pytorch-breadcrumbs-aside">
         
             
-            <a href="_sources/reader.rst.txt" rel="nofollow"><img src="_static/images/view-page-source-icon.svg"></a>
+            <a href="_sources/io_torch.rst.txt" rel="nofollow"><img src="_static/images/view-page-source-icon.svg"></a>
           
         
       </li>
@@ -257,12 +259,6 @@ input for PyTorch models. Its TFRecord reader is a modified and optimized versio
 <a class="reference external" href="https://github.com/vahidk/tfrecord">https://github.com/vahidk/tfrecord</a>, included as the module <code class="xref py py-mod docutils literal notranslate"><span class="pre">slideflow.tfrecord</span></code>. TFRecord file reading and
 interleaving is supervised by <a class="reference internal" href="#slideflow.io.torch.interleave" title="slideflow.io.torch.interleave"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.io.torch.interleave()</span></code></a>, while the
 <a class="reference internal" href="#slideflow.io.torch.interleave_dataloader" title="slideflow.io.torch.interleave_dataloader"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.io.torch.interleave_dataloader()</span></code></a> function provides a PyTorch DataLoader object which can be directly used.</p>
-<div class="admonition warning">
-<p class="admonition-title">Warning</p>
-<p>PyTorch support is under development. The interleaving functions in this module are currently optimized for
-throughput at the expense of memory usage; if memory usage becomes excessive with large datasets, consider decreasing
-<cite>num_workers</cite> and <cite>chunk_size</cite>.</p>
-</div>
 <span class="target" id="module-slideflow.io.torch"></span><dl class="py exception">
 <dt class="sig sig-object py" id="slideflow.io.torch.EmptyTFRecordsError">
 <em class="property"><span class="pre">exception</span> </em><span class="sig-prename descclassname"><span class="pre">slideflow.io.torch.</span></span><span class="sig-name descname"><span class="pre">EmptyTFRecordsError</span></span><a class="headerlink" href="#slideflow.io.torch.EmptyTFRecordsError" title="Permalink to this definition">¶</a></dt>
@@ -455,7 +451,7 @@ by a TFRecordWriter.</p>
         <a href="model.html" class="btn btn-neutral float-right" title="slideflow.model" accesskey="n" rel="next">Next <img src="_static/images/chevron-right-orange.svg" class="next-page"></a>
       
       
-        <a href="tfrecords.html" class="btn btn-neutral" title="slideflow.io.tensorflow" accesskey="p" rel="prev"><img src="_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
+        <a href="io_tensorflow.html" class="btn btn-neutral" title="slideflow.io.tensorflow" accesskey="p" rel="prev"><img src="_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
       
     </div>
   

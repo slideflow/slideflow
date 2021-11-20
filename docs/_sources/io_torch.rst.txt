@@ -9,10 +9,5 @@ https://github.com/vahidk/tfrecord, included as the module :mod:`slideflow.tfrec
 interleaving is supervised by :func:`slideflow.io.torch.interleave`, while the
 :func:`slideflow.io.torch.interleave_dataloader` function provides a PyTorch DataLoader object which can be directly used.
 
-.. warning::
-    PyTorch support is under development. The interleaving functions in this module are currently optimized for
-    throughput at the expense of memory usage; if memory usage becomes excessive with large datasets, consider decreasing
-    `num_workers` and `chunk_size`.
-
 .. automodule:: slideflow.io.torch
     :members:
