@@ -38,6 +38,6 @@ If you would like to directly interact with the calculated heatmap data, create 
 
     heatmap = sf.Heatmap(
         slide='/path/to/slide.svs',
-        model='/path/to/model.h5')
+        model='/path/to/model')
 
 The spatial map of logits, as calculated across the input slide, can be accessed through ``heatmap.logits``. The spatial map of post-convolution, penultimate activations can be accessed through ``heatmap.postconv``. The heatmap can be saved with ``heatmap.save('/path/')``.

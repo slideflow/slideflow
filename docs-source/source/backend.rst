@@ -1,13 +1,13 @@
-PyTorch
-=======
+Switching backends
+==================
 
-While the default backend for this package is Tensorflow/Keras, it also includes a PyTorch backend, including a dedicated TFRecord reader/writer that ensures saved image tiles can be served to both Tensorflow or PyTorch models in cross-compatible fashion.
+The default backend for this package is Tensorflow/Keras, but a full PyTorch backend is also included, with a dedicated TFRecord reader/writer that ensures saved image tiles can be served to both Tensorflow and PyTorch models in cross-compatible fashion.
 
 If using the Tensorflow backend, PyTorch does not need to be installed; the reverse is true as well.
 
 To switch backends, simply set the environmental variable ``SF_BACKEND`` equal to either ``torch`` or ``tensorflow``:
 
-.. code-block:: bash
+.. code-block:: console
 
     export SF_BACKEND=torch
 

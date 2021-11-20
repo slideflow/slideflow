@@ -24,8 +24,8 @@ The current implementation has been developed and tested in Python 3.7/3.8, usin
    training
    evaluation
    layer_activations
+   backend
    clam
-   torch
    troubleshooting
    appendix
 

@@ -102,6 +102,8 @@ Heatmaps are saved by default in the ``project_folder/heatmaps`` folder. A separ
 		 ...
 	...
 
+.. image:: heatmap_example.png
+
 From a single slide
 -------------------
 
@@ -150,5 +152,3 @@ Heatmap interpolation and colorscale settings are passed as additional arguments
     ...     vmax=30,
     ...     show_roi=False
     ... )
-
-.. image:: heatmap_example.png
