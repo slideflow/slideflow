@@ -8,11 +8,13 @@ There are two methods for configuring model hyperparameters. If you intend to tr
 
 .. code-block:: python
 
-    hp = sf.model.ModelParams(
+    from slideflow.model import ModelParams
+
+    hp = ModelParams(
         epochs=[1, 5],
         model='xception',
         loss='sparse_categorical_crossentropy',
-        learning_rate=0.00001,
+        learning_rate=0.0001,
         batch_size=8)
 
 Alternatively, if you intend to perform a sweep across multiple hyperparameter combinations, use the ``create_hyperparameter_sweep`` function to automatically save a sweep to a TSV file. For example, the following would set up a batch_train file with two combinations; the first with a learning rate of 0.01, and the second with a learning rate of 0.001:
@@ -107,7 +109,7 @@ Cox Proportional Hazards (CPH) models
 Models can also be trained to a time series outcome using CPH and negative log likelihood loss. For CPH models, use 'negative_log_likelihood' loss and set ``outcome_label_header`` equal to the annotation column indicating event *time*. Specify the event *type* (0 or 1) by passing the event type annotation column to the argument ``input_header``. If you are using multiple clinical inputs, the first header passed to ``input_header`` must be event type. CPH models are not compatible with multiple outcomes.
 
 .. note::
-    CPH models are currently unavailable with the Tensorflow backend. PyTorch support for CPH outcomes is in development.
+    CPH models are currently unavailable with the PyTorch backend. PyTorch support for CPH outcomes is in development.
 
 Distributed training across GPUs
 ********************************

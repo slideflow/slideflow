@@ -403,11 +403,11 @@ class Trainer:
 
         # Generate performance metrics
         log.info('Calculating performance metrics...')
-        metrics, acc, loss = sf.statistics.metrics_from_dataset(histogram=histogram,
-                                                                verbose=True,
-                                                                save_predictions=save_predictions,
-                                                                pred_args=pred_args,
-                                                                **vars(metric_kwargs))
+        metrics, acc, loss = sf.stats.metrics_from_dataset(histogram=histogram,
+                                                           verbose=True,
+                                                           save_predictions=save_predictions,
+                                                           pred_args=pred_args,
+                                                           **vars(metric_kwargs))
         results_dict = { 'eval': {'loss': loss} }
         if self.hp.model_type() == 'categorical':
             results_dict['eval'].update({'accuracy': acc})
@@ -858,16 +858,16 @@ class Trainer:
                     )
 
                     # Calculate patient/slide/tile - level metrics (AUC, R-squared, C-index, etc)
-                    metrics, acc, loss = sf.statistics.metrics_from_dataset(inference_model,
-                                                                            model_type=self.hp.model_type(),
-                                                                            labels=self.labels,
-                                                                            patients=self.patients,
-                                                                            dataset=dataloaders['val'],
-                                                                            data_dir=self.outdir,
-                                                                            outcome_names=self.outcome_names,
-                                                                            save_predictions=save_predictions,
-                                                                            neptune_run=self.neptune_run,
-                                                                            pred_args=pred_args)
+                    metrics, acc, loss = sf.stats.metrics_from_dataset(inference_model,
+                                                                       model_type=self.hp.model_type(),
+                                                                       labels=self.labels,
+                                                                       patients=self.patients,
+                                                                       dataset=dataloaders['val'],
+                                                                       data_dir=self.outdir,
+                                                                       outcome_names=self.outcome_names,
+                                                                       save_predictions=save_predictions,
+                                                                       neptune_run=self.neptune_run,
+                                                                       pred_args=pred_args)
 
                     epoch_metrics = {'loss': epoch_loss}
                     if self.hp.model_type() == 'categorical':

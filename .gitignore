@@ -9,3 +9,7 @@ source/.vscode/*
 source/build/*
 source/dist/*
 *.pyc
+.neptune/*
+docs-source/build/*
+build/*
+dist/*

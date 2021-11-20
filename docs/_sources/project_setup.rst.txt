@@ -1,7 +1,7 @@
 Setting up a Project
 ====================
 
-The easiest way to use ``slideflow`` is through the bundled project management class, ``slideflow.Project``, which supports unified datasets, annotations, and project directory structure for all of the various pipeline functions. Projects are initialized at a directory, with settings saved in a ``settings.json`` file. Below are the configuration settings used to create a project:
+The easiest way to use ``slideflow`` is through the bundled project management class, :class:`slideflow.Project`, which supports unified datasets, annotations, and project directory structure for all of the various pipeline functions. Projects are initialized at a directory, with settings saved in a ``settings.json`` file. Below are the configuration settings used to create a project:
 
 +-------------------------------+-------------------------------------------------------+
 | **name**                      | Project name.                                         |
@@ -53,9 +53,9 @@ Alternatively, you can use the bundled ``run_project.py`` script to execute proj
 
 To create a new project with this script, or execute functions on an existing project, use the following syntax:
 
-.. code-block:: console
+.. code-block:: bash
 
-    james@example:~/slideflow/source$ python3 run_project.py -p /path/to/project/directory
+    $ python3 run_project.py -p /path/to/project/directory
 
 ...where the -p flag is used to designate the path to your project directory. Other available flags can be seen by running ``python3 run_project.py --help``.
 
@@ -150,6 +150,6 @@ The ``main()`` function contains several example functions. These serve as examp
 
 To execute the commands you have prepared in this file, execute the ``run_project.py`` script pointing to your project directory.
 
-.. code-block:: console
+.. code-block:: bash
 
-    james@example:~/slideflow/source$ python3 run_project.py -p /path/to/project/directory
+    $ python3 run_project.py -p /path/to/project/directory

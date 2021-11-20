@@ -39,7 +39,7 @@ activations/logits).
 :class:`slideflow.model.DatasetFeatures` calculates features and logits for an entire dataset, storing
 result arrays into a dictionary mapping slide names to the generated activations. This buffer of whole-dataset
 activations can then be used for functions requiring analysis of whole-dataset activations, including
-:class:`slideflow.statistics.SlideMap` and :class:`slideflow.mosiac.Mosaic`.
+:class:`slideflow.SlideMap` and :class:`slideflow.mosiac.Mosaic`.
 
 .. automodule: slideflow.model
 

@@ -12,7 +12,7 @@ import os
 
 __author__ = 'James Dolezal'
 __license__ = 'GNU General Public License v3.0'
-__version__ = "1.0.3"
+__version__ = "1.0.4"
 
 if 'SF_BACKEND' not in os.environ:
     os.environ['SF_BACKEND'] = 'tensorflow'
@@ -24,7 +24,7 @@ from slideflow.dataset import Dataset
 from slideflow.mosaic import Mosaic
 from slideflow.project import Project
 from slideflow.slide import WSI, TMA
-from slideflow.statistics import SlideMap
+from slideflow.stats import SlideMap
 
 def backend():
     return os.environ['SF_BACKEND']
@@ -41,8 +41,8 @@ def backend():
 # ===============
 #TODO: Features compatibility for multiple outcomes
 #TODO: PyTorch CPH outcomes
-#TODO: PyTorch statistics.permutation_feature_importance (-> Features)
-#TODO: PyTorch statistics.predict_from_layer (used for permutation_feature_importance)
+#TODO: PyTorch stats.permutation_feature_importance (-> Features)
+#TODO: PyTorch stats.predict_from_layer (used for permutation_feature_importance)
 #TODO: implement native TF/PyTorch normalizers to improve realtime normalization speed
 #TODO: improve estimated_num_tiles when doing tile extraction & no ROI (or QC)
 #TODO: for tfrecord parser, combine utf-8 and image decoding into single `decode` argument (rather than decode_images)

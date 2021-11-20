@@ -14,7 +14,7 @@ import slideflow as sf
 from slideflow.dataset import Dataset
 from slideflow.util import log, ProgressBar
 from slideflow.util.spinner import Spinner
-from slideflow.statistics import SlideMap
+from slideflow.stats import SlideMap
 from os.path import join
 from functools import wraps
 from tqdm import tqdm
@@ -199,7 +199,7 @@ def reader_tester(project):
         assert len(torch_results) == len(tf_results) == dataset.num_tiles
         assert torch_results == tf_results
 
-class TestConfigurator:
+class TestConfig:
     def __init__(self, path, slides):
         '''Test Suite configuration.
 
@@ -292,8 +292,7 @@ class TaskWrapper:
 
 class TestSuite:
     '''Class to supervise standardized testing of slideflow pipeline.'''
-    def __init__(self, root, slides, buffer=None, num_threads=8,
-                 verbosity=logging.WARNING, reset=False, gpu=None):
+    def __init__(self, root, slides, buffer=None, verbosity=logging.WARNING, reset=False, gpu=None):
         '''Initialize testing models.'''
 
         # Set logging level
@@ -306,7 +305,7 @@ class TestSuite:
         # Configure testing environment
         self.test_root = root
         self.project_root = join(root, 'project')
-        self.config = TestConfigurator(root, slides=slides)
+        self.config = TestConfig(root, slides=slides)
 
         if os.path.exists(join(self.project_root, 'settings.json')) and reset:
             shutil.rmtree(self.project_root)
