@@ -6,10 +6,11 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  
+  <meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Training &mdash; slideflow 1.0.0 documentation</title>
+  <title>Training &mdash; slideflow 1.0.3 documentation</title>
   
 
   
@@ -88,7 +89,7 @@
           </li>
 
           <li>
-            <a href="https://github.com/pearson-laboratory/slideflow">GitHub</a>
+            <a href="https://github.com/jamesdolezal/slideflow">GitHub</a>
           </li>
         </ul>
       </div>
@@ -149,6 +150,7 @@
             
               <p class="caption" role="heading"><span class="caption-text">Overview</span></p>
 <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="pipeline.html">Pipeline Overview</a></li>
 <li class="toctree-l1"><a class="reference internal" href="project_setup.html">Setting up a Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="validation.html">Validation Planning</a></li>
@@ -156,8 +158,8 @@
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="evaluation.html">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="layer_activations.html">Features / layer activations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="backend.html">Switching backends</a></li>
 <li class="toctree-l1"><a class="reference internal" href="clam.html">CLAM</a></li>
-<li class="toctree-l1"><a class="reference internal" href="torch.html">PyTorch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
 <li class="toctree-l1"><a class="reference internal" href="appendix.html">Appendix</a></li>
 </ul>
@@ -166,8 +168,8 @@
 <li class="toctree-l1"><a class="reference internal" href="project.html">slideflow.Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="dataset.html">slideflow.dataset</a></li>
 <li class="toctree-l1"><a class="reference internal" href="heatmap.html">slideflow.heatmap</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tfrecords.html">slideflow.io.tensorflow</a></li>
-<li class="toctree-l1"><a class="reference internal" href="reader.html">slideflow.io.torch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="io_tensorflow.html">slideflow.io.tensorflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="io_torch.html">slideflow.io.torch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="model.html">slideflow.model</a></li>
 <li class="toctree-l1"><a class="reference internal" href="mosaic.html">slideflow.mosaic</a></li>
 <li class="toctree-l1"><a class="reference internal" href="slide.html">slideflow.slide</a></li>
@@ -178,6 +180,7 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="tutorial1.html">Tutorial 1: Model training (simple)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorial2.html">Tutorial 2: Model training (advanced)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial3.html">Tutorial 3: Model evaluation &amp; heatmaps</a></li>
 </ul>
 
             
@@ -250,16 +253,18 @@
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
               
-  <div class="section" id="training">
+  <section id="training">
 <h1>Training<a class="headerlink" href="#training" title="Permalink to this headline">¶</a></h1>
-<div class="section" id="prepare-hyperparameters">
+<section id="prepare-hyperparameters">
 <h2>Prepare hyperparameters<a class="headerlink" href="#prepare-hyperparameters" title="Permalink to this headline">¶</a></h2>
 <p>There are two methods for configuring model hyperparameters. If you intend to train a model using a single combination of hyperparameters, use the <code class="docutils literal notranslate"><span class="pre">ModelParams</span></code> class:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">hp</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">ModelParams</span><span class="p">(</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">slideflow.model</span> <span class="kn">import</span> <span class="n">ModelParams</span>
+
+<span class="n">hp</span> <span class="o">=</span> <span class="n">ModelParams</span><span class="p">(</span>
     <span class="n">epochs</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">5</span><span class="p">],</span>
     <span class="n">model</span><span class="o">=</span><span class="s1">&#39;xception&#39;</span><span class="p">,</span>
     <span class="n">loss</span><span class="o">=</span><span class="s1">&#39;sparse_categorical_crossentropy&#39;</span><span class="p">,</span>
-    <span class="n">learning_rate</span><span class="o">=</span><span class="mf">0.00001</span><span class="p">,</span>
+    <span class="n">learning_rate</span><span class="o">=</span><span class="mf">0.0001</span><span class="p">,</span>
     <span class="n">batch_size</span><span class="o">=</span><span class="mi">8</span><span class="p">)</span>
 </pre></div>
 </div>
@@ -308,8 +313,8 @@
 <li><p><strong>augment</strong> - Image augmentations to perform, including flipping/rotating and random JPEG compression. Please see <a class="reference internal" href="model.html#slideflow.model.ModelParams" title="slideflow.model.ModelParams"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.model.ModelParams</span></code></a> for more details.</p></li>
 </ul>
 <p>If you are using a continuous variable as an outcome measure, be sure to use a linear loss function. Linear loss functions can be viewed in <code class="docutils literal notranslate"><span class="pre">slideflow.model.ModelParams.LinearLossDict</span></code>, and all available loss functions are in <code class="docutils literal notranslate"><span class="pre">slideflow.model.ModelParams.AllLossDict</span></code>.</p>
-</div>
-<div class="section" id="begin-training">
+</section>
+<section id="begin-training">
 <h2>Begin training<a class="headerlink" href="#begin-training" title="Permalink to this headline">¶</a></h2>
 <p>Once your hyperparameter settings have been chosen you may begin training using the <code class="docutils literal notranslate"><span class="pre">train</span></code> function. Documentation of the function is given below:</p>
 <dl class="py function">
@@ -359,8 +364,6 @@ Defaults to None for k-fold-manual and ‘site’ for k-fold-preserved-site.</p>
 Default epoch length is the number of total tiles.</p></li>
 <li><p><strong>save_predicitons</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a>) – Save predictions with each validation. Defaults to False.
 May increase validation time for large projects.</p></li>
-<li><p><strong>skip_metrics</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a>) – Skip metrics (ROC, AP, F1) during validation. Defaults to False.
-May improve training time for large projects.</p></li>
 <li><p><strong>validate_on_batch</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a>) – Validation will be performed every N batches. Defaults to 512.</p></li>
 <li><p><strong>validation_batch_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a>) – Validation dataset batch size. Defaults to 32.</p></li>
 <li><p><strong>use_tensorboard</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a>) – Add tensorboard callback for realtime training monitoring. Defaults to False.</p></li>
@@ -411,37 +414,37 @@ Defaults to 200.</p></li>
 <p>If you would like to use a different validation plan than the default, pass the relevant keyword arguments to the training function.</p>
 <p>Once training has finished, performance metrics - including accuracy, loss, etc. - can be found in the <code class="docutils literal notranslate"><span class="pre">results_log.csv</span></code> file in the project directory. Additional data, including ROCs and scatter plots, are saved in the model directories.</p>
 <p>At each designated epoch, models are saved in their own folders. Each model directory will include a copy of its hyperparameters in a <code class="docutils literal notranslate"><span class="pre">params.json</span></code> file, and a copy of its training/validation slide manifest in <code class="docutils literal notranslate"><span class="pre">slide.log</span></code>.</p>
-</div>
-<div class="section" id="multiple-outcomes">
+</section>
+<section id="multiple-outcomes">
 <h2>Multiple outcomes<a class="headerlink" href="#multiple-outcomes" title="Permalink to this headline">¶</a></h2>
 <p>Slideflow supports both categorical and linear outcomes, as well as training to single or multiple outcomes at once. To use multiple outcomes simultaneously, simply pass multiple annotation headers to the <code class="docutils literal notranslate"><span class="pre">outcome_label_headers</span></code> argument.</p>
-</div>
-<div class="section" id="multiple-input-variables">
+</section>
+<section id="multiple-input-variables">
 <h2>Multiple input variables<a class="headerlink" href="#multiple-input-variables" title="Permalink to this headline">¶</a></h2>
 <p>In addition to training using image data, clinical data can also be provided as model input by passing annotation column headers to the variable ‘’input_header’’. This input is merged at the post-convolutional layer, prior to any configured hidden layers.</p>
 <p>If desired, models can also be trained with clinical input data alone, without images, by using the hyperparameter argument <code class="docutils literal notranslate"><span class="pre">drop_images=True</span></code>.</p>
-</div>
-<div class="section" id="cox-proportional-hazards-cph-models">
+</section>
+<section id="cox-proportional-hazards-cph-models">
 <h2>Cox Proportional Hazards (CPH) models<a class="headerlink" href="#cox-proportional-hazards-cph-models" title="Permalink to this headline">¶</a></h2>
 <p>Models can also be trained to a time series outcome using CPH and negative log likelihood loss. For CPH models, use ‘negative_log_likelihood’ loss and set <code class="docutils literal notranslate"><span class="pre">outcome_label_header</span></code> equal to the annotation column indicating event <em>time</em>. Specify the event <em>type</em> (0 or 1) by passing the event type annotation column to the argument <code class="docutils literal notranslate"><span class="pre">input_header</span></code>. If you are using multiple clinical inputs, the first header passed to <code class="docutils literal notranslate"><span class="pre">input_header</span></code> must be event type. CPH models are not compatible with multiple outcomes.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>CPH models are currently unavailable with the Tensorflow backend. PyTorch support for CPH outcomes is in development.</p>
+<p>CPH models are currently unavailable with the PyTorch backend. PyTorch support for CPH outcomes is in development.</p>
 </div>
-</div>
-<div class="section" id="distributed-training-across-gpus">
+</section>
+<section id="distributed-training-across-gpus">
 <h2>Distributed training across GPUs<a class="headerlink" href="#distributed-training-across-gpus" title="Permalink to this headline">¶</a></h2>
 <p>If multiple GPUs are available, training can be distributed by passing the argument <code class="docutils literal notranslate"><span class="pre">multi_gpu=True</span></code>. If provided, slideflow will use all available (and visible) GPUs for training.</p>
-</div>
-<div class="section" id="monitoring-performance">
+</section>
+<section id="monitoring-performance">
 <h2>Monitoring performance<a class="headerlink" href="#monitoring-performance" title="Permalink to this headline">¶</a></h2>
 <p>During training, progress can be monitored using Tensorflow’s bundled <code class="docutils literal notranslate"><span class="pre">Tensorboard</span></code> package by passing the argument <code class="docutils literal notranslate"><span class="pre">use_tensorboard=True</span></code>. This functionality was disabled by default due to a recent bug in Tensorflow. To use tensorboard to monitor training, execute:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ tensorboard --logdir<span class="o">=</span>/path/to/model/directory
 </pre></div>
 </div>
 <p>… and open <a class="reference external" href="http://localhost:6006">http://localhost:6006</a> in your web browser.</p>
-</div>
-</div>
+</section>
+</section>
 
 
              </article>
@@ -550,27 +553,15 @@ Defaults to 200.</p></li>
       <div class="main-menu">
         <ul>
           <li>
-            <a href="https://pytorch.org/get-started">Get Started</a>
+            <a href="https://slideflow.dev">Docs</a>
           </li>
 
           <li>
-            <a href="https://pytorch.org/ecosystem">Ecosystem</a>
+            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
           </li>
 
           <li>
-            <a href="https://pytorch.org/mobile">Mobile</a>
-          </li>
-
-          <li>
-            <a href="https://pytorch.org/hub">PyTorch Hub</a>
-          </li>
-
-          <li class="active">
-            <a href="https://pytorch.org/blog/">Blog</a>
-          </li>
-
-          <li>
-            <a href="https://github.com/pearson-laboratory/slideflow">Github</a>
+            <a href="https://github.com/jamesdolezal/slideflow">Github</a>
           </li>
         </ul>
       </div>
@@ -578,6 +569,10 @@ Defaults to 200.</p></li>
   </div>
 
   <!-- End Mobile Menu -->
+
+  <script script type="text/javascript">
+    var collapsedSections = ['Source', 'Tutorials'];
+  </script>
 
   <script type="text/javascript" src="_static/js/vendor/anchor.min.js"></script>
 

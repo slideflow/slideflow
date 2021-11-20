@@ -292,8 +292,7 @@ class TaskWrapper:
 
 class TestSuite:
     '''Class to supervise standardized testing of slideflow pipeline.'''
-    def __init__(self, root, slides, buffer=None, num_threads=8,
-                 verbosity=logging.WARNING, reset=False, gpu=None):
+    def __init__(self, root, slides, buffer=None, verbosity=logging.WARNING, reset=False, gpu=None):
         '''Initialize testing models.'''
 
         # Set logging level

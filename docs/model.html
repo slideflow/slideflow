@@ -6,10 +6,11 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  
+  <meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>slideflow.model &mdash; slideflow 1.0.0 documentation</title>
+  <title>slideflow.model &mdash; slideflow 1.0.3 documentation</title>
   
 
   
@@ -32,7 +33,7 @@
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="slideflow.mosaic" href="mosaic.html" />
-    <link rel="prev" title="slideflow.io.torch" href="reader.html" />
+    <link rel="prev" title="slideflow.io.torch" href="io_torch.html" />
   <!-- Google Analytics -->
   
   <!-- End Google Analytics -->
@@ -88,7 +89,7 @@
           </li>
 
           <li>
-            <a href="https://github.com/pearson-laboratory/slideflow">GitHub</a>
+            <a href="https://github.com/jamesdolezal/slideflow">GitHub</a>
           </li>
         </ul>
       </div>
@@ -149,6 +150,7 @@
             
               <p class="caption" role="heading"><span class="caption-text">Overview</span></p>
 <ul>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="pipeline.html">Pipeline Overview</a></li>
 <li class="toctree-l1"><a class="reference internal" href="project_setup.html">Setting up a Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="validation.html">Validation Planning</a></li>
@@ -156,8 +158,8 @@
 <li class="toctree-l1"><a class="reference internal" href="training.html">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="evaluation.html">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="layer_activations.html">Features / layer activations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="backend.html">Switching backends</a></li>
 <li class="toctree-l1"><a class="reference internal" href="clam.html">CLAM</a></li>
-<li class="toctree-l1"><a class="reference internal" href="torch.html">PyTorch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
 <li class="toctree-l1"><a class="reference internal" href="appendix.html">Appendix</a></li>
 </ul>
@@ -166,8 +168,8 @@
 <li class="toctree-l1"><a class="reference internal" href="project.html">slideflow.Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="dataset.html">slideflow.dataset</a></li>
 <li class="toctree-l1"><a class="reference internal" href="heatmap.html">slideflow.heatmap</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tfrecords.html">slideflow.io.tensorflow</a></li>
-<li class="toctree-l1"><a class="reference internal" href="reader.html">slideflow.io.torch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="io_tensorflow.html">slideflow.io.tensorflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="io_torch.html">slideflow.io.torch</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">slideflow.model</a></li>
 <li class="toctree-l1"><a class="reference internal" href="mosaic.html">slideflow.mosaic</a></li>
 <li class="toctree-l1"><a class="reference internal" href="slide.html">slideflow.slide</a></li>
@@ -178,6 +180,7 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="tutorial1.html">Tutorial 1: Model training (simple)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorial2.html">Tutorial 2: Model training (advanced)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial3.html">Tutorial 3: Model evaluation &amp; heatmaps</a></li>
 </ul>
 
             
@@ -250,7 +253,7 @@
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
               
-  <div class="section" id="slideflow-model">
+  <section id="slideflow-model">
 <h1>slideflow.model<a class="headerlink" href="#slideflow-model" title="Permalink to this headline">¶</a></h1>
 <p>This module provides the <a class="reference internal" href="#slideflow.model.ModelParams" title="slideflow.model.ModelParams"><code class="xref py py-class docutils literal notranslate"><span class="pre">ModelParams</span></code></a> class to organize model and training
 parameters/hyperparameters and assist with model building, as well as the <a class="reference internal" href="#slideflow.model.Trainer" title="slideflow.model.Trainer"><code class="xref py py-class docutils literal notranslate"><span class="pre">Trainer</span></code></a> class that
@@ -264,7 +267,7 @@ hyperparameters.</p>
 <code class="xref py py-mod docutils literal notranslate"><span class="pre">slideflow.model.tensorflow</span></code> or <code class="xref py py-mod docutils literal notranslate"><span class="pre">slideflow.model.torch</span></code> according to the currently active backend,
 indicated by the environmental variable <code class="docutils literal notranslate"><span class="pre">SF_BACKEND</span></code>.</p>
 </div>
-<div class="section" id="configuring-and-training-models">
+<section id="configuring-and-training-models">
 <h2>Configuring and training models<a class="headerlink" href="#configuring-and-training-models" title="Permalink to this headline">¶</a></h2>
 <p><a class="reference internal" href="#slideflow.model.ModelParams" title="slideflow.model.ModelParams"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.model.ModelParams</span></code></a> will build models according to a set of model parameters and a given set of
 outcome labels. To change the core image convolutional model to another architecture, set the <code class="docutils literal notranslate"><span class="pre">model</span></code> parameter
@@ -275,8 +278,8 @@ to the custom model class.</p>
 <span class="n">mp</span> <span class="o">=</span> <span class="n">ModelParams</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="n">CustomModel</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
 </pre></div>
 </div>
-</div>
-<div class="section" id="working-with-layer-activations">
+</section>
+<section id="working-with-layer-activations">
 <h2>Working with layer activations<a class="headerlink" href="#working-with-layer-activations" title="Permalink to this headline">¶</a></h2>
 <p><a class="reference internal" href="#slideflow.model.Features" title="slideflow.model.Features"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.model.Features</span></code></a> creates an interface to efficiently generate features/layer activations and logits
 from either a batch of images (returning a batch of activations/logits) or a whole-slide image (returning a grid of
@@ -285,12 +288,12 @@ activations/logits).</p>
 result arrays into a dictionary mapping slide names to the generated activations. This buffer of whole-dataset
 activations can then be used for functions requiring analysis of whole-dataset activations, including
 <a class="reference internal" href="statistics.html#slideflow.SlideMap" title="slideflow.statistics.SlideMap"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.statistics.SlideMap</span></code></a> and <code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.mosiac.Mosaic</span></code>.</p>
-</div>
-<div class="section" id="modelparams">
+</section>
+<section id="modelparams">
 <h2>ModelParams<a class="headerlink" href="#modelparams" title="Permalink to this headline">¶</a></h2>
 <dl class="py class">
 <dt class="sig sig-object py" id="slideflow.model.ModelParams">
-<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">slideflow.model.</span></span><span class="sig-name descname"><span class="pre">ModelParams</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.model.ModelParams" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">slideflow.model.</span></span><span class="sig-name descname"><span class="pre">ModelParams</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.model.ModelParams" title="Permalink to this definition">¶</a></dt>
 <dd><p>Build a set of hyperparameters.</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="slideflow.model.ModelParams.__init__">
@@ -381,12 +384,12 @@ or ‘linear’ (linear or CPH models).</p></li>
 
 </dd></dl>
 
-</div>
-<div class="section" id="trainer">
+</section>
+<section id="trainer">
 <h2>Trainer<a class="headerlink" href="#trainer" title="Permalink to this headline">¶</a></h2>
 <dl class="py class">
 <dt class="sig sig-object py" id="slideflow.model.Trainer">
-<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">slideflow.model.</span></span><span class="sig-name descname"><span class="pre">Trainer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">hp</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outdir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">patients</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">slide_input</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">manifest</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">feature_sizes</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">feature_names</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outcome_names</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mixed_precision</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_neptune</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">neptune_api</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">neptune_workspace</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.model.Trainer" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">slideflow.model.</span></span><span class="sig-name descname"><span class="pre">Trainer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">hp</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outdir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">patients</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">slide_input</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">manifest</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">feature_sizes</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">feature_names</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outcome_names</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mixed_precision</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_neptune</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">neptune_api</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">neptune_workspace</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.model.Trainer" title="Permalink to this definition">¶</a></dt>
 <dd><p>Base trainer class containing functionality for model building, input processing, training, and evaluation.</p>
 <p>This base class requires categorical outcome(s). Additional outcome types are supported by
 <a class="reference internal" href="#slideflow.model.LinearTrainer" title="slideflow.model.LinearTrainer"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.model.LinearTrainer</span></code></a> and <a class="reference internal" href="#slideflow.model.CPHTrainer" title="slideflow.model.CPHTrainer"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.model.CPHTrainer</span></code></a>.</p>
@@ -447,7 +450,7 @@ drastically increase evaluation time. Defaults to False.</p></li>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="slideflow.model.Trainer.train">
-<span class="sig-name descname"><span class="pre">train</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">train_dts</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">val_dts</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log_frequency</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">100</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">validate_on_batch</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">512</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">validation_batch_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">32</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">validation_steps</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">200</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">starting_epoch</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ema_observations</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ema_smoothing</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_tensorboard</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">steps_per_epoch_override</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_predictions</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skip_metrics</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">resume_training</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pretrain</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'imagenet'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">checkpoint</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">multi_gpu</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.model.Trainer.train" title="Permalink to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">train</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">train_dts</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">val_dts</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log_frequency</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">100</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">validate_on_batch</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">512</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">validation_batch_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">32</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">validation_steps</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">200</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">starting_epoch</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ema_observations</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ema_smoothing</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_tensorboard</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">steps_per_epoch_override</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_predictions</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">resume_training</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pretrain</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'imagenet'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">checkpoint</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">multi_gpu</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.model.Trainer.train" title="Permalink to this definition">¶</a></dt>
 <dd><p>Builds and trains a model from hyperparameters.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -466,7 +469,6 @@ smoothing. Defaults to 20.</p></li>
 <li><p><strong>steps_per_epoch_override</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Manually set the number of steps per epoch. Defaults to None.</p></li>
 <li><p><strong>save_predictions</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Save tile, slide, and patient-level predictions at each evaluation.
 Defaults to False.</p></li>
-<li><p><strong>skip_metrics</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Skip validation metrics. Defaults to False.</p></li>
 <li><p><strong>resume_training</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Path to Tensorflow model to continue training. Defaults to None.</p></li>
 <li><p><strong>pretrain</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Either ‘imagenet’ or path to Tensorflow model from which to load weights.
 Defaults to ‘imagenet’.</p></li>
@@ -481,12 +483,12 @@ Defaults to ‘imagenet’.</p></li>
 
 </dd></dl>
 
-</div>
-<div class="section" id="lineartrainer">
+</section>
+<section id="lineartrainer">
 <h2>LinearTrainer<a class="headerlink" href="#lineartrainer" title="Permalink to this headline">¶</a></h2>
 <dl class="py class">
 <dt class="sig sig-object py" id="slideflow.model.LinearTrainer">
-<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">slideflow.model.</span></span><span class="sig-name descname"><span class="pre">LinearTrainer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.model.LinearTrainer" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">slideflow.model.</span></span><span class="sig-name descname"><span class="pre">LinearTrainer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.model.LinearTrainer" title="Permalink to this definition">¶</a></dt>
 <dd><p>Extends the base <a class="reference internal" href="#slideflow.model.Trainer" title="slideflow.model.Trainer"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.model.Trainer</span></code></a> class to add support for linear outcomes. Requires that all
 outcomes be linear, with appropriate linear loss function. Uses R-squared as the evaluation metric, rather
 than AUROC.</p>
@@ -545,7 +547,7 @@ drastically increase evaluation time. Defaults to False.</p></li>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="slideflow.model.LinearTrainer.train">
-<span class="sig-name descname"><span class="pre">train</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">train_dts</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">val_dts</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log_frequency</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">100</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">validate_on_batch</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">512</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">validation_batch_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">32</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">validation_steps</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">200</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">starting_epoch</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ema_observations</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ema_smoothing</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_tensorboard</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">steps_per_epoch_override</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_predictions</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skip_metrics</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">resume_training</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pretrain</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'imagenet'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">checkpoint</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">multi_gpu</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.model.LinearTrainer.train" title="Permalink to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">train</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">train_dts</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">val_dts</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log_frequency</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">100</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">validate_on_batch</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">512</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">validation_batch_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">32</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">validation_steps</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">200</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">starting_epoch</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ema_observations</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ema_smoothing</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_tensorboard</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">steps_per_epoch_override</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_predictions</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">resume_training</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pretrain</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'imagenet'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">checkpoint</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">multi_gpu</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.model.LinearTrainer.train" title="Permalink to this definition">¶</a></dt>
 <dd><p>Builds and trains a model from hyperparameters.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -564,7 +566,6 @@ smoothing. Defaults to 20.</p></li>
 <li><p><strong>steps_per_epoch_override</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Manually set the number of steps per epoch. Defaults to None.</p></li>
 <li><p><strong>save_predictions</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Save tile, slide, and patient-level predictions at each evaluation.
 Defaults to False.</p></li>
-<li><p><strong>skip_metrics</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Skip validation metrics. Defaults to False.</p></li>
 <li><p><strong>resume_training</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Path to Tensorflow model to continue training. Defaults to None.</p></li>
 <li><p><strong>pretrain</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Either ‘imagenet’ or path to Tensorflow model from which to load weights.
 Defaults to ‘imagenet’.</p></li>
@@ -579,12 +580,12 @@ Defaults to ‘imagenet’.</p></li>
 
 </dd></dl>
 
-</div>
-<div class="section" id="cphtrainer">
+</section>
+<section id="cphtrainer">
 <h2>CPHTrainer<a class="headerlink" href="#cphtrainer" title="Permalink to this headline">¶</a></h2>
 <dl class="py class">
 <dt class="sig sig-object py" id="slideflow.model.CPHTrainer">
-<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">slideflow.model.</span></span><span class="sig-name descname"><span class="pre">CPHTrainer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.model.CPHTrainer" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">slideflow.model.</span></span><span class="sig-name descname"><span class="pre">CPHTrainer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.model.CPHTrainer" title="Permalink to this definition">¶</a></dt>
 <dd><p>Cox Proportional Hazards model. Requires that the user provide event data as the first input feature,
 and time to outcome as the linear outcome. Uses concordance index as the evaluation metric.</p>
 <dl class="py method">
@@ -642,7 +643,7 @@ drastically increase evaluation time. Defaults to False.</p></li>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="slideflow.model.CPHTrainer.train">
-<span class="sig-name descname"><span class="pre">train</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">train_dts</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">val_dts</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log_frequency</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">100</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">validate_on_batch</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">512</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">validation_batch_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">32</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">validation_steps</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">200</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">starting_epoch</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ema_observations</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ema_smoothing</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_tensorboard</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">steps_per_epoch_override</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_predictions</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skip_metrics</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">resume_training</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pretrain</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'imagenet'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">checkpoint</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">multi_gpu</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.model.CPHTrainer.train" title="Permalink to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">train</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">train_dts</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">val_dts</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log_frequency</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">100</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">validate_on_batch</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">512</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">validation_batch_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">32</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">validation_steps</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">200</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">starting_epoch</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ema_observations</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ema_smoothing</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_tensorboard</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">steps_per_epoch_override</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_predictions</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">resume_training</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pretrain</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'imagenet'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">checkpoint</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">multi_gpu</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.model.CPHTrainer.train" title="Permalink to this definition">¶</a></dt>
 <dd><p>Builds and trains a model from hyperparameters.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -661,7 +662,6 @@ smoothing. Defaults to 20.</p></li>
 <li><p><strong>steps_per_epoch_override</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Manually set the number of steps per epoch. Defaults to None.</p></li>
 <li><p><strong>save_predictions</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Save tile, slide, and patient-level predictions at each evaluation.
 Defaults to False.</p></li>
-<li><p><strong>skip_metrics</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Skip validation metrics. Defaults to False.</p></li>
 <li><p><strong>resume_training</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Path to Tensorflow model to continue training. Defaults to None.</p></li>
 <li><p><strong>pretrain</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Either ‘imagenet’ or path to Tensorflow model from which to load weights.
 Defaults to ‘imagenet’.</p></li>
@@ -676,8 +676,8 @@ Defaults to ‘imagenet’.</p></li>
 
 </dd></dl>
 
-</div>
-<div class="section" id="trainer-from-hp">
+</section>
+<section id="trainer-from-hp">
 <h2>trainer_from_hp<a class="headerlink" href="#trainer-from-hp" title="Permalink to this headline">¶</a></h2>
 <dl class="py function">
 <dt class="sig sig-object py" id="slideflow.model.trainer_from_hp">
@@ -706,12 +706,12 @@ input features as input to the model.</p></li>
 </dl>
 </dd></dl>
 
-</div>
-<div class="section" id="features">
+</section>
+<section id="features">
 <h2>Features<a class="headerlink" href="#features" title="Permalink to this headline">¶</a></h2>
 <dl class="py class">
 <dt class="sig sig-object py" id="slideflow.model.Features">
-<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">slideflow.model.</span></span><span class="sig-name descname"><span class="pre">Features</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">layers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'postconv'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">include_logits</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.model.Features" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">slideflow.model.</span></span><span class="sig-name descname"><span class="pre">Features</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">layers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'postconv'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">include_logits</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.model.Features" title="Permalink to this definition">¶</a></dt>
 <dd><p>Interface for obtaining logits and features from intermediate layer activations from Slideflow models.</p>
 <p>Use by calling on either a batch of images (returning outputs for a single batch), or by calling on a
 <code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.WSI</span></code> object, which will generate an array of spatially-mapped activations matching
@@ -762,7 +762,7 @@ is accessed via ‘postconv’. Defaults to ‘postconv’.</p></li>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="slideflow.model.Features.from_model">
-<em class="property"><span class="pre">classmethod</span> </em><span class="sig-name descname"><span class="pre">from_model</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">layers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'postconv'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">include_logits</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wsi_normalizer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.model.Features.from_model" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">from_model</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">layers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'postconv'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">include_logits</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wsi_normalizer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.model.Features.from_model" title="Permalink to this definition">¶</a></dt>
 <dd><p>Creates a features interface from a loaded slideflow model which outputs feature activations
 at the designated layers.</p>
 <p>Intermediate layers are returned in the order of layers. Logits are returned last.</p>
@@ -782,12 +782,12 @@ Is not used on individual tile datasets via __call__. Defaults to None.</p></li>
 
 </dd></dl>
 
-</div>
-<div class="section" id="datasetfeatures">
+</section>
+<section id="datasetfeatures">
 <h2>DatasetFeatures<a class="headerlink" href="#datasetfeatures" title="Permalink to this headline">¶</a></h2>
 <dl class="py class">
 <dt class="sig sig-object py" id="slideflow.model.DatasetFeatures">
-<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">slideflow.model.</span></span><span class="sig-name descname"><span class="pre">DatasetFeatures</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataset</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">annotations</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cache</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">manifest</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.model.DatasetFeatures" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">slideflow.model.</span></span><span class="sig-name descname"><span class="pre">DatasetFeatures</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataset</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">annotations</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cache</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">manifest</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.model.DatasetFeatures" title="Permalink to this definition">¶</a></dt>
 <dd><p>Loads annotations, saved layer activations / features, and prepares output saving directories.
 Will also read/write processed features to a PKL cache file to save time in future iterations.</p>
 <div class="admonition note">
@@ -1021,8 +1021,8 @@ dict: Dict mapping features to slide-level dict of statistics (‘p’, ‘f’)
 
 </dd></dl>
 
-</div>
-</div>
+</section>
+</section>
 
 
              </article>
@@ -1035,7 +1035,7 @@ dict: Dict mapping features to slide-level dict of statistics (‘p’, ‘f’)
         <a href="mosaic.html" class="btn btn-neutral float-right" title="slideflow.mosaic" accesskey="n" rel="next">Next <img src="_static/images/chevron-right-orange.svg" class="next-page"></a>
       
       
-        <a href="reader.html" class="btn btn-neutral" title="slideflow.io.torch" accesskey="p" rel="prev"><img src="_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
+        <a href="io_torch.html" class="btn btn-neutral" title="slideflow.io.torch" accesskey="p" rel="prev"><img src="_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
       
     </div>
   
@@ -1133,27 +1133,15 @@ dict: Dict mapping features to slide-level dict of statistics (‘p’, ‘f’)
       <div class="main-menu">
         <ul>
           <li>
-            <a href="https://pytorch.org/get-started">Get Started</a>
+            <a href="https://slideflow.dev">Docs</a>
           </li>
 
           <li>
-            <a href="https://pytorch.org/ecosystem">Ecosystem</a>
+            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
           </li>
 
           <li>
-            <a href="https://pytorch.org/mobile">Mobile</a>
-          </li>
-
-          <li>
-            <a href="https://pytorch.org/hub">PyTorch Hub</a>
-          </li>
-
-          <li class="active">
-            <a href="https://pytorch.org/blog/">Blog</a>
-          </li>
-
-          <li>
-            <a href="https://github.com/pearson-laboratory/slideflow">Github</a>
+            <a href="https://github.com/jamesdolezal/slideflow">Github</a>
           </li>
         </ul>
       </div>
@@ -1161,6 +1149,10 @@ dict: Dict mapping features to slide-level dict of statistics (‘p’, ‘f’)
   </div>
 
   <!-- End Mobile Menu -->
+
+  <script script type="text/javascript">
+    var collapsedSections = ['Source', 'Tutorials'];
+  </script>
 
   <script type="text/javascript" src="_static/js/vendor/anchor.min.js"></script>
 

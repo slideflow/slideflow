@@ -47,3 +47,4 @@ def backend():
 #TODO: improve estimated_num_tiles when doing tile extraction & no ROI (or QC)
 #TODO: for tfrecord parser, combine utf-8 and image decoding into single `decode` argument (rather than decode_images)
 #TODO: consider pytorch to_numpy=False returns tensor objects
+#TODO: report/log k-fold split ID if loading a plan from JSON

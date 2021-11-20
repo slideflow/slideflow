@@ -6,10 +6,11 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  
+  <meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Setting up a Project &mdash; slideflow 1.0.0 documentation</title>
+  <title>Setting up a Project &mdash; slideflow 1.0.3 documentation</title>
   
 
   
@@ -88,7 +89,7 @@
           </li>
 
           <li>
-            <a href="https://github.com/pearson-laboratory/slideflow">GitHub</a>
+            <a href="https://github.com/jamesdolezal/slideflow">GitHub</a>
           </li>
         </ul>
       </div>
@@ -149,6 +150,7 @@
             
               <p class="caption" role="heading"><span class="caption-text">Overview</span></p>
 <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="pipeline.html">Pipeline Overview</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Setting up a Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="validation.html">Validation Planning</a></li>
@@ -156,8 +158,8 @@
 <li class="toctree-l1"><a class="reference internal" href="training.html">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="evaluation.html">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="layer_activations.html">Features / layer activations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="backend.html">Switching backends</a></li>
 <li class="toctree-l1"><a class="reference internal" href="clam.html">CLAM</a></li>
-<li class="toctree-l1"><a class="reference internal" href="torch.html">PyTorch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
 <li class="toctree-l1"><a class="reference internal" href="appendix.html">Appendix</a></li>
 </ul>
@@ -166,8 +168,8 @@
 <li class="toctree-l1"><a class="reference internal" href="project.html">slideflow.Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="dataset.html">slideflow.dataset</a></li>
 <li class="toctree-l1"><a class="reference internal" href="heatmap.html">slideflow.heatmap</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tfrecords.html">slideflow.io.tensorflow</a></li>
-<li class="toctree-l1"><a class="reference internal" href="reader.html">slideflow.io.torch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="io_tensorflow.html">slideflow.io.tensorflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="io_torch.html">slideflow.io.torch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="model.html">slideflow.model</a></li>
 <li class="toctree-l1"><a class="reference internal" href="mosaic.html">slideflow.mosaic</a></li>
 <li class="toctree-l1"><a class="reference internal" href="slide.html">slideflow.slide</a></li>
@@ -178,6 +180,7 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="tutorial1.html">Tutorial 1: Model training (simple)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorial2.html">Tutorial 2: Model training (advanced)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial3.html">Tutorial 3: Model evaluation &amp; heatmaps</a></li>
 </ul>
 
             
@@ -250,9 +253,9 @@
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
               
-  <div class="section" id="setting-up-a-project">
+  <section id="setting-up-a-project">
 <h1>Setting up a Project<a class="headerlink" href="#setting-up-a-project" title="Permalink to this headline">¶</a></h1>
-<p>The easiest way to use <code class="docutils literal notranslate"><span class="pre">slideflow</span></code> is through the bundled project management class, <code class="docutils literal notranslate"><span class="pre">slideflow.Project</span></code>, which supports unified datasets, annotations, and project directory structure for all of the various pipeline functions. Projects are initialized at a directory, with settings saved in a <code class="docutils literal notranslate"><span class="pre">settings.json</span></code> file. Below are the configuration settings used to create a project:</p>
+<p>The easiest way to use <code class="docutils literal notranslate"><span class="pre">slideflow</span></code> is through the bundled project management class, <a class="reference internal" href="project.html#slideflow.Project" title="slideflow.Project"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.Project</span></code></a>, which supports unified datasets, annotations, and project directory structure for all of the various pipeline functions. Projects are initialized at a directory, with settings saved in a <code class="docutils literal notranslate"><span class="pre">settings.json</span></code> file. Below are the configuration settings used to create a project:</p>
 <table class="docutils align-default">
 <colgroup>
 <col style="width: 36%" />
@@ -284,7 +287,7 @@ mixed precision (16-bit vs. 32-bit).</p></td>
 </tr>
 </tbody>
 </table>
-<div class="section" id="project-class">
+<section id="project-class">
 <h2>Project class<a class="headerlink" href="#project-class" title="Permalink to this headline">¶</a></h2>
 <p>To interactively create a new project, initialize a Project with the <code class="docutils literal notranslate"><span class="pre">from_prompt</span></code> initializer:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
@@ -305,12 +308,12 @@ mixed precision (16-bit vs. 32-bit).</p></td>
 <p>Pipeline functions are then called on <code class="docutils literal notranslate"><span class="pre">P</span></code>.</p>
 <p>Alternatively, you can use the bundled <code class="docutils literal notranslate"><span class="pre">run_project.py</span></code> script to execute project functions stored in <code class="docutils literal notranslate"><span class="pre">actions.py</span></code> files in project directories. When <code class="docutils literal notranslate"><span class="pre">run_project.py</span></code> is run, it initializes a <code class="docutils literal notranslate"><span class="pre">Project</span></code> object at a given directory, then looks for and loads an <code class="docutils literal notranslate"><span class="pre">actions.py</span></code> file in this directory, executing functions contained therein.</p>
 <p>To create a new project with this script, or execute functions on an existing project, use the following syntax:</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">james@example:~/slideflow/source$ </span>python3 run_project.py -p /path/to/project/directory
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ python3 run_project.py -p /path/to/project/directory
 </pre></div>
 </div>
 <p>…where the -p flag is used to designate the path to your project directory. Other available flags can be seen by running <code class="docutils literal notranslate"><span class="pre">python3</span> <span class="pre">run_project.py</span> <span class="pre">--help</span></code>.</p>
-</div>
-<div class="section" id="configuring-datasets">
+</section>
+<section id="configuring-datasets">
 <h2>Configuring Datasets<a class="headerlink" href="#configuring-datasets" title="Permalink to this headline">¶</a></h2>
 <p>Once initial project settings are established, you will need to either create or load a dataset configuration, which will specify directory locations for slides, ROIs, tiles, and TFRecords for each group of slides.</p>
 <p>Dataset configurations are saved in a JSON file with the below syntax. Dataset configuration files can be shared and used across multiple projects, or saved locally within a project directory.</p>
@@ -333,8 +336,8 @@ mixed precision (16-bit vs. 32-bit).</p></td>
                <span class="n">tfrecords</span><span class="o">=</span><span class="s2">&quot;/tfrecords/directory&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
-</div>
-<div class="section" id="setting-up-annotations">
+</section>
+<section id="setting-up-annotations">
 <h2>Setting up annotations<a class="headerlink" href="#setting-up-annotations" title="Permalink to this headline">¶</a></h2>
 <p>Your annotations CSV file is used to label patients and slides with clinical data and/or other outcome variables (or additional input variables) that will be used for training. Each line in the annotations file should correspond to a unique slide.</p>
 <p>The annotations file may contain as many columns as you would like, but it must contain the following headers at minimum:</p>
@@ -383,8 +386,8 @@ mixed precision (16-bit vs. 32-bit).</p></td>
 </pre></div>
 </div>
 <p>Slide names do not need to be explicitly set in the annotations file by the user. Rather, once a dataset has been set up, slideflow will search through the linked slide directories and attempt to match slides to entries in the annotations file using <strong>patient</strong>. Entries that are blank in the <strong>slide</strong> column will be auto-populated with any detected and matching slides, if available.</p>
-</div>
-<div class="section" id="executing-commands">
+</section>
+<section id="executing-commands">
 <span id="execute"></span><h2>Executing commands<a class="headerlink" href="#executing-commands" title="Permalink to this headline">¶</a></h2>
 <p>If you plan to use <code class="docutils literal notranslate"><span class="pre">run_project.py</span></code>, open the <code class="docutils literal notranslate"><span class="pre">actions.py</span></code> file located in the project directory. It should look something like this:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">main</span><span class="p">(</span><span class="n">P</span><span class="p">):</span>
@@ -407,11 +410,11 @@ mixed precision (16-bit vs. 32-bit).</p></td>
 </div>
 <p>The <code class="docutils literal notranslate"><span class="pre">main()</span></code> function contains several example functions. These serve as examples to help remind you of functions and arguments you can use on projects.</p>
 <p>To execute the commands you have prepared in this file, execute the <code class="docutils literal notranslate"><span class="pre">run_project.py</span></code> script pointing to your project directory.</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">james@example:~/slideflow/source$ </span>python3 run_project.py -p /path/to/project/directory
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ python3 run_project.py -p /path/to/project/directory
 </pre></div>
 </div>
-</div>
-</div>
+</section>
+</section>
 
 
              </article>
@@ -517,27 +520,15 @@ mixed precision (16-bit vs. 32-bit).</p></td>
       <div class="main-menu">
         <ul>
           <li>
-            <a href="https://pytorch.org/get-started">Get Started</a>
+            <a href="https://slideflow.dev">Docs</a>
           </li>
 
           <li>
-            <a href="https://pytorch.org/ecosystem">Ecosystem</a>
+            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
           </li>
 
           <li>
-            <a href="https://pytorch.org/mobile">Mobile</a>
-          </li>
-
-          <li>
-            <a href="https://pytorch.org/hub">PyTorch Hub</a>
-          </li>
-
-          <li class="active">
-            <a href="https://pytorch.org/blog/">Blog</a>
-          </li>
-
-          <li>
-            <a href="https://github.com/pearson-laboratory/slideflow">Github</a>
+            <a href="https://github.com/jamesdolezal/slideflow">Github</a>
           </li>
         </ul>
       </div>
@@ -545,6 +536,10 @@ mixed precision (16-bit vs. 32-bit).</p></td>
   </div>
 
   <!-- End Mobile Menu -->
+
+  <script script type="text/javascript">
+    var collapsedSections = ['Source', 'Tutorials'];
+  </script>
 
   <script type="text/javascript" src="_static/js/vendor/anchor.min.js"></script>
 

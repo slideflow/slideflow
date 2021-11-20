@@ -382,7 +382,7 @@ def interleave(tfrecords, prob_weights=None, incl_loc=False, clip=None, infinite
         standardize (bool, optional): Standardize images to (0,1). Defaults to True.
         normalizer (:class:`slideflow.slide.StainNormalizer`, optional): Normalizer to use on images. Defaults to None.
         manifest (dict, optional): Dataset manifest containing number of tiles per tfrecord.
-        num_threads (int, optional): Number of threads to use decoding images. Defaults to 8.
+        num_threads (int, optional): Number of threads to use decoding images. Defaults to 4.
         chunk_size (int, optional): Chunk size for image decoding. Defaults to 16.
         num_replicas (int, optional): Number of total workers reading the dataset with this interleave function,
             defined as number of gpus * number of torch DataLoader workers. Used to interleave results among workers

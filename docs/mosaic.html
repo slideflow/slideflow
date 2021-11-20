@@ -6,10 +6,11 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  
+  <meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>slideflow.mosaic &mdash; slideflow 1.0.0 documentation</title>
+  <title>slideflow.mosaic &mdash; slideflow 1.0.3 documentation</title>
   
 
   
@@ -88,7 +89,7 @@
           </li>
 
           <li>
-            <a href="https://github.com/pearson-laboratory/slideflow">GitHub</a>
+            <a href="https://github.com/jamesdolezal/slideflow">GitHub</a>
           </li>
         </ul>
       </div>
@@ -149,6 +150,7 @@
             
               <p class="caption" role="heading"><span class="caption-text">Overview</span></p>
 <ul>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="pipeline.html">Pipeline Overview</a></li>
 <li class="toctree-l1"><a class="reference internal" href="project_setup.html">Setting up a Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="validation.html">Validation Planning</a></li>
@@ -156,8 +158,8 @@
 <li class="toctree-l1"><a class="reference internal" href="training.html">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="evaluation.html">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="layer_activations.html">Features / layer activations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="backend.html">Switching backends</a></li>
 <li class="toctree-l1"><a class="reference internal" href="clam.html">CLAM</a></li>
-<li class="toctree-l1"><a class="reference internal" href="torch.html">PyTorch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
 <li class="toctree-l1"><a class="reference internal" href="appendix.html">Appendix</a></li>
 </ul>
@@ -166,8 +168,8 @@
 <li class="toctree-l1"><a class="reference internal" href="project.html">slideflow.Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="dataset.html">slideflow.dataset</a></li>
 <li class="toctree-l1"><a class="reference internal" href="heatmap.html">slideflow.heatmap</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tfrecords.html">slideflow.io.tensorflow</a></li>
-<li class="toctree-l1"><a class="reference internal" href="reader.html">slideflow.io.torch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="io_tensorflow.html">slideflow.io.tensorflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="io_torch.html">slideflow.io.torch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="model.html">slideflow.model</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">slideflow.mosaic</a></li>
 <li class="toctree-l1"><a class="reference internal" href="slide.html">slideflow.slide</a></li>
@@ -178,6 +180,7 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="tutorial1.html">Tutorial 1: Model training (simple)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorial2.html">Tutorial 2: Model training (advanced)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial3.html">Tutorial 3: Model evaluation &amp; heatmaps</a></li>
 </ul>
 
             
@@ -250,7 +253,7 @@
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
               
-  <div class="section" id="slideflow-mosaic">
+  <section id="slideflow-mosaic">
 <h1>slideflow.mosaic<a class="headerlink" href="#slideflow-mosaic" title="Permalink to this headline">¶</a></h1>
 <p>This module provides the <a class="reference internal" href="#slideflow.Mosaic" title="slideflow.Mosaic"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.Mosaic</span></code></a> class, which plots tile images onto a map of slides,
 generating mosaic maps.</p>
@@ -263,11 +266,11 @@ dimensionality reduction (<a class="reference internal" href="statistics.html#sl
 <p>An example of a mosaic map can be found in Figure 4 of <a class="reference external" href="https://doi.org/10.1038/s41379-020-00724-3">this paper</a>.
 It bears some resemblence to the Activation Atlases created by
 <a class="reference external" href="https://distill.pub/2019/activation-atlas/">Google and OpenAI</a>, without the use of feature inversion.</p>
-<div class="section" id="mosaic">
+<section id="mosaic">
 <h2>Mosaic<a class="headerlink" href="#mosaic" title="Permalink to this headline">¶</a></h2>
 <dl class="py class">
 <dt class="sig sig-object py" id="slideflow.Mosaic">
-<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">slideflow.</span></span><span class="sig-name descname"><span class="pre">Mosaic</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">slide_map</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tfrecords</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">focus</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">leniency</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">expanded</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tile_zoom</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">15</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_tiles_x</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">50</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">resolution</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'high'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">relative_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tile_select</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'nearest'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tile_meta</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normalizer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normalizer_source</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">focus_slide</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.Mosaic" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">slideflow.</span></span><span class="sig-name descname"><span class="pre">Mosaic</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">slide_map</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tfrecords</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">focus</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">leniency</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">expanded</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tile_zoom</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">15</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_tiles_x</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">50</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">resolution</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'high'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">relative_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tile_select</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'nearest'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tile_meta</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normalizer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normalizer_source</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">focus_slide</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.Mosaic" title="Permalink to this definition">¶</a></dt>
 <dd><p>Visualization of tiles mapped using dimensionality reduction.</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="slideflow.Mosaic.__init__">
@@ -331,8 +334,8 @@ were displayed on the Mosaic map, in CSV format.</p>
 
 </dd></dl>
 
-</div>
-</div>
+</section>
+</section>
 
 
              </article>
@@ -435,27 +438,15 @@ were displayed on the Mosaic map, in CSV format.</p>
       <div class="main-menu">
         <ul>
           <li>
-            <a href="https://pytorch.org/get-started">Get Started</a>
+            <a href="https://slideflow.dev">Docs</a>
           </li>
 
           <li>
-            <a href="https://pytorch.org/ecosystem">Ecosystem</a>
+            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
           </li>
 
           <li>
-            <a href="https://pytorch.org/mobile">Mobile</a>
-          </li>
-
-          <li>
-            <a href="https://pytorch.org/hub">PyTorch Hub</a>
-          </li>
-
-          <li class="active">
-            <a href="https://pytorch.org/blog/">Blog</a>
-          </li>
-
-          <li>
-            <a href="https://github.com/pearson-laboratory/slideflow">Github</a>
+            <a href="https://github.com/jamesdolezal/slideflow">Github</a>
           </li>
         </ul>
       </div>
@@ -463,6 +454,10 @@ were displayed on the Mosaic map, in CSV format.</p>
   </div>
 
   <!-- End Mobile Menu -->
+
+  <script script type="text/javascript">
+    var collapsedSections = ['Source', 'Tutorials'];
+  </script>
 
   <script type="text/javascript" src="_static/js/vendor/anchor.min.js"></script>
 

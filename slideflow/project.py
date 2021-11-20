@@ -980,7 +980,7 @@ class Project:
         return outdir
 
     def generate_heatmaps(self, model, filters=None, filter_blank=None, outdir=None, resolution='low', batch_size=64,
-                          roi_method='inside', buffer=None, num_threads=8, skip_completed=False, **kwargs):
+                          roi_method='inside', buffer=None, num_threads=None, skip_completed=False, **kwargs):
 
         """Creates predictive heatmap overlays on a set of slides.
 
@@ -999,7 +999,7 @@ class Project:
                 Determines where heatmap should be made with respect to annotated ROI.
             buffer (str, optional): Path to which slides are copied prior to heatmap generation. Defaults to None.
                 This vastly improves extraction speed when using SSD or ramdisk buffer.
-            num_threads (int, optional): Number of threads to assign to tile extraction. Defaults to 8.
+            num_threads (int, optional): Number of threads to assign to tile extraction. Defaults to 2 * CPU core count.
                 Performance improvements can be seen by increasing this number in highly multi-core systems.
             skip_completed (bool, optional): Skip heatmaps for slides that already have heatmaps in target directory.
 
@@ -1030,9 +1030,9 @@ class Project:
         # Prepare dataset1
         config = sf.util.get_model_config(model)
         heatmaps_dataset = self.dataset(filters=filters,
-                                            filter_blank=filter_blank,
-                                            tile_px=config['hp']['tile_px'],
-                                            tile_um=config['hp']['tile_um'])
+                                        filter_blank=filter_blank,
+                                        tile_px=config['hp']['tile_px'],
+                                        tile_um=config['hp']['tile_um'])
         slide_list = heatmaps_dataset.slide_paths()
         heatmap_args.rois = heatmaps_dataset.rois()
 
@@ -1710,7 +1710,7 @@ class Project:
 
                 try:
                     interface = sf.model.Features(model, include_logits=False)
-                    wsi_grid = interface(whole_slide, num_threads=12)
+                    wsi_grid = interface(whole_slide)
 
                     with open (join(outdir, whole_slide.name+'.pkl'), 'wb') as pkl_file:
                         pickle.dump(wsi_grid, pkl_file)

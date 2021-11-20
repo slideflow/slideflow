@@ -1,12 +1,14 @@
 Tutorial 2: Model training (advanced)
 =======================================
 
-In this next tutorial, we'll take a more hands-on approach by working with some of the base slideflow classes directly. We will train the same model as the first tutorial, but rather than using the project method :meth:`slideflow.project.Project.train`, we will use the :class:`slideflow.dataset.Datset` and :class:`slideflow.model.Trainer` classes directly in an interactive python session.
+In the first tutorial, we used :meth:`slideflow.Project.train` to execute training. This project function is useful in that it 1) configures outcome labels in a manner supporting multiple outcomes; 2) prepares any additional slide-level model input from clinical annotations; 3) configures mini-batch balancing; 4) performs full cross-validation rather than training a single model at a time; 4) supports hyperparameter sweeps; and 5) logs model parameters to the model directory.
+
+In this tutorial, however, we will walk through training a model using the :class:`slideflow.Datset` and :class:`slideflow.model.Trainer` classes directly in an interactive python session, both to demonstrate how model training happens under the hood and to provide a starting point if you would like to customize any part of the model training pipeline.
 
 Project Setup
 *************
 
-Using the same project configuration as the first tutorial, we will set up a new project with the :meth:`slideflow.project.Project.from_prompt` initializer:
+Using the same project configuration as the first tutorial, we will set up a new project with the :meth:`slideflow.Project.from_prompt` initializer:
 
 .. code-block:: python
 
@@ -20,7 +22,7 @@ Use the same settings as the first tutorial. Rather than providing this informat
     >>> import slideflow as sf
     >>> P = sf.Project('/home/er_project', name="Breast_ER", annotations=...)
 
-If you initialize a project with keywords, you will need to manually create a new dataset source with the :meth:`slideflow.project.Project.add_dataset` method:
+If you initialize a project with keywords, you will need to manually create a new dataset source with the :meth:`slideflow.Project.add_dataset` method:
 
 .. code-block:: python
 
@@ -37,7 +39,7 @@ As before, set up your annotations file, including columns "patient", "er_status
 Creating a Dataset
 ******************
 
-Next, create a :class:`slideflow.dataset.Dataset` instance to indicate which slides we will be working with (again, we are working with 256 px tiles at 128 um). We only want to use our training set for now, and only include slides with an ER status annotation. For this, we will use the filters arguments.
+Next, create a :class:`slideflow.Dataset` instance to indicate which slides we will be working with (again, we are working with 256 px tiles at 128 um). We only want to use our training set for now, and only include slides with an ER status annotation. For this, we will use the filters arguments.
 
 .. code-block:: python
 
@@ -49,7 +51,7 @@ Next, create a :class:`slideflow.dataset.Dataset` instance to indicate which sli
     ...         'er_status_by_ihc': ['Positive', 'Negative']
     ... })
 
-To extract tiles from the slides in this dataset, use the :meth:`slideflow.dataset.Dataset.extract_tiles` method:
+To extract tiles from the slides in this dataset, use the :meth:`slideflow.Dataset.extract_tiles` method:
 
 .. code-block:: python
 
@@ -62,7 +64,7 @@ We can see how many tiles there are in our dataset by inspecting the ``num_tiles
     >>> dataset.num_tiles
     4503965
 
-We can use the dataset to get our ER status labels. The :meth:`slideflow.dataset.Dataset.labels` method returns the dictionary mapping slides names to outcomes as the first parameter, and a list of unique outcomes as the second parameter (which is not required at this time).
+We can use the dataset to get our ER status labels. The :meth:`slideflow.Dataset.labels` method returns the dictionary mapping slides names to outcomes as the first parameter, and a list of unique outcomes as the second parameter (which is not required at this time).
 
 .. code-block:: python
 
@@ -72,7 +74,7 @@ We can use the dataset to get our ER status labels. The :meth:`slideflow.dataset
 
 We can see the slideflow logs showing us that 234 slides with the outcome label "Negative" were assigned to the numerical outcome "0", and 842 "Positive" slides were assigned "1".
 
-Next, we'll need to split this dataset into a training and validation set. We'll start by training on the first of 3 k-folds for cross-validated training. To split a dataset, use the :meth:`slideflow.dataset.Dataset.training_validation_split` method. We'll need to provide our labels to ensure that the outcome categories are balanced in the training and validation sets.
+Next, we'll need to split this dataset into a training and validation set. We'll start by training on the first of 3 k-folds for cross-validated training. To split a dataset, use the :meth:`slideflow.Dataset.training_validation_split` method. We'll need to provide our labels to ensure that the outcome categories are balanced in the training and validation sets.
 
 .. code-block:: python
 
@@ -94,7 +96,7 @@ The first informational log tells us that no validation log was provided. We cou
 
 The rest of the log output shows us the distribution of our outcome categories among the k-folds, as well as the total number of slides for training and validation.
 
-At this point, we can also add categorical balancing to our dataset (see :ref:`balancing`). Since we have nearly 4 times as many ER-positive samples as ER-negative, it may be helpful to balance each batch to have an equal proportion of positives and negatives. We can accomplish this with the :meth:`slideflow.dataset.Dataset.balance` method:
+At this point, we can also add categorical balancing to our dataset (see :ref:`balancing`). Since we have nearly 4 times as many ER-positive samples as ER-negative, it may be helpful to balance each batch to have an equal proportion of positives and negatives. We can accomplish this with the :meth:`slideflow.Dataset.balance` method:
 
 .. code-block:: python
 

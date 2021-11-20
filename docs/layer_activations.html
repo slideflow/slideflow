@@ -6,10 +6,11 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  
+  <meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Features / layer activations &mdash; slideflow 1.0.0 documentation</title>
+  <title>Features / layer activations &mdash; slideflow 1.0.3 documentation</title>
   
 
   
@@ -31,7 +32,7 @@
   <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="CLAM" href="clam.html" />
+    <link rel="next" title="Switching backends" href="backend.html" />
     <link rel="prev" title="Evaluation" href="evaluation.html" />
   <!-- Google Analytics -->
   
@@ -88,7 +89,7 @@
           </li>
 
           <li>
-            <a href="https://github.com/pearson-laboratory/slideflow">GitHub</a>
+            <a href="https://github.com/jamesdolezal/slideflow">GitHub</a>
           </li>
         </ul>
       </div>
@@ -149,6 +150,7 @@
             
               <p class="caption" role="heading"><span class="caption-text">Overview</span></p>
 <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="pipeline.html">Pipeline Overview</a></li>
 <li class="toctree-l1"><a class="reference internal" href="project_setup.html">Setting up a Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="validation.html">Validation Planning</a></li>
@@ -156,8 +158,8 @@
 <li class="toctree-l1"><a class="reference internal" href="training.html">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="evaluation.html">Evaluation</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Features / layer activations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="backend.html">Switching backends</a></li>
 <li class="toctree-l1"><a class="reference internal" href="clam.html">CLAM</a></li>
-<li class="toctree-l1"><a class="reference internal" href="torch.html">PyTorch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
 <li class="toctree-l1"><a class="reference internal" href="appendix.html">Appendix</a></li>
 </ul>
@@ -166,8 +168,8 @@
 <li class="toctree-l1"><a class="reference internal" href="project.html">slideflow.Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="dataset.html">slideflow.dataset</a></li>
 <li class="toctree-l1"><a class="reference internal" href="heatmap.html">slideflow.heatmap</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tfrecords.html">slideflow.io.tensorflow</a></li>
-<li class="toctree-l1"><a class="reference internal" href="reader.html">slideflow.io.torch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="io_tensorflow.html">slideflow.io.tensorflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="io_torch.html">slideflow.io.torch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="model.html">slideflow.model</a></li>
 <li class="toctree-l1"><a class="reference internal" href="mosaic.html">slideflow.mosaic</a></li>
 <li class="toctree-l1"><a class="reference internal" href="slide.html">slideflow.slide</a></li>
@@ -178,6 +180,7 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="tutorial1.html">Tutorial 1: Model training (simple)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorial2.html">Tutorial 2: Model training (advanced)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial3.html">Tutorial 3: Model evaluation &amp; heatmaps</a></li>
 </ul>
 
             
@@ -250,10 +253,10 @@
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
               
-  <div class="section" id="features-layer-activations">
+  <section id="features-layer-activations">
 <h1>Features / layer activations<a class="headerlink" href="#features-layer-activations" title="Permalink to this headline">¶</a></h1>
 <p>Once a model has been fully trained and evaluated, you may use the model to generate features from layer activations to gain better insight into the kinds of image features the model has learned.</p>
-<div class="section" id="mosaic-maps">
+<section id="mosaic-maps">
 <h2>Mosaic maps<a class="headerlink" href="#mosaic-maps" title="Permalink to this headline">¶</a></h2>
 <p>The easiest way to get started with layer activations is to calculate and display these features as a mosaic map. Mosaic maps are generated by calculating features from layer activations from a dataset (via <a class="reference internal" href="model.html#slideflow.model.DatasetFeatures" title="slideflow.model.DatasetFeatures"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.model.DatasetFeatures</span></code></a>), performing dimensionality reduction (UMAP) on the activations (via <a class="reference internal" href="statistics.html#slideflow.SlideMap" title="slideflow.SlideMap"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.SlideMap</span></code></a>), and overlaying tile images onto the UMAP (via <a class="reference internal" href="mosaic.html#slideflow.Mosaic" title="slideflow.Mosaic"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.Mosaic</span></code></a>). By default, the post-convolutional (‘postconv’) layer is used when calculating features, but any combination of other layers can be also be used. The <code class="docutils literal notranslate"><span class="pre">Project</span></code> class has a function which can supervise these steps automatically and save the final figure to the project directory:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">project</span><span class="o">.</span><span class="n">generate_mosaic</span><span class="p">(</span>
@@ -338,27 +341,32 @@ Defaults to False.</p></li>
 </pre></div>
 </div>
 <img alt="_images/3d_umap.png" src="_images/3d_umap.png" />
-</div>
-<div class="section" id="working-with-layer-features">
+</section>
+<section id="working-with-layer-features">
 <h2>Working with Layer Features<a class="headerlink" href="#working-with-layer-features" title="Permalink to this headline">¶</a></h2>
 <p>To work more directly with features / intermediate layer activations, use either <a class="reference internal" href="model.html#slideflow.model.Features" title="slideflow.model.Features"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.model.Features</span></code></a> to generate features on a tile or slide level, or <a class="reference internal" href="model.html#slideflow.model.DatasetFeatures" title="slideflow.model.DatasetFeatures"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.model.DatasetFeatures</span></code></a> to generate features for an entire dataset.</p>
-<div class="section" id="features">
+<section id="features">
 <h3>Features<a class="headerlink" href="#features" title="Permalink to this headline">¶</a></h3>
 <p>The <a class="reference internal" href="model.html#slideflow.model.Features" title="slideflow.model.Features"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.model.Features</span></code></a> class can be used to generate layer activations / features for a single batch of images. For example, to calculate features for a batch of images while looping through a dataset:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">interface</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">Features</span><span class="p">(</span><span class="n">layer</span><span class="o">=</span><span class="s1">&#39;postconv&#39;</span><span class="p">)</span>
-<span class="k">for</span> <span class="n">image_batch</span> <span class="ow">in</span> <span class="n">dataset</span><span class="p">:</span>
-    <span class="n">postconv_features</span> <span class="o">=</span> <span class="n">interface</span><span class="p">(</span><span class="n">image_batch</span><span class="p">)</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">slideflow.model</span> <span class="kn">import</span> <span class="n">Features</span>
+
+<span class="n">features</span> <span class="o">=</span> <span class="n">Features</span><span class="p">(</span><span class="n">layer</span><span class="o">=</span><span class="s1">&#39;postconv&#39;</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">img_batch</span> <span class="ow">in</span> <span class="n">dataset</span><span class="p">:</span>
+    <span class="n">postconv_features</span> <span class="o">=</span> <span class="n">features</span><span class="p">(</span><span class="n">img_batch</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>You can choose to return features from any combination of intermediate layers by passing layer name(s) to the argument <code class="docutils literal notranslate"><span class="pre">layer</span></code>. The interface can also return logits, by passing <code class="docutils literal notranslate"><span class="pre">include_logits=True</span></code>.</p>
 <p>To calculate layer features across an entire slide, the same interface can be called on a <code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.WSI</span></code> object, generating a grid of activations of size <code class="docutils literal notranslate"><span class="pre">(slide.grid.shape[0],</span> <span class="pre">slide.grid.shape[1],</span> <span class="pre">num_features)</span></code>:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">slide</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">WSI</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">slideflow</span> <span class="kn">import</span> <span class="n">WSI</span>
+<span class="kn">from</span> <span class="nn">slideflow.model</span> <span class="kn">import</span> <span class="n">Features</span>
+
+<span class="n">slide</span> <span class="o">=</span> <span class="n">WSI</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
 <span class="n">interface</span> <span class="o">=</span> <span class="n">Features</span><span class="p">(</span><span class="s1">&#39;/model/path&#39;</span><span class="p">,</span> <span class="n">layers</span><span class="o">=</span><span class="s1">&#39;postconv&#39;</span><span class="p">)</span>
 <span class="n">feature_grid</span> <span class="o">=</span> <span class="n">interface</span><span class="p">(</span><span class="n">slide</span><span class="p">)</span>
 </pre></div>
 </div>
-</div>
-<div class="section" id="datasetfeatures">
+</section>
+<section id="datasetfeatures">
 <h3>DatasetFeatures<a class="headerlink" href="#datasetfeatures" title="Permalink to this headline">¶</a></h3>
 <p>The <a class="reference internal" href="model.html#slideflow.model.DatasetFeatures" title="slideflow.model.DatasetFeatures"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.model.DatasetFeatures</span></code></a> class is used to calculate and examine activations across an entire dataset. Instancing the class supervises the calculation and caching of layer activations, which can then be exported, viewed (as a mosaic map), or analyzed with various statistical methods. The project function <a class="reference internal" href="project.html#slideflow.Project.generate_features" title="slideflow.Project.generate_features"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.Project.generate_features()</span></code></a> creates and returns an instance of this class.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">features</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">generate_features</span><span class="p">(</span>
@@ -368,12 +376,14 @@ Defaults to False.</p></li>
 </pre></div>
 </div>
 <p>Alternatively, you can create an instance of this class directly:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">dataset</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">dataset</span><span class="p">(</span><span class="mi">299</span><span class="p">,</span> <span class="mi">302</span><span class="p">)</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">slideflow.model</span> <span class="kn">import</span> <span class="n">Features</span>
 
-<span class="n">features</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">Features</span><span class="p">(</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">dataset</span><span class="p">(</span><span class="mi">299</span><span class="p">,</span> <span class="mi">302</span><span class="p">)</span>
+
+<span class="n">features</span> <span class="o">=</span> <span class="n">Features</span><span class="p">(</span>
     <span class="n">model</span><span class="o">=</span><span class="s1">&#39;/path/to/trained_model&#39;</span><span class="p">,</span>
     <span class="n">tfrecords</span><span class="o">=</span><span class="n">dataset</span><span class="o">.</span><span class="n">tfrecords</span><span class="p">(),</span>
-    <span class="n">annotations</span><span class="o">=</span><span class="n">dataset</span><span class="o">.</span><span class="n">slide_to_label</span><span class="p">(</span><span class="s1">&#39;HPV&#39;</span><span class="p">)</span>
+    <span class="n">annotations</span><span class="o">=</span><span class="n">dataset</span><span class="o">.</span><span class="n">labels</span><span class="p">(</span><span class="s1">&#39;HPV&#39;</span><span class="p">)</span>
 <span class="p">)</span>
 </pre></div>
 </div>
@@ -385,9 +395,9 @@ Defaults to False.</p></li>
 <p>To compare layer features across outcome categories and find features which differ significantly across categories, use the <a class="reference internal" href="model.html#slideflow.model.DatasetFeatures.box_plots" title="slideflow.model.DatasetFeatures.box_plots"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.model.DatasetFeatures.box_plots()</span></code></a> function:</p>
 <img alt="_images/boxplot_example.png" src="_images/boxplot_example.png" />
 <p>Many other functions are available, as described in the documentation, <a class="reference internal" href="model.html#slideflow.model.Features" title="slideflow.model.Features"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.model.Features</span></code></a>.</p>
-</div>
-</div>
-</div>
+</section>
+</section>
+</section>
 
 
              </article>
@@ -397,7 +407,7 @@ Defaults to False.</p></li>
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="clam.html" class="btn btn-neutral float-right" title="CLAM" accesskey="n" rel="next">Next <img src="_static/images/chevron-right-orange.svg" class="next-page"></a>
+        <a href="backend.html" class="btn btn-neutral float-right" title="Switching backends" accesskey="n" rel="next">Next <img src="_static/images/chevron-right-orange.svg" class="next-page"></a>
       
       
         <a href="evaluation.html" class="btn btn-neutral" title="Evaluation" accesskey="p" rel="prev"><img src="_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
@@ -495,27 +505,15 @@ Defaults to False.</p></li>
       <div class="main-menu">
         <ul>
           <li>
-            <a href="https://pytorch.org/get-started">Get Started</a>
+            <a href="https://slideflow.dev">Docs</a>
           </li>
 
           <li>
-            <a href="https://pytorch.org/ecosystem">Ecosystem</a>
+            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
           </li>
 
           <li>
-            <a href="https://pytorch.org/mobile">Mobile</a>
-          </li>
-
-          <li>
-            <a href="https://pytorch.org/hub">PyTorch Hub</a>
-          </li>
-
-          <li class="active">
-            <a href="https://pytorch.org/blog/">Blog</a>
-          </li>
-
-          <li>
-            <a href="https://github.com/pearson-laboratory/slideflow">Github</a>
+            <a href="https://github.com/jamesdolezal/slideflow">Github</a>
           </li>
         </ul>
       </div>
@@ -523,6 +521,10 @@ Defaults to False.</p></li>
   </div>
 
   <!-- End Mobile Menu -->
+
+  <script script type="text/javascript">
+    var collapsedSections = ['Source', 'Tutorials'];
+  </script>
 
   <script type="text/javascript" src="_static/js/vendor/anchor.min.js"></script>
 

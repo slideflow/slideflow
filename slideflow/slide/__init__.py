@@ -375,8 +375,6 @@ class ExtractionReport:
 
         Args:
             reports (list(:class:`SlideReport`)): List of SlideReport objects.
-            tile_px (int): Tile size in pixels.
-            tile_um (int): Tile size in microns.
         """
 
         self.bb_threshold = bb_threshold
@@ -1314,7 +1312,7 @@ class WSI(_BaseLoader):
 
     def build_generator(self, shuffle=True, whitespace_fraction=None, whitespace_threshold=None,
                         grayspace_fraction=None, grayspace_threshold=None, normalizer=None, normalizer_source=None,
-                        include_loc=True, num_threads=8, show_progress=False, img_format='numpy', full_core=None,
+                        include_loc=True, num_threads=None, show_progress=False, img_format='numpy', full_core=None,
                         yolo=False, draw_roi=False, pool=None, dry_run=False):
 
         """Builds tile generator to extract tiles from this slide.
@@ -1353,6 +1351,13 @@ class WSI(_BaseLoader):
         if self.estimated_num_tiles == 0:
             log.warning(f"No tiles extracted at the given micron size for slide {sf.util.green(self.name)}")
             return None
+
+        # Detect CPU cores if num_threads not specified
+        if num_threads is None:
+            try:
+                num_threads = 2 * os.cpu_count()
+            except:
+                num_threads = 8
 
         # Shuffle coordinates to randomize extraction order
         if shuffle:

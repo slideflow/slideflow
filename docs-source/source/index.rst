@@ -16,6 +16,7 @@ The current implementation has been developed and tested in Python 3.7/3.8, usin
    :maxdepth: 1
    :caption: Overview
 
+   installation
    pipeline
    project_setup
    validation
@@ -23,8 +24,8 @@ The current implementation has been developed and tested in Python 3.7/3.8, usin
    training
    evaluation
    layer_activations
+   backend
    clam
-   torch
    troubleshooting
    appendix
 
@@ -35,8 +36,8 @@ The current implementation has been developed and tested in Python 3.7/3.8, usin
    project
    dataset
    heatmap
-   tfrecords
-   reader
+   io_tensorflow
+   io_torch
    model
    mosaic
    slide
@@ -49,6 +50,7 @@ The current implementation has been developed and tested in Python 3.7/3.8, usin
 
    tutorial1
    tutorial2
+   tutorial3
 
 Indices and tables
 ==================

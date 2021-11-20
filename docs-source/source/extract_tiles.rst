@@ -26,7 +26,7 @@ To further filter by the annotation header "mutation_status", including only sli
 .. note::
     The ``filters`` argument can be also used for filtering input slides in many slideflow functions, including ``train()``, ``evaluate()``, ``generate_heatmaps()``, and ``generate_mosaic()``.
 
-Tiles will be extracted at the specified pixel and micron size. Tiles will be automatically stored in TFRecord format, although loose tiles can also be saved by passing a destination path to the argument ``tiles_dir``.
+Tiles will be extracted at the specified pixel and micron size. Tiles will be automatically stored in TFRecord format, although loose tiles can also be saved by passing ``save_tiles=True``.
 
 The full documentation for the ``extract_tiles`` function is given below:
 

@@ -283,6 +283,9 @@ class Dataset:
         slides = [sf.util.path_to_name(tfr) for tfr in tfrecords]
         totals = {tfr: (manifest[tfr]['total'] if 'clipped' not in manifest[tfr] else manifest[tfr]['clipped']) for tfr in tfrecords}
 
+        if not tfrecords:
+            raise DatasetError("Unable to balance; no tfrecords found.")
+
         if strategy == 'none' or strategy is None:
             return self
 
@@ -394,6 +397,9 @@ class Dataset:
         slides = [sf.util.path_to_name(tfr) for tfr in tfrecords]
         totals = {tfr: manifest[tfr]['total'] for tfr in tfrecords}
 
+        if not tfrecords:
+            raise DatasetError("Unable to clip; no tfrecords found.")
+
         if strategy == 'slide':
             clip = min(min(totals.values()), max_tiles) if max_tiles else min(totals.values())
             ret._clip = {tfr: (clip if totals[tfr] > clip else totals[tfr]) for tfr in manifest}
@@ -491,7 +497,7 @@ class Dataset:
             full_core (bool, optional): Only used if extracting from TMA. If True, will save entire TMA core as image.
                 Otherwise, will extract sub-images from each core using the given tile micron size. Defaults to False.
             shuffle (bool, optional): Shuffle tiles prior to storage in tfrecords. Defaults to True.
-            num_threads (int, optional): Number of workers threads for each tile extractor. Defaults to 4.
+            num_threads (int, optional): Number of workers threads for each tile extractor.
             qc_blur_radius (int, optional): Quality control blur radius for out-of-focus area detection. Only used if
                 qc=True. Defaults to 3.
             qc_blur_threshold (float, optional): Quality control blur threshold for detecting out-of-focus areas.
@@ -509,6 +515,8 @@ class Dataset:
             return
         if q_size < num_workers:
             log.warn(f"q_size ({q_size}) less than num_workers {num_workers}; some workers will not be used")
+        if not self.tile_px or not self.tile_um:
+            raise DatasetError("Dataset tile_px and tile_um must be set to extract tiles.")
 
         if source:  sources = [source] if not isinstance(source, list) else source
         else:       sources = self.sources
@@ -1279,7 +1287,11 @@ class Dataset:
         if 'normalizer' in kwargs and isinstance(kwargs['normalizer'], str):
             kwargs['normalizer'] = sf.slide.StainNormalizer(kwargs['normalizer'])
 
-        return interleave(tfrecords=self.tfrecords(),
+        tfrecords = self.tfrecords()
+        if not tfrecords:
+            raise DatasetError("No TFRecords found.")
+
+        return interleave(tfrecords=tfrecords,
                           labels=labels,
                           img_size=self.tile_px,
                           batch_size=batch_size,
@@ -1403,6 +1415,10 @@ class Dataset:
 
     def tfrecords_from_tiles(self, delete_tiles=False):
         """Create tfrecord files from a collection of raw images, as stored in project tiles directory"""
+
+        if not self.tile_px or not self.tile_um:
+            raise DatasetError("Dataset tile_px and tile_um must be set to generate TFRecords.")
+
         for source in self.sources:
             log.info(f'Working on dataset source {source}')
             config = self.sources[source]
@@ -1702,6 +1718,9 @@ class Dataset:
 
         self.build_index(rebuild_index)
         tfrecords = self.tfrecords()
+        if not tfrecords:
+            raise DatasetError("No TFRecords found.")
+
         prob_weights = [self.prob_weights[tfr] for tfr in tfrecords] if self.prob_weights else None
         indices = self.load_indices()
         indices = [indices[sf.util.path_to_name(tfr)] for tfr in tfrecords]

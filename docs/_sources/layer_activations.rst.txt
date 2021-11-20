@@ -52,9 +52,11 @@ The :class:`slideflow.model.Features` class can be used to generate layer activa
 
 .. code-block:: python
 
-    interface = sf.model.Features(layer='postconv')
-    for image_batch in dataset:
-        postconv_features = interface(image_batch)
+    from slideflow.model import Features
+
+    features = Features(layer='postconv')
+    for img_batch in dataset:
+        postconv_features = features(img_batch)
 
 You can choose to return features from any combination of intermediate layers by passing layer name(s) to the argument ``layer``. The interface can also return logits, by passing ``include_logits=True``.
 
@@ -62,7 +64,10 @@ To calculate layer features across an entire slide, the same interface can be ca
 
 .. code-block:: python
 
-    slide = sf.slide.WSI(...)
+    from slideflow import WSI
+    from slideflow.model import Features
+
+    slide = WSI(...)
     interface = Features('/model/path', layers='postconv')
     feature_grid = interface(slide)
 
@@ -82,12 +87,14 @@ Alternatively, you can create an instance of this class directly:
 
 .. code-block:: python
 
+    from slideflow.model import Features
+
     dataset = P.dataset(299, 302)
 
-    features = sf.model.Features(
+    features = Features(
         model='/path/to/trained_model',
         tfrecords=dataset.tfrecords(),
-        annotations=dataset.slide_to_label('HPV')
+        annotations=dataset.labels('HPV')
     )
 
 To return the average logits value for each slide (averaged across constituent tiles), use :func:`slideflow.model.DatasetFeatures.logits_mean`. Similarly, :func:`slideflow.model.DatasetFeatures.logits_predict` can be used to generate final slide-level logit predictions.
