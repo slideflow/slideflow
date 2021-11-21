@@ -997,7 +997,7 @@ class Project:
                 Determines where heatmap should be made with respect to annotated ROI.
             buffer (str, optional): Path to which slides are copied prior to heatmap generation. Defaults to None.
                 This vastly improves extraction speed when using SSD or ramdisk buffer.
-            num_threads (int, optional): Number of threads to assign to tile extraction. Defaults to 2 * CPU core count.
+            num_threads (int, optional): Number of threads to assign to tile extraction. Defaults to CPU core count.
                 Performance improvements can be seen by increasing this number in highly multi-core systems.
             skip_completed (bool, optional): Skip heatmaps for slides that already have heatmaps in target directory.
 
@@ -1396,8 +1396,7 @@ class Project:
                               enable_downsample=enable_downsample,
                               rois=rois,
                               roi_method='inside',
-                              skip_missing_roi=roi,
-                              buffer=None)
+                              skip_missing_roi=roi)
             if roi:
                 thumb = whole_slide.thumb(rois=True)
             else:
@@ -1597,7 +1596,7 @@ class Project:
 
     def predict_wsi(self, model, outdir, dataset=None, filters=None, filter_blank=None, stride_div=1,
                     enable_downsample=True, roi_method='inside', skip_missing_roi=False, source=None,
-                    randomize_origin=False, buffer=None, **kwargs):
+                    randomize_origin=False, **kwargs):
 
         """Using a given model, generates a spatial map of tile-level predictions for a whole-slide image (WSI)
             and dumps prediction arrays into pkl files for later use.
@@ -1624,8 +1623,6 @@ class Project:
             skip_missing_roi (bool, optional): Skip slides that are missing ROIs. Defaults to True.
             source (list, optional): Name(s) of dataset sources from which to get slides. If None, will use all.
             randomize_origin (bool, optional): Randomize pixel starting position during extraction. Defaults to False.
-            buffer (str, optional): Slides will be copied to this directory before extraction. Defaults to None.
-                Using an SSD or ramdisk buffer vastly improves tile extraction speed.
 
         Keyword Args:
             whitespace_fraction (float, optional): Range 0-1. Defaults to 1.
@@ -1677,14 +1674,13 @@ class Project:
             log.info('Verifying slides...')
             total_tiles = 0
             for slide_path in tqdm(slide_list, leave=False):
-                slide = sf.slide.WSI(slide_path,
-                                    tile_px,
-                                    tile_um,
-                                    stride_div,
-                                    roi_dir=roi_dir,
-                                    roi_method=roi_method,
-                                    skip_missing_roi=False,
-                                    buffer=None)
+                slide = sf.WSI(slide_path,
+                               tile_px,
+                               tile_um,
+                               stride_div,
+                               roi_dir=roi_dir,
+                               roi_method=roi_method,
+                               skip_missing_roi=False)
                 log.debug(f"Estimated tiles for slide {slide.name}: {slide.estimated_num_tiles}")
                 total_tiles += slide.estimated_num_tiles
                 del slide
@@ -1692,16 +1688,15 @@ class Project:
 
             for slide_path in slide_list:
                 log.info(f'Working on slide {sf.util.path_to_name(slide_path)}')
-                whole_slide = sf.slide.WSI(slide_path,
-                                        tile_px,
-                                        tile_um,
-                                        stride_div,
-                                        enable_downsample=enable_downsample,
-                                        roi_dir=roi_dir,
-                                        roi_method=roi_method,
-                                        randomize_origin=randomize_origin,
-                                        skip_missing_roi=skip_missing_roi,
-                                        buffer=buffer)
+                whole_slide = sf.WSI(slide_path,
+                                     tile_px,
+                                     tile_um,
+                                     stride_div,
+                                     enable_downsample=enable_downsample,
+                                     roi_dir=roi_dir,
+                                     roi_method=roi_method,
+                                     randomize_origin=randomize_origin,
+                                     skip_missing_roi=skip_missing_roi)
 
                 if not whole_slide.loaded_correctly():
                     continue
@@ -1724,18 +1719,6 @@ class Project:
     def save(self):
         """Saves current project configuration as "settings.json"."""
         sf.util.write_json(self._settings, join(self.root, 'settings.json'))
-
-    def slide_report(self, *args, **kwargs):
-
-        """Function moved to :meth:slideflow.dataset.Dataset.slide_report"""
-
-        raise DeprecationWarning("Function moved to slideflow.dataset.Dataset.slide_report()")
-
-    def tfrecord_report(self, *args, **kwargs):
-
-        """Function moved to :meth:slideflow.dataset.Dataset.tfrecord_report"""
-
-        raise DeprecationWarning("Function moved to slideflow.dataset.Dataset.tfrecord_report()")
 
     def train(self, outcome_label_headers, params, exp_label=None, filters=None, filter_blank=None,
               input_header=None, resume_training=None, checkpoint=None, pretrain='imagenet', min_tiles=0, max_tiles=0,

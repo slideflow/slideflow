@@ -98,4 +98,4 @@ In addition to viewing reports after tile extraction, you may generate new repor
     dataset = P.dataset(tile_px=299, tile_um=302)
     dataset.tfrecord_report("/path/to/dest")
 
-You can also generate reports for slides that have not yet been extracted with :func:`slideflow.Dataset.slide_report`.
+You can also generate reports for slides that have not yet been extracted by passing ``dry_run=True`` to :meth:`slideflow.Dataset.extract_tiles`.

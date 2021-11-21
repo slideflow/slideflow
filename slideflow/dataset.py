@@ -22,8 +22,8 @@ from multiprocessing.dummy import Pool as DPool
 from slideflow.util import log, TCGA, _shortname, ProgressBar
 
 def _tile_extractor(slide_path, tfrecord_dir, tiles_dir, roi_dir, roi_method, skip_missing_roi, randomize_origin, tma,
-                    tile_px, tile_um, stride_div, downsample, buffer, pb_counter, counter_lock, reports,
-                    generator_kwargs, qc, qc_kwargs):
+                    tile_px, tile_um, stride_div, downsample, pb_counter, counter_lock, reports, generator_kwargs, qc,
+                    qc_kwargs):
     """Internal function to extract tiles. Slide processing needs to be process-isolated when num_workers > 1 ."""
 
     # Record function arguments in case we need to re-call the function (for corrupt tiles)
@@ -39,8 +39,7 @@ def _tile_extractor(slide_path, tfrecord_dir, tiles_dir, roi_dir, roi_method, sk
                                  tile_um,
                                  stride_div,
                                  enable_downsample=downsample,
-                                 report_dir=tfrecord_dir,
-                                 buffer=buffer)
+                                 report_dir=tfrecord_dir)
         else:
             slide = sf.slide.WSI(slide_path,
                                  tile_px,
@@ -51,7 +50,6 @@ def _tile_extractor(slide_path, tfrecord_dir, tiles_dir, roi_dir, roi_method, sk
                                  roi_method=roi_method,
                                  randomize_origin=randomize_origin,
                                  skip_missing_roi=skip_missing_roi,
-                                 buffer=buffer,
                                  pb_counter=pb_counter,
                                  counter_lock=counter_lock)
 
@@ -608,7 +606,15 @@ class Dataset:
 
                 # If only one worker, use a single shared multiprocessing pool
                 if num_workers == 1:
-                    num_threads = 8 if 'num_threads' not in kwargs else kwargs['num_threads']
+                    # Detect CPU cores if num_threads not specified
+                    if 'num_threads' not in kwargs:
+                        try:
+                            num_threads = os.cpu_count()
+                        except:
+                            num_threads = 8
+                    else:
+                        num_threads = kwargs['num_threads']
+                    log.info(f'Extracting tiles with {num_threads} threads')
                     kwargs['pool'] = multiprocessing.Pool(num_threads)
 
                 extraction_kwargs = {
@@ -623,7 +629,6 @@ class Dataset:
                     'tile_um': self.tile_um,
                     'stride_div': stride_div,
                     'downsample': enable_downsample,
-                    'buffer': buffer,
                     'pb_counter': counter,
                     'counter_lock': counter_lock,
                     'generator_kwargs': kwargs,
@@ -643,7 +648,7 @@ class Dataset:
                                 process.join()
                             else:
                                 _tile_extractor(path, **extraction_kwargs)
-                            if buffer and buffer != 'vmtouch':
+                            if buffer:
                                 os.remove(path)
                             q.task_done()
                         except queue.Empty:
@@ -658,7 +663,7 @@ class Dataset:
                 # Put each slide path into queue
                 for slide_path in slide_list:
                     warned = False
-                    if buffer and buffer != 'vmtouch':
+                    if buffer:
                         while True:
                             if q.qsize() < q_size:
                                 try:
@@ -1075,71 +1080,6 @@ class Dataset:
         else:
             return paths
 
-    def slide_report(self, stride_div=1, destination='auto', tma=False, enable_downsample=True, roi_method='inside',
-                     skip_missing_roi=False, normalizer=None, normalizer_source=None):
-
-        """Creates a PDF report of slides, including images of 10 example extracted tiles.
-
-        Args:
-            stride_div (int, optional): Stride divisor for tile extraction. Defaults to 1.
-            destination (str, optional): Either 'auto' or explicit filename at which to save the PDF report.
-                Defaults to 'auto'.
-            tma (bool, optional): Interpret slides as TMA (tumor microarrays). Defaults to False.
-            enable_downsample (bool, optional): Enable downsampling during tile extraction. Defaults to True.
-            roi_method (str, optional): Either 'inside', 'outside', or 'ignore'. Defaults to 'inside'.
-                Determines how ROIs will guide tile extraction
-            skip_missing_roi (bool, optional): Skip tiles that are missing ROIs. Defaults to False.
-            normalizer (str, optional): Normalization strategy to use on image tiles. Defaults to None.
-            normalizer_source (str, optional): Path to normalizer source image. Defaults to None.
-                If None but using a normalizer, will use an internal tile for normalization.
-                Internal default tile can be found at slideflow.slide.norm_tile.jpg
-        """
-
-        from slideflow.slide import TMA, WSI, ExtractionReport
-
-        log.info('Generating slide report...')
-        reports = []
-        for source in self.sources:
-            roi_dir = self.sources[source]['roi']
-            slide_list = self.slide_paths(source=source)
-
-            # Function to extract tiles from a slide
-            def get_slide_report(slide_path):
-                print(f'\r\033[KGenerating report for slide {sf.util.green(sf.util.path_to_name(slide_path))}...', end='')
-
-                if tma:
-                    whole_slide = TMA(slide_path,
-                                      self.tile_px,
-                                      self.tile_um,
-                                      stride_div,
-                                      enable_downsample=enable_downsample)
-                else:
-                    whole_slide = WSI(slide_path,
-                                      self.tile_px,
-                                      self.tile_um,
-                                      stride_div,
-                                      enable_downsample=enable_downsample,
-                                      roi_dir=roi_dir,
-                                      roi_method=roi_method,
-                                      skip_missing_roi=skip_missing_roi)
-
-                if not whole_slide.loaded_correctly():
-                    return
-
-                report = whole_slide.extract_tiles(normalizer=normalizer, normalizer_source=normalizer_source)
-                return report
-
-            for slide_path in slide_list:
-                report = get_slide_report(slide_path)
-                reports += [report]
-        print('\r\033[K', end='')
-        log.info('Generating PDF (this may take some time)...', )
-        pdf_report = ExtractionReport(reports, tile_px=self.tile_px, tile_um=self.tile_um)
-        timestring = datetime.now().strftime('%Y%m%d-%H%M%S')
-        filename = destination if destination != 'auto' else join(self.root, f'tile_extraction_report-{timestring}.pdf')
-        pdf_report.save(filename)
-        log.info(f'Slide report saved to {sf.util.green(filename)}')
-
     def slides(self):
         """Returns a list of slide names in this dataset."""
 
@@ -1335,7 +1275,7 @@ class Dataset:
 
         print('\r\033[K', end='')
         log.info('Generating PDF (this may take some time)...')
-        pdf_report = ExtractionReport(reports, tile_px=self.tile_px, tile_um=self.tile_um)
+        pdf_report = ExtractionReport(reports, title='TFRecord Report')
         timestring = datetime.now().strftime('%Y%m%d-%H%M%S')
         if os.path.exists(destination) and os.path.isdir(destination):
             filename = join(destination, f'tfrecord_report-{timestring}.pdf')

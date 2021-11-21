@@ -12,7 +12,7 @@ import os
 
 __author__ = 'James Dolezal'
 __license__ = 'GNU General Public License v3.0'
-__version__ = "1.0.3"
+__version__ = "1.0.4"
 
 if 'SF_BACKEND' not in os.environ:
     os.environ['SF_BACKEND'] = 'tensorflow'
@@ -47,4 +47,3 @@ def backend():
 #TODO: improve estimated_num_tiles when doing tile extraction & no ROI (or QC)
 #TODO: for tfrecord parser, combine utf-8 and image decoding into single `decode` argument (rather than decode_images)
 #TODO: consider pytorch to_numpy=False returns tensor objects
-#TODO: report/log k-fold split ID if loading a plan from JSON

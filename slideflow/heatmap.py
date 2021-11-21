@@ -31,8 +31,8 @@ class Heatmap:
                 If inside, tiles will be extracted inside ROI region.
                 If outside, tiles will be extracted outside ROI region.
             batch_size (int, optional): Batch size when calculating predictions. Defaults to 32.
-            num_threads (int, optional): Number of tile extraction worker threads. Defaults to 2 * CPU core count.
-            buffer (str, optional): Either 'vmtouch' or path to directory to use for buffering slides. Defaults to None.
+            num_threads (int, optional): Number of tile extraction worker threads. Defaults to CPU core count.
+            buffer (str, optional): Path to directory to use for buffering slides. Defaults to None.
                 Significantly improves performance for slides on HDDs.
             enable_downsample (bool, optional): Enable the use of downsampled slide image layers. Defaults to True.
         """
@@ -69,7 +69,6 @@ class Heatmap:
                          roi_dir=roi_dir,
                          rois=rois,
                          roi_method=roi_method,
-                         buffer=buffer,
                          skip_missing_roi=False)
 
         if not self.slide.loaded_correctly():
