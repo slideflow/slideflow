@@ -1721,11 +1721,6 @@ class Project:
                         log.error(f'Corrupt tile in {formatted_slide}; skipping slide')
                     continue
 
-    def resize_tfrecords(self, *args, **kwargs):
-        """Function moved to :meth:slideflow.dataset.Dataset.resize_tfrecords"""
-
-        raise DeprecationWarning("Function moved to slideflow.dataset.Dataset.resize_tfrecords()")
-
     def save(self):
         """Saves current project configuration as "settings.json"."""
         sf.util.write_json(self._settings, join(self.root, 'settings.json'))
