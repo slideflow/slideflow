@@ -11,14 +11,12 @@ import numpy as np
 import multiprocessing
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcol
+import slideflow as sf
+import slideflow.util.neptune_utils
 
 from os.path import join, exists, isdir, basename
 from statistics import mean, median
 from tqdm import tqdm
-
-import slideflow as sf
-import slideflow.util.neptune_utils
-
 from slideflow import project_utils
 from slideflow.dataset import Dataset
 from slideflow.util import log
