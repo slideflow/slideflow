@@ -199,7 +199,7 @@ def reader_tester(project):
         assert len(torch_results) == len(tf_results) == dataset.num_tiles
         assert torch_results == tf_results
 
-class TestConfigurator:
+class TestConfig:
     def __init__(self, path, slides):
         '''Test Suite configuration.
 
@@ -305,7 +305,7 @@ class TestSuite:
         # Configure testing environment
         self.test_root = root
         self.project_root = join(root, 'project')
-        self.config = TestConfigurator(root, slides=slides)
+        self.config = TestConfig(root, slides=slides)
 
         if os.path.exists(join(self.project_root, 'settings.json')) and reset:
             shutil.rmtree(self.project_root)

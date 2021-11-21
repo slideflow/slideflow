@@ -1553,7 +1553,7 @@ class Dataset:
         else:
             # Try to load validation split
             loaded_splits = [] if (not splits_file or not exists(splits_file)) else sf.util.load_json(splits_file)
-            for split in loaded_splits:
+            for split_id, split in enumerate(loaded_splits):
                 # First, see if strategy is the same
                 if split['strategy'] != val_strategy:
                     continue
@@ -1571,7 +1571,7 @@ class Dataset:
                     if [patients_dict[p]['outcome_label'] for p in split_patients] == \
                         [split['patients'][p]['outcome_label']for p in split_patients]:
 
-                        log.info(f"Using {val_strategy} validation split detected at {sf.util.green(splits_file)}")
+                        log.info(f"Using {val_strategy} validation split detected at {sf.util.green(splits_file)} (ID: {split_id})")
                         accepted_split = split
                         break
 
