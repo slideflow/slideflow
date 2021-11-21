@@ -152,11 +152,10 @@ def _wsi_extraction_worker(c, args):
     index = c[2]
     grid_xi = c[4]
     grid_yi = c[5]
-
-    # Check if the center of the current window lies within any annotation; if not, skip
     x_coord = int((c[0]+args.full_extract_px/2)/args.roi_scale)
     y_coord = int((c[1]+args.full_extract_px/2)/args.roi_scale)
 
+    # Check if the center of the current window lies within any annotation; if not, skip
     if args.roi_method != 'ignore' and bool(args.annPolys):
         point_in_roi = any([annPoly.contains(sg.Point(x_coord, y_coord)) for annPoly in args.annPolys])
         # If the extraction method is 'inside', skip the tile if it's not in an ROI
