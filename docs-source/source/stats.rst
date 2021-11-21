@@ -1,7 +1,7 @@
-.. currentmodule:: slideflow.statistics
+.. currentmodule:: slideflow.stats
 
-slideflow.statistics
-====================
+slideflow.stats
+===============
 
 In addition to containing functions used during model training and evaluation, this module provides
 the :class:`slideflow.SlideMap` class designed to assist with visualizing tiles and slides
@@ -37,7 +37,7 @@ index in the slide TFRecord.
     meta = [{'slide': ..., 'index': ...} for i in range(len(x))]
     slide_map = sf.SlideMap.from_precalculated(slides, x, y, meta)
 
-.. automodule: slideflow.statistics
+.. automodule: slideflow.stats
     :imported-members:
 
 SlideMap

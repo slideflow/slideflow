@@ -494,7 +494,7 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
         epoch = self.epoch_count
         epoch_label = f'val_epoch{epoch}'
         pred_args = types.SimpleNamespace(loss=self.hp.get_loss())
-        metrics, acc, loss = sf.statistics.metrics_from_dataset(
+        metrics, acc, loss = sf.stats.metrics_from_dataset(
             self.model,
             model_type=self.hp.model_type(),
             labels=self.parent.labels,
@@ -751,16 +751,16 @@ class Trainer:
         metric_kwargs = self._metric_kwargs(dataset=tf_dts_w_slidenames, num_tiles=dataset.num_tiles, label='eval')
         if permutation_importance:
             drop_images = ((self.hp.tile_px == 0) or self.hp.drop_images)
-            metrics = sf.statistics.permutation_feature_importance(feature_names=self.feature_names,
-                                                                   feature_sizes=self.feature_sizes,
-                                                                   drop_images=drop_images,
-                                                                   **metric_kwargs)
+            metrics = sf.stats.permutation_feature_importance(feature_names=self.feature_names,
+                                                              feature_sizes=self.feature_sizes,
+                                                              drop_images=drop_images,
+                                                              **metric_kwargs)
         else:
-            metrics, acc, loss = sf.statistics.metrics_from_dataset(histogram=histogram,
-                                                                    verbose=True,
-                                                                    save_predictions=save_predictions,
-                                                                    pred_args=types.SimpleNamespace(loss=self.hp.get_loss()),
-                                                                    **metric_kwargs)
+            metrics, acc, loss = sf.stats.metrics_from_dataset(histogram=histogram,
+                                                               verbose=True,
+                                                               save_predictions=save_predictions,
+                                                               pred_args=types.SimpleNamespace(loss=self.hp.get_loss()),
+                                                               **metric_kwargs)
             results_dict = { 'eval': {} }
         for metric in metrics:
             if metrics[metric]:

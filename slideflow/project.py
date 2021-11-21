@@ -1175,17 +1175,17 @@ class Project:
         if predict_on_axes:
             # Create mosaic using x- and y- axis corresponding to label predictions
             umap_x, umap_y, umap_meta = df.map_to_predictions(predict_on_axes[0], predict_on_axes[1])
-            umap = sf.statistics.SlideMap.from_precalculated(slides=dataset.slides(),
-                                                             x=umap_x,
-                                                             y=umap_y,
-                                                             meta=umap_meta)
+            umap = sf.SlideMap.from_precalculated(slides=dataset.slides(),
+                                                  x=umap_x,
+                                                  y=umap_y,
+                                                  meta=umap_meta)
         else:
             # Create mosaic map from dimensionality reduction on post-convolutional layer activations
-            umap = sf.statistics.SlideMap.from_features(df,
-                                                        map_slide=map_slide,
-                                                        prediction_filter=restrict_pred,
-                                                        cache=umap_cache,
-                                                        low_memory=low_memory)
+            umap = sf.SlideMap.from_features(df,
+                                             map_slide=map_slide,
+                                             prediction_filter=restrict_pred,
+                                             cache=umap_cache,
+                                             low_memory=low_memory)
 
         # If displaying centroid AND predictions, then show slide-level predictions rather than tile-level predictions
         if (map_slide=='centroid') and show_prediction is not None:
@@ -1318,7 +1318,7 @@ class Project:
                                                 batch_size=batch_size,
                                                 cache=activations_cache)
 
-            optimal_slide_indices, _ = sf.statistics.calculate_centroid(df.activations)
+            optimal_slide_indices, _ = sf.stats.calculate_centroid(df.activations)
 
             # Restrict mosaic to only slides that had enough tiles to calculate an optimal index from centroid
             successful_slides = list(optimal_slide_indices.keys())
@@ -1338,10 +1338,10 @@ class Project:
             # Take the first tile from each slide/TFRecord
             umap_meta = [{'slide': slide, 'index': 0} for slide in slides]
 
-        umap = sf.statistics.SlideMap.from_precalculated(slides=slides,
-                                                         x=umap_x,
-                                                         y=umap_y,
-                                                         meta=umap_meta)
+        umap = sf.SlideMap.from_precalculated(slides=slides,
+                                              x=umap_x,
+                                              y=umap_y,
+                                              meta=umap_meta)
 
         mosaic_map = sf.Mosaic(umap,
                                dataset.tfrecords(),

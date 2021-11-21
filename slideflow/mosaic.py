@@ -20,7 +20,7 @@ from functools import partial
 from tqdm import tqdm
 from slideflow.util import log
 from slideflow.slide import StainNormalizer
-from slideflow.statistics import get_centroid_index
+from slideflow.stats import get_centroid_index
 
 class MosaicError(Exception):
     pass
@@ -40,7 +40,7 @@ class Mosaic:
         """Generate a mosaic map.
 
         Args:
-            slide_map (:class:`slideflow.statistics.SlideMap`): SlideMap object.
+            slide_map (:class:`slideflow.SlideMap`): SlideMap object.
             tfrecords (list(str)): List of tfrecords paths.
             focus (list, optional): List of tfrecords (paths) to highlight on the mosaic.
             leniency (float, optional): UMAP leniency.

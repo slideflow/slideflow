@@ -41,7 +41,7 @@ The current implementation has been developed and tested in Python 3.7/3.8, usin
    model
    mosaic
    slide
-   statistics
+   stats
    util
 
 .. toctree::
