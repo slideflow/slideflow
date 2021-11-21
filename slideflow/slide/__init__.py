@@ -1,9 +1,3 @@
-# Copyright (C) James Dolezal - All Rights Reserved
-# Unauthorized copying of this file, via any medium is strictly prohibited
-# Proprietary and confidential
-# Written by James Dolezal <jamesmdolezal@gmail.com>, March 2019
-# ==========================================================================
-
 '''This module includes tools to convolutionally section whole slide images into tiles.
 These tessellated tiles can be exported as PNG or JPG as raw images or stored in the binary
 format TFRecords, with or without data augmentation.
