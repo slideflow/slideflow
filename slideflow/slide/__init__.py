@@ -35,7 +35,7 @@ from os.path import join, exists
 from skimage import img_as_ubyte
 from skimage.color import rgb2gray
 from PIL import Image, ImageDraw, UnidentifiedImageError
-from slideflow.util import log, SUPPORTED_FORMATS, UserError
+from slideflow.util import log, SUPPORTED_FORMATS
 from slideflow.slide.normalizers import StainNormalizer
 from datetime import datetime
 from functools import partial

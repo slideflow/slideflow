@@ -14,7 +14,6 @@ from os.path import isfile, join, dirname, exists
 from slideflow.tfrecord.torch.dataset import MultiTFRecordDataset, TFRecordDataset
 from slideflow.util import log, to_onehot
 from tqdm import tqdm
-from collections import deque
 from queue import Queue
 
 FEATURE_DESCRIPTION = {'image_raw':    'byte',

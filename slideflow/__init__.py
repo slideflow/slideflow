@@ -17,8 +17,8 @@ __version__ = "1.0.4"
 if 'SF_BACKEND' not in os.environ:
     os.environ['SF_BACKEND'] = 'tensorflow'
 
-import slideflow.io
-import slideflow.model
+from slideflow import io
+from slideflow import model
 from slideflow.heatmap import Heatmap
 from slideflow.dataset import Dataset
 from slideflow.mosaic import Mosaic

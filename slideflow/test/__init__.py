@@ -16,7 +16,6 @@ from slideflow.util import log, ProgressBar
 from slideflow.util.spinner import Spinner
 from slideflow.stats import SlideMap
 from os.path import join
-from functools import wraps
 from tqdm import tqdm
 
 def get_tcga_slides():
