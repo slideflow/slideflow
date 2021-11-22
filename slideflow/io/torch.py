@@ -14,7 +14,6 @@ from os.path import isfile, join, dirname, exists
 from slideflow.tfrecord.torch.dataset import MultiTFRecordDataset, TFRecordDataset
 from slideflow.util import log, to_onehot
 from tqdm import tqdm
-from collections import deque
 from queue import Queue
 
 FEATURE_DESCRIPTION = {'image_raw':    'byte',
@@ -35,7 +34,7 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
     """
 
     def __init__(self, tfrecords, img_size, labels=None, incl_slidenames=False, incl_loc=False, rank=0, num_replicas=1,
-                augment=True, standardize=True, num_tiles=None, infinite=True, max_size=None, prob_weights=None,
+                augment=False, standardize=True, num_tiles=None, infinite=True, max_size=None, prob_weights=None,
                 normalizer=None, clip=None, chunk_size=16, preload=8, use_labels=True, model_type='categorical',
                 onehot=False, indices=None, **kwargs):
 
@@ -371,7 +370,7 @@ def get_tfrecord_parser(tfrecord_path, features_to_return=None, decode_images=Tr
 
     return parser
 
-def interleave(tfrecords, prob_weights=None, incl_loc=False, clip=None, infinite=False, augment=True, standardize=True,
+def interleave(tfrecords, prob_weights=None, incl_loc=False, clip=None, infinite=False, augment=False, standardize=True,
                normalizer=None, num_threads=4, chunk_size=8, num_replicas=1, rank=0, indices=None):
 
     """Returns a generator that interleaves records from a collection of tfrecord files, sampling from tfrecord files
@@ -541,7 +540,7 @@ def interleave(tfrecords, prob_weights=None, incl_loc=False, clip=None, infinite
 
 def interleave_dataloader(tfrecords, img_size, batch_size, prob_weights=None, clip=None, onehot=False, num_tiles=None,
                           incl_slidenames=False, incl_loc=False, infinite=False, rank=0, num_replicas=1, labels=None,
-                          normalizer=None, chunk_size=16, preload_factor=1, augment=True, standardize=True,
+                          normalizer=None, chunk_size=16, preload_factor=1, augment=False, standardize=True,
                           num_workers=2, persistent_workers=True, pin_memory=True, indices=None):
 
     """Prepares a PyTorch DataLoader with a new InterleaveIterator instance, interleaving tfrecords and processing

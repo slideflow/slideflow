@@ -12,7 +12,6 @@ import multiprocessing
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcol
 import slideflow as sf
-import slideflow.util.neptune_utils
 
 from os.path import join, exists, isdir, basename
 from statistics import mean, median
@@ -564,9 +563,7 @@ class Project:
             except:
                 pass
 
-        hp_file = join(model_dir, 'params.json')
-
-        config = {
+        eval_config = {
             'slideflow_version': sf.__version__,
             'project': self.name,
             'git_commit': git_commit,
@@ -596,7 +593,6 @@ class Project:
             'max_tiles': max_tiles,
             'min_tiles': min_tiles,
         }
-        sf.util.write_json(config, hp_file)
 
         # Perform evaluation
         log.info(f'Evaluating {sf.util.bold(len(eval_dts.tfrecords()))} tfrecords')
@@ -605,6 +601,7 @@ class Project:
         trainer = sf.model.trainer_from_hp(hp,
                                            outdir=model_dir,
                                            labels=labels,
+                                           config=eval_config,
                                            patients=dataset.patients(),
                                            slide_input=model_inputs,
                                            manifest=dataset.manifest(),
@@ -614,7 +611,7 @@ class Project:
                                            outcome_names=outcome_label_headers,
                                            use_neptune=self.use_neptune,
                                            neptune_api=self.neptune_api,
-                                           neptune_workspace=self.neptune_workspace,)
+                                           neptune_workspace=self.neptune_workspace)
         if isinstance(model, str):
             trainer.load(model)
         if checkpoint:
@@ -857,7 +854,7 @@ class Project:
             layers (list(str)): Layers from which to generate activations. Defaults to 'postconv'.
             export (str): Path to CSV file. Save activations in CSV format to this file. Defaults to None.
             cache (str): Path to PKL file. Cache activations at this location. Defaults to None.
-            include_logits (bool): Generate and store logit predictions along with layer activations.
+            include_logits (bool): Generate and store logit predictions along with layer activations. Defaults to True.
             batch_size (int): Batch size to use when calculating activations. Defaults to 32.
 
         Returns:
@@ -2036,7 +2033,6 @@ class Project:
                         pass
 
                 # Log model settings and hyperparameters
-                config_file = join(model_dir, 'params.json')
                 config = {
                     'slideflow_version': sf.__version__,
                     'project': self.name,
@@ -2067,7 +2063,6 @@ class Project:
                     'checkpoint': checkpoint,
                     'hp': hp.get_dict(),
                 }
-                sf.util.write_json(config, config_file)
 
                 training_args = types.SimpleNamespace(
                     model_dir=model_dir,

@@ -35,7 +35,7 @@ from os.path import join, exists
 from skimage import img_as_ubyte
 from skimage.color import rgb2gray
 from PIL import Image, ImageDraw, UnidentifiedImageError
-from slideflow.util import log, SUPPORTED_FORMATS, UserError
+from slideflow.util import log, SUPPORTED_FORMATS
 from slideflow.slide.normalizers import StainNormalizer
 from datetime import datetime
 from functools import partial
@@ -455,7 +455,7 @@ class ExtractionReport:
                     # Slide thumbnail
                     with tempfile.NamedTemporaryFile() as temp:
                         report.thumb.save(temp, format="JPEG", quality=75)
-                        x = pdf.get_x()+(n_images%2 * 100)
+                        x = pdf.get_x()+((n_images+1) % 2 * 100)
                         y = pdf.get_y()-85
                         pdf.image(temp.name, x, y, w=90, type='jpg')
                         n_images += 1

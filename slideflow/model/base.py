@@ -17,7 +17,7 @@ class _ModelParams:
                  loss='sparse_categorical_crossentropy', learning_rate=0.0001, learning_rate_decay=0,
                  learning_rate_decay_steps=100000, batch_size=16, hidden_layers=0, hidden_layer_width=500,
                  optimizer='Adam', early_stop=False, early_stop_patience=0, early_stop_method='loss',
-                 training_balance='category', validation_balance='none', trainable_layers=0, L2_weight=0, dropout=0,
+                 training_balance='auto', validation_balance='none', trainable_layers=0, L2_weight=0, dropout=0,
                  augment='xyrj', normalizer=None, normalizer_source=None, include_top=True, drop_images=False):
 
         """Collection of hyperparameters used for model building and training
@@ -41,9 +41,10 @@ class _ModelParams:
             early_stop_patience (int, optional): Patience for early stopping, in epochs. Defaults to 0.
             early_stop_method (str, optional): Metric to monitor for early stopping. Defaults to 'loss'.
             training_balance ([type], optional): Type of batch-level balancing to use during training.
-                Defaults to 'category'.
+                Options include 'tile', 'category', 'patient', 'slide', and None. Defaults to 'category' if a
+                categorical loss is provided, and 'patient' if a linear loss is provided.
             validation_balance ([type], optional): Type of batch-level balancing to use during validation.
-                Defaults to 'none'.
+                Options include 'tile', 'category', 'patient', 'slide', and None. Defaults to 'none'.
             trainable_layers (int, optional): Number of layers which are traininable. If 0, trains all layers.
                 Defaults to 0.
             L2_weight (int, optional): L2 regularization weight. Defaults to 0.
@@ -82,7 +83,7 @@ class _ModelParams:
         assert isinstance(early_stop, bool)
         assert isinstance(early_stop_patience, int)
         assert early_stop_method in ['loss', 'accuracy']
-        assert training_balance in ['tile', 'category', 'patient', 'slide', 'none', None]
+        assert training_balance in ['auto', 'tile', 'category', 'patient', 'slide', 'none', None]
         assert validation_balance in ['tile', 'category', 'patient', 'slide', 'none', None]
         assert isinstance(hidden_layer_width, int)
         assert isinstance(trainable_layers, int)
@@ -112,7 +113,10 @@ class _ModelParams:
         self.early_stop_method = early_stop_method
         self.early_stop_patience = early_stop_patience
         self.hidden_layers = hidden_layers
-        self.training_balance = training_balance
+        if training_balance == 'auto':
+            self.training_balance = 'category' if self.model_type() == 'categorical' else 'patient'
+        else:
+            self.training_balance = training_balance
         self.validation_balance = validation_balance
         self.hidden_layer_width = hidden_layer_width
         self.trainable_layers = trainable_layers

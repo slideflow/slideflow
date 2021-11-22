@@ -1,7 +1,6 @@
 import pandas as pd
 import numpy as np
 import cvxpy as cp
-import cplex
 import slideflow as sf
 from slideflow.util import log
 
@@ -56,12 +55,8 @@ def generate(data, category, values, crossfolds = 3, target_column = 'CV3', pati
     for i in range(crossfolds):
         str1 = "Crossfold " + str(i+1) + " Sites: "
         j = 0
-        #for s in listSet:
-        #    str1 = str1 + str(values[j]) + " - " + str(int(np.dot(gList[i].value, s))) + " "
-        #    j = j + 1
         str1 = str1 + str(gSites[i])
         log.info(str1)
-    bins = pd.DataFrame()
     for i in range(crossfolds):
         data.loc[data[site_column].isin(gSites[i]), target_column] = str(i+1)
     return data

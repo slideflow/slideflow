@@ -260,9 +260,9 @@ class DatasetFeatures:
             'incl_loc': True
         }
         if sf.backend() == 'tensorflow':
-            dataloader = self.dataset.tensorflow(None, normalizer=normalizer, **dataset_kwargs)
+            dataloader = self.dataset.tensorflow(None, normalizer=normalizer, num_parallel_reads=None, **dataset_kwargs)
         elif sf.backend() == 'torch':
-            dataloader = self.dataset.torch(None, normalizer=normalizer, **dataset_kwargs)
+            dataloader = self.dataset.torch(None, normalizer=normalizer, num_workers=1, **dataset_kwargs)
 
         # Worker to process activations/logits, for more efficient GPU throughput
         q = queue.Queue()
@@ -290,10 +290,12 @@ class DatasetFeatures:
                     activations = model_out
 
                 # Concatenate activations if we have activations from more than one layer
-                batch_act = np.concatenate(activations)
+                if layers:
+                    batch_act = np.concatenate(activations)
 
                 for d, slide in enumerate(decoded_slides):
-                    self.activations[slide].append(batch_act[d])
+                    if layers:
+                        self.activations[slide].append(batch_act[d])
                     if include_logits:
                         self.logits[slide].append(logits[d])
                     self.locations[slide].append(batch_loc[d])

@@ -14,10 +14,9 @@ import pandas as pd
 
 from random import shuffle
 from glob import glob
-from os import listdir
 from datetime import datetime
 from tqdm import tqdm
-from os.path import isdir, join, exists, dirname
+from os.path import isdir, join, exists, dirname, basename
 from multiprocessing.dummy import Pool as DPool
 from slideflow.util import log, TCGA, _shortname, ProgressBar
 
@@ -217,10 +216,10 @@ class Dataset:
     def load_annotations(self, annotations):
         # Load annotations
         if isinstance(annotations, str):
-            if not os.path.exists(annotations):
+            if not exists(annotations):
                 raise DatasetError(f"Could not find annotations file {annotations}")
             try:
-                self.annotations = pd.read_csv(annotations)
+                self.annotations = pd.read_csv(annotations, dtype=str)
                 self.annotations.fillna('', inplace=True)
                 self.annotations_file = annotations
             except pd.errors.EmptyDataError:
@@ -520,6 +519,7 @@ class Dataset:
         else:       sources = self.sources
 
         self.verify_annotations_slides()
+        pdf_report = None
 
         # Set up kwargs for tile extraction generator and quality control
         qc_kwargs = {k[3:]:v for k,v in kwargs.items() if k[:3] == 'qc_'}
@@ -536,7 +536,7 @@ class Dataset:
                 tiles_dir = join(source_config['tiles'], source_config['label']) if save_tiles else None
                 if save_tfrecords and not exists(tfrecord_dir):
                     os.makedirs(tfrecord_dir)
-                if save_tiles and not os.path.exists(tiles_dir):
+                if save_tiles and not exists(tiles_dir):
                     os.makedirs(tiles_dir)
             else:
                 save_tfrecords, save_tiles = False, False
@@ -667,7 +667,7 @@ class Dataset:
                         while True:
                             if q.qsize() < q_size:
                                 try:
-                                    buffered_path = join(buffer, os.path.basename(slide_path))
+                                    buffered_path = join(buffer, basename(slide_path))
                                     shutil.copy(slide_path, buffered_path)
                                     q.put(buffered_path)
                                     break
@@ -714,6 +714,7 @@ class Dataset:
             # Update manifest & rebuild indices
             self.update_manifest()
             self.build_index(True)
+            return pdf_report
 
     def extract_tiles_from_tfrecords(self, dest):
         """Extracts tiles from a set of TFRecords.
@@ -1138,8 +1139,7 @@ class Dataset:
                         err_msg = f"Unable to filter blank slides from header {fb}; header was not found in annotations."
                         log.error(err_msg)
                         raise DatasetError(err_msg)
-
-                    if not ann[fb] or ann[fb] == '':
+                    if ann[fb] is None or ann[fb] == '':
                         skip_annotation = True
                         break
             if skip_annotation: continue
@@ -1277,7 +1277,7 @@ class Dataset:
         log.info('Generating PDF (this may take some time)...')
         pdf_report = ExtractionReport(reports, title='TFRecord Report')
         timestring = datetime.now().strftime('%Y%m%d-%H%M%S')
-        if os.path.exists(destination) and os.path.isdir(destination):
+        if exists(destination) and isdir(destination):
             filename = join(destination, f'tfrecord_report-{timestring}.pdf')
         elif sf.util.path_to_ext(destination) == 'pdf':
             filename = join(destination)

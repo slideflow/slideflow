@@ -201,7 +201,7 @@ def parser_from_labels(labels):
     return label_parser
 
 def interleave(tfrecords, img_size, batch_size, prob_weights=None, clip=None, labels=None, incl_slidenames=False,
-               incl_loc=False, infinite=True, augment=True, standardize=True, normalizer=None, num_shards=None,
+               incl_loc=False, infinite=True, augment=False, standardize=True, normalizer=None, num_shards=None,
                shard_idx=None, num_parallel_reads=4):
 
     """Generates an interleaved dataset from a collection of tfrecord files, sampling from tfrecord files randomly
@@ -232,7 +232,7 @@ def interleave(tfrecords, img_size, batch_size, prob_weights=None, clip=None, la
 
     if not len(tfrecords):
         raise ValueError("Interleaving failed: no tfrecords found.")
-    log.debug(f'Interleaving {len(tfrecords)} tfrecords: infinite={infinite}')
+    log.debug(f'Interleaving {len(tfrecords)} tfrecords: infinite={infinite}, num_parallel_reads={num_parallel_reads}')
     if num_shards:
         log.debug(f'num_shards={num_shards}, shard_idx={shard_idx}')
 

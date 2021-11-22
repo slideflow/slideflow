@@ -1,5 +1,7 @@
+import os
 import click
 import multiprocessing
+import logging
 from slideflow.test import TestSuite
 
 @click.command()
@@ -17,7 +19,11 @@ from slideflow.test import TestSuite
 def main(slides, out, extract, reader, train, norm, eval, heatmap, mosaic, wsi, clam):
     if not out:
         out = 'slideflow_test'
-    TS = TestSuite(out, slides)
+    if 'SF_LOGGING_LEVEL' in os.environ:
+        verbosity=logging.getLogger('slideflow').getEffectiveLevel()
+    else:
+        verbosity=logging.WARNING
+    TS = TestSuite(out, slides, verbosity=verbosity)
     TS.test(
         extract=extract,
         reader=reader,

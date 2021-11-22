@@ -620,6 +620,14 @@ class Trainer:
                     tf.lookup.KeyValueTensorInitializer(self.slides, outcome_labels[:,oi]), -1
                 )]
 
+        # Log parameters
+        if config is None:
+            config = {
+                'slideflow_version': sf.__version__,
+                'hp': self.hp.get_dict()
+            }
+        sf.util.write_json(config, join(self.outdir, 'params.json'))
+
         # Initialize Neptune
         self.use_neptune = use_neptune
         if self.use_neptune:
@@ -743,7 +751,6 @@ class Trainer:
         if not batch_size: batch_size = self.hp.batch_size
         with tf.name_scope('input'):
             interleave_kwargs = self._interleave_kwargs(batch_size=batch_size, infinite=False, augment=False)
-            tf_dts = dataset.tensorflow(**interleave_kwargs)
             tf_dts_w_slidenames = dataset.tensorflow(incl_slidenames=True, **interleave_kwargs)
 
         # Generate performance metrics
@@ -776,7 +783,6 @@ class Trainer:
 
         # Note that Keras loss during training includes regularization losses,
         #  so this loss will not match validation loss calculated during training
-        # val_metrics = self.model.evaluate(tf_dts, verbose=(log.getEffectiveLevel() <= 20), return_dict=True)
         val_metrics = {'accuracy': acc, 'loss': loss}
         results_log = os.path.join(self.outdir, 'results_log.csv')
         log.info(f'Evaluation metrics:')

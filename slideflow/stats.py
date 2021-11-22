@@ -1510,7 +1510,7 @@ def predict_from_layer(model, layer_input, input_layer_name='hidden_0', output_l
         ndarray: Model predictions.
     """
     import tensorflow as tf
-    from slideflow.model.utils import get_layer_index_by_name
+    from slideflow.model.tensorflow_utils import get_layer_index_by_name
 
     first_hidden_layer_index = get_layer_index_by_name(model, input_layer_name)
     input_shape = model.layers[first_hidden_layer_index].get_input_shape_at(0) # get the input shape of desired layer
