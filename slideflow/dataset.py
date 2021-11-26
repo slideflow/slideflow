@@ -1306,7 +1306,7 @@ class Dataset:
             folders_to_search += [tfrecord_path]
         for folder in folders_to_search:
             tfrecords_list += glob(join(folder, "*.tfrecords"))
-
+        tfrecords_list = list(dict.fromkeys(tfrecords_list))
         # Filter the list by filters
         if self.annotations is not None:
             slides = self.slides()
