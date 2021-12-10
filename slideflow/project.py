@@ -856,7 +856,7 @@ class Project:
             layers (list(str)): Layers from which to generate activations. Defaults to 'postconv'.
             export (str): Path to CSV file. Save activations in CSV format to this file. Defaults to None.
             cache (str): Path to PKL file. Cache activations at this location. Defaults to None.
-            include_logits (bool): Generate and store logit predictions along with layer activations.
+            include_logits (bool): Generate and store logit predictions along with layer activations. Defaults to True.
             batch_size (int): Batch size to use when calculating activations. Defaults to 32.
 
         Returns:

@@ -1137,8 +1137,7 @@ class Dataset:
                         err_msg = f"Unable to filter blank slides from header {fb}; header was not found in annotations."
                         log.error(err_msg)
                         raise DatasetError(err_msg)
-
-                    if not ann[fb] or ann[fb] == '':
+                    if ann[fb] is None or ann[fb] == '':
                         skip_annotation = True
                         break
             if skip_annotation: continue
