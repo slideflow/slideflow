@@ -11,14 +11,11 @@ import numpy as np
 import multiprocessing
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcol
+import slideflow as sf
 
 from os.path import join, exists, isdir, basename
 from statistics import mean, median
 from tqdm import tqdm
-
-import slideflow as sf
-import slideflow.util.neptune_utils
-
 from slideflow import project_utils
 from slideflow.dataset import Dataset
 from slideflow.util import log
@@ -373,7 +370,7 @@ class Project:
 
     def evaluate(self, model, outcome_label_headers, dataset=None, filters=None, checkpoint=None, model_config=None,
                  eval_k_fold=None, splits="splits.json", max_tiles=0, min_tiles=0, batch_size=64, input_header=None,
-                 permutation_importance=False, histogram=False, save_predictions=False):
+                 permutation_importance=False, histogram=False, save_predictions=False, **kwargs):
 
         """Evaluates a saved model on a given set of tfrecords.
 
@@ -441,10 +438,10 @@ class Project:
         # Load dataset and annotations for evaluation
         if dataset is None:
             dataset = self.dataset(tile_px=hp.tile_px,
-                                        tile_um=hp.tile_um,
-                                        filters=filters,
-                                        filter_blank=filter_blank,
-                                        min_tiles=min_tiles)
+                                   tile_um=hp.tile_um,
+                                   filters=filters,
+                                   filter_blank=filter_blank,
+                                   min_tiles=min_tiles)
         else:
             if dataset.tile_px != hp.tile_px or dataset.tile_um != hp.tile_um:
                 raise ValueError(f"Dataset tile size ({dataset.tile_px}px, {dataset.tile_um}um) does not match " + \
@@ -566,9 +563,7 @@ class Project:
             except:
                 pass
 
-        hp_file = join(model_dir, 'params.json')
-
-        config = {
+        eval_config = {
             'slideflow_version': sf.__version__,
             'project': self.name,
             'git_commit': git_commit,
@@ -586,9 +581,9 @@ class Project:
             'dataset_config': self.dataset_config,
             'sources': self.sources,
             'annotations': self.annotations,
-            'validation_strategy': config['validation_strategy'],
-            'validation_fraction': config['validation_fraction'],
-            'validation_k_fold': config['validation_k_fold'],
+            'validation_strategy': config['validation_strategy'] if 'validation_strategy' in config else 'NA',
+            'validation_fraction': config['validation_fraction'] if 'validation_fraction' in config else 'NA',
+            'validation_k_fold': config['validation_k_fold'] if 'validation_k_fold' in config else 'NA',
             'k_fold_i': eval_k_fold,
             'filters': filters,
             'pretrain': None,
@@ -598,7 +593,6 @@ class Project:
             'max_tiles': max_tiles,
             'min_tiles': min_tiles,
         }
-        sf.util.write_json(config, hp_file)
 
         # Perform evaluation
         log.info(f'Evaluating {sf.util.bold(len(eval_dts.tfrecords()))} tfrecords')
@@ -607,6 +601,7 @@ class Project:
         trainer = sf.model.trainer_from_hp(hp,
                                            outdir=model_dir,
                                            labels=labels,
+                                           config=eval_config,
                                            patients=dataset.patients(),
                                            slide_input=model_inputs,
                                            manifest=dataset.manifest(),
@@ -616,7 +611,7 @@ class Project:
                                            outcome_names=outcome_label_headers,
                                            use_neptune=self.use_neptune,
                                            neptune_api=self.neptune_api,
-                                           neptune_workspace=self.neptune_workspace,)
+                                           neptune_workspace=self.neptune_workspace)
         if isinstance(model, str):
             trainer.load(model)
         if checkpoint:
@@ -627,7 +622,8 @@ class Project:
                                    batch_size=batch_size,
                                    permutation_importance=permutation_importance,
                                    histogram=histogram,
-                                   save_predictions=save_predictions)
+                                   save_predictions=save_predictions,
+                                   **kwargs)
 
         return results
 
@@ -859,7 +855,7 @@ class Project:
             layers (list(str)): Layers from which to generate activations. Defaults to 'postconv'.
             export (str): Path to CSV file. Save activations in CSV format to this file. Defaults to None.
             cache (str): Path to PKL file. Cache activations at this location. Defaults to None.
-            include_logits (bool): Generate and store logit predictions along with layer activations.
+            include_logits (bool): Generate and store logit predictions along with layer activations. Defaults to True.
             batch_size (int): Batch size to use when calculating activations. Defaults to 32.
 
         Returns:
@@ -980,7 +976,7 @@ class Project:
         return outdir
 
     def generate_heatmaps(self, model, filters=None, filter_blank=None, outdir=None, resolution='low', batch_size=64,
-                          roi_method='inside', buffer=None, num_threads=8, skip_completed=False, **kwargs):
+                          roi_method='inside', buffer=None, num_threads=None, skip_completed=False, **kwargs):
 
         """Creates predictive heatmap overlays on a set of slides.
 
@@ -999,7 +995,7 @@ class Project:
                 Determines where heatmap should be made with respect to annotated ROI.
             buffer (str, optional): Path to which slides are copied prior to heatmap generation. Defaults to None.
                 This vastly improves extraction speed when using SSD or ramdisk buffer.
-            num_threads (int, optional): Number of threads to assign to tile extraction. Defaults to 8.
+            num_threads (int, optional): Number of threads to assign to tile extraction. Defaults to CPU core count.
                 Performance improvements can be seen by increasing this number in highly multi-core systems.
             skip_completed (bool, optional): Skip heatmaps for slides that already have heatmaps in target directory.
 
@@ -1030,9 +1026,9 @@ class Project:
         # Prepare dataset1
         config = sf.util.get_model_config(model)
         heatmaps_dataset = self.dataset(filters=filters,
-                                            filter_blank=filter_blank,
-                                            tile_px=config['hp']['tile_px'],
-                                            tile_um=config['hp']['tile_um'])
+                                        filter_blank=filter_blank,
+                                        tile_px=config['hp']['tile_px'],
+                                        tile_um=config['hp']['tile_um'])
         slide_list = heatmaps_dataset.slide_paths()
         heatmap_args.rois = heatmaps_dataset.rois()
 
@@ -1177,17 +1173,17 @@ class Project:
         if predict_on_axes:
             # Create mosaic using x- and y- axis corresponding to label predictions
             umap_x, umap_y, umap_meta = df.map_to_predictions(predict_on_axes[0], predict_on_axes[1])
-            umap = sf.statistics.SlideMap.from_precalculated(slides=dataset.slides(),
-                                                             x=umap_x,
-                                                             y=umap_y,
-                                                             meta=umap_meta)
+            umap = sf.SlideMap.from_precalculated(slides=dataset.slides(),
+                                                  x=umap_x,
+                                                  y=umap_y,
+                                                  meta=umap_meta)
         else:
             # Create mosaic map from dimensionality reduction on post-convolutional layer activations
-            umap = sf.statistics.SlideMap.from_features(df,
-                                                        map_slide=map_slide,
-                                                        prediction_filter=restrict_pred,
-                                                        cache=umap_cache,
-                                                        low_memory=low_memory)
+            umap = sf.SlideMap.from_features(df,
+                                             map_slide=map_slide,
+                                             prediction_filter=restrict_pred,
+                                             cache=umap_cache,
+                                             low_memory=low_memory)
 
         # If displaying centroid AND predictions, then show slide-level predictions rather than tile-level predictions
         if (map_slide=='centroid') and show_prediction is not None:
@@ -1320,7 +1316,7 @@ class Project:
                                                 batch_size=batch_size,
                                                 cache=activations_cache)
 
-            optimal_slide_indices, _ = sf.statistics.calculate_centroid(df.activations)
+            optimal_slide_indices, _ = sf.stats.calculate_centroid(df.activations)
 
             # Restrict mosaic to only slides that had enough tiles to calculate an optimal index from centroid
             successful_slides = list(optimal_slide_indices.keys())
@@ -1340,10 +1336,10 @@ class Project:
             # Take the first tile from each slide/TFRecord
             umap_meta = [{'slide': slide, 'index': 0} for slide in slides]
 
-        umap = sf.statistics.SlideMap.from_precalculated(slides=slides,
-                                                         x=umap_x,
-                                                         y=umap_y,
-                                                         meta=umap_meta)
+        umap = sf.SlideMap.from_precalculated(slides=slides,
+                                              x=umap_x,
+                                              y=umap_y,
+                                              meta=umap_meta)
 
         mosaic_map = sf.Mosaic(umap,
                                dataset.tfrecords(),
@@ -1398,8 +1394,7 @@ class Project:
                               enable_downsample=enable_downsample,
                               rois=rois,
                               roi_method='inside',
-                              skip_missing_roi=roi,
-                              buffer=None)
+                              skip_missing_roi=roi)
             if roi:
                 thumb = whole_slide.thumb(rois=True)
             else:
@@ -1599,7 +1594,7 @@ class Project:
 
     def predict_wsi(self, model, outdir, dataset=None, filters=None, filter_blank=None, stride_div=1,
                     enable_downsample=True, roi_method='inside', skip_missing_roi=False, source=None,
-                    randomize_origin=False, buffer=None, **kwargs):
+                    randomize_origin=False, **kwargs):
 
         """Using a given model, generates a spatial map of tile-level predictions for a whole-slide image (WSI)
             and dumps prediction arrays into pkl files for later use.
@@ -1626,8 +1621,6 @@ class Project:
             skip_missing_roi (bool, optional): Skip slides that are missing ROIs. Defaults to True.
             source (list, optional): Name(s) of dataset sources from which to get slides. If None, will use all.
             randomize_origin (bool, optional): Randomize pixel starting position during extraction. Defaults to False.
-            buffer (str, optional): Slides will be copied to this directory before extraction. Defaults to None.
-                Using an SSD or ramdisk buffer vastly improves tile extraction speed.
 
         Keyword Args:
             whitespace_fraction (float, optional): Range 0-1. Defaults to 1.
@@ -1679,14 +1672,13 @@ class Project:
             log.info('Verifying slides...')
             total_tiles = 0
             for slide_path in tqdm(slide_list, leave=False):
-                slide = sf.slide.WSI(slide_path,
-                                    tile_px,
-                                    tile_um,
-                                    stride_div,
-                                    roi_dir=roi_dir,
-                                    roi_method=roi_method,
-                                    skip_missing_roi=False,
-                                    buffer=None)
+                slide = sf.WSI(slide_path,
+                               tile_px,
+                               tile_um,
+                               stride_div,
+                               roi_dir=roi_dir,
+                               roi_method=roi_method,
+                               skip_missing_roi=False)
                 log.debug(f"Estimated tiles for slide {slide.name}: {slide.estimated_num_tiles}")
                 total_tiles += slide.estimated_num_tiles
                 del slide
@@ -1694,23 +1686,22 @@ class Project:
 
             for slide_path in slide_list:
                 log.info(f'Working on slide {sf.util.path_to_name(slide_path)}')
-                whole_slide = sf.slide.WSI(slide_path,
-                                        tile_px,
-                                        tile_um,
-                                        stride_div,
-                                        enable_downsample=enable_downsample,
-                                        roi_dir=roi_dir,
-                                        roi_method=roi_method,
-                                        randomize_origin=randomize_origin,
-                                        skip_missing_roi=skip_missing_roi,
-                                        buffer=buffer)
+                whole_slide = sf.WSI(slide_path,
+                                     tile_px,
+                                     tile_um,
+                                     stride_div,
+                                     enable_downsample=enable_downsample,
+                                     roi_dir=roi_dir,
+                                     roi_method=roi_method,
+                                     randomize_origin=randomize_origin,
+                                     skip_missing_roi=skip_missing_roi)
 
                 if not whole_slide.loaded_correctly():
                     continue
 
                 try:
                     interface = sf.model.Features(model, include_logits=False)
-                    wsi_grid = interface(whole_slide, num_threads=12)
+                    wsi_grid = interface(whole_slide)
 
                     with open (join(outdir, whole_slide.name+'.pkl'), 'wb') as pkl_file:
                         pickle.dump(wsi_grid, pkl_file)
@@ -1723,26 +1714,9 @@ class Project:
                         log.error(f'Corrupt tile in {formatted_slide}; skipping slide')
                     continue
 
-    def resize_tfrecords(self, *args, **kwargs):
-        """Function moved to :meth:slideflow.dataset.Dataset.resize_tfrecords"""
-
-        raise DeprecationWarning("Function moved to slideflow.dataset.Dataset.resize_tfrecords()")
-
     def save(self):
         """Saves current project configuration as "settings.json"."""
         sf.util.write_json(self._settings, join(self.root, 'settings.json'))
-
-    def slide_report(self, *args, **kwargs):
-
-        """Function moved to :meth:slideflow.dataset.Dataset.slide_report"""
-
-        raise DeprecationWarning("Function moved to slideflow.dataset.Dataset.slide_report()")
-
-    def tfrecord_report(self, *args, **kwargs):
-
-        """Function moved to :meth:slideflow.dataset.Dataset.tfrecord_report"""
-
-        raise DeprecationWarning("Function moved to slideflow.dataset.Dataset.tfrecord_report()")
 
     def train(self, outcome_label_headers, params, exp_label=None, filters=None, filter_blank=None,
               input_header=None, resume_training=None, checkpoint=None, pretrain='imagenet', min_tiles=0, max_tiles=0,
@@ -2060,7 +2034,6 @@ class Project:
                         pass
 
                 # Log model settings and hyperparameters
-                config_file = join(model_dir, 'params.json')
                 config = {
                     'slideflow_version': sf.__version__,
                     'project': self.name,
@@ -2091,7 +2064,6 @@ class Project:
                     'checkpoint': checkpoint,
                     'hp': hp.get_dict(),
                 }
-                sf.util.write_json(config, config_file)
 
                 training_args = types.SimpleNamespace(
                     model_dir=model_dir,

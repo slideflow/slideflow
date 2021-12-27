@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Tile extraction &mdash; slideflow 1.0.0 documentation</title>
+  <title>Tile extraction &mdash; slideflow 1.0.4 documentation</title>
   
 
   
@@ -88,7 +88,7 @@
           </li>
 
           <li>
-            <a href="https://github.com/pearson-laboratory/slideflow">GitHub</a>
+            <a href="https://github.com/jamesdolezal/slideflow">GitHub</a>
           </li>
         </ul>
       </div>
@@ -149,6 +149,7 @@
             
               <p class="caption" role="heading"><span class="caption-text">Overview</span></p>
 <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="pipeline.html">Pipeline Overview</a></li>
 <li class="toctree-l1"><a class="reference internal" href="project_setup.html">Setting up a Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="validation.html">Validation Planning</a></li>
@@ -156,8 +157,8 @@
 <li class="toctree-l1"><a class="reference internal" href="training.html">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="evaluation.html">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="layer_activations.html">Features / layer activations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="backend.html">Switching backends</a></li>
 <li class="toctree-l1"><a class="reference internal" href="clam.html">CLAM</a></li>
-<li class="toctree-l1"><a class="reference internal" href="torch.html">PyTorch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
 <li class="toctree-l1"><a class="reference internal" href="appendix.html">Appendix</a></li>
 </ul>
@@ -166,18 +167,19 @@
 <li class="toctree-l1"><a class="reference internal" href="project.html">slideflow.Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="dataset.html">slideflow.dataset</a></li>
 <li class="toctree-l1"><a class="reference internal" href="heatmap.html">slideflow.heatmap</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tfrecords.html">slideflow.io.tensorflow</a></li>
-<li class="toctree-l1"><a class="reference internal" href="reader.html">slideflow.io.torch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="io_tensorflow.html">slideflow.io.tensorflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="io_torch.html">slideflow.io.torch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="model.html">slideflow.model</a></li>
 <li class="toctree-l1"><a class="reference internal" href="mosaic.html">slideflow.mosaic</a></li>
 <li class="toctree-l1"><a class="reference internal" href="slide.html">slideflow.slide</a></li>
-<li class="toctree-l1"><a class="reference internal" href="statistics.html">slideflow.statistics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="stats.html">slideflow.stats</a></li>
 <li class="toctree-l1"><a class="reference internal" href="util.html">slideflow.util</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="tutorial1.html">Tutorial 1: Model training (simple)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorial2.html">Tutorial 2: Model training (advanced)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial3.html">Tutorial 3: Model evaluation &amp; heatmaps</a></li>
 </ul>
 
             
@@ -269,7 +271,7 @@
 <p class="admonition-title">Note</p>
 <p>The <code class="docutils literal notranslate"><span class="pre">filters</span></code> argument can be also used for filtering input slides in many slideflow functions, including <code class="docutils literal notranslate"><span class="pre">train()</span></code>, <code class="docutils literal notranslate"><span class="pre">evaluate()</span></code>, <code class="docutils literal notranslate"><span class="pre">generate_heatmaps()</span></code>, and <code class="docutils literal notranslate"><span class="pre">generate_mosaic()</span></code>.</p>
 </div>
-<p>Tiles will be extracted at the specified pixel and micron size. Tiles will be automatically stored in TFRecord format, although loose tiles can also be saved by passing a destination path to the argument <code class="docutils literal notranslate"><span class="pre">tiles_dir</span></code>.</p>
+<p>Tiles will be extracted at the specified pixel and micron size. Tiles will be automatically stored in TFRecord format, although loose tiles can also be saved by passing <code class="docutils literal notranslate"><span class="pre">save_tiles=True</span></code>.</p>
 <p>The full documentation for the <code class="docutils literal notranslate"><span class="pre">extract_tiles</span></code> function is given below:</p>
 <dl class="py function">
 <dt class="sig sig-object py">
@@ -287,12 +289,12 @@ If not provided, will default to all sources in project.</p></li>
 <li><p><strong>stride_div</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Stride divisor to use when extracting tiles. Defaults to 1.
 A stride of 1 will extract non-overlapping tiles.
 A stride_div of 2 will extract overlapping tiles, with a stride equal to 50% of the tile width.</p></li>
-<li><p><strong>enable_downsample</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Enable downsampling when reading slide images. Defaults to False.
+<li><p><strong>enable_downsample</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Enable downsampling when reading slide images. Defaults to True.
 This may result in corrupted image tiles if downsampled slide layers are corrupted or incomplete.
 Recommend manual confirmation of tile integrity.</p></li>
 <li><p><strong>roi_method</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Either ‘inside’, ‘outside’, or ‘ignore’. Defaults to ‘inside’.
 Indicates whether tiles are extracted inside or outside ROIs, or if ROIs are ignored entirely.</p></li>
-<li><p><strong>skip_missing_roi</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Skip slides that are missing ROIs. Defaults to True.</p></li>
+<li><p><strong>skip_missing_roi</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Skip slides that are missing ROIs. Defaults to False.</p></li>
 <li><p><strong>skip_extracted</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Skip slides that have already been extracted. Defaults to True.</p></li>
 <li><p><strong>tma</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Reads slides as Tumor Micro-Arrays (TMAs), detecting and extracting tumor cores.
 Defaults to False. Experimental function with limited testing.</p></li>
@@ -300,9 +302,10 @@ Defaults to False. Experimental function with limited testing.</p></li>
 <li><p><strong>buffer</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Slides will be copied to this directory before extraction. Defaults to None.
 Using an SSD or ramdisk buffer vastly improves tile extraction speed.</p></li>
 <li><p><strong>num_workers</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Extract tiles from this many slides simultaneously. Defaults to 4.</p></li>
-<li><p><strong>qc</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – ‘otsu’, ‘blur’, or ‘both’. Perform quality control with blur detection - discarding
+<li><p><strong>q_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Size of queue when using a buffer. Defaults to 4.</p></li>
+<li><p><strong>qc</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – ‘otsu’, ‘blur’, ‘both’, or None. Perform blur detection quality control - discarding
 tiles with detected out-of-focus regions or artifact - and/or otsu’s method. Increases tile extraction
-time. Defaults to False.</p></li>
+time. Defaults to None.</p></li>
 <li><p><strong>report</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Save a PDF report of tile extraction. Defaults to True.</p></li>
 </ul>
 </dd>
@@ -385,7 +388,7 @@ Defaults to None.</p></li>
 <span class="n">dataset</span><span class="o">.</span><span class="n">tfrecord_report</span><span class="p">(</span><span class="s2">&quot;/path/to/dest&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>You can also generate reports for slides that have not yet been extracted with <a class="reference internal" href="dataset.html#slideflow.Dataset.slide_report" title="slideflow.Dataset.slide_report"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.Dataset.slide_report()</span></code></a>.</p>
+<p>You can also generate reports for slides that have not yet been extracted by passing <code class="docutils literal notranslate"><span class="pre">dry_run=True</span></code> to <a class="reference internal" href="dataset.html#slideflow.Dataset.extract_tiles" title="slideflow.Dataset.extract_tiles"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Dataset.extract_tiles()</span></code></a>.</p>
 </div>
 </div>
 
@@ -495,27 +498,15 @@ Defaults to None.</p></li>
       <div class="main-menu">
         <ul>
           <li>
-            <a href="https://pytorch.org/get-started">Get Started</a>
+            <a href="https://slideflow.dev">Docs</a>
           </li>
 
           <li>
-            <a href="https://pytorch.org/ecosystem">Ecosystem</a>
+            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
           </li>
 
           <li>
-            <a href="https://pytorch.org/mobile">Mobile</a>
-          </li>
-
-          <li>
-            <a href="https://pytorch.org/hub">PyTorch Hub</a>
-          </li>
-
-          <li class="active">
-            <a href="https://pytorch.org/blog/">Blog</a>
-          </li>
-
-          <li>
-            <a href="https://github.com/pearson-laboratory/slideflow">Github</a>
+            <a href="https://github.com/jamesdolezal/slideflow">Github</a>
           </li>
         </ul>
       </div>
@@ -523,6 +514,10 @@ Defaults to None.</p></li>
   </div>
 
   <!-- End Mobile Menu -->
+
+  <script script type="text/javascript">
+    var collapsedSections = ['Source', 'Tutorials'];
+  </script>
 
   <script type="text/javascript" src="_static/js/vendor/anchor.min.js"></script>
 

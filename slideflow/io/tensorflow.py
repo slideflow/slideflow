@@ -4,7 +4,9 @@ import shutil
 import logging
 import slideflow as sf
 import numpy as np
+import tensorflow_addons as tfa
 
+from functools import partial
 from tqdm import tqdm
 from os import listdir
 from os.path import isfile, isdir, join, exists
@@ -55,18 +57,15 @@ def _print_record(filename):
         slide, loc_x, loc_y = parser(record)
         print(f"{sf.util.purple(filename)}: Record {i}: Slide: {sf.util.green(str(slide))} Loc: {(loc_x, loc_y)}")
 
-def _decode_image(img_string, img_type, size=None, standardize=False, normalizer=None, augment=False):
-    tf_decoders = {
-        'png': tf.image.decode_png,
-        'jpeg': tf.image.decode_jpeg,
-        'jpg': tf.image.decode_jpeg
-    }
-    decoder = tf_decoders[img_type.lower()]
-    image = decoder(img_string, channels=3)
+@tf.function
+def process_image(record, *args, standardize=False, augment=False, size=None):
+    """Applies augmentations and/or standardization to a single image (Tensor). """
 
-    if normalizer:
-        image = tf.py_function(normalizer.tf_to_rgb, [image], tf.int32)
-        if size: image.set_shape([size, size, 3])
+    if isinstance(record, dict):
+        image = record['tile_image']
+    else:
+        image = record
+    if size: image.set_shape([size, size, 3])
     if augment is True or (isinstance(augment, str) and 'j' in augment):
         # Augment with random compession
         image = tf.cond(tf.random.uniform(shape=[], # pylint: disable=unexpected-keyword-arg
@@ -74,9 +73,9 @@ def _decode_image(img_string, img_type, size=None, standardize=False, normalizer
                                           maxval=1,
                                           dtype=tf.float32) < 0.5,
                         true_fn=lambda: tf.image.adjust_jpeg_quality(image, tf.random.uniform(shape=[], # pylint: disable=unexpected-keyword-arg
-                                                                                              minval=50,
-                                                                                              maxval=100,
-                                                                                              dtype=tf.int32)),
+                                                                                                minval=50,
+                                                                                                maxval=100,
+                                                                                                dtype=tf.int32)),
                         false_fn=lambda: image)
     if augment is True or (isinstance(augment, str) and 'r' in augment):
         # Rotate randomly 0, 90, 180, 270 degrees
@@ -86,10 +85,41 @@ def _decode_image(img_string, img_type, size=None, standardize=False, normalizer
         image = tf.image.random_flip_left_right(image)
     if augment is True or (isinstance(augment, str) and 'y' in augment):
         image = tf.image.random_flip_up_down(image)
+    if augment is True or (isinstance(augment, str) and 'b' in augment):
+        # Augment with random gaussian blur (p=0.1)
+        image = tf.cond(
+            tf.random.uniform(shape=[], minval=0, maxval=1, dtype=tf.float32) < 0.1,
+            true_fn=lambda: tf.cond(
+                tf.random.uniform(shape=[], minval=0, maxval=1, dtype=tf.float32) < 0.5,
+                true_fn=lambda: tf.cond(
+                    tf.random.uniform(shape=[], minval=0, maxval=1, dtype=tf.float32) < 0.5,
+                    true_fn=lambda: tf.cond(
+                        tf.random.uniform(shape=[], minval=0, maxval=1, dtype=tf.float32) < 0.5,
+                        true_fn=lambda: tfa.image.gaussian_filter2d(image, 8),
+                        false_fn=lambda: tfa.image.gaussian_filter2d(image, 4),
+                    ),
+                    false_fn=lambda: tfa.image.gaussian_filter2d(image, 2),
+                ),
+                false_fn=lambda: tfa.image.gaussian_filter2d(image, 1),
+            ),
+            false_fn=lambda: image
+        )
     if standardize:
         image = tf.image.per_image_standardization(image)
-    if size:
-        image.set_shape([size, size, 3])
+
+    img_out = image if not isinstance(record, dict) else {'tile_image': image}
+    return img_out, *args
+
+@tf.function
+def decode_image(img_string, img_type, size=None):
+    tf_decoders = {
+        'png': tf.image.decode_png,
+        'jpeg': tf.image.decode_jpeg,
+        'jpg': tf.image.decode_jpeg
+    }
+    decoder = tf_decoders[img_type.lower()]
+    image = decoder(img_string, channels=3)
+    if size: image.set_shape([size, size, 3])
     return image
 
 def get_tfrecords_from_model_manifest(path_to_model):
@@ -125,8 +155,8 @@ def detect_tfrecord_format(path):
     image_type = imghdr.what('', features['image_raw'].numpy())
     return feature_description, image_type
 
-def get_tfrecord_parser(tfrecord_path, features_to_return=None, to_numpy=False, decode_images=True,
-                        standardize=False, img_size=None, normalizer=None, augment=False, error_if_invalid=True):
+def get_tfrecord_parser(tfrecord_path, features_to_return=None, to_numpy=False, decode_images=True, img_size=None,
+                        error_if_invalid=True):
 
     """Returns a tfrecord parsing function based on the specified parameters.
 
@@ -155,6 +185,7 @@ def get_tfrecord_parser(tfrecord_path, features_to_return=None, to_numpy=False, 
     if features_to_return is None:
         features_to_return = {k:k for k in feature_description.keys()}
 
+    @tf.function
     def parser(record):
         features = tf.io.parse_single_example(record, feature_description)
 
@@ -164,7 +195,7 @@ def get_tfrecord_parser(tfrecord_path, features_to_return=None, to_numpy=False, 
             elif f not in features:
                 return None
             elif f == 'image_raw' and decode_images:
-                return _decode_image(features['image_raw'], img_type, img_size, standardize, normalizer, augment)
+                return decode_image(features['image_raw'], img_type, img_size)
             elif to_numpy:
                 return features[f].numpy()
             else:
@@ -201,7 +232,7 @@ def parser_from_labels(labels):
     return label_parser
 
 def interleave(tfrecords, img_size, batch_size, prob_weights=None, clip=None, labels=None, incl_slidenames=False,
-               incl_loc=False, infinite=True, augment=True, standardize=True, normalizer=None, num_shards=None,
+               incl_loc=False, infinite=True, augment=False, standardize=True, normalizer=None, num_shards=None,
                shard_idx=None, num_parallel_reads=4):
 
     """Generates an interleaved dataset from a collection of tfrecord files, sampling from tfrecord files randomly
@@ -232,7 +263,7 @@ def interleave(tfrecords, img_size, batch_size, prob_weights=None, clip=None, la
 
     if not len(tfrecords):
         raise ValueError("Interleaving failed: no tfrecords found.")
-    log.debug(f'Interleaving {len(tfrecords)} tfrecords: infinite={infinite}')
+    log.debug(f'Interleaving {len(tfrecords)} tfrecords: infinite={infinite}, num_parallel_reads={num_parallel_reads}')
     if num_shards:
         log.debug(f'num_shards={num_shards}, shard_idx={shard_idx}')
 
@@ -244,19 +275,14 @@ def interleave(tfrecords, img_size, batch_size, prob_weights=None, clip=None, la
         raise ValueError(f"Unrecognized type for labels: {type(labels)} (must be dict or function)")
 
     with tf.device('cpu'):
-        # -------- Get the base TFRecord parser, based on the first tfrecord ------
+        # -------- Get the base TFRecord parser, based on the first tfrecord ------------------------------------------
         features_to_return = ('image_raw', 'slide') if not incl_loc else ('image_raw', 'slide', 'loc_x', 'loc_y')
         base_parser = None
         for i in range(len(tfrecords)):
             if base_parser is not None: continue
             if i > 0:
                 log.debug(f"Unable to get parser from tfrecord, will try another (n={i})...")
-            base_parser = get_tfrecord_parser(tfrecords[i],
-                                             features_to_return,
-                                             standardize=standardize,
-                                             img_size=img_size,
-                                             normalizer=normalizer,
-                                             augment=augment)
+            base_parser = get_tfrecord_parser(tfrecords[i], features_to_return, img_size=img_size)
 
         datasets = []
         weights = [] if prob_weights else None
@@ -272,23 +298,40 @@ def interleave(tfrecords, img_size, batch_size, prob_weights=None, clip=None, la
             if prob_weights:
                 weights += [prob_weights[tfr]]
 
-        #  -------  Interleave and batch datasets ---------------------------------
+        # ------- Interleave and parse datasets -----------------------------------------------------------------------
         sampled_dataset = tf.data.experimental.sample_from_datasets(datasets, weights=weights)
         dataset = _get_parsed_datasets(sampled_dataset,
                                        base_parser=base_parser,
                                        label_parser=label_parser,
                                        include_slidenames=incl_slidenames,
                                        include_loc=incl_loc)
+
+        # ------- Apply normalization ---------------------------------------------------------------------------------
+        if normalizer and normalizer.vectorized:
+            log.info("Using fast, vectorized normalization")
+            norm_batch_size = 32 if not batch_size else batch_size
+            dataset = dataset.batch(norm_batch_size, drop_remainder=False)
+            dataset = dataset.map(normalizer.batch_to_batch, num_parallel_calls=tf.data.AUTOTUNE)
+            dataset = dataset.unbatch()
+        elif normalizer:
+            log.info("Using slow, per-image normalization")
+            dataset = dataset.map(normalizer.tf_to_tf, num_parallel_calls=tf.data.AUTOTUNE)
+
+        # ------- Standardize and augment images ----------------------------------------------------------------------
+        dataset = dataset.map(partial(process_image, standardize=standardize,
+                                                     augment=augment,
+                                                     size=img_size), num_parallel_calls=tf.data.AUTOTUNE)
+
+        # ------- Batch and prefetch ----------------------------------------------------------------------------------
         if batch_size:
             dataset = dataset.batch(batch_size, drop_remainder=False)
-        #dataset = dataset.prefetch(tf.data.AUTOTUNE)
+        dataset = dataset.prefetch(tf.data.AUTOTUNE)
 
         return dataset
 
 def _get_parsed_datasets(tfrecord_dataset, base_parser, label_parser=None, include_slidenames=False, include_loc=False):
 
     def final_parser(record):
-
         if include_loc:
             image, slide, loc_x, loc_y = base_parser(record)
         else:
@@ -300,7 +343,7 @@ def _get_parsed_datasets(tfrecord_dataset, base_parser, label_parser=None, inclu
         if include_loc: to_return += [loc_x, loc_y]
         return tuple(to_return)
 
-    return tfrecord_dataset.map(final_parser, num_parallel_calls=32)
+    return tfrecord_dataset.map(final_parser, num_parallel_calls=tf.data.AUTOTUNE)
 
 def tfrecord_example(slide, image_raw, loc_x=0, loc_y=0):
     '''Returns a Tensorflow Data example for TFRecord storage.'''

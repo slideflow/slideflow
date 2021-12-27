@@ -6,7 +6,7 @@ In addition to standard Tensorflow/Keras model applications, slideflow supports 
 Creating slide activations
 **************************
 
-The first step in the CLAM pipeline is generating tile-level activations across whole-slide images. While the original `CLAM paper <https://arxiv.org/abs/2004.09666>`_ used features generated from an imagenet-trained model, we have found it useful to generate feature activations from models pretrained with histology images. To this end, the project function :func:`slideflow.project.Project.generate_features_for_clam` accepts any model as input and will generate feature vectors from the specified intermediate layers. For example:
+The first step in the CLAM pipeline is generating tile-level activations across whole-slide images. While the original `CLAM paper <https://arxiv.org/abs/2004.09666>`_ used features generated from an imagenet-trained model, we have found it useful to generate feature activations from models pretrained with histology images. To this end, the project function :func:`slideflow.Project.generate_features_for_clam` accepts any model as input and will generate feature vectors from the specified intermediate layers. For example:
 
 .. code-block:: python
 
@@ -19,7 +19,7 @@ The first step in the CLAM pipeline is generating tile-level activations across 
 Training
 ********
 
-To train a CLAM model, use the project function :func:`slideflow.project.Project.train_clam`. Clam arguments are configured with :func:`slideflow.clam.get_args`:
+To train a CLAM model, use the project function :func:`slideflow.Project.train_clam`. Clam arguments are configured with :func:`slideflow.clam.get_args`:
 
 .. code-block:: python
 
@@ -41,7 +41,7 @@ The training function will, by default, save heatmaps of the attention layers fo
 Evaluation
 **********
 
-To evaluate a saved CLAM model on an external dataset, first extract features from this dataset, then use the project function :func:`slideflow.project.Project.evaluate_clam`:
+To evaluate a saved CLAM model on an external dataset, first extract features from this dataset, then use the project function :func:`slideflow.Project.evaluate_clam`:
 
 .. code-block:: python
 

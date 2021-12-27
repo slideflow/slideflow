@@ -1,3 +1,7 @@
+# Please note that we can make no guarantees regarding the use of this patch
+# and provide no warranties, explicit or implied.
+# It has been tested for pixman version 0.38 in Ubuntu 18.04 and 20.04
+#
 # Preparation:
 # 1. ensure a deb-src source is uncommented
 # sudo nano /etc/apt/sources.list

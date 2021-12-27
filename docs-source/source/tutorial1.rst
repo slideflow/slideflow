@@ -1,13 +1,12 @@
+.. _tutorial1:
+
 Tutorial 1: Model training (simple)
 =====================================
 
 In this first tutorial, we will walk through the steps needed to take an example project from start to finish, using
 the bundled ``run_project.py`` script to execute pipeline functions. As with all of these tutorials, we will use
 publicly available data from `The Cancer Genome Atlas (TCGA) <https://portal.gdc.cancer.gov>`_. In this first tutorial,
-we will train a model to predict ER status from breast cancer slides. While there have been many groups which have shown
-this to be accomplishable from standard H&E slides, we will be referencing `this manuscript
-<https://www.nature.com/articles/s41467-020-19334-3>`_ by Naik et al for certain hyperparameter choices and performance
-comparison.
+we will train a model to predict ER status from breast cancer slides.
 
 Examples will be given assuming project files are in the directory ``/home/er_project`` and slides are in
 ``/home/brca_slides``, although you will need to customize these paths according to your needs.
@@ -22,7 +21,7 @@ or "Negative"), giving us our final patient count of 1011.
 
 To create a new project, use the ``run_project.py`` script:
 
-.. code-block:: console
+.. code-block:: bash
 
     $ python3 run_project.py -p /home/er_project
 
@@ -104,7 +103,7 @@ Tile extraction
 The next step is to extract tiles from our slides. Find the sample ``actions.py`` file in the project folder, which we
 will modify and use to execute our pipeline functions. Delete the commented-out examples in this file.
 
-To replicate the results by Naik, we will use a 256px x 256px tile size, at 0.5 µm/pixel (128 um). Add the following
+For this example, we will use a 256px x 256px tile size, at 0.5 µm/pixel (128 um). Add the following
 to the project ``actions.py`` file:
 
 .. code-block:: python
@@ -114,22 +113,13 @@ to the project ``actions.py`` file:
         P.extract_tiles(tile_px=256, tile_um=128)
 
 .. hint::
-    Tile extraction speed is greatly improved when slides are on an SSD or ramdisk. Slides can be automatically
-    buffered to an SSD or ramdisk directory by passing a directory to the argument ``buffer``. For systems with high
-    CPU core counts, the number of worker threads can be set higher than the default 4 for additional performance gain.
-    Finally, extraction on slides with pyramidal or multi-resolution formats can be greatly increased by enabling use of
-    downsampled pyramidal layers. This behavior is disabled by default, as some slides may have corrupt or incomplete
-    pyramidal layers.
+    Tile extraction speed is greatly improved when slides are on an SSD or ramdisk; slides can be automatically
+    buffered to an SSD or ramdisk directory by passing a directory to the argument ``buffer``. Additionally, for maximum
+    performance, set ``num_threads`` equal to twice the number of CPU cores available.
 
     .. code-block:: python
 
-        P.extract_tiles(
-            tile_px=256,
-            tile_um=128,
-            buffer='/mnt/ramdisk',
-            num_threads=8,
-            enable_downsample=True
-        )
+        P.extract_tiles(256, 128, buffer='/mnt/ramdisk', num_threads=32)
 
 Training
 ********
@@ -228,7 +218,7 @@ Now, it's time to start our pipeline. To review, our ``actions.py`` file at this
 To execute these functions, use the ``run_project.py`` script, passing the project directory with the ``-p`` flag.
 If you have multiple GPUs, you can assign a GPU with the ``-g`` flag.
 
-.. code-block:: console
+.. code-block:: bash
 
     $ python3 run_project.py -p /home/er_project -g 0
 
@@ -245,38 +235,31 @@ and patient-level receiver operator curves are saved in the model folder, along 
 
         Patient-level receiver operator curve
 
-Evaluation
-**********
 
-The final step of our classification experiment is to assess performance on our held-out evaluation dataset.
-The final trained model should be stored at ``/home/er_project/models/00003-er_status_by_ihc/er_status_by_ihc_epoch3``,
-so we will include the following in our ``actions.py`` file to evaluate the saved model:
+Monitoring with Tensorboard
+***************************
+
+Tensorboard-formatted training and validation logs are saved the model directory. To monitor training with Tensorboard:
+
+.. code-block:: bash
+
+    $ tensorboard --logdir=/project_path/models/00001-outcome-HP0
+
+Tensorboard can then be accessed by navigating to ``https://localhost:6006`` in a browser.
+
+Monitoring with Neptune
+***********************
+
+Experiments can be automatically logged with `Neptune.ai <https://app.neptune.ai>`_. To enable logging, first locate your Neptune API token and workspace ID, and configure the environmental variables ``NEPTUNE_API_TOKEN`` and ``NEPTUNE_WORKSPACE``.
+
+With the environmental variables set, Neptune logs are enabled either by passing a ``-n`` flag to the ``run_project.py`` script:
+
+.. code-block:: bash
+
+    $ python3 run_project.py -n -p /project_path/
+
+or by passing ``use_neptune=True`` to the ``slideflow.Project`` class:
 
 .. code-block:: python
 
-    model = '/home/er_project/models/00003-er_status_by_ihc/er_status_by_ihc_epoch3'
-
-    def main(P):
-        P.evaluate(
-            model,
-            'er_status_by_ihc',
-            filters={'dataset': ['eval'],
-                     'er_status_by_ihc': ['Positive', 'Negative']}
-        )
-
-The previous training functions in this example have been deleted, but you can also choose to simply comment them out.
-
-Run the evaluation, and you should see the following final results:
-
-.. list-table::
-
-    * - .. figure:: val_er_roc_tile.png
-
-        Tile-level receiver operator curve
-
-      - .. figure:: val_er_roc_patient.png
-
-        Patient-level receiver operator curve
-
-Over the next few tutorials, we will take a closer look at how we can analyze model performance and behavior by
-generating slide heatmaps, mosaic maps, and intermediate layer activations.
+    P = sf.Project('/project/path', use_neptune=True)

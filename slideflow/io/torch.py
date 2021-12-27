@@ -14,7 +14,6 @@ from os.path import isfile, join, dirname, exists
 from slideflow.tfrecord.torch.dataset import MultiTFRecordDataset, TFRecordDataset
 from slideflow.util import log, to_onehot
 from tqdm import tqdm
-from collections import deque
 from queue import Queue
 
 FEATURE_DESCRIPTION = {'image_raw':    'byte',
@@ -34,30 +33,42 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
     Serves as a bridge between the python generator returned by interleave() and the pytorch DataLoader class.
     """
 
-    def __init__(self,
-        tfrecords,                                  # Path to tfrecord files to interleave
-        img_size,                                   # Image width in pixels
-        labels                  = None,             # Dict mapping slide names to labels
-        incl_slidenames         = False,            # Include slide names (returns image, label, slide)
-        incl_loc                = False,            # Include location info (returns ..., loc_x, loc_y)
-        rank                    = 0,                # Which GPU replica this dataset is being used for
-        num_replicas            = 1,                # Total number of GPU replicas
-        augment                 = True,             # Slideflow augmentations to perform
-        standardize             = True,             # Standardize images to mean 0 and variance of 1
-        num_tiles               = None,             # Manifest mapping tfrecord names to number of total tiles
-        infinite                = True,             # Inifitely loop through dataset
-        max_size                = None,             # Artificially limit dataset size, useful for metrics
-        prob_weights            = None,
-        normalizer              = None,
-        clip                    = None,
-        chunk_size              = 16,               # Chunk size for interleaving
-        preload                 = 8,                # Preload this many samples for parallelization
-        use_labels              = True,             # Enable use of labels (disabled for non-class-conditional GANs)
-        model_type              = 'categorical',    # Used to generate random labels (for StyleGAN2). Not required.
-        onehot                  = False,
-        indices                 = None,
-        **kwargs                                    # Kwargs for Dataset base class
-    ):
+    def __init__(self, tfrecords, img_size, labels=None, incl_slidenames=False, incl_loc=False, rank=0, num_replicas=1,
+                augment=False, standardize=True, num_tiles=None, infinite=True, max_size=None, prob_weights=None,
+                normalizer=None, clip=None, chunk_size=16, preload=8, use_labels=True, model_type='categorical',
+                onehot=False, indices=None, **kwargs):
+
+        """Pytorch IterableDataset that interleaves tfrecords with :func:`slideflow.io.torch.interleave`.
+
+        Args:
+            tfrecords (list(str)): Path to tfrecord files to interleave.
+            img_size (int): Image width in pixels.
+            labels (dict, optional): Dict mapping slide names to labels. Defaults to None.
+            incl_slidenames (bool, optional): Include slide names when iterated (returns image, label, slide).
+                Defaults to False.
+            incl_loc (bool, optional): Include location info (returns ..., loc_x, loc_y). Defaults to False.
+            rank (int, optional): # Which GPU replica this dataset is being used for. Defaults to 0.
+            num_replicas (int, optional): Total number of GPU replicas. Defaults to 1.
+            augment (str of bool, optional): Image augmentations to perform. If string, 'x' performs horizontal
+                flipping, 'y' performs vertical flipping, 'r' performs rotation, 'j' performs random JPEG compression
+                (e.g. 'xyr', 'xyrj', 'xy'). If bool, True performs all and False performs None. Defaults to True.
+            standardize (bool, optional): Standardize images to mean 0 and variance of 1. Defaults to True.
+            num_tiles (dict, optional): Dict mapping tfrecord names to number of total tiles. Defaults to None.
+            infinite (bool, optional): Inifitely loop through dataset. Defaults to True.
+            max_size (bool, optional): Artificially limit dataset size, useful for metrics. Defaults to None.
+            prob_weights (list(float), optional): Probability weights for interleaving tfrecords. Defaults to None.
+            normalizer (:class:`slideflow.slide.StainNormalizer`, optional): Digital stain normalizer. Defaults to None.
+            clip (list(int), optional): Array of maximum tiles to take for each tfrecord. Defaults to None.
+            chunk_size (int, optional): Chunk size for image decoding. Defaults to 16.
+            preload (int, optional): Preload this many samples for parallelization. Defaults to 8.
+            use_labels (bool, optional): Enable use of labels (disabled for non-conditional GANs). Defaults to True.
+            model_type (str, optional): Used to generate random labels (for StyleGAN2). Not required. Defaults to
+                'categorical'.
+            onehot (bool, optional): Onehot encode outcomes. Defaults to False.
+            indices (numpy.ndarray, optional): Array of np.loadtxt(index_path, dtype=np.int64) for each tfrecord.
+                Defaults to None.
+        """
+
         self.tfrecords = np.array(tfrecords).astype(np.string_)
         self.prob_weights = np.array(prob_weights) if prob_weights is not None else None
         self.clip = np.array(clip) if clip is not None else None
@@ -72,7 +83,7 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
         self.use_labels = use_labels
         self.chunk_size = chunk_size
         self.preload = preload
-        self.normalizer = normalizer###
+        self.normalizer = normalizer
         self.onehot = onehot
         self.incl_slidenames = incl_slidenames
         self.incl_loc = incl_loc
@@ -101,7 +112,7 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
             self.unique_labels = None
             self.label_prob = None
             self.num_outcomes = 1
-        self.labels = labels###
+        self.labels = labels
 
     @property
     def name(self):
@@ -199,14 +210,14 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
         raise NotImplementedError
 
     def get_label(self, idx):
-        #Randomly returns a label, for use with StyleGAN2
-        '''if self.use_labels and self.model_type == 'categorical':
-            label = random.choices(self.unique_labels, weights=self.label_prob, k=1)[0]
-            return label.copy() if not self.onehot else to_onehot(label, self.max_label+1).copy()
-        elif self.use_labels:
-            return [np.random.rand()]
-        else:
-            return np.zeros((1,))'''
+        '''Returns a random label. Used for compatibility with StyleGAN2.'''
+        #if self.use_labels and self.model_type == 'categorical':
+        #    label = random.choices(self.unique_labels, weights=self.label_prob, k=1)[0]
+        #    return label.copy() if not self.onehot else to_onehot(label, self.max_label+1).copy()
+        #elif self.use_labels:
+        #    return [np.random.rand()]
+        #else:
+        #    return np.zeros((1,))
         if self.use_labels and self.model_type == 'categorical':
             return random.choices(self.unique_labels, weights=self.label_prob, k=1)[0]
         elif self.use_labels:
@@ -243,7 +254,7 @@ def _decode_image(img_string, img_type, standardize=False, normalizer=None, augm
 
     np_data = torch.from_numpy(np.fromstring(img_string, dtype=np.uint8))# np.frombuffer(s, dtype='int8')
     image = torchvision.io.decode_image(np_data).permute(1, 2, 0) # CWH => WHC
-    #image = np.array(Image.open(BytesIO(img_string)))
+    #image = np.array(Image.open(BytesIO(img_string))) # <- Alternative method using PIL decoding
 
     def random_jpeg_compression(img):
         q = random.randrange(50, 100)
@@ -265,7 +276,7 @@ def _decode_image(img_string, img_type, standardize=False, normalizer=None, augm
     if normalizer:
         image = torch.from_numpy(normalizer.rgb_to_rgb(image.numpy()))
     if standardize:
-        # Not the same as tensorflow's per_image_standardization
+        # Note: not the same as tensorflow's per_image_standardization
         # Convert back: image = (image + 1) * (255/2)
         image = image / 127.5 - 1
     return image
@@ -306,7 +317,7 @@ def detect_tfrecord_format(tfr):
 def get_tfrecord_parser(tfrecord_path, features_to_return=None, decode_images=True, standardize=False,
                         normalizer=None, augment=False, **kwargs):
 
-    '''Gets tfrecord parser using dareblopy reader. Torch implementation; different than sf.io.tensorflow
+    """Gets tfrecord parser using dareblopy reader. Torch implementation; different than sf.io.tensorflow
 
     Args:
         tfrecord_path (str): Path to tfrecord to parse.
@@ -325,7 +336,8 @@ def get_tfrecord_parser(tfrecord_path, features_to_return=None, decode_images=Tr
     Returns:
         func: Parsing function
         dict: Detected feature description for the tfrecord
-    '''
+    """
+
     detected_features, img_type = detect_tfrecord_format(tfrecord_path)
     if features_to_return is None:
         features_to_return = {k:k for k in detected_features.keys()}
@@ -358,7 +370,7 @@ def get_tfrecord_parser(tfrecord_path, features_to_return=None, decode_images=Tr
 
     return parser
 
-def interleave(tfrecords, prob_weights=None, incl_loc=False, clip=None, infinite=False, augment=True, standardize=True,
+def interleave(tfrecords, prob_weights=None, incl_loc=False, clip=None, infinite=False, augment=False, standardize=True,
                normalizer=None, num_threads=4, chunk_size=8, num_replicas=1, rank=0, indices=None):
 
     """Returns a generator that interleaves records from a collection of tfrecord files, sampling from tfrecord files
@@ -382,7 +394,7 @@ def interleave(tfrecords, prob_weights=None, incl_loc=False, clip=None, infinite
         standardize (bool, optional): Standardize images to (0,1). Defaults to True.
         normalizer (:class:`slideflow.slide.StainNormalizer`, optional): Normalizer to use on images. Defaults to None.
         manifest (dict, optional): Dataset manifest containing number of tiles per tfrecord.
-        num_threads (int, optional): Number of threads to use decoding images. Defaults to 8.
+        num_threads (int, optional): Number of threads to use decoding images. Defaults to 4.
         chunk_size (int, optional): Chunk size for image decoding. Defaults to 16.
         num_replicas (int, optional): Number of total workers reading the dataset with this interleave function,
             defined as number of gpus * number of torch DataLoader workers. Used to interleave results among workers
@@ -528,7 +540,7 @@ def interleave(tfrecords, prob_weights=None, incl_loc=False, clip=None, infinite
 
 def interleave_dataloader(tfrecords, img_size, batch_size, prob_weights=None, clip=None, onehot=False, num_tiles=None,
                           incl_slidenames=False, incl_loc=False, infinite=False, rank=0, num_replicas=1, labels=None,
-                          normalizer=None, chunk_size=16, preload_factor=1, augment=True, standardize=True,
+                          normalizer=None, chunk_size=16, preload_factor=1, augment=False, standardize=True,
                           num_workers=2, persistent_workers=True, pin_memory=True, indices=None):
 
     """Prepares a PyTorch DataLoader with a new InterleaveIterator instance, interleaving tfrecords and processing

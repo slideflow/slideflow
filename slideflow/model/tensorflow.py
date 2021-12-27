@@ -24,6 +24,13 @@ from slideflow.util import log
 from slideflow.model.base import ModelError, FeatureError, no_scope, log_summary, log_manifest
 from slideflow.model.tensorflow_utils import *
 
+class StaticDropout(tf.keras.layers.Dropout):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def call(self, inputs, **kwargs):
+        return super().call(inputs, training=True)
+
 class ModelParams(_base._ModelParams):
     """Build a set of hyperparameters."""
 
@@ -90,11 +97,15 @@ class ModelParams(_base._ModelParams):
         assert self.loss in self.AllLossDict.keys()
 
     def _add_hidden_layers(self, model, regularizer):
+        log.info("Using Batch normalization")
         for i in range(self.hidden_layers):
             model = tf.keras.layers.Dense(self.hidden_layer_width,
                                           name=f'hidden_{i}',
                                           activation='relu',
                                           kernel_regularizer=regularizer)(model)
+            model = tf.keras.layers.BatchNormalization()(model)
+            if self.dropout:
+                model = StaticDropout(self.dropout)(model)
         return model
 
     def _add_regularization(self, model):
@@ -168,7 +179,7 @@ class ModelParams(_base._ModelParams):
             layers += [tf.keras.layers.Flatten()]
         layers += [post_convolution_identity_layer]
         if self.dropout:
-            layers += [tf.keras.layers.Dropout(self.dropout)]
+            layers += [StaticDropout(self.dropout)]
         tile_image_model = tf.keras.Sequential(layers)
         model_inputs = [tile_image_model.input]
         return tile_image_model, model_inputs, regularizer
@@ -493,8 +504,8 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
     def evaluate_model(self, logs={}):
         epoch = self.epoch_count
         epoch_label = f'val_epoch{epoch}'
-        pred_args = types.SimpleNamespace(loss=self.hp.get_loss())
-        metrics, acc, loss = sf.statistics.metrics_from_dataset(
+        pred_args = types.SimpleNamespace(loss=self.hp.get_loss(), uq=bool(self.hp.dropout))
+        metrics, acc, loss = sf.stats.metrics_from_dataset(
             self.model,
             model_type=self.hp.model_type(),
             labels=self.parent.labels,
@@ -620,6 +631,14 @@ class Trainer:
                     tf.lookup.KeyValueTensorInitializer(self.slides, outcome_labels[:,oi]), -1
                 )]
 
+        # Log parameters
+        if config is None:
+            config = {
+                'slideflow_version': sf.__version__,
+                'hp': self.hp.get_dict()
+            }
+        sf.util.write_json(config, join(self.outdir, 'params.json'))
+
         # Initialize Neptune
         self.use_neptune = use_neptune
         if self.use_neptune:
@@ -711,7 +730,8 @@ class Trainer:
     def load(self, model):
         self.model = tf.keras.models.load_model(model)
 
-    def evaluate(self, dataset, batch_size=None, permutation_importance=False, histogram=False, save_predictions=False):
+    def evaluate(self, dataset, batch_size=None, permutation_importance=False, histogram=False, save_predictions=False,
+                 norm_mean=None, norm_std=None):
 
         """Evaluate model, saving metrics and predictions.
 
@@ -729,6 +749,13 @@ class Trainer:
             Dictionary of evaluation metrics.
         """
 
+        # Fit normalizer
+        if self.normalizer and norm_mean is not None:
+            self.normalizer.fit(norm_mean, norm_std)
+        elif self.normalizer:
+            if 'norm_mean' in self.config:
+                self.normalizer.fit(np.array(self.config['norm_mean']), np.array(self.config['norm_std']))
+
         # Load and initialize model
         if not self.model:
             raise sf.util.UserError("Model has not been loaded, unable to evaluate.")
@@ -743,7 +770,6 @@ class Trainer:
         if not batch_size: batch_size = self.hp.batch_size
         with tf.name_scope('input'):
             interleave_kwargs = self._interleave_kwargs(batch_size=batch_size, infinite=False, augment=False)
-            tf_dts = dataset.tensorflow(**interleave_kwargs)
             tf_dts_w_slidenames = dataset.tensorflow(incl_slidenames=True, **interleave_kwargs)
 
         # Generate performance metrics
@@ -751,15 +777,16 @@ class Trainer:
         metric_kwargs = self._metric_kwargs(dataset=tf_dts_w_slidenames, num_tiles=dataset.num_tiles, label='eval')
         if permutation_importance:
             drop_images = ((self.hp.tile_px == 0) or self.hp.drop_images)
-            metrics = sf.statistics.permutation_feature_importance(feature_names=self.feature_names,
-                                                                   feature_sizes=self.feature_sizes,
-                                                                   drop_images=drop_images,
-                                                                   **metric_kwargs)
+            metrics = sf.stats.permutation_feature_importance(feature_names=self.feature_names,
+                                                              feature_sizes=self.feature_sizes,
+                                                              drop_images=drop_images,
+                                                              **metric_kwargs)
         else:
-            metrics, acc, loss = sf.statistics.metrics_from_dataset(histogram=histogram,
+            pred_args = types.SimpleNamespace(loss=self.hp.get_loss(), uq=bool(self.hp.dropout))
+            metrics, acc, loss = sf.stats.metrics_from_dataset(histogram=histogram,
                                                                     verbose=True,
                                                                     save_predictions=save_predictions,
-                                                                    pred_args=types.SimpleNamespace(loss=self.hp.get_loss()),
+                                                                    pred_args=pred_args,
                                                                     **metric_kwargs)
             results_dict = { 'eval': {} }
         for metric in metrics:
@@ -773,10 +800,8 @@ class Trainer:
                     f'patient_{metric}': metrics[metric]['patient']
                 })
 
-
         # Note that Keras loss during training includes regularization losses,
         #  so this loss will not match validation loss calculated during training
-        # val_metrics = self.model.evaluate(tf_dts, verbose=(log.getEffectiveLevel() <= 20), return_dict=True)
         val_metrics = {'accuracy': acc, 'loss': loss}
         results_log = os.path.join(self.outdir, 'results_log.csv')
         log.info(f'Evaluation metrics:')
@@ -794,8 +819,8 @@ class Trainer:
 
     def train(self, train_dts, val_dts, log_frequency=100, validate_on_batch=512, validation_batch_size=32,
               validation_steps=200, starting_epoch=0, ema_observations=20, ema_smoothing=2, use_tensorboard=True,
-              steps_per_epoch_override=None, save_predictions=False, resume_training=None,
-              pretrain='imagenet', checkpoint=None, multi_gpu=False):
+              steps_per_epoch_override=None, save_predictions=False, resume_training=None, pretrain='imagenet',
+              checkpoint=None, multi_gpu=False, fit_to_dataset=False, norm_mean=None, norm_std=None):
 
         """Builds and trains a model from hyperparameters.
 
@@ -826,6 +851,28 @@ class Trainer:
         if self.hp.model_type() != self._model_type:
             raise ModelError(f"Incomptable model types: {self.hp.model_type()} (hp) and {self._model_type} (model)")
         tf.keras.backend.clear_session() # Clear prior Tensorflow graph to free memory
+
+        # Fit the normalizer to the training data and log the source mean/stddev
+        if self.normalizer and fit_to_dataset:
+            self.normalizer.fit(train_dts)
+        elif norm_mean is not None:
+            self.normalizer.fit(norm_mean, norm_std)
+        if self.normalizer:
+            config_path = join(self.outdir, 'params.json')
+            if not exists(config_path):
+                config = {
+                    'slideflow_version': sf.__version__,
+                    'hp': self.hp.get_dict()
+                }
+            else:
+                config = sf.util.load_json(config_path)
+            if self.normalizer.vectorized:
+                config['norm_mean'] = self.normalizer.target_means.numpy().tolist()
+                config['norm_std'] = self.normalizer.target_stds.numpy().tolist()
+            else:
+                config['norm_mean'] = self.normalizer.target_means.tolist()
+                config['norm_std'] = self.normalizer.target_stds.tolist()
+            sf.util.write_json(config, config_path)
 
         # Save training / validation manifest
         val_tfrecords = None if val_dts is None else val_dts.tfrecords()
@@ -1177,7 +1224,7 @@ class Features:
             parsed_image = tf.image.per_image_standardization(image)
             parsed_image.set_shape([slide.tile_px, slide.tile_px, 3])
             if self.wsi_normalizer:
-                image = tf.py_function(self.wsi_normalizer.tf_to_rgb, [image], tf.int32)
+                image = self.wsi_normalizer.tf_to_tf(image)
             return parsed_image, loc
 
         # Generate dataset from the generator
@@ -1246,3 +1293,28 @@ class Features:
         if include_logits:
             log.debug(f'Number of logits: {self.num_logits}')
         log.debug(f'Number of activation features: {self.num_features}')
+
+class UncertaintyInterface(Features):
+    def __init__(self, path):
+        super().__init__(path, layers=None, include_logits=True)
+        self.num_logits += 1
+
+    @classmethod
+    def from_model(cls, model, wsi_normalizer=None):
+        super().from_model(cls, model, layers=None, include_logits=True, wsi_normalizer=wsi_normalizer)
+
+    @tf.function
+    def _predict(self, inp):
+        """Return predictions (mean) and uncertainty (stdev) for a single batch of images."""
+        yp_drop = []
+        for _ in range(30):
+            yp = self.model(inp, training=False)
+            yp_drop += [yp]
+        yp_drop = tf.stack(yp_drop, axis=0)
+        yp_drop_mean = tf.math.reduce_mean(yp_drop, axis=0)
+        yp_drop_std = tf.math.reduce_std(yp_drop, axis=0)[:,0] # Only takes STDEV from first outcome category
+                                                               # Which works for outcomes with 2 categories,
+                                                               # TODO: But a better solution is needed
+                                                               # for num_categories > 2
+        stacked = tf.stack([yp_drop_mean[:, 0], yp_drop_mean[:, 1], yp_drop_std], axis=-1)
+        return stacked

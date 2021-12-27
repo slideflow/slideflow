@@ -298,6 +298,14 @@ class Trainer:
                                     f"the number of outcomes ({outcome_labels.shape[1]})")
         if not os.path.exists(outdir): os.makedirs(outdir)
 
+        # Log parameters
+        if config is None:
+            config = {
+                'slideflow_version': sf.__version__,
+                'hp': self.hp.get_dict()
+            }
+        sf.util.write_json(config, join(self.outdir, 'params.json'))
+
         # Neptune logging
         self.config = config
         self.use_neptune = use_neptune
@@ -403,11 +411,11 @@ class Trainer:
 
         # Generate performance metrics
         log.info('Calculating performance metrics...')
-        metrics, acc, loss = sf.statistics.metrics_from_dataset(histogram=histogram,
-                                                                verbose=True,
-                                                                save_predictions=save_predictions,
-                                                                pred_args=pred_args,
-                                                                **vars(metric_kwargs))
+        metrics, acc, loss = sf.stats.metrics_from_dataset(histogram=histogram,
+                                                           verbose=True,
+                                                           save_predictions=save_predictions,
+                                                           pred_args=pred_args,
+                                                           **vars(metric_kwargs))
         results_dict = { 'eval': {'loss': loss} }
         if self.hp.model_type() == 'categorical':
             results_dict['eval'].update({'accuracy': acc})
@@ -555,7 +563,7 @@ class Trainer:
         if self.use_neptune:
             tags = ['train']
             if 'k-fold' in self.config['validation_strategy']:
-	            tags += [f'k-fold{self.config["k_fold_i"]}']
+                tags += [f'k-fold{self.config["k_fold_i"]}']
             self.neptune_run = self.neptune_logger.start_run(self.name, self.config['project'], train_dts, tags=tags)
             self.neptune_logger.log_config(self.config, 'train')
             self.neptune_run['data/slide_manifest'].upload(os.path.join(self.outdir, 'slide_manifest.csv'))
@@ -603,7 +611,7 @@ class Trainer:
         )
 
         dataloaders = {
-            'train': iter(train_dts.torch(infinite=True, batch_size=self.hp.batch_size, augment=True, **vars(interleave_args)))
+            'train': iter(train_dts.torch(infinite=True, batch_size=self.hp.batch_size, augment=self.hp.augment, **vars(interleave_args)))
         }
         if val_dts is not None:
             dataloaders['val'] = val_dts.torch(infinite=False, batch_size=validation_batch_size, augment=False, **vars(interleave_args))
@@ -858,16 +866,16 @@ class Trainer:
                     )
 
                     # Calculate patient/slide/tile - level metrics (AUC, R-squared, C-index, etc)
-                    metrics, acc, loss = sf.statistics.metrics_from_dataset(inference_model,
-                                                                            model_type=self.hp.model_type(),
-                                                                            labels=self.labels,
-                                                                            patients=self.patients,
-                                                                            dataset=dataloaders['val'],
-                                                                            data_dir=self.outdir,
-                                                                            outcome_names=self.outcome_names,
-                                                                            save_predictions=save_predictions,
-                                                                            neptune_run=self.neptune_run,
-                                                                            pred_args=pred_args)
+                    metrics, acc, loss = sf.stats.metrics_from_dataset(inference_model,
+                                                                       model_type=self.hp.model_type(),
+                                                                       labels=self.labels,
+                                                                       patients=self.patients,
+                                                                       dataset=dataloaders['val'],
+                                                                       data_dir=self.outdir,
+                                                                       outcome_names=self.outcome_names,
+                                                                       save_predictions=save_predictions,
+                                                                       neptune_run=self.neptune_run,
+                                                                       pred_args=pred_args)
 
                     epoch_metrics = {'loss': epoch_loss}
                     if self.hp.model_type() == 'categorical':

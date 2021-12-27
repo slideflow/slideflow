@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Pipeline Overview &mdash; slideflow 1.0.0 documentation</title>
+  <title>Pipeline Overview &mdash; slideflow 1.0.4 documentation</title>
   
 
   
@@ -32,7 +32,7 @@
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="Setting up a Project" href="project_setup.html" />
-    <link rel="prev" title="Slideflow Documentation" href="index.html" />
+    <link rel="prev" title="Installation" href="installation.html" />
   <!-- Google Analytics -->
   
   <!-- End Google Analytics -->
@@ -88,7 +88,7 @@
           </li>
 
           <li>
-            <a href="https://github.com/pearson-laboratory/slideflow">GitHub</a>
+            <a href="https://github.com/jamesdolezal/slideflow">GitHub</a>
           </li>
         </ul>
       </div>
@@ -149,6 +149,7 @@
             
               <p class="caption" role="heading"><span class="caption-text">Overview</span></p>
 <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Pipeline Overview</a></li>
 <li class="toctree-l1"><a class="reference internal" href="project_setup.html">Setting up a Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="validation.html">Validation Planning</a></li>
@@ -156,8 +157,8 @@
 <li class="toctree-l1"><a class="reference internal" href="training.html">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="evaluation.html">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="layer_activations.html">Features / layer activations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="backend.html">Switching backends</a></li>
 <li class="toctree-l1"><a class="reference internal" href="clam.html">CLAM</a></li>
-<li class="toctree-l1"><a class="reference internal" href="torch.html">PyTorch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
 <li class="toctree-l1"><a class="reference internal" href="appendix.html">Appendix</a></li>
 </ul>
@@ -166,18 +167,19 @@
 <li class="toctree-l1"><a class="reference internal" href="project.html">slideflow.Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="dataset.html">slideflow.dataset</a></li>
 <li class="toctree-l1"><a class="reference internal" href="heatmap.html">slideflow.heatmap</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tfrecords.html">slideflow.io.tensorflow</a></li>
-<li class="toctree-l1"><a class="reference internal" href="reader.html">slideflow.io.torch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="io_tensorflow.html">slideflow.io.tensorflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="io_torch.html">slideflow.io.torch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="model.html">slideflow.model</a></li>
 <li class="toctree-l1"><a class="reference internal" href="mosaic.html">slideflow.mosaic</a></li>
 <li class="toctree-l1"><a class="reference internal" href="slide.html">slideflow.slide</a></li>
-<li class="toctree-l1"><a class="reference internal" href="statistics.html">slideflow.statistics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="stats.html">slideflow.stats</a></li>
 <li class="toctree-l1"><a class="reference internal" href="util.html">slideflow.util</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="tutorial1.html">Tutorial 1: Model training (simple)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorial2.html">Tutorial 2: Model training (advanced)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial3.html">Tutorial 3: Model evaluation &amp; heatmaps</a></li>
 </ul>
 
             
@@ -252,22 +254,23 @@
               
   <div class="section" id="pipeline-overview">
 <h1>Pipeline Overview<a class="headerlink" href="#pipeline-overview" title="Permalink to this headline">¶</a></h1>
-<p>The overall pipeline is separated into two phases and 6 steps.</p>
-<p>The first phase - <strong>Model Creation</strong> - involves three steps: 1) labeling slides with regions of interest (ROIs), 2) segmenting and preparing image tiles from the slides, and 3) training a model.</p>
-<p>The second phase - <strong>Model Assessment</strong> - also involves three steps: 1) analytics describing model performance, including basic measures like percent accuracy, ROCs, and scatter plots, 2) creating heatmap overlays for whole-slide images to visualize predictions, and 3) generating mosaic maps to visualize learned image features.</p>
-<p>A high-level overview of each of the six steps is provided below. We will examine execution of these steps in more detail in the following sections.</p>
-<div class="section" id="step-1-create-rois">
-<h2>Step 1: Create ROIs<a class="headerlink" href="#step-1-create-rois" title="Permalink to this headline">¶</a></h2>
+<p>The overall pipeline is separated into three phases.</p>
+<p>The first phase - <strong>Tile extraction</strong> - involves 1) annotating slides with regions of interest (ROIs) [<em>optional</em>], 2) setting up a project, and 3) extracting and saving image tiles from whole-slide images.</p>
+<p>The second phase - <strong>Model training</strong> - involves 1) performing a hyperparameter sweep [<em>optional</em>], 2) training a model using bootstrap cross-validation or <em>k</em>-fold validation, and 3) training a model across the entire training dataset without validation.</p>
+<p>The third phase - <strong>Model evaluation</strong> - includes 1) assessing performance of the final model on a held-out dataset, generating metrics including loss, accuracy, AUROC / AP, and various plots, 2) creating heatmaps of predictions on the evaluation dataset, and 3) generating mosaic maps from image features calculated from the evaluation dataset to aid in model explainability.</p>
+<p>A high-level overview of each of these phases is provided below. We will examine execution of each step in more detail in the following sections.</p>
+<div class="section" id="step-1-roi-annotation">
+<h2>Step 1: ROI Annotation<a class="headerlink" href="#step-1-roi-annotation" title="Permalink to this headline">¶</a></h2>
 <ol class="arabic simple">
-<li><p><strong>Label ROIs</strong> (optional). Using <a class="reference external" href="https://qupath.github.io/">QuPath</a>, annotate whole-slide images with the Polygon tool. Then, click <strong>Automate</strong> -&gt; <strong>Show script editor</strong>. In the box that comes up, click <strong>File</strong> -&gt; <strong>Open</strong> and load the <code class="docutils literal notranslate"><span class="pre">qupath_roi.groovy</span></code> script. Press CTRL + R and wait for the script to finish. Alternatively, you can load multiple SVS files into a QuPath project and run the script on the entire project using “Run for project”.</p></li>
+<li><p><strong>Label ROIs</strong> (optional). Using <a class="reference external" href="https://qupath.github.io/">QuPath</a>, annotate whole-slide images with the Polygon tool. Then, click <strong>Automate</strong> -&gt; <strong>Show script editor</strong>. In the box that comes up, click <strong>File</strong> -&gt; <strong>Open</strong> and load the <code class="docutils literal notranslate"><span class="pre">qupath_roi.groovy</span></code> script (QuPath 0.2 or greater) or <code class="docutils literal notranslate"><span class="pre">qupath_roi_legacy.groovy</span></code> (QuPath 0.1.x). Click <strong>Run</strong> -&gt; <strong>Run</strong> if using QuPath 0.2 or greater, or <strong>Run</strong> -&gt; <strong>Run for Project</strong> if using QuPath 0.1.x. ROIs will be exported in CSV format in the QuPath project directory, in the subdirectory “ROI”.</p></li>
 </ol>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>This step may be skipped if you are performing analysis on whole-slide images, rather than annotated tumor regions.</p>
 </div>
 </div>
-<div class="section" id="step-2-data-preparation">
-<h2>Step 2: Data Preparation<a class="headerlink" href="#step-2-data-preparation" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="step-2-dataset-preparation">
+<h2>Step 2: Dataset preparation<a class="headerlink" href="#step-2-dataset-preparation" title="Permalink to this headline">¶</a></h2>
 <ol class="arabic simple" start="2">
 <li><p><strong>Extract tiles</strong>. Once ROIs have been created, tiles will need to be extracted from the ROIs across all of your slides. Tiles will be extracted at a given magnification size in microns, and saved at a given resolution in pixels. The optimal extraction size in both microns and pixels will depend on your dataset and model architecture. Poor quality tiles - including background tiles or tiles with high whitespace content - will be automatically discarded. Tiles will be stored as TFRecords, a binary file format used to improve dataset reading performance during training. Each slide will have its own TFRecord file containing its extracted tiles.</p></li>
 <li><p><strong>Set aside final evaluation set</strong>. Using the project annotations CSV file, designate which slides should be saved for final evaluation.</p></li>
@@ -275,14 +278,14 @@
 </ol>
 </div>
 <div class="section" id="step-3-model-training">
-<h2>Step 3: Model Training<a class="headerlink" href="#step-3-model-training" title="Permalink to this headline">¶</a></h2>
+<h2>Step 3: Model training<a class="headerlink" href="#step-3-model-training" title="Permalink to this headline">¶</a></h2>
 <ol class="arabic simple" start="5">
 <li><p><strong>Choose hyperparameters</strong>. Before training can begin, you must choose both a model architecture (e.g. InceptionV3, VGG16, ResNet, etc.) and a set of hyperparameters (e.g. batch size, learning rate, etc.). This can be done explicitly one at a time, or an automatic hyperparameter sweep can be configured.</p></li>
 <li><p><strong>Initiate training</strong>. Train your model across all desired hyperparameters and select the best-performing hyperparameter combination for final evaluation testing.</p></li>
 </ol>
 </div>
-<div class="section" id="step-4-analytics">
-<h2>Step 4: Analytics<a class="headerlink" href="#step-4-analytics" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="step-4-model-evaluation">
+<h2>Step 4: Model evaluation<a class="headerlink" href="#step-4-model-evaluation" title="Permalink to this headline">¶</a></h2>
 <p>Validation testing is performed both during training - at specified epochs - and after training has completed. Various metrics are recorded in the project directory at these intervals to assist with model performance assessment, including:</p>
 <ul class="simple">
 <li><p><strong>Training and validation loss</strong></p></li>
@@ -293,8 +296,8 @@
 <li><p><strong>Histograms of predictions</strong> (for continuous outcomes)</p></li>
 </ul>
 </div>
-<div class="section" id="step-5-visualizing-results-with-heatmaps">
-<h2>Step 5: Visualizing Results with Heatmaps<a class="headerlink" href="#step-5-visualizing-results-with-heatmaps" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="step-5-heatmaps">
+<h2>Step 5: Heatmaps<a class="headerlink" href="#step-5-heatmaps" title="Permalink to this headline">¶</a></h2>
 <p>In addition to the above metrics, performance of a trained model can be assessed by visualizing predictions for a set slides as heatmaps.</p>
 <img alt="_images/heatmap_example.png" src="_images/heatmap_example.png" />
 </div>
@@ -316,7 +319,7 @@
         <a href="project_setup.html" class="btn btn-neutral float-right" title="Setting up a Project" accesskey="n" rel="next">Next <img src="_static/images/chevron-right-orange.svg" class="next-page"></a>
       
       
-        <a href="index.html" class="btn btn-neutral" title="Slideflow Documentation" accesskey="p" rel="prev"><img src="_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
+        <a href="installation.html" class="btn btn-neutral" title="Installation" accesskey="p" rel="prev"><img src="_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
       
     </div>
   
@@ -349,11 +352,11 @@
             <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
               <ul>
 <li><a class="reference internal" href="#">Pipeline Overview</a><ul>
-<li><a class="reference internal" href="#step-1-create-rois">Step 1: Create ROIs</a></li>
-<li><a class="reference internal" href="#step-2-data-preparation">Step 2: Data Preparation</a></li>
-<li><a class="reference internal" href="#step-3-model-training">Step 3: Model Training</a></li>
-<li><a class="reference internal" href="#step-4-analytics">Step 4: Analytics</a></li>
-<li><a class="reference internal" href="#step-5-visualizing-results-with-heatmaps">Step 5: Visualizing Results with Heatmaps</a></li>
+<li><a class="reference internal" href="#step-1-roi-annotation">Step 1: ROI Annotation</a></li>
+<li><a class="reference internal" href="#step-2-dataset-preparation">Step 2: Dataset preparation</a></li>
+<li><a class="reference internal" href="#step-3-model-training">Step 3: Model training</a></li>
+<li><a class="reference internal" href="#step-4-model-evaluation">Step 4: Model evaluation</a></li>
+<li><a class="reference internal" href="#step-5-heatmaps">Step 5: Heatmaps</a></li>
 <li><a class="reference internal" href="#step-6-mosaic-maps">Step 6: Mosaic maps</a></li>
 </ul>
 </li>
@@ -411,27 +414,15 @@
       <div class="main-menu">
         <ul>
           <li>
-            <a href="https://pytorch.org/get-started">Get Started</a>
+            <a href="https://slideflow.dev">Docs</a>
           </li>
 
           <li>
-            <a href="https://pytorch.org/ecosystem">Ecosystem</a>
+            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
           </li>
 
           <li>
-            <a href="https://pytorch.org/mobile">Mobile</a>
-          </li>
-
-          <li>
-            <a href="https://pytorch.org/hub">PyTorch Hub</a>
-          </li>
-
-          <li class="active">
-            <a href="https://pytorch.org/blog/">Blog</a>
-          </li>
-
-          <li>
-            <a href="https://github.com/pearson-laboratory/slideflow">Github</a>
+            <a href="https://github.com/jamesdolezal/slideflow">Github</a>
           </li>
         </ul>
       </div>
@@ -439,6 +430,10 @@
   </div>
 
   <!-- End Mobile Menu -->
+
+  <script script type="text/javascript">
+    var collapsedSections = ['Source', 'Tutorials'];
+  </script>
 
   <script type="text/javascript" src="_static/js/vendor/anchor.min.js"></script>
 

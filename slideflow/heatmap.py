@@ -17,7 +17,7 @@ class Heatmap:
     """Generates heatmap by calculating predictions from a sliding scale window across a slide."""
 
     def __init__(self, slide, model, stride_div=2, roi_dir=None, rois=None, roi_method='inside', batch_size=32,
-                 num_threads=8, buffer=None, enable_downsample=True):
+                 num_threads=None, buffer=None, enable_downsample=True, uq=False):
 
         """Convolutes across a whole slide, calculating logits and saving predictions internally for later use.
 
@@ -31,8 +31,8 @@ class Heatmap:
                 If inside, tiles will be extracted inside ROI region.
                 If outside, tiles will be extracted outside ROI region.
             batch_size (int, optional): Batch size when calculating predictions. Defaults to 32.
-            num_threads (int, optional): Number of tile extraction worker threads. Defaults to 8.
-            buffer (str, optional): Either 'vmtouch' or path to directory to use for buffering slides. Defaults to None.
+            num_threads (int, optional): Number of tile extraction worker threads. Defaults to CPU core count.
+            buffer (str, optional): Path to directory to use for buffering slides. Defaults to None.
                 Significantly improves performance for slides on HDDs.
             enable_downsample (bool, optional): Enable the use of downsampled slide image layers. Defaults to True.
         """
@@ -44,7 +44,10 @@ class Heatmap:
             log.info("No ROIs provided; will generate whole-slide heatmap")
             roi_method = 'ignore'
 
-        interface = sf.model.Features(model, layers=None, include_logits=True)
+        if uq:
+            interface = sf.model.tensorflow.UncertaintyInterface(model)
+        else:
+            interface = sf.model.Features(model, layers=None, include_logits=True)
         model_config = sf.util.get_model_config(model)
         self.tile_px = model_config['tile_px']
         self.tile_um = model_config['tile_um']
@@ -69,7 +72,6 @@ class Heatmap:
                          roi_dir=roi_dir,
                          rois=rois,
                          roi_method=roi_method,
-                         buffer=buffer,
                          skip_missing_roi=False)
 
         if not self.slide.loaded_correctly():
@@ -79,6 +81,7 @@ class Heatmap:
                                 normalizer=model_config['hp']['normalizer'],
                                 normalizer_source=model_config['hp']['normalizer_source'],
                                 num_threads=num_threads,
+                                batch_size=batch_size,
                                 dtype=np.float32)
 
         log.info(f"Heatmap complete for {sf.util.green(self.slide.name)}")
