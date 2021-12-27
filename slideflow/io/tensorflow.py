@@ -107,8 +107,12 @@ def process_image(record, *args, standardize=False, augment=False, size=None):
     if standardize:
         image = tf.image.per_image_standardization(image)
 
-    img_out = image if not isinstance(record, dict) else {'tile_image': image}
-    return img_out, *args
+    if isinstance(record, dict):
+        to_return = {k:v for k,v in record.items() if k != 'tile_image'}
+        to_return['tile_image'] = image
+        return to_return, *args
+    else:
+        return image, *args
 
 @tf.function
 def decode_image(img_string, img_type, size=None):
