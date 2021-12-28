@@ -559,9 +559,9 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
                                                    'val_metrics': val_metrics }
         for metric in metrics:
             if metrics[metric]['tile'] is None: continue
-            self.results['epochs'][f'epoch{epoch}']['tile'] = metrics[metric]['tile']
-            self.results['epochs'][f'epoch{epoch}']['slide'] = metrics[metric]['slide']
-            self.results['epochs'][f'epoch{epoch}']['patient'] = metrics[metric]['patient']
+            self.results['epochs'][f'epoch{epoch}'][f'tile_{metric}'] = metrics[metric]['tile']
+            self.results['epochs'][f'epoch{epoch}'][f'slide_{metric}'] = metrics[metric]['slide']
+            self.results['epochs'][f'epoch{epoch}'][f'patient_{metric}'] = metrics[metric]['patient']
 
         epoch_results = self.results['epochs'][f'epoch{epoch}']
         sf.util.update_results_log(self.cb_args.results_log, 'trained_model', {f'epoch{epoch}': epoch_results})
@@ -1038,8 +1038,7 @@ class Trainer:
 
             results = evaluation_callback.results
             if self.use_neptune:
-                self.neptune_run['results/logged_epochs'] = [int(e[5:]) for e in results['epochs'] if e[:5] == 'epoch']
-                self.neptune_run['results/epochs'] = results['epochs']
+                self.neptune_run['results'] = results['epochs']
                 self.neptune_run.stop()
 
             return results

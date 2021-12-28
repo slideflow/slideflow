@@ -886,15 +886,14 @@ class Trainer:
 
                     for metric in metrics:
                         if metrics[metric]['tile'] is None: continue
-                        epoch_results['tile'] = metrics[metric]['tile']
-                        epoch_results['slide'] = metrics[metric]['slide']
-                        epoch_results['patient'] = metrics[metric]['patient']
+                        epoch_results[f'tile_{metric}'] = metrics[metric]['tile']
+                        epoch_results[f'slide_{metric}'] = metrics[metric]['slide']
+                        epoch_results[f'patient_{metric}'] = metrics[metric]['patient']
                     results['epochs'][f'epoch{epoch}'].update(epoch_results)
                     sf.util.update_results_log(results_log, 'trained_model', {f'epoch{epoch}': results['epochs'][f'epoch{epoch}']})
 
                     if self.use_neptune:
-                        self.neptune_run['results/logged_epochs'] = [int(e[5:]) for e in results['epochs'] if e[:5] == 'epoch']
-                        self.neptune_run['results/epochs'] = results['epochs']
+                        self.neptune_run['results'] = results['epochs']
                 # =====================================================================================================
 
         if self.neptune_run:
