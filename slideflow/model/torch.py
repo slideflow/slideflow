@@ -588,7 +588,7 @@ class Trainer:
         if log.getEffectiveLevel() <= 20:
             model_summary = torch_utils.print_module_summary(self.model, empty_inp)
             if self.neptune_run:
-                self.neptune_run['model_info/summary'] = model_summary
+                self.neptune_run['summary'] = model_summary
 
         # Multi-GPU
         inference_model = self.model

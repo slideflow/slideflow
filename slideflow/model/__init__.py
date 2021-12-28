@@ -156,8 +156,10 @@ class DatasetFeatures:
         self.slides = sorted([sf.util.path_to_name(tfr) for tfr in self.tfrecords])
         model_config = sf.util.get_model_config(model)
         self.tile_px = model_config['tile_px']
-        self.normalizer = model_config['hp']['normalizer']
-        self.normalizer_source = model_config['hp']['normalizer_source']
+        self.hp = ModelParams.from_dict(model_config['hp'])
+        self.normalizer = self.hp.get_normalizer()
+        if self.normalizer and 'norm_mean' in model_config:
+            self.normalizer.fit(np.array(model_config['norm_mean']), np.array(model_config['norm_std']))
 
         if annotations:
             self.categories = list(set(self.annotations.values()))
@@ -238,13 +240,6 @@ class DatasetFeatures:
         self.num_features = combined_model.num_features
         self.num_logits = 0 if not include_logits else combined_model.num_logits
 
-        # Prepare normalizer
-        if self.normalizer:
-            log.info(f'Using realtime {self.normalizer} normalization')
-            normalizer = StainNormalizer(method=self.normalizer, source=self.normalizer_source)
-        else:
-            normalizer = None
-
         # Calculate final layer activations for each tfrecord
         fla_start_time = time.time()
 
@@ -260,9 +255,9 @@ class DatasetFeatures:
             'incl_loc': True
         }
         if sf.backend() == 'tensorflow':
-            dataloader = self.dataset.tensorflow(None, normalizer=normalizer, num_parallel_reads=None, **dataset_kwargs)
+            dataloader = self.dataset.tensorflow(None, normalizer=self.normalizer, num_parallel_reads=None, **dataset_kwargs)
         elif sf.backend() == 'torch':
-            dataloader = self.dataset.torch(None, normalizer=normalizer, num_workers=1, **dataset_kwargs)
+            dataloader = self.dataset.torch(None, normalizer=self.normalizer, num_workers=1, **dataset_kwargs)
 
         # Worker to process activations/logits, for more efficient GPU throughput
         q = queue.Queue()

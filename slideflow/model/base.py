@@ -284,7 +284,7 @@ def log_summary(model, neptune_run=None):
     if neptune_run:
         summary_string = []
         model.summary(print_fn=lambda x: summary_string.append(x))
-        neptune_run['model_info/summary'] = "\n".join(summary_string)
+        neptune_run['summary'] = "\n".join(summary_string)
 
 def log_manifest(train_tfrecords=None, val_tfrecords=None, labels=None, save_loc=None):
     out = ''
