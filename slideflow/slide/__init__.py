@@ -824,7 +824,11 @@ class _BaseLoader:
         # Blur QC must be performed at a set microns-per-pixel rather than downsample level, as blur detection is
         # much for sensitive to effective magnification than  Otsu's thresholding
         if method in ('blur', 'both'):
-            thumb = np.array(self.thumb(mpp=blur_mpp))
+            thumb = self.thumb(mpp=blur_mpp)
+            if thumb is None:
+                log.error("Error generating thumbnail, unable to perform QC")
+                return None
+            thumb = np.array(thumb)
             if thumb.shape[-1] == 4:
                 thumb = thumb[:,:,:3]
             gray = rgb2gray(thumb)
@@ -837,7 +841,11 @@ class _BaseLoader:
         # Otsu's thresholding can be done on the lowest downsample level
         if method in ('otsu', 'both'):
             otsu_thumb = vips.Image.new_from_file(self.path, fail=True, access=vips.enums.Access.RANDOM, level=self.slide.level_count-1)
-            otsu_thumb = vips2numpy(otsu_thumb)
+            try:
+                otsu_thumb = vips2numpy(otsu_thumb)
+            except vips.error.Error:
+                log.error("Error generating thumbnail, unable to perform QC")
+                return None
             if otsu_thumb.shape[-1] == 4:
                 otsu_thumb = otsu_thumb[:,:,:3]
             hsv_img = cv2.cvtColor(otsu_thumb, cv2.COLOR_RGB2HSV)
@@ -929,7 +937,12 @@ class _BaseLoader:
             thumbnail = vips.Image.new_from_file(self.path, fail=True, access=vips.enums.Access.RANDOM, level=self.slide.level_count-1)
         else:
             thumbnail = vips.Image.thumbnail(self.path, width)
-        np_thumb = vips2numpy(thumbnail)
+        try:
+            np_thumb = vips2numpy(thumbnail)
+        except vips.error.Error as e:
+            log.error(f"Error loading slide thumbnail: {e}")
+            self.load_error = True
+            return None
         image = Image.fromarray(np_thumb).resize((width, height))
 
         if coords:
