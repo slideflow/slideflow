@@ -72,8 +72,9 @@ class TFStainNormalizer:
     def batch_to_batch(self, batch, *args):
         with tf.device('gpu:0'):
             if isinstance(batch, dict):
-                batch['tile_image'] = self.tf_to_tf(batch['tile_image'])
-                return batch, *args
+                to_return = {k:v for k,v in batch.items() if k != 'tile_image'}
+                to_return['tile_image'] = self.tf_to_tf(batch['tile_image'])
+                return to_return, *args
             else:
                 return self.tf_to_tf(batch), *args
 

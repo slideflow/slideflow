@@ -97,25 +97,50 @@ class ModelParams(_base._ModelParams):
         assert self.loss in self.AllLossDict.keys()
 
     def _add_hidden_layers(self, model, regularizer):
-        log.info("Using Batch normalization")
+        log.debug("Using Batch normalization")
         for i in range(self.hidden_layers):
             model = tf.keras.layers.Dense(self.hidden_layer_width,
                                           name=f'hidden_{i}',
                                           activation='relu',
                                           kernel_regularizer=regularizer)(model)
             model = tf.keras.layers.BatchNormalization()(model)
-            if self.dropout:
+            if self.uq:
                 model = StaticDropout(self.dropout)(model)
+            elif self.dropout:
+                model = tf.keras.layers.Dropout(self.dropout)(model)
         return model
+
+    def _get_dense_regularizer(self):
+        if self.l2_dense and not self.l1_dense:
+            log.debug(f"Using L2 regularization for dense layers (weight={self.l2_dense})")
+            return tf.keras.regularizers.l2(self.l2_dense)
+        elif self.l1_dense and not self.l2_dense:
+            log.debug(f"Using L1 regularization for dense layers (weight={self.l1_dense})")
+            return tf.keras.regularizers.l1(self.l1_dense)
+        elif self.l1_dense and self.l2_dense:
+            log.debug(f"Using L1 (weight={self.l1_dense}) and L2 (weight={self.l2_dense}) regularization for dense layers")
+            return tf.keras.regularizers.l1_l2(l1=self.l1_dense, l2=self.l2_dense)
+        else:
+            log.debug(f"Not using regularization for dense layers")
+            return None
 
     def _add_regularization(self, model):
         # Add L2 regularization to all compatible layers in the base model
-        if self.L2_weight != 0:
-            regularizer = tf.keras.regularizers.l2(self.L2_weight)
-            model = add_regularization(model, regularizer)
+        if self.l2 and not self.l1:
+            log.debug(f"Using L2 regularization for base model (weight={self.l2})")
+            regularizer = tf.keras.regularizers.l2(self.l2)
+        elif self.l1 and not self.l2:
+            log.debug(f"Using L1 regularization for base model (weight={self.l1})")
+            regularizer = tf.keras.regularizers.l1(self.l1)
+        elif self.l1 and self.l2:
+            log.debug(f"Using L1 (weight={self.l1}) and L2 (weight={self.l2}) regularization for base model")
+            regularizer = tf.keras.regularizers.l1_l2(l1=self.l1, l2=self.l2)
         else:
+            log.debug(f"Not using regularization for base model")
             regularizer = None
-        return model, regularizer
+        if regularizer is not None:
+            model = add_regularization(model, regularizer)
+        return model
 
     def _freeze_layers(self, model):
         freezeIndex = int(len(model.layers) - (self.trainable_layers - 1 ))# - self.hp.hidden_layers - 1))
@@ -166,7 +191,7 @@ class ModelParams(_base._ModelParams):
                 base_model = tf.keras.Model(inputs=base_model.input, outputs=base_model.layers[-2].output, name=base_model.name)
 
         # Add regularization
-        base_model, regularizer = self._add_regularization(base_model)
+        base_model = self._add_regularization(base_model)
 
         # Allow only a subset of layers in the base model to be trainable
         if self.trainable_layers != 0:
@@ -178,11 +203,13 @@ class ModelParams(_base._ModelParams):
         if not self.pooling:
             layers += [tf.keras.layers.Flatten()]
         layers += [post_convolution_identity_layer]
-        if self.dropout:
+        if self.uq:
             layers += [StaticDropout(self.dropout)]
+        elif self.dropout:
+            layers += [tf.keras.layers.Dropout(self.dropout)]
         tile_image_model = tf.keras.Sequential(layers)
         model_inputs = [tile_image_model.input]
-        return tile_image_model, model_inputs, regularizer
+        return tile_image_model, model_inputs
 
     def _build_categorical_model(self, num_classes, num_slide_features=0, activation='softmax',
                                 pretrain='imagenet', checkpoint=None):
@@ -198,7 +225,7 @@ class ModelParams(_base._ModelParams):
             checkpoint (str): Path to checkpoint from which to resume model training. Defaults to None.
         """
 
-        tile_image_model, model_inputs, regularizer = self._build_base(pretrain)
+        tile_image_model, model_inputs = self._build_base(pretrain)
 
         if num_slide_features:
             slide_feature_input_tensor = tf.keras.Input(shape=(num_slide_features), name='slide_feature_input')
@@ -212,6 +239,7 @@ class ModelParams(_base._ModelParams):
             merged_model = tile_image_model.output
 
         # Add hidden layers
+        regularizer = self._get_dense_regularizer()
         merged_model = self._add_hidden_layers(merged_model, regularizer)
 
         # Multi-categorical outcomes
@@ -252,7 +280,7 @@ class ModelParams(_base._ModelParams):
         """
 
         activation = 'linear'
-        tile_image_model, model_inputs, regularizer = self._build_base(pretrain)
+        tile_image_model, model_inputs = self._build_base(pretrain)
 
         # Add slide feature input tensors, if there are more slide features
         #    than just the event input tensor for CPH models
@@ -278,6 +306,7 @@ class ModelParams(_base._ModelParams):
             model_inputs += [event_input_tensor]
 
         # Add hidden layers
+        regularizer = self._get_dense_regularizer()
         merged_model = self._add_hidden_layers(merged_model, regularizer)
 
         log.debug(f'Using {activation} activation')
@@ -504,7 +533,7 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
     def evaluate_model(self, logs={}):
         epoch = self.epoch_count
         epoch_label = f'val_epoch{epoch}'
-        pred_args = types.SimpleNamespace(loss=self.hp.get_loss(), uq=bool(self.hp.dropout))
+        pred_args = types.SimpleNamespace(loss=self.hp.get_loss(), uq=bool(self.hp.uq))
         metrics, acc, loss = sf.stats.metrics_from_dataset(
             self.model,
             model_type=self.hp.model_type(),
@@ -782,7 +811,7 @@ class Trainer:
                                                               drop_images=drop_images,
                                                               **metric_kwargs)
         else:
-            pred_args = types.SimpleNamespace(loss=self.hp.get_loss(), uq=bool(self.hp.dropout))
+            pred_args = types.SimpleNamespace(loss=self.hp.get_loss(), uq=bool(self.hp.uq))
             metrics, acc, loss = sf.stats.metrics_from_dataset(histogram=histogram,
                                                                     verbose=True,
                                                                     save_predictions=save_predictions,
