@@ -887,7 +887,7 @@ def calculate_centroid(activations):
         km = KMeans(n_clusters=1).fit(activations[slide])
         closest, _ = pairwise_distances_argmin_min(km.cluster_centers_, activations[slide])
         closest_index = closest[0]
-        closest_activations = activations[closest_index]
+        closest_activations = activations[slide][closest_index]
         optimal_indices.update({slide: closest_index})
         centroid_activations.update({slide: closest_activations})
     return optimal_indices, centroid_activations
