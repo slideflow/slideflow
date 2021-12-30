@@ -27,3 +27,5 @@ tensorboard
 crc32c
 h5py
 numpy<1.21
+tensorflow_io
+tensorflow_probability

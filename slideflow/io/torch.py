@@ -541,7 +541,7 @@ def interleave(tfrecords, prob_weights=None, incl_loc=False, clip=None, infinite
 def interleave_dataloader(tfrecords, img_size, batch_size, prob_weights=None, clip=None, onehot=False, num_tiles=None,
                           incl_slidenames=False, incl_loc=False, infinite=False, rank=0, num_replicas=1, labels=None,
                           normalizer=None, chunk_size=16, preload_factor=1, augment=False, standardize=True,
-                          num_workers=2, persistent_workers=True, pin_memory=True, indices=None):
+                          num_workers=2, persistent_workers=True, pin_memory=True, indices=None, drop_last=False):
 
     """Prepares a PyTorch DataLoader with a new InterleaveIterator instance, interleaving tfrecords and processing
     labels and tiles, with support for scaling the dataset across GPUs and dataset workers.
@@ -574,6 +574,7 @@ def interleave_dataloader(tfrecords, img_size, batch_size, prob_weights=None, cl
         num_workers (int, optional): Number of DataLoader workers. Defaults to 2.
         persistent_workers (bool, optional): Sets the DataLoader persistent_workers flag. Defaults to True.
         pin_memory (bool, optional): Pin memory to GPU. Defaults to True.
+        drop_last (bool, optional): Drop the last non-full batch. Defaults to False.
     """
 
     kwargs = {var:val for var,val in locals().items() if var not in ('batch_size', 'num_workers', 'pin_memory', 'preload_factor', 'prefetch_factor')}
@@ -586,7 +587,7 @@ def interleave_dataloader(tfrecords, img_size, batch_size, prob_weights=None, cl
                                              pin_memory=pin_memory,
                                              persistent_workers=persistent_workers,
                                              worker_init_fn=worker_init_fn,
-                                             drop_last=False)
+                                             drop_last=drop_last)
     dataloader.num_tiles = iterator.num_tiles
     dataloader.close = iterator.close # Gives a closing function to the DataLoader to cleanup open files from iter()
     return dataloader

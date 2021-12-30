@@ -1220,6 +1220,7 @@ class Dataset:
                     at random quality levels. Passing either 'xyrj' or True will use all augmentations.
             standardize (bool, optional): Standardize images to (0,1). Defaults to True.
             num_workers (int, optional): Number of DataLoader workers. Defaults to 2.
+            drop_last (bool, optional): Drop the last non-full batch. Defaults to False.
         """
 
         from slideflow.io.tensorflow import interleave
@@ -1646,6 +1647,7 @@ class Dataset:
             standardize (bool, optional): Standardize images to (0,1). Defaults to True.
             num_workers (int, optional): Number of DataLoader workers. Defaults to 2.
             pin_memory (bool, optional): Pin memory to GPU. Defaults to True.
+            drop_last (bool, optional): Drop the last non-full batch. Defaults to False.
         """
 
         from slideflow.io.torch import interleave_dataloader

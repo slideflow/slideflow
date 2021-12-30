@@ -237,7 +237,7 @@ def parser_from_labels(labels):
 
 def interleave(tfrecords, img_size, batch_size, prob_weights=None, clip=None, labels=None, incl_slidenames=False,
                incl_loc=False, infinite=True, augment=False, standardize=True, normalizer=None, num_shards=None,
-               shard_idx=None, num_parallel_reads=4):
+               shard_idx=None, num_parallel_reads=4, drop_last=False):
 
     """Generates an interleaved dataset from a collection of tfrecord files, sampling from tfrecord files randomly
     according to balancing if provided. Requires manifest for balancing. Assumes TFRecord files are named by slide.
@@ -263,6 +263,7 @@ def interleave(tfrecords, img_size, batch_size, prob_weights=None, clip=None, la
         num_shards (int, optional): Shard the tfrecord datasets, used for multiprocessing datasets. Defaults to None.
         shard_idx (int, optional): Index of the tfrecord shard to use. Defaults to None.
         num_parallel_reads (int, optional): Number of parallel reads for each TFRecordDataset. Defaults to 4.
+        drop_last (bool, optional): Drop the last non-full batch. Defaults to False.
     """
 
     if not len(tfrecords):
@@ -314,7 +315,7 @@ def interleave(tfrecords, img_size, batch_size, prob_weights=None, clip=None, la
         if normalizer and normalizer.vectorized:
             log.info("Using fast, vectorized normalization")
             norm_batch_size = 32 if not batch_size else batch_size
-            dataset = dataset.batch(norm_batch_size, drop_remainder=False)
+            dataset = dataset.batch(norm_batch_size, drop_remainder=drop_last)
             dataset = dataset.map(normalizer.batch_to_batch, num_parallel_calls=tf.data.AUTOTUNE)
             dataset = dataset.unbatch()
         elif normalizer:
@@ -328,7 +329,7 @@ def interleave(tfrecords, img_size, batch_size, prob_weights=None, clip=None, la
 
         # ------- Batch and prefetch ----------------------------------------------------------------------------------
         if batch_size:
-            dataset = dataset.batch(batch_size, drop_remainder=False)
+            dataset = dataset.batch(batch_size, drop_remainder=drop_last)
         dataset = dataset.prefetch(tf.data.AUTOTUNE)
 
         return dataset

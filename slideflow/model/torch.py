@@ -494,7 +494,7 @@ class Trainer:
         elapsed = time.strftime('%H:%M:%S', time.gmtime(time.time() - starttime))
         log.info(f'{sf.util.bold(sf.util.blue(phase))} Epoch {epoch} | loss: {loss:.4f} {accuracy_description} (Elapsed: {elapsed})')
 
-    def train(self, train_dts, val_dts, log_frequency=20, validate_on_batch=512, validation_batch_size=32,
+    def train(self, train_dts, val_dts, log_frequency=20, validate_on_batch=0, validation_batch_size=32,
               validation_steps=50, starting_epoch=0, ema_observations=20, ema_smoothing=2, use_tensorboard=True,
               steps_per_epoch_override=0, save_predictions=False, resume_training=None,
               pretrain='imagenet', checkpoint=None, multi_gpu=True, seed=0):
@@ -505,7 +505,7 @@ class Trainer:
             train_dts (:class:`slideflow.dataset.Dataset`): Dataset containing TFRecords for training.
             val_dts (:class:`slideflow.dataset.Dataset`): Dataset containing TFRecords for validation.
             log_frequency (int, optional): How frequent to update Tensorboard logs, in batches. Defaults to 100.
-            validate_on_batch (int, optional): How frequent o perform validation, in batches. Defaults to 512.
+            validate_on_batch (int, optional): Validation will also be performed every N batches. Defaults to 0.
             validation_batch_size (int, optional): Batch size to use during validation. Defaults to 32.
             validation_steps (int, optional): Number of batches to use for each instance of validation. Defaults to 200.
             starting_epoch (int, optional): Starts training at the specified epoch. Defaults to 0.
@@ -611,7 +611,7 @@ class Trainer:
         )
 
         dataloaders = {
-            'train': iter(train_dts.torch(infinite=True, batch_size=self.hp.batch_size, augment=self.hp.augment, **vars(interleave_args)))
+            'train': iter(train_dts.torch(infinite=True, batch_size=self.hp.batch_size, augment=self.hp.augment, drop_last=True, **vars(interleave_args)))
         }
         if val_dts is not None:
             dataloaders['val'] = val_dts.torch(infinite=False, batch_size=validation_batch_size, augment=False, **vars(interleave_args))

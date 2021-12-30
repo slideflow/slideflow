@@ -446,9 +446,9 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
             and (batch > 0) and (batch % self.cb_args.validate_on_batch == 0)):
 
             val_metrics = self.model.evaluate(self.cb_args.validation_data,
-                                                verbose=0,
-                                                steps=self.cb_args.validation_steps,
-                                                return_dict=True)
+                                              verbose=0,
+                                              steps=self.cb_args.validation_steps,
+                                              return_dict=True)
             val_loss = val_metrics['loss']
             self.model.stop_training = False
             if self.hp.early_stop_method == 'accuracy' and 'val_accuracy' in val_metrics:
@@ -846,7 +846,7 @@ class Trainer:
 
         return val_metrics
 
-    def train(self, train_dts, val_dts, log_frequency=100, validate_on_batch=512, validation_batch_size=32,
+    def train(self, train_dts, val_dts, log_frequency=100, validate_on_batch=0, validation_batch_size=32,
               validation_steps=200, starting_epoch=0, ema_observations=20, ema_smoothing=2, use_tensorboard=True,
               steps_per_epoch_override=None, save_predictions=False, resume_training=None, pretrain='imagenet',
               checkpoint=None, multi_gpu=False, fit_to_dataset=False, norm_mean=None, norm_std=None):
@@ -857,7 +857,7 @@ class Trainer:
             train_dts (:class:`slideflow.dataset.Dataset`): Dataset containing TFRecords for training.
             val_dts (:class:`slideflow.dataset.Dataset`): Dataset containing TFRecords for validation.
             log_frequency (int, optional): How frequent to update Tensorboard logs, in batches. Defaults to 100.
-            validate_on_batch (int, optional): How frequent o perform validation, in batches. Defaults to 512.
+            validate_on_batch (int, optional): Validation will also be performed every N batches. Defaults to 0.
             validation_batch_size (int, optional): Batch size to use during validation. Defaults to 32.
             validation_steps (int, optional): Number of batches to use for each instance of validation. Defaults to 200.
             starting_epoch (int, optional): Starts training at the specified epoch. Defaults to 0.
@@ -936,7 +936,7 @@ class Trainer:
 
             with tf.name_scope('input'):
                 t_kwargs = self._interleave_kwargs(batch_size=self.hp.batch_size, infinite=True, augment=self.hp.augment)
-                train_data = train_dts.tensorflow(**t_kwargs)
+                train_data = train_dts.tensorflow(drop_last=True, **t_kwargs)
 
             # Set up validation data
             using_validation = (val_dts and len(val_dts.tfrecords()))

@@ -1760,7 +1760,7 @@ class Project:
                 Default epoch length is the number of total tiles.
             save_predicitons (bool): Save predictions with each validation. Defaults to False.
                 May increase validation time for large projects.
-            validate_on_batch (int): Validation will be performed every N batches. Defaults to 512.
+            validate_on_batch (int): Validation will also be performed every N batches. Defaults to 0.
             validation_batch_size (int): Validation dataset batch size. Defaults to 32.
             use_tensorboard (bool): Add tensorboard callback for realtime training monitoring. Defaults to False.
             validation_steps (int): Number of steps of validation to perform each time doing a validation check.
