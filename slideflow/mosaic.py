@@ -58,7 +58,8 @@ class Mosaic:
             tile_meta (dict, optional): Metadata for tiles, used if tile_select. Defaults to None.
                 Dictionary should have slide names as keys, mapped to .ist of metadata
                 (length of list = number of tiles in slide)
-            normalizer (str, optional): Normalization strategy to use on image tiles. Defaults to None.
+            normalizer ((str or `slideflow.slide.StainNormalizer`), optional): Normalization strategy to use on
+                image tiles. Defaults to None.
             normalizer_source (str, optional): Path to normalizer source image. Defaults to None.
                 If None but using a normalizer, will use an internal tile for normalization.
                 Internal default tile can be found at slideflow.slide.norm_tile.jpg
@@ -76,8 +77,13 @@ class Mosaic:
         _, self.img_format = sf.io.detect_tfrecord_format(self.tfrecords[0])
 
         # Setup normalization
-        if normalizer: log.info(f'Using realtime {normalizer} normalization')
-        self.normalizer = None if not normalizer else StainNormalizer(method=normalizer, source=normalizer_source)
+        if isinstance(normalizer, str):
+            log.info(f'Using realtime {normalizer} normalization')
+            self.normalizer = StainNormalizer(method=normalizer, source=normalizer_source)
+        elif normalizer is not None:
+            self.normalizer = normalizer
+        else:
+            self.normalizer = None
 
         # Initialize figure
         if resolution not in ('high', 'low'):
@@ -243,7 +249,10 @@ class Mosaic:
                                                             decode=False)
                 if not tile_image: continue
 
-                self.mapped_tiles.update({point['tfrecord']: point['tfrecord_index']})
+                if point['tfrecord'] in self.mapped_tiles:
+                    self.mapped_tiles[point['tfrecord']] += [point['tfrecord_index']]
+                else:
+                    self.mapped_tiles[point['tfrecord']] = [point['tfrecord_index']]
                 if sf.backend() == 'tensorflow':
                     tile_image = tile_image.numpy()
                 tile_image = self._decode_image_string(tile_image)
@@ -375,7 +384,8 @@ class Mosaic:
             writer = csv.writer(f)
             writer.writerow(['slide', 'index'])
             for tfr in self.mapped_tiles:
-                writer.writerow([tfr, self.mapped_tiles[tfr]])
+                for idx in self.mapped_tiles[tfr]:
+                    writer.writerow([tfr, idx])
         log.info(f'Mosaic report saved to {sf.util.green(filename)}')
 
     def show(self):

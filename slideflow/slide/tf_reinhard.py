@@ -92,8 +92,9 @@ def transform(I, tgt_mean, tgt_std):
     I3b = tf.divide(tgt_std[2], stds[2])
     norm3 = (I3a * tf.expand_dims(tf.expand_dims(I3b, axis=-1), axis=-1)) + tgt_mean[2]
 
-    merged = merge_back(norm1, norm2, norm3)
-    return merged
+    merged = tf.cast(merge_back(norm1, norm2, norm3), dtype=tf.int32)
+    clipped = tf.clip_by_value(merged, clip_value_min=0, clip_value_max=255)
+    return clipped
 
 @tf.function
 def fit(target, reduce=False):

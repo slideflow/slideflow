@@ -1230,11 +1230,7 @@ class Project:
             umap.label_by_tile_meta('prediction', translation_dict=outcome_labels)
         umap.filter(dataset.slides())
 
-        mosaic = sf.Mosaic(umap,
-                           dataset.tfrecords(),
-                           normalizer=df.normalizer,
-                           normalizer_source=df.normalizer_source,
-                           **kwargs)
+        mosaic = sf.Mosaic(umap, dataset.tfrecords(), normalizer=df.normalizer, **kwargs)
         return mosaic
 
     def generate_mosaic_from_annotations(self, header_x, header_y, dataset, model=None, mosaic_filename=None,

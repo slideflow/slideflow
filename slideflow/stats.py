@@ -146,7 +146,9 @@ class SlideMap:
             log.debug("UMAP loaded from cache, will not recalculate")
 
             # First, filter out slides not included in provided activations
-            filtered_idx = list(filter(lambda x: x['slide'] in self.df.slides, range(len(self.point_meta))))
+            if not isinstance(self.point_meta, np.ndarray):
+                self.point_meta = np.array(self.point_meta)
+            filtered_idx = np.array([i for i, x in enumerate(self.point_meta) if x['slide'] in self.df.slides])
             self.x = self.x[filtered_idx]
             self.y = self.y[filtered_idx]
             self.point_meta = self.point_meta[filtered_idx]

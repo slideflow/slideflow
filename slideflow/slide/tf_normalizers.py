@@ -100,12 +100,12 @@ class TFStainNormalizer:
 
     def jpeg_to_rgb(self, jpeg_string):
         '''Non-normalized compressed JPG string data -> normalized RGB numpy array'''
-        tf_image = tf.image.decode_jpeg(np.fromstring(jpeg_string, dtype=np.uint8))
+        tf_image = tf.image.decode_jpeg(jpeg_string)
         return self.tf_to_rgb(tf_image)
 
     def png_to_rgb(self, png_string):
         '''Non-normalized compressed PNG string data -> normalized RGB numpy array'''
-        tf_image = tf.image.decode_png(np.fromstring(png_string, dtype=np.uint8))
+        tf_image = tf.image.decode_png(png_string, channels=3)
         return self.tf_to_rgb(tf_image)
 
     def jpeg_to_jpeg(self, jpeg_string, quality=75):
