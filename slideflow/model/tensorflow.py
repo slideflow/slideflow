@@ -410,6 +410,7 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
         self.model_type = self.hp.model_type()
         self.results = {'epochs': {}}
         self.neptune_run = self.parent.neptune_run
+        self.global_step = 0
 
     def on_epoch_end(self, epoch, logs={}):
         if log.getEffectiveLevel() <= 20: print('\r\033[K', end='')
@@ -442,6 +443,12 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
         self.model.stop_training = self.early_stop
 
     def on_train_batch_end(self, batch, logs={}):
+        # Neptune logging for training metrics
+        if self.neptune_run:
+            self.neptune_run['metrics/train/batch/loss'].log(logs['loss'], step=self.global_step)
+            sf.util.neptune_utils.list_log(self.neptune_run, 'metrics/train/batch/accuracy', logs['accuracy'], step=self.global_step)
+
+        # Validation metrics
         if (self.cb_args.using_validation and self.cb_args.validate_on_batch
             and (batch > 0) and (batch % self.cb_args.validate_on_batch == 0)):
 
@@ -466,11 +473,10 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
 
             # Log to neptune
             if self.neptune_run:
-                self.neptune_run["metrics/batch/batch"].log(batch)
-                self.neptune_run["metrics/batch/epoch"].log(self.epoch_count)
                 for v in val_metrics:
-                    self.neptune_run[f"metrics/batch/val_{v}"].log(round(val_metrics[v], 3))
-                self.neptune_run["metrics/batch/exp_moving_average"].log(round(self.last_ema, 3))
+                    self.neptune_run[f"metrics/val/batch/{v}"].log(round(val_metrics[v], 3), step=self.global_step)
+                if self.last_ema != -1:
+                    self.neptune_run["metrics/val/batch/exp_moving_avg"].log(round(self.last_ema, 3), step=self.global_step)
                 self.neptune_run["early_stop/stopped_early"] = False
 
             # Base logging message
@@ -525,6 +531,9 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
                     self.ema_two_checks_prior = self.ema_one_check_prior
                     self.ema_one_check_prior = self.last_ema
 
+        # Update global step (for tracking metrics across epochs)
+        self.global_step += 1
+
     def on_train_end(self, logs={}):
         if log.getEffectiveLevel() <= 20: print('\r\033[K')
         if self.neptune_run:
@@ -565,6 +574,38 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
 
         epoch_results = self.results['epochs'][f'epoch{epoch}']
         sf.util.update_results_log(self.cb_args.results_log, 'trained_model', {f'epoch{epoch}': epoch_results})
+
+        # Log epoch results to Neptune
+        if self.neptune_run:
+            # Training epoch metrics
+            self.neptune_run['metrics/train/epoch/loss'].log(logs['loss'], step=epoch)
+            sf.util.neptune_utils.list_log(self.neptune_run, 'metrics/train/epoch/accuracy', logs['accuracy'], step=epoch)
+
+            # Validation epoch metrics
+            self.neptune_run['metrics/val/epoch/loss'].log(val_metrics['loss'], step=epoch)
+            sf.util.neptune_utils.list_log(self.neptune_run, 'metrics/val/epoch/accuracy', val_metrics['accuracy'], step=epoch)
+
+            for metric in metrics:
+                if metrics[metric]['tile'] is None:
+                    continue
+                for outcome in metrics[metric]['tile']:
+                    # If only one outcome, log to metrics/val/epoch/[metric].
+                    # If more than one outcome, log to metrics/val/epoch/[metric]/[outcome_name]
+                    def metric_label(s):
+                        if len(metrics[metric]['tile']) == 1:
+                            return f'metrics/val/epoch/{s}_{metric}'
+                        else:
+                            return f'metrics/val/epoch/{s}_{metric}/{outcome}'
+
+                    tile_metric = metrics[metric]['tile'][outcome]
+                    slide_metric = metrics[metric]['slide'][outcome]
+                    patient_metric = metrics[metric]['patient'][outcome]
+
+                    # If only one value for a metric, log to .../[metric]
+                    # If more than one value for a metric (e.g. AUC for each category), log to .../[metric]/[i]
+                    sf.util.neptune_utils.list_log(self.neptune_run, metric_label('tile'), tile_metric, step=epoch)
+                    sf.util.neptune_utils.list_log(self.neptune_run, metric_label('slide'), slide_metric, step=epoch)
+                    sf.util.neptune_utils.list_log(self.neptune_run, metric_label('patient'), patient_metric, step=epoch)
 
 class Trainer:
     """Base trainer class containing functionality for model building, input processing, training, and evaluation.
@@ -1007,10 +1048,6 @@ class Trainer:
             callbacks = [history_callback, evaluation_callback, cp_callback]
             if use_tensorboard:
                 callbacks += [tensorboard_callback]
-            if self.neptune_run:
-                from neptune.new.integrations.tensorflow_keras import NeptuneCallback
-                neptune_cb = NeptuneCallback(run=self.neptune_run, base_namespace='metrics')
-                callbacks += [neptune_cb]
 
             # Retrain top layer only, if using transfer learning and not resuming training
             if self.hp.toplayer_epochs:

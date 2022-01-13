@@ -769,9 +769,9 @@ def _categorical_metrics(args, outcome_name, starttime=None):
     if sf.backend() == 'torch':
         args.y_pred = softmax(args.y_pred, axis=1)
 
-    args.auc['tile'][outcome_name] = []
-    args.auc['slide'][outcome_name] = []
-    args.auc['patient'][outcome_name] = []
+    for level in ('tile', 'slide', 'patient'):
+        args.auc[level][outcome_name] = []
+        args.ap[level][outcome_name] = []
 
     ctx = mp.get_context('spawn')
     with ctx.Pool(processes=8) as p:
@@ -786,14 +786,15 @@ def _categorical_metrics(args, outcome_name, starttime=None):
                                                                 label_start=args.label_start + outcome_name + "_",
                                                                 histogram=args.histogram), range(num_cat))):
                 args.auc['tile'][outcome_name] += [auc]
+                args.ap['tile'][outcome_name] += [ap]
                 if args.verbose:
                     log.info(f"Tile-level AUC (cat #{i:>2}): {auc:.3f}, AP: {ap:.3f} (opt. threshold: {thresh:.3f})")
         except ValueError as e:
             # Occurs when predictions contain NaN
             log.error(f'Error encountered when generating AUC: {e}')
-            args.auc['tile'][outcome_name] = -1
-            args.auc['slide'][outcome_name] = -1
-            args.auc['patient'][outcome_name] = -1
+            for level in ('tile', 'slide', 'patient'):
+                args.auc[level][outcome_name] = -1
+                args.ap[level][outcome_name] = -1
             return
 
     # Convert predictions to one-hot encoding
@@ -836,6 +837,7 @@ def _categorical_metrics(args, outcome_name, starttime=None):
                                    neptune_run=args.neptune_run)
             roc_auc, ap, thresh = roc_res
             args.auc['slide'][outcome_name] += [roc_auc]
+            args.ap['slide'][outcome_name] += [ap]
             if args.verbose:
                 log.info(f"Slide-level AUC (cat #{i:>2}): {roc_auc:.3f}, AP: {ap:.3f} (opt. threshold: {thresh:.3f})")
         except IndexError:
@@ -867,6 +869,7 @@ def _categorical_metrics(args, outcome_name, starttime=None):
                                        neptune_run=args.neptune_run)
                 roc_auc, ap, thresh = roc_res
                 args.auc['patient'][outcome_name] += [roc_auc]
+                args.ap['patient'][outcome_name] += [ap]
                 if args.verbose:
                     log.info(f"Patient-level AUC (cat #{i:>2}): {roc_auc:.3f}, AP: {ap:.3f} (opt. threshold: {thresh:.3f})")
             except IndexError:
@@ -1305,6 +1308,7 @@ def metrics_from_predictions(y_true, y_pred, tile_to_slides, labels, patients, m
         r_squared = {'tile': None, 'slide': None, 'patient': None},
         c_index = {'tile': None, 'slide': None, 'patient': None},
         auc = {'tile': {}, 'slide': {}, 'patient': {}},
+        ap = {'tile': {}, 'slide': {}, 'patient': {}},
         plot = plot,
         histogram = histogram,
         verbose = verbose,
@@ -1361,6 +1365,7 @@ def metrics_from_predictions(y_true, y_pred, tile_to_slides, labels, patients, m
 
     combined_metrics = {
         'auc': metric_args.auc,
+        'ap': metric_args.ap,
         'r_squared': metric_args.r_squared,
         'c_index': metric_args.c_index
     }

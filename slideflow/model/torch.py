@@ -9,6 +9,7 @@ import torchvision
 import pretrainedmodels
 import slideflow as sf
 import numpy as np
+import slideflow.util.neptune_utils
 
 from os.path import join
 from slideflow.util import log
@@ -701,13 +702,9 @@ class Trainer:
 
                         # Log to neptune
                         if self.neptune_run:
-                            self.neptune_run[f"metrics/train/batch/loss"].log(round(loss.item(), 3))
+                            self.neptune_run[f"metrics/train/batch/loss"].log(loss.item())
                             if self.hp.model_type() == 'categorical':
-                                if isinstance(train_acc, list):
-                                    for acc_idx, acc in enumerate(train_acc):
-                                        self.neptune_run[f"metrics/train/batch/accuracy-{acc_idx}"].log(round(acc.item(), 3))
-                                else:
-                                    self.neptune_run[f"metrics/train/batch/accuracy"].log(round(train_acc.item(), 3))
+                                sf.util.neptune_utils.list_log(self.neptune_run, 'metrics/train/batch/accuracy', train_acc, step=global_step)
 
                         # === Mid-training validation =================================================================
                         if val_dts and validate_on_batch and (step % validate_on_batch == 0) and step > 0:
@@ -741,13 +738,9 @@ class Trainer:
 
                             # Log validation metrics to neptune
                             if self.neptune_run:
-                                self.neptune_run[f"metrics/test/batch/loss"].log(round(val_loss, 3))
+                                self.neptune_run[f"metrics/val/batch/loss"].log(val_loss, step=global_step)
                                 if self.hp.model_type() == 'categorical':
-                                    if isinstance(val_acc, list):
-                                        for acc_idx, acc in enumerate(val_acc):
-                                            self.neptune_run[f"metrics/test/batch/accuracy-{acc_idx}"].log(round(acc.item(), 3))
-                                    else:
-                                        self.neptune_run[f"metrics/test/batch/accuracy"].log(round(val_acc.item(), 3))
+                                    sf.util.neptune_utils.list_log(self.neptune_run, 'metrics/val/batch/accuracy', val_acc.item(), step=global_step)
 
                             # EMA & early stopping --------------------------------------------------------------------
                             early_stop_val = val_acc if self.hp.early_stop_method == 'accuracy' else val_loss
@@ -761,8 +754,8 @@ class Trainer:
                                     last_ema = (early_stop_val * (ema_smoothing / (1 + ema_observations))) + \
                                                (last_ema * (1 - (ema_smoothing / (1 + ema_observations))))
                                     log_msg += f' (EMA: {last_ema:.3f})'
-                                    if self.neptune_run:
-                                        self.neptune_run["metrics/batch/exp_moving_average"].log(round(last_ema, 3))
+                                    if self.neptune_run and self.last_ema != -1:
+                                        self.neptune_run["metrics/val/batch/exp_moving_avg"].log(last_ema)
 
                                 if self.hp.early_stop and ema_two_checks_prior != -1 and epoch > self.hp.early_stop_patience:
                                     if ((self.hp.early_stop_method == 'accuracy' and last_ema <= ema_two_checks_prior) or
@@ -823,13 +816,8 @@ class Trainer:
 
                     # Log epoch-level validation metrics to neptune
                     if self.neptune_run:
-                        self.neptune_run[f"metrics/train/epoch/loss"].log(round(epoch_loss, 3))
-                        if self.hp.model_type() == 'categorical':
-                            if isinstance(epoch_accuracy, list):
-                                for acc_idx, acc in enumerate(epoch_accuracy):
-                                    self.neptune_run[f"metrics/train/epoch/accuracy-{acc_idx}"].log(round(acc.item(), 3))
-                            else:
-                                self.neptune_run[f"metrics/train/epoch/accuracy"].log(round(epoch_accuracy.item(), 3))
+                        self.neptune_run[f"metrics/train/epoch/loss"].log(epoch_loss, step=epoch)
+                        sf.util.neptune_utils.list_log(self.neptune_run, 'metrics/train/epoch/accuracy', epoch_accuracy.item(), step=epoch)
 
                 # === Full dataset validation =========================================================================
                 # Save the model
@@ -894,6 +882,32 @@ class Trainer:
 
                     if self.use_neptune:
                         self.neptune_run['results'] = results['epochs']
+
+                        # Validation epoch metrics
+                        self.neptune_run['metrics/val/epoch/loss'].log(loss, step=epoch)
+                        sf.util.neptune_utils.list_log(self.neptune_run, 'metrics/val/epoch/accuracy', acc, step=epoch)
+
+                        for metric in metrics:
+                            if metrics[metric]['tile'] is None:
+                                continue
+                            for outcome in metrics[metric]['tile']:
+                                # If only one outcome, log to metrics/val/epoch/[metric].
+                                # If more than one outcome, log to metrics/val/epoch/[metric]/[outcome_name]
+                                def metric_label(s):
+                                    if len(metrics[metric]['tile']) == 1:
+                                        return f'metrics/val/epoch/{s}_{metric}'
+                                    else:
+                                        return f'metrics/val/epoch/{s}_{metric}/{outcome}'
+
+                                tile_metric = metrics[metric]['tile'][outcome]
+                                slide_metric = metrics[metric]['slide'][outcome]
+                                patient_metric = metrics[metric]['patient'][outcome]
+
+                                # If only one value for a metric, log to .../[metric]
+                                # If more than one value for a metric (e.g. AUC for each category), log to .../[metric]/[i]
+                                sf.util.neptune_utils.list_log(self.neptune_run, metric_label('tile'), tile_metric, step=epoch)
+                                sf.util.neptune_utils.list_log(self.neptune_run, metric_label('slide'), slide_metric, step=epoch)
+                                sf.util.neptune_utils.list_log(self.neptune_run, metric_label('patient'), patient_metric, step=epoch)
                 # =====================================================================================================
 
         if self.neptune_run:

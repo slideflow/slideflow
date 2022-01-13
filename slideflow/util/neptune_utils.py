@@ -69,3 +69,12 @@ class NeptuneLog:
             self.run['eval/batch_size'] = hp_data['eval_batch_size']
             self.run['eval/min_tiles'] = hp_data['min_tiles']
             self.run['eval/max_tiles'] = hp_data['max_tiles']
+
+def list_log(run, label, val, **kwargs):
+    # If only one value for a metric, log to .../[metric]
+    # If more than one value for a metric (e.g. AUC for each category), log to .../[metric]/[i]
+    if isinstance(val, list):
+        for idx, v in enumerate(val):
+            run[f"{label}/{idx}"].log(v, **kwargs)
+    else:
+        run[label].log(val, **kwargs)
