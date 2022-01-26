@@ -1538,32 +1538,35 @@ class Project:
         del thumb
         return stats
 
-    def dataset(self, tile_px=None, tile_um=None, filters=None, filter_blank=None, min_tiles=0, verification='both'):
+    def dataset(self, tile_px=None, tile_um=None, verification='both', **kwargs):
         """Returns :class:`slideflow.Dataset` object using project settings.
 
         Args:
             tile_px (int): Tile size in pixels
             tile_um (int): Tile size in microns
+
+        Keyword Args:
             filters (dict, optional): Filters dict to use when selecting tfrecords. Defaults to None.
             filter_blank (list, optional): Slides blank in these columns will be excluded. Defaults to None.
+            min_tiles (int, optional): Minimum number of tiles a slide must have. Defaults to 0.
+            config (str, optional): Path to dataset configuration JSON file. Defaults to project default.
+            sources (str, list(str), optional): Dataset sources to use from configuration. Defaults to project default.
             verification (str, optional): 'tfrecords', 'slides', or 'both'. Defaults to 'both'.
                 If 'slides', will verify all annotations are mapped to slides.
                 If 'tfrecords', will check that TFRecords exist and update manifest
         """
+
+        if 'config' not in kwargs:
+            kwargs['config'] = self.dataset_config
+        if 'sources' not in kwargs:
+            kwargs['sources'] = self.sources
 
         try:
             if self.annotations and exists(self.annotations):
                 annotations = self.annotations
             else:
                 self.annotations = None
-            dataset = Dataset(config=self.dataset_config,
-                              sources=self.sources,
-                              tile_px=tile_px,
-                              tile_um=tile_um,
-                              annotations=annotations,
-                              filters=filters,
-                              filter_blank=filter_blank,
-                              min_tiles=min_tiles)
+            dataset = Dataset(tile_px=tile_px, tile_um=tile_um, annotations=annotations, **kwargs)
 
         except FileNotFoundError:
             log.error('No datasets configured.')

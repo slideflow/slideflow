@@ -208,8 +208,8 @@ class _ModelParams:
         if not self.normalizer:
             return None
         elif self.normalizer[-5:] == '_fast':
-            from slideflow.slide.tf_normalizers import TFStainNormalizer
-            return TFStainNormalizer(method=self.normalizer[:-5], source=self.normalizer_source)
+            from slideflow.slide.tf_normalizers import TensorflowStainNormalizer
+            return TensorflowStainNormalizer(method=self.normalizer[:-5], source=self.normalizer_source)
         else:
             return StainNormalizer(method=self.normalizer, source=self.normalizer_source)
 

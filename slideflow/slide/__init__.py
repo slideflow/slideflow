@@ -211,7 +211,13 @@ def _wsi_extraction_worker(c, args):
 
         # Apply normalization
         if normalizer:
-            try:    image = normalizer.jpeg_to_jpeg(image)
+            try:
+                if args.img_format == 'png':
+                    image = normalizer.png_to_png(image)
+                elif args.img_format in ('jpg', 'jpeg'):
+                    image = normalizer.jpeg_to_jpeg(image)
+                else:
+                    raise ValueError(f"Unknown image format {args.img_format}")
             except: return # The image could not be normalized, which happens when a tile is primarily one solid color
     else:
         image = vips2numpy(region)  # Read regions into memory and convert to numpy arrays
@@ -385,7 +391,7 @@ class ExtractionReport:
             if meta.ws_thresh is None:   meta.ws_thresh = DEFAULT_WHITESPACE_THRESHOLD
             if meta.gs_frac is None:     meta.gs_frac   = DEFAULT_GRAYSPACE_FRACTION
             if meta.gs_thresh is None:   meta.gs_thresh  = DEFAULT_GRAYSPACE_THRESHOLD
-            if meta.img_format is None:  meta.img_format  = 'png'
+            if meta.img_format is None:  meta.img_format  = 'jpg'
 
             num_tiles = np.array([r.num_tiles for r in reports if r is not None])
             bb = np.array([r.blur_burden for r in reports if r is not None])
@@ -997,8 +1003,7 @@ class _BaseLoader:
             tfrecord_dir (str): If provided, saves tiles into a TFRecord file (named according to slide name) here.
             tiles_dir (str): If provided, saves loose images into a subdirectory (per slide name) here.
             img_format (str): 'png' or 'jpg'. Format of images for internal storage in tfrecords.
-                PNG (lossless) format recommended for fidelity, JPG (lossy) for efficiency.
-                Defaults to 'jpg'.
+                PNG (lossless) format recommended for fidelity, JPG (lossy) for efficiency. Defaults to 'jpg'.
 
         Keyword Args:
             whitespace_fraction (float, optional): Range 0-1. Defaults to 1.

@@ -65,8 +65,7 @@ class NeptuneLog:
             self.run['model_params/min_tiles'] = hp_data['min_tiles']
             self.run['full_model_name'] = hp_data['full_model_name']
         else:
-            self.run['eval/dataset'] = hp_data['datasets']
-            self.run['eval/batch_size'] = hp_data['eval_batch_size']
+            self.run['eval/dataset'] = hp_data['sources']
             self.run['eval/min_tiles'] = hp_data['min_tiles']
             self.run['eval/max_tiles'] = hp_data['max_tiles']
 

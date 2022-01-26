@@ -113,3 +113,9 @@ class StainNormalizer:
         with BytesIO() as output:
             Image.fromarray(cv_image).save(output, format="JPEG", quality=quality)
             return output.getvalue()
+
+    def png_to_png(self, png_string):
+        cv_image = self.png_to_rgb(png_string)
+        with BytesIO() as output:
+            Image.fromarray(cv_image).save(output, format="PNG")
+            return output.getvalue()

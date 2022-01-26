@@ -10,7 +10,7 @@ from slideflow.util import log
 
 from slideflow.slide import tf_reinhard
 
-class TFStainNormalizer:
+class TensorflowStainNormalizer:
     vectorized = True
     normalizers = {
         'reinhard': tf_reinhard
@@ -31,7 +31,7 @@ class TFStainNormalizer:
 
     def __repr__(self):
         src = "" if not self._source else ", source={!r}".format(self._source)
-        return "TFStainNormalizer(method={!r}{})".format(self.method, src)
+        return "TensorflowStainNormalizer(method={!r}{})".format(self.method, src)
 
     def fit(self, *args):
         if isinstance(args[0], Dataset):
@@ -113,4 +113,10 @@ class TFStainNormalizer:
         np_image = self.jpeg_to_rgb(jpeg_string)
         with BytesIO() as output:
             Image.fromarray(np_image).save(output, format="JPEG", quality=quality)
+            return output.getvalue()
+
+    def png_to_png(self, png_string):
+        np_image = self.png_to_rgb(png_string)
+        with BytesIO() as output:
+            Image.fromarray(np_image).save(output, format="PNG")
             return output.getvalue()
