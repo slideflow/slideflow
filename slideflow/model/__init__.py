@@ -252,12 +252,13 @@ class DatasetFeatures:
             'batch_size': batch_size,
             'augment': False,
             'incl_slidenames': True,
-            'incl_loc': True
+            'incl_loc': True,
+            'normalizer': self.normalizer
         }
         if sf.backend() == 'tensorflow':
-            dataloader = self.dataset.tensorflow(None, normalizer=self.normalizer, num_parallel_reads=None, **dataset_kwargs)
+            dataloader = self.dataset.tensorflow(None, num_parallel_reads=None, deterministic=True, **dataset_kwargs)
         elif sf.backend() == 'torch':
-            dataloader = self.dataset.torch(None, normalizer=self.normalizer, num_workers=1, **dataset_kwargs)
+            dataloader = self.dataset.torch(None, num_workers=1, **dataset_kwargs)
 
         # Worker to process activations/logits, for more efficient GPU throughput
         q = queue.Queue()

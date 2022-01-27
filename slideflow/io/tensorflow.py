@@ -189,7 +189,7 @@ def get_tfrecord_parser(tfrecord_path, features_to_return=None, to_numpy=False, 
     if features_to_return is None:
         features_to_return = {k:k for k in feature_description.keys()}
 
-    @tf.function
+    #@tf.function
     def parser(record):
         features = tf.io.parse_single_example(record, feature_description)
 
@@ -237,7 +237,7 @@ def parser_from_labels(labels):
 
 def interleave(tfrecords, img_size, batch_size, prob_weights=None, clip=None, labels=None, incl_slidenames=False,
                incl_loc=False, infinite=True, augment=False, standardize=True, normalizer=None, num_shards=None,
-               shard_idx=None, num_parallel_reads=4, drop_last=False):
+               shard_idx=None, num_parallel_reads=4, deterministic=False, drop_last=False):
 
     """Generates an interleaved dataset from a collection of tfrecord files, sampling from tfrecord files randomly
     according to balancing if provided. Requires manifest for balancing. Assumes TFRecord files are named by slide.
@@ -263,6 +263,10 @@ def interleave(tfrecords, img_size, batch_size, prob_weights=None, clip=None, la
         num_shards (int, optional): Shard the tfrecord datasets, used for multiprocessing datasets. Defaults to None.
         shard_idx (int, optional): Index of the tfrecord shard to use. Defaults to None.
         num_parallel_reads (int, optional): Number of parallel reads for each TFRecordDataset. Defaults to 4.
+        deterministic (bool, optional): When num_parallel_calls is specified, if this boolean is specified (True or
+            False), it controls the order in which the transformation produces elements. If set to False, the
+            transformation is allowed to yield elements out of order to trade determinism for performance.
+            Defaults to False.
         drop_last (bool, optional): Drop the last non-full batch. Defaults to False.
     """
 
@@ -309,23 +313,27 @@ def interleave(tfrecords, img_size, batch_size, prob_weights=None, clip=None, la
                                        base_parser=base_parser,
                                        label_parser=label_parser,
                                        include_slidenames=incl_slidenames,
-                                       include_loc=incl_loc)
+                                       include_loc=incl_loc,
+                                       deterministic=deterministic)
 
         # ------- Apply normalization ---------------------------------------------------------------------------------
         if normalizer and normalizer.vectorized:
             log.info("Using fast, vectorized normalization")
             norm_batch_size = 32 if not batch_size else batch_size
             dataset = dataset.batch(norm_batch_size, drop_remainder=drop_last)
-            dataset = dataset.map(normalizer.batch_to_batch, num_parallel_calls=tf.data.AUTOTUNE)
+            dataset = dataset.map(normalizer.batch_to_batch, num_parallel_calls=tf.data.AUTOTUNE, deterministic=deterministic)
             dataset = dataset.unbatch()
         elif normalizer:
             log.info("Using slow, per-image normalization")
-            dataset = dataset.map(normalizer.tf_to_tf, num_parallel_calls=tf.data.AUTOTUNE)
+            dataset = dataset.map(normalizer.tf_to_tf, num_parallel_calls=tf.data.AUTOTUNE, deterministic=deterministic)
 
         # ------- Standardize and augment images ----------------------------------------------------------------------
-        dataset = dataset.map(partial(process_image, standardize=standardize,
-                                                     augment=augment,
-                                                     size=img_size), num_parallel_calls=tf.data.AUTOTUNE)
+        dataset = dataset.map(partial(process_image,
+                                      standardize=standardize,
+                                      augment=augment,
+                                      size=img_size),
+                              num_parallel_calls=tf.data.AUTOTUNE,
+                              deterministic=deterministic)
 
         # ------- Batch and prefetch ----------------------------------------------------------------------------------
         if batch_size:
@@ -334,7 +342,8 @@ def interleave(tfrecords, img_size, batch_size, prob_weights=None, clip=None, la
 
         return dataset
 
-def _get_parsed_datasets(tfrecord_dataset, base_parser, label_parser=None, include_slidenames=False, include_loc=False):
+def _get_parsed_datasets(tfrecord_dataset, base_parser, label_parser=None, include_slidenames=False,
+                        include_loc=False, deterministic=False):
 
     def final_parser(record):
         if include_loc:
@@ -348,7 +357,7 @@ def _get_parsed_datasets(tfrecord_dataset, base_parser, label_parser=None, inclu
         if include_loc: to_return += [loc_x, loc_y]
         return tuple(to_return)
 
-    return tfrecord_dataset.map(final_parser, num_parallel_calls=tf.data.AUTOTUNE)
+    return tfrecord_dataset.map(final_parser, num_parallel_calls=tf.data.AUTOTUNE, deterministic=deterministic)
 
 def tfrecord_example(slide, image_raw, loc_x=0, loc_y=0):
     '''Returns a Tensorflow Data example for TFRecord storage.'''

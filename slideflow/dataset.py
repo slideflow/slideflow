@@ -1220,6 +1220,10 @@ class Dataset:
                     at random quality levels. Passing either 'xyrj' or True will use all augmentations.
             standardize (bool, optional): Standardize images to (0,1). Defaults to True.
             num_workers (int, optional): Number of DataLoader workers. Defaults to 2.
+            deterministic (bool, optional): When num_parallel_calls is specified, if this boolean is specified (True or
+                False), it controls the order in which the transformation produces elements. If set to False, the
+                transformation is allowed to yield elements out of order to trade determinism for performance.
+                Defaults to False.
             drop_last (bool, optional): Drop the last non-full batch. Defaults to False.
         """
 
