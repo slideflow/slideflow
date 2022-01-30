@@ -618,6 +618,9 @@ class Project:
             trainer.model = hp.build_model(labels=labels, num_slide_features=(0 if not feature_sizes else sum(feature_sizes)))
             trainer.model.load_weights(checkpoint)
 
+        #trainer.predict(dataset=eval_dts, batch_size=batch_size, **kwargs)
+        #return
+
         results = trainer.evaluate(dataset=eval_dts,
                                    batch_size=batch_size,
                                    permutation_importance=permutation_importance,

@@ -800,6 +800,45 @@ class Trainer:
     def load(self, model):
         self.model = tf.keras.models.load_model(model)
 
+    def predict(self, dataset, batch_size=None, norm_mean=None, norm_std=None):
+        """Perform inference on a model, saving predictions.
+
+        Args:
+            dataset (:class:`slideflow.dataset.Dataset`): Dataset containing TFRecords to evaluate.
+            checkpoint (list, optional): Path to cp.cpkt checkpoint to load. Defaults to None.
+            batch_size (int, optional): Evaluation batch size. Defaults to the same as training (per self.hp)
+
+        Returns:
+            None.
+        """
+
+        # Fit normalizer
+        if self.normalizer and norm_mean is not None:
+            self.normalizer.fit(norm_mean, norm_std)
+        elif self.normalizer:
+            if 'norm_mean' in self.config:
+                self.normalizer.fit(np.array(self.config['norm_mean']), np.array(self.config['norm_std']))
+
+        # Load and initialize model
+        if not self.model:
+            raise sf.util.UserError("Model has not been loaded, unable to evaluate.")
+        log_manifest(None, dataset.tfrecords(), self.labels, join(self.outdir, 'slide_manifest.csv'))
+
+        if not batch_size: batch_size = self.hp.batch_size
+        with tf.name_scope('input'):
+            interleave_kwargs = self._interleave_kwargs(batch_size=batch_size, infinite=False, augment=False)
+            tf_dts_w_slidenames = dataset.tensorflow(incl_slidenames=True, **interleave_kwargs)
+
+        # Generate performance metrics
+        log.info('Generating predictions...')
+        pred_args = types.SimpleNamespace(uq=bool(self.hp.uq))
+        y_pred, y_std, tile_to_slides = sf.stats.predict_from_dataset(model=self.model,
+                                                                      dataset=tf_dts_w_slidenames,
+                                                                      model_type=self._model_type,
+                                                                      pred_args=pred_args,
+                                                                      num_tiles=dataset.num_tiles)
+        sf.stats.save_predictions_to_csv(None, y_pred, tile_to_slides, self.outdir, '_pred', self.outcome_names, uncertainty=y_std)
+
     def evaluate(self, dataset, batch_size=None, permutation_importance=False, histogram=False, save_predictions=False,
                  norm_mean=None, norm_std=None):
 
@@ -854,10 +893,10 @@ class Trainer:
         else:
             pred_args = types.SimpleNamespace(loss=self.hp.get_loss(), uq=bool(self.hp.uq))
             metrics, acc, loss = sf.stats.metrics_from_dataset(histogram=histogram,
-                                                                    verbose=True,
-                                                                    save_predictions=save_predictions,
-                                                                    pred_args=pred_args,
-                                                                    **metric_kwargs)
+                                                               verbose=True,
+                                                               save_predictions=save_predictions,
+                                                               pred_args=pred_args,
+                                                               **metric_kwargs)
             results_dict = { 'eval': {} }
         for metric in metrics:
             if metrics[metric]:

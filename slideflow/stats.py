@@ -1175,8 +1175,47 @@ def concordance_index(y_true, y_pred):
     y_pred = - y_pred # Need to take negative to get concordance index since these are log hazard ratios
     return c_index(y_true, y_pred, E)
 
-def save_predictions_to_csv(y_true, y_pred, tile_to_slides, data_dir, label_end, outcome_names=None, uncertainty=None):
+def save_predictions_to_csv(y_true, y_pred, tile_to_slides, data_dir, label_end, outcome_names, uncertainty=None):
+    # Save tile-level predictions
+    # Assumes structure of y_true, y_pred, uncertainty is:
+    # -- List of len num_tiles
+    # -- Each entry is list of length num_outcomes
+    # -- Each nested entry is either non-list (raw prediction, e.g. single linear outcome) or list of length num_categories
+
+    if type(y_true) == list:
+        assert len(y_true) == len(y_pred), "Number of outcomes in y_true and y_pred must match"
+        assert len(y_true) == len(outcome_names), "Number of provided outcome names must equal number of y_true outcomes"
+
+    pd_dict = {
+        'slide': pd.Series(tile_to_slides, dtype=str)
+    }
+    for oi, outcome in enumerate(outcome_names):
+        if y_true is not None:
+            if len(y_true[oi].shape) == 1:
+                pd_dict[f'{outcome}_y_true0'] = pd.Series(y_true[oi])
+            else:
+                for j in range(y_true[oi].shape[1]):
+                    pd_dict[f'{outcome}_y_true{j}'] = pd.Series(y_true[oi][:, j])
+
+        if len(y_pred[oi].shape) == 1:
+            pd_dict[f'{outcome}_y_pred0'] = pd.Series(y_pred[oi])
+        else:
+            for j in range(y_pred[oi].shape[1]):
+                pd_dict[f'{outcome}_y_pred{j}'] = pd.Series(y_pred[oi][:, j])
+
+        if uncertainty is not None:
+            if len(uncertainty[oi].shape) == 1:
+                pd_dict[f'{outcome}_uncertainty0'] = pd.Series(uncertainty[oi])
+            else:
+                for j in range(uncertainty[oi].shape[1]):
+                    pd_dict[f'{outcome}_uncertainty{j}'] = pd.Series(uncertainty[oi][:, j])
+
+    pd.DataFrame(pd_dict).to_csv(os.path.join(data_dir, f"tile_predictions{label_end}.csv"))
+    log.debug(f"Predictions saved to {sf.util.green(data_dir)}")
+
+def old_save_predictions_to_csv(y_true, y_pred, tile_to_slides, data_dir, label_end, outcome_names, uncertainty=None):
     """Saves given set of predictions to CSV."""
+
     # Save tile-level predictions
     if type(y_true) == list:
         assert len(y_true) == len(y_pred), "Number of outcomes in y_true and y_pred must match"
@@ -1372,13 +1411,14 @@ def metrics_from_predictions(y_true, y_pred, tile_to_slides, labels, patients, m
 
     return combined_metrics
 
-def predict_from_torch(model, dataset, model_type, pred_args, **kwargs):
+def predict_and_eval_from_torch(model, dataset, model_type, pred_args, evaluate=True, **kwargs):
     """Generates predictions (y_true, y_pred, tile_to_slide) from a given PyTorch model and dataset.
 
     Args:
         model (str): Path to PyTorch model.
         dataset (tf.data.Dataset): PyTorch dataloader.
         pred_args (namespace): Namespace containing slide_input, update_corrects, and update_loss functions.
+        evaluate (bool, optional): Calculate and return accuracy and loss. Dataloader must also return y_true.
         model_type (str, optional): 'categorical', 'linear', or 'cph'. If multiple linear outcomes are present,
             y_true is stacked into a single vector for each image. Defaults to 'categorical'.
 
@@ -1394,6 +1434,9 @@ def predict_from_torch(model, dataset, model_type, pred_args, **kwargs):
     total = 0
 
     log.debug("Generating predictions from torch model")
+
+    if not evaluate:
+        raise NotImplementedError("Prediction without evaluation not yet implemented for this interface in PyTorch.")
 
     # Get predictions and performance metrics
     model.eval()
@@ -1458,7 +1501,7 @@ def predict_from_torch(model, dataset, model_type, pred_args, **kwargs):
 
     return y_true, y_pred, None, tile_to_slides, acc, loss
 
-def predict_from_tensorflow(model, dataset, model_type, pred_args, num_tiles=0):
+def predict_and_eval_from_tensorflow(model, dataset, model_type, pred_args, num_tiles=0, uq_n=30, evaluate=True):
     """Generates predictions (y_true, y_pred, tile_to_slide) from a given Tensorflow model and dataset.
 
     Args:
@@ -1468,6 +1511,8 @@ def predict_from_tensorflow(model, dataset, model_type, pred_args, num_tiles=0):
             for non-categorical models. Defaults to 'categorical'.
         pred_args (namespace): Namespace containing the property `loss`, loss function used to calculate loss.
         num_tiles (int, optional): Used for progress bar. Defaults to 0.
+        uq_n (int, optional): Number of per-tile inferences to perform is calculating uncertainty via dropout.
+        evaluate (bool, optional): Calculate and return accuracy and loss. Dataset must also return y_true.
 
     Returns:
         y_true, y_pred, tile_to_slides, accuracy, loss
@@ -1485,45 +1530,60 @@ def predict_from_tensorflow(model, dataset, model_type, pred_args, num_tiles=0):
     num_vals = 0
     num_batches = 0
     running_loss = 0
+    num_outcomes = 0
     is_cat = (model_type == 'categorical')
     if not is_cat: acc = None
 
     pb = tqdm(total=num_tiles, desc='Evaluating...', leave=False)
     for i, (img, yt, slide) in enumerate(dataset):
+
+        #TODO: support not needing to supply yt
+
+        #if evaluate:
+        #    img, yt, slide = record
+        #else:
+        #    img, slide = record
+
         pb.update(slide.shape[0])
+        tile_to_slides += [slide_bytes.decode('utf-8') for slide_bytes in slide.numpy()]
         num_vals += slide.shape[0]
         num_batches += 1
 
         if pred_args.uq:
-            yp_drop = []
-            for _ in range(30):
+            yp_drop = {} if not num_outcomes else {n:[] for n in range(num_outcomes)}
+            for _ in range(uq_n):
                 yp = get_predictions(img, training=False)
-                yp_drop += [yp]
-            yp_drop = tf.stack(yp_drop, axis=0)
-
-            yp_drop_mean = tf.math.reduce_mean(yp_drop, axis=0)
-            yp_drop_std = tf.math.reduce_std(yp_drop, axis=0)
-
-            # Only takes STDEV from first outcome category
-            # Which works for outcomes with 2 categories,
-            # TODO: But a better solution is needed
-            # for num_categories > 2
-
+                if not num_outcomes:
+                    num_outcomes = 1 if not isinstance(yp, list) else len(yp)
+                    yp_drop = {n:[] for n in range(num_outcomes)}
+                if num_outcomes > 1:
+                    for o in range(num_outcomes):
+                        yp_drop[o] += [yp[o]]
+                else:
+                    yp_drop[0] += [yp]
+            if num_outcomes > 1:
+                yp_drop = [tf.stack(yp_drop[n], axis=0) for n in range(num_outcomes)]
+                yp_drop_mean = [tf.math.reduce_mean(yp_drop[n], axis=0) for n in range(num_outcomes)]
+                yp_drop_std = [tf.math.reduce_std(yp_drop[n], axis=0) for n in range(num_outcomes)]
+            else:
+                yp_drop = tf.stack(yp_drop[0], axis=0)
+                yp_drop_mean = tf.math.reduce_mean(yp_drop, axis=0)
+                yp_drop_std = tf.math.reduce_std(yp_drop, axis=0)
             y_pred += [yp_drop_mean]
             y_std += [yp_drop_std]
         else:
             yp = get_predictions(img, training=False)
             y_pred += [yp]
 
-        if type(yt) == dict:
-            y_true += [[yt[f'out-{o}'].numpy() for o in range(len(yt))]]
-            yt = [yt[f'out-{o}'] for o in range(len(yt))]
-        else:
-            y_true += [yt.numpy()]
+        if evaluate:
+            if type(yt) == dict:
+                y_true += [[yt[f'out-{o}'].numpy() for o in range(len(yt))]]
+                yt = [yt[f'out-{o}'] for o in range(len(yt))]
+            else:
+                y_true += [yt.numpy()]
 
-        loss = pred_args.loss(yt, yp)
-        running_loss += tf.math.reduce_sum(loss).numpy() * slide.shape[0]
-        tile_to_slides += [slide_bytes.decode('utf-8') for slide_bytes in slide.numpy()]
+            loss = pred_args.loss(yt, yp)
+            running_loss += tf.math.reduce_sum(loss).numpy() * slide.shape[0]
     pb.close()
 
     tile_to_slides = np.array(tile_to_slides)
@@ -1536,22 +1596,68 @@ def predict_from_tensorflow(model, dataset, model_type, pred_args, num_tiles=0):
         y_pred = np.concatenate(y_pred)
         if pred_args.uq:
             y_std = np.concatenate(y_std)
-    if type(y_true[0]) == list:
-        # Concatenate y_true for each outcome
-        y_true = [np.concatenate(yt) for yt in zip(*y_true)]
-        if is_cat:
-            acc = [np.sum(y_true[i] == np.argmax(y_pred[i], axis=1)) / num_vals for i in range(len(y_true))]
-    else:
-        y_true = np.concatenate(y_true)
-        if is_cat:
-            acc = np.sum(y_true == np.argmax(y_pred, axis=1)) / num_vals
 
-    loss = running_loss / num_vals # Note that Keras loss during training includes regularization losses,
-                                   #  so this loss will not match validation loss calculated during training
+    if evaluate:
+        if type(y_true[0]) == list:
+            # Concatenate y_true for each outcome
+            y_true = [np.concatenate(yt) for yt in zip(*y_true)]
+            if is_cat:
+                acc = [np.sum(y_true[i] == np.argmax(y_pred[i], axis=1)) / num_vals for i in range(len(y_true))]
+        else:
+            y_true = np.concatenate(y_true)
+            if is_cat:
+                acc = np.sum(y_true == np.argmax(y_pred, axis=1)) / num_vals
+
+        loss = running_loss / num_vals # Note that Keras loss during training includes regularization losses,
+                                    #  so this loss will not match validation loss calculated during training
     end = time.time()
     log.debug(f"Prediction complete. Time to completion: {int(end-start)} s")
 
-    return y_true, y_pred, y_std, tile_to_slides, acc, loss
+    if evaluate:
+        return y_true, y_pred, y_std, tile_to_slides, acc, loss
+    else:
+        return y_pred, y_std, tile_to_slides
+
+def predict_and_eval_from_dataset(*args, **kwargs):
+    """Generates predictions (y_true, y_pred, tile_to_slide) and accuracy/loss from a given model and dataset.
+
+    Args:
+        model (str): Path to PyTorch model.
+        dataset (tf.data.Dataset): PyTorch dataloader.
+        pred_args (namespace): Namespace containing slide_input, update_corrects, and update_loss functions.
+        model_type (str, optional): 'categorical', 'linear', or 'cph'. If multiple linear outcomes are present,
+            y_true is stacked into a single vector for each image. Defaults to 'categorical'.
+        num_tiles (int, optional): Used for progress bar with Tensorflow backend. Defaults to 0.
+
+    Returns:
+        y_true, y_pred, tile_to_slides, accuracy, loss
+    """
+
+    if sf.backend() == 'tensorflow':
+        return predict_and_eval_from_tensorflow(*args, **kwargs)
+    else:
+        return predict_and_eval_from_torch(*args, **kwargs)
+
+def predict_from_dataset(model, dataset, model_type, pred_args, **kwargs):
+    """Generates predictions (y_pred, tile_to_slide) from a given model and dataset.
+
+    Args:
+        model (str): Path to PyTorch model.
+        dataset (tf.data.Dataset): PyTorch dataloader.
+        pred_args (namespace): Namespace containing slide_input, update_corrects, and update_loss functions.
+        model_type (str, optional): 'categorical', 'linear', or 'cph'. If multiple linear outcomes are present,
+            y_true is stacked into a single vector for each image. Defaults to 'categorical'.
+        num_tiles (int, optional): Used for progress bar with Tensorflow backend. Defaults to 0.
+
+    Returns:
+        y_pred, tile_to_slides
+    """
+    if sf.backend() == 'tensorflow':
+        predict_fn = predict_and_eval_from_tensorflow
+    else:
+        predict_fn = predict_and_eval_from_torch
+
+    return predict_fn(model, dataset, model_type, pred_args, evaluate=False, **kwargs)
 
 def predict_from_layer(model, layer_input, input_layer_name='hidden_0', output_layer_index=None):
     """Generate predictions from a model, providing intermediate layer input.
@@ -1616,20 +1722,13 @@ def metrics_from_dataset(model, model_type, labels, patients, dataset, outcome_n
         metrics [dict], accuracy [float], loss [float]
     """
 
-    if sf.backend() == 'tensorflow':
-        predict_fn = predict_from_tensorflow
-        kwargs = {'num_tiles': num_tiles}
-    else:
-        predict_fn = predict_from_torch
-        kwargs = {}
-
-    y_true, y_pred, y_std, tile_to_slides, acc, loss = predict_fn(model, dataset, model_type, pred_args, **kwargs)
+    yt, yp, y_std, t_s, acc, loss = predict_and_eval_from_dataset(model, dataset, model_type, pred_args, num_tiles=num_tiles)
 
     before_metrics = time.time()
-    metrics = metrics_from_predictions(y_true=y_true,
-                                       y_pred=y_pred,
+    metrics = metrics_from_predictions(y_true=yt,
+                                       y_pred=yp,
                                        y_std=y_std,
-                                       tile_to_slides=tile_to_slides,
+                                       tile_to_slides=t_s,
                                        labels=labels,
                                        patients=patients,
                                        model_type=model_type,
