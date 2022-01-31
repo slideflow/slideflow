@@ -800,7 +800,7 @@ class Trainer:
     def load(self, model):
         self.model = tf.keras.models.load_model(model)
 
-    def predict(self, dataset, batch_size=None, norm_mean=None, norm_std=None):
+    def predict(self, dataset, batch_size=None, norm_mean=None, norm_std=None, save_predictions=True):
         """Perform inference on a model, saving predictions.
 
         Args:
@@ -829,7 +829,7 @@ class Trainer:
             interleave_kwargs = self._interleave_kwargs(batch_size=batch_size, infinite=False, augment=False)
             tf_dts_w_slidenames = dataset.tensorflow(incl_slidenames=True, **interleave_kwargs)
 
-        # Generate performance metrics
+        # Generate predictions
         log.info('Generating predictions...')
         pred_args = types.SimpleNamespace(uq=bool(self.hp.uq))
         y_pred, y_std, tile_to_slides = sf.stats.predict_from_dataset(model=self.model,
@@ -837,7 +837,19 @@ class Trainer:
                                                                       model_type=self._model_type,
                                                                       pred_args=pred_args,
                                                                       num_tiles=dataset.num_tiles)
-        sf.stats.save_predictions_to_csv(None, y_pred, tile_to_slides, self.outdir, '_pred', self.outcome_names, uncertainty=y_std)
+        df = sf.stats.predictions_to_dataframe(None, y_pred, tile_to_slides, self.outcome_names, uncertainty=y_std)
+
+        if save_predictions in (True, 'CSV', 'csv'):
+            save_path = os.path.join(self.outdir, "tile_predictions.csv")
+            df.to_csv(save_path)
+        elif save_predictions == 'feather':
+            import pyarrow.feather as feather
+            save_path = os.path.join(self.outdir, 'tile_predictions.feather')
+            feather.write_feather(df, save_path)
+        if save_predictions:
+            log.debug(f"Predictions saved to {sf.util.green(save_path)}")
+
+        return df
 
     def evaluate(self, dataset, batch_size=None, permutation_importance=False, histogram=False, save_predictions=False,
                  norm_mean=None, norm_std=None):

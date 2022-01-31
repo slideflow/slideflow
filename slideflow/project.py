@@ -267,6 +267,240 @@ class Project:
         """Converts relative path within project directory to global path."""
         return sf.util.relative_path(path, self.root)
 
+    def _prepare_trainer_for_eval(self, model, outcome_label_headers, dataset=None, filters=None, checkpoint=None,
+                                  model_config=None, eval_k_fold=None, splits="splits.json", max_tiles=0, min_tiles=0,
+                                  input_header=None):
+
+        """Prepares as :class:`slideflow.model.Trainer` from a model, for either evaluation or prediction.
+
+        Args:
+            model (str): Path to model to evaluate.
+            outcome_label_headers (str): Str or list of str. Annotation column header specifying the outcome label(s).
+            dataset (:class:`slideflow.dataset.Dataset`, optional): Dataset object from which to generate activations.
+                If not supplied, will calculate activations for all project tfrecords at the tile_px/tile_um
+                matching the supplied model, optionally using provided filters and filter_blank.
+            filters (dict, optional): Filters dict to use when selecting tfrecords. Defaults to None.
+                See :meth:`get_dataset` documentation for more information on filtering.
+            checkpoint (str, optional): Path to cp.ckpt file, if evaluating a saved checkpoint. Defaults to None.
+            model_config (str, optional): Path to model's config.json file. Defaults to None.
+                If None (default), searches in the model directory.
+            eval_k_fold (int, optional): K-fold iteration number to evaluate. Defaults to None.
+                If None, will evaluate all tfrecords irrespective of K-fold.
+            splits (str, optional): Filename of JSON file in which to log training/validation splits. Looks for
+                filename in project root directory. Defaults to "splits.json".
+            max_tiles (int, optional): Maximum number of tiles from each slide to evaluate. Defaults to 0.
+                If zero, will include all tiles.
+            min_tiles (int, optional): Minimum number of tiles a slide must have to be included in evaluation.
+                Defaults to 0. Recommend considering a minimum of at least 10 tiles per slide.
+            input_header (str, optional): Annotation column header to use as additional input. Defaults to None.
+            permutation_importance (bool, optional): Calculate the permutation feature importance.  Determine relative
+                importance when using multiple model inputs. Only available for Tensorflow backend. Defaults to False.
+
+        Returns:
+            Trainer (:class:`slideflow.model.Trainer`), evaluation dataset (:class:`slideflow.Dataset`)
+        """
+
+        log.info(f'Evaluating model {sf.util.green(model)}...')
+
+        if not isinstance(outcome_label_headers, list):
+            outcome_label_headers = [outcome_label_headers]
+
+        # Load hyperparameters from saved model
+        if model_config:
+            config = sf.util.load_json(model_config)
+        else:
+            config = sf.util.get_model_config(model)
+            if not config:
+                raise OSError(f"Unable to find configuration file for model {model}.")
+        hp = sf.model.ModelParams()
+        hp.load_dict(config['hp'])
+        model_name = f"eval-{basename(model)}"
+        splits_file = join(self.root, splits)
+
+        # Filter out slides that are blank in the outcome label, or blank in any of the input_header categories
+        filter_blank = [o for o in outcome_label_headers]
+        if input_header:
+            input_header = [input_header] if not isinstance(input_header, list) else input_header
+            filter_blank += input_header
+
+        # Load dataset and annotations for evaluation
+        if dataset is None:
+            dataset = self.dataset(tile_px=hp.tile_px,
+                                   tile_um=hp.tile_um,
+                                   filters=filters,
+                                   filter_blank=filter_blank,
+                                   min_tiles=min_tiles)
+        else:
+            if dataset.tile_px != hp.tile_px or dataset.tile_um != hp.tile_um:
+                raise ValueError(f"Dataset tile size ({dataset.tile_px}px, {dataset.tile_um}um) does not match " + \
+                                 f"model ({hp.tile_px}px, {hp.tile_um}um)")
+            dataset.filter_blank = filter_blank
+
+        # Set up outcome labels
+        if hp.model_type() == 'categorical':
+            if len(outcome_label_headers) == 1 and outcome_label_headers[0] not in config['outcome_labels']:
+                outcome_label_to_int = {outcome_label_headers[0]: {v: int(k) for k, v in config['outcome_labels'].items()}}
+            else:
+                outcome_label_to_int = {o:
+                                            { v: int(k) for k, v in config['outcome_labels'][o].items() }
+                                        for o in config['outcome_labels']}
+        else:
+            outcome_label_to_int = None
+
+        use_float = (hp.model_type() in ['linear', 'cph'])
+        labels, unique_labels = dataset.labels(outcome_label_headers,
+                                               use_float=use_float,
+                                               assigned_labels=outcome_label_to_int)
+
+        if hp.model_type() == 'categorical' and len(outcome_label_headers) > 1:
+            def process_outcome_label(v):
+                return '-'.join(map(str, v)) if isinstance(v, list) else v
+            labels_for_split = {k: process_outcome_label(v) for k,v in labels.items()}
+        else:
+            labels_for_split = labels
+
+        # If using a specific k-fold, load validation plan
+        if eval_k_fold:
+            log.info(f"Using {sf.util.bold('k-fold iteration ' + str(eval_k_fold))}")
+            _, eval_dts = dataset.training_validation_split(hp.model_type(),
+                                                            labels_for_split,
+                                                            val_strategy=config['validation_strategy'],
+                                                            splits=splits_file,
+                                                            val_fraction=config['validation_fraction'],
+                                                            val_k_fold=config['validation_k_fold'],
+                                                            k_fold_iter=eval_k_fold)
+        # Otherwise use all TFRecords
+        else:
+            eval_dts = dataset
+
+        # Set max tiles
+        eval_dts = eval_dts.clip(max_tiles)
+
+        # Prepare additional slide-level input
+        model_inputs = {}
+        if input_header:
+            input_header = [input_header] if not isinstance(input_header, list) else input_header
+            feature_len_dict = {}   # Dict mapping input_vars to total number of different labels for each input header
+            input_labels_dict = {}  # Dict mapping input_vars to nested dictionaries,
+                                    #    which map category ID to category label names (for categorical variables)
+                                    #     or mapping to 'float' for float variables
+            for slide in labels:
+                model_inputs[slide] = []
+
+            for input_var in input_header:
+                # Check if variable can be converted to float (default). If not, will assume categorical.
+                try:
+                    dataset.labels(input_var, use_float=True)
+                    is_float = True
+                except TypeError:
+                    is_float = False
+                log.info(f"Adding input variable {sf.util.blue(input_var)} as {'float' if is_float else 'categorical'}")
+
+                if is_float:
+                    input_labels, _ = dataset.labels(input_var, use_float=is_float)
+                    for slide in input_labels:
+                        model_inputs[slide] += input_labels[slide]
+                    input_labels_dict[input_var] = 'float'
+                    feature_len_dict[input_var] = 1
+                else:
+                    # Read categorical variable assignments from hyperparameter file
+                    input_label_to_int = {v: int(k) for k, v in config['input_feature_labels'][input_var].items()}
+                    input_labels, _ = dataset.labels(input_var,
+                                                     use_float=is_float,
+                                                     assigned_labels=input_label_to_int)
+                    feature_len_dict[input_var] = len(input_label_to_int)
+                    input_labels_dict[input_var] = config['input_feature_labels'][input_var]
+
+                    for slide in labels:
+                        onehot_label = sf.util.to_onehot(input_labels[slide], feature_len_dict[input_var]).tolist()
+                        model_inputs[slide] += onehot_label
+
+            feature_sizes = [feature_len_dict[i] for i in input_header]
+
+        else:
+            input_labels_dict = None
+            feature_sizes = None
+
+        if feature_sizes and (sum(feature_sizes) != sum(config['input_feature_sizes'])):
+            raise Exception(f'Patient-level feature matrix (size {sum(feature_sizes)}) not equal to what was used ' + \
+                            f'for model training (size {sum(config["input_feature_sizes"])}).')
+
+        # Set up model for evaluation
+        # Using the project annotation file, assemble list of slides for training,
+        # as well as the slide annotations dictionary (output labels)
+        prev_run_dirs = [x for x in os.listdir(self.eval_dir) if isdir(join(self.eval_dir, x))]
+        prev_run_ids = [re.match(r'^\d+', x) for x in prev_run_dirs]
+        prev_run_ids = [int(x.group()) for x in prev_run_ids if x is not None]
+        cur_run_id = max(prev_run_ids, default=-1) + 1
+        model_dir = join(self.eval_dir, f'{cur_run_id:05d}-{model_name}')
+        assert not exists(model_dir)
+        os.makedirs(model_dir)
+
+        # Log model settings and hyperparameters
+        outcome_labels = None if hp.model_type() != 'categorical' else dict(zip(range(len(unique_labels)), unique_labels))
+
+        # Check git commit if running from source
+        git_commit = None
+        if git is not None:
+            try:
+                git_commit = git.Repo(search_parent_directories=True).head.object.hexsha
+            except:
+                pass
+
+        eval_config = {
+            'slideflow_version': sf.__version__,
+            'project': self.name,
+            'git_commit': git_commit,
+            'model_name': model_name,
+            'model_path': model,
+            'stage': 'evaluation',
+            'tile_px': hp.tile_px,
+            'tile_um': hp.tile_um,
+            'model_type': hp.model_type(),
+            'outcome_label_headers': outcome_label_headers,
+            'input_features': input_header,
+            'input_feature_sizes': feature_sizes,
+            'input_feature_labels': input_labels_dict,
+            'outcome_labels': outcome_labels,
+            'dataset_config': self.dataset_config,
+            'sources': self.sources,
+            'annotations': self.annotations,
+            'validation_strategy': config['validation_strategy'] if 'validation_strategy' in config else 'NA',
+            'validation_fraction': config['validation_fraction'] if 'validation_fraction' in config else 'NA',
+            'validation_k_fold': config['validation_k_fold'] if 'validation_k_fold' in config else 'NA',
+            'k_fold_i': eval_k_fold,
+            'filters': filters,
+            'pretrain': None,
+            'resume_training': None,
+            'checkpoint': checkpoint,
+            'hp': hp.get_dict(),
+            'max_tiles': max_tiles,
+            'min_tiles': min_tiles,
+        }
+
+        # Build a model using the slide list as input and the annotations dictionary as output labels
+        trainer = sf.model.trainer_from_hp(hp,
+                                           outdir=model_dir,
+                                           labels=labels,
+                                           config=eval_config,
+                                           patients=dataset.patients(),
+                                           slide_input=model_inputs,
+                                           manifest=dataset.manifest(),
+                                           mixed_precision=self.mixed_precision,
+                                           feature_names=input_header,
+                                           feature_sizes=feature_sizes,
+                                           outcome_names=outcome_label_headers,
+                                           use_neptune=self.use_neptune,
+                                           neptune_api=self.neptune_api,
+                                           neptune_workspace=self.neptune_workspace)
+        if isinstance(model, str):
+            trainer.load(model)
+        if checkpoint:
+            trainer.model = hp.build_model(labels=labels, num_slide_features=(0 if not feature_sizes else sum(feature_sizes)))
+            trainer.model.load_weights(checkpoint)
+
+        return trainer, eval_dts
+
     def select_gpu(self, gpu):
         """Sets CUDA_VISIBLE_DEVICES in order to restrict GPU access to the given devices.
 
@@ -405,230 +639,30 @@ class Project:
             Dict: Dictionary of keras training results, nested by epoch.
         """
 
-        import slideflow.model
-        log.info(f'Evaluating model {sf.util.green(model)}...')
-
-        if not isinstance(outcome_label_headers, list):
-            outcome_label_headers = [outcome_label_headers]
+        trainer, eval_dts = self._prepare_trainer_for_eval(model=model,
+                                                           outcome_label_headers=outcome_label_headers,
+                                                           dataset=dataset,
+                                                           filters=filters,
+                                                           checkpoint=checkpoint,
+                                                           model_config=model_config,
+                                                           eval_k_fold=eval_k_fold,
+                                                           splits=splits,
+                                                           max_tiles=max_tiles,
+                                                           min_tiles=min_tiles,
+                                                           input_header=input_header)
 
         if (input_header is None) and permutation_importance:
-            log.warn('Permutation feature importance is designed to be used with multimodal models. Turning off.')
-            permutation_importance = False
-
-        log.setLevel(self.verbosity)
-
-        # Load hyperparameters from saved model
-        if model_config:
-            config = sf.util.load_json(model_config)
-        else:
-            config = sf.util.get_model_config(model)
-            if not config:
-                raise OSError(f"Unable to find configuration file for model {model}.")
-        hp = sf.model.ModelParams()
-        hp.load_dict(config['hp'])
-        model_name = f"eval-{basename(model)}"
-        splits_file = join(self.root, splits)
-
-        # Filter out slides that are blank in the outcome label, or blank in any of the input_header categories
-        filter_blank = [o for o in outcome_label_headers]
-        if input_header:
-            input_header = [input_header] if not isinstance(input_header, list) else input_header
-            filter_blank += input_header
-
-        # Load dataset and annotations for evaluation
-        if dataset is None:
-            dataset = self.dataset(tile_px=hp.tile_px,
-                                   tile_um=hp.tile_um,
-                                   filters=filters,
-                                   filter_blank=filter_blank,
-                                   min_tiles=min_tiles)
-        else:
-            if dataset.tile_px != hp.tile_px or dataset.tile_um != hp.tile_um:
-                raise ValueError(f"Dataset tile size ({dataset.tile_px}px, {dataset.tile_um}um) does not match " + \
-                                 f"model ({hp.tile_px}px, {hp.tile_um}um)")
-            dataset.filter_blank = filter_blank
-
-        # Set up outcome labels
-        if hp.model_type() == 'categorical':
-            if len(outcome_label_headers) == 1 and outcome_label_headers[0] not in config['outcome_labels']:
-                outcome_label_to_int = {outcome_label_headers[0]: {v: int(k) for k, v in config['outcome_labels'].items()}}
-            else:
-                outcome_label_to_int = {o:
-                                            { v: int(k) for k, v in config['outcome_labels'][o].items() }
-                                        for o in config['outcome_labels']}
-        else:
-            outcome_label_to_int = None
-
-        use_float = (hp.model_type() in ['linear', 'cph'])
-        labels, unique_labels = dataset.labels(outcome_label_headers,
-                                               use_float=use_float,
-                                               assigned_labels=outcome_label_to_int)
-
-        if hp.model_type() == 'categorical' and len(outcome_label_headers) > 1:
-            def process_outcome_label(v):
-                return '-'.join(map(str, v)) if isinstance(v, list) else v
-            labels_for_split = {k: process_outcome_label(v) for k,v in labels.items()}
-        else:
-            labels_for_split = labels
-
-        # If using a specific k-fold, load validation plan
-        if eval_k_fold:
-            log.info(f"Using {sf.util.bold('k-fold iteration ' + str(eval_k_fold))}")
-            _, eval_dts = dataset.training_validation_split(hp.model_type(),
-                                                            labels_for_split,
-                                                            val_strategy=config['validation_strategy'],
-                                                            splits=splits_file,
-                                                            val_fraction=config['validation_fraction'],
-                                                            val_k_fold=config['validation_k_fold'],
-                                                            k_fold_iter=eval_k_fold)
-        # Otherwise use all TFRecords
-        else:
-            eval_dts = dataset
-
-        # Set max tiles
-        eval_dts = eval_dts.clip(max_tiles)
-
-        # Prepare additional slide-level input
-        model_inputs = {}
-        if input_header:
-            input_header = [input_header] if not isinstance(input_header, list) else input_header
-            feature_len_dict = {}   # Dict mapping input_vars to total number of different labels for each input header
-            input_labels_dict = {}  # Dict mapping input_vars to nested dictionaries,
-                                    #    which map category ID to category label names (for categorical variables)
-                                    #     or mapping to 'float' for float variables
-            for slide in labels:
-                model_inputs[slide] = []
-
-            for input_var in input_header:
-                # Check if variable can be converted to float (default). If not, will assume categorical.
-                try:
-                    dataset.labels(input_var, use_float=True)
-                    is_float = True
-                except TypeError:
-                    is_float = False
-                log.info(f"Adding input variable {sf.util.blue(input_var)} as {'float' if is_float else 'categorical'}")
-
-                if is_float:
-                    input_labels, _ = dataset.labels(input_var, use_float=is_float)
-                    for slide in input_labels:
-                        model_inputs[slide] += input_labels[slide]
-                    input_labels_dict[input_var] = 'float'
-                    feature_len_dict[input_var] = 1
-                else:
-                    # Read categorical variable assignments from hyperparameter file
-                    input_label_to_int = {v: int(k) for k, v in config['input_feature_labels'][input_var].items()}
-                    input_labels, _ = dataset.labels(input_var,
-                                                     use_float=is_float,
-                                                     assigned_labels=input_label_to_int)
-                    feature_len_dict[input_var] = len(input_label_to_int)
-                    input_labels_dict[input_var] = config['input_feature_labels'][input_var]
-
-                    for slide in labels:
-                        onehot_label = sf.util.to_onehot(input_labels[slide], feature_len_dict[input_var]).tolist()
-                        model_inputs[slide] += onehot_label
-
-            feature_sizes = [feature_len_dict[i] for i in input_header]
-
-        else:
-            input_labels_dict = None
-            feature_sizes = None
-
-        if feature_sizes and (sum(feature_sizes) != sum(config['input_feature_sizes'])):
-            #TODO: consider using training matrix
-            raise Exception(f'Patient-level feature matrix (size {sum(feature_sizes)}) not equal to what was used ' + \
-                            f'for model training (size {sum(config["input_feature_sizes"])}).')
-            #feature_sizes = config['feature_sizes']
-            #feature_names = config['feature_names']
-            #num_slide_features = sum(config['feature_sizes'])
-
-        # Set up model for evaluation
-        # Using the project annotation file, assemble list of slides for training,
-        # as well as the slide annotations dictionary (output labels)
-        prev_run_dirs = [x for x in os.listdir(self.eval_dir) if isdir(join(self.eval_dir, x))]
-        prev_run_ids = [re.match(r'^\d+', x) for x in prev_run_dirs]
-        prev_run_ids = [int(x.group()) for x in prev_run_ids if x is not None]
-        cur_run_id = max(prev_run_ids, default=-1) + 1
-        model_dir = join(self.eval_dir, f'{cur_run_id:05d}-{model_name}')
-        assert not exists(model_dir)
-        os.makedirs(model_dir)
-
-        # Log model settings and hyperparameters
-        outcome_labels = None if hp.model_type() != 'categorical' else dict(zip(range(len(unique_labels)), unique_labels))
-
-        # Check git commit if running from source
-        git_commit = None
-        if git is not None:
-            try:
-                git_commit = git.Repo(search_parent_directories=True).head.object.hexsha
-            except:
-                pass
-
-        eval_config = {
-            'slideflow_version': sf.__version__,
-            'project': self.name,
-            'git_commit': git_commit,
-            'model_name': model_name,
-            'model_path': model,
-            'stage': 'evaluation',
-            'tile_px': hp.tile_px,
-            'tile_um': hp.tile_um,
-            'model_type': hp.model_type(),
-            'outcome_label_headers': outcome_label_headers,
-            'input_features': input_header,
-            'input_feature_sizes': feature_sizes,
-            'input_feature_labels': input_labels_dict,
-            'outcome_labels': outcome_labels,
-            'dataset_config': self.dataset_config,
-            'sources': self.sources,
-            'annotations': self.annotations,
-            'validation_strategy': config['validation_strategy'] if 'validation_strategy' in config else 'NA',
-            'validation_fraction': config['validation_fraction'] if 'validation_fraction' in config else 'NA',
-            'validation_k_fold': config['validation_k_fold'] if 'validation_k_fold' in config else 'NA',
-            'k_fold_i': eval_k_fold,
-            'filters': filters,
-            'pretrain': None,
-            'resume_training': None,
-            'checkpoint': checkpoint,
-            'hp': hp.get_dict(),
-            'max_tiles': max_tiles,
-            'min_tiles': min_tiles,
-        }
+            raise sf.util.UserError('Permutation feature importance requires clinical inputs (set with input_header).')
 
         # Perform evaluation
         log.info(f'Evaluating {sf.util.bold(len(eval_dts.tfrecords()))} tfrecords')
 
-        # Build a model using the slide list as input and the annotations dictionary as output labels
-        trainer = sf.model.trainer_from_hp(hp,
-                                           outdir=model_dir,
-                                           labels=labels,
-                                           config=eval_config,
-                                           patients=dataset.patients(),
-                                           slide_input=model_inputs,
-                                           manifest=dataset.manifest(),
-                                           mixed_precision=self.mixed_precision,
-                                           feature_names=input_header,
-                                           feature_sizes=feature_sizes,
-                                           outcome_names=outcome_label_headers,
-                                           use_neptune=self.use_neptune,
-                                           neptune_api=self.neptune_api,
-                                           neptune_workspace=self.neptune_workspace)
-        if isinstance(model, str):
-            trainer.load(model)
-        if checkpoint:
-            trainer.model = hp.build_model(labels=labels, num_slide_features=(0 if not feature_sizes else sum(feature_sizes)))
-            trainer.model.load_weights(checkpoint)
-
-        #trainer.predict(dataset=eval_dts, batch_size=batch_size, **kwargs)
-        #return
-
-        results = trainer.evaluate(dataset=eval_dts,
-                                   batch_size=batch_size,
-                                   permutation_importance=permutation_importance,
-                                   histogram=histogram,
-                                   save_predictions=save_predictions,
-                                   **kwargs)
-
-        return results
+        return trainer.evaluate(dataset=eval_dts,
+                                batch_size=batch_size,
+                                permutation_importance=permutation_importance,
+                                histogram=histogram,
+                                save_predictions=save_predictions,
+                                **kwargs)
 
     def evaluate_clam(self, exp_name, pt_files, outcome_label_headers, tile_px, tile_um, k=0, eval_tag=None,
                         filters=None, filter_blank=None, attention_heatmaps=True):
@@ -1587,12 +1621,63 @@ class Project:
     def load_project(self, path):
         """Loads a saved and pre-configured project from the specified path."""
 
+        # Enable logging
+        #log.logfile = join(self.root, 'log.log')
         if exists(join(path, 'settings.json')):
             self._settings = sf.util.load_json(join(path, 'settings.json'))
         else:
             raise OSError(f'Unable to locate settings.json at location "{path}".')
-        # Enable logging
-        #log.logfile = join(self.root, 'log.log')
+
+    def predict(self, model, outcome_label_headers, dataset=None, filters=None, checkpoint=None, model_config=None,
+                eval_k_fold=None, splits="splits.json", max_tiles=0, min_tiles=0, batch_size=64, input_header=None,
+                save_predictions=False, **kwargs):
+
+        """Evaluates a saved model on a given set of tfrecords.
+
+        Args:
+            model (str): Path to model to evaluate.
+            outcome_label_headers (str): Str or list of str. Annotation column header specifying the outcome label(s).
+            dataset (:class:`slideflow.dataset.Dataset`, optional): Dataset object from which to generate activations.
+                If not supplied, will calculate activations for all project tfrecords at the tile_px/tile_um
+                matching the supplied model, optionally using provided filters and filter_blank.
+            filters (dict, optional): Filters dict to use when selecting tfrecords. Defaults to None.
+                See :meth:`get_dataset` documentation for more information on filtering.
+            checkpoint (str, optional): Path to cp.ckpt file, if evaluating a saved checkpoint. Defaults to None.
+            model_config (str, optional): Path to model's config.json file. Defaults to None.
+                If None (default), searches in the model directory.
+            eval_k_fold (int, optional): K-fold iteration number to evaluate. Defaults to None.
+                If None, will evaluate all tfrecords irrespective of K-fold.
+            splits (str, optional): Filename of JSON file in which to log training/validation splits. Looks for
+                filename in project root directory. Defaults to "splits.json".
+            max_tiles (int, optional): Maximum number of tiles from each slide to evaluate. Defaults to 0.
+                If zero, will include all tiles.
+            min_tiles (int, optional): Minimum number of tiles a slide must have to be included in evaluation.
+                Defaults to 0. Recommend considering a minimum of at least 10 tiles per slide.
+            input_header (str, optional): Annotation column header to use as additional input. Defaults to None.
+            save_predictions (bool or str, optional): Either True, False, or any combination of 'tile', 'patient',
+                or 'slide', either as string or list of strings. Save tile-level, patient-level, and/or
+                slide-level predictions. If True, will save all.
+
+        Returns:
+            pandas dataframe of all tile-level predictions.
+        """
+
+        trainer, eval_dts = self._prepare_trainer_for_eval(model=model,
+                                                           outcome_label_headers=outcome_label_headers,
+                                                           dataset=dataset,
+                                                           filters=filters,
+                                                           checkpoint=checkpoint,
+                                                           model_config=model_config,
+                                                           eval_k_fold=eval_k_fold,
+                                                           splits=splits,
+                                                           max_tiles=max_tiles,
+                                                           min_tiles=min_tiles,
+                                                           input_header=input_header)
+
+        # Perform evaluation
+        log.info(f'Predicting results for {sf.util.bold(len(eval_dts.tfrecords()))} tfrecords')
+
+        return trainer.predict(dataset=eval_dts, batch_size=batch_size, save_predictions=save_predictions, **kwargs)
 
     def predict_wsi(self, model, outdir, dataset=None, filters=None, filter_blank=None, stride_div=1,
                     enable_downsample=True, roi_method='inside', skip_missing_roi=False, source=None,

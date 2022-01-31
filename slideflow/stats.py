@@ -1175,7 +1175,7 @@ def concordance_index(y_true, y_pred):
     y_pred = - y_pred # Need to take negative to get concordance index since these are log hazard ratios
     return c_index(y_true, y_pred, E)
 
-def save_predictions_to_csv(y_true, y_pred, tile_to_slides, data_dir, label_end, outcome_names, uncertainty=None):
+def predictions_to_dataframe(y_true, y_pred, tile_to_slides, outcome_names, uncertainty=None):
     # Save tile-level predictions
     # Assumes structure of y_true, y_pred, uncertainty is:
     # -- List of len num_tiles
@@ -1210,69 +1210,7 @@ def save_predictions_to_csv(y_true, y_pred, tile_to_slides, data_dir, label_end,
                 for j in range(uncertainty[oi].shape[1]):
                     pd_dict[f'{outcome}_uncertainty{j}'] = pd.Series(uncertainty[oi][:, j])
 
-    pd.DataFrame(pd_dict).to_csv(os.path.join(data_dir, f"tile_predictions{label_end}.csv"))
-    log.debug(f"Predictions saved to {sf.util.green(data_dir)}")
-
-def old_save_predictions_to_csv(y_true, y_pred, tile_to_slides, data_dir, label_end, outcome_names, uncertainty=None):
-    """Saves given set of predictions to CSV."""
-
-    # Save tile-level predictions
-    if type(y_true) == list:
-        assert len(y_true) == len(y_pred), "Number of outcomes in y_true and y_pred must match"
-        assert len(y_true) == len(outcome_names), "Number of provided outcome names must equal number of y_true outcomes"
-
-    tile_csv_dir = os.path.join(data_dir, f"tile_predictions{label_end}.csv")
-    with open(tile_csv_dir, 'w') as outfile:
-        writer = csv.writer(outfile)
-        # If multiple outcomes are present
-        if type(y_true) == list:
-            y_true_is_reduced = (len(y_true[0].shape) == 1)
-            y_pred_is_reduced = (len(y_pred[0].shape) == 1)
-            y_true_header = []
-            y_pred_header = []
-            for cat_i in range(len(y_true)):
-                y_true_cat_header = [f"{outcome_names[cat_i]}_y_true0"] if y_true_is_reduced \
-                                                                        else [f"{outcome_names[cat_i]}_y_true{i}" \
-                                                                        for i in range(y_true[cat_i].shape[1])]
-
-                y_pred_cat_header = [f"{outcome_names[cat_i]}_y_pred0"] if y_pred_is_reduced \
-                                                                        else [f"{outcome_names[cat_i]}_y_pred{i}" \
-                                                                        for i in range(y_pred[cat_i].shape[1])]
-                y_true_header += y_true_cat_header
-                y_pred_header += y_pred_cat_header
-            header = ['slide'] + y_true_header + y_pred_header
-            writer.writerow(header)
-            for i in range(len(y_true)):
-                y_true_str_list = []
-                y_pred_str_list = []
-                for cat_i in range(len(y_true)):
-                    y_true_str_cat_list = [str(y_true[cat_i][i])] if y_true_is_reduced \
-                                                                  else [str(yti) \
-                                                                  for yti in y_true[cat_i][i]]
-                    y_pred_str_cat_list = [str(y_pred[cat_i][i])] if y_pred_is_reduced \
-                                                                  else [str(ypi) \
-                                                                  for ypi in y_pred[cat_i][i]]
-                    y_true_str_list += y_true_str_cat_list
-                    y_pred_str_list += y_pred_str_cat_list
-                row = np.concatenate([[tile_to_slides[i]], y_true_str_list, y_pred_str_list])
-                writer.writerow(row)
-        # If there is only a single outcome
-        else:
-            y_true_is_reduced = (len(y_true.shape) == 1)
-            y_pred_is_reduced = (len(y_pred.shape) == 1)
-            y_true_header = ["y_true0"] if y_true_is_reduced else [f"y_true{i}" for i in range(y_true.shape[1])]
-            header = ['slide'] + y_true_header + [f"y_pred{j}" for j in range(y_pred.shape[1])]
-            if uncertainty is not None:
-                header += ['uncertainty']
-            writer.writerow(header)
-            for i in range(len(y_true)):
-                y_true_str_list = [str(y_true[i])] if y_true_is_reduced else [str(yti) for yti in y_true[i]]
-                y_pred_str_list = [str(y_pred[i])] if y_pred_is_reduced else [str(ypi) for ypi in y_pred[i]]
-                row = [[tile_to_slides[i]], y_true_str_list, y_pred_str_list]
-                if uncertainty is not None:
-                    row += [uncertainty[i]]
-                writer.writerow(np.concatenate(row))
-    log.debug(f"Predictions saved to {sf.util.green(data_dir)}")
+    return pd.DataFrame(pd_dict)
 
 def metrics_from_predictions(y_true, y_pred, tile_to_slides, labels, patients, model_type, y_std=None, outcome_names=None,
                              label=None, data_dir=None, verbose=True, save_predictions=True, histogram=False, plot=True,
@@ -1397,10 +1335,9 @@ def metrics_from_predictions(y_true, y_pred, tile_to_slides, labels, patients, m
         _cph_metrics(metric_args)
 
     if metric_args.save_tile_predictions:
-        #try:
-        save_predictions_to_csv(y_true, y_pred, tile_to_slides, data_dir, label_end, outcome_names, uncertainty=metric_args.y_std)
-        #except:
-        #log.error("Unable to save predictions to CSV - not yet implemented for multiple outcomes")
+        df = predictions_to_dataframe(y_true, y_pred, tile_to_slides, outcome_names, uncertainty=metric_args.y_std)
+        df.to_csv(os.path.join(data_dir, f"tile_predictions{label_end}.csv"))
+        log.debug(f"Predictions saved to {sf.util.green(data_dir)}")
 
     combined_metrics = {
         'auc': metric_args.auc,
