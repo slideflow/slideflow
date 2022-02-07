@@ -418,7 +418,9 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
         if self.epoch_count in [e for e in self.hp.epochs]:
             model_name = self.parent.name if self.parent.name else 'trained_model'
             model_path = os.path.join(self.parent.outdir, f'{model_name}_epoch{self.epoch_count}')
-            self.model.save(model_path)
+            if self.cb_args.save_model:
+                self.model.save(model_path)
+                log.info(f'Trained model saved to {sf.util.green(model_path)}')
 
             # Try to copy model settings/hyperparameters file into the model folder
             if not exists(join(model_path, 'params.json')):
@@ -432,10 +434,10 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
                                 join(model_path, 'params.json'), )
                     shutil.copy(join(dirname(model_path), 'slide_manifest.csv'),
                                 join(model_path, 'slide_manifest.csv'), )
-                except:
+                except Exception as e:
+                    log.warning(e)
                     log.warning('Unable to copy params.json/slide_manifest.csv files into model folder.')
 
-            log.info(f'Trained model saved to {sf.util.green(model_path)}')
             if self.cb_args.using_validation:
                 self.evaluate_model(logs)
         elif self.early_stop:
@@ -940,8 +942,8 @@ class Trainer:
 
     def train(self, train_dts, val_dts, log_frequency=100, validate_on_batch=0, validation_batch_size=32,
               validation_steps=200, starting_epoch=0, ema_observations=20, ema_smoothing=2, use_tensorboard=True,
-              steps_per_epoch_override=None, save_predictions=False, resume_training=None, pretrain='imagenet',
-              checkpoint=None, multi_gpu=False, fit_to_dataset=False, norm_mean=None, norm_std=None):
+              steps_per_epoch_override=None, save_predictions=False, save_model=True, resume_training=None,
+              pretrain='imagenet', checkpoint=None, multi_gpu=False, fit_to_dataset=False, norm_mean=None, norm_std=None):
 
         """Builds and trains a model from hyperparameters.
 
@@ -960,6 +962,7 @@ class Trainer:
             steps_per_epoch_override (int, optional): Manually set the number of steps per epoch. Defaults to None.
             save_predictions (bool, optional): Save tile, slide, and patient-level predictions at each evaluation.
                 Defaults to False.
+            save_model (bool, optional): Save models when evaluating at specified epochs. Defaults to True.
             resume_training (str, optional): Path to Tensorflow model to continue training. Defaults to None.
             pretrain (str, optional): Either 'imagenet' or path to Tensorflow model from which to load weights.
                 Defaults to 'imagenet'.
@@ -1081,6 +1084,7 @@ class Trainer:
                 validation_data_with_slidenames=val_data_w_slidenames,
                 num_val_tiles=(0 if val_dts is None else val_dts.num_tiles),
                 save_predictions=save_predictions,
+                save_model=save_model,
                 results_log=results_log,
             )
 

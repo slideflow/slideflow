@@ -649,7 +649,9 @@ def _get_average_by_group(prediction_array, prediction_label, unique_groups, til
         save_path = join(data_dir, f"{label}_predictions{label_end}.csv")
         with open(save_path, 'w') as outfile:
             writer = csv.writer(outfile)
-            header = [label] + [f"y_true{i}" for i in range(num_cat)] + [f"{prediction_label}{j}" for j in range(num_cat)] + ['uncertainty']
+            header = [label] + [f"y_true{i}" for i in range(num_cat)] + [f"{prediction_label}{j}" for j in range(num_cat)]
+            if uncertainty is not None:
+                header += ['uncertainty']
             writer.writerow(header)
             for i, group in enumerate(unique_groups):
                 if uncertainty is not None:
@@ -1182,13 +1184,23 @@ def predictions_to_dataframe(y_true, y_pred, tile_to_slides, outcome_names, unce
     # -- Each entry is list of length num_outcomes
     # -- Each nested entry is either non-list (raw prediction, e.g. single linear outcome) or list of length num_categories
 
-    if type(y_true) == list:
+    if isinstance(y_true, list):
         assert len(y_true) == len(y_pred), "Number of outcomes in y_true and y_pred must match"
         assert len(y_true) == len(outcome_names), "Number of provided outcome names must equal number of y_true outcomes"
+    else:
+        assert len(outcome_names) == 1, "If providing only one y_pred, length of outcome_names must be one"
+        y_true = [y_true]
+
+    if not isinstance(y_pred, list):
+        y_pred = [y_pred]
+
+    if uncertainty is not None and not isinstance(uncertainty, list):
+        uncertainty = [uncertainty]
 
     pd_dict = {
         'slide': pd.Series(tile_to_slides, dtype=str)
     }
+
     for oi, outcome in enumerate(outcome_names):
         if y_true is not None:
             if len(y_true[oi].shape) == 1:

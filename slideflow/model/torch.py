@@ -497,7 +497,7 @@ class Trainer:
 
     def train(self, train_dts, val_dts, log_frequency=20, validate_on_batch=0, validation_batch_size=32,
               validation_steps=50, starting_epoch=0, ema_observations=20, ema_smoothing=2, use_tensorboard=True,
-              steps_per_epoch_override=0, save_predictions=False, resume_training=None,
+              steps_per_epoch_override=0, save_predictions=False, save_model=True, resume_training=None,
               pretrain='imagenet', checkpoint=None, multi_gpu=True, seed=0):
 
         """Builds and trains a model from hyperparameters.
@@ -517,6 +517,7 @@ class Trainer:
             steps_per_epoch_override (int, optional): Manually set the number of steps per epoch. Defaults to None.
             save_predictions (bool, optional): Save tile, slide, and patient-level predictions at each evaluation.
                 Defaults to False.
+            save_model (bool, optional): Save models when evaluating at specified epochs. Defaults to True.
             resume_training (str, optional): Not applicable to PyTorch backend. Included as argument for compatibility
                 with Tensorflow backend. Will raise NotImplementedError if supplied.
             pretrain (str, optional): Either 'imagenet' or path to Tensorflow model from which to load weights.
@@ -821,7 +822,7 @@ class Trainer:
 
                 # === Full dataset validation =========================================================================
                 # Save the model
-                if phase == 'train' and epoch in self.hp.epochs:
+                if save_model and phase == 'train' and epoch in self.hp.epochs:
                     model_name = self.name if self.name else 'trained_model'
                     save_path = os.path.join(self.outdir, f'{model_name}_epoch{epoch}')
                     torch.save(self.model.state_dict(), save_path)
