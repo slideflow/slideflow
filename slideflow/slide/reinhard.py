@@ -82,8 +82,10 @@ class Normalizer(object):
         I = ut.standardize_brightness(I)
         I1, I2, I3 = lab_split(I)
         means, stds = get_mean_std(I)
+
         norm1 = ((I1 - means[0]) * (self.target_stds[0] / stds[0])) + self.target_means[0]
         norm2 = ((I2 - means[1]) * (self.target_stds[1] / stds[1])) + self.target_means[1]
         norm3 = ((I3 - means[2]) * (self.target_stds[2] / stds[2])) + self.target_means[2]
+
         merged = merge_back(norm1, norm2, norm3)
         return merged

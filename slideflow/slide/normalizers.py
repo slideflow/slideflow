@@ -82,12 +82,6 @@ class StainNormalizer:
         else:
             return tf.py_function(self.tf_to_rgb, [image], tf.int32), *args
 
-    def pil_to_pil(self, image):
-        '''Non-normalized PIL.Image -> normalized PIL.Image'''
-        cv_image = np.array(image.convert('RGB'))
-        cv_image = self.n.transform(cv_image)
-        return Image.fromarray(cv_image)
-
     def tf_to_rgb(self, image):
         '''Non-normalized tensorflow image array -> normalized RGB numpy array'''
         return self.rgb_to_rgb(np.array(image))

@@ -7,6 +7,7 @@ import torch
 import threading
 import multiprocessing as mp
 import slideflow as sf
+import kornia
 
 from os import listdir
 from tqdm import tqdm
@@ -89,6 +90,7 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
         self.incl_loc = incl_loc
         self.num_tiles = num_tiles
         self.model_type = model_type
+        self.device = kwargs['device']
 
         # Values for random label generation, for GAN
         if labels is not None:
@@ -193,7 +195,8 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
                                 num_replicas=self.num_replicas * num_workers,
                                 rank=self.rank + worker_id,
                                 chunk_size=self.chunk_size,
-                                indices=self.indices)
+                                indices=self.indices,
+                                device=self.device)
 
         try:
             for record in dataloader:
@@ -249,7 +252,7 @@ def serialized_record(slide, image_raw, loc_x=0, loc_y=0):
     }
     return example
 
-def _decode_image(img_string, img_type, standardize=False, normalizer=None, augment=False):
+def _decode_image(img_string, img_type, standardize=False, normalizer=None, augment=False, device=None):
     '''Decodes image. Torch implementation; different than sf.io.tensorflow'''
 
     np_data = torch.from_numpy(np.fromstring(img_string, dtype=np.uint8))# np.frombuffer(s, dtype='int8')
@@ -257,22 +260,52 @@ def _decode_image(img_string, img_type, standardize=False, normalizer=None, augm
     #image = np.array(Image.open(BytesIO(img_string))) # <- Alternative method using PIL decoding
 
     def random_jpeg_compression(img):
-        q = random.randrange(50, 100)
-        img = torchvision.io.encode_jpeg(img.permute(2, 0, 1), quality=q) # WHC => CWH
+        img = torchvision.io.encode_jpeg(img.permute(2, 0, 1), quality=(torch.rand(1)[0]*50 + 50)) # WHC => CWH
         return torchvision.io.decode_image(img).permute(1, 2, 0) # CWH => WHC
 
     if augment is True or (isinstance(augment, str) and 'j' in augment):
-        if np.random.rand() < 0.5:
-            image = random_jpeg_compression(image)
+        image = torch.where(
+            torch.rand(1)[0] < 0.5,
+            random_jpeg_compression(image),
+            image
+        )
     if augment is True or (isinstance(augment, str) and 'r' in augment):
         # Rotate randomly 0, 90, 180, 270 degrees
         image = torch.rot90(image, np.random.choice(range(5)))
     if augment is True or (isinstance(augment, str) and 'x' in augment):
-        if np.random.rand() < 0.5:
-            image = torch.fliplr(image)
+        image = torch.where(
+            torch.rand(1)[0] < 0.5,
+            torch.fliplr(image),
+            image
+        )
     if augment is True or (isinstance(augment, str) and 'y' in augment):
-        if np.random.random() < 0.5:
-            image = torch.flipud(image)
+        image = torch.where(
+            torch.rand(1)[0] < 0.5,
+            torch.flipud(image),
+            image
+        )
+    if augment is True or (isinstance(augment, str) and 'b' in augment):
+        #image = image.to(device)
+        image = image.permute(2, 0, 1) # WHC => CWH
+        image = torch.where(
+            (torch.rand(1)[0] < 0.1),#.to(device),
+            torch.where(
+                (torch.rand(1)[0] < 0.5),#.to(device),
+                torch.where(
+                    (torch.rand(1)[0] < 0.5),#.to(device),
+                    torch.where(
+                        (torch.rand(1)[0] < 0.5),#.to(device),
+                        torchvision.transforms.GaussianBlur(7)(image),
+                        torchvision.transforms.GaussianBlur(5)(image)
+                    ),
+                    torchvision.transforms.GaussianBlur(3)(image)
+                ),
+                torchvision.transforms.GaussianBlur(1)(image),
+            ),
+            image
+        )
+        image = image.permute(1, 2, 0) # CWH => WHC
+        #image = image.cpu()
     if normalizer:
         image = torch.from_numpy(normalizer.rgb_to_rgb(image.numpy()))
     if standardize:
@@ -371,7 +404,7 @@ def get_tfrecord_parser(tfrecord_path, features_to_return=None, decode_images=Tr
     return parser
 
 def interleave(tfrecords, prob_weights=None, incl_loc=False, clip=None, infinite=False, augment=False, standardize=True,
-               normalizer=None, num_threads=4, chunk_size=8, num_replicas=1, rank=0, indices=None):
+               normalizer=None, num_threads=4, chunk_size=8, num_replicas=1, rank=0, indices=None, device=None):
 
     """Returns a generator that interleaves records from a collection of tfrecord files, sampling from tfrecord files
     randomly according to balancing if provided (requires manifest). Assumes TFRecord files are named by slide.
@@ -459,7 +492,8 @@ def interleave(tfrecords, prob_weights=None, incl_loc=False, clip=None, infinite
                                   img_type=img_type,
                                   standardize=standardize,
                                   normalizer=normalizer,
-                                  augment=augment)
+                                  augment=augment,
+                                  device=device)
         return record
 
     # Randomly interleaves datasets according to weights, reading parsed records to a buffer
@@ -541,7 +575,7 @@ def interleave(tfrecords, prob_weights=None, incl_loc=False, clip=None, infinite
 def interleave_dataloader(tfrecords, img_size, batch_size, prob_weights=None, clip=None, onehot=False, num_tiles=None,
                           incl_slidenames=False, incl_loc=False, infinite=False, rank=0, num_replicas=1, labels=None,
                           normalizer=None, chunk_size=16, preload_factor=1, augment=False, standardize=True,
-                          num_workers=2, persistent_workers=True, pin_memory=True, indices=None, drop_last=False):
+                          num_workers=2, persistent_workers=True, pin_memory=True, indices=None, drop_last=False, device=None):
 
     """Prepares a PyTorch DataLoader with a new InterleaveIterator instance, interleaving tfrecords and processing
     labels and tiles, with support for scaling the dataset across GPUs and dataset workers.

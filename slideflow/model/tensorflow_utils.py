@@ -9,6 +9,23 @@ def get_layer_index_by_name(model, name):
         if layer.name == name:
             return i
 
+def batch_loss_crossentropy(features, diff=0.5, eps=1e-5):
+    split = tf.split(features, 8, axis=0)
+
+    def tstat(first, rest):
+        first_mean = tf.math.reduce_mean(first, axis=0)
+        rest_mean = tf.math.reduce_mean(rest, axis=0)
+
+        # Variance
+        A = tf.math.reduce_sum(tf.math.square(first - first_mean), axis=0) / (first_mean.shape[0] - 1)
+        B = tf.math.reduce_sum(tf.math.square(rest - rest_mean), axis=0) / (rest_mean.shape[0] - 1)
+
+        se = tf.math.sqrt((A / first_mean.shape[0]) + (B / rest_mean.shape[0])) # Not performing square root of SE for computational reasons
+        t_square = tf.math.square((first_mean - rest_mean - diff) / se)
+        return tf.math.reduce_mean(t_square)
+
+    return tf.math.reduce_mean(tf.stack([tstat(split[n], tf.concat([sp for i, sp in enumerate(split) if i != n], axis=0)) for n in range(len(split))])) * eps
+
 def negative_log_likelihood(y_true, y_pred):
     '''Implemented by Fred Howard, adapted from: https://github.com/havakv/pycox/blob/master/pycox/models/loss.py'''
 
