@@ -1394,11 +1394,11 @@ class WSI(_BaseLoader):
         def generator():
             nonlocal pool
             if pool is None:
-                log.debug("Building tile extraction generator with a shared pool")
+                log.debug(f"Building tile extraction generator with {num_threads} thread workers")
                 pool = mp.Pool(processes=num_threads)
                 should_close = True
             else:
-                log.debug(f"Building tile extraction generator with {num_threads} thread workers")
+                log.debug("Building tile extraction generator with a shared pool")
                 should_close = False
             if show_progress:
                 pbar = tqdm(total=self.estimated_num_tiles, ncols=80)

@@ -469,7 +469,7 @@ class Dataset:
             randomize_origin (bool, optional): Randomize pixel starting position during extraction. Defaults to False.
             buffer (str, optional): Slides will be copied to this directory before extraction. Defaults to None.
                 Using an SSD or ramdisk buffer vastly improves tile extraction speed.
-            num_workers (int, optional): Extract tiles from this many slides simultaneously. Defaults to 4.
+            num_workers (int, optional): Extract tiles from this many slides simultaneously. Defaults to 1.
             q_size (int, optional): Size of queue when using a buffer. Defaults to 4.
             qc (str, optional): 'otsu', 'blur', 'both', or None. Perform blur detection quality control - discarding
                 tiles with detected out-of-focus regions or artifact - and/or otsu's method. Increases tile extraction
