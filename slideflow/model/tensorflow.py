@@ -802,16 +802,16 @@ class Trainer:
     def load(self, model):
         self.model = tf.keras.models.load_model(model)
 
-    def predict(self, dataset, batch_size=None, norm_mean=None, norm_std=None, save_predictions=True):
-        """Perform inference on a model, saving predictions.
+    def predict(self, dataset, batch_size=None, norm_mean=None, norm_std=None, format='csv'):
+        """Perform inference on a model, saving tile-level predictions.
 
         Args:
             dataset (:class:`slideflow.dataset.Dataset`): Dataset containing TFRecords to evaluate.
-            checkpoint (list, optional): Path to cp.cpkt checkpoint to load. Defaults to None.
             batch_size (int, optional): Evaluation batch size. Defaults to the same as training (per self.hp)
+            format (str, optional): Format in which to save predictions. Either 'csv' or 'feather'. Defaults to 'csv'.
 
         Returns:
-            None.
+            pandas.DataFrame of tile-level predictions.
         """
 
         # Fit normalizer
@@ -841,15 +841,14 @@ class Trainer:
                                                                       num_tiles=dataset.num_tiles)
         df = sf.stats.predictions_to_dataframe(None, y_pred, tile_to_slides, self.outcome_names, uncertainty=y_std)
 
-        if save_predictions in (True, 'CSV', 'csv'):
+        if format.lower() == 'csv':
             save_path = os.path.join(self.outdir, "tile_predictions.csv")
             df.to_csv(save_path)
-        elif save_predictions == 'feather':
+        elif format.lower() == 'feather':
             import pyarrow.feather as feather
             save_path = os.path.join(self.outdir, 'tile_predictions.feather')
             feather.write_feather(df, save_path)
-        if save_predictions:
-            log.debug(f"Predictions saved to {sf.util.green(save_path)}")
+        log.debug(f"Predictions saved to {sf.util.green(save_path)}")
 
         return df
 

@@ -1630,7 +1630,7 @@ class Project:
 
     def predict(self, model, outcome_label_headers, dataset=None, filters=None, checkpoint=None, model_config=None,
                 eval_k_fold=None, splits="splits.json", max_tiles=0, min_tiles=0, batch_size=64, input_header=None,
-                save_predictions=False, **kwargs):
+                format='csv', **kwargs):
 
         """Evaluates a saved model on a given set of tfrecords.
 
@@ -1654,12 +1654,10 @@ class Project:
             min_tiles (int, optional): Minimum number of tiles a slide must have to be included in evaluation.
                 Defaults to 0. Recommend considering a minimum of at least 10 tiles per slide.
             input_header (str, optional): Annotation column header to use as additional input. Defaults to None.
-            save_predictions (bool or str, optional): Either True, False, or any combination of 'tile', 'patient',
-                or 'slide', either as string or list of strings. Save tile-level, patient-level, and/or
-                slide-level predictions. If True, will save all.
+            format (str, optional): Format in which to save predictions. Either 'csv' or 'feather'. Defaults to 'csv'.
 
         Returns:
-            pandas dataframe of all tile-level predictions.
+            pandas.DataFrame of tile-level predictions.
         """
 
         trainer, eval_dts = self._prepare_trainer_for_eval(model=model,
@@ -1677,7 +1675,7 @@ class Project:
         # Perform evaluation
         log.info(f'Predicting results for {sf.util.bold(len(eval_dts.tfrecords()))} tfrecords')
 
-        return trainer.predict(dataset=eval_dts, batch_size=batch_size, save_predictions=save_predictions, **kwargs)
+        return trainer.predict(dataset=eval_dts, batch_size=batch_size, format=format, **kwargs)
 
     def predict_wsi(self, model, outdir, dataset=None, filters=None, filter_blank=None, stride_div=1,
                     enable_downsample=True, roi_method='inside', skip_missing_roi=False, source=None,

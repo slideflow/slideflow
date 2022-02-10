@@ -68,6 +68,22 @@ def random_annotations(slides_path):
 
 # ---------------------------------------
 
+def _prediction_tester(project, verbosity, **kwargs):
+    logging.getLogger("slideflow").setLevel(verbosity)
+    project.predict(**kwargs)
+
+def prediction_tester(project, **kwargs):
+    """Evaluation testing must happen in an isolated thread in order to free GPU memory
+    after evaluation has completed, due to the need for sequential testing of multiple models."""
+
+    ctx = multiprocessing.get_context('spawn')
+    verbosity = logging.getLogger('slideflow').level
+    process = ctx.Process(target=_prediction_tester, args=(project, verbosity), kwargs=kwargs)
+    process.start()
+    process.join()
+
+# ---------------------------------------
+
 def _evaluation_tester(project, verbosity, **kwargs):
     logging.getLogger("slideflow").setLevel(verbosity)
     project.evaluate(**kwargs)
@@ -543,6 +559,15 @@ class TestSuite:
         else:
             print("Skipping CPH model testing [current backend is Pytorch]")
 
+    def test_prediction(self, **predict_kwargs):
+        perf_model = self._get_model('category1-manual_hp-TEST-HPSweep0-kfold1')
+
+        with TaskWrapper("Testing prediction from single categorical outcome model...") as test:
+            prediction_tester(project=self.project,
+                              model=perf_model,
+                              outcome_label_headers='category1',
+                              **predict_kwargs)
+
     def test_evaluation(self, **eval_kwargs):
         multi_cat_model = self._get_model('category1-category2-HP0-kfold1')
         multi_lin_model = self._get_model('linear1-linear2-HP0-kfold1')
@@ -649,6 +674,7 @@ class TestSuite:
         if train:               self.test_training()
         if normalizer:          self.test_realtime_normalizer()
         if evaluate:            self.test_evaluation()
+        if predict:             self.test_predict()
         if heatmap:             self.test_heatmap()
         if activations:         self.test_activations_and_mosaic()
         if predict_wsi:         self.test_predict_wsi()
