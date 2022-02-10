@@ -1144,7 +1144,8 @@ class Project:
 
         # Get TFrecords, and prepare a list for focus, if requested
         tfrecords_list = dataset.tfrecords()
-        log.info(f'Generating mosaic from {len(tfrecords_list)} slides')
+        log.info(f'Loaded activations from {len(df.slides)} slides')
+        log.info(f'Generating mosaic from {len([t for t in tfrecords_list if sf.util.path_to_name(t) in df.slides])} slides')
 
         # If a header category is supplied and we are not showing predictions,
         # then assign slide labels from annotations

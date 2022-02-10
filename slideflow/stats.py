@@ -143,7 +143,7 @@ class SlideMap:
             prediction_filter = range(self.df.num_logits)
 
         if len(self.x) and len(self.y) and not recalculate:
-            log.debug("UMAP loaded from cache, will not recalculate")
+            log.info("UMAP loaded from cache, will not recalculate")
 
             # First, filter out slides not included in provided activations
             filtered_idx = list(filter(lambda x: x['slide'] in self.df.slides, range(len(self.point_meta))))
@@ -188,6 +188,10 @@ class SlideMap:
             self.y = np.array([c[1] for c in coordinates])
         else:
             self.y = np.array([0 for i in range(len(self.x))])
+
+        assert self.x.shape[0] == self.y.shape[0]
+        assert self.x.shape[0] == len(self.point_meta)
+
         self.save_cache()
 
     def _calculate_from_slides(self, method='centroid', prediction_filter=None, recalculate=False, **umap_kwargs):
@@ -352,9 +356,9 @@ class SlideMap:
             # Restore backed up full coordinates
             self.x, self.y, self.point_meta = self.full_x, self.full_y, self.full_meta
 
-        self.point_meta = np.array([pm for pm in self.point_meta if pm['slide'] in slides])
         self.x = np.array([self.x[xi] for xi in range(len(self.x)) if self.point_meta[xi]['slide'] in slides])
         self.y = np.array([self.y[yi] for yi in range(len(self.y)) if self.point_meta[yi]['slide'] in slides])
+        self.point_meta = np.array([pm for pm in self.point_meta if pm['slide'] in slides])
 
     def show_neighbors(self, neighbor_df, slide):
         """Filters map to only show neighbors with a corresponding neighbor DatasetFeatures and neighbor slide.
