@@ -56,7 +56,7 @@ class StainNormalizer:
             dataset = args[0]
             dts = dataset.tensorflow(None, None, standardize=False, infinite=False)
             m, s = [], []
-            pb = tqdm(desc='Fitting normalizer...', total=dataset.num_tiles)
+            pb = tqdm(desc='Fitting normalizer...', ncols=80, total=dataset.num_tiles)
             for i, slide in dts:
                 _m, _s = self.n.fit(i.numpy())
                 m += [tf.squeeze(_m)]

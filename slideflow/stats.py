@@ -1390,7 +1390,7 @@ def predict_and_eval_from_torch(model, dataset, model_type, pred_args, evaluate=
     # Get predictions and performance metrics
     model.eval()
     device = torch.device('cuda:0')
-    pb = tqdm(desc='Evaluating...', total=dataset.num_tiles, ncols=100, unit='img', leave=False)
+    pb = tqdm(desc='Evaluating...', total=dataset.num_tiles, ncols=80, unit='img', leave=False)
     for img, yt, slide in dataset:
         img = img.to(device, non_blocking=True)
 
@@ -1483,7 +1483,7 @@ def predict_and_eval_from_tensorflow(model, dataset, model_type, pred_args, num_
     is_cat = (model_type == 'categorical')
     if not is_cat: acc = None
 
-    pb = tqdm(total=num_tiles, desc='Evaluating...', leave=False)
+    pb = tqdm(total=num_tiles, desc='Evaluating...', ncols=80, leave=False)
     for i, (img, yt, slide) in enumerate(dataset):
 
         #TODO: support not needing to supply yt

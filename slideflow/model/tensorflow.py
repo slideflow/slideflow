@@ -422,21 +422,21 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
                 self.model.save(model_path)
                 log.info(f'Trained model saved to {sf.util.green(model_path)}')
 
-            # Try to copy model settings/hyperparameters file into the model folder
-            if not exists(join(model_path, 'params.json')):
-                try:
-                    config_path = join(dirname(model_path), 'params.json')
-                    if self.neptune_run:
-                        config = sf.util.load_json(config_path)
-                        config['neptune_id'] = self.neptune_run['sys/id'].fetch()
-                        sf.util.write_json(config, config_path)
-                    shutil.copy(config_path,
-                                join(model_path, 'params.json'), )
-                    shutil.copy(join(dirname(model_path), 'slide_manifest.csv'),
-                                join(model_path, 'slide_manifest.csv'), )
-                except Exception as e:
-                    log.warning(e)
-                    log.warning('Unable to copy params.json/slide_manifest.csv files into model folder.')
+                # Try to copy model settings/hyperparameters file into the model folder
+                if not exists(join(model_path, 'params.json')):
+                    try:
+                        config_path = join(dirname(model_path), 'params.json')
+                        if self.neptune_run:
+                            config = sf.util.load_json(config_path)
+                            config['neptune_id'] = self.neptune_run['sys/id'].fetch()
+                            sf.util.write_json(config, config_path)
+                        shutil.copy(config_path,
+                                    join(model_path, 'params.json'), )
+                        shutil.copy(join(dirname(model_path), 'slide_manifest.csv'),
+                                    join(model_path, 'slide_manifest.csv'), )
+                    except Exception as e:
+                        log.warning(e)
+                        log.warning('Unable to copy params.json/slide_manifest.csv files into model folder.')
 
             if self.cb_args.using_validation:
                 self.evaluate_model(logs)
