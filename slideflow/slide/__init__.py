@@ -733,7 +733,12 @@ class _BaseLoader:
             if filetype.lower() == 'jpg':
                 self.slide = _JPGslideToVIPS(path)
             else:
-                self.slide = _VIPSWrapper(path)
+                try:
+                    self.slide = _VIPSWrapper(path)
+                except vips.error.Error as e:
+                    log.error(f"Error loading slide {self.shortname}: {e}")
+                    self.load_error = True
+                    return
         else:
             log.error(f"Unsupported file type '{filetype}' for slide {self.name}.")
             self.load_error = True
@@ -824,7 +829,12 @@ class _BaseLoader:
         # Blur QC must be performed at a set microns-per-pixel rather than downsample level, as blur detection is
         # much for sensitive to effective magnification than  Otsu's thresholding
         if method in ('blur', 'both'):
-            thumb = np.array(self.thumb(mpp=blur_mpp))
+            thumb = self.thumb(mpp=blur_mpp)
+            if thumb is None:
+                log.error(f"Error generating thumbnail for slide {self.shortname}, unable to perform QC")
+                self.load_error = True
+                return None
+            thumb = np.array(thumb)
             if thumb.shape[-1] == 4:
                 thumb = thumb[:,:,:3]
             gray = rgb2gray(thumb)
@@ -837,7 +847,12 @@ class _BaseLoader:
         # Otsu's thresholding can be done on the lowest downsample level
         if method in ('otsu', 'both'):
             otsu_thumb = vips.Image.new_from_file(self.path, fail=True, access=vips.enums.Access.RANDOM, level=self.slide.level_count-1)
-            otsu_thumb = vips2numpy(otsu_thumb)
+            try:
+                otsu_thumb = vips2numpy(otsu_thumb)
+            except vips.error.Error:
+                log.error(f"Error generating thumbnail for slide {self.shortname}, unable to perform QC")
+                self.load_error = True
+                return None
             if otsu_thumb.shape[-1] == 4:
                 otsu_thumb = otsu_thumb[:,:,:3]
             hsv_img = cv2.cvtColor(otsu_thumb, cv2.COLOR_RGB2HSV)
