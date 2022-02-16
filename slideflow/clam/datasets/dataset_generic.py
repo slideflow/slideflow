@@ -71,7 +71,7 @@ class Generic_WSI_Classification_Dataset(Dataset):
 			label_col = 'label'
 		self.label_col = label_col
 
-		slide_data = pd.read_csv(csv_path)
+		slide_data = pd.read_csv(csv_path, dtype={'slide': str})
 		slide_data = self.filter_df(slide_data, filter_dict)
 		slide_data = self.df_prep(slide_data, self.label_dict, ignore, self.label_col)
 
@@ -253,7 +253,7 @@ class Generic_WSI_Classification_Dataset(Dataset):
 
 		else:
 			assert csv_path
-			all_splits = pd.read_csv(csv_path)
+			all_splits = pd.read_csv(csv_path, dtype=str)
 			train_split = self.get_split_from_df(all_splits, 'train')
 			val_split = self.get_split_from_df(all_splits, 'val')
 			test_split = self.get_split_from_df(all_splits, 'test')
@@ -345,7 +345,7 @@ class Generic_MIL_Dataset(Generic_WSI_Classification_Dataset):
 
 		if not self.use_h5:
 			if self.data_dir:
-				full_path = os.path.join(data_dir, '{}.pt'.format(slide_id))
+				full_path = os.path.join(data_dir, f'{slide_id}.pt')
 				features = torch.load(full_path)
 				if self.lasthalf:
 					features = torch.split(features, 1024, dim = 1)[1]
@@ -355,7 +355,7 @@ class Generic_MIL_Dataset(Generic_WSI_Classification_Dataset):
 				return slide_id, label
 
 		else:
-			full_path = os.path.join(data_dir,'h5_files','{}.h5'.format(slide_id))
+			full_path = os.path.join(data_dir,'h5_files', f'{slide_id}.h5')
 			with h5py.File(full_path,'r') as hdf5_file:
 				features = hdf5_file['features'][:]
 				coords = hdf5_file['coords'][:]
