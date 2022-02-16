@@ -86,6 +86,7 @@ class ModelParams(_base._ModelParams):
             'huber': tf.keras.losses.huber,
             'categorical_crossentropy': tf.keras.losses.categorical_crossentropy,
             'sparse_categorical_crossentropy': tf.keras.losses.sparse_categorical_crossentropy,
+            'batch_loss_crossentropy': batch_loss_crossentropy,
             'binary_crossentropy': tf.keras.losses.binary_crossentropy,
             'kullback_leibler_divergence': tf.keras.losses.kullback_leibler_divergence,
             'poisson': tf.keras.losses.poisson,
@@ -98,17 +99,19 @@ class ModelParams(_base._ModelParams):
 
     def _add_hidden_layers(self, model, regularizer):
         log.debug("Using Batch normalization")
+        last_linear = None
         for i in range(self.hidden_layers):
             model = tf.keras.layers.Dense(self.hidden_layer_width,
                                           name=f'hidden_{i}',
                                           activation='relu',
                                           kernel_regularizer=regularizer)(model)
             model = tf.keras.layers.BatchNormalization()(model)
+            last_linear = model
             if self.uq:
                 model = StaticDropout(self.dropout)(model)
             elif self.dropout:
                 model = tf.keras.layers.Dropout(self.dropout)(model)
-        return model
+        return model, last_linear
 
     def _get_dense_regularizer(self):
         if self.l2_dense and not self.l1_dense:
@@ -240,7 +243,7 @@ class ModelParams(_base._ModelParams):
 
         # Add hidden layers
         regularizer = self._get_dense_regularizer()
-        merged_model = self._add_hidden_layers(merged_model, regularizer)
+        merged_model, last_linear = self._add_hidden_layers(merged_model, regularizer)
 
         # Multi-categorical outcomes
         if isinstance(num_classes, dict):
@@ -259,6 +262,7 @@ class ModelParams(_base._ModelParams):
         # Assemble final model
         log.debug(f'Using {activation} activation')
         model = tf.keras.Model(inputs=model_inputs, outputs=outputs)
+        model.add_loss(batch_loss_crossentropy(last_linear))
 
         if checkpoint:
             log.info(f'Loading checkpoint weights from {sf.util.green(checkpoint)}')
@@ -1038,7 +1042,7 @@ class Trainer:
                 with tf.name_scope('input'):
                     v_kwargs = self._interleave_kwargs(batch_size=validation_batch_size, infinite=False, augment=False)
                     val_data = val_dts.tensorflow(**v_kwargs)
-                    val_data_w_slidenames = val_dts.tensorflow(incl_slidenames=True, **v_kwargs)
+                    val_data_w_slidenames = val_dts.tensorflow(incl_slidenames=True, drop_last=True, **v_kwargs)
 
                 val_log_msg = '' if not validate_on_batch else f'every {str(validate_on_batch)} steps and '
                 log.debug(f'Validation during training: {val_log_msg}at epoch end')

@@ -23,7 +23,7 @@ from torch.utils.tensorboard import SummaryWriter
 class LinearBlock(torch.nn.Module):
     '''Block module that includes a linear layer -> ReLU -> BatchNorm'''
 
-    def __init__(self, in_ftrs, out_ftrs):
+    def __init__(self, in_ftrs, out_ftrs, dropout=None):
         super().__init__()
         self.in_ftrs = in_ftrs
         self.out_ftrs = out_ftrs
@@ -31,17 +31,23 @@ class LinearBlock(torch.nn.Module):
         self.linear = torch.nn.Linear(in_ftrs, out_ftrs)
         self.relu = torch.nn.ReLU(inplace=True)
         self.bn = torch.nn.BatchNorm1d(out_ftrs)
+        if dropout:
+            self.dropout = torch.nn.Dropout(dropout)
+        else:
+            self.dropout = None
 
     def forward(self, x):
         x = self.linear(x)
         x = self.relu(x)
         x = self.bn(x)
+        if self.dropout is not None:
+            x = self.dropout(x)
         return x
 
 class ModelWrapper(torch.nn.Module):
     '''Wrapper for PyTorch modules to support multiple outcomes, clinical inputs, and additional hidden layers.'''
 
-    def __init__(self, model, n_classes, num_slide_features=0, hidden_layers=None, drop_images=False):
+    def __init__(self, model, n_classes, num_slide_features=0, hidden_layers=None, drop_images=False, dropout=None):
         super().__init__()
         self.model = model
         self.n_classes = len(n_classes)
@@ -51,7 +57,7 @@ class ModelWrapper(torch.nn.Module):
 
         if not drop_images:
             # Get the last linear layer prior to the logits layer
-            if model.__class__.__name__ == 'Xception':
+            if model.__class__.__name__ in ('Xception', 'NASNetALarge'):
                 num_ftrs = self.model.last_linear.in_features
                 self.model.last_linear = torch.nn.Identity()
             elif model.__class__.__name__ == 'VGG':
@@ -64,7 +70,7 @@ class ModelWrapper(torch.nn.Module):
             elif hasattr(self.model, 'out_features'):
                 num_ftrs = self.model.out_features
             else:
-                raise _base.ModelError("Unable to find last linear layer")
+                raise _base.ModelError(f"Unable to find last linear layer for model class {model.__class__.__name__}")
         else:
             num_ftrs = 0
 
@@ -75,7 +81,7 @@ class ModelWrapper(torch.nn.Module):
         if hidden_layers:
             hl_ftrs = [num_ftrs] + hidden_layers
             for i in range(len(hidden_layers)):
-                setattr(self, f'h{i}', LinearBlock(hl_ftrs[i], hl_ftrs[i+1]))
+                setattr(self, f'h{i}', LinearBlock(hl_ftrs[i], hl_ftrs[i+1], dropout=dropout))
             num_ftrs = hidden_layers[-1]
 
         # Add the outcome/logits layers for each outcome, if multiple outcomes
@@ -119,7 +125,7 @@ class ModelWrapper(torch.nn.Module):
         else:
             out = self.fc0(x)
 
-        return out
+        return out, x
 
 class ModelParams(_base._ModelParams):
     """Build a set of hyperparameters."""
@@ -154,7 +160,8 @@ class ModelParams(_base._ModelParams):
             'mobilenet_v3_large': torchvision.models.mobilenet_v3_large,
             'wide_resnet50_2': torchvision.models.wide_resnet50_2,
             'mnasnet': torchvision.models.mnasnet1_0,
-            'xception': pretrainedmodels.xception
+            'xception': pretrainedmodels.xception,
+            'nasnet_large': pretrainedmodels.nasnetalarge
         }
         self.LinearLossDict = {
             'L1': torch.nn.L1Loss,
@@ -208,7 +215,7 @@ class ModelParams(_base._ModelParams):
             num_classes = {'out-0': num_classes}
 
         # Build base model
-        if self.model in ('xception',):
+        if self.model in ('xception', 'nasnet_large'):
             _model = self.ModelDict[self.model](num_classes=1000, pretrained=pretrain)
         else:
             model_fn = self.ModelDict[self.model]
@@ -219,10 +226,8 @@ class ModelParams(_base._ModelParams):
             _model = model_fn(pretrained=pretrain, **model_kwargs)
 
         # Add final layers to models
-        hidden_layers = [self.hidden_layer_width for h in range(self.hidden_layers)]
-        _model = ModelWrapper(_model, num_classes.values(), num_slide_features, hidden_layers, self.drop_images)
-
-        return _model
+        hidden_layers = [self.hidden_layer_width for _ in range(self.hidden_layers)]
+        return ModelWrapper(_model, num_classes.values(), num_slide_features, hidden_layers, self.drop_images, dropout=self.dropout)
 
     def model_type(self):
         if self.loss == 'NLL':
@@ -517,6 +522,23 @@ class Trainer:
             labels = labels.to(device, non_blocking=True)
         return labels
 
+    def batch_loss(self, features, diff=0.5):
+        split = torch.split(features, 8)
+
+        def tstat(first, rest):
+            first_mean = torch.mean(first, axis=0)
+            rest_mean = torch.mean(rest, axis=0)
+
+            # Variance
+            A = torch.sum(torch.square(first - first_mean), dim=0) / (first_mean.shape[0] - 1)
+            B = torch.sum(torch.square(rest - rest_mean), dim=0) / (rest_mean.shape[0] - 1)
+
+            se = torch.sqrt((A / first_mean.shape[0]) + (B / rest_mean.shape[0])) # Not performing square root of SE for computational reasons
+            t_square = torch.square((first_mean - rest_mean - diff) / se)
+            return torch.sum(t_square) / features.shape[1]
+
+        return torch.sum(torch.stack([tstat(split[n], torch.cat([sp for i, sp in enumerate(split) if i != n], axis=0)) for n in range(len(split))])) / len(split)
+
     def calculate_loss(self, outputs, labels, loss_fn):
         '''Calculates loss in a manner compatible with multiple outcomes.'''
 
@@ -674,7 +696,8 @@ class Trainer:
             pin_memory=True,
             num_workers=4,
             onehot=False,
-            incl_slidenames=True
+            incl_slidenames=True,
+            device=device
         )
 
         dataloaders = {
@@ -694,9 +717,16 @@ class Trainer:
             mid_train_val_dts = None
             log.debug('Validation during training: None')
 
-        # Model parameters and loss
+        # Model parameters and optimizer
         params_to_update = self.model.parameters()
         optimizer = self.hp.get_opt(params_to_update)
+        if self.hp.learning_rate_decay:
+            scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=self.hp.learning_rate_decay)
+            log.debug("Using exponentially decaying learning rate")
+        else:
+            scheduler = None
+
+        # Loss
         loss_fn = self.hp.get_loss()
         if self.mixed_precision:
             scaler = torch.cuda.amp.GradScaler()
@@ -736,8 +766,10 @@ class Trainer:
                                     inp = (images, torch.tensor([self.slide_input[s] for s in slides]).to(device))
                                 else:
                                     inp = (images,)
-                                outputs = self.model(*inp)
-                                loss = self.calculate_loss(outputs, labels, loss_fn)
+                                outputs, features = self.model(*inp)
+                                batch_loss = self.batch_loss(features) * 0.0003
+                                if step % 200 == 0: log.info(f"Batch loss (added): {batch_loss}")
+                                loss = self.calculate_loss(outputs, labels, loss_fn) + batch_loss
 
                             # Update weights
                             if self.mixed_precision:
@@ -747,6 +779,11 @@ class Trainer:
                             else:
                                 loss.backward()
                                 optimizer.step()
+
+                            # Update learning rate if using a scheduler
+                            if scheduler and (global_step+1) % self.hp.learning_rate_decay_steps == 0:
+                                log.debug("Stepping learning rate decay")
+                                scheduler.step()
 
                         # Record accuracy and loss
                         num_records += images.size(0)
@@ -791,7 +828,7 @@ class Trainer:
                                             inp = (val_img, torch.tensor([self.slide_input[s] for s in slides]).to(device))
                                         else:
                                             inp = (val_img,)
-                                        val_outputs = inference_model(*inp)
+                                        val_outputs, _ = inference_model(*inp)
                                         val_label = self.labels_to_device(val_label, device)
                                         val_loss = self.calculate_loss(val_outputs, val_label, loss_fn)
 

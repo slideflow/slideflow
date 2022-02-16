@@ -137,10 +137,6 @@ class DatasetFeatures:
             layers (str): Model layer(s) from which to calculate activations. Defaults to 'postconv'.
             batch_size (int): Batch size to use during activations calculations. Defaults to 32.
             include_logits (bool): Calculate and store logits. Defaults to True.
-            normalizer (str): Normalization strategy to use on image tiles. Defaults to None.
-            normalizer_source (str): Path to normalizer source image. Defaults to None.
-                If None but using a normalizer, will use an internal tile for normalization.
-                Internal default tile can be found at slideflow.slide.norm_tile.jpg
         """
 
         self.activations = defaultdict(list)

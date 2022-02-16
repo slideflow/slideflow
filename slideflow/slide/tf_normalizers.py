@@ -88,25 +88,17 @@ class TensorflowStainNormalizer:
     def tf_to_rgb(self, image):
         return self.tf_to_tf(image).numpy()
 
-    def pil_to_pil(self, image):
-        '''Non-normalized PIL.Image -> normalized PIL.Image'''
-        tf_image = self.rgb_to_rgb(np.array(image.convert('RGB')))
-        return Image.fromarray(tf_image)
-
     def rgb_to_rgb(self, image):
         '''Non-normalized RGB numpy array -> normalized RGB numpy array'''
-        cv_image = self.n.transform(tf.tensor(image), self.target_means, self.target_stds)
-        return cv_image.numpy()
+        return self.n.transform(tf.tensor(image), self.target_means, self.target_stds).numpy()
 
     def jpeg_to_rgb(self, jpeg_string):
         '''Non-normalized compressed JPG string data -> normalized RGB numpy array'''
-        tf_image = tf.image.decode_jpeg(jpeg_string)
-        return self.tf_to_rgb(tf_image)
+        return self.tf_to_rgb(tf.image.decode_jpeg(jpeg_string))
 
     def png_to_rgb(self, png_string):
         '''Non-normalized compressed PNG string data -> normalized RGB numpy array'''
-        tf_image = tf.image.decode_png(png_string, channels=3)
-        return self.tf_to_rgb(tf_image)
+        return self.tf_to_rgb(tf.image.decode_png(png_string, channels=3))
 
     def jpeg_to_jpeg(self, jpeg_string, quality=75):
         '''Non-normalized compressed JPG string data -> normalized compressed JPG string data'''

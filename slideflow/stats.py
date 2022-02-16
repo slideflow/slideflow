@@ -1466,7 +1466,9 @@ def eval_from_torch(model, dataset, model_type, pred_args, **kwargs):
                     inp = (img, torch.tensor([pred_args.slide_input[s] for s in slide]).to(device))
                 else:
                     inp = (img,)
+
                 res = model(*inp)
+
                 running_corrects = pred_args.update_corrects(res, yt, running_corrects)
                 running_loss = pred_args.update_loss(res, yt, running_loss, img.size(0))
                 if isinstance(res, list):

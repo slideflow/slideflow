@@ -53,20 +53,21 @@ def merge_back(I1, I2, I3):
     return I#tf.cast(I, tf.uint8)
 
 @tf.function
-def get_mean_std(I, reduce=False):
+def get_mean_std(I1, I2, I3, reduce=False):
     """
     Get mean and standard deviation of each channel
     :param I: uint8
     :return:
     """
-    I1, I2, I3 = lab_split(I)
     m1, sd1 = tf.math.reduce_mean(I1, axis=(1,2)), tf.math.reduce_std(I1, axis=(1,2)) #m1, sd1 = cv.meanStdDev(I1)
     m2, sd2 = tf.math.reduce_mean(I2, axis=(1,2)), tf.math.reduce_std(I2, axis=(1,2)) #m2, sd2 = cv.meanStdDev(I2)
     m3, sd3 = tf.math.reduce_mean(I3, axis=(1,2)), tf.math.reduce_std(I3, axis=(1,2)) #m3, sd3 = cv.meanStdDev(I3)
+
     if reduce:
         m1, sd1 = tf.math.reduce_mean(m1), tf.math.reduce_mean(sd1)
         m2, sd2 = tf.math.reduce_mean(m2), tf.math.reduce_mean(sd2)
         m3, sd3 = tf.math.reduce_mean(m3), tf.math.reduce_mean(sd3)
+
     means = m1, m2, m3
     stds = sd1, sd2, sd3
     return means, stds
@@ -76,7 +77,7 @@ def transform(I, tgt_mean, tgt_std):
 
     #I = standardize_brightness(I)
     I1, I2, I3 = lab_split(I)
-    means, stds = get_mean_std(I)
+    means, stds = get_mean_std(I1, I2, I3)
 
     #norm1 = ((I1 - means[0]) * (tgt_std[0] / stds[0])) + tgt_mean[0]
 
@@ -99,5 +100,5 @@ def transform(I, tgt_mean, tgt_std):
 @tf.function
 def fit(target, reduce=False):
     #target = standardize_brightness(target)
-    means, stds = get_mean_std(target, reduce=reduce)
+    means, stds = get_mean_std(*lab_split(target), reduce=reduce)
     return means, stds

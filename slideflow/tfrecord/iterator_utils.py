@@ -46,7 +46,8 @@ class RandomSampler:
             if self.shard is not None and (global_idx % self.shard[1] != self.shard[0]):
                 continue
             try:
-                yield next(iterators[choice])
+                for _ in range(8):
+                    yield next(iterators[choice])
             except (StopIteration, EmptyIterator):
                 if iterators:
                     del iterators[choice]
