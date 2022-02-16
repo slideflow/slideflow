@@ -509,8 +509,8 @@ class SlideMap:
 
         Args:
             filename (str): Filename to save image of plot.
-            z (list, optional): Values for z axis. Must supply z or node. Defaults to None.
-            node (int, optional): Int, node to plot on 3rd axis. Must supply z or node. Defaults to None.
+            z (list, optional): Values for z axis. Must supply z or feature. Defaults to None.
+            feature (int, optional): Int, feature to plot on 3rd axis. Must supply z or feature. Defaults to None.
             subsample (int, optional): Subsample to only include this many tiles on plot. Defaults to None.
         """
 
@@ -898,7 +898,7 @@ def get_centroid_index(input_array):
     return closest[0]
 
 def calculate_centroid(activations):
-    """Calcultes slide-level centroid indices for a provided slide-node dict.
+    """Calcultes slide-level centroid indices for a provided activations dict.
 
     Args:
         activations (dict): Dict mapping slide names to ndarray of activations across tiles,
