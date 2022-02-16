@@ -328,6 +328,71 @@ class Trainer:
         self.model = self.hp.build_model(labels=self.labels, num_slide_features=self.num_slide_features)
         self.model.load_state_dict(torch.load(model))
 
+    def predict(self, dataset, batch_size=None, norm_mean=None, norm_std=None, format='csv'):
+        """Perform inference on a model, saving predictions.
+
+        Args:
+            dataset (:class:`slideflow.dataset.Dataset`): Dataset containing TFRecords to evaluate.
+            batch_size (int, optional): Evaluation batch size. Defaults to the same as training (per self.hp)
+            format (str, optional): Format in which to save predictions. Either 'csv' or 'feather'. Defaults to 'csv'.
+
+        Returns:
+            pandas.DataFrame of tile-level predictions.
+        """
+
+        # Fit normalizer
+        #if self.normalizer and norm_mean is not None:
+        #    self.normalizer.fit(norm_mean, norm_std)
+        #elif self.normalizer:
+        #    if 'norm_mean' in self.config:
+        #        self.normalizer.fit(np.array(self.config['norm_mean']), np.array(self.config['norm_std']))
+
+        # Load and initialize model
+        if not self.model:
+            raise sf.util.UserError("Model has not been loaded, unable to evaluate.")
+        device = torch.device('cuda:0')
+        self.model.to(device)
+        self.model.eval()
+        log_manifest(None, dataset.tfrecords(), self.labels, join(self.outdir, 'slide_manifest.csv'))
+
+        if not batch_size: batch_size = self.hp.batch_size
+        interleave_args = types.SimpleNamespace(
+            rank=0,
+            num_replicas=1,
+            labels=self.labels,
+            chunk_size=16,
+            normalizer=self.normalizer,
+            pin_memory=True,
+            num_workers=8,
+            onehot=False,
+        )
+        torch_dataset = dataset.torch(infinite=False, batch_size=batch_size, augment=False, incl_slidenames=True, **vars(interleave_args))
+
+        # Generate predictions
+        log.info('Generating predictions...')
+        pred_args = types.SimpleNamespace(
+            uq=bool(self.hp.uq),
+            multi_outcome=(self.num_outcomes > 1),
+            num_slide_features=self.num_slide_features,
+            slide_input=self.slide_input
+        )
+        y_pred, y_std, tile_to_slides = sf.stats.predict_from_dataset(model=self.model,
+                                                                      dataset=torch_dataset,
+                                                                      model_type=self._model_type,
+                                                                      pred_args=pred_args)
+        df = sf.stats.predictions_to_dataframe(None, y_pred, tile_to_slides, self.outcome_names, uncertainty=y_std)
+
+        if format.lower() == 'csv':
+            save_path = os.path.join(self.outdir, "tile_predictions.csv")
+            df.to_csv(save_path)
+        elif format.lower() == 'feather':
+            import pyarrow.feather as feather
+            save_path = os.path.join(self.outdir, 'tile_predictions.feather')
+            feather.write_feather(df, save_path)
+        log.debug(f"Predictions saved to {sf.util.green(save_path)}")
+
+        return df
+
     def evaluate(self, dataset, batch_size=None, histogram=False, save_predictions=False, permutation_importance=False):
 
         """Evaluate model, saving metrics and predictions.
@@ -497,7 +562,7 @@ class Trainer:
 
     def train(self, train_dts, val_dts, log_frequency=20, validate_on_batch=0, validation_batch_size=32,
               validation_steps=50, starting_epoch=0, ema_observations=20, ema_smoothing=2, use_tensorboard=True,
-              steps_per_epoch_override=0, save_predictions=False, resume_training=None,
+              steps_per_epoch_override=0, save_predictions=False, save_model=True, resume_training=None,
               pretrain='imagenet', checkpoint=None, multi_gpu=True, seed=0):
 
         """Builds and trains a model from hyperparameters.
@@ -517,6 +582,7 @@ class Trainer:
             steps_per_epoch_override (int, optional): Manually set the number of steps per epoch. Defaults to None.
             save_predictions (bool, optional): Save tile, slide, and patient-level predictions at each evaluation.
                 Defaults to False.
+            save_model (bool, optional): Save models when evaluating at specified epochs. Defaults to True.
             resume_training (str, optional): Not applicable to PyTorch backend. Included as argument for compatibility
                 with Tensorflow backend. Will raise NotImplementedError if supplied.
             pretrain (str, optional): Either 'imagenet' or path to Tensorflow model from which to load weights.
@@ -821,7 +887,7 @@ class Trainer:
 
                 # === Full dataset validation =========================================================================
                 # Save the model
-                if phase == 'train' and epoch in self.hp.epochs:
+                if save_model and phase == 'train' and epoch in self.hp.epochs:
                     model_name = self.name if self.name else 'trained_model'
                     save_path = os.path.join(self.outdir, f'{model_name}_epoch{epoch}')
                     torch.save(self.model.state_dict(), save_path)

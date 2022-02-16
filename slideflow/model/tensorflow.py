@@ -211,10 +211,10 @@ class ModelParams(_base._ModelParams):
         model_inputs = [tile_image_model.input]
         return tile_image_model, model_inputs
 
-    def _build_categorical_model(self, num_classes, num_slide_features=0, activation='softmax',
+    def _build_categorical_or_linear_model(self, num_classes, num_slide_features=0, activation='softmax',
                                 pretrain='imagenet', checkpoint=None):
 
-        """Assembles categorical model, using pretraining (imagenet) or the base layers of a supplied model.
+        """Assembles categorical or linear model, using pretraining (imagenet) or the base layers of a supplied model.
 
         Args:
             num_classes (int or dict): Either int (single categorical outcome, indicating number of classes) or dict
@@ -357,9 +357,9 @@ class ModelParams(_base._ModelParams):
             num_classes = self._detect_classes_from_labels(labels)
 
         if self.model_type() == 'categorical':
-            return self._build_categorical_model(num_classes, **kwargs, activation='softmax')
+            return self._build_categorical_or_linear_model(num_classes, **kwargs, activation='softmax')
         elif self.model_type() == 'linear':
-            return self._build_categorical_model(num_classes, **kwargs, activation='linear')
+            return self._build_categorical_or_linear_model(num_classes, **kwargs, activation='linear')
         elif self.model_type() == 'cph':
             return self._build_cph_model(num_classes, **kwargs)
         else:
@@ -418,24 +418,26 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
         if self.epoch_count in [e for e in self.hp.epochs]:
             model_name = self.parent.name if self.parent.name else 'trained_model'
             model_path = os.path.join(self.parent.outdir, f'{model_name}_epoch{self.epoch_count}')
-            self.model.save(model_path)
+            if self.cb_args.save_model:
+                self.model.save(model_path)
+                log.info(f'Trained model saved to {sf.util.green(model_path)}')
 
-            # Try to copy model settings/hyperparameters file into the model folder
-            if not exists(join(model_path, 'params.json')):
-                try:
-                    config_path = join(dirname(model_path), 'params.json')
-                    if self.neptune_run:
-                        config = sf.util.load_json(config_path)
-                        config['neptune_id'] = self.neptune_run['sys/id'].fetch()
-                        sf.util.write_json(config, config_path)
-                    shutil.copy(config_path,
-                                join(model_path, 'params.json'), )
-                    shutil.copy(join(dirname(model_path), 'slide_manifest.csv'),
-                                join(model_path, 'slide_manifest.csv'), )
-                except:
-                    log.warning('Unable to copy params.json/slide_manifest.csv files into model folder.')
+                # Try to copy model settings/hyperparameters file into the model folder
+                if not exists(join(model_path, 'params.json')):
+                    try:
+                        config_path = join(dirname(model_path), 'params.json')
+                        if self.neptune_run:
+                            config = sf.util.load_json(config_path)
+                            config['neptune_id'] = self.neptune_run['sys/id'].fetch()
+                            sf.util.write_json(config, config_path)
+                        shutil.copy(config_path,
+                                    join(model_path, 'params.json'), )
+                        shutil.copy(join(dirname(model_path), 'slide_manifest.csv'),
+                                    join(model_path, 'slide_manifest.csv'), )
+                    except Exception as e:
+                        log.warning(e)
+                        log.warning('Unable to copy params.json/slide_manifest.csv files into model folder.')
 
-            log.info(f'Trained model saved to {sf.util.green(model_path)}')
             if self.cb_args.using_validation:
                 self.evaluate_model(logs)
         elif self.early_stop:
@@ -800,6 +802,56 @@ class Trainer:
     def load(self, model):
         self.model = tf.keras.models.load_model(model)
 
+    def predict(self, dataset, batch_size=None, norm_mean=None, norm_std=None, format='csv'):
+        """Perform inference on a model, saving tile-level predictions.
+
+        Args:
+            dataset (:class:`slideflow.dataset.Dataset`): Dataset containing TFRecords to evaluate.
+            batch_size (int, optional): Evaluation batch size. Defaults to the same as training (per self.hp)
+            format (str, optional): Format in which to save predictions. Either 'csv' or 'feather'. Defaults to 'csv'.
+
+        Returns:
+            pandas.DataFrame of tile-level predictions.
+        """
+
+        # Fit normalizer
+        if self.normalizer and norm_mean is not None:
+            self.normalizer.fit(norm_mean, norm_std)
+        elif self.normalizer:
+            if 'norm_mean' in self.config:
+                self.normalizer.fit(np.array(self.config['norm_mean']), np.array(self.config['norm_std']))
+
+        # Load and initialize model
+        if not self.model:
+            raise sf.util.UserError("Model has not been loaded, unable to evaluate.")
+        log_manifest(None, dataset.tfrecords(), self.labels, join(self.outdir, 'slide_manifest.csv'))
+
+        if not batch_size: batch_size = self.hp.batch_size
+        with tf.name_scope('input'):
+            interleave_kwargs = self._interleave_kwargs(batch_size=batch_size, infinite=False, augment=False)
+            tf_dts_w_slidenames = dataset.tensorflow(incl_slidenames=True, **interleave_kwargs)
+
+        # Generate predictions
+        log.info('Generating predictions...')
+        pred_args = types.SimpleNamespace(uq=bool(self.hp.uq))
+        y_pred, y_std, tile_to_slides = sf.stats.predict_from_dataset(model=self.model,
+                                                                      dataset=tf_dts_w_slidenames,
+                                                                      model_type=self._model_type,
+                                                                      pred_args=pred_args,
+                                                                      num_tiles=dataset.num_tiles)
+        df = sf.stats.predictions_to_dataframe(None, y_pred, tile_to_slides, self.outcome_names, uncertainty=y_std)
+
+        if format.lower() == 'csv':
+            save_path = os.path.join(self.outdir, "tile_predictions.csv")
+            df.to_csv(save_path)
+        elif format.lower() == 'feather':
+            import pyarrow.feather as feather
+            save_path = os.path.join(self.outdir, 'tile_predictions.feather')
+            feather.write_feather(df, save_path)
+        log.debug(f"Predictions saved to {sf.util.green(save_path)}")
+
+        return df
+
     def evaluate(self, dataset, batch_size=None, permutation_importance=False, histogram=False, save_predictions=False,
                  norm_mean=None, norm_std=None):
 
@@ -854,10 +906,10 @@ class Trainer:
         else:
             pred_args = types.SimpleNamespace(loss=self.hp.get_loss(), uq=bool(self.hp.uq))
             metrics, acc, loss = sf.stats.metrics_from_dataset(histogram=histogram,
-                                                                    verbose=True,
-                                                                    save_predictions=save_predictions,
-                                                                    pred_args=pred_args,
-                                                                    **metric_kwargs)
+                                                               verbose=True,
+                                                               save_predictions=save_predictions,
+                                                               pred_args=pred_args,
+                                                               **metric_kwargs)
             results_dict = { 'eval': {} }
         for metric in metrics:
             if metrics[metric]:
@@ -889,8 +941,8 @@ class Trainer:
 
     def train(self, train_dts, val_dts, log_frequency=100, validate_on_batch=0, validation_batch_size=32,
               validation_steps=200, starting_epoch=0, ema_observations=20, ema_smoothing=2, use_tensorboard=True,
-              steps_per_epoch_override=None, save_predictions=False, resume_training=None, pretrain='imagenet',
-              checkpoint=None, multi_gpu=False, fit_to_dataset=False, norm_mean=None, norm_std=None):
+              steps_per_epoch_override=None, save_predictions=False, save_model=True, resume_training=None,
+              pretrain='imagenet', checkpoint=None, multi_gpu=False, fit_to_dataset=False, norm_mean=None, norm_std=None):
 
         """Builds and trains a model from hyperparameters.
 
@@ -909,6 +961,7 @@ class Trainer:
             steps_per_epoch_override (int, optional): Manually set the number of steps per epoch. Defaults to None.
             save_predictions (bool, optional): Save tile, slide, and patient-level predictions at each evaluation.
                 Defaults to False.
+            save_model (bool, optional): Save models when evaluating at specified epochs. Defaults to True.
             resume_training (str, optional): Path to Tensorflow model to continue training. Defaults to None.
             pretrain (str, optional): Either 'imagenet' or path to Tensorflow model from which to load weights.
                 Defaults to 'imagenet'.
@@ -1030,6 +1083,7 @@ class Trainer:
                 validation_data_with_slidenames=val_data_w_slidenames,
                 num_val_tiles=(0 if val_dts is None else val_dts.num_tiles),
                 save_predictions=save_predictions,
+                save_model=save_model,
                 results_log=results_log,
             )
 

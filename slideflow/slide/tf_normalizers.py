@@ -40,7 +40,7 @@ class TensorflowStainNormalizer:
             batch_size = 32
             dts = dataset.tensorflow(None, batch_size, standardize=False, infinite=False)
             m, s = [], []
-            pb = tqdm(desc='Fitting normalizer...', total=dataset.num_tiles)
+            pb = tqdm(desc='Fitting normalizer...', ncols=80, total=dataset.num_tiles)
             for i, slide in dts:
                 _m, _s = self.n.fit(i, reduce=True)
                 m += [_m]
