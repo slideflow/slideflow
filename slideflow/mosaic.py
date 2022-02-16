@@ -64,6 +64,9 @@ class Mosaic:
                 Internal default tile can be found at slideflow.slide.norm_tile.jpg
         """
 
+        if not len(tfrecords):
+            raise ValueError("No tfrecords provided, unable to generate mosaic.")
+
         tile_point_distances = []
         max_distance_factor = leniency
         mapping_method = 'expanded' if expanded else 'strict'
