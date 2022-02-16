@@ -115,6 +115,7 @@ class StainNormalizer:
             return output.getvalue()
 
     def png_to_png(self, png_string):
+        '''Non-normalized PNG string data -> normalized PNG string data'''
         cv_image = self.png_to_rgb(png_string)
         with BytesIO() as output:
             Image.fromarray(cv_image).save(output, format="PNG")
