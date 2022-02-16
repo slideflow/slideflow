@@ -211,10 +211,10 @@ class ModelParams(_base._ModelParams):
         model_inputs = [tile_image_model.input]
         return tile_image_model, model_inputs
 
-    def _build_categorical_model(self, num_classes, num_slide_features=0, activation='softmax',
+    def _build_categorical_or_linear_model(self, num_classes, num_slide_features=0, activation='softmax',
                                 pretrain='imagenet', checkpoint=None):
 
-        """Assembles categorical model, using pretraining (imagenet) or the base layers of a supplied model.
+        """Assembles categorical or linear model, using pretraining (imagenet) or the base layers of a supplied model.
 
         Args:
             num_classes (int or dict): Either int (single categorical outcome, indicating number of classes) or dict
@@ -357,9 +357,9 @@ class ModelParams(_base._ModelParams):
             num_classes = self._detect_classes_from_labels(labels)
 
         if self.model_type() == 'categorical':
-            return self._build_categorical_model(num_classes, **kwargs, activation='softmax')
+            return self._build_categorical_or_linear_model(num_classes, **kwargs, activation='softmax')
         elif self.model_type() == 'linear':
-            return self._build_categorical_model(num_classes, **kwargs, activation='linear')
+            return self._build_categorical_or_linear_model(num_classes, **kwargs, activation='linear')
         elif self.model_type() == 'cph':
             return self._build_cph_model(num_classes, **kwargs)
         else:

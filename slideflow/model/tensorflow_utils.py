@@ -119,3 +119,25 @@ def add_regularization(model, regularizer):
     # Reload the model weights
     model.load_weights(tmp_weights_path, by_name=True)
     return model
+
+def get_uq_predictions(img, pred_fn, num_outcomes, uq_n=30):
+    yp_drop = {} if not num_outcomes else {n:[] for n in range(num_outcomes)}
+    for _ in range(uq_n):
+        yp = pred_fn(img, training=False)
+        if not num_outcomes:
+            num_outcomes = 1 if not isinstance(yp, list) else len(yp)
+            yp_drop = {n:[] for n in range(num_outcomes)}
+        if num_outcomes > 1:
+            for o in range(num_outcomes):
+                yp_drop[o] += [yp[o]]
+        else:
+            yp_drop[0] += [yp]
+    if num_outcomes > 1:
+        yp_drop = [tf.stack(yp_drop[n], axis=0) for n in range(num_outcomes)]
+        yp_mean = [tf.math.reduce_mean(yp_drop[n], axis=0) for n in range(num_outcomes)]
+        yp_std = [tf.math.reduce_std(yp_drop[n], axis=0) for n in range(num_outcomes)]
+    else:
+        yp_drop = tf.stack(yp_drop[0], axis=0)
+        yp_mean = tf.math.reduce_mean(yp_drop, axis=0)
+        yp_std = tf.math.reduce_std(yp_drop, axis=0)
+    return yp_mean, yp_std, num_outcomes

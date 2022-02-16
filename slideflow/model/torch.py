@@ -350,6 +350,9 @@ class Trainer:
         # Load and initialize model
         if not self.model:
             raise sf.util.UserError("Model has not been loaded, unable to evaluate.")
+        device = torch.device('cuda:0')
+        self.model.to(device)
+        self.model.eval()
         log_manifest(None, dataset.tfrecords(), self.labels, join(self.outdir, 'slide_manifest.csv'))
 
         if not batch_size: batch_size = self.hp.batch_size
@@ -367,7 +370,12 @@ class Trainer:
 
         # Generate predictions
         log.info('Generating predictions...')
-        pred_args = types.SimpleNamespace(uq=bool(self.hp.uq))
+        pred_args = types.SimpleNamespace(
+            uq=bool(self.hp.uq),
+            multi_outcome=(self.num_outcomes > 1),
+            num_slide_features=self.num_slide_features,
+            slide_input=self.slide_input
+        )
         y_pred, y_std, tile_to_slides = sf.stats.predict_from_dataset(model=self.model,
                                                                       dataset=torch_dataset,
                                                                       model_type=self._model_type,

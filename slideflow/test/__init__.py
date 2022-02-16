@@ -396,7 +396,7 @@ class TestSuite:
                     test.fail()
                     return
 
-    def setup_hp(self, model_type, sweep=False, normalizer=None):
+    def setup_hp(self, model_type, sweep=False, normalizer=None, uq=False):
         import slideflow.model
 
         # Setup loss function
@@ -410,27 +410,28 @@ class TestSuite:
         # Create batch train file
         if sweep:
             self.project.create_hyperparameter_sweep(tile_px=299,
-                                                 tile_um=302,
-                                                 epochs=[1,2,3],
-                                                 toplayer_epochs=[0],
-                                                 model=["xception"],
-                                                 loss=[loss],
-                                                 learning_rate=[0.001],
-                                                 batch_size=[64],
-                                                 hidden_layers=[0,1],
-                                                 optimizer=["Adam"],
-                                                 early_stop=[False],
-                                                 early_stop_patience=[15],
-                                                 early_stop_method='loss',
-                                                 hidden_layer_width=500,
-                                                 trainable_layers=0,
-                                                 dropout=0.1,
-                                                 training_balance=["category"],
-                                                 validation_balance=["none"],
-                                                 augment=[True],
-                                                 normalizer=normalizer,
-                                                 label='TEST',
-                                                 filename='sweep.json')
+                                                     tile_um=302,
+                                                     epochs=[1,2,3],
+                                                     toplayer_epochs=[0],
+                                                     model=["xception"],
+                                                     loss=[loss],
+                                                     learning_rate=[0.001],
+                                                     batch_size=[64],
+                                                     hidden_layers=[0,1],
+                                                     optimizer=["Adam"],
+                                                     early_stop=[False],
+                                                     early_stop_patience=[15],
+                                                     early_stop_method='loss',
+                                                     hidden_layer_width=500,
+                                                     trainable_layers=0,
+                                                     dropout=0.1,
+                                                     training_balance=["category"],
+                                                     validation_balance=["none"],
+                                                     augment=[True],
+                                                     normalizer=normalizer,
+                                                     label='TEST',
+                                                     uq=uq,
+                                                     filename='sweep.json')
 
         # Create single hyperparameter combination
         hp = sf.model.ModelParams(epochs=1,
@@ -447,6 +448,7 @@ class TestSuite:
                                   early_stop_patience=0,
                                   training_balance='patient',
                                   validation_balance='none',
+                                  uq=uq,
                                   augment=True)
         return hp
 
@@ -477,7 +479,7 @@ class TestSuite:
         process.start()
         process.join()
 
-    def train_perf(self, **train_kwargs):
+    def train_perf(self, uq=False, **train_kwargs):
         with TaskWrapper("Training to single categorical outcome from hyperparameter sweep...") as test:
             self.setup_hp('categorical', sweep=True)
             results_dict = self.project.train(exp_label='manual_hp',
@@ -493,10 +495,27 @@ class TestSuite:
                 log.error("Results object not received from training")
                 test.fail()
 
-    def test_training(self, categorical=True, multi_categorical=True, linear=True, multi_input=True, cph=True, multi_cph=True, **train_kwargs):
+    def test_training(self, categorical=True, uq=True, multi_categorical=True, linear=True, multi_input=True, cph=True,
+                     multi_cph=True, **train_kwargs):
+
         if categorical:
             # Test categorical outcome
             self.train_perf(**train_kwargs)
+
+        if uq:
+            # Test categorical outcome with UQ
+            with TaskWrapper("Training to single categorical outcome with UQ...") as test:
+                if sf.backend() == 'tensorflow':
+                    self.project.train(exp_label='UQ',
+                                    outcome_label_headers='category1',
+                                    val_k=1,
+                                    params=self.setup_hp('categorical', uq=True),
+                                    validate_on_batch=10,
+                                    steps_per_epoch_override=20,
+                                    save_predictions=True,
+                                    **train_kwargs)
+                else:
+                    test.skip()
 
         if multi_categorical:
             # Test multiple sequential categorical outcome models
@@ -506,6 +525,7 @@ class TestSuite:
                                    params=self.setup_hp('categorical'),
                                    validate_on_batch=10,
                                    steps_per_epoch_override=20,
+                                   save_predictions=True,
                                    **train_kwargs)
 
         if linear:
@@ -516,6 +536,7 @@ class TestSuite:
                                    params=self.setup_hp('linear'),
                                    validate_on_batch=10,
                                    steps_per_epoch_override=20,
+                                   save_predictions=True,
                                    **train_kwargs)
 
         if multi_input:
@@ -527,6 +548,7 @@ class TestSuite:
                                   val_k=1,
                                   validate_on_batch=10,
                                   steps_per_epoch_override=20,
+                                  save_predictions=True,
                                   **train_kwargs)
 
         if cph:
@@ -539,6 +561,7 @@ class TestSuite:
                                        val_k=1,
                                        validate_on_batch=10,
                                        steps_per_epoch_override=20,
+                                       save_predictions=True,
                                        **train_kwargs)
                 else:
                     test.skip()
@@ -553,6 +576,7 @@ class TestSuite:
                                        val_k=1,
                                        validate_on_batch=10,
                                        steps_per_epoch_override=20,
+                                       save_predictions=True,
                                        **train_kwargs)
                 else:
                     test.skip()
@@ -582,6 +606,18 @@ class TestSuite:
                               histogram=True,
                               save_predictions=True,
                               **eval_kwargs)
+
+        with TaskWrapper("Testing evaluation of single categorical outcome model with UQ...") as test:
+            if sf.backend() == 'tensorflow':
+                uq_model = self._get_model('category1-UQ-HP0-kfold1')
+                evaluation_tester(project=self.project,
+                                model=uq_model,
+                                outcome_label_headers='category1',
+                                histogram=True,
+                                save_predictions=True,
+                                **eval_kwargs)
+            else:
+                test.skip()
 
         with TaskWrapper("Testing evaluation of multi-categorical outcome model...") as test:
             evaluation_tester(project=self.project,
@@ -665,7 +701,7 @@ class TestSuite:
                 dataset = self.project.dataset(299, 302)
                 self.project.train_clam('TEST_CLAM', join(self.project.root, 'clam'), 'category1', dataset)
 
-    def test(self, extract=True, reader=True, train=True, normalizer=True, evaluate=True, heatmap=True,
+    def test(self, extract=True, reader=True, train=True, normalizer=True, evaluate=True, predict=True, heatmap=True,
              activations=True, predict_wsi=True, clam=True):
         '''Perform and report results of all available testing.'''
 
@@ -674,7 +710,7 @@ class TestSuite:
         if train:               self.test_training()
         if normalizer:          self.test_realtime_normalizer()
         if evaluate:            self.test_evaluation()
-        if predict:             self.test_predict()
+        if predict:             self.test_prediction()
         if heatmap:             self.test_heatmap()
         if activations:         self.test_activations_and_mosaic()
         if predict_wsi:         self.test_predict_wsi()
