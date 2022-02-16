@@ -154,8 +154,10 @@ class DatasetFeatures:
         self.tile_px = model_config['tile_px']
         self.hp = ModelParams.from_dict(model_config['hp'])
         self.normalizer = self.hp.get_normalizer()
-        if self.normalizer and 'norm_mean' in model_config:
-            self.normalizer.fit(np.array(model_config['norm_mean']), np.array(model_config['norm_std']))
+        if self.normalizer:
+            log.info(f'Using realtime {self.normalizer.method} normalization')
+            if 'norm_mean' in model_config:
+                self.normalizer.fit(np.array(model_config['norm_mean']), np.array(model_config['norm_std']))
 
         if annotations:
             self.categories = list(set(self.annotations.values()))
