@@ -125,7 +125,7 @@ class ModelWrapper(torch.nn.Module):
         else:
             out = self.fc0(x)
 
-        return out, x
+        return out#, x
 
 class ModelParams(_base._ModelParams):
     """Build a set of hyperparameters."""
@@ -766,10 +766,10 @@ class Trainer:
                                     inp = (images, torch.tensor([self.slide_input[s] for s in slides]).to(device))
                                 else:
                                     inp = (images,)
-                                outputs, features = self.model(*inp)
-                                batch_loss = self.batch_loss(features) * 0.0003
-                                if step % 200 == 0: log.info(f"Batch loss (added): {batch_loss}")
-                                loss = self.calculate_loss(outputs, labels, loss_fn) + batch_loss
+                                outputs = self.model(*inp) # outputs, features =
+                                #batch_loss = self.batch_loss(features) * 0.0003
+                                #if step % 200 == 0: log.info(f"Batch loss (added): {batch_loss}")
+                                loss = self.calculate_loss(outputs, labels, loss_fn) #+ batch_loss
 
                             # Update weights
                             if self.mixed_precision:
