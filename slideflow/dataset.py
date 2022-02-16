@@ -879,9 +879,6 @@ class Dataset:
                 patient = annotation[TCGA.patient]
                 annotation_label = _process_label(annotation[header])
 
-                # Mark this slide as having been already assigned a label with his header
-                assigned_headers[header][slide] = True
-
                 # Ensure patients do not have multiple labels
                 if patient not in patient_labels:
                     patient_labels[patient] = annotation_label
@@ -893,10 +890,12 @@ class Dataset:
                 elif (slide in slides) and (slide in results) and (slide in assigned_headers[header]):
                     continue
 
+                # Mark this slide as having been already assigned a label with his header
+                assigned_headers[header][slide] = True
+
                 if slide in slides:
                     if slide in results:
-                        so = results[slide]
-                        results[slide] = [so] if not isinstance(so, list) else so
+                        results[slide] = [results[slide]] if not isinstance(results[slide], list) else results[slide]
                         results[slide] += [annotation_label]
                     else:
                         results[slide] = (annotation_label if not use_float_for_this_header else [annotation_label])
@@ -1307,6 +1306,7 @@ class Dataset:
             folders_to_search += [tfrecord_path]
         for folder in folders_to_search:
             tfrecords_list += glob(join(folder, "*.tfrecords"))
+        tfrecords_list = list(set(tfrecords_list))
 
         # Filter the list by filters
         if self.annotations is not None:

@@ -156,8 +156,10 @@ class DatasetFeatures:
         self.slides = sorted([sf.util.path_to_name(tfr) for tfr in self.tfrecords])
         model_config = sf.util.get_model_config(model)
         self.tile_px = model_config['tile_px']
-        self.normalizer = model_config['hp']['normalizer']
-        self.normalizer_source = model_config['hp']['normalizer_source']
+        self.hp = ModelParams.from_dict(model_config['hp'])
+        self.normalizer = self.hp.get_normalizer()
+        if self.normalizer:
+            log.info(f'Using realtime {self.normalizer.method} normalization')
 
         if annotations:
             self.categories = list(set(self.annotations.values()))
@@ -169,7 +171,7 @@ class DatasetFeatures:
                             self.used_categories.sort()
                     except KeyError:
                         raise KeyError(f"Slide {slide} not found in provided annotations.")
-                log.debug(f'Observed categories (total: {len(self.used_categories)}): {", ".join(self.used_categories)}')
+                log.debug(f'Observed categories (total: {len(self.used_categories)}): {", ".join([str(c) for c in self.used_categories])}')
         else:
             self.categories = []
             self.used_categories = []
@@ -210,7 +212,7 @@ class DatasetFeatures:
         if self.categories:
             self.used_categories = list(set([self.annotations[slide] for slide in self.slides]))
             self.used_categories.sort()
-        log.debug(f'Observed categories (total: {len(self.used_categories)}): {", ".join(self.used_categories)}')
+        log.debug(f'Observed categories (total: {len(self.used_categories)}): {", ".join([str(c) for c in self.used_categories])}')
 
         # Show total number of features
         if self.num_features is None:
@@ -238,13 +240,6 @@ class DatasetFeatures:
         self.num_features = combined_model.num_features
         self.num_logits = 0 if not include_logits else combined_model.num_logits
 
-        # Prepare normalizer
-        if self.normalizer:
-            log.info(f'Using realtime {self.normalizer} normalization')
-            normalizer = StainNormalizer(method=self.normalizer, source=self.normalizer_source)
-        else:
-            normalizer = None
-
         # Calculate final layer activations for each tfrecord
         fla_start_time = time.time()
 
@@ -257,12 +252,13 @@ class DatasetFeatures:
             'batch_size': batch_size,
             'augment': False,
             'incl_slidenames': True,
-            'incl_loc': True
+            'incl_loc': True,
+            'normalizer': self.normalizer
         }
         if sf.backend() == 'tensorflow':
-            dataloader = self.dataset.tensorflow(None, normalizer=normalizer, num_parallel_reads=None, **dataset_kwargs)
+            dataloader = self.dataset.tensorflow(None, num_parallel_reads=None, **dataset_kwargs)
         elif sf.backend() == 'torch':
-            dataloader = self.dataset.torch(None, normalizer=normalizer, num_workers=1, **dataset_kwargs)
+            dataloader = self.dataset.torch(None, num_workers=1, **dataset_kwargs)
 
         # Worker to process activations/logits, for more efficient GPU throughput
         q = queue.Queue()

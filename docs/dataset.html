@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>slideflow.dataset &mdash; slideflow 1.0.4 documentation</title>
+  <title>slideflow.dataset &mdash; slideflow 1.0.6 documentation</title>
   
 
   
@@ -463,7 +463,7 @@ Defaults to False. Experimental function with limited testing.</p></li>
 <li><p><strong>randomize_origin</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Randomize pixel starting position during extraction. Defaults to False.</p></li>
 <li><p><strong>buffer</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Slides will be copied to this directory before extraction. Defaults to None.
 Using an SSD or ramdisk buffer vastly improves tile extraction speed.</p></li>
-<li><p><strong>num_workers</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Extract tiles from this many slides simultaneously. Defaults to 4.</p></li>
+<li><p><strong>num_workers</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Extract tiles from this many slides simultaneously. Defaults to 1.</p></li>
 <li><p><strong>q_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Size of queue when using a buffer. Defaults to 4.</p></li>
 <li><p><strong>qc</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – ‘otsu’, ‘blur’, ‘both’, or None. Perform blur detection quality control - discarding
 tiles with detected out-of-focus regions or artifact - and/or otsu’s method. Increases tile extraction

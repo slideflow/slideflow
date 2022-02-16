@@ -211,7 +211,13 @@ def _wsi_extraction_worker(c, args):
 
         # Apply normalization
         if normalizer:
-            try:    image = normalizer.jpeg_to_jpeg(image)
+            try:
+                if args.img_format == 'png':
+                    image = normalizer.png_to_png(image)
+                elif args.img_format in ('jpg', 'jpeg'):
+                    image = normalizer.jpeg_to_jpeg(image)
+                else:
+                    raise ValueError(f"Unknown image format {args.img_format}")
             except: return # The image could not be normalized, which happens when a tile is primarily one solid color
     else:
         image = vips2numpy(region)  # Read regions into memory and convert to numpy arrays
@@ -385,7 +391,7 @@ class ExtractionReport:
             if meta.ws_thresh is None:   meta.ws_thresh = DEFAULT_WHITESPACE_THRESHOLD
             if meta.gs_frac is None:     meta.gs_frac   = DEFAULT_GRAYSPACE_FRACTION
             if meta.gs_thresh is None:   meta.gs_thresh  = DEFAULT_GRAYSPACE_THRESHOLD
-            if meta.img_format is None:  meta.img_format  = 'png'
+            if meta.img_format is None:  meta.img_format  = 'jpg'
 
             num_tiles = np.array([r.num_tiles for r in reports if r is not None])
             bb = np.array([r.blur_burden for r in reports if r is not None])
@@ -733,7 +739,12 @@ class _BaseLoader:
             if filetype.lower() == 'jpg':
                 self.slide = _JPGslideToVIPS(path)
             else:
-                self.slide = _VIPSWrapper(path)
+                try:
+                    self.slide = _VIPSWrapper(path)
+                except vips.error.Error as e:
+                    log.error(f"Error loading slide {self.shortname}: {e}")
+                    self.load_error = True
+                    return
         else:
             log.error(f"Unsupported file type '{filetype}' for slide {self.name}.")
             self.load_error = True
@@ -824,7 +835,12 @@ class _BaseLoader:
         # Blur QC must be performed at a set microns-per-pixel rather than downsample level, as blur detection is
         # much for sensitive to effective magnification than  Otsu's thresholding
         if method in ('blur', 'both'):
-            thumb = np.array(self.thumb(mpp=blur_mpp))
+            thumb = self.thumb(mpp=blur_mpp)
+            if thumb is None:
+                log.error(f"Error generating thumbnail for slide {self.shortname}, unable to perform QC")
+                self.load_error = True
+                return None
+            thumb = np.array(thumb)
             if thumb.shape[-1] == 4:
                 thumb = thumb[:,:,:3]
             gray = rgb2gray(thumb)
@@ -837,7 +853,12 @@ class _BaseLoader:
         # Otsu's thresholding can be done on the lowest downsample level
         if method in ('otsu', 'both'):
             otsu_thumb = vips.Image.new_from_file(self.path, fail=True, access=vips.enums.Access.RANDOM, level=self.slide.level_count-1)
-            otsu_thumb = vips2numpy(otsu_thumb)
+            try:
+                otsu_thumb = vips2numpy(otsu_thumb)
+            except vips.error.Error:
+                log.error(f"Error generating thumbnail for slide {self.shortname}, unable to perform QC")
+                self.load_error = True
+                return None
             if otsu_thumb.shape[-1] == 4:
                 otsu_thumb = otsu_thumb[:,:,:3]
             hsv_img = cv2.cvtColor(otsu_thumb, cv2.COLOR_RGB2HSV)
@@ -977,8 +998,7 @@ class _BaseLoader:
             tfrecord_dir (str): If provided, saves tiles into a TFRecord file (named according to slide name) here.
             tiles_dir (str): If provided, saves loose images into a subdirectory (per slide name) here.
             img_format (str): 'png' or 'jpg'. Format of images for internal storage in tfrecords.
-                PNG (lossless) format recommended for fidelity, JPG (lossy) for efficiency.
-                Defaults to 'jpg'.
+                PNG (lossless) format recommended for fidelity, JPG (lossy) for efficiency. Defaults to 'jpg'.
 
         Keyword Args:
             whitespace_fraction (float, optional): Range 0-1. Defaults to 1.

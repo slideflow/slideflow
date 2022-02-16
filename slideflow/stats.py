@@ -146,7 +146,9 @@ class SlideMap:
             log.info("UMAP loaded from cache, will not recalculate")
 
             # First, filter out slides not included in provided activations
-            filtered_idx = list(filter(lambda x: x['slide'] in self.df.slides, range(len(self.point_meta))))
+            if not isinstance(self.point_meta, np.ndarray):
+                self.point_meta = np.array(self.point_meta)
+            filtered_idx = np.array([i for i, x in enumerate(self.point_meta) if x['slide'] in self.df.slides])
             self.x = self.x[filtered_idx]
             self.y = self.y[filtered_idx]
             self.point_meta = self.point_meta[filtered_idx]
@@ -873,7 +875,7 @@ def get_centroid_index(input_array):
     return closest[0]
 
 def calculate_centroid(activations):
-    """Calcultes slide-level centroid indices for a provided slide-node dict.
+    """Calcultes slide-level centroid indices for a provided activations dict.
 
     Args:
         activations (dict): Dict mapping slide names to ndarray of activations across tiles,
@@ -1368,7 +1370,7 @@ def predict_from_torch(model, dataset, model_type, pred_args, **kwargs):
     # Get predictions and performance metrics
     model.eval()
     device = torch.device('cuda:0')
-    pb = tqdm(desc='Evaluating...', total=dataset.num_tiles, ncols=100, unit='img', leave=False)
+    pb = tqdm(desc='Evaluating...', total=dataset.num_tiles, ncols=80, unit='img', leave=False)
     for img, yt, slide in dataset:
         img = img.to(device, non_blocking=True)
 
@@ -1457,7 +1459,7 @@ def predict_from_tensorflow(model, dataset, model_type, pred_args, num_tiles=0):
     is_cat = (model_type == 'categorical')
     if not is_cat: acc = None
 
-    pb = tqdm(total=num_tiles, desc='Evaluating...', leave=False)
+    pb = tqdm(total=num_tiles, desc='Evaluating...', ncols=80, leave=False)
     for i, (img, yt, slide) in enumerate(dataset):
         pb.update(slide.shape[0])
         num_vals += slide.shape[0]

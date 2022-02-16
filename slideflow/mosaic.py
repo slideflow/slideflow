@@ -64,6 +64,9 @@ class Mosaic:
                 Internal default tile can be found at slideflow.slide.norm_tile.jpg
         """
 
+        if not len(tfrecords):
+            raise ValueError("No tfrecords provided, unable to generate mosaic.")
+
         tile_point_distances = []
         max_distance_factor = leniency
         mapping_method = 'expanded' if expanded else 'strict'
@@ -243,7 +246,10 @@ class Mosaic:
                                                             decode=False)
                 if not tile_image: continue
 
-                self.mapped_tiles.update({point['tfrecord']: point['tfrecord_index']})
+                if point['tfrecord'] in self.mapped_tiles:
+                    self.mapped_tiles[point['tfrecord']] += [point['tfrecord_index']]
+                else:
+                    self.mapped_tiles[point['tfrecord']] = [point['tfrecord_index']]
                 if sf.backend() == 'tensorflow':
                     tile_image = tile_image.numpy()
                 tile_image = self._decode_image_string(tile_image)
@@ -375,7 +381,8 @@ class Mosaic:
             writer = csv.writer(f)
             writer.writerow(['slide', 'index'])
             for tfr in self.mapped_tiles:
-                writer.writerow([tfr, self.mapped_tiles[tfr]])
+                for idx in self.mapped_tiles[tfr]:
+                    writer.writerow([tfr, idx])
         log.info(f'Mosaic report saved to {sf.util.green(filename)}')
 
     def show(self):
