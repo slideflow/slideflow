@@ -171,7 +171,7 @@ class DatasetFeatures:
                             self.used_categories.sort()
                     except KeyError:
                         raise KeyError(f"Slide {slide} not found in provided annotations.")
-                log.debug(f'Observed categories (total: {len(self.used_categories)}): {", ".join(self.used_categories)}')
+                log.debug(f'Observed categories (total: {len(self.used_categories)}): {", ".join([str(c) for c in self.used_categories])}')
         else:
             self.categories = []
             self.used_categories = []
@@ -212,7 +212,7 @@ class DatasetFeatures:
         if self.categories:
             self.used_categories = list(set([self.annotations[slide] for slide in self.slides]))
             self.used_categories.sort()
-        log.debug(f'Observed categories (total: {len(self.used_categories)}): {", ".join(self.used_categories)}')
+        log.debug(f'Observed categories (total: {len(self.used_categories)}): {", ".join([str(c) for c in self.used_categories])}')
 
         # Show total number of features
         if self.num_features is None:
