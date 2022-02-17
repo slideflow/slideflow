@@ -1296,6 +1296,8 @@ class Features:
             self.hp = sf.model.ModelParams()
             self.hp.load_dict(config['hp'])
             self.wsi_normalizer = self.hp.get_normalizer()
+            if 'norm_mean' in config and config['norm_mean'] is not None:
+                self.wsi_normalizer.fit(target_means=np.array(config['norm_mean']), target_stds=np.array(config['norm_std']))
             self._build(layers=layers, include_logits=include_logits)
 
     @classmethod
@@ -1342,13 +1344,14 @@ class Features:
             log.error(f"No tiles extracted from slide {sf.util.green(slide.name)}")
             return
 
+        @tf.function
         def _parse_function(record):
             image = record['image']
             loc = record['loc']
-            parsed_image = tf.image.per_image_standardization(image)
-            parsed_image.set_shape([slide.tile_px, slide.tile_px, 3])
             if self.wsi_normalizer:
                 image = self.wsi_normalizer.tf_to_tf(image)
+            parsed_image = tf.image.per_image_standardization(image)
+            parsed_image.set_shape([slide.tile_px, slide.tile_px, 3])
             return parsed_image, loc
 
         # Generate dataset from the generator

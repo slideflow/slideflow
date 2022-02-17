@@ -76,7 +76,7 @@ class GenericStainNormalizer:
     def fit(self, *args, target_means=None, target_stds=None, stain_matrix_target=None, target_concentrations=None,
             batch_size=64, num_threads='auto'):
 
-        if isinstance(args[0], Dataset) and self.method in ('reinhard', 'reinhard_fast'):
+        if len(args) and isinstance(args[0], Dataset) and self.method in ('reinhard', 'reinhard_fast'):
 
             # Set up thread pool
             if num_threads == 'auto':
@@ -106,11 +106,11 @@ class GenericStainNormalizer:
             dts_std = np.array(s).mean(axis=0)
             self.n.target_means = dts_mean
             self.n.target_stds = dts_std
-        elif isinstance(args[0], Dataset):
+        elif len(args) and isinstance(args[0], Dataset):
             raise NotImplementedError(f"Dataset fitting not supported for method '{self.method}'.")
-        elif isinstance(args[0], np.ndarray) and len(args) == 1:
+        elif len(args) and isinstance(args[0], np.ndarray) and len(args) == 1:
             self.n.fit(args[0])
-        elif isinstance(args[0], str):
+        elif len(args) and isinstance(args[0], str):
             self.src_img = cv2.cvtColor(cv2.imread(args[0]), cv2.COLOR_BGR2RGB)
             self.n.fit(self.src_img)
         elif target_means is not None:

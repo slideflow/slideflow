@@ -77,12 +77,7 @@ class Heatmap:
         if not self.slide.loaded_correctly():
             raise HeatmapError(f'Unable to load slide {self.slide.name} for heatmap generation')
 
-        self.logits = interface(self.slide,
-                                normalizer=model_config['hp']['normalizer'],
-                                normalizer_source=model_config['hp']['normalizer_source'],
-                                num_threads=num_threads,
-                                batch_size=batch_size,
-                                dtype=np.float32)
+        self.logits = interface(self.slide, num_threads=num_threads, batch_size=batch_size, dtype=np.float32)
 
         log.info(f"Heatmap complete for {sf.util.green(self.slide.name)}")
 

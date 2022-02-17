@@ -1111,6 +1111,8 @@ class Features:
             self.hp = ModelParams()
             self.hp.load_dict(config['hp'])
             self.wsi_normalizer = self.hp.get_normalizer()
+            if 'norm_mean' in config and config['norm_mean'] is not None:
+                self.wsi_normalizer.fit(target_means=np.array(config['norm_mean']), target_stds=np.array(config['norm_std']))
             self.tile_px = self.hp.tile_px
             self._model = self.hp.build_model(num_classes=len(config['outcome_labels'])) #labels=
             self._model.load_state_dict(torch.load(path))

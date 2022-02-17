@@ -44,9 +44,11 @@ from slideflow.stats import SlideMap
 #TODO: PyTorch CPH outcomes
 #TODO: PyTorch stats.permutation_feature_importance (-> Features)
 #TODO: PyTorch stats.predict_from_layer (used for permutation_feature_importance)
-#TODO: implement native TF/PyTorch normalizers to improve realtime normalization speed
 #TODO: improve estimated_num_tiles when doing tile extraction & no ROI (or QC)
 #TODO: for tfrecord parser, combine utf-8 and image decoding into single `decode` argument (rather than decode_images)
 #TODO: consider pytorch to_numpy=False returns tensor objects
 #TODO: confirm deterministic tfrecord reading/writing for both tensorflow and pytorch, esp. in the
 #       context of DatasetFeatures
+
+#TODO: unify norm_mean and target_means (and norm_std and target_stds)
+#TODO: unify normalizer.fit

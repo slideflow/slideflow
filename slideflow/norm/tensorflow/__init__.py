@@ -16,7 +16,6 @@ class TensorflowStainNormalizer(GenericStainNormalizer):
         'reinhard': reinhard,
         'reinhard_fast': reinhard_fast
     }
-    fit_batch_size = 32
 
     def __init__(self, method='reinhard', source=None):
         self.method = method
@@ -73,23 +72,25 @@ class TensorflowStainNormalizer(GenericStainNormalizer):
         self._target_concentrations = val
 
 
-    def fit(self, *args):
-        if isinstance(args[0], Dataset):
+    def fit(self, *args, target_means=None, target_stds=None, stain_matrix_target=None, target_concentrations=None,
+            batch_size=64):
+
+        if len(args) and isinstance(args[0], Dataset):
             # Prime the normalizer
             dataset = args[0]
-            dts = dataset.tensorflow(None, self.fit_batch_size, standardize=False, infinite=False)
+            dts = dataset.tensorflow(None, batch_size, standardize=False, infinite=False)
             m, s = [], []
             pb = tqdm(desc='Fitting normalizer...', ncols=80, total=dataset.num_tiles)
             for i, slide in dts:
                 _m, _s = self.n.fit(i, reduce=True)
                 m += [_m]
                 s += [_s]
-                pb.update(self.fit_batch_size)
+                pb.update(batch_size)
             dts_mean = tf.math.reduce_mean(tf.stack(m), axis=0)
             dts_std = tf.math.reduce_mean(tf.stack(s), axis=0)
             self.target_means = dts_mean
             self.target_stds = dts_std
-        elif isinstance(args[0], np.ndarray) and len(args) == 1:
+        elif len(args) and isinstance(args[0], np.ndarray) and len(args) == 1:
             if len(args[0].shape) == 3:
                 img = tf.expand_dims(tf.constant(args[0]), axis=0)
             else:
@@ -97,14 +98,21 @@ class TensorflowStainNormalizer(GenericStainNormalizer):
             means, stds = self.n.fit(img)
             self.target_means = tf.concat(means, 0)
             self.target_stds = tf.concat(stds, 0)
-        elif isinstance(args[0], str):
+        elif len(args) and isinstance(args[0], str):
             self.src_img = tf.expand_dims(tf.image.decode_jpeg(tf.io.read_file(args[0])), axis=0)
             means, stds = self.n.fit(self.src_img)
             self.target_means = tf.concat(means, 0)
             self.target_stds = tf.concat(stds, 0)
-        elif isinstance(args[0], np.ndarray) and len(args) == 2:
-            self.target_means = tf.constant(args[0], dtype=tf.float32)
-            self.target_stds = tf.constant(args[1], dtype=tf.float32)
+        elif target_means is not None:
+            self.target_means = tf.constant(target_means, dtype=tf.float32)
+            self.target_stds = tf.constant(target_stds, dtype=tf.float32)
+        elif stain_matrix_target is not None and target_concentrations is not None:
+            self.stain_matrix_target = tf.constant(stain_matrix_target, dtype=tf.float32)
+            self.target_concentrations = tf.constant(target_concentrations, dtype=tf.float32)
+        elif stain_matrix_target is not None:
+            self.stain_matrix_target = tf.constant(stain_matrix_target, dtype=tf.float32)
+        else:
+            raise ValueError(f'Unrecognized arguments for fit: {args}')
         log.info(f"Fit normalizer to mean {self.target_means.numpy()}, stddev {self.target_stds.numpy()}")
 
     @tf.function

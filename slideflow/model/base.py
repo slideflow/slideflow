@@ -204,11 +204,11 @@ class _ModelParams:
             d.update({arg: getattr(self, arg)})
         return d
 
-    def get_normalizer(self):
+    def get_normalizer(self, **kwargs):
         if not self.normalizer:
             return None
         else:
-            return sf.norm.autoselect(self.normalizer, self.normalizer_source)
+            return sf.norm.autoselect(self.normalizer, self.normalizer_source, **kwargs)
 
     def load_dict(self, hp_dict):
         for key, value in hp_dict.items():
