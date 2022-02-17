@@ -615,11 +615,13 @@ def interleave_dataloader(tfrecords, img_size, batch_size, prob_weights=None, cl
     """
 
     kwargs = {var:val for var,val in locals().items() if var not in ('batch_size', 'num_workers', 'pin_memory', 'preload_factor', 'prefetch_factor')}
-    iterator = InterleaveIterator(use_labels=(labels is not None), preload=(batch_size//num_replicas)*preload_factor, **kwargs)
+    replica_batch_size = None if batch_size is None else batch_size // num_replicas
+    preload = 1 if batch_size is None else (replica_batch_size) * preload_factor
+    iterator = InterleaveIterator(use_labels=(labels is not None), preload=preload, **kwargs)
     torch.multiprocessing.set_sharing_strategy('file_system')
 
     dataloader = torch.utils.data.DataLoader(iterator,
-                                             batch_size=batch_size//num_replicas,
+                                             batch_size=replica_batch_size,
                                              num_workers=num_workers,
                                              pin_memory=pin_memory,
                                              persistent_workers=persistent_workers,

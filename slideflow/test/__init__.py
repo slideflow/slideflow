@@ -17,6 +17,7 @@ from slideflow.util.spinner import Spinner
 from slideflow.stats import SlideMap
 from os.path import join
 from tqdm import tqdm
+from PIL import Image
 
 def get_tcga_slides():
     return {
@@ -213,6 +214,38 @@ def reader_tester(project):
         assert len(torch_results)
         assert len(torch_results) == len(tf_results) == dataset.num_tiles
         assert torch_results == tf_results
+
+# -----------------------------------------------
+
+def test_throughput(dts, normalizer=None, s=10, step_size=1):
+    '''Returns images / sec'''
+    start = -1
+    count = 0
+    for img, slide in dts:
+        if sf.backend() == 'torch':
+            if len(img.shape) == 3:
+                img = img.permute(1, 2, 0)
+            else:
+                img = img.permute(0, 2, 3, 1)
+        img = img.numpy()
+        if normalizer is not None:
+            norm_img = normalizer.rgb_to_rgb(img)
+        if start == -1:
+            start = time.time()
+        else:
+            count += step_size
+        if time.time() - start > s:
+            break
+    return count / (time.time() - start)
+
+def test_multithread_throughput(dataset, normalizer, s=10, batch_size=32):
+    if sf.backend() == 'tensorflow':
+        dts = dataset.tensorflow(None, batch_size, standardize=False, infinite=False, normalizer=normalizer)
+    elif sf.backend() == 'torch':
+        dts = dataset.torch(None, batch_size, standardize=False, infinite=False, normalizer=normalizer)
+    return test_throughput(dts, step_size=(1 if batch_size is None else batch_size))
+
+# -----------------------------------------------
 
 class TestConfig:
     def __init__(self, path, slides):
@@ -465,13 +498,43 @@ class TestSuite:
                                    enable_downsample=enable_downsample,
                                    **kwargs)
 
-    def test_realtime_normalizer(self, **train_kwargs):
-        with TaskWrapper("Testing realtime normalization, using Reinhard...") as test:
-            self.project.train(outcome_label_headers='category1',
-                           val_k=1,
-                           params=self.setup_hp('categorical', normalizer='reinhard'),
-                           steps_per_epoch_override=5,
-                           **train_kwargs)
+    def test_normalizers(self, single=True, multi=True):
+        dataset = self.project.dataset(299, 302)
+
+        if single:
+            with TaskWrapper("Testing normalization single-thread throughput...") as test:
+                if sf.backend() == 'tensorflow':
+                    dts = dataset.tensorflow(None, None, standardize=False, infinite=False)
+                    raw_img = next(iter(dts))[0].numpy()
+                elif sf.backend() == 'torch':
+                    dts = dataset.torch(None, None, standardize=False, infinite=False)
+                    raw_img = next(iter(dts))[0].permute(1, 2, 0).numpy()
+                Image.fromarray(raw_img).save(os.path.join(self.project_root, 'raw_img.png'))
+                for method in sf.norm.GenericStainNormalizer.normalizers:
+                    gen_norm = sf.norm.autoselect(method, prefer_vectorized=False)
+                    vec_norm = sf.norm.autoselect(method, prefer_vectorized=True)
+                    print(f"\r\033[kTesting {method} [{sf.util.yellow('SINGLE-thread')}]...", end="")
+                    Image.fromarray(gen_norm.rgb_to_rgb(raw_img)).save(os.path.join(self.project_root, f'{method}.png'))
+                    gen_tpt = test_throughput(dts, gen_norm)
+                    print(f"\r\033[kTesting {method} [{sf.util.yellow('SINGLE-thread')}]... DONE " + sf.util.blue(f"[{gen_tpt:.1f} img/s]"))
+                    if type(vec_norm) != type(gen_norm):
+                        print(f"\r\033[kTesting {method} (vectorized) [{sf.util.yellow('SINGLE-thread')}]...", end="")
+                        Image.fromarray(vec_norm.rgb_to_rgb(raw_img)).save(os.path.join(self.project_root, f'{method}_vectorized.png'))
+                        vec_tpt = test_throughput(dts, vec_norm)
+                        print(f"\r\033[kTesting {method} (vectorized) [{sf.util.yellow('SINGLE-thread')}]... DONE " + sf.util.blue(f"[{vec_tpt:.1f} img/s]"))
+
+        if multi:
+            with TaskWrapper("Testing normalization multi-thread throughput...") as test:
+                for method in sf.norm.GenericStainNormalizer.normalizers:
+                    gen_norm = sf.norm.autoselect(method, prefer_vectorized=False)
+                    vec_norm = sf.norm.autoselect(method, prefer_vectorized=True)
+                    print(f"\r\033[kTesting {method} [{sf.util.purple('MULTI-thread')}]...", end="")
+                    gen_tpt = test_multithread_throughput(dataset, gen_norm)
+                    print(f"\r\033[kTesting {method} [{sf.util.purple('MULTI-thread')}]... DONE " + sf.util.blue(f"[{gen_tpt:.1f} img/s]"))
+                    if type(vec_norm) != type(gen_norm):
+                        print(f"\r\033[kTesting {method} (vectorized) [{sf.util.purple('MULTI-thread')}]...", end="")
+                        vec_tpt = test_multithread_throughput(dataset, vec_norm)
+                        print(f"\r\033[kTesting {method} (vectorized) [{sf.util.purple('MULTI-thread')}]... DONE " + sf.util.blue(f"[{vec_tpt:.1f} img/s]"))
 
     def test_readers(self):
         ctx = multiprocessing.get_context('spawn')
@@ -481,7 +544,7 @@ class TestSuite:
 
     def train_perf(self, uq=False, **train_kwargs):
         with TaskWrapper("Training to single categorical outcome from hyperparameter sweep...") as test:
-            self.setup_hp('categorical', sweep=True)
+            self.setup_hp('categorical', sweep=True, normalizer='reinhard_fast')
             results_dict = self.project.train(exp_label='manual_hp',
                                           outcome_label_headers='category1',
                                           val_k=1,
@@ -708,7 +771,7 @@ class TestSuite:
         if extract:             self.test_extraction()
         if reader:              self.test_readers()
         if train:               self.test_training()
-        if normalizer:          self.test_realtime_normalizer()
+        if normalizer:          self.test_normalizers()
         if evaluate:            self.test_evaluation()
         if predict:             self.test_prediction()
         if heatmap:             self.test_heatmap()

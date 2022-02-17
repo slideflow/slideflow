@@ -56,7 +56,7 @@ def get_mean_std(I):
     m3, sd3 = cv.meanStdDev(I3)
     means = m1, m2, m3
     stds = sd1, sd2, sd3
-    return means, stds
+    return np.array(means), np.array(stds)
 
 class Normalizer(ut.BaseNormalizer):
     """

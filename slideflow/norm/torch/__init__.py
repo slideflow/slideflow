@@ -23,10 +23,14 @@ class TorchStainNormalizer:
         if not source:
             package_directory = os.path.dirname(os.path.abspath(__file__))
             source = join(package_directory, '../norm_tile.jpg')
-        self.src_img = torchvision.io.read_image(source).permute(1, 2, 0) # CWH => WHC
-        means, stds = self.n.fit(torch.unsqueeze(self.src_img, dim=0))
-        self.target_means = torch.cat(means, 0)
-        self.target_stds = torch.cat(stds, 0)
+        if source != 'dataset':
+            self.src_img = torchvision.io.read_image(source).permute(1, 2, 0) # CWH => WHC
+            means, stds = self.n.fit(torch.unsqueeze(self.src_img, dim=0))
+            self.target_means = torch.cat(means, 0)
+            self.target_stds = torch.cat(stds, 0)
+        else:
+            self.target_means = None
+            self.target_stds = None
         self.stain_matrix_target = None
         self.target_concentrations = None
 

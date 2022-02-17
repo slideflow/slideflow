@@ -947,7 +947,7 @@ class Trainer:
     def train(self, train_dts, val_dts, log_frequency=100, validate_on_batch=0, validation_batch_size=32,
               validation_steps=200, starting_epoch=0, ema_observations=20, ema_smoothing=2, use_tensorboard=True,
               steps_per_epoch_override=None, save_predictions=False, save_model=True, resume_training=None,
-              pretrain='imagenet', checkpoint=None, multi_gpu=False, fit_to_dataset=False, norm_mean=None, norm_std=None):
+              pretrain='imagenet', checkpoint=None, multi_gpu=False, norm_mean=None, norm_std=None):
 
         """Builds and trains a model from hyperparameters.
 
@@ -981,7 +981,7 @@ class Trainer:
         tf.keras.backend.clear_session() # Clear prior Tensorflow graph to free memory
 
         # Fit the normalizer to the training data and log the source mean/stddev
-        if self.normalizer and fit_to_dataset:
+        if self.normalizer and self.hp.normalizer_source == 'dataset':
             self.normalizer.fit(train_dts)
         elif norm_mean is not None:
             self.normalizer.fit(norm_mean, norm_std)

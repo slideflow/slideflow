@@ -2,6 +2,7 @@ import os
 import cv2
 import numpy as np
 import slideflow as sf
+import multiprocessing as mp
 
 from io import BytesIO
 from os.path import join
@@ -48,8 +49,9 @@ class GenericStainNormalizer:
         if not source:
             package_directory = os.path.dirname(os.path.abspath(__file__))
             source = join(package_directory, 'norm_tile.jpg')
-        self.src_img = cv2.cvtColor(cv2.imread(source), cv2.COLOR_BGR2RGB)
-        self.n.fit(self.src_img)
+        if source != 'dataset':
+            self.src_img = cv2.cvtColor(cv2.imread(source), cv2.COLOR_BGR2RGB)
+            self.n.fit(self.src_img)
 
     def __repr__(self):
         src = "" if not self._source else ", source={!r}".format(self._source)
@@ -71,32 +73,56 @@ class GenericStainNormalizer:
     def target_concentrations(self):
         return self.n.target_concentrations
 
-    def fit(self, *args):
-        '''if isinstance(args[0], Dataset):
-            # Prime the normalizer
+    def fit(self, *args, target_means=None, target_stds=None, stain_matrix_target=None, target_concentrations=None,
+            batch_size=64, num_threads='auto'):
+
+        if isinstance(args[0], Dataset) and self.method in ('reinhard', 'reinhard_fast'):
+
+            # Set up thread pool
+            if num_threads == 'auto':
+                num_threads = os.cpu_count()
+            log.debug(f"Setting up multithreading pool for normalizer fitting with {num_threads} threads")
+            log.debug(f"Using normalizer batch size of {batch_size}")
+            pool = mp.dummy.Pool(num_threads)
+
             dataset = args[0]
-            dts = dataset.tensorflow(None, None, standardize=False, infinite=False)
+            if sf.backend() == 'tensorflow':
+                dts = dataset.tensorflow(None, batch_size, standardize=False, infinite=False)
+            elif sf.backend() == 'torch':
+                dts = dataset.torch(None, batch_size, standardize=False, infinite=False, num_workers=8)
+
             m, s = [], []
             pb = tqdm(desc='Fitting normalizer...', ncols=80, total=dataset.num_tiles)
-            for i, slide in dts:
-                _m, _s = self.n.fit(i.numpy())
-                m += [tf.squeeze(_m)]
-                s += [tf.squeeze(_s)]
-                pb.update()
+            for img_batch, slide in dts:
+                if sf.backend() == 'torch':
+                    img_batch = img_batch.permute(0, 2, 3, 1) #BCWH -> BWHC
+
+                for _m, _s in pool.imap(lambda x: self.n.fit(x.numpy()), img_batch):
+                    m += [np.squeeze(_m)]
+                    s += [np.squeeze(_s)]
+
+                pb.update(batch_size)
             dts_mean = np.array(m).mean(axis=0)
             dts_std = np.array(s).mean(axis=0)
-            self.target_means = dts_mean
-            self.target_stds = dts_std'''
-        if isinstance(args[0], Dataset):
-            raise NotImplementedError("Dataset fitting not supported for non-vectorized normalizers.")
+            self.n.target_means = dts_mean
+            self.n.target_stds = dts_std
+        elif isinstance(args[0], Dataset):
+            raise NotImplementedError(f"Dataset fitting not supported for method '{self.method}'.")
         elif isinstance(args[0], np.ndarray) and len(args) == 1:
             self.n.fit(args[0])
         elif isinstance(args[0], str):
             self.src_img = cv2.cvtColor(cv2.imread(args[0]), cv2.COLOR_BGR2RGB)
             self.n.fit(self.src_img)
+        elif target_means is not None:
+            self.n.target_means = target_means
+            self.n.target_stds = target_stds
+        elif stain_matrix_target is not None and target_concentrations is not None:
+            self.n.stain_matrix_target = stain_matrix_target
+            self.n.target_concentrations = target_concentrations
+        elif stain_matrix_target is not None:
+            self.n.stain_matrix_target = stain_matrix_target
         else:
-            raise ValueError('Unrecognized arguments for fit()')
-            #TODO: support manually setting target_means and target_stds
+            raise ValueError(f'Unrecognized arguments for fit: {args}')
         log.info(f"Fit normalizer to mean {self.target_means}, stddev {self.target_stds}")
 
     def batch_to_batch(self, *args):
@@ -149,6 +175,8 @@ def autoselect(method, source=None, prefer_vectorized=True):
         from slideflow.norm.tensorflow import TensorflowStainNormalizer as VectorizedNormalizer
     elif sf.backend() == 'torch' and prefer_vectorized:
         from slideflow.norm.torch import TorchStainNormalizer as VectorizedNormalizer
+    elif prefer_vectorized:
+        raise ValueError(f"Unknown backend {sf.backend()}; unable to find vectorized normalizer.")
 
     if prefer_vectorized and method in VectorizedNormalizer.normalizers:
         return VectorizedNormalizer(method, source)

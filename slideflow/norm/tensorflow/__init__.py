@@ -25,10 +25,14 @@ class TensorflowStainNormalizer(GenericStainNormalizer):
         if not source:
             package_directory = os.path.dirname(os.path.abspath(__file__))
             source = join(package_directory, '../norm_tile.jpg')
-        self.src_img = tf.image.decode_jpeg(tf.io.read_file(source))
-        means, stds = self.n.fit(tf.expand_dims(self.src_img, axis=0))
-        self.target_means = tf.concat(means, 0)
-        self.target_stds = tf.concat(stds, 0)
+        if source != 'dataset':
+            self.src_img = tf.image.decode_jpeg(tf.io.read_file(source))
+            means, stds = self.n.fit(tf.expand_dims(self.src_img, axis=0))
+            self.target_means = tf.concat(means, 0)
+            self.target_stds = tf.concat(stds, 0)
+        else:
+            self.target_means = None
+            self.target_stds = None
         self.stain_matrix_target = None
         self.target_concentrations = None
 
