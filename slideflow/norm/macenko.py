@@ -70,12 +70,3 @@ class Normalizer(ut.BaseNormalizer):
         source_concentrations *= (maxC_target / maxC_source)
         return (255 * np.exp(-1 * np.dot(source_concentrations, self.stain_matrix_target).reshape(I.shape))).astype(
             np.uint8)
-
-    def hematoxylin(self, I):
-        I = ut.standardize_brightness(I)
-        h, w, c = I.shape
-        stain_matrix_source = get_stain_matrix(I)
-        source_concentrations = ut.get_concentrations(I, stain_matrix_source)
-        H = source_concentrations[:, 0].reshape(h, w)
-        H = np.exp(-1 * H)
-        return H

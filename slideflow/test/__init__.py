@@ -498,7 +498,13 @@ class TestSuite:
                                    enable_downsample=enable_downsample,
                                    **kwargs)
 
-    def test_normalizers(self, single=True, multi=True):
+    def test_normalizers(self, *args, single=True, multi=True):
+        # Tests throughput of normalizers and saves a single example image with each
+
+        if not len(args):
+            methods = sf.norm.GenericStainNormalizer.normalizers
+        else:
+            methods = args
         dataset = self.project.dataset(299, 302)
 
         if single:
@@ -510,7 +516,7 @@ class TestSuite:
                     dts = dataset.torch(None, None, standardize=False, infinite=False)
                     raw_img = next(iter(dts))[0].permute(1, 2, 0).numpy()
                 Image.fromarray(raw_img).save(os.path.join(self.project_root, 'raw_img.png'))
-                for method in sf.norm.GenericStainNormalizer.normalizers:
+                for method in methods:
                     gen_norm = sf.norm.autoselect(method, prefer_vectorized=False)
                     vec_norm = sf.norm.autoselect(method, prefer_vectorized=True)
                     print(f"\r\033[kTesting {method} [{sf.util.yellow('SINGLE-thread')}]...", end="")
@@ -525,7 +531,7 @@ class TestSuite:
 
         if multi:
             with TaskWrapper("Testing normalization multi-thread throughput...") as test:
-                for method in sf.norm.GenericStainNormalizer.normalizers:
+                for method in methods:
                     gen_norm = sf.norm.autoselect(method, prefer_vectorized=False)
                     vec_norm = sf.norm.autoselect(method, prefer_vectorized=True)
                     print(f"\r\033[kTesting {method} [{sf.util.purple('MULTI-thread')}]...", end="")
