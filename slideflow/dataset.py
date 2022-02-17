@@ -1208,8 +1208,7 @@ class Dataset:
                 among workers without duplications. Defaults to 0 (first worker).
             num_replicas (int, optional): Number of GPUs or unique instances which will have their own DataLoader. Used to
                 interleave results among workers without duplications. Defaults to 1.
-            normalizer (:class:`slideflow.slide.StainNormalizer` or str, optional): Normalizer to use on images.
-                Defaults to None.
+            normalizer (:class:`slideflow.slide.StainNormalizer`, optional): Normalizer to use on images.
             seed (int, optional): Use the following seed when randomly interleaving. Necessary for synchronized
                 multiprocessing distributed reading.
             chunk_size (int, optional): Chunk size for image decoding. Defaults to 16.
@@ -1227,9 +1226,6 @@ class Dataset:
         """
 
         from slideflow.io.tensorflow import interleave
-
-        if 'normalizer' in kwargs and isinstance(kwargs['normalizer'], str):
-            kwargs['normalizer'] = sf.slide.StainNormalizer(kwargs['normalizer'])
 
         tfrecords = self.tfrecords()
         if not tfrecords:
@@ -1258,7 +1254,7 @@ class Dataset:
         from slideflow.slide import ExtractionReport, SlideReport
 
         if normalizer: log.info(f'Using realtime {normalizer} normalization')
-        normalizer = None if not normalizer else sf.slide.StainNormalizer(method=normalizer, source=normalizer_source)
+        normalizer = None if not normalizer else sf.norm.autoselect(method=normalizer, source=normalizer_source)
 
         tfrecord_list = self.tfrecords()
         reports = []
@@ -1639,7 +1635,7 @@ class Dataset:
                 among workers without duplications. Defaults to 0 (first worker).
             num_replicas (int, optional): Number of GPUs or unique instances which will have their own DataLoader. Used to
                 interleave results among workers without duplications. Defaults to 1.
-            normalizer (:class:`slideflow.slide.StainNormalizer` or str, optional): Normalizer to use on images.
+            normalizer (:class:`slideflow.slide.StainNormalizer`, optional): Normalizer to use on images.
                 Defaults to None.
             seed (int, optional): Use the following seed when randomly interleaving. Necessary for synchronized
                 multiprocessing distributed reading.
@@ -1658,9 +1654,6 @@ class Dataset:
 
         if isinstance(labels, str):
             labels = self.labels(labels)[0]
-
-        if 'normalizer' in kwargs and isinstance(kwargs['normalizer'], str):
-            kwargs['normalizer'] = sf.slide.StainNormalizer(kwargs['normalizer'])
 
         self.build_index(rebuild_index)
         tfrecords = self.tfrecords()

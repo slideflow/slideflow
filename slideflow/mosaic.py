@@ -19,7 +19,6 @@ from multiprocessing.dummy import Pool as DPool
 from functools import partial
 from tqdm import tqdm
 from slideflow.util import log
-from slideflow.slide import StainNormalizer
 from slideflow.stats import get_centroid_index
 
 class MosaicError(Exception):
@@ -82,7 +81,7 @@ class Mosaic:
         # Setup normalization
         if isinstance(normalizer, str):
             log.info(f'Using realtime {normalizer} normalization')
-            self.normalizer = StainNormalizer(method=normalizer, source=normalizer_source)
+            self.normalizer = sf.norm.autoselect(method=normalizer, source=normalizer_source)
         elif normalizer is not None:
             self.normalizer = normalizer
         else:

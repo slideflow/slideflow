@@ -1,51 +1,86 @@
 import os
 import numpy as np
-from io import BytesIO
-from os.path import join
-from PIL import Image
-from tqdm import tqdm
 import tensorflow as tf
+
+from os.path import join
+from tqdm import tqdm
 from slideflow.dataset import Dataset
 from slideflow.util import log
+from slideflow.norm import GenericStainNormalizer
+from slideflow.norm.tensorflow import reinhard, reinhard_fast
 
-from slideflow.slide import tf_reinhard
-
-class TensorflowStainNormalizer:
+class TensorflowStainNormalizer(GenericStainNormalizer):
     vectorized = True
+    backend = 'tensorflow'
     normalizers = {
-        'reinhard': tf_reinhard
+        'reinhard': reinhard,
+        'reinhard_fast': reinhard_fast
     }
+    fit_batch_size = 32
 
     def __init__(self, method='reinhard', source=None):
-
         self.method = method
-        self.n = self.normalizers[method]
         self._source = source
+        self.n = self.normalizers[method]
         if not source:
             package_directory = os.path.dirname(os.path.abspath(__file__))
-            source = join(package_directory, 'norm_tile.jpg')
+            source = join(package_directory, '../norm_tile.jpg')
         self.src_img = tf.image.decode_jpeg(tf.io.read_file(source))
         means, stds = self.n.fit(tf.expand_dims(self.src_img, axis=0))
         self.target_means = tf.concat(means, 0)
         self.target_stds = tf.concat(stds, 0)
+        self.stain_matrix_target = None
+        self.target_concentrations = None
 
     def __repr__(self):
         src = "" if not self._source else ", source={!r}".format(self._source)
         return "TensorflowStainNormalizer(method={!r}{})".format(self.method, src)
 
+    @property
+    def target_means(self):
+        return self._target_means
+
+    @target_means.setter
+    def target_means(self, val):
+        self._target_means = val
+
+    @property
+    def target_stds(self):
+        return self._target_stds
+
+    @target_stds.setter
+    def target_stds(self, val):
+        self._target_stds = val
+
+    @property
+    def stain_matrix_target(self):
+        return self._stain_matrix_target
+
+    @stain_matrix_target.setter
+    def stain_matrix_target(self, val):
+        self._stain_matrix_target = val
+
+    @property
+    def target_concentrations(self):
+        return self._target_concentrations
+
+    @target_concentrations.setter
+    def target_concentrations(self, val):
+        self._target_concentrations = val
+
+
     def fit(self, *args):
         if isinstance(args[0], Dataset):
             # Prime the normalizer
             dataset = args[0]
-            batch_size = 32
-            dts = dataset.tensorflow(None, batch_size, standardize=False, infinite=False)
+            dts = dataset.tensorflow(None, self.fit_batch_size, standardize=False, infinite=False)
             m, s = [], []
             pb = tqdm(desc='Fitting normalizer...', ncols=80, total=dataset.num_tiles)
             for i, slide in dts:
                 _m, _s = self.n.fit(i, reduce=True)
                 m += [_m]
                 s += [_s]
-                pb.update(batch_size)
+                pb.update(self.fit_batch_size)
             dts_mean = tf.math.reduce_mean(tf.stack(m), axis=0)
             dts_std = tf.math.reduce_mean(tf.stack(s), axis=0)
             self.target_means = dts_mean
@@ -90,7 +125,7 @@ class TensorflowStainNormalizer:
 
     def rgb_to_rgb(self, image):
         '''Non-normalized RGB numpy array -> normalized RGB numpy array'''
-        return self.n.transform(tf.tensor(image), self.target_means, self.target_stds).numpy()
+        return self.n.transform(tf.expand_dims(tf.constant(image, dtype=tf.uint8), axis=0), self.target_means, self.target_stds).numpy()[0]
 
     def jpeg_to_rgb(self, jpeg_string):
         '''Non-normalized compressed JPG string data -> normalized RGB numpy array'''
@@ -99,16 +134,3 @@ class TensorflowStainNormalizer:
     def png_to_rgb(self, png_string):
         '''Non-normalized compressed PNG string data -> normalized RGB numpy array'''
         return self.tf_to_rgb(tf.image.decode_png(png_string, channels=3))
-
-    def jpeg_to_jpeg(self, jpeg_string, quality=75):
-        '''Non-normalized compressed JPG string data -> normalized compressed JPG string data'''
-        np_image = self.jpeg_to_rgb(jpeg_string)
-        with BytesIO() as output:
-            Image.fromarray(np_image).save(output, format="JPEG", quality=quality)
-            return output.getvalue()
-
-    def png_to_png(self, png_string):
-        np_image = self.png_to_rgb(png_string)
-        with BytesIO() as output:
-            Image.fromarray(np_image).save(output, format="PNG")
-            return output.getvalue()

@@ -4,8 +4,8 @@ import json
 import os
 import csv
 import numpy as np
+import slideflow as sf
 from slideflow.util import log
-from slideflow.slide import StainNormalizer
 
 class FeatureError(Exception):
     pass
@@ -207,11 +207,8 @@ class _ModelParams:
     def get_normalizer(self):
         if not self.normalizer:
             return None
-        elif self.normalizer[-5:] == '_fast':
-            from slideflow.slide.tf_normalizers import TensorflowStainNormalizer
-            return TensorflowStainNormalizer(method=self.normalizer[:-5], source=self.normalizer_source)
         else:
-            return StainNormalizer(method=self.normalizer, source=self.normalizer_source)
+            return sf.norm.autoselect(self.normalizer, self.normalizer_source)
 
     def load_dict(self, hp_dict):
         for key, value in hp_dict.items():

@@ -15,7 +15,7 @@ from __future__ import division
 
 import spams
 import numpy as np
-import slideflow.slide.stain_utils as ut
+import slideflow.norm.utils as ut
 
 
 def get_stain_matrix(I, threshold=0.8, lamda=0.1):
@@ -38,13 +38,13 @@ def get_stain_matrix(I, threshold=0.8, lamda=0.1):
 
 ###
 
-class Normalizer(object):
+class Normalizer(ut.BaseNormalizer):
     """
     A stain normalization object
     """
 
     def __init__(self):
-        self.stain_matrix_target = None
+        super().__init__()
 
     def fit(self, target):
         target = ut.standardize_brightness(target)

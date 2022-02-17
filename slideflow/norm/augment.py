@@ -14,10 +14,10 @@ Use with python via e.g https://anaconda.org/conda-forge/python-spams
 from __future__ import division
 
 import numpy as np
-import slideflow.slide.stain_utils as ut
 import cv2 as cv
+import slideflow.norm.utils as ut
 
-class Normalizer(object):
+class Normalizer(ut.BaseNormalizer):
     """
     A stain normalization object
     """

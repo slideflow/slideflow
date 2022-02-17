@@ -828,7 +828,7 @@ class Trainer:
                                             inp = (val_img, torch.tensor([self.slide_input[s] for s in slides]).to(device))
                                         else:
                                             inp = (val_img,)
-                                        val_outputs, _ = inference_model(*inp)
+                                        val_outputs = inference_model(*inp)
                                         val_label = self.labels_to_device(val_label, device)
                                         val_loss = self.calculate_loss(val_outputs, val_label, loss_fn)
 

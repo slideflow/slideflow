@@ -36,7 +36,6 @@ from skimage import img_as_ubyte
 from skimage.color import rgb2gray
 from PIL import Image, ImageDraw, UnidentifiedImageError
 from slideflow.util import log, SUPPORTED_FORMATS
-from slideflow.slide.normalizers import StainNormalizer
 from datetime import datetime
 from functools import partial
 from tqdm import tqdm
@@ -192,7 +191,7 @@ def _wsi_extraction_worker(c, args):
         return {'loc': [x_coord, y_coord]}, index
 
     # Normalizer
-    normalizer = None if not args.normalizer else StainNormalizer(method=args.normalizer, source=args.normalizer_source)
+    normalizer = None if not args.normalizer else sf.norm.autoselect(method=args.normalizer, source=args.normalizer_source)
 
     # Read the target downsample region now, if we were filtering at a different level
     region = slide.read_region((c[0], c[1]), args.downsample_level, [args.extract_px, args.extract_px])
@@ -1805,7 +1804,7 @@ class TMA(_BaseLoader):
             log.warning("Tile location logging for TMA slides is not yet complete; recording all locations as (0, 0).")
 
         # Setup normalization
-        normalizer = None if not normalizer else StainNormalizer(method=normalizer, source=normalizer_source)
+        normalizer = None if not normalizer else sf.norm.autoselect(method=normalizer, source=normalizer_source)
 
         # Detect CPU cores if num_threads not specified
         if num_threads is None:

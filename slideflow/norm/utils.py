@@ -197,5 +197,12 @@ def get_concentrations(I, stain_matrix, lamda=0.01):
     :return:
     """
     OD = RGB_to_OD(I).reshape((-1, 3))
-    result = spams.lasso(OD.T, D=stain_matrix.T, mode=2, lambda1=lamda, pos=True).toarray().T
+    result = spams.lasso(np.asfortranarray(OD.T), D=stain_matrix.T, mode=2, lambda1=lamda, pos=True).toarray().T
     return result
+
+class BaseNormalizer:
+    def __init__(self):
+        self.target_means = None
+        self.target_stds = None
+        self.stain_matrix_target = None
+        self.target_concentrations = None

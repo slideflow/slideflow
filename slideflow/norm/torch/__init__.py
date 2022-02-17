@@ -2,16 +2,18 @@ import os
 import torch
 import torchvision
 
-from io import BytesIO
-from slideflow.slide import torch_reinhard
+from slideflow.norm.torch import reinhard, reinhard_fast
 from os.path import join
-from PIL import Image
 
 class TorchStainNormalizer:
     vectorized = True
-    normalizers = {
-        'reinhard': torch_reinhard
-    }
+    backend = 'torch'
+    normalizers = {} # Torch-specific vectorized normalizers disabled
+                     # as they are slower than the CV implementation
+    #normalizers = {
+    #    'reinhard': reinhard,
+    #    'reinhard_fast': reinhard_fast
+    #}
 
     def __init__(self, method='reinhard', source=None):
 
@@ -20,15 +22,49 @@ class TorchStainNormalizer:
         self._source = source
         if not source:
             package_directory = os.path.dirname(os.path.abspath(__file__))
-            source = join(package_directory, 'norm_tile.jpg')
+            source = join(package_directory, '../norm_tile.jpg')
         self.src_img = torchvision.io.read_image(source).permute(1, 2, 0) # CWH => WHC
         means, stds = self.n.fit(torch.unsqueeze(self.src_img, dim=0))
         self.target_means = torch.cat(means, 0)
         self.target_stds = torch.cat(stds, 0)
+        self.stain_matrix_target = None
+        self.target_concentrations = None
 
     def __repr__(self):
         src = "" if not self._source else ", source={!r}".format(self._source)
         return "TorchStainNormalizer(method={!r}{})".format(self.method, src)
+
+    @property
+    def target_means(self):
+        return self._target_means
+
+    @target_means.setter
+    def target_means(self, val):
+        self._target_means = val
+
+    @property
+    def target_stds(self):
+        return self._target_stds
+
+    @target_stds.setter
+    def target_stds(self, val):
+        self._target_stds = val
+
+    @property
+    def stain_matrix_target(self):
+        return self._stain_matrix_target
+
+    @stain_matrix_target.setter
+    def stain_matrix_target(self, val):
+        self._stain_matrix_target = val
+
+    @property
+    def target_concentrations(self):
+        return self._target_concentrations
+
+    @target_concentrations.setter
+    def target_concentrations(self, val):
+        self._target_concentrations = val
 
     def fit(self, *args):
         return NotImplementedError()
@@ -53,7 +89,7 @@ class TorchStainNormalizer:
 
     def rgb_to_rgb(self, image):
         '''Non-normalized RGB numpy array -> normalized RGB numpy array'''
-        return self.n.transform(torch.from_numpy(image), self.target_means, self.target_stds).numpy()
+        return self.n.transform(torch.unsqueeze(torch.from_numpy(image), dim=0), self.target_means, self.target_stds).squeeze().numpy()
 
     def jpeg_to_rgb(self, jpeg_string):
         '''Non-normalized compressed JPG string data -> normalized RGB numpy array'''
@@ -61,15 +97,3 @@ class TorchStainNormalizer:
 
     def png_to_rgb(self, png_string):
         return self.torch_to_rgb(torchvision.io.decode_image(png_string))
-
-    def jpeg_to_jpeg(self, jpeg_string, quality=75):
-        np_image = self.jpeg_to_rgb(jpeg_string)
-        with BytesIO() as output:
-            Image.fromarray(np_image).save(output, format="JPEG", quality=quality)
-            return output.getvalue()
-
-    def png_to_png(self, png_string):
-        np_image = self.png_to_rgb(png_string)
-        with BytesIO() as output:
-            Image.fromarray(np_image).save(output, format="PNG")
-            return output.getvalue()

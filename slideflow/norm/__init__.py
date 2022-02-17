@@ -1,6 +1,8 @@
 import os
 import cv2
 import numpy as np
+import slideflow as sf
+
 from io import BytesIO
 from os.path import join
 from PIL import Image
@@ -8,22 +10,25 @@ from slideflow.dataset import Dataset
 from slideflow.util import log
 from tqdm import tqdm
 
-if os.environ['SF_BACKEND'] == 'tensorflow':
+if sf.backend() == 'tensorflow':
     import tensorflow as tf
 
-from slideflow.slide import macenko,  \
-                            reinhard, \
-                            reinhard_mask, \
-                            vahadane, \
-                            augment
+from slideflow.norm import macenko,  \
+                           reinhard, \
+                           reinhard_fast, \
+                           reinhard_mask, \
+                           vahadane, \
+                           augment
 
-class StainNormalizer:
+class GenericStainNormalizer:
     """Object to supervise stain normalization for images and efficiently convert between common image types."""
 
     vectorized = False
+    backend = 'cv'
     normalizers = {
         'macenko':  macenko.Normalizer,
         'reinhard': reinhard.Normalizer,
+        'reinhard_fast': reinhard_fast.Normalizer,
         'reinhard_mask': reinhard_mask.Normalizer,
         'vahadane': vahadane.Normalizer,
         'augment': augment.Normalizer
@@ -39,19 +44,35 @@ class StainNormalizer:
 
         self.method = method
         self._source = source
+        self.n = self.normalizers[method]()
         if not source:
             package_directory = os.path.dirname(os.path.abspath(__file__))
             source = join(package_directory, 'norm_tile.jpg')
-        self.n = self.normalizers[method]()
-        src_img = cv2.cvtColor(cv2.imread(source), cv2.COLOR_BGR2RGB)
-        self.n.fit(src_img)
+        self.src_img = cv2.cvtColor(cv2.imread(source), cv2.COLOR_BGR2RGB)
+        self.n.fit(self.src_img)
 
     def __repr__(self):
         src = "" if not self._source else ", source={!r}".format(self._source)
-        return "StainNormalizer(method={!r}{})".format(self.method, src)
+        return "GenericStainNormalizer(method={!r}{})".format(self.method, src)
+
+    @property
+    def target_means(self):
+        return self.n.target_means
+
+    @property
+    def target_stds(self):
+        return self.n.target_stds
+
+    @property
+    def stain_matrix_target(self):
+        return self.n.stain_matrix_target
+
+    @property
+    def target_concentrations(self):
+        return self.n.target_concentrations
 
     def fit(self, *args):
-        if isinstance(args[0], Dataset):
+        '''if isinstance(args[0], Dataset):
             # Prime the normalizer
             dataset = args[0]
             dts = dataset.tensorflow(None, None, standardize=False, infinite=False)
@@ -65,15 +86,21 @@ class StainNormalizer:
             dts_mean = np.array(m).mean(axis=0)
             dts_std = np.array(s).mean(axis=0)
             self.target_means = dts_mean
-            self.target_stds = dts_std
+            self.target_stds = dts_std'''
+        if isinstance(args[0], Dataset):
+            raise NotImplementedError("Dataset fitting not supported for non-vectorized normalizers.")
         elif isinstance(args[0], np.ndarray) and len(args) == 1:
-            self.target_means, self.target_stds = self.n.fit(args[0])
+            self.n.fit(args[0])
         elif isinstance(args[0], str):
             self.src_img = cv2.cvtColor(cv2.imread(args[0]), cv2.COLOR_BGR2RGB)
-            self.target_means, self.target_stds = self.n.fit(self.src_img)
-        elif isinstance(args[0], np.ndarray) and len(args) == 2:
-            self.target_means, self.target_stds = args
+            self.n.fit(self.src_img)
+        else:
+            raise ValueError('Unrecognized arguments for fit()')
+            #TODO: support manually setting target_means and target_stds
         log.info(f"Fit normalizer to mean {self.target_means}, stddev {self.target_stds}")
+
+    def batch_to_batch(self, *args):
+        raise NotImplementedError(f"Vectorized functions not available for GenericStainNormalizer (method={self.method})")
 
     def tf_to_tf(self, image, *args):
         if isinstance(image, dict):
@@ -114,3 +141,16 @@ class StainNormalizer:
         with BytesIO() as output:
             Image.fromarray(cv_image).save(output, format="PNG")
             return output.getvalue()
+
+def autoselect(method, source=None, prefer_vectorized=True):
+    '''Auto-selects best normalizer based on method, choosing backend-appropriate vectorized normalizer if available.'''
+
+    if sf.backend() == 'tensorflow' and prefer_vectorized:
+        from slideflow.norm.tensorflow import TensorflowStainNormalizer as VectorizedNormalizer
+    elif sf.backend() == 'torch' and prefer_vectorized:
+        from slideflow.norm.torch import TorchStainNormalizer as VectorizedNormalizer
+
+    if prefer_vectorized and method in VectorizedNormalizer.normalizers:
+        return VectorizedNormalizer(method, source)
+    else:
+        return GenericStainNormalizer(method, source)

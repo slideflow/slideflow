@@ -307,7 +307,10 @@ def _decode_image(img_string, img_type, standardize=False, normalizer=None, augm
         image = image.permute(1, 2, 0) # CWH => WHC
         #image = image.cpu()
     if normalizer:
-        image = torch.from_numpy(normalizer.rgb_to_rgb(image.numpy()))
+        if normalizer.vectorized:
+            image = normalizer.torch_to_torch(image)
+        else:
+            image = torch.from_numpy(normalizer.rgb_to_rgb(image.numpy()))
     if standardize:
         # Note: not the same as tensorflow's per_image_standardization
         # Convert back: image = (image + 1) * (255/2)

@@ -36,7 +36,6 @@ def get_mean_std(I1, I2, I3, reduce=False):
 def transform(I, tgt_mean, tgt_std):
     '''Where I = batch of images (WHC)'''
 
-    #I = standardize_brightness(I)
     I1, I2, I3 = lab_split(I)
     (I1_mean, I2_mean, I3_mean), (I1_std, I2_std, I3_std) = get_mean_std(I1, I2, I3)
 
@@ -45,7 +44,7 @@ def transform(I, tgt_mean, tgt_std):
     norm3 = ((I3 - I3_mean) * (tgt_std[2] / I3_std)) + tgt_mean[2]
 
     merged = merge_back(norm1, norm2, norm3).int()
-    clipped = torch.clip(merged, min=0, max=255)
+    clipped = torch.clip(merged, min=0, max=255).to(torch.uint8)
     return clipped
 
 def fit(target, reduce=False):

@@ -20,7 +20,6 @@ import slideflow as sf
 
 from collections import defaultdict
 from slideflow.util import log
-from slideflow.slide import StainNormalizer
 from slideflow.model.base import FeatureError, HyperParameterError
 from os.path import join, exists
 from math import isnan

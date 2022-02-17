@@ -262,7 +262,8 @@ class ModelParams(_base._ModelParams):
         # Assemble final model
         log.debug(f'Using {activation} activation')
         model = tf.keras.Model(inputs=model_inputs, outputs=outputs)
-        model.add_loss(batch_loss_crossentropy(last_linear))
+        if False:
+            model.add_loss(batch_loss_crossentropy(last_linear))
 
         if checkpoint:
             log.info(f'Loading checkpoint weights from {sf.util.green(checkpoint)}')
@@ -311,7 +312,7 @@ class ModelParams(_base._ModelParams):
 
         # Add hidden layers
         regularizer = self._get_dense_regularizer()
-        merged_model = self._add_hidden_layers(merged_model, regularizer)
+        merged_model, last_linear = self._add_hidden_layers(merged_model, regularizer)
 
         log.debug(f'Using {activation} activation')
 
