@@ -104,16 +104,24 @@ class TensorflowStainNormalizer(GenericStainNormalizer):
             self.target_means = tf.concat(means, 0)
             self.target_stds = tf.concat(stds, 0)
         elif target_means is not None:
-            self.target_means = tf.constant(target_means, dtype=tf.float32)
-            self.target_stds = tf.constant(target_stds, dtype=tf.float32)
+            self.target_means = tf.constant(np.array(target_means), dtype=tf.float32)
+            self.target_stds = tf.constant(np.array(target_stds), dtype=tf.float32)
         elif stain_matrix_target is not None and target_concentrations is not None:
-            self.stain_matrix_target = tf.constant(stain_matrix_target, dtype=tf.float32)
-            self.target_concentrations = tf.constant(target_concentrations, dtype=tf.float32)
+            self.stain_matrix_target = tf.constant(np.array(stain_matrix_target), dtype=tf.float32)
+            self.target_concentrations = tf.constant(np.array(target_concentrations), dtype=tf.float32)
         elif stain_matrix_target is not None:
-            self.stain_matrix_target = tf.constant(stain_matrix_target, dtype=tf.float32)
+            self.stain_matrix_target = tf.constant(np.array(stain_matrix_target), dtype=tf.float32)
         else:
             raise ValueError(f'Unrecognized arguments for fit: {args}')
         log.info(f"Fit normalizer to mean {self.target_means.numpy()}, stddev {self.target_stds.numpy()}")
+
+    def get_fit(self):
+        return {
+            'target_means': None if self.target_means is None else self.target_means.numpy().tolist(),
+            'target_stds': None if self.target_stds is None else self.target_stds.numpy().tolist(),
+            'stain_matrix_target': None if self.stain_matrix_target is None else self.stain_matrix_target.numpy().tolist(),
+            'target_concentrations': None if self.target_concentrations is None else self.target_concentrations.numpy().tolist()
+        }
 
     @tf.function
     def batch_to_batch(self, batch, *args):

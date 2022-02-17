@@ -155,8 +155,8 @@ class DatasetFeatures:
         self.normalizer = self.hp.get_normalizer()
         if self.normalizer:
             log.info(f'Using realtime {self.normalizer.method} normalization')
-            if 'norm_mean' in model_config:
-                self.normalizer.fit(np.array(model_config['norm_mean']), np.array(model_config['norm_std']))
+            if 'norm_fit' in model_config:
+                self.normalizer.fit(**model_config['norm_fit'])
 
         if annotations:
             self.categories = list(set(self.annotations.values()))

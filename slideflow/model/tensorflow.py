@@ -807,7 +807,7 @@ class Trainer:
     def load(self, model):
         self.model = tf.keras.models.load_model(model)
 
-    def predict(self, dataset, batch_size=None, norm_mean=None, norm_std=None, format='csv'):
+    def predict(self, dataset, batch_size=None, norm_fit=None, format='csv'):
         """Perform inference on a model, saving tile-level predictions.
 
         Args:
@@ -820,11 +820,11 @@ class Trainer:
         """
 
         # Fit normalizer
-        if self.normalizer and norm_mean is not None:
-            self.normalizer.fit(norm_mean, norm_std)
+        if self.normalizer and norm_fit is not None:
+            self.normalizer.fit(**norm_fit)
         elif self.normalizer:
-            if 'norm_mean' in self.config:
-                self.normalizer.fit(np.array(self.config['norm_mean']), np.array(self.config['norm_std']))
+            if 'norm_fit' in self.config:
+                self.normalizer.fit(**self.config['norm_fit'])
 
         # Load and initialize model
         if not self.model:
@@ -858,7 +858,7 @@ class Trainer:
         return df
 
     def evaluate(self, dataset, batch_size=None, permutation_importance=False, histogram=False, save_predictions=False,
-                 norm_mean=None, norm_std=None):
+                 norm_fit=None):
 
         """Evaluate model, saving metrics and predictions.
 
@@ -877,11 +877,11 @@ class Trainer:
         """
 
         # Fit normalizer
-        if self.normalizer and norm_mean is not None:
-            self.normalizer.fit(norm_mean, norm_std)
+        if self.normalizer and norm_fit is not None:
+            self.normalizer.fit(**norm_fit)
         elif self.normalizer:
-            if 'norm_mean' in self.config:
-                self.normalizer.fit(np.array(self.config['norm_mean']), np.array(self.config['norm_std']))
+            if 'norm_fit' in self.config:
+                self.normalizer.fit(**self.config['norm_fit'])
 
         # Load and initialize model
         if not self.model:
@@ -947,7 +947,7 @@ class Trainer:
     def train(self, train_dts, val_dts, log_frequency=100, validate_on_batch=0, validation_batch_size=32,
               validation_steps=200, starting_epoch=0, ema_observations=20, ema_smoothing=2, use_tensorboard=True,
               steps_per_epoch_override=None, save_predictions=False, save_model=True, resume_training=None,
-              pretrain='imagenet', checkpoint=None, multi_gpu=False, norm_mean=None, norm_std=None):
+              pretrain='imagenet', checkpoint=None, multi_gpu=False, norm_fit=None):
 
         """Builds and trains a model from hyperparameters.
 
@@ -983,8 +983,8 @@ class Trainer:
         # Fit the normalizer to the training data and log the source mean/stddev
         if self.normalizer and self.hp.normalizer_source == 'dataset':
             self.normalizer.fit(train_dts)
-        elif norm_mean is not None:
-            self.normalizer.fit(norm_mean, norm_std)
+        elif norm_fit is not None:
+            self.normalizer.fit(**norm_fit)
         if self.normalizer:
             config_path = join(self.outdir, 'params.json')
             if not exists(config_path):
@@ -994,12 +994,7 @@ class Trainer:
                 }
             else:
                 config = sf.util.load_json(config_path)
-            if self.normalizer.vectorized:
-                config['norm_mean'] = self.normalizer.target_means.numpy().tolist()
-                config['norm_std'] = self.normalizer.target_stds.numpy().tolist()
-            else:
-                config['norm_mean'] = self.normalizer.target_means.tolist()
-                config['norm_std'] = self.normalizer.target_stds.tolist()
+            config['norm_fit'] = self.normalizer.get_fit()
             sf.util.write_json(config, config_path)
 
         # Save training / validation manifest
@@ -1296,8 +1291,8 @@ class Features:
             self.hp = sf.model.ModelParams()
             self.hp.load_dict(config['hp'])
             self.wsi_normalizer = self.hp.get_normalizer()
-            if 'norm_mean' in config and config['norm_mean'] is not None:
-                self.wsi_normalizer.fit(target_means=np.array(config['norm_mean']), target_stds=np.array(config['norm_std']))
+            if 'norm_fit' in config and config['norm_fit'] is not None:
+                self.wsi_normalizer.fit(**config['norm_fit'])
             self._build(layers=layers, include_logits=include_logits)
 
     @classmethod

@@ -333,7 +333,7 @@ class Trainer:
         self.model = self.hp.build_model(labels=self.labels, num_slide_features=self.num_slide_features)
         self.model.load_state_dict(torch.load(model))
 
-    def predict(self, dataset, batch_size=None, norm_mean=None, norm_std=None, format='csv'):
+    def predict(self, dataset, batch_size=None, norm_fit=None, format='csv'):
         """Perform inference on a model, saving predictions.
 
         Args:
@@ -346,11 +346,11 @@ class Trainer:
         """
 
         # Fit normalizer
-        #if self.normalizer and norm_mean is not None:
-        #    self.normalizer.fit(norm_mean, norm_std)
-        #elif self.normalizer:
-        #    if 'norm_mean' in self.config:
-        #        self.normalizer.fit(np.array(self.config['norm_mean']), np.array(self.config['norm_std']))
+        if self.normalizer and norm_fit is not None:
+            self.normalizer.fit(**norm_fit)
+        elif self.normalizer:
+            if 'norm_fit' in self.config:
+                self.normalizer.fit(**self.config['norm_fit'])
 
         # Load and initialize model
         if not self.model:
@@ -1111,8 +1111,8 @@ class Features:
             self.hp = ModelParams()
             self.hp.load_dict(config['hp'])
             self.wsi_normalizer = self.hp.get_normalizer()
-            if 'norm_mean' in config and config['norm_mean'] is not None:
-                self.wsi_normalizer.fit(target_means=np.array(config['norm_mean']), target_stds=np.array(config['norm_std']))
+            if 'norm_fit' in config and config['norm_fit'] is not None:
+                self.wsi_normalizer.fit(**config['norm_fit'])
             self.tile_px = self.hp.tile_px
             self._model = self.hp.build_model(num_classes=len(config['outcome_labels'])) #labels=
             self._model.load_state_dict(torch.load(path))

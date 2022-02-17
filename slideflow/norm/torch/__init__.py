@@ -73,6 +73,14 @@ class TorchStainNormalizer:
     def fit(self, *args):
         return NotImplementedError()
 
+    def get_fit(self):
+        return {
+            'target_means': None if self.target_means is None else self.target_means.numpy().tolist(),
+            'target_stds': None if self.target_stds is None else self.target_stds.numpy().tolist(),
+            'stain_matrix_target': None if self.stain_matrix_target is None else self.stain_matrix_target.numpy().tolist(),
+            'target_concentrations': None if self.target_concentrations is None else self.target_concentrations.numpy().tolist()
+        }
+
     def batch_to_batch(self, batch, *args):
         device = torch.device("cuda")
         if isinstance(batch, dict):

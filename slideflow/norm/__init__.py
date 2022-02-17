@@ -114,16 +114,24 @@ class GenericStainNormalizer:
             self.src_img = cv2.cvtColor(cv2.imread(args[0]), cv2.COLOR_BGR2RGB)
             self.n.fit(self.src_img)
         elif target_means is not None:
-            self.n.target_means = target_means
-            self.n.target_stds = target_stds
+            self.n.target_means = np.array(target_means)
+            self.n.target_stds = np.array(target_stds)
         elif stain_matrix_target is not None and target_concentrations is not None:
-            self.n.stain_matrix_target = stain_matrix_target
-            self.n.target_concentrations = target_concentrations
+            self.n.stain_matrix_target = np.array(stain_matrix_target)
+            self.n.target_concentrations = np.array(target_concentrations)
         elif stain_matrix_target is not None:
-            self.n.stain_matrix_target = stain_matrix_target
+            self.n.stain_matrix_target = np.array(stain_matrix_target)
         else:
             raise ValueError(f'Unrecognized arguments for fit: {args}')
         log.info(f"Fit normalizer to mean {self.target_means}, stddev {self.target_stds}")
+
+    def get_fit(self):
+        return {
+            'target_means': self.n.target_means.tolist(),
+            'target_stds': self.n.target_stds.tolist(),
+            'stain_matrix_target': self.n.stain_matrix_target.tolist(),
+            'target_concentrations': self.n.target_concentrations.tolist()
+        }
 
     def batch_to_batch(self, *args):
         raise NotImplementedError(f"Vectorized functions not available for GenericStainNormalizer (method={self.method})")

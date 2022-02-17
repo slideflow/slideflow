@@ -49,6 +49,3 @@ from slideflow.stats import SlideMap
 #TODO: consider pytorch to_numpy=False returns tensor objects
 #TODO: confirm deterministic tfrecord reading/writing for both tensorflow and pytorch, esp. in the
 #       context of DatasetFeatures
-
-#TODO: unify norm_mean and target_means (and norm_std and target_stds)
-#TODO: unify normalizer.fit
