@@ -582,7 +582,7 @@ class Trainer:
         elapsed = time.strftime('%H:%M:%S', time.gmtime(time.time() - starttime))
         log.info(f'{sf.util.bold(sf.util.blue(phase))} Epoch {epoch} | loss: {loss:.4f} {accuracy_description} (Elapsed: {elapsed})')
 
-    def train(self, train_dts, val_dts, log_frequency=20, validate_on_batch=0, validation_batch_size=32,
+    def train(self, train_dts, val_dts, log_frequency=20, validate_on_batch=0, validation_batch_size=None,
               validation_steps=50, starting_epoch=0, ema_observations=20, ema_smoothing=2, use_tensorboard=True,
               steps_per_epoch_override=0, save_predictions=False, save_model=True, resume_training=None,
               pretrain='imagenet', checkpoint=None, multi_gpu=True, seed=0):
@@ -594,7 +594,7 @@ class Trainer:
             val_dts (:class:`slideflow.dataset.Dataset`): Dataset containing TFRecords for validation.
             log_frequency (int, optional): How frequent to update Tensorboard logs, in batches. Defaults to 100.
             validate_on_batch (int, optional): Validation will also be performed every N batches. Defaults to 0.
-            validation_batch_size (int, optional): Batch size to use during validation. Defaults to 32.
+            validation_batch_size (int, optional): Validation batch size. Defaults to same as training (per self.hp).
             validation_steps (int, optional): Number of batches to use for each instance of validation. Defaults to 200.
             starting_epoch (int, optional): Starts training at the specified epoch. Defaults to 0.
             ema_observations (int, optional): Number of observations over which to perform exponential moving average
@@ -704,6 +704,7 @@ class Trainer:
             'train': iter(train_dts.torch(infinite=True, batch_size=self.hp.batch_size, augment=self.hp.augment, drop_last=True, **vars(interleave_args)))
         }
         if val_dts is not None:
+            if not validation_batch_size: validation_batch_size = self.hp.batch_size
             dataloaders['val'] = val_dts.torch(infinite=False, batch_size=validation_batch_size, augment=False, **vars(interleave_args))
             mid_train_val_dts = torch_utils.cycle(dataloaders['val']) # Mid-training validation dataset
             val_log_msg = '' if not validate_on_batch else f'every {str(validate_on_batch)} steps and '

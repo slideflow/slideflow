@@ -944,7 +944,7 @@ class Trainer:
 
         return val_metrics
 
-    def train(self, train_dts, val_dts, log_frequency=100, validate_on_batch=0, validation_batch_size=32,
+    def train(self, train_dts, val_dts, log_frequency=100, validate_on_batch=0, validation_batch_size=None,
               validation_steps=200, starting_epoch=0, ema_observations=20, ema_smoothing=2, use_tensorboard=True,
               steps_per_epoch_override=None, save_predictions=False, save_model=True, resume_training=None,
               pretrain='imagenet', checkpoint=None, multi_gpu=False, norm_fit=None):
@@ -956,7 +956,7 @@ class Trainer:
             val_dts (:class:`slideflow.dataset.Dataset`): Dataset containing TFRecords for validation.
             log_frequency (int, optional): How frequent to update Tensorboard logs, in batches. Defaults to 100.
             validate_on_batch (int, optional): Validation will also be performed every N batches. Defaults to 0.
-            validation_batch_size (int, optional): Batch size to use during validation. Defaults to 32.
+            validation_batch_size (int, optional): Validation batch size. Defaults to same as training (per self.hp).
             validation_steps (int, optional): Number of batches to use for each instance of validation. Defaults to 200.
             starting_epoch (int, optional): Starts training at the specified epoch. Defaults to 0.
             ema_observations (int, optional): Number of observations over which to perform exponential moving average
@@ -1036,6 +1036,7 @@ class Trainer:
             using_validation = (val_dts and len(val_dts.tfrecords()))
             if using_validation:
                 with tf.name_scope('input'):
+                    if not validation_batch_size: validation_batch_size = self.hp.batch_size
                     v_kwargs = self._interleave_kwargs(batch_size=validation_batch_size, infinite=False, augment=False)
                     val_data = val_dts.tensorflow(**v_kwargs)
                     val_data_w_slidenames = val_dts.tensorflow(incl_slidenames=True, drop_last=True, **v_kwargs)
