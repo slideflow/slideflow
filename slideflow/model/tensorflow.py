@@ -10,6 +10,7 @@ import warnings
 import shutil
 import types
 import inspect
+import atexit
 
 warnings.filterwarnings('ignore')
 
@@ -858,7 +859,7 @@ class Trainer:
         return df
 
     def evaluate(self, dataset, batch_size=None, permutation_importance=False, histogram=False, save_predictions=False,
-                 norm_fit=None):
+                 norm_fit=None, uq='auto'):
 
         """Evaluate model, saving metrics and predictions.
 
@@ -875,6 +876,9 @@ class Trainer:
         Returns:
             Dictionary of evaluation metrics.
         """
+
+        if uq != 'auto':
+            self.hp.uq = uq
 
         # Fit normalizer
         if self.normalizer and norm_fit is not None:
@@ -1011,8 +1015,10 @@ class Trainer:
             self.neptune_run['data/slide_manifest'].upload(os.path.join(self.outdir, 'slide_manifest.csv'))
 
         if multi_gpu:
-            strategy = tf.distribute.MirroredStrategy()
             log.info(f'Multi-GPU training with {strategy.num_replicas_in_sync} devices')
+            strategy = tf.distribute.MirroredStrategy()
+            # Fixes "OSError: [Errno 9] Bad file descriptor" after training
+            atexit.register(strategy._extended._collective_ops._pool.close) # type: ignore
         else:
             strategy = None
 
