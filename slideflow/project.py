@@ -1805,7 +1805,7 @@ class Project:
 
     def train(self, outcome_label_headers, params, exp_label=None, filters=None, filter_blank=None,
               input_header=None, resume_training=None, checkpoint=None, pretrain='imagenet', min_tiles=0, max_tiles=0,
-              multi_gpu=False, splits="splits.json", **training_kwargs):
+              multi_gpu=False, splits="splits.json", balance_headers=None, **training_kwargs):
 
         """Train model(s) using a given set of hyperparameters, outcomes, and inputs.
 
@@ -1830,6 +1830,9 @@ class Project:
             multi_gpu (bool): Train using multiple GPUs using Keras MirroredStrategy when available. Defaults to True.
             splits (str, optional): Filename of JSON file in which to log training/validation splits. Looks for
                 filename in project root directory. Defaults to "splits.json".
+            balance_headers (str): Str or list of str. Annotation column header(s) specifying labels on which to perform
+                mini-batch balancing. If performing category-level balancing and this is set to None, will default
+                to balancing on outcome_label_headers. Defaults to None.
 
         Keyword Args:
             val_strategy (str): Validation dataset selection strategy. Defaults to 'k-fold'.
@@ -2038,9 +2041,11 @@ class Project:
                                                                            site_labels=site_labels)
 
                 # ---- Balance and clip datasets ---------------------------------------------------------------------
-                train_dts = train_dts.balance(outcome_label_headers, hp.training_balance).clip(max_tiles)
+                if balance_headers is None:
+                    balance_headers = outcome_label_headers
+                train_dts = train_dts.balance(balance_headers, hp.training_balance).clip(max_tiles)
                 if val_dts:
-                    val_dts = val_dts.balance(outcome_label_headers, hp.validation_balance).clip(max_tiles)
+                    val_dts = val_dts.balance(balance_headers, hp.validation_balance).clip(max_tiles)
 
                 num_train = len(train_dts.tfrecords())
                 num_val = 0 if not val_dts else len(val_dts.tfrecords())
