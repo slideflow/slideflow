@@ -450,6 +450,7 @@ class Project:
         eval_config = {
             'slideflow_version': sf.__version__,
             'project': self.name,
+            'backend': sf.backend(),
             'git_commit': git_commit,
             'model_name': model_name,
             'model_path': model,
@@ -2128,6 +2129,7 @@ class Project:
                 config = {
                     'slideflow_version': sf.__version__,
                     'project': self.name,
+                    'backend': sf.backend(),
                     'git_commit': git_commit,
                     'model_name': model_name,
                     'full_model_name': full_model_name,

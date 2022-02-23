@@ -30,16 +30,6 @@ from slideflow.project import Project
 from slideflow.slide import WSI, TMA
 from slideflow.stats import SlideMap
 
-# Style information
-# =================
-# General style format should conform to Google Python best practices
-# (http://google.github.io/styleguide/pyguide.html), with the exception of a
-# maximum line length of 120 where possible. Docstrings should also conform with Google Style.
-# (https://sphinxcontrib-napoleon.readthedocs.io/en/latest/example_google.html)
-# A pylintrc file is included is the root directory to assist with formatting.
-
-# Future updates
-# ===============
 #TODO: Features compatibility for multiple outcomes
 #TODO: PyTorch CPH outcomes
 #TODO: PyTorch stats.permutation_feature_importance (-> Features)

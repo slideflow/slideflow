@@ -184,7 +184,7 @@ def interactive_project_setup(project_folder):
                                     root=project_folder, default='./slides', create_on_invalid=True)
             source_tiles = sf.util.path_input('Image tile storage location [./tiles] ',
                                     root=project_folder, default='./tiles', create_on_invalid=True)
-            source_tfrecords = sf.util.path_input('TFRecord storage location [./tfrecord] ',
+            source_tfrecords = sf.util.path_input('TFRecord storage location [./tfrecords] ',
                                     root=project_folder, default='./tfrecords', create_on_invalid=True)
 
             add_source(name=source_name,

@@ -713,7 +713,8 @@ class Trainer:
         if config is None:
             config = {
                 'slideflow_version': sf.__version__,
-                'hp': self.hp.get_dict()
+                'hp': self.hp.get_dict(),
+                'backend': sf.backend()
             }
         sf.util.write_json(config, join(self.outdir, 'params.json'))
 
@@ -994,7 +995,8 @@ class Trainer:
             if not exists(config_path):
                 config = {
                     'slideflow_version': sf.__version__,
-                    'hp': self.hp.get_dict()
+                    'hp': self.hp.get_dict(),
+                    'backend': sf.backend()
                 }
             else:
                 config = sf.util.load_json(config_path)
@@ -1015,8 +1017,8 @@ class Trainer:
             self.neptune_run['data/slide_manifest'].upload(os.path.join(self.outdir, 'slide_manifest.csv'))
 
         if multi_gpu:
-            log.info(f'Multi-GPU training with {strategy.num_replicas_in_sync} devices')
             strategy = tf.distribute.MirroredStrategy()
+            log.info(f'Multi-GPU training with {strategy.num_replicas_in_sync} devices')
             # Fixes "OSError: [Errno 9] Bad file descriptor" after training
             atexit.register(strategy._extended._collective_ops._pool.close) # type: ignore
         else:
