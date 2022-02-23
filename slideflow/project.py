@@ -477,6 +477,7 @@ class Project:
             'hp': hp.get_dict(),
             'max_tiles': max_tiles,
             'min_tiles': min_tiles,
+            'norm_fit': None if 'norm_fit' not in config else config['norm_fit']
         }
 
         # Build a model using the slide list as input and the annotations dictionary as output labels

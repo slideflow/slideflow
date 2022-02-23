@@ -886,6 +886,7 @@ class Trainer:
             self.normalizer.fit(**norm_fit)
         elif self.normalizer:
             if 'norm_fit' in self.config:
+                log.debug("Detecting normalizer fit from model config")
                 self.normalizer.fit(**self.config['norm_fit'])
 
         # Load and initialize model
