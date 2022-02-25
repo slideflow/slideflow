@@ -350,7 +350,7 @@ class Trainer:
         if self.normalizer and norm_fit is not None:
             self.normalizer.fit(**norm_fit)
         elif self.normalizer:
-            if 'norm_fit' in self.config:
+            if 'norm_fit' in self.config and self.config['norm_fit'] is not None:
                 self.normalizer.fit(**self.config['norm_fit'])
 
         # Load and initialize model
