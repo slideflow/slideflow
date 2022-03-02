@@ -408,6 +408,7 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
         self.hp = parent.hp
         self.cb_args = cb_args
         self.early_stop = False
+        self.early_stop_batch = 0
         self.last_ema = -1
         self.moving_average = []
         self.ema_two_checks_prior = -1
@@ -466,9 +467,9 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
                                               return_dict=True)
             val_loss = val_metrics['loss']
             self.model.stop_training = False
-            if self.hp.early_stop_method == 'accuracy' and 'val_accuracy' in val_metrics:
-                early_stop_value = val_metrics['val_accuracy']
-                val_acc = f"{val_metrics['val_accuracy']:3f}"
+            if self.hp.early_stop_method == 'accuracy' and 'accuracy' in val_metrics:
+                early_stop_value = val_metrics['accuracy']
+                val_acc = f"{val_metrics['accuracy']:.3f}"
             else:
                 early_stop_value = val_loss
                 val_acc = ', '.join([f'{val_metrics[v]:.3f}' for v in val_metrics if 'accuracy' in v])
@@ -527,6 +528,7 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
                     log.info(f'Early stop triggered: epoch {self.epoch_count+1}, batch {batch}')
                     self.model.stop_training = True
                     self.early_stop = True
+                    self.early_stop_batch = batch
 
                     # Log early stop to neptune
                     if self.neptune_run:

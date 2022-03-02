@@ -297,7 +297,6 @@ def interleave(tfrecords, img_size, batch_size, prob_weights=None, clip=None, la
         weights = [] if prob_weights else None
         for tfr in tqdm(tfrecords, desc='Interleaving...', leave=False):
             tf_dts = tf.data.TFRecordDataset(tfr, num_parallel_reads=num_parallel_reads)
-            tf_dts = tf_dts.batch(8)
             if num_shards:
                 tf_dts = tf_dts.shard(num_shards, index=shard_idx)
             if clip:
@@ -310,7 +309,6 @@ def interleave(tfrecords, img_size, batch_size, prob_weights=None, clip=None, la
 
         # ------- Interleave and parse datasets -----------------------------------------------------------------------
         sampled_dataset = tf.data.experimental.sample_from_datasets(datasets, weights=weights)
-        sampled_dataset = sampled_dataset.unbatch()
         dataset = _get_parsed_datasets(sampled_dataset,
                                        base_parser=base_parser,
                                        label_parser=label_parser,
