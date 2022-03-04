@@ -409,6 +409,7 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
         self.cb_args = cb_args
         self.early_stop = False
         self.early_stop_batch = 0
+        self.early_stop_epoch = 0
         self.last_ema = -1
         self.moving_average = []
         self.ema_two_checks_prior = -1
@@ -529,6 +530,7 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
                     self.model.stop_training = True
                     self.early_stop = True
                     self.early_stop_batch = batch
+                    self.early_stop_epoch = self.epoch_count + 1
 
                     # Log early stop to neptune
                     if self.neptune_run:
@@ -572,10 +574,14 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
         # Note that Keras loss during training includes regularization losses,
         #  so this loss will not match validation loss calculated during training
         val_metrics = {'accuracy': acc, 'loss': loss}
-        #val_metrics = self.model.evaluate(self.cb_args.validation_data, verbose=0, return_dict=True)
         log.info(f'Validation metrics: ' + json.dumps(val_metrics, indent=4))
         self.results['epochs'][f'epoch{epoch}'] = {'train_metrics': {k:v for k,v in logs.items() if k[:3] != 'val'},
                                                    'val_metrics': val_metrics }
+        if self.early_stop:
+            self.results['epochs'][f'epoch{epoch}'].update({
+                'early_stop_epoch': self.early_stop_epoch,
+                'early_stop_batch': self.early_stop_batch,
+            })
         for metric in metrics:
             if metrics[metric]['tile'] is None: continue
             self.results['epochs'][f'epoch{epoch}'][f'tile_{metric}'] = metrics[metric]['tile']
@@ -955,7 +961,7 @@ class Trainer:
     def train(self, train_dts, val_dts, log_frequency=100, validate_on_batch=0, validation_batch_size=None,
               validation_steps=200, starting_epoch=0, ema_observations=20, ema_smoothing=2, use_tensorboard=True,
               steps_per_epoch_override=None, save_predictions=False, save_model=True, resume_training=None,
-              pretrain='imagenet', checkpoint=None, multi_gpu=False, norm_fit=None):
+              pretrain='imagenet', checkpoint=None, multi_gpu=False, norm_fit=None, skip_val_without_es=True):
 
         """Builds and trains a model from hyperparameters.
 
@@ -1051,6 +1057,13 @@ class Trainer:
                     v_kwargs = self._interleave_kwargs(batch_size=validation_batch_size, infinite=False, augment=False)
                     val_data = val_dts.tensorflow(**v_kwargs)
                     val_data_w_slidenames = val_dts.tensorflow(incl_slidenames=True, drop_last=True, **v_kwargs)
+
+                # Check for insufficient number of batches to trigger early stopping
+                if self.hp.early_stop and skip_val_without_es:
+                    if train_dts.num_tiles < (ema_observations + 3) * self.hp.batch_size:
+                        log.info("Skipping validation checks; insufficient samples for early stopping")
+                        self.hp.early_stop = False
+                        validate_on_batch = 0
 
                 val_log_msg = '' if not validate_on_batch else f'every {str(validate_on_batch)} steps and '
                 log.debug(f'Validation during training: {val_log_msg}at epoch end')
