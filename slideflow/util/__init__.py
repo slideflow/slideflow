@@ -473,8 +473,7 @@ def get_slides_from_model_manifest(model_path, dataset=None):
     if exists(join(model_path, 'slide_manifest.csv')):
         manifest = join(model_path, 'slide_manifest.csv')
     elif exists(join(dirname(model_path), 'slide_manifest.csv')):
-        log.warning("Slide manifest file not found in model directory; loading from parent directory. " + \
-                    "Please move slide_manifest.csv into model folder.")
+        log.debug("Slide manifest file not found in model directory; loading from parent directory.")
         manifest = join(dirname(model_path), 'slide_manifest.csv')
     else:
         log.error('Slide manifest file not found (could not find "slide_manifest.csv" in model folder)')
