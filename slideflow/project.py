@@ -334,7 +334,7 @@ class Project:
             if dataset.tile_px != hp.tile_px or dataset.tile_um != hp.tile_um:
                 raise ValueError(f"Dataset tile size ({dataset.tile_px}px, {dataset.tile_um}um) does not match " + \
                                  f"model ({hp.tile_px}px, {hp.tile_um}um)")
-            dataset.filter_blank = filter_blank
+            dataset = dataset.filter(filter_blank=filter_blank)
 
         # Set up outcome labels
         if hp.model_type() == 'categorical':
@@ -2157,6 +2157,7 @@ class Project:
                     'resume_training': resume_training,
                     'checkpoint': checkpoint,
                     'hp': hp.get_dict(),
+                    'training_kwargs': training_kwargs
                 }
 
                 training_args = types.SimpleNamespace(
