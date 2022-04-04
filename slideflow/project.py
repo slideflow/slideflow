@@ -1151,7 +1151,6 @@ class Project:
                 If True, allows for display of nearby tiles if a given grid is empty.
                 Defaults to False.
             leniency (float): UMAP leniency. Defaults to 1.5.
-            tile_zoom (int): Tile zoom level. Defaults to 15.
 
         Returns:
             :class:`slideflow.mosaic.Mosaic`: Mosaic object.
@@ -1266,7 +1265,7 @@ class Project:
         if slide_labels:
             umap.label_by_slide(slide_labels)
         if show_prediction and (map_slide != 'centroid'):
-            umap.label_by_tile_meta('prediction', translation_dict=outcome_labels)
+            umap.label_by_meta('prediction', translation_dict=outcome_labels)
         umap.filter(dataset.slides())
 
         mosaic = sf.Mosaic(umap, dataset.tfrecords(), normalizer=df.normalizer, **kwargs)
@@ -1313,7 +1312,6 @@ class Project:
                 If True, allows for display of nearby tiles if a given grid is empty.
                 Defaults to False.
             leniency (float): UMAP leniency. Defaults to 1.5.
-            tile_zoom (int): Tile zoom level. Defaults to 15.
         """
 
         # Setup paths

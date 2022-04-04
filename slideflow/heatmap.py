@@ -40,6 +40,7 @@ class Heatmap:
         from slideflow.slide import WSI
 
         self.logits = None
+        self.uq = uq
         if (roi_dir is None and rois is None) and roi_method != 'ignore':
             log.info("No ROIs provided; will generate whole-slide heatmap")
             roi_method = 'ignore'
@@ -77,7 +78,13 @@ class Heatmap:
         if not self.slide.loaded_correctly():
             raise HeatmapError(f'Unable to load slide {self.slide.name} for heatmap generation')
 
-        self.logits = interface(self.slide, num_threads=num_threads, batch_size=batch_size, dtype=np.float32)
+        logits_and_uncertainty = interface(self.slide, num_threads=num_threads, batch_size=batch_size, dtype=np.float32)
+        if uq:
+            self.uncertainty = logits_and_uncertainty[:,:,-1]
+            self.logits = logits_and_uncertainty[:,:,:-1]
+        else:
+            self.uncertainty = None
+            self.logits = logits_and_uncertainty
 
         log.info(f"Heatmap complete for {sf.util.green(self.slide.name)}")
 
@@ -156,7 +163,9 @@ class Heatmap:
         implot.show()
         plt.show()
 
-    def save(self, outdir, show_roi=True, interpolation='none', logit_cmap=None, vmin=0, vmax=1, vcenter=0.5):
+    def save(self, outdir, show_roi=True, interpolation='none', cmap='coolwarm', logit_cmap=None,
+             vmin=0, vmax=1, vcenter=0.5):
+
         """Saves calculated logits as heatmap overlays.
 
         Args:
@@ -193,6 +202,7 @@ class Heatmap:
         # Now prepare base image for the the heatmap overlay
         self._prepare_figure(show_roi=False)
         implot = self.ax.imshow(self.slide.thumb(width=2048, rois=show_roi), zorder=0)
+        self.ax.set_facecolor("black")
 
         if logit_cmap:
             if callable(logit_cmap):
@@ -209,20 +219,43 @@ class Heatmap:
 
             plt.savefig(os.path.join(outdir, f'{self.slide.name}-custom.png'), bbox_inches='tight')
         else:
+            heatmap_kwargs = {
+                'extent': implot.get_extent(),
+                'cmap': cmap,
+                'alpha': 0.6,
+                'interpolation': interpolation,
+                'zorder': 10
+            }
+
+            save_kwargs = {
+                'bbox_inches': 'tight',
+                'facecolor': self.ax.get_facecolor(),
+                'edgecolor': 'none'
+            }
+
             # Make heatmap plots and sliders for each outcome category
             for i in range(self.num_classes):
                 print(f'\r\033[KMaking heatmap {i+1} of {self.num_classes}...', end='')
                 divnorm = mcol.TwoSlopeNorm(vmin=vmin, vcenter=vcenter, vmax=vmax)
-                heatmap = self.ax.imshow(self.logits[:, :, i],
-                                         extent=implot.get_extent(),
-                                         cmap='coolwarm',
-                                         norm=divnorm,
-                                         alpha=0.6,
-                                         interpolation=interpolation, #bicubic
-                                         zorder=10)
-                plt.savefig(os.path.join(outdir, f'{self.slide.name}-{i}.png'), bbox_inches='tight')
+                masked_arr = np.ma.masked_where(self.logits[:, :, i] == -1, self.logits[:, :, i])
+                heatmap = self.ax.imshow(masked_arr, norm=divnorm, **heatmap_kwargs)
+                plt.savefig(os.path.join(outdir, f'{self.slide.name}-{i}.png'), **save_kwargs)
                 heatmap.set_alpha(1)
-                plt.savefig(os.path.join(outdir, f'{self.slide.name}-{i}-solid.png'), bbox_inches='tight')
+                implot.set_alpha(0)
+                plt.savefig(os.path.join(outdir, f'{self.slide.name}-{i}-solid.png'), **save_kwargs)
+                heatmap.remove()
+                implot.set_alpha(1)
+
+            # Uncertainty map
+            if self.uq:
+                print(f'\r\033[KMaking uncertainty heatmap...', end='')
+                uqnorm = mcol.TwoSlopeNorm(vmin=0, vcenter=self.uncertainty.max()/2, vmax=self.uncertainty.max())
+                masked_uncertainty = np.ma.masked_where(self.uncertainty == -1, self.uncertainty)
+                heatmap = self.ax.imshow(masked_uncertainty, norm=uqnorm, **heatmap_kwargs)
+                plt.savefig(os.path.join(outdir, f'{self.slide.name}-UQ.png'), **save_kwargs)
+                heatmap.set_alpha(1)
+                implot.set_alpha(0)
+                plt.savefig(os.path.join(outdir, f'{self.slide.name}-UQ-solid.png'), **save_kwargs)
                 heatmap.remove()
 
         plt.close()

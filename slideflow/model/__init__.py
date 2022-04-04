@@ -191,6 +191,7 @@ class DatasetFeatures:
         loaded_slides = list(self.activations.keys())
         for loaded_slide in loaded_slides:
             if loaded_slide not in self.slides:
+                log.debug(f'Removing activations from slide {loaded_slide}, slide not in the filtered tfrecords list')
                 self.remove_slide(loaded_slide)
 
         # Now screen for missing slides in activations
@@ -216,7 +217,8 @@ class DatasetFeatures:
             self.num_features = self.activations[self.slides[0]].shape[-1]
         log.debug(f'Number of activation features: {self.num_features}')
 
-    def _generate_from_model(self, model, layers='postconv', include_logits=True, batch_size=32, cache=None):
+    def _generate_from_model(self, model, layers='postconv', include_logits=True, include_uncertainty=True,
+                             batch_size=32, cache=None):
 
         """Calculates activations from a given model, saving to self.activations
 
@@ -224,6 +226,7 @@ class DatasetFeatures:
             model (str): Path to Tensorflow model from which to calculate final layer activations.
             layers (str, optional): Layers from which to generate activations. Defaults to 'postconv'.
             include_logits (bool, optional): Include logit predictions. Defaults to True.
+            include_uncertainty (bool, optional): Include uncertainty estimation if UQ enabled. Defaults to True.
             batch_size (int, optional): Batch size to use during activations calculations. Defaults to 32.
             cache (str, optional): File in which to store activations PKL cache.
         """
@@ -233,7 +236,8 @@ class DatasetFeatures:
         if not isinstance(layers, list): layers = [layers]
 
         # Load model
-        combined_model = sf.model.Features(model, layers=layers, include_logits=include_logits)
+        #combined_model = sf.model.Features(model, layers=layers, include_logits=include_logits)
+        combined_model = sf.model.tensorflow.UncertaintyInterface(model, layers=layers)
         self.num_features = combined_model.num_features
         self.num_logits = 0 if not include_logits else combined_model.num_logits
 

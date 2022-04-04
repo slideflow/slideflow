@@ -139,8 +139,6 @@ class SlideMap:
 
         if prediction_filter:
             log.info("UMAP logit predictions are masked through a provided prediction filter.")
-        else:
-            prediction_filter = range(self.df.num_logits)
 
         if len(self.x) and len(self.y) and not recalculate:
             log.debug("UMAP loaded from cache, will not recalculate")
@@ -413,7 +411,7 @@ class SlideMap:
         else:
             self.labels = np.array([m['slide'] for m in self.point_meta])
 
-    def label_by_tile_meta(self, tile_meta, translation_dict=None):
+    def label_by_meta(self, tile_meta, translation_dict=None):
         """Displays each point with label equal a value in tile metadata (e.g. 'prediction')
 
         Args:
@@ -436,8 +434,8 @@ class SlideMap:
         log.warning("save_2d_plot() is deprecated, please use save()")
         self.save(*args, **kwargs)
 
-    def save(self, filename, subsample=None, title=None, cmap=None, use_float=False,
-             xlim=(-0.05, 1.05), ylim=(-0.05, 1.05), xlabel=None, ylabel=None, legend=None, dpi=300):
+    def save(self, filename, subsample=None, title=None, cmap=None, xlim=(-0.05, 1.05), ylim=(-0.05, 1.05), xlabel=None,
+             ylabel=None, legend=None, dpi=300, **scatter_kwargs):
 
         """Saves plot of data to a provided filename.
 
@@ -446,7 +444,6 @@ class SlideMap:
             subsample (int, optional): Subsample to only include this many tiles on plot. Defaults to None.
             title (str, optional): Title for plot.
             cmap (dict, optional): Dict mapping labels to colors.
-            use_float (bool, optional): Interpret labels as float for linear coloring. Defaults to False.
             xlim (list, optional): List of float indicating limit for x-axis. Defaults to (-0.05, 1.05).
             ylim (list, optional): List of float indicating limit for y-axis. Defaults to (-0.05, 1.05).
             xlabel (str, optional): Label for x axis. Defaults to None.
@@ -469,27 +466,29 @@ class SlideMap:
 
         if len(self.labels):
             labels = self.labels[ri]
-            df['category'] = labels if use_float else pd.Series(labels, dtype='category')
+
+            # Check for categorical labels
+            if not np.issubdtype(self.labels.dtype, np.floating):
+                log.debug("Interpreting labels as categorical")
+                df['category'] = pd.Series(labels, dtype='category')
+                unique_categories = list(set(labels))
+                unique_categories.sort()
+                if len(unique_categories) >= 12:
+                    seaborn_palette = sns.color_palette("Paired", len(unique_categories))
+                else:
+                    seaborn_palette = sns.color_palette('hls', len(unique_categories))
+                if cmap is None:
+                    cmap = {unique_categories[i]:seaborn_palette[i] for i in range(len(unique_categories))}
+            else:
+                log.debug("Interpreting labels as continuous")
+                df['category'] = labels
         else:
             labels = ['NA']
             df['category'] = 'NA'
 
-        # Prepare color palette
-        if use_float:
-            cmap = None
-            palette = None
-        else:
-            unique_categories = list(set(labels))
-            unique_categories.sort()
-            if len(unique_categories) <= 12:
-                seaborn_palette = sns.color_palette("Paired", len(unique_categories))
-            else:
-                seaborn_palette = sns.color_palette('hls', len(unique_categories))
-            palette = {unique_categories[i]:seaborn_palette[i] for i in range(len(unique_categories))}
-
         # Make plot
         plt.clf()
-        umap_2d = sns.scatterplot(x=x, y=y, data=df, hue='category', s=30, palette=cmap if cmap else palette)
+        umap_2d = sns.scatterplot(x=x, y=y, data=df, hue='category', palette=cmap, **scatter_kwargs)
         plt.gca().set_ylim(*((None, None) if not ylim else ylim))
         plt.gca().set_xlim(*((None, None) if not xlim else xlim))
         umap_2d.legend(loc='center left', bbox_to_anchor=(1.25, 0.5), ncol=1, title=legend)
@@ -497,12 +496,8 @@ class SlideMap:
         umap_figure = umap_2d.get_figure()
         umap_figure.set_size_inches(6, 4.5)
         if title: umap_figure.axes[0].set_title(title)
-        umap_figure.canvas.start_event_loop(sys.float_info.min)
         umap_figure.savefig(filename, bbox_inches='tight', dpi=dpi)
         log.info(f"Saved 2D UMAP to {sf.util.green(filename)}")
-        def onselect(verts):
-            print(verts)
-        lasso = LassoSelector(plt.gca(), onselect)
 
     def save_3d_plot(self, filename, z=None, feature=None, subsample=None):
         """Saves a plot of a 3D umap, with the 3rd dimension representing values provided by argument "z".
@@ -877,7 +872,7 @@ def _categorical_metrics(args, outcome_name, starttime=None):
             except IndexError:
                 log.warning(f"Unable to generate patient-level stats for outcome {i}")
 
-def filtered_prediction(logits, filter):
+def filtered_prediction(logits, filter=None):
     """Generates a prediction from a logits vector masked by a given filter.
 
     Args:
@@ -886,8 +881,11 @@ def filtered_prediction(logits, filter):
     Returns:
         int: index of prediction.
     """
-    prediction_mask = np.zeros(logits.shape, dtype=np.int)
-    prediction_mask[filter] = 1
+    if filter is None:
+        prediction_mask = np.zeros(logits.shape, dtype=np.int)
+    else:
+        prediction_mask = np.ones(logits.shape, dtype=np.int)
+        prediction_mask[filter] = 0
     masked_logits = np.ma.masked_array(logits, mask=prediction_mask)
     return np.argmax(masked_logits)
 

@@ -1357,7 +1357,7 @@ class Features:
     def _predict_slide(self, slide, batch_size=128, dtype=np.float16, **kwargs):
         """Generate activations from slide => activation grid array."""
         total_out = self.num_features + self.num_logits
-        features_grid = np.zeros((slide.grid.shape[1], slide.grid.shape[0], total_out), dtype=dtype)
+        features_grid = np.ones((slide.grid.shape[1], slide.grid.shape[0], total_out), dtype=dtype) * -1
         generator = slide.build_generator(shuffle=False, include_loc='grid', show_progress=True, **kwargs)
 
         if not generator:
@@ -1432,6 +1432,7 @@ class Features:
             outputs_list += [self._model.output]
         self.model = tf.keras.models.Model(inputs=self._model.input, outputs=outputs_list)
         self.num_features = sum([outputs[o].shape[1] for o in outputs])
+        self.num_outputs = len(outputs_list)
         if isinstance(self._model.output, list):
             log.warning("Multi-categorical outcomes not yet supported for this interface.")
             self.num_logits = 0
@@ -1442,26 +1443,34 @@ class Features:
         log.debug(f'Number of activation features: {self.num_features}')
 
 class UncertaintyInterface(Features):
-    def __init__(self, path):
-        super().__init__(path, layers=None, include_logits=True)
-        self.num_logits += 1
+    def __init__(self, path, layers=None):
+        super().__init__(path, layers=layers, include_logits=True)
+        self.num_features += 1
 
     @classmethod
-    def from_model(cls, model, wsi_normalizer=None):
-        super().from_model(cls, model, layers=None, include_logits=True, wsi_normalizer=wsi_normalizer)
+    def from_model(cls, model, wsi_normalizer=None, layers=None):
+        super().from_model(cls, model, layers=layers, include_logits=True, wsi_normalizer=wsi_normalizer)
 
     @tf.function
     def _predict(self, inp):
         """Return predictions (mean) and uncertainty (stdev) for a single batch of images."""
-        yp_drop = []
+        out_drop = [[] for _ in range(self.num_outputs)]
         for _ in range(30):
             yp = self.model(inp, training=False)
-            yp_drop += [yp]
-        yp_drop = tf.stack(yp_drop, axis=0)
-        yp_drop_mean = tf.math.reduce_mean(yp_drop, axis=0)
-        yp_drop_std = tf.math.reduce_std(yp_drop, axis=0)[:,0] # Only takes STDEV from first outcome category
+            if self.num_outputs > 1:
+                for n in range(self.num_outputs):
+                    out_drop[n] += [yp[n]]
+            else:
+                out_drop[0] += [yp]
+        for n in range(self.num_outputs):
+            out_drop[n] = tf.stack(out_drop[n], axis=0)
+        yp_drop_mean = tf.math.reduce_mean(out_drop[-1], axis=0)
+        yp_drop_std = tf.math.reduce_std(out_drop[-1], axis=0)[:,0] # Only takes STDEV from first outcome category
                                                                # Which works for outcomes with 2 categories,
                                                                # TODO: But a better solution is needed
                                                                # for num_categories > 2
-        stacked = tf.stack([yp_drop_mean[:, 0], yp_drop_mean[:, 1], yp_drop_std], axis=-1)
-        return stacked
+        logits_and_uncertainty = tf.concat([yp_drop_mean, tf.expand_dims(yp_drop_std, axis=-1)], axis=-1)
+        if self.num_outputs > 1:
+            return [tf.math.reduce_mean(out_drop[n], axis=0) for n in range(self.num_outputs-1)] + [logits_and_uncertainty]
+        else:
+            return logits_and_uncertainty
