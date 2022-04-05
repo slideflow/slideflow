@@ -267,7 +267,51 @@ class Project:
         """Converts relative path within project directory to global path."""
         return sf.util.relative_path(path, self.root)
 
-    def _prepare_trainer_for_eval(self, model, outcome_label_headers, dataset=None, filters=None, checkpoint=None,
+    def _setup_labels(self, dataset, hp, outcome_label_headers, config, splits, eval_k_fold=None):
+        '''Prepares dataset and labels.'''
+
+        # Assign labels into int
+        if hp.model_type() == 'categorical':
+            if len(outcome_label_headers) == 1 and outcome_label_headers[0] not in config['outcome_labels']:
+                outcome_label_to_int = {outcome_label_headers[0]: {v: int(k) for k, v in config['outcome_labels'].items()}}
+            else:
+                outcome_label_to_int = {o:
+                                            { v: int(k) for k, v in config['outcome_labels'][o].items() }
+                                        for o in config['outcome_labels']}
+        else:
+            outcome_label_to_int = None
+
+        # Get patient-level labels
+        use_float = (hp.model_type() in ['linear', 'cph'])
+        labels, unique_labels = dataset.labels(outcome_label_headers,
+                                               use_float=use_float,
+                                               assigned_labels=outcome_label_to_int)
+
+        # Prepare labels for validation splitting
+        if hp.model_type() == 'categorical' and len(outcome_label_headers) > 1:
+            def process_outcome_label(v):
+                return '-'.join(map(str, v)) if isinstance(v, list) else v
+            labels_for_split = {k: process_outcome_label(v) for k,v in labels.items()}
+        else:
+            labels_for_split = labels
+
+        # If using a specific k-fold, load validation plan
+        if eval_k_fold:
+            log.info(f"Using {sf.util.bold('k-fold iteration ' + str(eval_k_fold))}")
+            _, eval_dts = dataset.training_validation_split(hp.model_type(),
+                                                            labels_for_split,
+                                                            val_strategy=config['validation_strategy'],
+                                                            splits=join(self.root, splits),
+                                                            val_fraction=config['validation_fraction'],
+                                                            val_k_fold=config['validation_k_fold'],
+                                                            k_fold_iter=eval_k_fold)
+            return eval_dts, labels, unique_labels
+
+        # Otherwise use all TFRecords
+        else:
+            return dataset, labels, unique_labels
+
+    def _prepare_trainer_for_eval(self, model, outcome_label_headers=None, dataset=None, filters=None, checkpoint=None,
                                   model_config=None, eval_k_fold=None, splits="splits.json", max_tiles=0, min_tiles=0,
                                   input_header=None):
 
@@ -300,10 +344,8 @@ class Project:
             Trainer (:class:`slideflow.model.Trainer`), evaluation dataset (:class:`slideflow.Dataset`)
         """
 
-        log.info(f'Evaluating model {sf.util.green(model)}...')
-
-        if not isinstance(outcome_label_headers, list):
-            outcome_label_headers = [outcome_label_headers]
+        if eval_k_fold is not None and outcome_label_headers is None:
+            raise ValueError('Invalid argument `eval_k_fold`; incompatible with predicting.')
 
         # Load hyperparameters from saved model
         if model_config:
@@ -315,7 +357,14 @@ class Project:
         hp = sf.model.ModelParams()
         hp.load_dict(config['hp'])
         model_name = f"eval-{basename(model)}"
-        splits_file = join(self.root, splits)
+
+        # If not provided, detect outcome_label_headers from model config
+        predicting = (outcome_label_headers is None)
+        if predicting:
+            outcome_label_headers = config['outcome_label_headers']
+
+        if not isinstance(outcome_label_headers, list):
+            outcome_label_headers = [outcome_label_headers]
 
         # Filter out slides that are blank in the outcome label, or blank in any of the input_header categories
         filter_blank = [o for o in outcome_label_headers]
@@ -325,53 +374,21 @@ class Project:
 
         # Load dataset and annotations for evaluation
         if dataset is None:
-            dataset = self.dataset(tile_px=hp.tile_px,
-                                   tile_um=hp.tile_um,
-                                   filters=filters,
-                                   filter_blank=filter_blank,
-                                   min_tiles=min_tiles)
+            dataset = self.dataset(tile_px=hp.tile_px, tile_um=hp.tile_um)
+            dataset = dataset.filter(filters=filters, min_tiles=min_tiles)
         else:
             if dataset.tile_px != hp.tile_px or dataset.tile_um != hp.tile_um:
                 raise ValueError(f"Dataset tile size ({dataset.tile_px}px, {dataset.tile_um}um) does not match " + \
                                  f"model ({hp.tile_px}px, {hp.tile_um}um)")
-            dataset = dataset.filter(filter_blank=filter_blank)
 
         # Set up outcome labels
-        if hp.model_type() == 'categorical':
-            if len(outcome_label_headers) == 1 and outcome_label_headers[0] not in config['outcome_labels']:
-                outcome_label_to_int = {outcome_label_headers[0]: {v: int(k) for k, v in config['outcome_labels'].items()}}
-            else:
-                outcome_label_to_int = {o:
-                                            { v: int(k) for k, v in config['outcome_labels'][o].items() }
-                                        for o in config['outcome_labels']}
-        else:
-            outcome_label_to_int = None
-
-        use_float = (hp.model_type() in ['linear', 'cph'])
-        labels, unique_labels = dataset.labels(outcome_label_headers,
-                                               use_float=use_float,
-                                               assigned_labels=outcome_label_to_int)
-
-        if hp.model_type() == 'categorical' and len(outcome_label_headers) > 1:
-            def process_outcome_label(v):
-                return '-'.join(map(str, v)) if isinstance(v, list) else v
-            labels_for_split = {k: process_outcome_label(v) for k,v in labels.items()}
-        else:
-            labels_for_split = labels
-
-        # If using a specific k-fold, load validation plan
-        if eval_k_fold:
-            log.info(f"Using {sf.util.bold('k-fold iteration ' + str(eval_k_fold))}")
-            _, eval_dts = dataset.training_validation_split(hp.model_type(),
-                                                            labels_for_split,
-                                                            val_strategy=config['validation_strategy'],
-                                                            splits=splits_file,
-                                                            val_fraction=config['validation_fraction'],
-                                                            val_k_fold=config['validation_k_fold'],
-                                                            k_fold_iter=eval_k_fold)
-        # Otherwise use all TFRecords
+        if not predicting:
+            dataset = dataset.filter(filter_blank=filter_blank)
+            _labels = self._setup_labels(dataset, hp, outcome_label_headers, config, splits, eval_k_fold=eval_k_fold)
+            eval_dts, labels, unique_labels = _labels
         else:
             eval_dts = dataset
+            labels, unique_labels = {}, []
 
         # Set max tiles
         eval_dts = eval_dts.clip(max_tiles)
@@ -641,6 +658,9 @@ class Project:
             Dict: Dictionary of keras training results, nested by epoch.
         """
 
+        # Perform evaluation
+        log.info(f'Evaluating {sf.util.bold(len(eval_dts.tfrecords()))} tfrecords')
+
         trainer, eval_dts = self._prepare_trainer_for_eval(model=model,
                                                            outcome_label_headers=outcome_label_headers,
                                                            dataset=dataset,
@@ -655,9 +675,6 @@ class Project:
 
         if (input_header is None) and permutation_importance:
             raise sf.util.UserError('Permutation feature importance requires clinical inputs (set with input_header).')
-
-        # Perform evaluation
-        log.info(f'Evaluating {sf.util.bold(len(eval_dts.tfrecords()))} tfrecords')
 
         return trainer.evaluate(dataset=eval_dts,
                                 batch_size=batch_size,
@@ -1628,7 +1645,7 @@ class Project:
         else:
             raise OSError(f'Unable to locate settings.json at location "{path}".')
 
-    def predict(self, model, outcome_label_headers, dataset=None, filters=None, checkpoint=None, model_config=None,
+    def predict(self, model, dataset=None, filters=None, checkpoint=None, model_config=None,
                 eval_k_fold=None, splits="splits.json", max_tiles=0, min_tiles=0, batch_size=64, input_header=None,
                 format='csv', **kwargs):
 
@@ -1660,8 +1677,10 @@ class Project:
             pandas.DataFrame of tile-level predictions.
         """
 
+        # Perform evaluation
+        log.info(f'Predicting model results')
+
         trainer, eval_dts = self._prepare_trainer_for_eval(model=model,
-                                                           outcome_label_headers=outcome_label_headers,
                                                            dataset=dataset,
                                                            filters=filters,
                                                            checkpoint=checkpoint,
@@ -1671,9 +1690,6 @@ class Project:
                                                            max_tiles=max_tiles,
                                                            min_tiles=min_tiles,
                                                            input_header=input_header)
-
-        # Perform evaluation
-        log.info(f'Predicting results for {sf.util.bold(len(eval_dts.tfrecords()))} tfrecords')
 
         return trainer.predict(dataset=eval_dts, batch_size=batch_size, format=format, **kwargs)
 

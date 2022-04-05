@@ -320,7 +320,7 @@ class ModelParams(_base._ModelParams):
         # Multi-categorical outcomes
         if type(num_classes) == dict:
             outputs = []
-            for c in self.num_classes:
+            for c in num_classes:
                 final_dense_layer = tf.keras.layers.Dense(num_classes[c],
                                                           kernel_regularizer=regularizer,
                                                           name=f'prelogits-{c}')(merged_model)
@@ -677,6 +677,7 @@ class Trainer:
         self.name = name
         self.config = config
         self.neptune_run = None
+        self.annotations_tables = []
 
         if patients:
             self.patients = patients
@@ -699,7 +700,15 @@ class Trainer:
             raise ModelError(f'Size of outcome_names ({num_names}) does not match number of outcomes {num_outcomes}')
 
         self._setup_inputs()
-        self.num_classes = self.hp._detect_classes_from_labels(labels)
+        if labels:
+            self.num_classes = self.hp._detect_classes_from_labels(labels)
+            with tf.device('/cpu'):
+                for oi in range(outcome_labels.shape[1]):
+                    self.annotations_tables += [tf.lookup.StaticHashTable(
+                        tf.lookup.KeyValueTensorInitializer(self.slides, outcome_labels[:,oi]), -1
+                    )]
+        else:
+            self.num_classes = None
 
         # Normalization setup
         self.normalizer = self.hp.get_normalizer()
@@ -709,13 +718,6 @@ class Trainer:
             log.debug('Enabling mixed precision')
             policy = tf.keras.mixed_precision.experimental.Policy('mixed_float16')
             tf.keras.mixed_precision.experimental.set_policy(policy)
-
-        with tf.device('/cpu'):
-            self.annotations_tables = []
-            for oi in range(outcome_labels.shape[1]):
-                self.annotations_tables += [tf.lookup.StaticHashTable(
-                    tf.lookup.KeyValueTensorInitializer(self.slides, outcome_labels[:,oi]), -1
-                )]
 
         # Log parameters
         if config is None:
@@ -757,7 +759,9 @@ class Trainer:
 
         image_dict = { 'tile_image': image }
 
-        if len(self.num_classes) > 1:
+        if self.num_classes is None:
+            label = None
+        elif len(self.num_classes) > 1:
             label = {f'out-{oi}': self.annotations_tables[oi].lookup(slide) for oi in range(len(self.num_classes))}
         else:
             label = self.annotations_tables[0].lookup(slide)
@@ -1177,7 +1181,10 @@ class LinearTrainer(Trainer):
 
     def _parse_tfrecord_labels(self, image, slide):
         image_dict = { 'tile_image': image }
-        label = [self.annotations_tables[oi].lookup(slide) for oi in range(self.num_classes)]
+        if self.num_classes is None:
+            label = None
+        else:
+            label = [self.annotations_tables[oi].lookup(slide) for oi in range(self.num_classes)]
 
         # Add additional non-image feature inputs if indicated,
         #     excluding the event feature used for CPH models
@@ -1232,7 +1239,10 @@ class CPHTrainer(LinearTrainer):
 
     def _parse_tfrecord_labels(self, image, slide):
         image_dict = { 'tile_image': image }
-        label = [self.annotations_tables[oi].lookup(slide) for oi in range(self.num_classes)]
+        if self.num_classes is None:
+            label = None
+        else:
+            label = [self.annotations_tables[oi].lookup(slide) for oi in range(self.num_classes)]
 
         # Add additional non-image feature inputs if indicated,
         #     excluding the event feature used for CPH models
