@@ -6,9 +6,7 @@ import csv
 import numpy as np
 import slideflow as sf
 from slideflow.util import log
-
-class FeatureError(Exception):
-    pass
+from slideflow import errors
 
 class _ModelParams:
     """Build a set of hyperparameters."""
@@ -235,17 +233,17 @@ class _ModelParams:
             try:
                 return outcome_labels.shape[1]
             except TypeError:
-                raise HyperParameterError('Incorrect formatting of outcome labels for linear model; must be an ndarray.')
+                raise errors.ModelParamsError('Incorrect formatting of outcome labels for linear model; must be an ndarray.')
 
     def validate(self):
         """Check that hyperparameter combinations are valid."""
         if (self.model_type() != 'categorical' and ((self.training_balance == 'category') or
                                                     (self.validation_balance == 'category'))):
-            raise HyperParameterError(f'Cannot combine category-level balancing with model type "{self.model_type()}".')
+            raise errors.ModelParamsError(f'Cannot combine category-level balancing with model type "{self.model_type()}".')
         if (self.model_type() != 'categorical' and self.early_stop_method == 'accuracy'):
-            raise HyperParameterError(f'Model type "{self.model_type()}" is not compatible with early stopping method "accuracy"')
+            raise errors.ModelParamsError(f'Model type "{self.model_type()}" is not compatible with early stopping method "accuracy"')
         if self.uq and not self.dropout:
-            raise HyperParameterError(f"Uncertainty quantification (uq=True) requires dropout > 0 (got: dropout={self.dropout})")
+            raise errors.ModelParamsError(f"Uncertainty quantification (uq=True) requires dropout > 0 (got: dropout={self.dropout})")
         return True
 
     def model_type(self):

@@ -16,7 +16,7 @@ import slideflow as sf
 from os.path import join, exists, isdir, basename
 from statistics import mean, median
 from tqdm import tqdm
-from slideflow import project_utils
+from slideflow import project_utils, errors
 from slideflow.dataset import Dataset
 from slideflow.util import log
 from slideflow.project_utils import get_validation_settings
@@ -71,14 +71,14 @@ class Project:
             eval_dir (str): Path to directory in which to save evaluations. Defaults to './eval'.
 
         Raises:
-            slideflow.util.UserError: if the project folder does not exist, or the folder exists but
+            slideflow.errors.ProjectError: if the project folder does not exist, or the folder exists but
                 kwargs are provided.
         """
 
         self.root = root
 
         if exists(join(root, 'settings.json')) and project_kwargs:
-            raise sf.util.UserError(f"Project already exists at {root}. " + \
+            raise errors.ProjectError(f"Project already exists at {root}. " + \
                                    f"Unable to override user-provided settings: {', '.join(project_kwargs.keys())}")
         elif exists(join(root, 'settings.json')):
             self.load_project(root)
@@ -89,7 +89,7 @@ class Project:
                 os.makedirs(root)
             self.save()
         else:
-            raise sf.util.UserError(f"Project folder {root} does not exist.")
+            raise errors.ProjectError(f"Project folder {root} does not exist.")
 
         # Create directories, if not already made
         if not exists(self.models_dir):
@@ -143,7 +143,7 @@ class Project:
     @annotations.setter
     def annotations(self, val):
         if not isinstance(val, str):
-            raise sf.util.UserError("'annotations' must be a str (path to annotations file)")
+            raise errors.ProjectError("'annotations' must be a str (path to annotations file)")
         self._settings['annotations'] = val
 
     @property
@@ -154,7 +154,7 @@ class Project:
     @dataset_config.setter
     def dataset_config(self, val):
         if not isinstance(val, str):
-            raise sf.util.UserError("'dataset_config' must be a str (path to dataset config JSON file)")
+            raise errors.ProjectError("'dataset_config' must be a str (path to dataset config JSON file)")
         self._settings['dataset_config'] = val
 
     @property
@@ -169,7 +169,7 @@ class Project:
     @eval_dir.setter
     def eval_dir(self, val):
         if not isinstance(val, str):
-            raise sf.util.UserError("'eval_dir' must be a str (path to evaluation directory)")
+            raise errors.ProjectError("'eval_dir' must be a str (path to evaluation directory)")
         self._settings['eval_dir'] = val
 
     @property
@@ -180,7 +180,7 @@ class Project:
     @models_dir.setter
     def models_dir(self, val):
         if not isinstance(val, str):
-            raise sf.util.UserError("'models_dir' must be a str (path to models directory)")
+            raise errors.ProjectError("'models_dir' must be a str (path to models directory)")
         self._settings['models_dir'] = val
 
     @property
@@ -191,7 +191,7 @@ class Project:
     @name.setter
     def name(self, val):
         if not isinstance(val, str):
-            raise sf.util.UserError("'name' must be a str")
+            raise errors.ProjectError("'name' must be a str")
         self._settings['name'] = val
 
     @property
@@ -210,7 +210,7 @@ class Project:
         """Neptune workspace name."""
 
         if not isinstance(name, str):
-            raise sf.util.UserError('Neptune workspace name must be a string.')
+            raise errors.ProjectError('Neptune workspace name must be a string.')
         self._settings['neptune_workspace'] = name
 
     @property
@@ -229,7 +229,7 @@ class Project:
         """Neptune API token."""
 
         if not isinstance(api_token, str):
-            raise sf.util.UserError('API token must be a string.')
+            raise errors.ProjectError('API token must be a string.')
         self._settings['neptune_api'] = api_token
 
     @property
@@ -244,7 +244,7 @@ class Project:
     @sources.setter
     def sources(self, val):
         if not isinstance(val, list) or any([not isinstance(v, str) for v in val]):
-            raise sf.util.UserError("'sources' must be a list of str")
+            raise errors.ProjectError("'sources' must be a list of str")
         self._settings['sources'] = val
 
     def _read_relative_path(self, path):
@@ -558,9 +558,9 @@ class Project:
         if filename is None:
             filename = self.annotations
         if exists(filename):
-            raise sf.util.UserError(f"Unable to create blank annotations file at {filename}; file already exists.")
+            raise errors.AnnotationsError(f"Unable to create blank annotations file at {filename}; file already exists.")
         if not exists(self.dataset_config):
-            raise sf.util.UserError("Unable to create blank annotations file, dataset configuration file " +
+            raise errors.AnnotationsError("Unable to create blank annotations file, dataset configuration file " +
                                     f"{self.dataset_config} does not exist.")
 
         dataset = Dataset(config=self.dataset_config,
@@ -661,7 +661,7 @@ class Project:
                                                            mixed_precision=mixed_precision)
 
         if (input_header is None) and permutation_importance:
-            raise sf.util.UserError('Permutation feature importance requires clinical inputs (set with input_header).')
+            raise errors.UserError('Permutation feature importance requires clinical inputs (set with input_header).')
 
         return trainer.evaluate(dataset=eval_dts,
                                 batch_size=batch_size,
@@ -703,7 +703,7 @@ class Project:
         elif exists(join(exp_name, 'experiment.json')):
             pass
         else:
-            raise Exception(f"Unable to find the experiment '{exp_name}'")
+            raise errors.CLAMError(f"Unable to find the experiment '{exp_name}'")
 
         log.info(f'Loading trained experiment from {sf.util.green(exp_name)}, k={k}')
         eval_dir = join(exp_name, 'eval')
@@ -972,7 +972,7 @@ class Project:
         # First, ensure the model is valid with a hyperparameters file
         config = sf.util.get_model_config(model)
         if not config:
-            raise Exception('Unable to find model hyperparameters file.')
+            raise errors.ModelParamsError('Unable to find model hyperparameters file.')
         tile_px = config['tile_px']
         tile_um = config['tile_um']
 
@@ -1176,8 +1176,8 @@ class Project:
                                        filter_blank=filter_blank)
         else:
             if config and (dataset.tile_px != config['hp']['tile_px'] or dataset.tile_um != config['hp']['tile_um']):
-                raise ValueError(f"Dataset tile size ({dataset.tile_px}px, {dataset.tile_um}um) does not match " + \
-                                 f"model ({config['hp']['tile_px']}px, {config['hp']['tile_um']}um)")
+                raise errors.DatasetError(f"Dataset tile size ({dataset.tile_px}px, {dataset.tile_um}um) does not " + \
+                                          f"match model ({config['hp']['tile_px']}px, {config['hp']['tile_um']}um)")
             if filters is not None or filter_blank is not None:
                 log.warning("Dataset supplied; ignoring provided filters and filter_blank")
             tile_px = dataset.tile_px
@@ -1461,11 +1461,11 @@ class Project:
         try:
             slide_path = slide_paths[slide_name]
         except KeyError:
-            raise Exception(f'Unable to locate slide {slide_name}')
+            raise errors.SlideNotFoundError(f'Unable to locate slide {slide_name}')
 
         if tile_dict.keys() != loc_dict.keys():
-            raise Exception(f'Length of provided tile_dict ({len(list(tile_dict.keys()))}) does not match ' + \
-                                f'number of tiles stored in the TFRecord ({len(list(loc_dict.keys()))}).')
+            raise errors.TFRecordsError(f'Length of provided tile_dict ({len(list(tile_dict.keys()))}) does not ' + \
+                                f'match number of tiles stored in the TFRecord ({len(list(loc_dict.keys()))}).')
 
         print(f'Generating TFRecord heatmap for {sf.util.green(tfrecord)}...')
         slide = sf.slide.WSI(slide_path, tile_px, tile_um, skip_missing_roi=False)
@@ -1630,7 +1630,7 @@ class Project:
         if exists(join(path, 'settings.json')):
             self._settings = sf.util.load_json(join(path, 'settings.json'))
         else:
-            raise OSError(f'Unable to locate settings.json at location "{path}".')
+            raise errors.ProjectError(f'Unable to locate settings.json at location "{path}".')
 
     def predict(self, model, dataset=None, filters=None, checkpoint=None, model_config=None, eval_k_fold=None,
                 splits="splits.json", max_tiles=0, min_tiles=0, batch_size=64, input_header=None,
@@ -1909,18 +1909,18 @@ class Project:
             elif exists(join(self.root, params)):
                 hp_dict = sf.model.get_hp_from_batch_file(join(self.root, params))
             else:
-                raise OSError(f"Unable to find hyperparameters file {params}")
+                raise errors.ModelParamsError(f"Unable to find hyperparameters file {params}")
         elif isinstance(params, sf.model.ModelParams):
             hp_dict = {'HP0': params}
         elif isinstance(params, list):
             if not all([isinstance(hp, sf.model.ModelParams) for hp in params]):
-                raise sf.util.UserError('If supplying list of hyperparameters, items must be sf.model.ModelParams')
+                raise errors.ModelParamsError('If params is a list, items must be sf.model.ModelParams')
             hp_dict = {f'HP{i}':hp for i,hp in enumerate(params)}
         elif isinstance(params, dict):
             if not all([isinstance(hp, str) for hp in params.keys()]):
-                raise sf.util.UserError('If supplying dict of hyperparameters, keys must be of type str')
+                raise errors.ModelParamsError('If params is a dict, keys must be of type str')
             if not all([isinstance(hp, sf.model.ModelParams) for hp in params.values()]):
-                raise sf.util.UserError('If supplying dict of hyperparameters, values must be sf.model.ModelParams')
+                raise errors.ModelParamsError('If params is a dict, values must be sf.model.ModelParams')
             hp_dict = params
 
         # Get default validation settings from kwargs

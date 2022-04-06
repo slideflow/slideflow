@@ -98,7 +98,7 @@ def get_validation_settings(**kwargs):
     if args.strategy is None:
         args.strategy = 'none'
     if (args.k_fold_header is None and args.strategy == 'k-fold-manual'):
-        raise Exception("Must supply 'k_fold_header' if validation strategy is 'k-fold-manual'")
+        raise ValueError("Must supply 'k_fold_header' if validation strategy is 'k-fold-manual'")
 
     return args
 

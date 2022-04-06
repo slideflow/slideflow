@@ -20,7 +20,8 @@ import slideflow as sf
 
 from collections import defaultdict
 from slideflow.util import log
-from slideflow.model.base import FeatureError, HyperParameterError
+from slideflow.model.base import FeatureError
+from slideflow import errors
 from os.path import join, exists
 from math import isnan
 from tqdm import tqdm
@@ -32,7 +33,7 @@ if os.environ['SF_BACKEND'] == 'tensorflow':
 elif os.environ['SF_BACKEND'] == 'torch':
     from slideflow.model.torch import ModelParams, Trainer, LinearTrainer, CPHTrainer, Features
 else:
-    raise ValueError(f"Unknown backend {os.environ['SF_BACKEND']}")
+    raise errors.BackendError(f"Unknown backend {os.environ['SF_BACKEND']}")
 
 # -----------------------------------------------------------------------------
 
@@ -79,9 +80,9 @@ def get_hp_from_batch_file(filename, models=None):
     """
 
     if models is not None and not isinstance(models, list):
-        raise sf.util.UserError("If supplying models, must be a list of strings containing model names.")
+        raise ValueError("If supplying models, must be a list of strings containing model names.")
     if isinstance(models, list) and not list(set(models)) == models:
-        raise sf.util.UserError("Duplicate model names provided.")
+        raise ValueError("Duplicate model names provided.")
 
     hp_list = sf.util.load_json(filename)
 
@@ -335,7 +336,7 @@ class DatasetFeatures:
         """
 
         if not self.categories:
-            raise sf.util.UserError('Unable to calculate activations by category; annotations not provided.')
+            raise errors.FeaturesError('Unable to calculate activations by category; annotations not provided.')
 
         def activations_by_single_category(c):
             return np.concatenate([self.activations[pt][:,idx] for pt in self.slides if self.annotations[pt] == c])
@@ -349,7 +350,8 @@ class DatasetFeatures:
             features (list(int)): List of feature indices for which to generate box plots.
             outdir (str): Path to directory in which to save box plots.
         """
-        if not isinstance(features, list): raise sf.util.UserError("'features' must be a list of int.")
+        if not isinstance(features, list):
+            raise ValueError("'features' must be a list of int.")
         if not self.categories:
             log.warning('Unable to generate box plots; annotations not loaded. Please load with load_annotations().')
             return
@@ -393,7 +395,7 @@ class DatasetFeatures:
             slides (list(str)): Slides to export. If None, exports all slides. Defaults to None.
         """
         if level not in ('tile', 'slide'):
-            raise sf.util.UserError(f"Unknown level {level}, must be either 'tile' or 'slide'.")
+            raise errors.FeaturesError(f"Unknown level {level}, must be either 'tile' or 'slide'.")
 
         meth_fn = {'mean': np.mean, 'median': np.median}
         slides = self.slides if not slides else slides
@@ -466,9 +468,9 @@ class DatasetFeatures:
         """
 
         if not self.categories:
-            raise FeatureError('Unable to calculate activations statistics; Please load annotations with load_annotations().')
+            raise errors.FeaturesError('Unable to calculate statistics; load annotations with load_annotations().')
         if method not in ('mean', 'threshold'):
-            raise FeatureError(f"'method' must be either 'mean' or 'threshold', not {method}")
+            raise errors.FeaturesError(f"'method' must be either 'mean' or 'threshold', not {method}")
 
         log.info('Calculating activation averages & stats across features...')
 
@@ -668,7 +670,8 @@ class DatasetFeatures:
                 Will evenly sample this many tiles across the activation gradient.
         """
 
-        if not isinstance(features, list): raise sf.util.UserError("'features' must be a list of int.")
+        if not isinstance(features, list):
+            raise ValueError("'features' must be a list of int.")
 
         if not slides:
             slides = self.slides

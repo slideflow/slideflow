@@ -11,13 +11,14 @@ import slideflow as sf
 import numpy as np
 import slideflow.util.neptune_utils
 
+from tqdm import tqdm
 from os.path import join
 from slideflow.util import log
 from slideflow.model import base as _base
 from slideflow.model.base import FeatureError
 from slideflow.model import torch_utils
 from slideflow.model.base import log_manifest
-from tqdm import tqdm
+from slideflow import errors
 from torch.utils.tensorboard import SummaryWriter
 
 class LinearBlock(torch.nn.Module):
@@ -70,7 +71,7 @@ class ModelWrapper(torch.nn.Module):
             elif hasattr(self.model, 'out_features'):
                 num_ftrs = self.model.out_features
             else:
-                raise _base.ModelError(f"Unable to find last linear layer for model class {model.__class__.__name__}")
+                raise errors.ModelError(f"Unable to find last linear layer for model class {model.__class__.__name__}")
         else:
             num_ftrs = 0
 
@@ -91,9 +92,9 @@ class ModelWrapper(torch.nn.Module):
     def __getattr__(self, name):
         try:
             return super().__getattr__(name)
-        except AttributeError:
+        except AttributeError as e:
             if name == 'model':
-                raise AttributeError()
+                raise e
             return getattr(self.model, name)
 
     def forward(self, img, slide_features=None):
@@ -199,7 +200,7 @@ class ModelParams(_base._ModelParams):
         assert self.optimizer in self.OptDict.keys()
         assert self.loss in self.AllLossDict
         if not self.include_top:
-            raise _base.HyperParameterError("PyTorch backend does not currently support include_top=False.")
+            raise errors.BackendError("PyTorch backend does not currently support include_top=False.")
 
     def get_opt(self, params_to_update):
         return self.OptDict[self.optimizer](params_to_update, lr=self.learning_rate)
@@ -300,7 +301,7 @@ class Trainer:
         if not self.outcome_names:
             self.outcome_names = [f'Outcome {i}' for i in range(outcome_labels.shape[1])]
         if not len(self.outcome_names) == outcome_labels.shape[1]:
-            raise sf.util.UserError(f"Number of provided outcome names ({len(self.outcome_names)}) does not match " + \
+            raise errors.ModelError(f"Number of provided outcome names ({len(self.outcome_names)}) does not match " + \
                                     f"the number of outcomes ({outcome_labels.shape[1]})")
         if not os.path.exists(outdir): os.makedirs(outdir)
 
@@ -355,7 +356,7 @@ class Trainer:
 
         # Load and initialize model
         if not self.model:
-            raise sf.util.UserError("Model has not been loaded, unable to evaluate.")
+            raise errors.ModelNotLoadedError
         device = torch.device('cuda:0')
         self.model.to(device)
         self.model.eval()
@@ -421,7 +422,7 @@ class Trainer:
         if permutation_importance:
             raise NotImplementedError("permutation_importance not yet implemented for PyTorch backend.")
         if not self.model:
-            raise sf.util.UserError("Model has not been loaded, unable to evaluate.")
+            raise errors.ModelNotLoadedError
         device = torch.device('cuda:0')
         self.model.to(device)
         self.model.eval()
@@ -629,7 +630,7 @@ class Trainer:
         if (self.hp.early_stop and self.hp.early_stop_method == 'accuracy' and
            self.hp.model_type() == 'categorical' and self.num_outcomes > 1):
 
-           raise sf.util.UserError("Cannot combine 'accuracy' early stopping with multiple categorical outcomes.")
+           raise errors.ModelError("Cannot combine 'accuracy' early stopping with multiple categorical outcomes.")
 
         # Enable TF32 (should be enabled by default)
         torch.backends.cuda.matmul.allow_tf32 = True  # Allow PyTorch to internally use tf32 for matmul
@@ -1107,7 +1108,7 @@ class Features:
             try:
                 config = sf.util.get_model_config(path)
             except:
-                raise FeatureError(f"Unable to find configuration for model {path}")
+                raise errors.FeaturesError(f"Unable to find configuration for model {path}")
 
             self.hp = ModelParams()
             self.hp.load_dict(config['hp'])
@@ -1149,7 +1150,7 @@ class Features:
             obj._model = model.to(obj.device)
             obj._model.eval()
         else:
-            raise TypeError("Provided model is not a valid PyTorch model.")
+            raise errors.ModelError("Provided model is not a valid PyTorch model.")
         obj.hp = None
         if obj._model.__class__.__name__ == 'ModelWrapper':
             obj.model_type = obj._model.model.__class__.__name__
@@ -1248,7 +1249,7 @@ class Features:
             return list(self._model.conv5.children())[1]
         if self.model_type == 'Xception':
             return self._model.bn4
-        raise FeatureError(f"'postconv' layer not configured for model type {self.model_type}")
+        raise errors.FeaturesError(f"'postconv' layer not configured for model type {self.model_type}")
 
     def _postconv_processing(self, output):
         """Applies processing (pooling, resizing) to post-convolutional outputs,
@@ -1285,7 +1286,7 @@ class Features:
                 else:
                     getattr(self._model, l).register_forward_hook(get_activation(l))
         elif self.layers is not None:
-            raise TypeError(f"Unrecognized type {type(self.layers)} for self.layers")
+            raise errors.FeaturesError(f"Unrecognized type {type(self.layers)} for self.layers")
 
         # Calculate output and layer sizes
         rand_data = torch.rand(1, 3, self.tile_px, self.tile_px)

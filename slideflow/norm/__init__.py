@@ -10,6 +10,7 @@ from PIL import Image
 from slideflow.dataset import Dataset
 from slideflow.util import log
 from tqdm import tqdm
+from slideflow import errors
 
 if sf.backend() == 'tensorflow':
     import tensorflow as tf
@@ -122,7 +123,7 @@ class GenericStainNormalizer:
         elif stain_matrix_target is not None:
             self.n.stain_matrix_target = np.array(stain_matrix_target)
         else:
-            raise ValueError(f'Unrecognized arguments for fit: {args}')
+            raise errors.NormalizerError(f'Unrecognized arguments for fit: {args}')
         log.info(f"Fit normalizer to mean {self.target_means}, stddev {self.target_stds}")
 
     def get_fit(self):
@@ -184,7 +185,7 @@ def autoselect(method, source=None, prefer_vectorized=True):
     elif sf.backend() == 'torch' and prefer_vectorized:
         from slideflow.norm.torch import TorchStainNormalizer as VectorizedNormalizer
     elif prefer_vectorized:
-        raise ValueError(f"Unknown backend {sf.backend()}; unable to find vectorized normalizer.")
+        raise errors.BackendError(f"Unknown backend {sf.backend()}; unable to find vectorized normalizer.")
 
     if prefer_vectorized and method in VectorizedNormalizer.normalizers:
         return VectorizedNormalizer(method, source)

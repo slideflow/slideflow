@@ -58,12 +58,6 @@ if 'SF_LOGGING_LEVEL' in os.environ:
 else:
     log.setLevel(logging.INFO)
 
-class UserError(Exception):
-    pass
-
-class CPLEXError(Exception):
-    pass
-
 class LogFormatter(logging.Formatter):
     MSG_FORMAT = "%(asctime)s [%(levelname)s] - %(message)s"
     LEVEL_FORMATS = {

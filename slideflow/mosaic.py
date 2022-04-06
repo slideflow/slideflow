@@ -13,6 +13,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import slideflow as sf
 
+from slideflow import errors
 from random import shuffle
 from matplotlib import patches
 from multiprocessing.dummy import Pool as DPool
@@ -20,9 +21,6 @@ from functools import partial
 from tqdm import tqdm
 from slideflow.util import log
 from slideflow.stats import get_centroid_index
-
-class MosaicError(Exception):
-    pass
 
 class Mosaic:
     """Visualization of tiles mapped using dimensionality reduction.
@@ -59,7 +57,7 @@ class Mosaic:
         """
 
         if not len(tfrecords):
-            raise ValueError("No tfrecords provided, unable to generate mosaic.")
+            raise errors.TFRecordsNotFoundError
 
         tile_point_distances = []
         max_distance_factor = leniency
@@ -160,7 +158,7 @@ class Mosaic:
                         distances = np.linalg.norm(point_coords - tile['coord'], ord=2, axis=1.)
                         tile['nearest_index'] = tile['points'][np.argmin(distances)]
                     elif not tile_meta:
-                        raise MosaicError('Unable to calculate centroid for mosaic if tile_meta not provided.')
+                        raise errors.MosaicError('Unable to calculate centroid for mosaic if tile_meta not provided.')
                     else:
                         meta_vals_from_points = [self.points[global_index]['meta'] for global_index in tile['points']]
                         centroid_index = get_centroid_index(meta_vals_from_points)
@@ -343,7 +341,7 @@ class Mosaic:
             elif self.img_format == 'png':
                 tile_image = self.normalizer.png_to_rgb(string)
             else:
-                raise MosaicError(f"Unknown image format in tfrecords: {self.img_format}")
+                raise errors.MosaicError(f"Unknown image format in tfrecords: {self.img_format}")
         else:
             image_arr = np.fromstring(string, np.uint8)
             tile_image_bgr = cv2.imdecode(image_arr, cv2.IMREAD_COLOR)

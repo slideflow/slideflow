@@ -12,9 +12,9 @@ import slideflow as sf
 
 from tqdm import tqdm
 from functools import partial
-from slideflow.util import ProgressBar, to_onehot
 from os.path import join
-from slideflow.util import log
+from slideflow.util import log, ProgressBar, to_onehot
+from slideflow import errors
 from scipy import stats
 from scipy.special import softmax
 from random import sample
@@ -28,9 +28,6 @@ from lifelines.utils import concordance_index as c_index
 
 # TODO: remove 'hidden_0' reference as this may not be present if the model does not have hidden layers
 # TODO: convert all this x /y /meta /values stuff to just a pandas dataframe?
-
-class StatsError(Exception):
-    pass
 
 class SlideMap:
     """Two-dimensional slide map used for visualization, as well as subsequent construction of mosaic maps.
@@ -99,7 +96,7 @@ class SlideMap:
         """
 
         if map_slide is not None and map_slide not in ('centroid', 'average'):
-            raise StatsError(f"map_slide must be None (default), 'centroid', or 'average', not '{map_slide}'")
+            raise errors.SlideMapError(f"map_slide must be None (default), 'centroid', or 'average', not '{map_slide}'")
 
         if not exclude_slides:
             slides = df.slides
@@ -212,7 +209,7 @@ class SlideMap:
         """
 
         if method not in ('centroid', 'average'):
-            raise StatsError(f'Method must be either "centroid" or "average", not {method}')
+            raise errors.SlideMapError(f'Method must be either "centroid" or "average", not {method}')
 
         log.info("Calculating centroid indices...")
         optimal_slide_indices, centroid_activations = calculate_centroid(self.df.activations)
@@ -366,9 +363,9 @@ class SlideMap:
         """
 
         if slide not in neighbor_df.activations:
-            raise StatsError(f"Slide {slide} not found in DatasetFeatures, unable to find neighbors")
+            raise errors.SlideMapError(f"Slide {slide} not found in DatasetFeatures, unable to find neighbors")
         if not hasattr(self, 'df'):
-            raise StatsError(f"SlideMap does not have an DatasetFeatures, unable to calculate neighbors")
+            raise errors.SlideMapError(f"SlideMap does not have an DatasetFeatures, unable to calculate neighbors")
 
         tile_neighbors = self.df.neighbors(neighbor_df, slide, n_neighbors=5)
 
@@ -515,7 +512,7 @@ class SlideMap:
             filename = "3d_plot.png"
 
         if (z is None) and (feature is None):
-            raise StatsError("Must supply either 'z' or 'feature'.")
+            raise errors.SlideMapError("Must supply either 'z' or 'feature'.")
 
         # Get feature activations for 3rd dimension
         if z is None:
@@ -946,8 +943,8 @@ def gen_umap(array, dim=2, n_neighbors=50, min_dist=0.1, metric='cosine', low_me
                            metric=metric,
                            low_memory=low_memory).fit_transform(array)
     except ValueError:
-        raise StatsError("Error performing UMAP. Please make sure you are supplying a non-empty TFRecord array " + \
-                                "and that the TFRecords are not empty.")
+        raise errors.StatsError("Error performing UMAP. Please make sure you are supplying a non-empty TFRecord " + \
+                                "array and that the TFRecords are not empty.")
 
     return normalize_layout(layout)
 
@@ -1188,7 +1185,7 @@ def predictions_to_dataframe(y_true, y_pred, tile_to_slides, outcome_names, unce
                 y_true = [y_true[:, i] for i in range(y_true.shape[1])]
             y_pred = [y_pred[:, i] for i in range(y_pred.shape[1])]
         elif len(outcome_names) > 1:
-            raise StatsError("If providing only one y_pred, length of outcome_names must be one")
+            raise errors.StatsError("If providing only one y_pred, length of outcome_names must be one")
         else:
             y_true = [y_true]
 
@@ -1317,14 +1314,14 @@ def metrics_from_predictions(y_true, y_pred, tile_to_slides, labels, patients, m
         elif len(y_true.shape) == 1:
             num_outcomes_by_y_true = 1
         else:
-            raise StatsError(f"y_true expected to be formated as list of numpy arrays for each outcome category.")
+            raise errors.StatsError(f"y_true expected to be formated as list of numpy arrays for each outcome category.")
 
         # Confirm that the number of outcomes provided by y_true match the provided outcome names
         if not outcome_names:
             outcome_names = {f"Outcome {i}" for i in range(num_outcomes_by_y_true)}
         elif len(outcome_names) != num_outcomes_by_y_true:
-            raise StatsError(f"Number of outcome names {len(outcome_names)} does not " + \
-                                        f"match y_true {num_outcomes_by_y_true}")
+            raise errors.StatsError(f"Number of outcome names {len(outcome_names)} does not " + \
+                                    f"match y_true {num_outcomes_by_y_true}")
 
         for oi, outcome in enumerate(outcome_names):
             if len(outcome_names) > 1:

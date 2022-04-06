@@ -8,6 +8,7 @@ from slideflow.dataset import Dataset
 from slideflow.util import log
 from slideflow.norm import GenericStainNormalizer
 from slideflow.norm.tensorflow import reinhard, reinhard_fast
+from slideflow import errors
 
 class TensorflowStainNormalizer(GenericStainNormalizer):
     vectorized = True
@@ -112,7 +113,7 @@ class TensorflowStainNormalizer(GenericStainNormalizer):
         elif stain_matrix_target is not None:
             self.stain_matrix_target = tf.constant(np.array(stain_matrix_target), dtype=tf.float32)
         else:
-            raise ValueError(f'Unrecognized arguments for fit: {args}')
+            raise errors.NormalizerError(f'Unrecognized arguments for fit: {args}')
         log.info(f"Fit normalizer to mean {self.target_means.numpy()}, stddev {self.target_stds.numpy()}")
 
     def get_fit(self):

@@ -12,6 +12,7 @@ from os import listdir
 from os.path import isfile, isdir, join, exists
 from random import shuffle, randint
 from slideflow.util import log
+from slideflow import errors
 from glob import glob
 
 logging.getLogger("tensorflow").setLevel(logging.ERROR)
@@ -26,9 +27,6 @@ FEATURE_DESCRIPTION = {'slide':        tf.io.FixedLenFeature([], tf.string),
                        'image_raw':    tf.io.FixedLenFeature([], tf.string),
                        'loc_x':        tf.io.FixedLenFeature([], tf.int64),
                        'loc_y':        tf.io.FixedLenFeature([], tf.int64)}
-
-class TFRecordsError(Exception):
-    pass
 
 def _float_feature(value):
     """Returns a bytes_list from a float / double."""
@@ -155,7 +153,7 @@ def detect_tfrecord_format(path):
             features = tf.io.parse_single_example(record, FEATURE_DESCRIPTION_LEGACY)
             feature_description = FEATURE_DESCRIPTION_LEGACY
         except tf.errors.InvalidArgumentError:
-            raise TFRecordsError(f"Unrecognized TFRecord format: {path}")
+            raise errors.TFRecordsError(f"Unrecognized TFRecord format: {path}")
     image_type = imghdr.what('', features['image_raw'].numpy())
     return feature_description, image_type
 
@@ -195,7 +193,7 @@ def get_tfrecord_parser(tfrecord_path, features_to_return=None, to_numpy=False, 
 
         def process_feature(f):
             if f not in features and error_if_invalid:
-                raise TFRecordsError(f"Unknown feature {f} (available features: {', '.join(features)})")
+                raise errors.TFRecordsError(f"Unknown feature {f} (available features: {', '.join(features)})")
             elif f not in features:
                 return None
             elif f == 'image_raw' and decode_images:
@@ -271,7 +269,7 @@ def interleave(tfrecords, img_size, batch_size, prob_weights=None, clip=None, la
     """
 
     if not len(tfrecords):
-        raise ValueError("Interleaving failed: no tfrecords found.")
+        raise errors.TFRecordsNotFoundError
     log.debug(f'Interleaving {len(tfrecords)} tfrecords: infinite={infinite}, num_parallel_reads={num_parallel_reads}')
     if num_shards:
         log.debug(f'num_shards={num_shards}, shard_idx={shard_idx}')
@@ -407,7 +405,7 @@ def merge_split_tfrecords(source, destination):
         for tfrecord in tfrecords[tfrecord_name]:
             n_feature_description, n_img_type = detect_tfrecord_format(tfrecord)
             if n_feature_description != feature_description or n_img_type != img_type:
-                raise TFRecordsError("Mismatching tfrecord format found, unable to merge")
+                raise errors.TFRecordsError("Mismatching tfrecord format found, unable to merge")
             dataset = tf.data.TFRecordDataset(tfrecord)
             dataset = dataset.shuffle(1000)
             dataset_iter = iter(dataset)
@@ -433,7 +431,7 @@ def join_tfrecord(input_folder, output_file, assign_slide=None):
     for tfrecord in tfrecord_files:
         n_feature_description, n_img_type = detect_tfrecord_format(tfrecord)
         if n_feature_description != feature_description or n_img_type != img_type:
-            raise TFRecordsError("Mismatching tfrecord format found, unable to merge")
+            raise errors.TFRecordsError("Mismatching tfrecord format found, unable to merge")
         dataset = tf.data.TFRecordDataset(tfrecord)
         dataset = dataset.shuffle(1000)
         dataset_iter = iter(dataset)

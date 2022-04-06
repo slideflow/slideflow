@@ -24,6 +24,7 @@ from os.path import join, exists, dirname
 from slideflow.util import log
 from slideflow.model.base import ModelError, FeatureError, no_scope, log_summary, log_manifest
 from slideflow.model.tensorflow_utils import *
+from slideflow import errors
 
 class StaticDropout(tf.keras.layers.Dropout):
     def __init__(self, *args, **kwargs):
@@ -369,7 +370,7 @@ class ModelParams(_base._ModelParams):
         elif self.model_type() == 'cph':
             return self._build_cph_model(num_classes, **kwargs)
         else:
-            raise ModelError(f'Unknown model type: {self.model_type()}')
+            raise errors.ModelError(f'Unknown model type: {self.model_type()}')
 
     def get_loss(self):
         return self.AllLossDict[self.loss]
@@ -696,7 +697,7 @@ class Trainer:
         if len(self.outcome_names) != outcome_labels.shape[1]:
             num_names = len(self.outcome_names)
             num_outcomes = outcome_labels.shape[1]
-            raise ModelError(f'Size of outcome_names ({num_names}) does not match number of outcomes {num_outcomes}')
+            raise errors.ModelError(f'Size of outcome_names ({num_names}) != number of outcomes {num_outcomes}')
 
         self._setup_inputs()
         if labels:
@@ -739,12 +740,12 @@ class Trainer:
                 if self.num_slide_features:
                     log.info(f'Training with both images and {self.num_slide_features} categories of slide-level input')
             except KeyError:
-                raise ModelError("Unable to find slide-level input at 'input' key in annotations")
+                raise errors.ModelError("Unable to find slide-level input at 'input' key in annotations")
             for slide in self.slides:
                 if len(self.slide_input[slide]) != self.num_slide_features:
                     err_msg = f'Length of input for slide {slide} does not match feature_sizes'
                     num_in_feature_table = len(self.slide_input[slide])
-                    raise ModelError(f'{err_msg}; expected {self.num_slide_features}, got {num_in_feature_table}')
+                    raise errors.ModelError(f'{err_msg}; expected {self.num_slide_features}, got {num_in_feature_table}')
 
     def _compile_model(self):
         '''Compiles keras model.'''
@@ -841,7 +842,7 @@ class Trainer:
 
         # Load and initialize model
         if not self.model:
-            raise sf.util.UserError("Model has not been loaded, unable to evaluate.")
+            raise errors.ModelNotLoadedError
         log_manifest(None, dataset.tfrecords(), self.labels, join(self.outdir, 'slide_manifest.csv'))
 
         if not batch_size: batch_size = self.hp.batch_size
@@ -902,7 +903,7 @@ class Trainer:
 
         # Load and initialize model
         if not self.model:
-            raise sf.util.UserError("Model has not been loaded, unable to evaluate.")
+            raise errors.ModelNotLoadedError
         log_manifest(None, dataset.tfrecords(), self.labels, join(self.outdir, 'slide_manifest.csv'))
 
         # Neptune logging
@@ -993,7 +994,7 @@ class Trainer:
         """
 
         if self.hp.model_type() != self._model_type:
-            raise ModelError(f"Incomptable model types: {self.hp.model_type()} (hp) and {self._model_type} (model)")
+            raise errors.ModelError(f"Incomptable model types: {self.hp.model_type()} (hp) and {self._model_type} (model)")
         tf.keras.backend.clear_session() # Clear prior Tensorflow graph to free memory
 
         # Fit the normalizer to the training data and log the source mean/stddev
@@ -1205,7 +1206,7 @@ class CPHTrainer(LinearTrainer):
         super().__init__(*args, **kwargs)
 
         if not self.num_slide_features:
-            raise ModelError('Model error - CPH models must include event input')
+            raise errors.ModelError('Model error - CPH models must include event input')
 
     def _setup_inputs(self):
         # Setup slide-level input
@@ -1217,12 +1218,12 @@ class CPHTrainer(LinearTrainer):
             else:
                 log.info(f'Training with images alone. Interpreting first feature as event for CPH model')
         except KeyError:
-            raise ModelError("Unable to find slide-level input at 'input' key in annotations")
+            raise errors.ModelError("Unable to find slide-level input at 'input' key in annotations")
         for slide in self.slides:
             if len(self.slide_input[slide]) != self.num_slide_features:
                 err_msg = f'Length of input for slide {slide} does not match feature_sizes'
                 num_in_feature_table = len(self.slide_input[slide])
-                raise ModelError(f'{err_msg}; expected {self.num_slide_features}, got {num_in_feature_table}')
+                raise errors.ModelError(f'{err_msg}; expected {self.num_slide_features}, got {num_in_feature_table}')
 
     def load(self, model):
         custom_objects = {'negative_log_likelihood':negative_log_likelihood,
@@ -1348,7 +1349,7 @@ class Features:
         if isinstance(model, tf.keras.models.Model):
             obj._model = model
         else:
-            raise TypeError("Provided model is not a valid Tensorflow model.")
+            raise errors.ModelError("Provided model is not a valid Tensorflow model.")
         obj._build(layers=layers, include_logits=include_logits)
         obj.wsi_normalizer = wsi_normalizer
         return obj

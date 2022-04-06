@@ -40,6 +40,7 @@ from datetime import datetime
 from functools import partial
 from tqdm import tqdm
 from fpdf import FPDF
+from slideflow import errors
 
 warnings.simplefilter('ignore', Image.DecompressionBombWarning)
 Image.MAX_IMAGE_PIXELS = 100000000000
@@ -264,10 +265,6 @@ def log_extraction_params(**kwargs):
     if gs_f < 1:
         log.info('Filtering tiles by grayspace fraction')
         log.debug(f'Grayspace defined as HSV avg < {gs_t} (exclude if >={gs_f*100:.0f}% grayspace)')
-
-class TileCorruptionError(Exception):
-    '''Raised when image normalization fails due to tile corruption.'''
-    pass
 
 class SlideReport:
     '''Report to summarize tile extraction from a slide, including example images of extracted tiles.'''
@@ -734,7 +731,7 @@ class _BaseLoader:
 
         # Initiate supported slide reader
         if not os.path.exists(path):
-            raise OSError(f"Could not find slide {path}; file does not exist.")
+            raise errors.SlideNotFoundError(f"Could not find slide {path}; file does not exist.")
         if filetype.lower() in sf.util.SUPPORTED_FORMATS:
             if filetype.lower() == 'jpg':
                 self.slide = _JPGslideToVIPS(path)
@@ -825,7 +822,7 @@ class _BaseLoader:
         """
 
         if method not in ('blur', 'otsu', 'both'):
-            raise ValueError(f"Unknown method {method}, valid methods include 'blur', 'otsu', 'both'")
+            raise errors.QCError(f"Unknown method {method}, valid methods include 'blur', 'otsu', 'both'")
         starttime = time.time()
 
         self.qc_mpp = blur_mpp

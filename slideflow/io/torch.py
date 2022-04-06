@@ -14,6 +14,7 @@ from tqdm import tqdm
 from os.path import isfile, join, dirname, exists
 from slideflow.tfrecord.torch.dataset import MultiTFRecordDataset, TFRecordDataset
 from slideflow.util import log, to_onehot
+from slideflow import errors
 from tqdm import tqdm
 from queue import Queue
 
@@ -21,12 +22,6 @@ FEATURE_DESCRIPTION = {'image_raw':    'byte',
                        'slide':        'byte',
                        'loc_x':        'int',
                        'loc_y':        'int'}
-
-class TFRecordsError(Exception):
-    pass
-
-class EmptyTFRecordsError(Exception):
-    pass
 
 class InterleaveIterator(torch.utils.data.IterableDataset):
     """Pytorch Iterable Dataset that interleaves tfrecords with the interleave() function below.
@@ -343,7 +338,7 @@ def detect_tfrecord_format(tfr):
                 img_type = imghdr.what('', img)
                 break
         except KeyError:
-            raise TFRecordsError(f"Unable to detect TFRecord format for record: {tfr}")
+            raise errors.TFRecordsError(f"Unable to detect TFRecord format for record: {tfr}")
     except StopIteration:
         log.debug(f"Unable to detect tfrecord format for {tfr}; file is empty.")
         raise StopIteration
@@ -378,7 +373,7 @@ def get_tfrecord_parser(tfrecord_path, features_to_return=None, decode_images=Tr
     if features_to_return is None:
         features_to_return = {k:k for k in detected_features.keys()}
     elif not all(f in detected_features for f in features_to_return):
-        raise TFRecordsError(f'Not all designated features {",".join(list(features_to_return.keys()))} were found ' + \
+        raise errors.TFRecordsError(f'Not all features {",".join(list(features_to_return.keys()))} were found ' + \
                              f'in the tfrecord {",".join(list(detected_features.keys()))}')
 
     def parser(record):
@@ -439,7 +434,7 @@ def interleave(tfrecords, prob_weights=None, incl_loc=False, clip=None, infinite
             among workers without duplications. Defaults to 0 (first worker).
     """
     if not len(tfrecords):
-        raise ValueError("Interleaving failed: no tfrecords found.")
+        raise errors.TFRecordsNotFoundError
     if rank == 0:
         log.debug(f'Interleaving {len(tfrecords)} tfrecords: infinite={infinite}, num_replicas={num_replicas}')
 
@@ -458,7 +453,7 @@ def interleave(tfrecords, prob_weights=None, incl_loc=False, clip=None, infinite
             tfr = tfr.decode('utf-8')
             index_name = join(dirname(tfr), sf.util.path_to_name(tfr)+'.index')
             if not exists(index_name):
-                raise TFRecordsError(f"Could not find index path for TFRecord {tfr}")
+                raise errors.TFRecordsError(f"Could not find index path for TFRecord {tfr}")
             if os.stat(index_name).st_size == 0:
                 index = None
             else:

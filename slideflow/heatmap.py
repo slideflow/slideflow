@@ -6,12 +6,10 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mcol
 import shapely.geometry as sg
 
+from slideflow import errors
 from slideflow.util import log
 from slideflow.util.fastim import FastImshow
 from matplotlib.widgets import Slider
-
-class HeatmapError(Exception):
-    pass
 
 class Heatmap:
     """Generates heatmap by calculating predictions from a sliding scale window across a slide."""
@@ -76,7 +74,7 @@ class Heatmap:
                          skip_missing_roi=False)
 
         if not self.slide.loaded_correctly():
-            raise HeatmapError(f'Unable to load slide {self.slide.name} for heatmap generation')
+            raise errors.HeatmapError(f'Unable to load slide {self.slide.name} for heatmap generation')
 
         logits_and_uncertainty = interface(self.slide, num_threads=num_threads, batch_size=batch_size, dtype=np.float32)
         if uq:

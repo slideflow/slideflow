@@ -28,7 +28,7 @@ elif os.environ['SF_BACKEND'] == 'torch':
     dataloss_errors = (TFRecordsError,)
 
 else:
-    raise ValueError(f"Unknown backend {os.environ['SF_BACKEND']}")
+    raise BackendError(f"Unknown backend {os.environ['SF_BACKEND']}")
 
 def update_manifest_at_dir(directory, force_update=False):
     '''Log number of tiles in each TFRecord file present in the given directory and all subdirectories,
