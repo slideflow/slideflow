@@ -275,7 +275,6 @@ class TestConfig:
             'sources': ['TEST'],
             'models_dir': './models',
             'eval_dir': './eval',
-            'mixed_precision': True,
         }
         if slides == 'download':
             tcga_slides = get_tcga_slides()

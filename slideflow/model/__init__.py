@@ -627,6 +627,22 @@ class DatasetFeatures:
                 }]
         return np.array(umap_x), np.array(umap_y), umap_meta
 
+    def merge(self, df):
+        '''Merges with another DatasetFeatures.
+
+        Args:
+            df (slideflow.model.DatasetFeatures): DatasetFeatures to merge with.
+
+        Returns:
+            None
+        '''
+
+        self.activations.update(df.activations)
+        self.logits.update(df.logits)
+        self.locations.update(df.locations)
+        self.tfrecords = np.concatenate([self.tfrecords, df.tfrecords])
+        self.slides = list(self.activations.keys())
+
     def remove_slide(self, slide):
         """Removes slide from internally cached activations."""
         del self.activations[slide]

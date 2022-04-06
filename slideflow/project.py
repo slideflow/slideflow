@@ -69,7 +69,6 @@ class Project:
             sources (list(str)): List of dataset sources to include in project. Defaults to 'source1'.
             models_dir (str): Path to directory in which to save models. Defaults to './models'.
             eval_dir (str): Path to directory in which to save evaluations. Defaults to './eval'.
-            mixed_precision (bool): Use mixed precision for training. Defaults to True.
 
         Raises:
             slideflow.util.UserError: if the project folder does not exist, or the folder exists but
@@ -172,21 +171,6 @@ class Project:
         if not isinstance(val, str):
             raise sf.util.UserError("'eval_dir' must be a str (path to evaluation directory)")
         self._settings['eval_dir'] = val
-
-    @property
-    def mixed_precision(self):
-        """Returns bool indicating whether mixed precision should be used for this project."""
-        if 'mixed_precision' in self._settings:
-            return self._settings['mixed_precision']
-        elif 'use_fp16' in self._settings:
-            log.warn("'mixed_precision' not found in project settings. Please update the settings.json file.")
-            return self._settings['use_fp16']
-
-    @mixed_precision.setter
-    def mixed_precision(self, val):
-        if not isinstance(val, bool):
-            raise sf.util.UserError("'mixed_precision' must be a bool")
-        self._settings['mixed_precision'] = val
 
     @property
     def models_dir(self):
@@ -313,7 +297,7 @@ class Project:
 
     def _prepare_trainer_for_eval(self, model, outcome_label_headers=None, dataset=None, filters=None, checkpoint=None,
                                   model_config=None, eval_k_fold=None, splits="splits.json", max_tiles=0, min_tiles=0,
-                                  input_header=None):
+                                  input_header=None, mixed_precision=True):
 
         """Prepares as :class:`slideflow.model.Trainer` from a model, for either evaluation or prediction.
 
@@ -339,6 +323,7 @@ class Project:
             input_header (str, optional): Annotation column header to use as additional input. Defaults to None.
             permutation_importance (bool, optional): Calculate the permutation feature importance.  Determine relative
                 importance when using multiple model inputs. Only available for Tensorflow backend. Defaults to False.
+            mixed_precision (bool, optional): Ensure mixed precision is enabled. Defaults to True.
 
         Returns:
             Trainer (:class:`slideflow.model.Trainer`), evaluation dataset (:class:`slideflow.Dataset`)
@@ -505,7 +490,7 @@ class Project:
                                            patients=dataset.patients(),
                                            slide_input=model_inputs,
                                            manifest=dataset.manifest(),
-                                           mixed_precision=self.mixed_precision,
+                                           mixed_precision=mixed_precision,
                                            feature_names=input_header,
                                            feature_sizes=feature_sizes,
                                            outcome_names=outcome_label_headers,
@@ -623,7 +608,7 @@ class Project:
 
     def evaluate(self, model, outcome_label_headers, dataset=None, filters=None, checkpoint=None, model_config=None,
                  eval_k_fold=None, splits="splits.json", max_tiles=0, min_tiles=0, batch_size=64, input_header=None,
-                 permutation_importance=False, histogram=False, save_predictions=False, **kwargs):
+                 permutation_importance=False, histogram=False, save_predictions=False, mixed_precision=True, **kwargs):
 
         """Evaluates a saved model on a given set of tfrecords.
 
@@ -653,6 +638,7 @@ class Project:
             save_predictions (bool or str, optional): Either True, False, or any combination of 'tile', 'patient',
                 or 'slide', either as string or list of strings. Save tile-level, patient-level, and/or
                 slide-level predictions. If True, will save all.
+            mixed_precision (bool, optional): Ensure mixed precision is enabled. Defaults to True.
 
         Returns:
             Dict: Dictionary of keras training results, nested by epoch.
@@ -671,7 +657,8 @@ class Project:
                                                            splits=splits,
                                                            max_tiles=max_tiles,
                                                            min_tiles=min_tiles,
-                                                           input_header=input_header)
+                                                           input_header=input_header,
+                                                           mixed_precision=mixed_precision)
 
         if (input_header is None) and permutation_importance:
             raise sf.util.UserError('Permutation feature importance requires clinical inputs (set with input_header).')
@@ -1645,9 +1632,9 @@ class Project:
         else:
             raise OSError(f'Unable to locate settings.json at location "{path}".')
 
-    def predict(self, model, dataset=None, filters=None, checkpoint=None, model_config=None,
-                eval_k_fold=None, splits="splits.json", max_tiles=0, min_tiles=0, batch_size=64, input_header=None,
-                format='csv', **kwargs):
+    def predict(self, model, dataset=None, filters=None, checkpoint=None, model_config=None, eval_k_fold=None,
+                splits="splits.json", max_tiles=0, min_tiles=0, batch_size=64, input_header=None,
+                format='csv', mixed_precision=True, **kwargs):
 
         """Evaluates a saved model on a given set of tfrecords.
 
@@ -1672,6 +1659,7 @@ class Project:
                 Defaults to 0. Recommend considering a minimum of at least 10 tiles per slide.
             input_header (str, optional): Annotation column header to use as additional input. Defaults to None.
             format (str, optional): Format in which to save predictions. Either 'csv' or 'feather'. Defaults to 'csv'.
+            mixed_precision (bool, optional): Ensure mixed precision is enabled. Defaults to True.
 
         Returns:
             pandas.DataFrame of tile-level predictions.
@@ -1819,9 +1807,9 @@ class Project:
         """Saves current project configuration as "settings.json"."""
         sf.util.write_json(self._settings, join(self.root, 'settings.json'))
 
-    def train(self, outcome_label_headers, params, exp_label=None, filters=None, filter_blank=None,
-              input_header=None, resume_training=None, checkpoint=None, pretrain='imagenet', min_tiles=0, max_tiles=0,
-              multi_gpu=False, splits="splits.json", balance_headers=None, **training_kwargs):
+    def train(self, outcome_label_headers, params, exp_label=None, filters=None, filter_blank=None, input_header=None,
+              resume_training=None, checkpoint=None, pretrain='imagenet', min_tiles=0, max_tiles=0, multi_gpu=False,
+              splits="splits.json", balance_headers=None, mixed_precision=True, **training_kwargs):
 
         """Train model(s) using a given set of hyperparameters, outcomes, and inputs.
 
@@ -1849,6 +1837,7 @@ class Project:
             balance_headers (str): Str or list of str. Annotation column header(s) specifying labels on which to perform
                 mini-batch balancing. If performing category-level balancing and this is set to None, will default
                 to balancing on outcome_label_headers. Defaults to None.
+            mixed_precision (bool, optional): Ensure mixed precision is enabled. Defaults to True.
 
         Keyword Args:
             val_strategy (str): Validation dataset selection strategy. Defaults to 'k-fold'.
@@ -1990,7 +1979,7 @@ class Project:
             k_iter = [k_iter] if (k_iter != None and not isinstance(k_iter, list)) else k_iter
 
             if val_settings.strategy == 'k-fold-manual':
-                _, valid_k = dataset.labels(val_settings.k_fold_header, verbose=False, format='name')
+                _, valid_k = dataset.labels(val_settings.k_fold_header, format='name')
                 k_fold = len(valid_k)
                 log.info(f"Manual K-fold iterations detected: {', '.join(valid_k)}")
                 if k_iter:
@@ -2044,7 +2033,7 @@ class Project:
                 # Otherwise, calculate k-fold splits
                 else:
                     if val_settings.strategy == 'k-fold-preserved-site':
-                        site_labels, _ = dataset.labels(val_settings.k_fold_header, verbose=False, format='name')
+                        site_labels, _ = dataset.labels(val_settings.k_fold_header, format='name')
                     else:
                         site_labels = None
                     train_dts, val_dts = dataset.training_validation_split(hp.model_type(),
@@ -2196,7 +2185,7 @@ class Project:
                 model_kwargs = {
                     'name': full_model_name,
                     'manifest': manifest,
-                    'mixed_precision': self.mixed_precision,
+                    'mixed_precision': mixed_precision,
                     'feature_names': input_header,
                     'feature_sizes': feature_sizes,
                     'outcome_names': outcome_label_headers

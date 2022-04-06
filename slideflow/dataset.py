@@ -310,7 +310,7 @@ class Dataset:
                 raise DatasetError(f"Headers {','.join(headers)} appear to be `float`. Categorical outcomes required " + \
                                     "for balancing. To force balancing with these outcomes, pass `force=True` to Dataset.balance()")
 
-            labels, _ = ret.labels(headers, use_float=False, verbose=False)
+            labels, _ = ret.labels(headers, use_float=False)
             categories, categories_prob, tfrecord_categories = {}, {}, {}
             for tfrecord in tfrecords:
                 slide = sf.util.path_to_name(tfrecord)
@@ -416,7 +416,7 @@ class Dataset:
             ret._clip = {tfr: (clip if slide_totals[sf.util.path_to_name(tfr)] > clip else totals[tfr]) for tfr in manifest}
 
         elif strategy == 'category':
-            labels, _ = ret.labels(headers, use_float=False, verbose=False)
+            labels, _ = ret.labels(headers, use_float=False)
             categories, categories_tile_fraction, tfrecord_categories = {}, {}, {}
             for tfrecord in tfrecords:
                 slide = sf.util.path_to_name(tfrecord)
@@ -779,7 +779,7 @@ class Dataset:
         except ValueError:
             return False
 
-    def labels(self, headers, use_float=False, assigned_labels=None, verbose=True, format='index'):
+    def labels(self, headers, use_float=False, assigned_labels=None, format='index'):
         """Returns a dictionary of slide names mapping to patient id and [an] label(s).
 
         Args:
@@ -792,7 +792,6 @@ class Dataset:
                 interpret as categorical instead.
             assigned_labels (dict, optional):  Dictionary mapping label ids to label names. If not provided, will map
                 ids to names by sorting alphabetically.
-            verbose (bool, optional): Verbose output.
             format (str, optional): Either 'index' or 'name.' Indicates which format should be used for categorical
                 outcomes when returning the label dictionary. If 'name', uses the string label name. If 'index',
                 returns an int (index corresponding with the returned list of unique outcome names as str).
@@ -842,7 +841,7 @@ class Dataset:
             if use_float_for_this_header and not self.is_float(header):
                 raise TypeError(f"Unable to convert all labels of {header} into type 'float' ({','.join(filtered_labels)}).")
             elif not use_float_for_this_header:
-                if verbose: log.debug(f'Assigning label descriptors in column "{header}" to numerical values')
+                log.debug(f'Assigning label descriptors in column "{header}" to numerical values')
                 unique_labels_for_this_header = list(set(filtered_labels))
                 unique_labels_for_this_header.sort()
                 for i, ul in enumerate(unique_labels_for_this_header):
@@ -850,14 +849,12 @@ class Dataset:
                     if assigned_labels_for_this_header and ul not in assigned_labels_for_this_header:
                         raise KeyError(f"assigned_labels was provided, but label {ul} not found in this dict")
                     elif assigned_labels_for_this_header:
-                        if verbose:
-                            val_msg = assigned_labels_for_this_header[ul]
-                            n_s = sf.util.bold(str(num_matching_slides_filtered))
-                            log.info(f"{header} '{sf.util.blue(ul)}' assigned to value '{val_msg}' [{n_s} slides]")
+                        val_msg = assigned_labels_for_this_header[ul]
+                        n_s = sf.util.bold(str(num_matching_slides_filtered))
+                        log.debug(f"{header} '{sf.util.blue(ul)}' assigned to value '{val_msg}' [{n_s} slides]")
                     else:
-                        if verbose:
-                            n_s = sf.util.bold(str(num_matching_slides_filtered))
-                            log.info(f"{header} '{sf.util.blue(ul)}' assigned to value '{i}' [{n_s} slides]")
+                        n_s = sf.util.bold(str(num_matching_slides_filtered))
+                        log.debug(f"{header} '{sf.util.blue(ul)}' assigned to value '{i}' [{n_s} slides]")
 
             # Create function to process/convert label
             def _process_label(o):
@@ -1408,7 +1405,7 @@ class Dataset:
             raise DatasetError("k-fold-preserved-site requires site_labels (dict mapping patients to sites, or " + \
                                 "name of annotation column header")
         if isinstance(site_labels, str):
-            site_labels, _ = self.labels(site_labels, verbose=False, format='name')
+            site_labels, _ = self.labels(site_labels, format='name')
 
         # Prepare dataset
         patients = self.patients()

@@ -484,7 +484,6 @@ class Trainer:
         # Generate performance metrics
         log.info('Calculating performance metrics...')
         metrics, acc, loss = sf.stats.metrics_from_dataset(histogram=histogram,
-                                                           verbose=True,
                                                            save_predictions=save_predictions,
                                                            pred_args=pred_args,
                                                            **vars(metric_kwargs))

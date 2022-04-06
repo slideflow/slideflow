@@ -784,8 +784,7 @@ def _categorical_metrics(args, outcome_name, starttime=None):
                                                                 histogram=args.histogram), range(num_cat))):
                 args.auc['tile'][outcome_name] += [auc]
                 args.ap['tile'][outcome_name] += [ap]
-                if args.verbose:
-                    log.info(f"Tile-level AUC (cat #{i:>2}): {auc:.3f}, AP: {ap:.3f} (opt. threshold: {thresh:.3f})")
+                log.info(f"Tile-level AUC (cat #{i:>2}): {auc:.3f}, AP: {ap:.3f} (opt. threshold: {thresh:.3f})")
         except ValueError as e:
             # Occurs when predictions contain NaN
             log.error(f'Error encountered when generating AUC: {e}')
@@ -806,8 +805,7 @@ def _categorical_metrics(args, outcome_name, starttime=None):
             correct_pred = np.sum(cat_pred_array[np.argwhere(y_true_in_category>0)])
             category_accuracy = correct_pred / num_tiles_in_category
             cat_percent_acc = category_accuracy * 100
-            if args.verbose:
-                log.info(f"Category {ci} accuracy: {cat_percent_acc:.1f}% ({correct_pred}/{num_tiles_in_category})")
+            log.info(f"Category {ci} accuracy: {cat_percent_acc:.1f}% ({correct_pred}/{num_tiles_in_category})")
         except IndexError:
             log.warning(f"Unable to generate category-level accuracy stats for category index {ci}")
 
@@ -835,8 +833,7 @@ def _categorical_metrics(args, outcome_name, starttime=None):
             roc_auc, ap, thresh = roc_res
             args.auc['slide'][outcome_name] += [roc_auc]
             args.ap['slide'][outcome_name] += [ap]
-            if args.verbose:
-                log.info(f"Slide-level AUC (cat #{i:>2}): {roc_auc:.3f}, AP: {ap:.3f} (opt. threshold: {thresh:.3f})")
+            log.info(f"Slide-level AUC (cat #{i:>2}): {roc_auc:.3f}, AP: {ap:.3f} (opt. threshold: {thresh:.3f})")
         except IndexError:
             log.warning(f"Unable to generate slide-level stats for outcome {i}")
 
@@ -867,8 +864,7 @@ def _categorical_metrics(args, outcome_name, starttime=None):
                 roc_auc, ap, thresh = roc_res
                 args.auc['patient'][outcome_name] += [roc_auc]
                 args.ap['patient'][outcome_name] += [ap]
-                if args.verbose:
-                    log.info(f"Patient-level AUC (cat #{i:>2}): {roc_auc:.3f}, AP: {ap:.3f} (opt. threshold: {thresh:.3f})")
+                log.info(f"Patient-level AUC (cat #{i:>2}): {roc_auc:.3f}, AP: {ap:.3f} (opt. threshold: {thresh:.3f})")
             except IndexError:
                 log.warning(f"Unable to generate patient-level stats for outcome {i}")
 
@@ -1236,7 +1232,7 @@ def predictions_to_dataframe(y_true, y_pred, tile_to_slides, outcome_names, unce
     return pd.DataFrame(pd_dict)
 
 def metrics_from_predictions(y_true, y_pred, tile_to_slides, labels, patients, model_type, y_std=None, outcome_names=None,
-                             label=None, data_dir=None, verbose=True, save_predictions=True, histogram=False, plot=True,
+                             label=None, data_dir=None, save_predictions=True, histogram=False, plot=True,
                              neptune_run=None):
 
     """Generates metrics from a set of predictions.
@@ -1255,7 +1251,6 @@ def metrics_from_predictions(y_true, y_pred, tile_to_slides, labels, patients, m
         label (str, optional): Label prefix/suffix for saving. Defaults to None.
         min_tiles (int, optional): Minimum tiles per slide to include in metrics. Defaults to 0.
         data_dir (str, optional): Path to data directory for saving. Defaults to None.
-        verbose (bool, optional): Include verbose output. Defaults to True.
         save_predictions (bool, optional): Save tile, slide, and patient-level predictions to CSV. Defaults to True.
             May take a substantial amount of time for very large datasets.
         histogram (bool, optional): Write histograms to data_dir. Defaults to False.
@@ -1311,7 +1306,6 @@ def metrics_from_predictions(y_true, y_pred, tile_to_slides, labels, patients, m
         ap = {'tile': {}, 'slide': {}, 'patient': {}},
         plot = plot,
         histogram = histogram,
-        verbose = verbose,
         neptune_run = neptune_run
     )
 
@@ -1728,7 +1722,7 @@ def predict_from_layer(model, layer_input, input_layer_name='hidden_0', output_l
     return y_pred
 
 def metrics_from_dataset(model, model_type, labels, patients, dataset, outcome_names=None, label=None, data_dir=None,
-                         num_tiles=0, histogram=False, verbose=True, save_predictions=True, neptune_run=None, pred_args=None):
+                         num_tiles=0, histogram=False, save_predictions=True, neptune_run=None, pred_args=None):
 
     """Evaluate performance of a given model on a given TFRecord dataset,
     generating a variety of statistical outcomes and graphs.
@@ -1745,7 +1739,6 @@ def metrics_from_dataset(model, model_type, labels, patients, dataset, outcome_n
         num_tiles (int, optional): Number of total tiles expected in the dataset. Used for progress bar. Defaults to 0.
         histogram (bool, optional): Write histograms to data_dir. Defaults to False.
             Takes a substantial amount of time for large datasets, potentially hours.
-        verbose (bool, optional): Include verbose output. Defaults to True.
         save_predictions (bool, optional): Save tile, slide, and patient-level predictions to CSV. Defaults to True.
             May take a substantial amount of time for very large datasets.
         neptune_run (:class:`neptune.Run`, optional): Neptune run in which to log results. Defaults to None.
@@ -1768,7 +1761,6 @@ def metrics_from_dataset(model, model_type, labels, patients, dataset, outcome_n
                                        outcome_names=outcome_names,
                                        label=label,
                                        data_dir=data_dir,
-                                       verbose=verbose,
                                        save_predictions=save_predictions,
                                        histogram=histogram,
                                        plot=True,
@@ -1883,7 +1875,6 @@ def permutation_feature_importance(model, dataset, labels, patients, model_type,
                                                                       outcome_names=outcome_names,
                                                                       label=label,
                                                                       data_dir=data_dir,
-                                                                      verbose=True,
                                                                       histogram=False,
                                                                       plot=False,
                                                                       neptune_run=neptune_run)
@@ -1930,7 +1921,6 @@ def permutation_feature_importance(model, dataset, labels, patients, model_type,
                                                 outcome_names=outcome_names,
                                                 label=None, #label[i] ?
                                                 data_dir=data_dir,
-                                                verbose=False,
                                                 histogram=False,
                                                 plot=False,
                                                 neptune_run=neptune_run)

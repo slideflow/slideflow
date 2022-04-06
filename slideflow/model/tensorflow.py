@@ -566,7 +566,6 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
             data_dir=self.parent.outdir,
             num_tiles=self.cb_args.num_val_tiles,
             histogram=False,
-            verbose=True,
             save_predictions=self.cb_args.save_predictions,
             pred_args=pred_args
         )
@@ -929,7 +928,6 @@ class Trainer:
         else:
             pred_args = types.SimpleNamespace(loss=self.hp.get_loss(), uq=bool(self.hp.uq))
             metrics, acc, loss = sf.stats.metrics_from_dataset(histogram=histogram,
-                                                               verbose=True,
                                                                save_predictions=save_predictions,
                                                                pred_args=pred_args,
                                                                **metric_kwargs)
