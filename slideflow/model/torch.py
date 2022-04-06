@@ -27,7 +27,6 @@ class LinearBlock(torch.nn.Module):
         super().__init__()
         self.in_ftrs = in_ftrs
         self.out_ftrs = out_ftrs
-
         self.linear = torch.nn.Linear(in_ftrs, out_ftrs)
         self.relu = torch.nn.ReLU(inplace=True)
         self.bn = torch.nn.BatchNorm1d(out_ftrs)
@@ -200,6 +199,10 @@ class ModelParams(_base._ModelParams):
         assert self.loss in self.AllLossDict
         if not self.include_top:
             raise errors.BackendError("PyTorch backend does not currently support include_top=False.")
+        if self.uq:
+            raise errors.BackendError("PyTorch backend does not yet support UQ (development underway).")
+        if isinstance(self.augment, str) and 'b' in self.augment:
+            log.warn('Gaussian blur not yet optimized in PyTorch backend; image pre-processing may be slow.')
 
     def get_opt(self, params_to_update):
         return self.OptDict[self.optimizer](params_to_update, lr=self.learning_rate)
