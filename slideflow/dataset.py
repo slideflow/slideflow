@@ -162,6 +162,7 @@ class Dataset:
             self.sources = {k:v for (k,v) in loaded_config.items() if k in sources}
             self.sources_names = list(self.sources.keys())
         except KeyError:
+            sources_list = ', '.join(sources)
             raise errors.SourceNotFoundError(sources_list, config)
 
         if (tile_px is not None) and (tile_um is not None):

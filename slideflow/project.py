@@ -644,9 +644,6 @@ class Project:
             Dict: Dictionary of keras training results, nested by epoch.
         """
 
-        # Perform evaluation
-        log.info(f'Evaluating {sf.util.bold(len(eval_dts.tfrecords()))} tfrecords')
-
         trainer, eval_dts = self._prepare_trainer_for_eval(model=model,
                                                            outcome_label_headers=outcome_label_headers,
                                                            dataset=dataset,
@@ -659,6 +656,9 @@ class Project:
                                                            min_tiles=min_tiles,
                                                            input_header=input_header,
                                                            mixed_precision=mixed_precision)
+
+        # Perform evaluation
+        log.info(f'Evaluating {sf.util.bold(len(eval_dts.tfrecords()))} tfrecords')
 
         if (input_header is None) and permutation_importance:
             raise errors.UserError('Permutation feature importance requires clinical inputs (set with input_header).')

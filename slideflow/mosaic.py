@@ -59,7 +59,7 @@ class Mosaic:
         if not len(tfrecords):
             raise errors.TFRecordsNotFoundError
 
-        tile_point_distances = []
+        self.tile_point_distances = []
         max_distance_factor = leniency
         self.mapping_method = 'expanded' if expanded else 'strict'
         self.mapped_tiles = {}
@@ -168,9 +168,9 @@ class Mosaic:
                 distances = np.linalg.norm(global_point_coords - tile['coord'], ord=2, axis=1.)
                 for i, distance in enumerate(distances):
                     if distance <= max_distance:
-                        tile_point_distances.append({'distance': distance,
-                                                    'grid_index':tile['grid_index'],
-                                                    'point_index':self.points[i]['global_index']})
+                        self.tile_point_distances.append({'distance': distance,
+                                                          'grid_index':tile['grid_index'],
+                                                          'point_index':self.points[i]['global_index']})
 
         log.info('Calculating tile-point distances...')
         tile_point_start = time.time()
@@ -186,7 +186,7 @@ class Mosaic:
         log.debug(f'Calculations complete ({tile_point_end-tile_point_start:.0f} sec)')
 
         if self.mapping_method == 'expanded':
-            tile_point_distances.sort(key=lambda d: d['distance'])
+            self.tile_point_distances.sort(key=lambda d: d['distance'])
 
     def place_tiles(self, resolution='high', tile_zoom=15, relative_size=False, focus=None, focus_slide=None):
         '''
@@ -288,7 +288,7 @@ class Mosaic:
                 tile['image'] = image
                 num_placed += 1
         elif self.mapping_method == 'expanded':
-            for i, distance_pair in tqdm(enumerate(tile_point_distances), total=len(tile_point_distances), ncols=80):
+            for i, distance_pair in tqdm(enumerate(self.tile_point_distances), total=len(self.tile_point_distances), ncols=80):
                 # Attempt to place pair, skipping if unable (due to other prior pair)
                 point = self.points[distance_pair['point_index']]
                 tile = self.GRID[distance_pair['grid_index']]
