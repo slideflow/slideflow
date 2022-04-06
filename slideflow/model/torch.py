@@ -15,7 +15,6 @@ from tqdm import tqdm
 from os.path import join
 from slideflow.util import log
 from slideflow.model import base as _base
-from slideflow.model.base import FeatureError
 from slideflow.model import torch_utils
 from slideflow.model.base import log_manifest
 from slideflow import errors

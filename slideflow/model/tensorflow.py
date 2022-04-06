@@ -22,7 +22,7 @@ import slideflow.util.neptune_utils
 
 from os.path import join, exists, dirname
 from slideflow.util import log
-from slideflow.model.base import ModelError, FeatureError, no_scope, log_summary, log_manifest
+from slideflow.model.base import no_scope, log_summary, log_manifest
 from slideflow.model.tensorflow_utils import *
 from slideflow import errors
 
