@@ -58,12 +58,6 @@ if 'SF_LOGGING_LEVEL' in os.environ:
 else:
     log.setLevel(logging.INFO)
 
-class UserError(Exception):
-    pass
-
-class CPLEXError(Exception):
-    pass
-
 class LogFormatter(logging.Formatter):
     MSG_FORMAT = "%(asctime)s [%(levelname)s] - %(message)s"
     LEVEL_FORMATS = {
@@ -473,8 +467,7 @@ def get_slides_from_model_manifest(model_path, dataset=None):
     if exists(join(model_path, 'slide_manifest.csv')):
         manifest = join(model_path, 'slide_manifest.csv')
     elif exists(join(dirname(model_path), 'slide_manifest.csv')):
-        log.warning("Slide manifest file not found in model directory; loading from parent directory. " + \
-                    "Please move slide_manifest.csv into model folder.")
+        log.debug("Slide manifest file not found in model directory; loading from parent directory.")
         manifest = join(dirname(model_path), 'slide_manifest.csv')
     else:
         log.error('Slide manifest file not found (could not find "slide_manifest.csv" in model folder)')
@@ -495,15 +488,24 @@ def get_model_config(model_path):
     """Loads model configuration JSON file."""
 
     if exists(join(model_path, 'params.json')):
-        return load_json(join(model_path, 'params.json'))
+        config = load_json(join(model_path, 'params.json'))
     elif exists(join(dirname(model_path), 'params.json')):
         if sf.backend() == 'tensorflow':
             log.warning("Hyperparameters file not found in model directory; loading from parent directory. " + \
                         "Please move params.json into model folder.")
-        return load_json(join(dirname(model_path), 'params.json'))
+        config = load_json(join(dirname(model_path), 'params.json'))
     else:
         log.warning("Hyperparameters file not found.")
         return None
+
+    # Compatibility for pre-1.1
+    if 'norm_mean' in config:
+        config['norm_fit'] = {
+            'target_means': config['norm_mean'],
+            'target_stds': config['norm_std'],
+        }
+
+    return config
 
 def get_slide_paths(slides_dir):
     '''Get all slide paths from a given directory containing slides.'''

@@ -12,9 +12,9 @@ import slideflow as sf
 
 from tqdm import tqdm
 from functools import partial
-from slideflow.util import ProgressBar, to_onehot
 from os.path import join
-from slideflow.util import log
+from slideflow.util import log, ProgressBar, to_onehot
+from slideflow import errors
 from scipy import stats
 from scipy.special import softmax
 from random import sample
@@ -28,9 +28,6 @@ from lifelines.utils import concordance_index as c_index
 
 # TODO: remove 'hidden_0' reference as this may not be present if the model does not have hidden layers
 # TODO: convert all this x /y /meta /values stuff to just a pandas dataframe?
-
-class StatsError(Exception):
-    pass
 
 class SlideMap:
     """Two-dimensional slide map used for visualization, as well as subsequent construction of mosaic maps.
@@ -99,7 +96,7 @@ class SlideMap:
         """
 
         if map_slide is not None and map_slide not in ('centroid', 'average'):
-            raise StatsError(f"map_slide must be None (default), 'centroid', or 'average', not '{map_slide}'")
+            raise errors.SlideMapError(f"map_slide must be None (default), 'centroid', or 'average', not '{map_slide}'")
 
         if not exclude_slides:
             slides = df.slides
@@ -139,8 +136,6 @@ class SlideMap:
 
         if prediction_filter:
             log.info("UMAP logit predictions are masked through a provided prediction filter.")
-        else:
-            prediction_filter = range(self.df.num_logits)
 
         if len(self.x) and len(self.y) and not recalculate:
             log.info("UMAP loaded from cache, will not recalculate")
@@ -218,7 +213,7 @@ class SlideMap:
         """
 
         if method not in ('centroid', 'average'):
-            raise StatsError(f'Method must be either "centroid" or "average", not {method}')
+            raise errors.SlideMapError(f'Method must be either "centroid" or "average", not {method}')
 
         log.info("Calculating centroid indices...")
         optimal_slide_indices, centroid_activations = calculate_centroid(self.df.activations)
@@ -372,9 +367,9 @@ class SlideMap:
         """
 
         if slide not in neighbor_df.activations:
-            raise StatsError(f"Slide {slide} not found in DatasetFeatures, unable to find neighbors")
+            raise errors.SlideMapError(f"Slide {slide} not found in DatasetFeatures, unable to find neighbors")
         if not hasattr(self, 'df'):
-            raise StatsError(f"SlideMap does not have an DatasetFeatures, unable to calculate neighbors")
+            raise errors.SlideMapError(f"SlideMap does not have an DatasetFeatures, unable to calculate neighbors")
 
         tile_neighbors = self.df.neighbors(neighbor_df, slide, n_neighbors=5)
 
@@ -417,7 +412,7 @@ class SlideMap:
         else:
             self.labels = np.array([m['slide'] for m in self.point_meta])
 
-    def label_by_tile_meta(self, tile_meta, translation_dict=None):
+    def label_by_meta(self, tile_meta, translation_dict=None):
         """Displays each point with label equal a value in tile metadata (e.g. 'prediction')
 
         Args:
@@ -440,8 +435,8 @@ class SlideMap:
         log.warning("save_2d_plot() is deprecated, please use save()")
         self.save(*args, **kwargs)
 
-    def save(self, filename, subsample=None, title=None, cmap=None, use_float=False,
-             xlim=(-0.05, 1.05), ylim=(-0.05, 1.05), xlabel=None, ylabel=None, legend=None, dpi=300):
+    def save(self, filename, subsample=None, title=None, cmap=None, xlim=(-0.05, 1.05), ylim=(-0.05, 1.05), xlabel=None,
+             ylabel=None, legend=None, dpi=300, **scatter_kwargs):
 
         """Saves plot of data to a provided filename.
 
@@ -450,7 +445,6 @@ class SlideMap:
             subsample (int, optional): Subsample to only include this many tiles on plot. Defaults to None.
             title (str, optional): Title for plot.
             cmap (dict, optional): Dict mapping labels to colors.
-            use_float (bool, optional): Interpret labels as float for linear coloring. Defaults to False.
             xlim (list, optional): List of float indicating limit for x-axis. Defaults to (-0.05, 1.05).
             ylim (list, optional): List of float indicating limit for y-axis. Defaults to (-0.05, 1.05).
             xlabel (str, optional): Label for x axis. Defaults to None.
@@ -473,27 +467,29 @@ class SlideMap:
 
         if len(self.labels):
             labels = self.labels[ri]
-            df['category'] = labels if use_float else pd.Series(labels, dtype='category')
+
+            # Check for categorical labels
+            if not np.issubdtype(self.labels.dtype, np.floating):
+                log.debug("Interpreting labels as categorical")
+                df['category'] = pd.Series(labels, dtype='category')
+                unique_categories = list(set(labels))
+                unique_categories.sort()
+                if len(unique_categories) >= 12:
+                    seaborn_palette = sns.color_palette("Paired", len(unique_categories))
+                else:
+                    seaborn_palette = sns.color_palette('hls', len(unique_categories))
+                if cmap is None:
+                    cmap = {unique_categories[i]:seaborn_palette[i] for i in range(len(unique_categories))}
+            else:
+                log.debug("Interpreting labels as continuous")
+                df['category'] = labels
         else:
             labels = ['NA']
             df['category'] = 'NA'
 
-        # Prepare color palette
-        if use_float:
-            cmap = None
-            palette = None
-        else:
-            unique_categories = list(set(labels))
-            unique_categories.sort()
-            if len(unique_categories) <= 12:
-                seaborn_palette = sns.color_palette("Paired", len(unique_categories))
-            else:
-                seaborn_palette = sns.color_palette('hls', len(unique_categories))
-            palette = {unique_categories[i]:seaborn_palette[i] for i in range(len(unique_categories))}
-
         # Make plot
         plt.clf()
-        umap_2d = sns.scatterplot(x=x, y=y, data=df, hue='category', s=30, palette=cmap if cmap else palette)
+        umap_2d = sns.scatterplot(x=x, y=y, data=df, hue='category', palette=cmap, **scatter_kwargs)
         plt.gca().set_ylim(*((None, None) if not ylim else ylim))
         plt.gca().set_xlim(*((None, None) if not xlim else xlim))
         umap_2d.legend(loc='center left', bbox_to_anchor=(1.25, 0.5), ncol=1, title=legend)
@@ -501,20 +497,16 @@ class SlideMap:
         umap_figure = umap_2d.get_figure()
         umap_figure.set_size_inches(6, 4.5)
         if title: umap_figure.axes[0].set_title(title)
-        umap_figure.canvas.start_event_loop(sys.float_info.min)
         umap_figure.savefig(filename, bbox_inches='tight', dpi=dpi)
         log.info(f"Saved 2D UMAP to {sf.util.green(filename)}")
-        def onselect(verts):
-            print(verts)
-        lasso = LassoSelector(plt.gca(), onselect)
 
     def save_3d_plot(self, filename, z=None, feature=None, subsample=None):
         """Saves a plot of a 3D umap, with the 3rd dimension representing values provided by argument "z".
 
         Args:
             filename (str): Filename to save image of plot.
-            z (list, optional): Values for z axis. Must supply z or node. Defaults to None.
-            node (int, optional): Int, node to plot on 3rd axis. Must supply z or node. Defaults to None.
+            z (list, optional): Values for z axis. Must supply z or feature. Defaults to None.
+            feature (int, optional): Int, feature to plot on 3rd axis. Must supply z or feature. Defaults to None.
             subsample (int, optional): Subsample to only include this many tiles on plot. Defaults to None.
         """
 
@@ -524,7 +516,7 @@ class SlideMap:
             filename = "3d_plot.png"
 
         if (z is None) and (feature is None):
-            raise StatsError("Must supply either 'z' or 'feature'.")
+            raise errors.SlideMapError("Must supply either 'z' or 'feature'.")
 
         # Get feature activations for 3rd dimension
         if z is None:
@@ -613,7 +605,7 @@ def _generate_tile_roc(i, y_true, y_pred, data_dir, label_start, histogram=False
     return auc, ap, thresh # ROC AUC, Average Precision, Optimal Threshold
 
 def _get_average_by_group(prediction_array, prediction_label, unique_groups, tile_to_group, y_true_group,
-                            num_cat, label_end, save_predictions=False, data_dir=None, label='group'):
+                            num_cat, label_end, uncertainty=None, save_predictions=False, data_dir=None, label='group'):
 
     """Internal function to generate group-level averages (e.g. slide-level or patient-level).
 
@@ -622,27 +614,49 @@ def _get_average_by_group(prediction_array, prediction_label, unique_groups, til
     """
 
     groups = {g:[] for g in unique_groups}
+    group_uncertainty = {g:[] for g in unique_groups}
 
     def update_group(ttg):
-        nonlocal groups
         i, g = ttg
         groups[g] += [prediction_array[i]]
+        if uncertainty is not None:
+            group_uncertainty[g] += [uncertainty[i]]
 
     with mp.dummy.Pool(processes=16) as p:
         p.map(update_group, enumerate(tile_to_group))
 
-    group_percents = {g:np.array(groups[g]).mean(axis=0) for g in unique_groups}
+    group_uncertainty = {g:np.array(u) for g,u in group_uncertainty.items()}
+
+    if uncertainty is not None:
+        #log.info(f'Using uncertainty weighting for {label}-level predictions')
+        #try:
+        #    group_percents = {g:np.average(np.array(groups[g]), weights=(((group_uncertainty[g] - group_uncertainty[g].max()) * -1) + group_uncertainty[g].min() + 0.1)**2, axis=0) for g in unique_groups}
+        #except:
+        #    log.error("Error with weighted predictions; calculation without weighting")
+        #    group_percents = {g:np.average(np.array(groups[g]), axis=0) for g in unique_groups}
+        group_percents = {g:np.average(np.array(groups[g]), axis=0) for g in unique_groups}
+        uncertainty_by_group = [np.array(group_uncertainty[g]).mean(axis=0) for g in unique_groups]
+    else:
+        group_percents = {g:np.array(groups[g]).mean(axis=0) for g in unique_groups}
     avg_by_group = np.array([group_percents[g] for g in unique_groups])
 
+    # --- Save predictions to CSV ---------------------------------------------
     if save_predictions:
         save_path = join(data_dir, f"{label}_predictions{label_end}.csv")
         with open(save_path, 'w') as outfile:
             writer = csv.writer(outfile)
             header = [label] + [f"y_true{i}" for i in range(num_cat)] + [f"{prediction_label}{j}" for j in range(num_cat)]
+            if uncertainty is not None:
+                header += [f'uncertainty{i}' for i in range(num_cat)]
             writer.writerow(header)
             for i, group in enumerate(unique_groups):
-                row = np.concatenate([ [group], y_true_group[group], avg_by_group[i] ])
+                if uncertainty is not None:
+                    row = np.concatenate([ [group], y_true_group[group], avg_by_group[i], np.array(uncertainty_by_group[i]) ])
+                else:
+                    row = np.concatenate([ [group], y_true_group[group], avg_by_group[i] ])
                 writer.writerow(row)
+    # -------------------------------------------------------------------------
+
     return avg_by_group
 
 def _cph_metrics(args):
@@ -723,7 +737,8 @@ def _linear_metrics(args):
                                                     label_end=args.label_end,
                                                     save_predictions=args.save_patient_predictions,
                                                     data_dir=args.data_dir,
-                                                    label="patient")
+                                                    label="patient",
+                                                    uncertainty=args.y_std)
 
         y_true_by_patient = np.array([args.y_true_patient[patient] for patient in args.patients])
         args.r_squared['patient'] = generate_scatter(y_true_by_patient,
@@ -752,9 +767,9 @@ def _categorical_metrics(args, outcome_name, starttime=None):
     if sf.backend() == 'torch':
         args.y_pred = softmax(args.y_pred, axis=1)
 
-    args.auc['tile'][outcome_name] = []
-    args.auc['slide'][outcome_name] = []
-    args.auc['patient'][outcome_name] = []
+    for level in ('tile', 'slide', 'patient'):
+        args.auc[level][outcome_name] = []
+        args.ap[level][outcome_name] = []
 
     ctx = mp.get_context('spawn')
     with ctx.Pool(processes=8) as p:
@@ -769,14 +784,14 @@ def _categorical_metrics(args, outcome_name, starttime=None):
                                                                 label_start=args.label_start + outcome_name + "_",
                                                                 histogram=args.histogram), range(num_cat))):
                 args.auc['tile'][outcome_name] += [auc]
-                if args.verbose:
-                    log.info(f"Tile-level AUC (cat #{i:>2}): {auc:.3f}, AP: {ap:.3f} (opt. threshold: {thresh:.3f})")
+                args.ap['tile'][outcome_name] += [ap]
+                log.info(f"Tile-level AUC (cat #{i:>2}): {auc:.3f}, AP: {ap:.3f} (opt. threshold: {thresh:.3f})")
         except ValueError as e:
             # Occurs when predictions contain NaN
             log.error(f'Error encountered when generating AUC: {e}')
-            args.auc['tile'][outcome_name] = -1
-            args.auc['slide'][outcome_name] = -1
-            args.auc['patient'][outcome_name] = -1
+            for level in ('tile', 'slide', 'patient'):
+                args.auc[level][outcome_name] = -1
+                args.ap[level][outcome_name] = -1
             return
 
     # Convert predictions to one-hot encoding
@@ -791,8 +806,7 @@ def _categorical_metrics(args, outcome_name, starttime=None):
             correct_pred = np.sum(cat_pred_array[np.argwhere(y_true_in_category>0)])
             category_accuracy = correct_pred / num_tiles_in_category
             cat_percent_acc = category_accuracy * 100
-            if args.verbose:
-                log.info(f"Category {ci} accuracy: {cat_percent_acc:.1f}% ({correct_pred}/{num_tiles_in_category})")
+            log.info(f"Category {ci} accuracy: {cat_percent_acc:.1f}% ({correct_pred}/{num_tiles_in_category})")
         except IndexError:
             log.warning(f"Unable to generate category-level accuracy stats for category index {ci}")
 
@@ -819,23 +833,24 @@ def _categorical_metrics(args, outcome_name, starttime=None):
                                    neptune_run=args.neptune_run)
             roc_auc, ap, thresh = roc_res
             args.auc['slide'][outcome_name] += [roc_auc]
-            if args.verbose:
-                log.info(f"Slide-level AUC (cat #{i:>2}): {roc_auc:.3f}, AP: {ap:.3f} (opt. threshold: {thresh:.3f})")
+            args.ap['slide'][outcome_name] += [ap]
+            log.info(f"Slide-level AUC (cat #{i:>2}): {roc_auc:.3f}, AP: {ap:.3f} (opt. threshold: {thresh:.3f})")
         except IndexError:
             log.warning(f"Unable to generate slide-level stats for outcome {i}")
 
     if not args.patient_error:
         # Generate patient-level percent calls
         percent_calls_by_patient = _get_average_by_group(onehot_predictions,
-                                                        prediction_label="percent_tiles_positive",
-                                                        unique_groups=args.patients,
-                                                        tile_to_group=args.tile_to_patients,
-                                                        y_true_group=args.y_true_patient,
-                                                        num_cat=num_cat,
-                                                        label_end="_" + outcome_name + args.label_end,
-                                                        save_predictions=args.save_patient_predictions,
-                                                        data_dir=args.data_dir,
-                                                        label="patient")
+                                                         prediction_label="percent_tiles_positive",
+                                                         unique_groups=args.patients,
+                                                         tile_to_group=args.tile_to_patients,
+                                                         y_true_group=args.y_true_patient,
+                                                         num_cat=num_cat,
+                                                         label_end="_" + outcome_name + args.label_end,
+                                                         save_predictions=args.save_patient_predictions,
+                                                         data_dir=args.data_dir,
+                                                         uncertainty=args.y_std,
+                                                         label="patient")
 
         # Generate patient-level ROC
         for i in range(num_cat):
@@ -849,12 +864,12 @@ def _categorical_metrics(args, outcome_name, starttime=None):
                                        neptune_run=args.neptune_run)
                 roc_auc, ap, thresh = roc_res
                 args.auc['patient'][outcome_name] += [roc_auc]
-                if args.verbose:
-                    log.info(f"Patient-level AUC (cat #{i:>2}): {roc_auc:.3f}, AP: {ap:.3f} (opt. threshold: {thresh:.3f})")
+                args.ap['patient'][outcome_name] += [ap]
+                log.info(f"Patient-level AUC (cat #{i:>2}): {roc_auc:.3f}, AP: {ap:.3f} (opt. threshold: {thresh:.3f})")
             except IndexError:
                 log.warning(f"Unable to generate patient-level stats for outcome {i}")
 
-def filtered_prediction(logits, filter):
+def filtered_prediction(logits, filter=None):
     """Generates a prediction from a logits vector masked by a given filter.
 
     Args:
@@ -863,8 +878,11 @@ def filtered_prediction(logits, filter):
     Returns:
         int: index of prediction.
     """
-    prediction_mask = np.zeros(logits.shape, dtype=np.int)
-    prediction_mask[filter] = 1
+    if filter is None:
+        prediction_mask = np.zeros(logits.shape, dtype=np.int)
+    else:
+        prediction_mask = np.ones(logits.shape, dtype=np.int)
+        prediction_mask[filter] = 0
     masked_logits = np.ma.masked_array(logits, mask=prediction_mask)
     return np.argmax(masked_logits)
 
@@ -929,8 +947,8 @@ def gen_umap(array, dim=2, n_neighbors=50, min_dist=0.1, metric='cosine', low_me
                            metric=metric,
                            low_memory=low_memory).fit_transform(array)
     except ValueError:
-        raise StatsError("Error performing UMAP. Please make sure you are supplying a non-empty TFRecord array " + \
-                                "and that the TFRecords are not empty.")
+        raise errors.StatsError("Error performing UMAP. Please make sure you are supplying a non-empty TFRecord " + \
+                                "array and that the TFRecords are not empty.")
 
     return normalize_layout(layout)
 
@@ -1154,64 +1172,68 @@ def concordance_index(y_true, y_pred):
     y_pred = - y_pred # Need to take negative to get concordance index since these are log hazard ratios
     return c_index(y_true, y_pred, E)
 
-def save_predictions_to_csv(y_true, y_pred, tile_to_slides, data_dir, label_end, outcome_names=None):
-    """Saves given set of predictions to CSV."""
+def predictions_to_dataframe(y_true, y_pred, tile_to_slides, outcome_names, uncertainty=None):
     # Save tile-level predictions
-    if type(y_true) == list:
+    # Assumes structure of y_true, y_pred, uncertainty is:
+    # -- List of length num_outcomes, containing numpy arrays
+    # -- Each np array is either shape (num_tiles) [single linear outcome] or (num_tiles, num_categories) [categorical]
+
+    if isinstance(y_true, list):
         assert len(y_true) == len(y_pred), "Number of outcomes in y_true and y_pred must match"
         assert len(y_true) == len(outcome_names), "Number of provided outcome names must equal number of y_true outcomes"
-
-    tile_csv_dir = os.path.join(data_dir, f"tile_predictions{label_end}.csv")
-    with open(tile_csv_dir, 'w') as outfile:
-        writer = csv.writer(outfile)
-        # If multiple outcomes are present
-        if type(y_true) == list:
-            y_true_is_reduced = (len(y_true[0].shape) == 1)
-            y_pred_is_reduced = (len(y_pred[0].shape) == 1)
-            y_true_header = []
-            y_pred_header = []
-            for cat_i in range(len(y_true)):
-                y_true_cat_header = [f"{outcome_names[cat_i]}_y_true0"] if y_true_is_reduced \
-                                                                        else [f"{outcome_names[cat_i]}_y_true{i}" \
-                                                                        for i in range(y_true[cat_i].shape[1])]
-
-                y_pred_cat_header = [f"{outcome_names[cat_i]}_y_pred0"] if y_pred_is_reduced \
-                                                                        else [f"{outcome_names[cat_i]}_y_pred{i}" \
-                                                                        for i in range(y_pred[cat_i].shape[1])]
-                y_true_header += y_true_cat_header
-                y_pred_header += y_pred_cat_header
-            header = ['slide'] + y_true_header + y_pred_header
-            writer.writerow(header)
-            for i in range(len(y_true)):
-                y_true_str_list = []
-                y_pred_str_list = []
-                for cat_i in range(len(y_true)):
-                    y_true_str_cat_list = [str(y_true[cat_i][i])] if y_true_is_reduced \
-                                                                  else [str(yti) \
-                                                                  for yti in y_true[cat_i][i]]
-                    y_pred_str_cat_list = [str(y_pred[cat_i][i])] if y_pred_is_reduced \
-                                                                  else [str(ypi) \
-                                                                  for ypi in y_pred[cat_i][i]]
-                    y_true_str_list += y_true_str_cat_list
-                    y_pred_str_list += y_pred_str_cat_list
-                row = np.concatenate([[tile_to_slides[i]], y_true_str_list, y_pred_str_list])
-                writer.writerow(row)
-        # If there is only a single outcome
+    else:
+        # Check for multiple linear outcomes in ndarray format
+        if len(outcome_names) > 1 and len(outcome_names) == y_pred.shape[1]:
+            if y_true is not None:
+                assert y_true.shape == y_pred.shape, f"Shape mismatch: y_true ({y_true.shape}) != y_pred ({y_pred.shape})"
+                y_true = [y_true[:, i] for i in range(y_true.shape[1])]
+            y_pred = [y_pred[:, i] for i in range(y_pred.shape[1])]
+        elif len(outcome_names) > 1:
+            raise errors.StatsError("If providing only one y_pred, length of outcome_names must be one")
         else:
-            y_true_is_reduced = (len(y_true.shape) == 1)
-            y_pred_is_reduced = (len(y_pred.shape) == 1)
-            y_true_header = ["y_true0"] if y_true_is_reduced else [f"y_true{i}" for i in range(y_true.shape[1])]
-            header = ['slide'] + y_true_header + [f"y_pred{j}" for j in range(y_pred.shape[1])]
-            writer.writerow(header)
-            for i in range(len(y_true)):
-                y_true_str_list = [str(y_true[i])] if y_true_is_reduced else [str(yti) for yti in y_true[i]]
-                y_pred_str_list = [str(y_pred[i])] if y_pred_is_reduced else [str(ypi) for ypi in y_pred[i]]
-                row = np.concatenate([[tile_to_slides[i]], y_true_str_list, y_pred_str_list])
-                writer.writerow(row)
-    log.debug(f"Predictions saved to {sf.util.green(data_dir)}")
+            y_true = [y_true]
 
-def metrics_from_predictions(y_true, y_pred, tile_to_slides, labels, patients, model_type, outcome_names=None,
-                             label=None, data_dir=None, verbose=True, save_predictions=True, histogram=False, plot=True,
+    if not isinstance(y_pred, list):
+        y_pred = [y_pred]
+
+    if uncertainty is not None and not isinstance(uncertainty, list):
+        uncertainty = [uncertainty]
+
+    pd_dict = {
+        'slide': pd.Series(tile_to_slides, dtype=str)
+    }
+
+    for oi, outcome in enumerate(outcome_names):
+        if y_true is not None and y_true[oi] is not None:
+            # Single label for each image (e.g. for single linear outcomes)
+            if len(y_true[oi].shape) == 1:
+                pd_dict[f'{outcome}_y_true0'] = pd.Series(y_true[oi])
+            # Multiple labels for each image (e.g. onehot-encoded categorical outcomes)
+            else:
+                for j in range(y_true[oi].shape[1]):
+                    pd_dict[f'{outcome}_y_true{j}'] = pd.Series(y_true[oi][:, j])
+
+        # Single output for each image (e.g. for single linear outcomes)
+        if len(y_pred[oi].shape) == 1:
+            pd_dict[f'{outcome}_y_pred0'] = pd.Series(y_pred[oi])
+        # Multiple outputs for each image (e.g. softmax logits for categorical outcomes)
+        else:
+            for j in range(y_pred[oi].shape[1]):
+                pd_dict[f'{outcome}_y_pred{j}'] = pd.Series(y_pred[oi][:, j])
+
+        if uncertainty is not None:
+            # Single uncertainty for each image (e.g. for single linear outcomes)
+            if len(uncertainty[oi].shape) == 1:
+                pd_dict[f'{outcome}_uncertainty0'] = pd.Series(uncertainty[oi])
+            # Multiple uncertainty values for each image (e.g. variance of each softmax logit, for categorical outcomes)
+            else:
+                for j in range(uncertainty[oi].shape[1]):
+                    pd_dict[f'{outcome}_uncertainty{j}'] = pd.Series(uncertainty[oi][:, j])
+
+    return pd.DataFrame(pd_dict)
+
+def metrics_from_predictions(y_true, y_pred, tile_to_slides, labels, patients, model_type, y_std=None, outcome_names=None,
+                             label=None, data_dir=None, save_predictions=True, histogram=False, plot=True,
                              neptune_run=None):
 
     """Generates metrics from a set of predictions.
@@ -1230,7 +1252,6 @@ def metrics_from_predictions(y_true, y_pred, tile_to_slides, labels, patients, m
         label (str, optional): Label prefix/suffix for saving. Defaults to None.
         min_tiles (int, optional): Minimum tiles per slide to include in metrics. Defaults to 0.
         data_dir (str, optional): Path to data directory for saving. Defaults to None.
-        verbose (bool, optional): Include verbose output. Defaults to True.
         save_predictions (bool, optional): Save tile, slide, and patient-level predictions to CSV. Defaults to True.
             May take a substantial amount of time for very large datasets.
         histogram (bool, optional): Write histograms to data_dir. Defaults to False.
@@ -1268,6 +1289,7 @@ def metrics_from_predictions(y_true, y_pred, tile_to_slides, labels, patients, m
     metric_args = types.SimpleNamespace(
         y_true = y_true,
         y_pred = y_pred,
+        y_std = y_std,
         unique_slides = unique_slides,
         tile_to_slides = tile_to_slides,
         tile_to_patients = tile_to_patients,
@@ -1282,9 +1304,9 @@ def metrics_from_predictions(y_true, y_pred, tile_to_slides, labels, patients, m
         r_squared = {'tile': None, 'slide': None, 'patient': None},
         c_index = {'tile': None, 'slide': None, 'patient': None},
         auc = {'tile': {}, 'slide': {}, 'patient': {}},
+        ap = {'tile': {}, 'slide': {}, 'patient': {}},
         plot = plot,
         histogram = histogram,
-        verbose = verbose,
         neptune_run = neptune_run
     )
 
@@ -1296,14 +1318,14 @@ def metrics_from_predictions(y_true, y_pred, tile_to_slides, labels, patients, m
         elif len(y_true.shape) == 1:
             num_outcomes_by_y_true = 1
         else:
-            raise StatsError(f"y_true expected to be formated as list of numpy arrays for each outcome category.")
+            raise errors.StatsError(f"y_true expected to be formated as list of numpy arrays for each outcome category.")
 
         # Confirm that the number of outcomes provided by y_true match the provided outcome names
         if not outcome_names:
             outcome_names = {f"Outcome {i}" for i in range(num_outcomes_by_y_true)}
         elif len(outcome_names) != num_outcomes_by_y_true:
-            raise StatsError(f"Number of outcome names {len(outcome_names)} does not " + \
-                                        f"match y_true {num_outcomes_by_y_true}")
+            raise errors.StatsError(f"Number of outcome names {len(outcome_names)} does not " + \
+                                    f"match y_true {num_outcomes_by_y_true}")
 
         for oi, outcome in enumerate(outcome_names):
             if len(outcome_names) > 1:
@@ -1331,13 +1353,13 @@ def metrics_from_predictions(y_true, y_pred, tile_to_slides, labels, patients, m
         _cph_metrics(metric_args)
 
     if metric_args.save_tile_predictions:
-        try:
-            save_predictions_to_csv(y_true, y_pred, tile_to_slides, data_dir, label_end, outcome_names)
-        except:
-            log.error("Unable to save predictions to CSV - not yet implemented for multiple outcomes")
+        df = predictions_to_dataframe(y_true, y_pred, tile_to_slides, outcome_names, uncertainty=metric_args.y_std)
+        df.to_csv(os.path.join(data_dir, f"tile_predictions{label_end}.csv"))
+        log.debug(f"Predictions saved to {sf.util.green(data_dir)}")
 
     combined_metrics = {
         'auc': metric_args.auc,
+        'ap': metric_args.ap,
         'r_squared': metric_args.r_squared,
         'c_index': metric_args.c_index
     }
@@ -1355,23 +1377,20 @@ def predict_from_torch(model, dataset, model_type, pred_args, **kwargs):
             y_true is stacked into a single vector for each image. Defaults to 'categorical'.
 
     Returns:
-        y_true, y_pred, tile_to_slides, accuracy, loss
+        y_pred, y_std, tile_to_slides
     """
 
     import torch
-    start = time.time()
     y_true, y_pred, tile_to_slides = [], [], []
-    running_corrects = pred_args.running_corrects
-    running_loss = 0
-    total = 0
 
     log.debug("Generating predictions from torch model")
 
     # Get predictions and performance metrics
     model.eval()
     device = torch.device('cuda:0')
-    pb = tqdm(desc='Evaluating...', total=dataset.num_tiles, ncols=80, unit='img', leave=False)
-    for img, yt, slide in dataset:
+    pb = tqdm(desc='Predicting...', total=dataset.num_tiles, ncols=80, unit='img', leave=False)
+    for img, yt, slide in dataset: #TODO: support not needing to supply yt
+
         img = img.to(device, non_blocking=True)
 
         with torch.cuda.amp.autocast():
@@ -1383,6 +1402,66 @@ def predict_from_torch(model, dataset, model_type, pred_args, **kwargs):
                     inp = (img,)
 
                 res = model(*inp)
+                if isinstance(res, list):
+                    res = [r.cpu().numpy().copy() for r in res]
+                else:
+                    res = res.cpu().numpy().copy()
+                y_pred += [res]
+
+        tile_to_slides += slide
+        pb.update(img.shape[0])
+
+    # Concatenate predictions for each outcome
+    if type(y_pred[0]) == list:
+        y_pred = [np.concatenate(yp) for yp in zip(*y_pred)]
+    else:
+        y_pred = np.concatenate(y_pred)
+    tile_to_slides = np.array(tile_to_slides)
+
+    if log.getEffectiveLevel() <= 20: sf.util.clear_console()
+    log.debug(f"Prediction complete.")
+
+    return y_pred, None, tile_to_slides
+
+def eval_from_torch(model, dataset, model_type, pred_args, **kwargs):
+    """Generates predictions (y_true, y_pred, tile_to_slide) from a given PyTorch model and dataset.
+
+    Args:
+        model (str): Path to PyTorch model.
+        dataset (tf.data.Dataset): PyTorch dataloader.
+        pred_args (namespace): Namespace containing slide_input, update_corrects, and update_loss functions.
+        model_type (str, optional): 'categorical', 'linear', or 'cph'. If multiple linear outcomes are present,
+            y_true is stacked into a single vector for each image. Defaults to 'categorical'.
+
+    Returns:
+        y_true, y_pred, y_std, tile_to_slides, accuracy, loss
+    """
+
+    import torch
+    y_true, y_pred, tile_to_slides = [], [], []
+    running_corrects = pred_args.running_corrects
+    running_loss = 0
+    total = 0
+
+    log.debug("Evaluating torch model")
+
+    model.eval()
+    device = torch.device('cuda:0')
+    pb = tqdm(desc='Evaluating...', total=dataset.num_tiles, ncols=80, unit='img', leave=False)
+    for img, yt, slide in dataset:
+
+        img = img.to(device, non_blocking=True)
+
+        with torch.cuda.amp.autocast():
+            with torch.no_grad():
+                # Slide-level features
+                if pred_args.num_slide_features:
+                    inp = (img, torch.tensor([pred_args.slide_input[s] for s in slide]).to(device))
+                else:
+                    inp = (img,)
+
+                res = model(*inp)
+
                 running_corrects = pred_args.update_corrects(res, yt, running_corrects)
                 running_loss = pred_args.update_loss(res, yt, running_loss, img.size(0))
                 if isinstance(res, list):
@@ -1401,19 +1480,19 @@ def predict_from_torch(model, dataset, model_type, pred_args, **kwargs):
         total += img.shape[0]
         pb.update(img.shape[0])
 
-    if log.getEffectiveLevel() <= 20: sf.util.clear_console()
-
-    tile_to_slides = np.array(tile_to_slides)
+    # Concatenate predictions for each outcome
     if type(y_pred[0]) == list:
-        # Concatenate predictions for each outcome
         y_pred = [np.concatenate(yp) for yp in zip(*y_pred)]
     else:
         y_pred = np.concatenate(y_pred)
+
+    # Concatenate y_true for each outcome
     if type(y_true[0]) == list:
-        # Concatenate y_true for each outcome
         y_true = [np.concatenate(yt) for yt in zip(*y_true)]
     else:
         y_true = np.concatenate(y_true)
+
+    tile_to_slides = np.array(tile_to_slides)
 
     # Merge multiple linear outcomes into a single vector
     if model_type == 'linear' and isinstance(y_true, list):
@@ -1425,12 +1504,12 @@ def predict_from_torch(model, dataset, model_type, pred_args, **kwargs):
     elif isinstance(running_corrects, (int, float)): acc = running_corrects / total
     else: acc = running_corrects.cpu().numpy() / total
 
-    end = time.time()
-    log.debug(f"Prediction complete. Time to completion: {int(end-start)} s")
+    if log.getEffectiveLevel() <= 20: sf.util.clear_console()
+    log.debug(f"Evaluation complete.")
 
-    return y_true, y_pred, tile_to_slides, acc, loss
+    return y_true, y_pred, None, tile_to_slides, acc, loss
 
-def predict_from_tensorflow(model, dataset, model_type, pred_args, num_tiles=0):
+def predict_from_tensorflow(model, dataset, model_type, pred_args, num_tiles=0, uq_n=30):
     """Generates predictions (y_true, y_pred, tile_to_slide) from a given Tensorflow model and dataset.
 
     Args:
@@ -1440,33 +1519,97 @@ def predict_from_tensorflow(model, dataset, model_type, pred_args, num_tiles=0):
             for non-categorical models. Defaults to 'categorical'.
         pred_args (namespace): Namespace containing the property `loss`, loss function used to calculate loss.
         num_tiles (int, optional): Used for progress bar. Defaults to 0.
+        uq_n (int, optional): Number of per-tile inferences to perform is calculating uncertainty via dropout.
+        evaluate (bool, optional): Calculate and return accuracy and loss. Dataset must also return y_true.
 
     Returns:
         y_true, y_pred, tile_to_slides, accuracy, loss
     """
 
     import tensorflow as tf
+    from slideflow.model.tensorflow_utils import get_uq_predictions
 
     @tf.function
-    def get_predictions(img):
-        return model(img, training=False)
+    def get_predictions(img, training=False):
+        return model(img, training=training)
 
-    start = time.time()
+    y_pred, tile_to_slides = [], []
+    y_std = [] if pred_args.uq else None
+    num_vals, num_batches, num_outcomes = 0, 0, 0
+
+    pb = tqdm(total=num_tiles, desc='Predicting...', ncols=80, leave=False)
+    for img, yt, slide in dataset: #TODO: support not needing to supply yt
+        pb.update(slide.shape[0])
+        tile_to_slides += [slide_bytes.decode('utf-8') for slide_bytes in slide.numpy()]
+        num_vals += slide.shape[0]
+        num_batches += 1
+        if pred_args.uq:
+            yp_mean, yp_std, num_outcomes = get_uq_predictions(img, get_predictions, num_outcomes, uq_n)
+            y_pred += [yp_mean]
+            y_std += [yp_std]
+        else:
+            yp = get_predictions(img, training=False)
+            y_pred += [yp]
+    pb.close()
+
+    tile_to_slides = np.array(tile_to_slides)
+    if type(y_pred[0]) == list:
+        # Concatenate predictions for each outcome
+        y_pred = [np.concatenate(yp) for yp in zip(*y_pred)]
+        if pred_args.uq:
+            y_std = [np.concatenate(ys) for ys in zip(*y_std)]
+    else:
+        y_pred = np.concatenate(y_pred)
+        if pred_args.uq:
+            y_std = np.concatenate(y_std)
+
+    log.debug(f"Prediction complete.")
+    return y_pred, y_std, tile_to_slides
+
+def eval_from_tensorflow(model, dataset, model_type, pred_args, num_tiles=0, uq_n=30):
+    """Generates predictions (y_true, y_pred, tile_to_slide) from a given Tensorflow model and dataset.
+
+    Args:
+        model (str): Path to Tensorflow model.
+        dataset (tf.data.Dataset): Tensorflow dataset.
+        model_type (str, optional): 'categorical', 'linear', or 'cph'. Will not attempt to calculate accuracy
+            for non-categorical models. Defaults to 'categorical'.
+        pred_args (namespace): Namespace containing the property `loss`, loss function used to calculate loss.
+        num_tiles (int, optional): Used for progress bar. Defaults to 0.
+        uq_n (int, optional): Number of per-tile inferences to perform is calculating uncertainty via dropout.
+        evaluate (bool, optional): Calculate and return accuracy and loss. Dataset must also return y_true.
+
+    Returns:
+        y_true, y_pred, tile_to_slides, accuracy, loss
+    """
+
+    import tensorflow as tf
+    from slideflow.model.tensorflow_utils import get_uq_predictions
+
+    @tf.function
+    def get_predictions(img, training=False):
+        return model(img, training=training)
+
     y_true, y_pred, tile_to_slides = [], [], []
-    num_vals = 0
-    num_batches = 0
-    running_loss = 0
+    y_std = [] if pred_args.uq else None
+    num_vals, num_batches, num_outcomes, running_loss = 0, 0, 0, 0
     is_cat = (model_type == 'categorical')
     if not is_cat: acc = None
 
     pb = tqdm(total=num_tiles, desc='Evaluating...', ncols=80, leave=False)
-    for i, (img, yt, slide) in enumerate(dataset):
+    for img, yt, slide in dataset:
         pb.update(slide.shape[0])
+        tile_to_slides += [slide_bytes.decode('utf-8') for slide_bytes in slide.numpy()]
         num_vals += slide.shape[0]
         num_batches += 1
 
-        yp = get_predictions(img)
-        y_pred += [yp]
+        if pred_args.uq:
+            yp, yp_std, num_outcomes = get_uq_predictions(img, get_predictions, num_outcomes, uq_n)
+            y_pred += [yp]
+            y_std += [yp_std]
+        else:
+            yp = get_predictions(img, training=False)
+            y_pred += [yp]
 
         if type(yt) == dict:
             y_true += [[yt[f'out-{o}'].numpy() for o in range(len(yt))]]
@@ -1476,15 +1619,19 @@ def predict_from_tensorflow(model, dataset, model_type, pred_args, num_tiles=0):
 
         loss = pred_args.loss(yt, yp)
         running_loss += tf.math.reduce_sum(loss).numpy() * slide.shape[0]
-        tile_to_slides += [slide_bytes.decode('utf-8') for slide_bytes in slide.numpy()]
     pb.close()
 
     tile_to_slides = np.array(tile_to_slides)
     if type(y_pred[0]) == list:
         # Concatenate predictions for each outcome
         y_pred = [np.concatenate(yp) for yp in zip(*y_pred)]
+        if pred_args.uq:
+            y_std = [np.concatenate(ys) for ys in zip(*y_std)]
     else:
         y_pred = np.concatenate(y_pred)
+        if pred_args.uq:
+            y_std = np.concatenate(y_std)
+
     if type(y_true[0]) == list:
         # Concatenate y_true for each outcome
         y_true = [np.concatenate(yt) for yt in zip(*y_true)]
@@ -1496,11 +1643,49 @@ def predict_from_tensorflow(model, dataset, model_type, pred_args, num_tiles=0):
             acc = np.sum(y_true == np.argmax(y_pred, axis=1)) / num_vals
 
     loss = running_loss / num_vals # Note that Keras loss during training includes regularization losses,
-                                   #  so this loss will not match validation loss calculated during training
-    end = time.time()
-    log.debug(f"Prediction complete. Time to completion: {int(end-start)} s")
+                                #  so this loss will not match validation loss calculated during training
 
-    return y_true, y_pred, tile_to_slides, acc, loss
+    log.debug(f"Evaluation complete.")
+    return y_true, y_pred, y_std, tile_to_slides, acc, loss
+
+def predict_from_dataset(model, dataset, model_type, pred_args, **kwargs):
+    """Generates predictions (y_pred, tile_to_slide) from a given model and dataset.
+
+    Args:
+        model (str): Path to PyTorch model.
+        dataset (tf.data.Dataset): PyTorch dataloader.
+        pred_args (namespace): Namespace containing slide_input, update_corrects, and update_loss functions.
+        model_type (str, optional): 'categorical', 'linear', or 'cph'. If multiple linear outcomes are present,
+            y_true is stacked into a single vector for each image. Defaults to 'categorical'.
+        num_tiles (int, optional): Used for progress bar with Tensorflow backend. Defaults to 0.
+
+    Returns:
+        y_pred, tile_to_slides
+    """
+    if sf.backend() == 'tensorflow':
+        return predict_from_tensorflow(model, dataset, model_type, pred_args, **kwargs)
+    else:
+        return predict_from_torch(model, dataset, model_type, pred_args, **kwargs)
+
+def eval_from_dataset(*args, **kwargs):
+    """Generates predictions (y_true, y_pred, tile_to_slide) and accuracy/loss from a given model and dataset.
+
+    Args:
+        model (str): Path to PyTorch model.
+        dataset (tf.data.Dataset): PyTorch dataloader.
+        pred_args (namespace): Namespace containing slide_input, update_corrects, and update_loss functions.
+        model_type (str, optional): 'categorical', 'linear', or 'cph'. If multiple linear outcomes are present,
+            y_true is stacked into a single vector for each image. Defaults to 'categorical'.
+        num_tiles (int, optional): Used for progress bar with Tensorflow backend. Defaults to 0.
+
+    Returns:
+        y_true, y_pred, tile_to_slides, accuracy, loss
+    """
+
+    if sf.backend() == 'tensorflow':
+        return eval_from_tensorflow(*args, **kwargs)
+    else:
+        return eval_from_torch(*args, **kwargs)
 
 def predict_from_layer(model, layer_input, input_layer_name='hidden_0', output_layer_index=None):
     """Generate predictions from a model, providing intermediate layer input.
@@ -1538,7 +1723,7 @@ def predict_from_layer(model, layer_input, input_layer_name='hidden_0', output_l
     return y_pred
 
 def metrics_from_dataset(model, model_type, labels, patients, dataset, outcome_names=None, label=None, data_dir=None,
-                         num_tiles=0, histogram=False, verbose=True, save_predictions=True, neptune_run=None, pred_args=None):
+                         num_tiles=0, histogram=False, save_predictions=True, neptune_run=None, pred_args=None):
 
     """Evaluate performance of a given model on a given TFRecord dataset,
     generating a variety of statistical outcomes and graphs.
@@ -1555,7 +1740,6 @@ def metrics_from_dataset(model, model_type, labels, patients, dataset, outcome_n
         num_tiles (int, optional): Number of total tiles expected in the dataset. Used for progress bar. Defaults to 0.
         histogram (bool, optional): Write histograms to data_dir. Defaults to False.
             Takes a substantial amount of time for large datasets, potentially hours.
-        verbose (bool, optional): Include verbose output. Defaults to True.
         save_predictions (bool, optional): Save tile, slide, and patient-level predictions to CSV. Defaults to True.
             May take a substantial amount of time for very large datasets.
         neptune_run (:class:`neptune.Run`, optional): Neptune run in which to log results. Defaults to None.
@@ -1565,26 +1749,19 @@ def metrics_from_dataset(model, model_type, labels, patients, dataset, outcome_n
         metrics [dict], accuracy [float], loss [float]
     """
 
-    if sf.backend() == 'tensorflow':
-        predict_fn = predict_from_tensorflow
-        kwargs = {'num_tiles': num_tiles}
-    else:
-        predict_fn = predict_from_torch
-        kwargs = {}
-
-    y_true, y_pred, tile_to_slides, acc, loss = predict_fn(model, dataset, model_type, pred_args, **kwargs)
+    yt, yp, y_std, t_s, acc, loss = eval_from_dataset(model, dataset, model_type, pred_args, num_tiles=num_tiles)
 
     before_metrics = time.time()
-    metrics = metrics_from_predictions(y_true=y_true,
-                                       y_pred=y_pred,
-                                       tile_to_slides=tile_to_slides,
+    metrics = metrics_from_predictions(y_true=yt,
+                                       y_pred=yp,
+                                       y_std=y_std,
+                                       tile_to_slides=t_s,
                                        labels=labels,
                                        patients=patients,
                                        model_type=model_type,
                                        outcome_names=outcome_names,
                                        label=label,
                                        data_dir=data_dir,
-                                       verbose=verbose,
                                        save_predictions=save_predictions,
                                        histogram=histogram,
                                        plot=True,
@@ -1699,7 +1876,6 @@ def permutation_feature_importance(model, dataset, labels, patients, model_type,
                                                                       outcome_names=outcome_names,
                                                                       label=label,
                                                                       data_dir=data_dir,
-                                                                      verbose=True,
                                                                       histogram=False,
                                                                       plot=False,
                                                                       neptune_run=neptune_run)
@@ -1746,7 +1922,6 @@ def permutation_feature_importance(model, dataset, labels, patients, model_type,
                                                 outcome_names=outcome_names,
                                                 label=None, #label[i] ?
                                                 data_dir=data_dir,
-                                                verbose=False,
                                                 histogram=False,
                                                 plot=False,
                                                 neptune_run=neptune_run)

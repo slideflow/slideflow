@@ -17,9 +17,6 @@ The easiest way to use ``slideflow`` is through the bundled project management c
 +-------------------------------+-------------------------------------------------------+
 | **eval_dir**                  | Path, where model evaluation results are saved.       |
 +-------------------------------+-------------------------------------------------------+
-| **mixed_precision**           | Bool, whether models should be trained using          |
-|                               | mixed precision (16-bit vs. 32-bit).                  |
-+-------------------------------+-------------------------------------------------------+
 
 Project class
 *************

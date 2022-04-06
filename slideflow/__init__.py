@@ -12,7 +12,7 @@ import os
 
 __author__ = 'James Dolezal'
 __license__ = 'GNU General Public License v3.0'
-__version__ = "1.0.6"
+__version__ = "1.1.0"
 
 if 'SF_BACKEND' not in os.environ:
     os.environ['SF_BACKEND'] = 'tensorflow'
@@ -22,6 +22,7 @@ def backend():
 
 from slideflow import io
 from slideflow import model
+from slideflow import norm
 from slideflow.heatmap import Heatmap
 from slideflow.dataset import Dataset
 from slideflow.mosaic import Mosaic

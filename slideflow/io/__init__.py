@@ -9,26 +9,27 @@ from tqdm import tqdm
 from multiprocessing.dummy import Pool as DPool
 from random import shuffle
 from slideflow.util import log
+from slideflow import errors
 from os.path import join, exists, isdir, isfile
 
 # Backend-specific imports and configuration
 if os.environ['SF_BACKEND'] == 'tensorflow':
     import tensorflow as tf
     from slideflow.io.tensorflow import get_tfrecord_parser, detect_tfrecord_format, serialized_record, \
-                                        read_and_return_record, TFRecordsError
+                                        read_and_return_record
     from tensorflow.data import TFRecordDataset
     from tensorflow.io import TFRecordWriter
-    dataloss_errors = (tf.errors.DataLossError, TFRecordsError)
+    dataloss_errors = (tf.errors.DataLossError, errors.TFRecordsError)
 
 elif os.environ['SF_BACKEND'] == 'torch':
     from slideflow.io.torch import get_tfrecord_parser, detect_tfrecord_format, serialized_record, \
-                                   read_and_return_record, TFRecordsError
+                                   read_and_return_record
     from slideflow.tfrecord.torch.dataset import TFRecordDataset
     from slideflow.tfrecord import TFRecordWriter
-    dataloss_errors = (TFRecordsError,)
+    dataloss_errors = (errors.TFRecordsError,)
 
 else:
-    raise ValueError(f"Unknown backend {os.environ['SF_BACKEND']}")
+    raise errors.BackendError(f"Unknown backend {os.environ['SF_BACKEND']}")
 
 def update_manifest_at_dir(directory, force_update=False):
     '''Log number of tiles in each TFRecord file present in the given directory and all subdirectories,

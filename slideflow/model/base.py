@@ -4,11 +4,9 @@ import json
 import os
 import csv
 import numpy as np
+import slideflow as sf
 from slideflow.util import log
-from slideflow.slide import StainNormalizer
-
-class FeatureError(Exception):
-    pass
+from slideflow import errors
 
 class _ModelParams:
     """Build a set of hyperparameters."""
@@ -17,8 +15,9 @@ class _ModelParams:
                  loss='sparse_categorical_crossentropy', learning_rate=0.0001, learning_rate_decay=0,
                  learning_rate_decay_steps=100000, batch_size=16, hidden_layers=0, hidden_layer_width=500,
                  optimizer='Adam', early_stop=False, early_stop_patience=0, early_stop_method='loss',
-                 training_balance='auto', validation_balance='none', trainable_layers=0, L2_weight=0, dropout=0,
-                 augment='xyrj', normalizer=None, normalizer_source=None, include_top=True, drop_images=False):
+                 training_balance='auto', validation_balance='none', trainable_layers=0, l1=0, l2=0, l1_dense=None,
+                 l2_dense=None, dropout=0, uq=False, augment='xyrj', normalizer=None, normalizer_source=None,
+                 include_top=True, drop_images=False):
 
         """Collection of hyperparameters used for model building and training
 
@@ -47,8 +46,12 @@ class _ModelParams:
                 Options include 'tile', 'category', 'patient', 'slide', and None. Defaults to 'none'.
             trainable_layers (int, optional): Number of layers which are traininable. If 0, trains all layers.
                 Defaults to 0.
-            L2_weight (int, optional): L2 regularization weight. Defaults to 0.
+            l1 (int, optional): L1 regularization weight. Defaults to 0.
+            l2 (int, optional): L2 regularization weight. Defaults to 0.
+            l1_dense (int, optional): L1 regularization weight for Dense layers. Defaults to the value of l1.
+            l2_dense (int, optional): L2 regularization weight for Dense layers. Defaults to the value of l2.
             dropout (int, optional): Post-convolution dropout rate. Defaults to 0.
+            uq (bool, optional): Use uncertainty quantification with dropout. Requires dropout > 0. Defaults to False.
             augment (str): Image augmentations to perform. String containing characters designating augmentations.
                 'x' indicates random x-flipping, 'y' y-flipping, 'r' rotating, and 'j' JPEG compression/decompression
                 at random quality levels. Passing either 'xyrj' or True will use all augmentations.
@@ -87,15 +90,26 @@ class _ModelParams:
         assert validation_balance in ['tile', 'category', 'patient', 'slide', 'none', None]
         assert isinstance(hidden_layer_width, int)
         assert isinstance(trainable_layers, int)
-        assert isinstance(L2_weight, (int, float))
+        assert isinstance(l1, (int, float))
+        assert isinstance(l2, (int, float))
         assert isinstance(dropout, (int, float))
+        assert isinstance(uq, bool)
         assert isinstance(augment, (bool, str))
         assert isinstance(drop_images, bool)
         assert isinstance(include_top, bool)
 
         assert 0 <= learning_rate_decay <= 1
-        assert 0 <= L2_weight <= 1
+        assert 0 <= l1 <= 1
+        assert 0 <= l2 <= 1
         assert 0 <= dropout <= 1
+
+        if l1_dense is not None:
+            assert isinstance(l1_dense, (int, float))
+            assert 0 <= l1_dense <= 1
+
+        if l2_dense is not None:
+            assert isinstance(l2_dense, (int, float))
+            assert 0 <= l2_dense <= 1
 
         self.tile_px = tile_px
         self.tile_um = tile_um
@@ -120,8 +134,12 @@ class _ModelParams:
         self.validation_balance = validation_balance
         self.hidden_layer_width = hidden_layer_width
         self.trainable_layers = trainable_layers
-        self.L2_weight = float(L2_weight)
+        self.l1 = float(l1)
+        self.l2 = float(l2)
+        self.l1_dense = self.l1 if l1_dense is None else float(l1_dense)
+        self.l2_dense = self.l2 if l2_dense is None else float(l2_dense)
         self.dropout = dropout
+        self.uq = uq
         self.normalizer = normalizer
         self.normalizer_source = normalizer_source
         self.augment = augment
@@ -184,8 +202,11 @@ class _ModelParams:
             d.update({arg: getattr(self, arg)})
         return d
 
-    def get_normalizer(self):
-        return None if not self.normalizer else StainNormalizer(method=self.normalizer, source=self.normalizer_source)
+    def get_normalizer(self, **kwargs):
+        if not self.normalizer:
+            return None
+        else:
+            return sf.norm.autoselect(self.normalizer, self.normalizer_source, **kwargs)
 
     def load_dict(self, hp_dict):
         for key, value in hp_dict.items():
@@ -212,15 +233,17 @@ class _ModelParams:
             try:
                 return outcome_labels.shape[1]
             except TypeError:
-                raise HyperParameterError('Incorrect formatting of outcome labels for linear model; must be an ndarray.')
+                raise errors.ModelParamsError('Incorrect formatting of outcome labels for linear model; must be an ndarray.')
 
     def validate(self):
         """Check that hyperparameter combinations are valid."""
         if (self.model_type() != 'categorical' and ((self.training_balance == 'category') or
                                                     (self.validation_balance == 'category'))):
-            raise HyperParameterError(f'Cannot combine category-level balancing with model type "{self.model_type()}".')
+            raise errors.ModelParamsError(f'Cannot combine category-level balancing with model type "{self.model_type()}".')
         if (self.model_type() != 'categorical' and self.early_stop_method == 'accuracy'):
-            raise HyperParameterError(f'Model type "{self.model_type()}" is not compatible with early stopping method "accuracy"')
+            raise errors.ModelParamsError(f'Model type "{self.model_type()}" is not compatible with early stopping method "accuracy"')
+        if self.uq and not self.dropout:
+            raise errors.ModelParamsError(f"Uncertainty quantification (uq=True) requires dropout > 0 (got: dropout={self.dropout})")
         return True
 
     def model_type(self):
@@ -256,7 +279,7 @@ def log_summary(model, neptune_run=None):
     if neptune_run:
         summary_string = []
         model.summary(print_fn=lambda x: summary_string.append(x))
-        neptune_run['model_info/summary'] = "\n".join(summary_string)
+        neptune_run['summary'] = "\n".join(summary_string)
 
 def log_manifest(train_tfrecords=None, val_tfrecords=None, labels=None, save_loc=None):
     out = ''

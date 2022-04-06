@@ -9,20 +9,21 @@ import torchvision
 import pretrainedmodels
 import slideflow as sf
 import numpy as np
+import slideflow.util.neptune_utils
 
+from tqdm import tqdm
 from os.path import join
 from slideflow.util import log
 from slideflow.model import base as _base
-from slideflow.model.base import FeatureError
 from slideflow.model import torch_utils
 from slideflow.model.base import log_manifest
-from tqdm import tqdm
+from slideflow import errors
 from torch.utils.tensorboard import SummaryWriter
 
 class LinearBlock(torch.nn.Module):
     '''Block module that includes a linear layer -> ReLU -> BatchNorm'''
 
-    def __init__(self, in_ftrs, out_ftrs):
+    def __init__(self, in_ftrs, out_ftrs, dropout=None):
         super().__init__()
         self.in_ftrs = in_ftrs
         self.out_ftrs = out_ftrs
@@ -30,17 +31,23 @@ class LinearBlock(torch.nn.Module):
         self.linear = torch.nn.Linear(in_ftrs, out_ftrs)
         self.relu = torch.nn.ReLU(inplace=True)
         self.bn = torch.nn.BatchNorm1d(out_ftrs)
+        if dropout:
+            self.dropout = torch.nn.Dropout(dropout)
+        else:
+            self.dropout = None
 
     def forward(self, x):
         x = self.linear(x)
         x = self.relu(x)
         x = self.bn(x)
+        if self.dropout is not None:
+            x = self.dropout(x)
         return x
 
 class ModelWrapper(torch.nn.Module):
     '''Wrapper for PyTorch modules to support multiple outcomes, clinical inputs, and additional hidden layers.'''
 
-    def __init__(self, model, n_classes, num_slide_features=0, hidden_layers=None, drop_images=False):
+    def __init__(self, model, n_classes, num_slide_features=0, hidden_layers=None, drop_images=False, dropout=None):
         super().__init__()
         self.model = model
         self.n_classes = len(n_classes)
@@ -50,7 +57,7 @@ class ModelWrapper(torch.nn.Module):
 
         if not drop_images:
             # Get the last linear layer prior to the logits layer
-            if model.__class__.__name__ == 'Xception':
+            if model.__class__.__name__ in ('Xception', 'NASNetALarge'):
                 num_ftrs = self.model.last_linear.in_features
                 self.model.last_linear = torch.nn.Identity()
             elif model.__class__.__name__ == 'VGG':
@@ -63,7 +70,7 @@ class ModelWrapper(torch.nn.Module):
             elif hasattr(self.model, 'out_features'):
                 num_ftrs = self.model.out_features
             else:
-                raise _base.ModelError("Unable to find last linear layer")
+                raise errors.ModelError(f"Unable to find last linear layer for model class {model.__class__.__name__}")
         else:
             num_ftrs = 0
 
@@ -74,7 +81,7 @@ class ModelWrapper(torch.nn.Module):
         if hidden_layers:
             hl_ftrs = [num_ftrs] + hidden_layers
             for i in range(len(hidden_layers)):
-                setattr(self, f'h{i}', LinearBlock(hl_ftrs[i], hl_ftrs[i+1]))
+                setattr(self, f'h{i}', LinearBlock(hl_ftrs[i], hl_ftrs[i+1], dropout=dropout))
             num_ftrs = hidden_layers[-1]
 
         # Add the outcome/logits layers for each outcome, if multiple outcomes
@@ -84,9 +91,9 @@ class ModelWrapper(torch.nn.Module):
     def __getattr__(self, name):
         try:
             return super().__getattr__(name)
-        except AttributeError:
+        except AttributeError as e:
             if name == 'model':
-                raise AttributeError()
+                raise e
             return getattr(self.model, name)
 
     def forward(self, img, slide_features=None):
@@ -118,7 +125,7 @@ class ModelWrapper(torch.nn.Module):
         else:
             out = self.fc0(x)
 
-        return out
+        return out#, x
 
 class ModelParams(_base._ModelParams):
     """Build a set of hyperparameters."""
@@ -153,7 +160,8 @@ class ModelParams(_base._ModelParams):
             'mobilenet_v3_large': torchvision.models.mobilenet_v3_large,
             'wide_resnet50_2': torchvision.models.wide_resnet50_2,
             'mnasnet': torchvision.models.mnasnet1_0,
-            'xception': pretrainedmodels.xception
+            'xception': pretrainedmodels.xception,
+            'nasnet_large': pretrainedmodels.nasnetalarge
         }
         self.LinearLossDict = {
             'L1': torch.nn.L1Loss,
@@ -191,7 +199,7 @@ class ModelParams(_base._ModelParams):
         assert self.optimizer in self.OptDict.keys()
         assert self.loss in self.AllLossDict
         if not self.include_top:
-            raise _base.HyperParameterError("PyTorch backend does not currently support include_top=False.")
+            raise errors.BackendError("PyTorch backend does not currently support include_top=False.")
 
     def get_opt(self, params_to_update):
         return self.OptDict[self.optimizer](params_to_update, lr=self.learning_rate)
@@ -207,7 +215,7 @@ class ModelParams(_base._ModelParams):
             num_classes = {'out-0': num_classes}
 
         # Build base model
-        if self.model in ('xception',):
+        if self.model in ('xception', 'nasnet_large'):
             _model = self.ModelDict[self.model](num_classes=1000, pretrained=pretrain)
         else:
             model_fn = self.ModelDict[self.model]
@@ -218,10 +226,8 @@ class ModelParams(_base._ModelParams):
             _model = model_fn(pretrained=pretrain, **model_kwargs)
 
         # Add final layers to models
-        hidden_layers = [self.hidden_layer_width for h in range(self.hidden_layers)]
-        _model = ModelWrapper(_model, num_classes.values(), num_slide_features, hidden_layers, self.drop_images)
-
-        return _model
+        hidden_layers = [self.hidden_layer_width for _ in range(self.hidden_layers)]
+        return ModelWrapper(_model, num_classes.values(), num_slide_features, hidden_layers, self.drop_images, dropout=self.dropout)
 
     def model_type(self):
         if self.loss == 'NLL':
@@ -294,7 +300,7 @@ class Trainer:
         if not self.outcome_names:
             self.outcome_names = [f'Outcome {i}' for i in range(outcome_labels.shape[1])]
         if not len(self.outcome_names) == outcome_labels.shape[1]:
-            raise sf.util.UserError(f"Number of provided outcome names ({len(self.outcome_names)}) does not match " + \
+            raise errors.ModelError(f"Number of provided outcome names ({len(self.outcome_names)}) does not match " + \
                                     f"the number of outcomes ({outcome_labels.shape[1]})")
         if not os.path.exists(outdir): os.makedirs(outdir)
 
@@ -328,6 +334,71 @@ class Trainer:
         self.model = self.hp.build_model(labels=self.labels, num_slide_features=self.num_slide_features)
         self.model.load_state_dict(torch.load(model))
 
+    def predict(self, dataset, batch_size=None, norm_fit=None, format='csv'):
+        """Perform inference on a model, saving predictions.
+
+        Args:
+            dataset (:class:`slideflow.dataset.Dataset`): Dataset containing TFRecords to evaluate.
+            batch_size (int, optional): Evaluation batch size. Defaults to the same as training (per self.hp)
+            format (str, optional): Format in which to save predictions. Either 'csv' or 'feather'. Defaults to 'csv'.
+
+        Returns:
+            pandas.DataFrame of tile-level predictions.
+        """
+
+        # Fit normalizer
+        if self.normalizer and norm_fit is not None:
+            self.normalizer.fit(**norm_fit)
+        elif self.normalizer:
+            if 'norm_fit' in self.config and self.config['norm_fit'] is not None:
+                self.normalizer.fit(**self.config['norm_fit'])
+
+        # Load and initialize model
+        if not self.model:
+            raise errors.ModelNotLoadedError
+        device = torch.device('cuda:0')
+        self.model.to(device)
+        self.model.eval()
+        log_manifest(None, dataset.tfrecords(), self.labels, join(self.outdir, 'slide_manifest.csv'))
+
+        if not batch_size: batch_size = self.hp.batch_size
+        interleave_args = types.SimpleNamespace(
+            rank=0,
+            num_replicas=1,
+            labels=self.labels,
+            chunk_size=16,
+            normalizer=self.normalizer,
+            pin_memory=True,
+            num_workers=8,
+            onehot=False,
+        )
+        torch_dataset = dataset.torch(infinite=False, batch_size=batch_size, augment=False, incl_slidenames=True, **vars(interleave_args))
+
+        # Generate predictions
+        log.info('Generating predictions...')
+        pred_args = types.SimpleNamespace(
+            uq=bool(self.hp.uq),
+            multi_outcome=(self.num_outcomes > 1),
+            num_slide_features=self.num_slide_features,
+            slide_input=self.slide_input
+        )
+        y_pred, y_std, tile_to_slides = sf.stats.predict_from_dataset(model=self.model,
+                                                                      dataset=torch_dataset,
+                                                                      model_type=self._model_type,
+                                                                      pred_args=pred_args)
+        df = sf.stats.predictions_to_dataframe(None, y_pred, tile_to_slides, self.outcome_names, uncertainty=y_std)
+
+        if format.lower() == 'csv':
+            save_path = os.path.join(self.outdir, "tile_predictions.csv")
+            df.to_csv(save_path)
+        elif format.lower() == 'feather':
+            import pyarrow.feather as feather
+            save_path = os.path.join(self.outdir, 'tile_predictions.feather')
+            feather.write_feather(df, save_path)
+        log.debug(f"Predictions saved to {sf.util.green(save_path)}")
+
+        return df
+
     def evaluate(self, dataset, batch_size=None, histogram=False, save_predictions=False, permutation_importance=False):
 
         """Evaluate model, saving metrics and predictions.
@@ -350,7 +421,7 @@ class Trainer:
         if permutation_importance:
             raise NotImplementedError("permutation_importance not yet implemented for PyTorch backend.")
         if not self.model:
-            raise sf.util.UserError("Model has not been loaded, unable to evaluate.")
+            raise errors.ModelNotLoadedError
         device = torch.device('cuda:0')
         self.model.to(device)
         self.model.eval()
@@ -413,7 +484,6 @@ class Trainer:
         # Generate performance metrics
         log.info('Calculating performance metrics...')
         metrics, acc, loss = sf.stats.metrics_from_dataset(histogram=histogram,
-                                                           verbose=True,
                                                            save_predictions=save_predictions,
                                                            pred_args=pred_args,
                                                            **vars(metric_kwargs))
@@ -451,6 +521,23 @@ class Trainer:
         else:
             labels = labels.to(device, non_blocking=True)
         return labels
+
+    def batch_loss(self, features, diff=0.5):
+        split = torch.split(features, 8)
+
+        def tstat(first, rest):
+            first_mean = torch.mean(first, axis=0)
+            rest_mean = torch.mean(rest, axis=0)
+
+            # Variance
+            A = torch.sum(torch.square(first - first_mean), dim=0) / (first_mean.shape[0] - 1)
+            B = torch.sum(torch.square(rest - rest_mean), dim=0) / (rest_mean.shape[0] - 1)
+
+            se = torch.sqrt((A / first_mean.shape[0]) + (B / rest_mean.shape[0])) # Not performing square root of SE for computational reasons
+            t_square = torch.square((first_mean - rest_mean - diff) / se)
+            return torch.sum(t_square) / features.shape[1]
+
+        return torch.sum(torch.stack([tstat(split[n], torch.cat([sp for i, sp in enumerate(split) if i != n], axis=0)) for n in range(len(split))])) / len(split)
 
     def calculate_loss(self, outputs, labels, loss_fn):
         '''Calculates loss in a manner compatible with multiple outcomes.'''
@@ -495,9 +582,9 @@ class Trainer:
         elapsed = time.strftime('%H:%M:%S', time.gmtime(time.time() - starttime))
         log.info(f'{sf.util.bold(sf.util.blue(phase))} Epoch {epoch} | loss: {loss:.4f} {accuracy_description} (Elapsed: {elapsed})')
 
-    def train(self, train_dts, val_dts, log_frequency=20, validate_on_batch=512, validation_batch_size=None,
+    def train(self, train_dts, val_dts, log_frequency=20, validate_on_batch=0, validation_batch_size=None,
               validation_steps=50, starting_epoch=0, ema_observations=20, ema_smoothing=2, use_tensorboard=True,
-              steps_per_epoch_override=0, save_predictions=False, resume_training=None,
+              steps_per_epoch_override=0, save_predictions=False, save_model=True, resume_training=None,
               pretrain='imagenet', checkpoint=None, multi_gpu=True, seed=0):
 
         """Builds and trains a model from hyperparameters.
@@ -506,7 +593,7 @@ class Trainer:
             train_dts (:class:`slideflow.dataset.Dataset`): Dataset containing TFRecords for training.
             val_dts (:class:`slideflow.dataset.Dataset`): Dataset containing TFRecords for validation.
             log_frequency (int, optional): How frequent to update Tensorboard logs, in batches. Defaults to 100.
-            validate_on_batch (int, optional): How frequent o perform validation, in batches. Defaults to 512.
+            validate_on_batch (int, optional): Validation will also be performed every N batches. Defaults to 0.
             validation_batch_size (int, optional): Validation batch size. Defaults to same as training (per self.hp).
             validation_steps (int, optional): Number of batches to use for each instance of validation. Defaults to 200.
             starting_epoch (int, optional): Starts training at the specified epoch. Defaults to 0.
@@ -517,6 +604,7 @@ class Trainer:
             steps_per_epoch_override (int, optional): Manually set the number of steps per epoch. Defaults to None.
             save_predictions (bool, optional): Save tile, slide, and patient-level predictions at each evaluation.
                 Defaults to False.
+            save_model (bool, optional): Save models when evaluating at specified epochs. Defaults to True.
             resume_training (str, optional): Not applicable to PyTorch backend. Included as argument for compatibility
                 with Tensorflow backend. Will raise NotImplementedError if supplied.
             pretrain (str, optional): Either 'imagenet' or path to Tensorflow model from which to load weights.
@@ -541,7 +629,7 @@ class Trainer:
         if (self.hp.early_stop and self.hp.early_stop_method == 'accuracy' and
            self.hp.model_type() == 'categorical' and self.num_outcomes > 1):
 
-           raise sf.util.UserError("Cannot combine 'accuracy' early stopping with multiple categorical outcomes.")
+           raise errors.ModelError("Cannot combine 'accuracy' early stopping with multiple categorical outcomes.")
 
         # Enable TF32 (should be enabled by default)
         torch.backends.cuda.matmul.allow_tf32 = True  # Allow PyTorch to internally use tf32 for matmul
@@ -589,7 +677,7 @@ class Trainer:
         if log.getEffectiveLevel() <= 20:
             model_summary = torch_utils.print_module_summary(self.model, empty_inp)
             if self.neptune_run:
-                self.neptune_run['model_info/summary'] = model_summary
+                self.neptune_run['summary'] = model_summary
 
         # Multi-GPU
         inference_model = self.model
@@ -608,11 +696,12 @@ class Trainer:
             pin_memory=True,
             num_workers=4,
             onehot=False,
-            incl_slidenames=True
+            incl_slidenames=True,
+            device=device
         )
 
         dataloaders = {
-            'train': iter(train_dts.torch(infinite=True, batch_size=self.hp.batch_size, augment=self.hp.augment, **vars(interleave_args)))
+            'train': iter(train_dts.torch(infinite=True, batch_size=self.hp.batch_size, augment=self.hp.augment, drop_last=True, **vars(interleave_args)))
         }
         if val_dts is not None:
             if not validation_batch_size: validation_batch_size = self.hp.batch_size
@@ -629,9 +718,16 @@ class Trainer:
             mid_train_val_dts = None
             log.debug('Validation during training: None')
 
-        # Model parameters and loss
+        # Model parameters and optimizer
         params_to_update = self.model.parameters()
         optimizer = self.hp.get_opt(params_to_update)
+        if self.hp.learning_rate_decay:
+            scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=self.hp.learning_rate_decay)
+            log.debug("Using exponentially decaying learning rate")
+        else:
+            scheduler = None
+
+        # Loss
         loss_fn = self.hp.get_loss()
         if self.mixed_precision:
             scaler = torch.cuda.amp.GradScaler()
@@ -671,8 +767,10 @@ class Trainer:
                                     inp = (images, torch.tensor([self.slide_input[s] for s in slides]).to(device))
                                 else:
                                     inp = (images,)
-                                outputs = self.model(*inp)
-                                loss = self.calculate_loss(outputs, labels, loss_fn)
+                                outputs = self.model(*inp) # outputs, features =
+                                #batch_loss = self.batch_loss(features) * 0.0003
+                                #if step % 200 == 0: log.info(f"Batch loss (added): {batch_loss}")
+                                loss = self.calculate_loss(outputs, labels, loss_fn) #+ batch_loss
 
                             # Update weights
                             if self.mixed_precision:
@@ -682,6 +780,11 @@ class Trainer:
                             else:
                                 loss.backward()
                                 optimizer.step()
+
+                            # Update learning rate if using a scheduler
+                            if scheduler and (global_step+1) % self.hp.learning_rate_decay_steps == 0:
+                                log.debug("Stepping learning rate decay")
+                                scheduler.step()
 
                         # Record accuracy and loss
                         num_records += images.size(0)
@@ -703,13 +806,9 @@ class Trainer:
 
                         # Log to neptune
                         if self.neptune_run:
-                            self.neptune_run[f"metrics/train/batch/loss"].log(round(loss.item(), 3))
+                            self.neptune_run[f"metrics/train/batch/loss"].log(loss.item())
                             if self.hp.model_type() == 'categorical':
-                                if isinstance(train_acc, list):
-                                    for acc_idx, acc in enumerate(train_acc):
-                                        self.neptune_run[f"metrics/train/batch/accuracy-{acc_idx}"].log(round(acc.item(), 3))
-                                else:
-                                    self.neptune_run[f"metrics/train/batch/accuracy"].log(round(train_acc.item(), 3))
+                                sf.util.neptune_utils.list_log(self.neptune_run, 'metrics/train/batch/accuracy', train_acc, step=global_step)
 
                         # === Mid-training validation =================================================================
                         if val_dts and validate_on_batch and (step % validate_on_batch == 0) and step > 0:
@@ -743,13 +842,9 @@ class Trainer:
 
                             # Log validation metrics to neptune
                             if self.neptune_run:
-                                self.neptune_run[f"metrics/test/batch/loss"].log(round(val_loss, 3))
+                                self.neptune_run[f"metrics/val/batch/loss"].log(val_loss, step=global_step)
                                 if self.hp.model_type() == 'categorical':
-                                    if isinstance(val_acc, list):
-                                        for acc_idx, acc in enumerate(val_acc):
-                                            self.neptune_run[f"metrics/test/batch/accuracy-{acc_idx}"].log(round(acc.item(), 3))
-                                    else:
-                                        self.neptune_run[f"metrics/test/batch/accuracy"].log(round(val_acc.item(), 3))
+                                    sf.util.neptune_utils.list_log(self.neptune_run, 'metrics/val/batch/accuracy', val_acc.item(), step=global_step)
 
                             # EMA & early stopping --------------------------------------------------------------------
                             early_stop_val = val_acc if self.hp.early_stop_method == 'accuracy' else val_loss
@@ -763,8 +858,8 @@ class Trainer:
                                     last_ema = (early_stop_val * (ema_smoothing / (1 + ema_observations))) + \
                                                (last_ema * (1 - (ema_smoothing / (1 + ema_observations))))
                                     log_msg += f' (EMA: {last_ema:.3f})'
-                                    if self.neptune_run:
-                                        self.neptune_run["metrics/batch/exp_moving_average"].log(round(last_ema, 3))
+                                    if self.neptune_run and self.last_ema != -1:
+                                        self.neptune_run["metrics/val/batch/exp_moving_avg"].log(last_ema)
 
                                 if self.hp.early_stop and ema_two_checks_prior != -1 and epoch > self.hp.early_stop_patience:
                                     if ((self.hp.early_stop_method == 'accuracy' and last_ema <= ema_two_checks_prior) or
@@ -825,17 +920,12 @@ class Trainer:
 
                     # Log epoch-level validation metrics to neptune
                     if self.neptune_run:
-                        self.neptune_run[f"metrics/train/epoch/loss"].log(round(epoch_loss, 3))
-                        if self.hp.model_type() == 'categorical':
-                            if isinstance(epoch_accuracy, list):
-                                for acc_idx, acc in enumerate(epoch_accuracy):
-                                    self.neptune_run[f"metrics/train/epoch/accuracy-{acc_idx}"].log(round(acc.item(), 3))
-                            else:
-                                self.neptune_run[f"metrics/train/epoch/accuracy"].log(round(epoch_accuracy.item(), 3))
+                        self.neptune_run[f"metrics/train/epoch/loss"].log(epoch_loss, step=epoch)
+                        sf.util.neptune_utils.list_log(self.neptune_run, 'metrics/train/epoch/accuracy', epoch_accuracy.item(), step=epoch)
 
                 # === Full dataset validation =========================================================================
                 # Save the model
-                if phase == 'train' and epoch in self.hp.epochs:
+                if save_model and phase == 'train' and epoch in self.hp.epochs:
                     model_name = self.name if self.name else 'trained_model'
                     save_path = os.path.join(self.outdir, f'{model_name}_epoch{epoch}')
                     torch.save(self.model.state_dict(), save_path)
@@ -888,15 +978,40 @@ class Trainer:
 
                     for metric in metrics:
                         if metrics[metric]['tile'] is None: continue
-                        epoch_results['tile'] = metrics[metric]['tile']
-                        epoch_results['slide'] = metrics[metric]['slide']
-                        epoch_results['patient'] = metrics[metric]['patient']
+                        epoch_results[f'tile_{metric}'] = metrics[metric]['tile']
+                        epoch_results[f'slide_{metric}'] = metrics[metric]['slide']
+                        epoch_results[f'patient_{metric}'] = metrics[metric]['patient']
                     results['epochs'][f'epoch{epoch}'].update(epoch_results)
                     sf.util.update_results_log(results_log, 'trained_model', {f'epoch{epoch}': results['epochs'][f'epoch{epoch}']})
 
                     if self.use_neptune:
-                        self.neptune_run['results/logged_epochs'] = [int(e[5:]) for e in results['epochs'] if e[:5] == 'epoch']
-                        self.neptune_run['results/epochs'] = results['epochs']
+                        self.neptune_run['results'] = results['epochs']
+
+                        # Validation epoch metrics
+                        self.neptune_run['metrics/val/epoch/loss'].log(loss, step=epoch)
+                        sf.util.neptune_utils.list_log(self.neptune_run, 'metrics/val/epoch/accuracy', acc, step=epoch)
+
+                        for metric in metrics:
+                            if metrics[metric]['tile'] is None:
+                                continue
+                            for outcome in metrics[metric]['tile']:
+                                # If only one outcome, log to metrics/val/epoch/[metric].
+                                # If more than one outcome, log to metrics/val/epoch/[metric]/[outcome_name]
+                                def metric_label(s):
+                                    if len(metrics[metric]['tile']) == 1:
+                                        return f'metrics/val/epoch/{s}_{metric}'
+                                    else:
+                                        return f'metrics/val/epoch/{s}_{metric}/{outcome}'
+
+                                tile_metric = metrics[metric]['tile'][outcome]
+                                slide_metric = metrics[metric]['slide'][outcome]
+                                patient_metric = metrics[metric]['patient'][outcome]
+
+                                # If only one value for a metric, log to .../[metric]
+                                # If more than one value for a metric (e.g. AUC for each category), log to .../[metric]/[i]
+                                sf.util.neptune_utils.list_log(self.neptune_run, metric_label('tile'), tile_metric, step=epoch)
+                                sf.util.neptune_utils.list_log(self.neptune_run, metric_label('slide'), slide_metric, step=epoch)
+                                sf.util.neptune_utils.list_log(self.neptune_run, metric_label('patient'), patient_metric, step=epoch)
                 # =====================================================================================================
 
         if self.neptune_run:
@@ -992,11 +1107,13 @@ class Features:
             try:
                 config = sf.util.get_model_config(path)
             except:
-                raise FeatureError(f"Unable to find configuration for model {path}")
+                raise errors.FeaturesError(f"Unable to find configuration for model {path}")
 
             self.hp = ModelParams()
             self.hp.load_dict(config['hp'])
             self.wsi_normalizer = self.hp.get_normalizer()
+            if 'norm_fit' in config and config['norm_fit'] is not None:
+                self.wsi_normalizer.fit(**config['norm_fit'])
             self.tile_px = self.hp.tile_px
             self._model = self.hp.build_model(num_classes=len(config['outcome_labels'])) #labels=
             self._model.load_state_dict(torch.load(path))
@@ -1032,7 +1149,7 @@ class Features:
             obj._model = model.to(obj.device)
             obj._model.eval()
         else:
-            raise TypeError("Provided model is not a valid PyTorch model.")
+            raise errors.ModelError("Provided model is not a valid PyTorch model.")
         obj.hp = None
         if obj._model.__class__.__name__ == 'ModelWrapper':
             obj.model_type = obj._model.model.__class__.__name__
@@ -1131,7 +1248,7 @@ class Features:
             return list(self._model.conv5.children())[1]
         if self.model_type == 'Xception':
             return self._model.bn4
-        raise FeatureError(f"'postconv' layer not configured for model type {self.model_type}")
+        raise errors.FeaturesError(f"'postconv' layer not configured for model type {self.model_type}")
 
     def _postconv_processing(self, output):
         """Applies processing (pooling, resizing) to post-convolutional outputs,
@@ -1168,7 +1285,7 @@ class Features:
                 else:
                     getattr(self._model, l).register_forward_hook(get_activation(l))
         elif self.layers is not None:
-            raise TypeError(f"Unrecognized type {type(self.layers)} for self.layers")
+            raise errors.FeaturesError(f"Unrecognized type {type(self.layers)} for self.layers")
 
         # Calculate output and layer sizes
         rand_data = torch.rand(1, 3, self.tile_px, self.tile_px)

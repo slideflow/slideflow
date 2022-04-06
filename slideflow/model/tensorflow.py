@@ -10,6 +10,7 @@ import warnings
 import shutil
 import types
 import inspect
+import atexit
 
 warnings.filterwarnings('ignore')
 
@@ -21,8 +22,16 @@ import slideflow.util.neptune_utils
 
 from os.path import join, exists, dirname
 from slideflow.util import log
-from slideflow.model.base import ModelError, FeatureError, no_scope, log_summary, log_manifest
+from slideflow.model.base import no_scope, log_summary, log_manifest
 from slideflow.model.tensorflow_utils import *
+from slideflow import errors
+
+class StaticDropout(tf.keras.layers.Dropout):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def call(self, inputs, **kwargs):
+        return super().call(inputs, training=True)
 
 class ModelParams(_base._ModelParams):
     """Build a set of hyperparameters."""
@@ -79,6 +88,7 @@ class ModelParams(_base._ModelParams):
             'huber': tf.keras.losses.huber,
             'categorical_crossentropy': tf.keras.losses.categorical_crossentropy,
             'sparse_categorical_crossentropy': tf.keras.losses.sparse_categorical_crossentropy,
+            'batch_loss_crossentropy': batch_loss_crossentropy,
             'binary_crossentropy': tf.keras.losses.binary_crossentropy,
             'kullback_leibler_divergence': tf.keras.losses.kullback_leibler_divergence,
             'poisson': tf.keras.losses.poisson,
@@ -90,21 +100,52 @@ class ModelParams(_base._ModelParams):
         assert self.loss in self.AllLossDict.keys()
 
     def _add_hidden_layers(self, model, regularizer):
+        log.debug("Using Batch normalization")
+        last_linear = None
         for i in range(self.hidden_layers):
             model = tf.keras.layers.Dense(self.hidden_layer_width,
                                           name=f'hidden_{i}',
                                           activation='relu',
                                           kernel_regularizer=regularizer)(model)
-        return model
+            model = tf.keras.layers.BatchNormalization()(model)
+            last_linear = model
+            if self.uq:
+                model = StaticDropout(self.dropout)(model)
+            elif self.dropout:
+                model = tf.keras.layers.Dropout(self.dropout)(model)
+        return model, last_linear
+
+    def _get_dense_regularizer(self):
+        if self.l2_dense and not self.l1_dense:
+            log.debug(f"Using L2 regularization for dense layers (weight={self.l2_dense})")
+            return tf.keras.regularizers.l2(self.l2_dense)
+        elif self.l1_dense and not self.l2_dense:
+            log.debug(f"Using L1 regularization for dense layers (weight={self.l1_dense})")
+            return tf.keras.regularizers.l1(self.l1_dense)
+        elif self.l1_dense and self.l2_dense:
+            log.debug(f"Using L1 (weight={self.l1_dense}) and L2 (weight={self.l2_dense}) regularization for dense layers")
+            return tf.keras.regularizers.l1_l2(l1=self.l1_dense, l2=self.l2_dense)
+        else:
+            log.debug(f"Not using regularization for dense layers")
+            return None
 
     def _add_regularization(self, model):
         # Add L2 regularization to all compatible layers in the base model
-        if self.L2_weight != 0:
-            regularizer = tf.keras.regularizers.l2(self.L2_weight)
-            model = add_regularization(model, regularizer)
+        if self.l2 and not self.l1:
+            log.debug(f"Using L2 regularization for base model (weight={self.l2})")
+            regularizer = tf.keras.regularizers.l2(self.l2)
+        elif self.l1 and not self.l2:
+            log.debug(f"Using L1 regularization for base model (weight={self.l1})")
+            regularizer = tf.keras.regularizers.l1(self.l1)
+        elif self.l1 and self.l2:
+            log.debug(f"Using L1 (weight={self.l1}) and L2 (weight={self.l2}) regularization for base model")
+            regularizer = tf.keras.regularizers.l1_l2(l1=self.l1, l2=self.l2)
         else:
+            log.debug(f"Not using regularization for base model")
             regularizer = None
-        return model, regularizer
+        if regularizer is not None:
+            model = add_regularization(model, regularizer)
+        return model
 
     def _freeze_layers(self, model):
         freezeIndex = int(len(model.layers) - (self.trainable_layers - 1 ))# - self.hp.hidden_layers - 1))
@@ -155,7 +196,7 @@ class ModelParams(_base._ModelParams):
                 base_model = tf.keras.Model(inputs=base_model.input, outputs=base_model.layers[-2].output, name=base_model.name)
 
         # Add regularization
-        base_model, regularizer = self._add_regularization(base_model)
+        base_model = self._add_regularization(base_model)
 
         # Allow only a subset of layers in the base model to be trainable
         if self.trainable_layers != 0:
@@ -167,16 +208,18 @@ class ModelParams(_base._ModelParams):
         if not self.pooling:
             layers += [tf.keras.layers.Flatten()]
         layers += [post_convolution_identity_layer]
-        if self.dropout:
+        if self.uq:
+            layers += [StaticDropout(self.dropout)]
+        elif self.dropout:
             layers += [tf.keras.layers.Dropout(self.dropout)]
         tile_image_model = tf.keras.Sequential(layers)
         model_inputs = [tile_image_model.input]
-        return tile_image_model, model_inputs, regularizer
+        return tile_image_model, model_inputs
 
-    def _build_categorical_model(self, num_classes, num_slide_features=0, activation='softmax',
+    def _build_categorical_or_linear_model(self, num_classes, num_slide_features=0, activation='softmax',
                                 pretrain='imagenet', checkpoint=None):
 
-        """Assembles categorical model, using pretraining (imagenet) or the base layers of a supplied model.
+        """Assembles categorical or linear model, using pretraining (imagenet) or the base layers of a supplied model.
 
         Args:
             num_classes (int or dict): Either int (single categorical outcome, indicating number of classes) or dict
@@ -187,7 +230,7 @@ class ModelParams(_base._ModelParams):
             checkpoint (str): Path to checkpoint from which to resume model training. Defaults to None.
         """
 
-        tile_image_model, model_inputs, regularizer = self._build_base(pretrain)
+        tile_image_model, model_inputs = self._build_base(pretrain)
 
         if num_slide_features:
             slide_feature_input_tensor = tf.keras.Input(shape=(num_slide_features), name='slide_feature_input')
@@ -201,7 +244,8 @@ class ModelParams(_base._ModelParams):
             merged_model = tile_image_model.output
 
         # Add hidden layers
-        merged_model = self._add_hidden_layers(merged_model, regularizer)
+        regularizer = self._get_dense_regularizer()
+        merged_model, last_linear = self._add_hidden_layers(merged_model, regularizer)
 
         # Multi-categorical outcomes
         if isinstance(num_classes, dict):
@@ -220,6 +264,8 @@ class ModelParams(_base._ModelParams):
         # Assemble final model
         log.debug(f'Using {activation} activation')
         model = tf.keras.Model(inputs=model_inputs, outputs=outputs)
+        if False:
+            model.add_loss(batch_loss_crossentropy(last_linear))
 
         if checkpoint:
             log.info(f'Loading checkpoint weights from {sf.util.green(checkpoint)}')
@@ -241,7 +287,7 @@ class ModelParams(_base._ModelParams):
         """
 
         activation = 'linear'
-        tile_image_model, model_inputs, regularizer = self._build_base(pretrain)
+        tile_image_model, model_inputs = self._build_base(pretrain)
 
         # Add slide feature input tensors, if there are more slide features
         #    than just the event input tensor for CPH models
@@ -267,14 +313,15 @@ class ModelParams(_base._ModelParams):
             model_inputs += [event_input_tensor]
 
         # Add hidden layers
-        merged_model = self._add_hidden_layers(merged_model, regularizer)
+        regularizer = self._get_dense_regularizer()
+        merged_model, last_linear = self._add_hidden_layers(merged_model, regularizer)
 
         log.debug(f'Using {activation} activation')
 
         # Multi-categorical outcomes
         if type(num_classes) == dict:
             outputs = []
-            for c in self.num_classes:
+            for c in num_classes:
                 final_dense_layer = tf.keras.layers.Dense(num_classes[c],
                                                           kernel_regularizer=regularizer,
                                                           name=f'prelogits-{c}')(merged_model)
@@ -317,13 +364,13 @@ class ModelParams(_base._ModelParams):
             num_classes = self._detect_classes_from_labels(labels)
 
         if self.model_type() == 'categorical':
-            return self._build_categorical_model(num_classes, **kwargs, activation='softmax')
+            return self._build_categorical_or_linear_model(num_classes, **kwargs, activation='softmax')
         elif self.model_type() == 'linear':
-            return self._build_categorical_model(num_classes, **kwargs, activation='linear')
+            return self._build_categorical_or_linear_model(num_classes, **kwargs, activation='linear')
         elif self.model_type() == 'cph':
             return self._build_cph_model(num_classes, **kwargs)
         else:
-            raise ModelError(f'Unknown model type: {self.model_type()}')
+            raise errors.ModelError(f'Unknown model type: {self.model_type()}')
 
     def get_loss(self):
         return self.AllLossDict[self.loss]
@@ -362,6 +409,8 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
         self.hp = parent.hp
         self.cb_args = cb_args
         self.early_stop = False
+        self.early_stop_batch = 0
+        self.early_stop_epoch = 0
         self.last_ema = -1
         self.moving_average = []
         self.ema_two_checks_prior = -1
@@ -370,6 +419,7 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
         self.model_type = self.hp.model_type()
         self.results = {'epochs': {}}
         self.neptune_run = self.parent.neptune_run
+        self.global_step = 0
 
     def on_epoch_end(self, epoch, logs={}):
         if log.getEffectiveLevel() <= 20: print('\r\033[K', end='')
@@ -377,24 +427,26 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
         if self.epoch_count in [e for e in self.hp.epochs]:
             model_name = self.parent.name if self.parent.name else 'trained_model'
             model_path = os.path.join(self.parent.outdir, f'{model_name}_epoch{self.epoch_count}')
-            self.model.save(model_path)
+            if self.cb_args.save_model:
+                self.model.save(model_path)
+                log.info(f'Trained model saved to {sf.util.green(model_path)}')
 
-            # Try to copy model settings/hyperparameters file into the model folder
-            if not exists(join(model_path, 'params.json')):
-                try:
-                    config_path = join(dirname(model_path), 'params.json')
-                    if self.neptune_run:
-                        config = sf.util.load_json(config_path)
-                        config['neptune_id'] = self.neptune_run['sys/id'].fetch()
-                        sf.util.write_json(config, config_path)
-                    shutil.copy(config_path,
-                                join(model_path, 'params.json'), )
-                    shutil.copy(join(dirname(model_path), 'slide_manifest.csv'),
-                                join(model_path, 'slide_manifest.csv'), )
-                except:
-                    log.warning('Unable to copy params.json/slide_manifest.csv files into model folder.')
+                # Try to copy model settings/hyperparameters file into the model folder
+                if not exists(join(model_path, 'params.json')):
+                    try:
+                        config_path = join(dirname(model_path), 'params.json')
+                        if self.neptune_run:
+                            config = sf.util.load_json(config_path)
+                            config['neptune_id'] = self.neptune_run['sys/id'].fetch()
+                            sf.util.write_json(config, config_path)
+                        shutil.copy(config_path,
+                                    join(model_path, 'params.json'), )
+                        shutil.copy(join(dirname(model_path), 'slide_manifest.csv'),
+                                    join(model_path, 'slide_manifest.csv'), )
+                    except Exception as e:
+                        log.warning(e)
+                        log.warning('Unable to copy params.json/slide_manifest.csv files into model folder.')
 
-            log.info(f'Trained model saved to {sf.util.green(model_path)}')
             if self.cb_args.using_validation:
                 self.evaluate_model(logs)
         elif self.early_stop:
@@ -402,18 +454,24 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
         self.model.stop_training = self.early_stop
 
     def on_train_batch_end(self, batch, logs={}):
+        # Neptune logging for training metrics
+        if self.neptune_run:
+            self.neptune_run['metrics/train/batch/loss'].log(logs['loss'], step=self.global_step)
+            sf.util.neptune_utils.list_log(self.neptune_run, 'metrics/train/batch/accuracy', logs['accuracy'], step=self.global_step)
+
+        # Validation metrics
         if (self.cb_args.using_validation and self.cb_args.validate_on_batch
             and (batch > 0) and (batch % self.cb_args.validate_on_batch == 0)):
 
             val_metrics = self.model.evaluate(self.cb_args.validation_data,
-                                                verbose=0,
-                                                steps=self.cb_args.validation_steps,
-                                                return_dict=True)
+                                              verbose=0,
+                                              steps=self.cb_args.validation_steps,
+                                              return_dict=True)
             val_loss = val_metrics['loss']
             self.model.stop_training = False
-            if self.hp.early_stop_method == 'accuracy' and 'val_accuracy' in val_metrics:
-                early_stop_value = val_metrics['val_accuracy']
-                val_acc = f"{val_metrics['val_accuracy']:3f}"
+            if self.hp.early_stop_method == 'accuracy' and 'accuracy' in val_metrics:
+                early_stop_value = val_metrics['accuracy']
+                val_acc = f"{val_metrics['accuracy']:.3f}"
             else:
                 early_stop_value = val_loss
                 val_acc = ', '.join([f'{val_metrics[v]:.3f}' for v in val_metrics if 'accuracy' in v])
@@ -426,11 +484,10 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
 
             # Log to neptune
             if self.neptune_run:
-                self.neptune_run["metrics/batch/batch"].log(batch)
-                self.neptune_run["metrics/batch/epoch"].log(self.epoch_count)
                 for v in val_metrics:
-                    self.neptune_run[f"metrics/batch/val_{v}"].log(round(val_metrics[v], 3))
-                self.neptune_run["metrics/batch/exp_moving_average"].log(round(self.last_ema, 3))
+                    self.neptune_run[f"metrics/val/batch/{v}"].log(round(val_metrics[v], 3), step=self.global_step)
+                if self.last_ema != -1:
+                    self.neptune_run["metrics/val/batch/exp_moving_avg"].log(round(self.last_ema, 3), step=self.global_step)
                 self.neptune_run["early_stop/stopped_early"] = False
 
             # Base logging message
@@ -473,6 +530,8 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
                     log.info(f'Early stop triggered: epoch {self.epoch_count+1}, batch {batch}')
                     self.model.stop_training = True
                     self.early_stop = True
+                    self.early_stop_batch = batch
+                    self.early_stop_epoch = self.epoch_count + 1
 
                     # Log early stop to neptune
                     if self.neptune_run:
@@ -485,6 +544,9 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
                     self.ema_two_checks_prior = self.ema_one_check_prior
                     self.ema_one_check_prior = self.last_ema
 
+        # Update global step (for tracking metrics across epochs)
+        self.global_step += 1
+
     def on_train_end(self, logs={}):
         if log.getEffectiveLevel() <= 20: print('\r\033[K')
         if self.neptune_run:
@@ -493,7 +555,7 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
     def evaluate_model(self, logs={}):
         epoch = self.epoch_count
         epoch_label = f'val_epoch{epoch}'
-        pred_args = types.SimpleNamespace(loss=self.hp.get_loss())
+        pred_args = types.SimpleNamespace(loss=self.hp.get_loss(), uq=bool(self.hp.uq))
         metrics, acc, loss = sf.stats.metrics_from_dataset(
             self.model,
             model_type=self.hp.model_type(),
@@ -505,7 +567,6 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
             data_dir=self.parent.outdir,
             num_tiles=self.cb_args.num_val_tiles,
             histogram=False,
-            verbose=True,
             save_predictions=self.cb_args.save_predictions,
             pred_args=pred_args
         )
@@ -513,18 +574,54 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
         # Note that Keras loss during training includes regularization losses,
         #  so this loss will not match validation loss calculated during training
         val_metrics = {'accuracy': acc, 'loss': loss}
-        #val_metrics = self.model.evaluate(self.cb_args.validation_data, verbose=0, return_dict=True)
         log.info(f'Validation metrics: ' + json.dumps(val_metrics, indent=4))
         self.results['epochs'][f'epoch{epoch}'] = {'train_metrics': {k:v for k,v in logs.items() if k[:3] != 'val'},
                                                    'val_metrics': val_metrics }
+        if self.early_stop:
+            self.results['epochs'][f'epoch{epoch}'].update({
+                'early_stop_epoch': self.early_stop_epoch,
+                'early_stop_batch': self.early_stop_batch,
+            })
         for metric in metrics:
             if metrics[metric]['tile'] is None: continue
-            self.results['epochs'][f'epoch{epoch}']['tile'] = metrics[metric]['tile']
-            self.results['epochs'][f'epoch{epoch}']['slide'] = metrics[metric]['slide']
-            self.results['epochs'][f'epoch{epoch}']['patient'] = metrics[metric]['patient']
+            self.results['epochs'][f'epoch{epoch}'][f'tile_{metric}'] = metrics[metric]['tile']
+            self.results['epochs'][f'epoch{epoch}'][f'slide_{metric}'] = metrics[metric]['slide']
+            self.results['epochs'][f'epoch{epoch}'][f'patient_{metric}'] = metrics[metric]['patient']
 
         epoch_results = self.results['epochs'][f'epoch{epoch}']
         sf.util.update_results_log(self.cb_args.results_log, 'trained_model', {f'epoch{epoch}': epoch_results})
+
+        # Log epoch results to Neptune
+        if self.neptune_run:
+            # Training epoch metrics
+            self.neptune_run['metrics/train/epoch/loss'].log(logs['loss'], step=epoch)
+            sf.util.neptune_utils.list_log(self.neptune_run, 'metrics/train/epoch/accuracy', logs['accuracy'], step=epoch)
+
+            # Validation epoch metrics
+            self.neptune_run['metrics/val/epoch/loss'].log(val_metrics['loss'], step=epoch)
+            sf.util.neptune_utils.list_log(self.neptune_run, 'metrics/val/epoch/accuracy', val_metrics['accuracy'], step=epoch)
+
+            for metric in metrics:
+                if metrics[metric]['tile'] is None:
+                    continue
+                for outcome in metrics[metric]['tile']:
+                    # If only one outcome, log to metrics/val/epoch/[metric].
+                    # If more than one outcome, log to metrics/val/epoch/[metric]/[outcome_name]
+                    def metric_label(s):
+                        if len(metrics[metric]['tile']) == 1:
+                            return f'metrics/val/epoch/{s}_{metric}'
+                        else:
+                            return f'metrics/val/epoch/{s}_{metric}/{outcome}'
+
+                    tile_metric = metrics[metric]['tile'][outcome]
+                    slide_metric = metrics[metric]['slide'][outcome]
+                    patient_metric = metrics[metric]['patient'][outcome]
+
+                    # If only one value for a metric, log to .../[metric]
+                    # If more than one value for a metric (e.g. AUC for each category), log to .../[metric]/[i]
+                    sf.util.neptune_utils.list_log(self.neptune_run, metric_label('tile'), tile_metric, step=epoch)
+                    sf.util.neptune_utils.list_log(self.neptune_run, metric_label('slide'), slide_metric, step=epoch)
+                    sf.util.neptune_utils.list_log(self.neptune_run, metric_label('patient'), patient_metric, step=epoch)
 
 class Trainer:
     """Base trainer class containing functionality for model building, input processing, training, and evaluation.
@@ -580,6 +677,7 @@ class Trainer:
         self.name = name
         self.config = config
         self.neptune_run = None
+        self.annotations_tables = []
 
         if patients:
             self.patients = patients
@@ -599,10 +697,18 @@ class Trainer:
         if len(self.outcome_names) != outcome_labels.shape[1]:
             num_names = len(self.outcome_names)
             num_outcomes = outcome_labels.shape[1]
-            raise ModelError(f'Size of outcome_names ({num_names}) does not match number of outcomes {num_outcomes}')
+            raise errors.ModelError(f'Size of outcome_names ({num_names}) != number of outcomes {num_outcomes}')
 
         self._setup_inputs()
-        self.num_classes = self.hp._detect_classes_from_labels(labels)
+        if labels:
+            self.num_classes = self.hp._detect_classes_from_labels(labels)
+            with tf.device('/cpu'):
+                for oi in range(outcome_labels.shape[1]):
+                    self.annotations_tables += [tf.lookup.StaticHashTable(
+                        tf.lookup.KeyValueTensorInitializer(self.slides, outcome_labels[:,oi]), -1
+                    )]
+        else:
+            self.num_classes = None
 
         # Normalization setup
         self.normalizer = self.hp.get_normalizer()
@@ -613,12 +719,14 @@ class Trainer:
             policy = tf.keras.mixed_precision.experimental.Policy('mixed_float16')
             tf.keras.mixed_precision.experimental.set_policy(policy)
 
-        with tf.device('/cpu'):
-            self.annotations_tables = []
-            for oi in range(outcome_labels.shape[1]):
-                self.annotations_tables += [tf.lookup.StaticHashTable(
-                    tf.lookup.KeyValueTensorInitializer(self.slides, outcome_labels[:,oi]), -1
-                )]
+        # Log parameters
+        if config is None:
+            config = {
+                'slideflow_version': sf.__version__,
+                'hp': self.hp.get_dict(),
+                'backend': sf.backend()
+            }
+        sf.util.write_json(config, join(self.outdir, 'params.json'))
 
         # Log parameters
         if config is None:
@@ -641,12 +749,12 @@ class Trainer:
                 if self.num_slide_features:
                     log.info(f'Training with both images and {self.num_slide_features} categories of slide-level input')
             except KeyError:
-                raise ModelError("Unable to find slide-level input at 'input' key in annotations")
+                raise errors.ModelError("Unable to find slide-level input at 'input' key in annotations")
             for slide in self.slides:
                 if len(self.slide_input[slide]) != self.num_slide_features:
                     err_msg = f'Length of input for slide {slide} does not match feature_sizes'
                     num_in_feature_table = len(self.slide_input[slide])
-                    raise ModelError(f'{err_msg}; expected {self.num_slide_features}, got {num_in_feature_table}')
+                    raise errors.ModelError(f'{err_msg}; expected {self.num_slide_features}, got {num_in_feature_table}')
 
     def _compile_model(self):
         '''Compiles keras model.'''
@@ -660,7 +768,9 @@ class Trainer:
 
         image_dict = { 'tile_image': image }
 
-        if len(self.num_classes) > 1:
+        if self.num_classes is None:
+            label = None
+        elif len(self.num_classes) > 1:
             label = {f'out-{oi}': self.annotations_tables[oi].lookup(slide) for oi in range(len(self.num_classes))}
         else:
             label = self.annotations_tables[0].lookup(slide)
@@ -720,7 +830,58 @@ class Trainer:
     def load(self, model):
         self.model = tf.keras.models.load_model(model)
 
-    def evaluate(self, dataset, batch_size=None, permutation_importance=False, histogram=False, save_predictions=False):
+    def predict(self, dataset, batch_size=None, norm_fit=None, format='csv'):
+        """Perform inference on a model, saving tile-level predictions.
+
+        Args:
+            dataset (:class:`slideflow.dataset.Dataset`): Dataset containing TFRecords to evaluate.
+            batch_size (int, optional): Evaluation batch size. Defaults to the same as training (per self.hp)
+            format (str, optional): Format in which to save predictions. Either 'csv' or 'feather'. Defaults to 'csv'.
+
+        Returns:
+            pandas.DataFrame of tile-level predictions.
+        """
+
+        # Fit normalizer
+        if self.normalizer and norm_fit is not None:
+            self.normalizer.fit(**norm_fit)
+        elif self.normalizer:
+            if 'norm_fit' in self.config and self.config['norm_fit'] is not None:
+                self.normalizer.fit(**self.config['norm_fit'])
+
+        # Load and initialize model
+        if not self.model:
+            raise errors.ModelNotLoadedError
+        log_manifest(None, dataset.tfrecords(), self.labels, join(self.outdir, 'slide_manifest.csv'))
+
+        if not batch_size: batch_size = self.hp.batch_size
+        with tf.name_scope('input'):
+            interleave_kwargs = self._interleave_kwargs(batch_size=batch_size, infinite=False, augment=False)
+            tf_dts_w_slidenames = dataset.tensorflow(incl_slidenames=True, **interleave_kwargs)
+
+        # Generate predictions
+        log.info('Generating predictions...')
+        pred_args = types.SimpleNamespace(uq=bool(self.hp.uq))
+        y_pred, y_std, tile_to_slides = sf.stats.predict_from_dataset(model=self.model,
+                                                                      dataset=tf_dts_w_slidenames,
+                                                                      model_type=self._model_type,
+                                                                      pred_args=pred_args,
+                                                                      num_tiles=dataset.num_tiles)
+        df = sf.stats.predictions_to_dataframe(None, y_pred, tile_to_slides, self.outcome_names, uncertainty=y_std)
+
+        if format.lower() == 'csv':
+            save_path = os.path.join(self.outdir, "tile_predictions.csv")
+            df.to_csv(save_path)
+        elif format.lower() == 'feather':
+            import pyarrow.feather as feather
+            save_path = os.path.join(self.outdir, 'tile_predictions.feather')
+            feather.write_feather(df, save_path)
+        log.debug(f"Predictions saved to {sf.util.green(save_path)}")
+
+        return df
+
+    def evaluate(self, dataset, batch_size=None, permutation_importance=False, histogram=False, save_predictions=False,
+                 norm_fit=None, uq='auto'):
 
         """Evaluate model, saving metrics and predictions.
 
@@ -738,9 +899,20 @@ class Trainer:
             Dictionary of evaluation metrics.
         """
 
+        if uq != 'auto':
+            self.hp.uq = uq
+
+        # Fit normalizer
+        if self.normalizer and norm_fit is not None:
+            self.normalizer.fit(**norm_fit)
+        elif self.normalizer:
+            if 'norm_fit' in self.config and self.config['norm_fit'] is not None:
+                log.debug("Detecting normalizer fit from model config")
+                self.normalizer.fit(**self.config['norm_fit'])
+
         # Load and initialize model
         if not self.model:
-            raise sf.util.UserError("Model has not been loaded, unable to evaluate.")
+            raise errors.ModelNotLoadedError
         log_manifest(None, dataset.tfrecords(), self.labels, join(self.outdir, 'slide_manifest.csv'))
 
         # Neptune logging
@@ -764,10 +936,10 @@ class Trainer:
                                                               drop_images=drop_images,
                                                               **metric_kwargs)
         else:
+            pred_args = types.SimpleNamespace(loss=self.hp.get_loss(), uq=bool(self.hp.uq))
             metrics, acc, loss = sf.stats.metrics_from_dataset(histogram=histogram,
-                                                               verbose=True,
                                                                save_predictions=save_predictions,
-                                                               pred_args=types.SimpleNamespace(loss=self.hp.get_loss()),
+                                                               pred_args=pred_args,
                                                                **metric_kwargs)
             results_dict = { 'eval': {} }
         for metric in metrics:
@@ -780,7 +952,6 @@ class Trainer:
                     f'slide_{metric}': metrics[metric]['slide'],
                     f'patient_{metric}': metrics[metric]['patient']
                 })
-
 
         # Note that Keras loss during training includes regularization losses,
         #  so this loss will not match validation loss calculated during training
@@ -799,10 +970,10 @@ class Trainer:
 
         return val_metrics
 
-    def train(self, train_dts, val_dts, log_frequency=100, validate_on_batch=512, validation_batch_size=None,
+    def train(self, train_dts, val_dts, log_frequency=100, validate_on_batch=0, validation_batch_size=None,
               validation_steps=200, starting_epoch=0, ema_observations=20, ema_smoothing=2, use_tensorboard=True,
-              steps_per_epoch_override=None, save_predictions=False, resume_training=None,
-              pretrain='imagenet', checkpoint=None, multi_gpu=False):
+              steps_per_epoch_override=None, save_predictions=False, save_model=True, resume_training=None,
+              pretrain='imagenet', checkpoint=None, multi_gpu=False, norm_fit=None, skip_val_without_es=True):
 
         """Builds and trains a model from hyperparameters.
 
@@ -810,7 +981,7 @@ class Trainer:
             train_dts (:class:`slideflow.dataset.Dataset`): Dataset containing TFRecords for training.
             val_dts (:class:`slideflow.dataset.Dataset`): Dataset containing TFRecords for validation.
             log_frequency (int, optional): How frequent to update Tensorboard logs, in batches. Defaults to 100.
-            validate_on_batch (int, optional): How frequent o perform validation, in batches. Defaults to 512.
+            validate_on_batch (int, optional): Validation will also be performed every N batches. Defaults to 0.
             validation_batch_size (int, optional): Validation batch size. Defaults to same as training (per self.hp).
             validation_steps (int, optional): Number of batches to use for each instance of validation. Defaults to 200.
             starting_epoch (int, optional): Starts training at the specified epoch. Defaults to 0.
@@ -821,6 +992,7 @@ class Trainer:
             steps_per_epoch_override (int, optional): Manually set the number of steps per epoch. Defaults to None.
             save_predictions (bool, optional): Save tile, slide, and patient-level predictions at each evaluation.
                 Defaults to False.
+            save_model (bool, optional): Save models when evaluating at specified epochs. Defaults to True.
             resume_training (str, optional): Path to Tensorflow model to continue training. Defaults to None.
             pretrain (str, optional): Either 'imagenet' or path to Tensorflow model from which to load weights.
                 Defaults to 'imagenet'.
@@ -831,8 +1003,26 @@ class Trainer:
         """
 
         if self.hp.model_type() != self._model_type:
-            raise ModelError(f"Incomptable model types: {self.hp.model_type()} (hp) and {self._model_type} (model)")
+            raise errors.ModelError(f"Incomptable model types: {self.hp.model_type()} (hp) and {self._model_type} (model)")
         tf.keras.backend.clear_session() # Clear prior Tensorflow graph to free memory
+
+        # Fit the normalizer to the training data and log the source mean/stddev
+        if self.normalizer and self.hp.normalizer_source == 'dataset':
+            self.normalizer.fit(train_dts)
+        elif norm_fit is not None:
+            self.normalizer.fit(**norm_fit)
+        if self.normalizer:
+            config_path = join(self.outdir, 'params.json')
+            if not exists(config_path):
+                config = {
+                    'slideflow_version': sf.__version__,
+                    'hp': self.hp.get_dict(),
+                    'backend': sf.backend()
+                }
+            else:
+                config = sf.util.load_json(config_path)
+            config['norm_fit'] = self.normalizer.get_fit()
+            sf.util.write_json(config, config_path)
 
         # Save training / validation manifest
         val_tfrecords = None if val_dts is None else val_dts.tfrecords()
@@ -850,6 +1040,8 @@ class Trainer:
         if multi_gpu:
             strategy = tf.distribute.MirroredStrategy()
             log.info(f'Multi-GPU training with {strategy.num_replicas_in_sync} devices')
+            # Fixes "OSError: [Errno 9] Bad file descriptor" after training
+            atexit.register(strategy._extended._collective_ops._pool.close) # type: ignore
         else:
             strategy = None
 
@@ -867,7 +1059,7 @@ class Trainer:
 
             with tf.name_scope('input'):
                 t_kwargs = self._interleave_kwargs(batch_size=self.hp.batch_size, infinite=True, augment=self.hp.augment)
-                train_data = train_dts.tensorflow(**t_kwargs)
+                train_data = train_dts.tensorflow(drop_last=True, **t_kwargs)
 
             # Set up validation data
             using_validation = (val_dts and len(val_dts.tfrecords()))
@@ -876,7 +1068,14 @@ class Trainer:
                     if not validation_batch_size: validation_batch_size = self.hp.batch_size
                     v_kwargs = self._interleave_kwargs(batch_size=validation_batch_size, infinite=False, augment=False)
                     val_data = val_dts.tensorflow(**v_kwargs)
-                    val_data_w_slidenames = val_dts.tensorflow(incl_slidenames=True, **v_kwargs)
+                    val_data_w_slidenames = val_dts.tensorflow(incl_slidenames=True, drop_last=True, **v_kwargs)
+
+                # Check for insufficient number of batches to trigger early stopping
+                if self.hp.early_stop and skip_val_without_es:
+                    if train_dts.num_tiles < (ema_observations + 3) * self.hp.batch_size:
+                        log.info("Skipping validation checks; insufficient samples for early stopping")
+                        self.hp.early_stop = False
+                        validate_on_batch = 0
 
                 val_log_msg = '' if not validate_on_batch else f'every {str(validate_on_batch)} steps and '
                 log.debug(f'Validation during training: {val_log_msg}at epoch end')
@@ -921,6 +1120,7 @@ class Trainer:
                 validation_data_with_slidenames=val_data_w_slidenames,
                 num_val_tiles=(0 if val_dts is None else val_dts.num_tiles),
                 save_predictions=save_predictions,
+                save_model=save_model,
                 results_log=results_log,
             )
 
@@ -939,10 +1139,6 @@ class Trainer:
             callbacks = [history_callback, evaluation_callback, cp_callback]
             if use_tensorboard:
                 callbacks += [tensorboard_callback]
-            if self.neptune_run:
-                from neptune.new.integrations.tensorflow_keras import NeptuneCallback
-                neptune_cb = NeptuneCallback(run=self.neptune_run, base_namespace='metrics')
-                callbacks += [neptune_cb]
 
             # Retrain top layer only, if using transfer learning and not resuming training
             if self.hp.toplayer_epochs:
@@ -970,8 +1166,7 @@ class Trainer:
 
             results = evaluation_callback.results
             if self.use_neptune:
-                self.neptune_run['results/logged_epochs'] = [int(e[5:]) for e in results['epochs'] if e[:5] == 'epoch']
-                self.neptune_run['results/epochs'] = results['epochs']
+                self.neptune_run['results'] = results['epochs']
                 self.neptune_run.stop()
 
             return results
@@ -994,7 +1189,10 @@ class LinearTrainer(Trainer):
 
     def _parse_tfrecord_labels(self, image, slide):
         image_dict = { 'tile_image': image }
-        label = [self.annotations_tables[oi].lookup(slide) for oi in range(self.num_classes)]
+        if self.num_classes is None:
+            label = None
+        else:
+            label = [self.annotations_tables[oi].lookup(slide) for oi in range(self.num_classes)]
 
         # Add additional non-image feature inputs if indicated,
         #     excluding the event feature used for CPH models
@@ -1017,7 +1215,7 @@ class CPHTrainer(LinearTrainer):
         super().__init__(*args, **kwargs)
 
         if not self.num_slide_features:
-            raise ModelError('Model error - CPH models must include event input')
+            raise errors.ModelError('Model error - CPH models must include event input')
 
     def _setup_inputs(self):
         # Setup slide-level input
@@ -1029,12 +1227,12 @@ class CPHTrainer(LinearTrainer):
             else:
                 log.info(f'Training with images alone. Interpreting first feature as event for CPH model')
         except KeyError:
-            raise ModelError("Unable to find slide-level input at 'input' key in annotations")
+            raise errors.ModelError("Unable to find slide-level input at 'input' key in annotations")
         for slide in self.slides:
             if len(self.slide_input[slide]) != self.num_slide_features:
                 err_msg = f'Length of input for slide {slide} does not match feature_sizes'
                 num_in_feature_table = len(self.slide_input[slide])
-                raise ModelError(f'{err_msg}; expected {self.num_slide_features}, got {num_in_feature_table}')
+                raise errors.ModelError(f'{err_msg}; expected {self.num_slide_features}, got {num_in_feature_table}')
 
     def load(self, model):
         custom_objects = {'negative_log_likelihood':negative_log_likelihood,
@@ -1049,7 +1247,10 @@ class CPHTrainer(LinearTrainer):
 
     def _parse_tfrecord_labels(self, image, slide):
         image_dict = { 'tile_image': image }
-        label = [self.annotations_tables[oi].lookup(slide) for oi in range(self.num_classes)]
+        if self.num_classes is None:
+            label = None
+        else:
+            label = [self.annotations_tables[oi].lookup(slide) for oi in range(self.num_classes)]
 
         # Add additional non-image feature inputs if indicated,
         #     excluding the event feature used for CPH models
@@ -1133,6 +1334,8 @@ class Features:
             self.hp = sf.model.ModelParams()
             self.hp.load_dict(config['hp'])
             self.wsi_normalizer = self.hp.get_normalizer()
+            if 'norm_fit' in config and config['norm_fit'] is not None:
+                self.wsi_normalizer.fit(**config['norm_fit'])
             self._build(layers=layers, include_logits=include_logits)
 
     @classmethod
@@ -1155,7 +1358,7 @@ class Features:
         if isinstance(model, tf.keras.models.Model):
             obj._model = model
         else:
-            raise TypeError("Provided model is not a valid Tensorflow model.")
+            raise errors.ModelError("Provided model is not a valid Tensorflow model.")
         obj._build(layers=layers, include_logits=include_logits)
         obj.wsi_normalizer = wsi_normalizer
         return obj
@@ -1172,20 +1375,21 @@ class Features:
     def _predict_slide(self, slide, batch_size=128, dtype=np.float16, **kwargs):
         """Generate activations from slide => activation grid array."""
         total_out = self.num_features + self.num_logits
-        features_grid = np.zeros((slide.grid.shape[1], slide.grid.shape[0], total_out), dtype=dtype)
+        features_grid = np.ones((slide.grid.shape[1], slide.grid.shape[0], total_out), dtype=dtype) * -1
         generator = slide.build_generator(shuffle=False, include_loc='grid', show_progress=True, **kwargs)
 
         if not generator:
             log.error(f"No tiles extracted from slide {sf.util.green(slide.name)}")
             return
 
+        @tf.function
         def _parse_function(record):
             image = record['image']
             loc = record['loc']
+            if self.wsi_normalizer:
+                image = self.wsi_normalizer.tf_to_tf(image)
             parsed_image = tf.image.per_image_standardization(image)
             parsed_image.set_shape([slide.tile_px, slide.tile_px, 3])
-            if self.wsi_normalizer:
-                image = tf.py_function(self.wsi_normalizer.tf_to_rgb, [image], tf.int32)
             return parsed_image, loc
 
         # Generate dataset from the generator
@@ -1246,6 +1450,7 @@ class Features:
             outputs_list += [self._model.output]
         self.model = tf.keras.models.Model(inputs=self._model.input, outputs=outputs_list)
         self.num_features = sum([outputs[o].shape[1] for o in outputs])
+        self.num_outputs = len(outputs_list)
         if isinstance(self._model.output, list):
             log.warning("Multi-categorical outcomes not yet supported for this interface.")
             self.num_logits = 0
@@ -1254,3 +1459,36 @@ class Features:
         if include_logits:
             log.debug(f'Number of logits: {self.num_logits}')
         log.debug(f'Number of activation features: {self.num_features}')
+
+class UncertaintyInterface(Features):
+    def __init__(self, path, layers=None):
+        super().__init__(path, layers=layers, include_logits=True)
+        self.num_features += 1
+
+    @classmethod
+    def from_model(cls, model, wsi_normalizer=None, layers=None):
+        super().from_model(cls, model, layers=layers, include_logits=True, wsi_normalizer=wsi_normalizer)
+
+    @tf.function
+    def _predict(self, inp):
+        """Return predictions (mean) and uncertainty (stdev) for a single batch of images."""
+        out_drop = [[] for _ in range(self.num_outputs)]
+        for _ in range(30):
+            yp = self.model(inp, training=False)
+            if self.num_outputs > 1:
+                for n in range(self.num_outputs):
+                    out_drop[n] += [yp[n]]
+            else:
+                out_drop[0] += [yp]
+        for n in range(self.num_outputs):
+            out_drop[n] = tf.stack(out_drop[n], axis=0)
+        yp_drop_mean = tf.math.reduce_mean(out_drop[-1], axis=0)
+        yp_drop_std = tf.math.reduce_std(out_drop[-1], axis=0)[:,0] # Only takes STDEV from first outcome category
+                                                               # Which works for outcomes with 2 categories,
+                                                               # TODO: But a better solution is needed
+                                                               # for num_categories > 2
+        logits_and_uncertainty = tf.concat([yp_drop_mean, tf.expand_dims(yp_drop_std, axis=-1)], axis=-1)
+        if self.num_outputs > 1:
+            return [tf.math.reduce_mean(out_drop[n], axis=0) for n in range(self.num_outputs-1)] + [logits_and_uncertainty]
+        else:
+            return logits_and_uncertainty

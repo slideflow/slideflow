@@ -20,8 +20,7 @@ import slideflow as sf
 
 from collections import defaultdict
 from slideflow.util import log
-from slideflow.slide import StainNormalizer
-from slideflow.model.base import FeatureError, HyperParameterError
+from slideflow import errors
 from os.path import join, exists
 from math import isnan
 from tqdm import tqdm
@@ -33,7 +32,7 @@ if os.environ['SF_BACKEND'] == 'tensorflow':
 elif os.environ['SF_BACKEND'] == 'torch':
     from slideflow.model.torch import ModelParams, Trainer, LinearTrainer, CPHTrainer, Features
 else:
-    raise ValueError(f"Unknown backend {os.environ['SF_BACKEND']}")
+    raise errors.BackendError(f"Unknown backend {os.environ['SF_BACKEND']}")
 
 # -----------------------------------------------------------------------------
 
@@ -80,9 +79,9 @@ def get_hp_from_batch_file(filename, models=None):
     """
 
     if models is not None and not isinstance(models, list):
-        raise sf.util.UserError("If supplying models, must be a list of strings containing model names.")
+        raise ValueError("If supplying models, must be a list of strings containing model names.")
     if isinstance(models, list) and not list(set(models)) == models:
-        raise sf.util.UserError("Duplicate model names provided.")
+        raise ValueError("Duplicate model names provided.")
 
     hp_list = sf.util.load_json(filename)
 
@@ -137,10 +136,6 @@ class DatasetFeatures:
             layers (str): Model layer(s) from which to calculate activations. Defaults to 'postconv'.
             batch_size (int): Batch size to use during activations calculations. Defaults to 32.
             include_logits (bool): Calculate and store logits. Defaults to True.
-            normalizer (str): Normalization strategy to use on image tiles. Defaults to None.
-            normalizer_source (str): Path to normalizer source image. Defaults to None.
-                If None but using a normalizer, will use an internal tile for normalization.
-                Internal default tile can be found at slideflow.slide.norm_tile.jpg
         """
 
         self.activations = defaultdict(list)
@@ -160,6 +155,8 @@ class DatasetFeatures:
         self.normalizer = self.hp.get_normalizer()
         if self.normalizer:
             log.info(f'Using realtime {self.normalizer.method} normalization')
+            if 'norm_fit' in model_config:
+                self.normalizer.fit(**model_config['norm_fit'])
 
         if annotations:
             self.categories = list(set(self.annotations.values()))
@@ -194,6 +191,7 @@ class DatasetFeatures:
         loaded_slides = list(self.activations.keys())
         for loaded_slide in loaded_slides:
             if loaded_slide not in self.slides:
+                log.debug(f'Removing activations from slide {loaded_slide}, slide not in the filtered tfrecords list')
                 self.remove_slide(loaded_slide)
 
         # Now screen for missing slides in activations
@@ -219,7 +217,8 @@ class DatasetFeatures:
             self.num_features = self.activations[self.slides[0]].shape[-1]
         log.debug(f'Number of activation features: {self.num_features}')
 
-    def _generate_from_model(self, model, layers='postconv', include_logits=True, batch_size=32, cache=None):
+    def _generate_from_model(self, model, layers='postconv', include_logits=True, include_uncertainty=True,
+                             batch_size=32, cache=None):
 
         """Calculates activations from a given model, saving to self.activations
 
@@ -227,6 +226,7 @@ class DatasetFeatures:
             model (str): Path to Tensorflow model from which to calculate final layer activations.
             layers (str, optional): Layers from which to generate activations. Defaults to 'postconv'.
             include_logits (bool, optional): Include logit predictions. Defaults to True.
+            include_uncertainty (bool, optional): Include uncertainty estimation if UQ enabled. Defaults to True.
             batch_size (int, optional): Batch size to use during activations calculations. Defaults to 32.
             cache (str, optional): File in which to store activations PKL cache.
         """
@@ -236,7 +236,8 @@ class DatasetFeatures:
         if not isinstance(layers, list): layers = [layers]
 
         # Load model
-        combined_model = sf.model.Features(model, layers=layers, include_logits=include_logits)
+        #combined_model = sf.model.Features(model, layers=layers, include_logits=include_logits)
+        combined_model = sf.model.tensorflow.UncertaintyInterface(model, layers=layers)
         self.num_features = combined_model.num_features
         self.num_logits = 0 if not include_logits else combined_model.num_logits
 
@@ -256,7 +257,7 @@ class DatasetFeatures:
             'normalizer': self.normalizer
         }
         if sf.backend() == 'tensorflow':
-            dataloader = self.dataset.tensorflow(None, num_parallel_reads=None, **dataset_kwargs)
+            dataloader = self.dataset.tensorflow(None, num_parallel_reads=None, deterministic=True, **dataset_kwargs)
         elif sf.backend() == 'torch':
             dataloader = self.dataset.torch(None, num_workers=1, **dataset_kwargs)
 
@@ -334,7 +335,7 @@ class DatasetFeatures:
         """
 
         if not self.categories:
-            raise sf.util.UserError('Unable to calculate activations by category; annotations not provided.')
+            raise errors.FeaturesError('Unable to calculate activations by category; annotations not provided.')
 
         def activations_by_single_category(c):
             return np.concatenate([self.activations[pt][:,idx] for pt in self.slides if self.annotations[pt] == c])
@@ -348,7 +349,8 @@ class DatasetFeatures:
             features (list(int)): List of feature indices for which to generate box plots.
             outdir (str): Path to directory in which to save box plots.
         """
-        if not isinstance(features, list): raise sf.util.UserError("'features' must be a list of int.")
+        if not isinstance(features, list):
+            raise ValueError("'features' must be a list of int.")
         if not self.categories:
             log.warning('Unable to generate box plots; annotations not loaded. Please load with load_annotations().')
             return
@@ -392,7 +394,7 @@ class DatasetFeatures:
             slides (list(str)): Slides to export. If None, exports all slides. Defaults to None.
         """
         if level not in ('tile', 'slide'):
-            raise sf.util.UserError(f"Unknown level {level}, must be either 'tile' or 'slide'.")
+            raise errors.FeaturesError(f"Unknown level {level}, must be either 'tile' or 'slide'.")
 
         meth_fn = {'mean': np.mean, 'median': np.median}
         slides = self.slides if not slides else slides
@@ -465,9 +467,9 @@ class DatasetFeatures:
         """
 
         if not self.categories:
-            raise FeatureError('Unable to calculate activations statistics; Please load annotations with load_annotations().')
+            raise errors.FeaturesError('Unable to calculate statistics; load annotations with load_annotations().')
         if method not in ('mean', 'threshold'):
-            raise FeatureError(f"'method' must be either 'mean' or 'threshold', not {method}")
+            raise errors.FeaturesError(f"'method' must be either 'mean' or 'threshold', not {method}")
 
         log.info('Calculating activation averages & stats across features...')
 
@@ -626,6 +628,22 @@ class DatasetFeatures:
                 }]
         return np.array(umap_x), np.array(umap_y), umap_meta
 
+    def merge(self, df):
+        '''Merges with another DatasetFeatures.
+
+        Args:
+            df (slideflow.model.DatasetFeatures): DatasetFeatures to merge with.
+
+        Returns:
+            None
+        '''
+
+        self.activations.update(df.activations)
+        self.logits.update(df.logits)
+        self.locations.update(df.locations)
+        self.tfrecords = np.concatenate([self.tfrecords, df.tfrecords])
+        self.slides = list(self.activations.keys())
+
     def remove_slide(self, slide):
         """Removes slide from internally cached activations."""
         del self.activations[slide]
@@ -651,7 +669,8 @@ class DatasetFeatures:
                 Will evenly sample this many tiles across the activation gradient.
         """
 
-        if not isinstance(features, list): raise sf.util.UserError("'features' must be a list of int.")
+        if not isinstance(features, list):
+            raise ValueError("'features' must be a list of int.")
 
         if not slides:
             slides = self.slides

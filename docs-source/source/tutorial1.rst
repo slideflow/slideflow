@@ -43,8 +43,6 @@ following settings (mostly defaults):
 +-------------------------------+-------------------------------------------------------+
 | **batch_train_config**        | ./batch_train_config.tsv                              |
 +-------------------------------+-------------------------------------------------------+
-| **mixed_precision**           | True                                                  |
-+-------------------------------+-------------------------------------------------------+
 
 After a blank datasets.json file is created, we will be prompted to add a new dataset source. Use the following
 configuration for the added dataset source:

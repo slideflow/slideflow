@@ -3,17 +3,15 @@ From https://github.com/wanghao14/Stain_Normalization
 Normalize a patch stain to the target image using the method of:
 
 E. Reinhard, M. Adhikhmin, B. Gooch, and P. Shirley, ‘Color transfer between images’, IEEE Computer Graphics and Applications, vol. 21, no. 5, pp. 34–41, Sep. 2001.
+
+This implementation ("fast" implementation) skips the brightness standardization step.
 """
 
 from __future__ import division
 
 import cv2 as cv
 import numpy as np
-import slideflow.slide.stain_utils as ut
-
-
-### Some functions ###
-
+import slideflow.norm.utils as ut
 
 def lab_split(I):
     """
@@ -21,6 +19,7 @@ def lab_split(I):
     :param I: uint8
     :return:
     """
+    #I = I.astype(np.float32) / 127.5
     I = cv.cvtColor(I, cv.COLOR_RGB2LAB)
     I = I.astype(np.float32)
     I1, I2, I3 = cv.split(I)
@@ -57,31 +56,29 @@ def get_mean_std(I):
     m3, sd3 = cv.meanStdDev(I3)
     means = m1, m2, m3
     stds = sd1, sd2, sd3
-    return means, stds
+    return np.array(means), np.array(stds)
 
-
-### Main class ###
-
-class Normalizer(object):
+class Normalizer(ut.BaseNormalizer):
     """
     A stain normalization object
     """
 
     def __init__(self):
-        self.target_means = None
-        self.target_stds = None
+        super().__init__()
 
     def fit(self, target):
-        target = ut.standardize_brightness(target)
         means, stds = get_mean_std(target)
         self.target_means = means
         self.target_stds = stds
+        return means, stds
 
     def transform(self, I):
-        I = ut.standardize_brightness(I)
         I1, I2, I3 = lab_split(I)
         means, stds = get_mean_std(I)
+
         norm1 = ((I1 - means[0]) * (self.target_stds[0] / stds[0])) + self.target_means[0]
         norm2 = ((I2 - means[1]) * (self.target_stds[1] / stds[1])) + self.target_means[1]
         norm3 = ((I3 - means[2]) * (self.target_stds[2] / stds[2])) + self.target_means[2]
-        return merge_back(norm1, norm2, norm3)
+
+        merged = merge_back(norm1, norm2, norm3)
+        return merged

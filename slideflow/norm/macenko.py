@@ -14,7 +14,7 @@ Use with python via e.g https://anaconda.org/conda-forge/python-spams
 from __future__ import division
 
 import numpy as np
-import slideflow.slide.stain_utils as ut
+import slideflow.norm.utils as ut
 
 def get_stain_matrix(I, beta=0.15, alpha=1):
     """
@@ -45,14 +45,13 @@ def get_stain_matrix(I, beta=0.15, alpha=1):
 
 ###
 
-class Normalizer(object):
+class Normalizer(ut.BaseNormalizer):
     """
     A stain normalization object
     """
 
     def __init__(self):
-        self.stain_matrix_target = None
-        self.target_concentrations = None
+        super().__init__()
 
     def fit(self, target):
         target = ut.standardize_brightness(target)
@@ -71,12 +70,3 @@ class Normalizer(object):
         source_concentrations *= (maxC_target / maxC_source)
         return (255 * np.exp(-1 * np.dot(source_concentrations, self.stain_matrix_target).reshape(I.shape))).astype(
             np.uint8)
-
-    def hematoxylin(self, I):
-        I = ut.standardize_brightness(I)
-        h, w, c = I.shape
-        stain_matrix_source = get_stain_matrix(I)
-        source_concentrations = ut.get_concentrations(I, stain_matrix_source)
-        H = source_concentrations[:, 0].reshape(h, w)
-        H = np.exp(-1 * H)
-        return H

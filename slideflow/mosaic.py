@@ -13,17 +13,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 import slideflow as sf
 
+from slideflow import errors
 from random import shuffle
 from matplotlib import patches
 from multiprocessing.dummy import Pool as DPool
 from functools import partial
 from tqdm import tqdm
 from slideflow.util import log
-from slideflow.slide import StainNormalizer
 from slideflow.stats import get_centroid_index
-
-class MosaicError(Exception):
-    pass
 
 class Mosaic:
     """Visualization of tiles mapped using dimensionality reduction.
@@ -33,24 +30,18 @@ class Mosaic:
 
     """
 
-    def __init__(self, slide_map, tfrecords, focus=None, leniency=1.5, expanded=False, tile_zoom=15, num_tiles_x=50,
-                 resolution='high', relative_size=False, tile_select='nearest', tile_meta=None, normalizer=None,
-                 normalizer_source=None, focus_slide=None):
+    def __init__(self, slide_map, tfrecords, leniency=1.5, expanded=False, num_tiles_x=50, tile_select='nearest',
+                 tile_meta=None, normalizer=None, normalizer_source=None):
 
         """Generate a mosaic map.
 
         Args:
             slide_map (:class:`slideflow.SlideMap`): SlideMap object.
             tfrecords (list(str)): List of tfrecords paths.
-            focus (list, optional): List of tfrecords (paths) to highlight on the mosaic.
             leniency (float, optional): UMAP leniency.
             expanded (bool, optional):If true, will try to fill in blank spots on the UMAP with nearby tiles.
                 Takes exponentially longer to generate. Defaults to False.
-            tile_zoom (int, optional): Factor which determines how large individual tiles appear. Defaults to 15.
             num_tiles_x (int, optional): Mosaic map grid size. Defaults to 50.
-            resolution (str, optional): Resolution of exported figure; 'high', 'medium', or 'low'. Defaults to 'high'.
-            relative_size (bool, optional): Physically size grid images in proportion to the number of tiles
-                within the grid space. Defaults to False.
             tile_select (str, optional): Either 'nearest' or 'centroid'. Determines how to choose a tile for display
                 on each grid space. If nearest, will display tile nearest to center of grid.
                 If centroid, for each grid, will calculate which tile is nearest to centroid using data in tile_meta.
@@ -58,18 +49,19 @@ class Mosaic:
             tile_meta (dict, optional): Metadata for tiles, used if tile_select. Defaults to None.
                 Dictionary should have slide names as keys, mapped to .ist of metadata
                 (length of list = number of tiles in slide)
-            normalizer (str, optional): Normalization strategy to use on image tiles. Defaults to None.
+            normalizer ((str or `slideflow.slide.StainNormalizer`), optional): Normalization strategy to use on
+                image tiles. Defaults to None.
             normalizer_source (str, optional): Path to normalizer source image. Defaults to None.
                 If None but using a normalizer, will use an internal tile for normalization.
                 Internal default tile can be found at slideflow.slide.norm_tile.jpg
         """
 
         if not len(tfrecords):
-            raise ValueError("No tfrecords provided, unable to generate mosaic.")
+            raise errors.TFRecordsNotFoundError
 
         tile_point_distances = []
         max_distance_factor = leniency
-        mapping_method = 'expanded' if expanded else 'strict'
+        self.mapping_method = 'expanded' if expanded else 'strict'
         self.mapped_tiles = {}
         self.slide_map = slide_map
         self.num_tiles_x = num_tiles_x
@@ -79,24 +71,13 @@ class Mosaic:
         _, self.img_format = sf.io.detect_tfrecord_format(self.tfrecords[0])
 
         # Setup normalization
-        if normalizer: log.info(f'Using realtime {normalizer} normalization')
-        self.normalizer = None if not normalizer else StainNormalizer(method=normalizer, source=normalizer_source)
-
-        # Initialize figure
-        if resolution not in ('high', 'low'):
-            log.warning(f"Unknown resolution option '{resolution}', defaulting to low resolution")
-        if resolution == 'high':
-            fig = plt.figure(figsize=(200,200))
-            ax = fig.add_subplot(111, aspect='equal')
+        if isinstance(normalizer, str):
+            log.info(f'Using realtime {normalizer} normalization')
+            self.normalizer = sf.norm.autoselect(method=normalizer, source=normalizer_source)
+        elif normalizer is not None:
+            self.normalizer = normalizer
         else:
-            fig = plt.figure(figsize=(24,18))
-            ax = fig.add_subplot(121, aspect='equal')
-        ax.set_facecolor('#dfdfdf')
-        fig.tight_layout()
-        plt.subplots_adjust(left=0.02, bottom=0, right=0.98, top=1, wspace=0.1, hspace=0)
-        ax.set_aspect('equal', 'box')
-        ax.set_xticklabels([])
-        ax.set_yticklabels([])
+            self.normalizer = None
 
         # First, load UMAP coordinates
         log.info('Loading coordinates and plotting points...')
@@ -124,21 +105,21 @@ class Mosaic:
         min_y = min(y_points) - buffer
         log.debug(f'Loaded {len(self.points)} points.')
 
-        tile_size = (max_x - min_x) / self.num_tiles_x
-        self.num_tiles_y = int((max_y - min_y) / tile_size)
-        max_distance = math.sqrt(2*((tile_size/2)**2)) * max_distance_factor
+        self.tile_size = (max_x - min_x) / self.num_tiles_x
+        self.num_tiles_y = int((max_y - min_y) / self.tile_size)
+        max_distance = math.sqrt(2*((self.tile_size/2)**2)) * max_distance_factor
 
         # Initialize grid
         self.GRID = []
         for j in range(self.num_tiles_y):
             for i in range(self.num_tiles_x):
-                x = ((tile_size/2) + min_x) + (tile_size * i)
-                y = ((tile_size/2) + min_y) + (tile_size * j)
+                x = ((self.tile_size/2) + min_x) + (self.tile_size * i)
+                y = ((self.tile_size/2) + min_y) + (self.tile_size * j)
                 self.GRID.append({    'coord': np.array((x, y)),
                                     'x_index': i,
                                     'y_index': j,
                                     'grid_index': len(self.GRID),
-                                    'size': tile_size,
+                                    'size': self.tile_size,
                                     'points':[],
                                     'nearest_index':[],
                                     'active': False,
@@ -147,8 +128,8 @@ class Mosaic:
         # Add point indices to grid
         points_added = 0
         for point in self.points:
-            x_index = int((point['coord'][0] - min_x) / tile_size)
-            y_index = int((point['coord'][1] - min_y) / tile_size)
+            x_index = int((point['coord'][0] - min_x) / self.tile_size)
+            y_index = int((point['coord'][1] - min_y) / self.tile_size)
             for g in self.GRID:
                 if g['x_index'] == x_index and g['y_index'] == y_index:
                     g['points'].append(point['global_index'])
@@ -157,33 +138,11 @@ class Mosaic:
             shuffle(g['points'])
         log.debug(f'{points_added} points added to grid')
 
-        # Next, prepare mosaic grid by placing tile outlines
-        log.info('Placing tile outlines...')
-        max_grid_density = 1
-        for g in self.GRID:
-            max_grid_density = max(max_grid_density, len(g['points']))
-        for grid_tile in self.GRID:
-            rect_size = min((len(grid_tile['points']) / max_grid_density) * tile_zoom, 1) * tile_size
-
-            tile = patches.Rectangle((grid_tile['coord'][0] - rect_size/2,
-                                      grid_tile['coord'][1] - rect_size/2),
-                                      rect_size,
-                                      rect_size,
-                                      fill=True,
-                                      alpha=1,
-                                      facecolor='white',
-                                      edgecolor='#cccccc')
-            ax.add_patch(tile)
-
-            grid_tile['size'] = rect_size
-            grid_tile['rectangle'] = tile
-            grid_tile['paired_point'] = None
-
         # Then, calculate distances from each point to each spot on the grid
-        if mapping_method not in ('strict', 'expanded'):
+        if self.mapping_method not in ('strict', 'expanded'):
             raise TypeError('Unknown mapping method; must be strict or expanded')
         else:
-            log.debug(f'Mapping method: {mapping_method}')
+            log.debug(f'Mapping method: {self.mapping_method}')
 
         if tile_select not in ('nearest', 'centroid'):
             raise TypeError('Unknown tile selection method; must be nearest or centroid')
@@ -191,7 +150,7 @@ class Mosaic:
             log.debug(f'Tile selection method: {tile_select}')
 
         def calc_distance(tile, global_point_coords):
-            if mapping_method == 'strict':
+            if self.mapping_method == 'strict':
                 # Calculate distance for each point within the grid tile from center of the grid tile
                 point_coords = np.asarray([self.points[global_index]['coord'] for global_index in tile['points']])
                 if len(point_coords):
@@ -199,12 +158,12 @@ class Mosaic:
                         distances = np.linalg.norm(point_coords - tile['coord'], ord=2, axis=1.)
                         tile['nearest_index'] = tile['points'][np.argmin(distances)]
                     elif not tile_meta:
-                        raise MosaicError('Unable to calculate centroid for mosaic if tile_meta not provided.')
+                        raise errors.MosaicError('Unable to calculate centroid for mosaic if tile_meta not provided.')
                     else:
                         meta_vals_from_points = [self.points[global_index]['meta'] for global_index in tile['points']]
                         centroid_index = get_centroid_index(meta_vals_from_points)
                         tile['nearest_index'] = tile['points'][centroid_index]
-            elif mapping_method == 'expanded':
+            elif self.mapping_method == 'expanded':
                 # Calculate distance for each point within the entire grid from center of the grid tile
                 distances = np.linalg.norm(global_point_coords - tile['coord'], ord=2, axis=1.)
                 for i, distance in enumerate(distances):
@@ -226,13 +185,63 @@ class Mosaic:
         if log.getEffectiveLevel() <= 20: sys.stdout.write('\r\033[K')
         log.debug(f'Calculations complete ({tile_point_end-tile_point_start:.0f} sec)')
 
-        if mapping_method == 'expanded':
+        if self.mapping_method == 'expanded':
             tile_point_distances.sort(key=lambda d: d['distance'])
+
+    def place_tiles(self, resolution='high', tile_zoom=15, relative_size=False, focus=None, focus_slide=None):
+        '''
+        Initializes figures and places image tiles.
+
+        Args:
+            resolution (str, optional): Resolution of exported figure; 'high', 'medium', or 'low'. Defaults to 'high'.
+            tile_zoom (int, optional): Factor which determines how large individual tiles appear. Defaults to 15.
+            relative_size (bool, optional): Physically size grid images in proportion to the number of tiles
+                within the grid space. Defaults to False.
+            focus (list, optional): List of tfrecords (paths) to highlight on the mosaic.
+        '''
+
+        # Initialize figure
+        if resolution not in ('high', 'low'):
+            log.warning(f"Unknown resolution option '{resolution}', defaulting to low resolution")
+        if resolution == 'high':
+            fig = plt.figure(figsize=(200,200))
+            ax = fig.add_subplot(111, aspect='equal')
+        else:
+            fig = plt.figure(figsize=(24,18))
+            ax = fig.add_subplot(121, aspect='equal')
+        ax.set_facecolor('#dfdfdf')
+        fig.tight_layout()
+        plt.subplots_adjust(left=0.02, bottom=0, right=0.98, top=1, wspace=0.1, hspace=0)
+        ax.set_aspect('equal', 'box')
+        ax.set_xticklabels([])
+        ax.set_yticklabels([])
+
+        # Next, prepare mosaic grid by placing tile outlines
+        log.info('Placing tile outlines...')
+        max_grid_density = 1
+        for g in self.GRID:
+            max_grid_density = max(max_grid_density, len(g['points']))
+        for grid_tile in self.GRID:
+            rect_size = min((len(grid_tile['points']) / max_grid_density) * tile_zoom, 1) * self.tile_size
+
+            tile = patches.Rectangle((grid_tile['coord'][0] - rect_size/2,
+                                      grid_tile['coord'][1] - rect_size/2),
+                                      rect_size,
+                                      rect_size,
+                                      fill=True,
+                                      alpha=1,
+                                      facecolor='white',
+                                      edgecolor='#cccccc')
+            ax.add_patch(tile)
+
+            grid_tile['size'] = rect_size
+            grid_tile['rectangle'] = tile
+            grid_tile['paired_point'] = None
 
         # Then, pair grid tiles and points according to their distances
         log.info('Placing image tiles...')
         num_placed = 0
-        if mapping_method == 'strict':
+        if self.mapping_method == 'strict':
             for tile in self.GRID:
                 if not len(tile['points']): continue
                 closest_point = tile['nearest_index']
@@ -255,7 +264,7 @@ class Mosaic:
                 tile_image = self._decode_image_string(tile_image)
 
                 tile_alpha, num_slide, num_other = 1, 0, 0
-                display_size = tile_size
+                display_size = self.tile_size
                 if relative_size:
                     if focus_slide and len(tile['points']):
                         for point_index in tile['points']:
@@ -278,7 +287,7 @@ class Mosaic:
                                   alpha=tile_alpha)
                 tile['image'] = image
                 num_placed += 1
-        elif mapping_method == 'expanded':
+        elif self.mapping_method == 'expanded':
             for i, distance_pair in tqdm(enumerate(tile_point_distances), total=len(tile_point_distances), ncols=80):
                 # Attempt to place pair, skipping if unable (due to other prior pair)
                 point = self.points[distance_pair['point_index']]
@@ -300,10 +309,10 @@ class Mosaic:
                     image = ax.imshow(tile_image,
                                       aspect='equal',
                                       origin='lower',
-                                      extent=[tile['coord'][0]-tile_size/2,
-                                      tile['coord'][0]+tile_size/2,
-                                      tile['coord'][1]-tile_size/2,
-                                      tile['coord'][1]+tile_size/2],
+                                      extent=[tile['coord'][0]-self.tile_size/2,
+                                      tile['coord'][0]+self.tile_size/2,
+                                      tile['coord'][1]-self.tile_size/2,
+                                      tile['coord'][1]+self.tile_size/2],
                                       zorder=99)
                     tile['image'] = image
                     num_placed += 1
@@ -332,7 +341,7 @@ class Mosaic:
             elif self.img_format == 'png':
                 tile_image = self.normalizer.png_to_rgb(string)
             else:
-                raise MosaicError(f"Unknown image format in tfrecords: {self.img_format}")
+                raise errors.MosaicError(f"Unknown image format in tfrecords: {self.img_format}")
         else:
             image_arr = np.fromstring(string, np.uint8)
             tile_image_bgr = cv2.imdecode(image_arr, cv2.IMREAD_COLOR)
@@ -360,8 +369,21 @@ class Mosaic:
                 if not len(tile['points']) or not tile['image']: continue
                 tile['image'].set_alpha(1)
 
-    def save(self, filename):
-        """Saves the mosaic map figure to the given filename."""
+    def save(self, filename, **kwargs):
+        """Saves the mosaic map figure to the given filename.
+
+        Args:
+            filename (str): Path at which to save the mosiac image.
+
+        Keyword args:
+            resolution (str, optional): Resolution of exported figure; 'high', 'medium', or 'low'. Defaults to 'high'.
+            tile_zoom (int, optional): Factor which determines how large individual tiles appear. Defaults to 15.
+            relative_size (bool, optional): Physically size grid images in proportion to the number of tiles
+                within the grid space. Defaults to False.
+            focus (list, optional): List of tfrecords (paths) to highlight on the mosaic.
+        """
+
+        self.place_tiles(**kwargs)
 
         log.info('Exporting figure...')
         try:

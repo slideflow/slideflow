@@ -12,11 +12,12 @@ from slideflow.test import TestSuite
 @click.option('--train', help='Test training.', required=False, default=True, metavar='<bool>')
 @click.option('--norm', help='Test real-time normalization.', required=False, default=True, metavar='<bool>')
 @click.option('--eval', help='Test evaluation.', required=False, default=True, metavar='<bool>')
+@click.option('--predict', help='Test prediction/inference.', required=False, default=True, metavar='<bool>')
 @click.option('--heatmap', help='Test heatmaps.', required=False, default=True, metavar='<bool>')
 @click.option('--mosaic', help='Test mosaic maps.', required=False, default=True, metavar='<bool>')
 @click.option('--wsi', help='Test WSI prediction.', required=False, default=True, metavar='<bool>')
 @click.option('--clam', help='Test CLAM.', required=False, default=True, metavar='<bool>')
-def main(slides, out, extract, reader, train, norm, eval, heatmap, mosaic, wsi, clam):
+def main(slides, out, extract, reader, train, norm, eval, predict, heatmap, mosaic, wsi, clam):
     if not out:
         out = 'slideflow_test'
     if 'SF_LOGGING_LEVEL' in os.environ:
@@ -30,6 +31,7 @@ def main(slides, out, extract, reader, train, norm, eval, heatmap, mosaic, wsi, 
         train=train,
         normalizer=norm,
         evaluate=eval,
+        predict=predict,
         heatmap=heatmap,
         activations=mosaic,
         predict_wsi=wsi,

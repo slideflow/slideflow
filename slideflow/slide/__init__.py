@@ -36,11 +36,11 @@ from skimage import img_as_ubyte
 from skimage.color import rgb2gray
 from PIL import Image, ImageDraw, UnidentifiedImageError
 from slideflow.util import log, SUPPORTED_FORMATS
-from slideflow.slide.normalizers import StainNormalizer
 from datetime import datetime
 from functools import partial
 from tqdm import tqdm
 from fpdf import FPDF
+from slideflow import errors
 
 warnings.simplefilter('ignore', Image.DecompressionBombWarning)
 Image.MAX_IMAGE_PIXELS = 100000000000
@@ -192,7 +192,7 @@ def _wsi_extraction_worker(c, args):
         return {'loc': [x_coord, y_coord]}, index
 
     # Normalizer
-    normalizer = None if not args.normalizer else StainNormalizer(method=args.normalizer, source=args.normalizer_source)
+    normalizer = None if not args.normalizer else sf.norm.autoselect(method=args.normalizer, source=args.normalizer_source)
 
     # Read the target downsample region now, if we were filtering at a different level
     region = slide.read_region((c[0], c[1]), args.downsample_level, [args.extract_px, args.extract_px])
@@ -265,10 +265,6 @@ def log_extraction_params(**kwargs):
     if gs_f < 1:
         log.info('Filtering tiles by grayspace fraction')
         log.debug(f'Grayspace defined as HSV avg < {gs_t} (exclude if >={gs_f*100:.0f}% grayspace)')
-
-class TileCorruptionError(Exception):
-    '''Raised when image normalization fails due to tile corruption.'''
-    pass
 
 class SlideReport:
     '''Report to summarize tile extraction from a slide, including example images of extracted tiles.'''
@@ -521,7 +517,7 @@ class ExtractionReport:
                 warn_txt = ''
             with np.errstate(divide='ignore'):
                 log_b = np.log(blur_arr)
-                log_b = log_b[~np.isnan(log_b)]
+            log_b = log_b[np.isfinite(log_b)]
             plt.rc('font', size=14)
             h = sns.histplot(log_b, bins=20)
             plt.title('Quality Control: Blur Burden'+warn_txt)
@@ -735,7 +731,7 @@ class _BaseLoader:
 
         # Initiate supported slide reader
         if not os.path.exists(path):
-            raise OSError(f"Could not find slide {path}; file does not exist.")
+            raise errors.SlideNotFoundError(f"Could not find slide {path}; file does not exist.")
         if filetype.lower() in sf.util.SUPPORTED_FORMATS:
             if filetype.lower() == 'jpg':
                 self.slide = _JPGslideToVIPS(path)
@@ -826,7 +822,7 @@ class _BaseLoader:
         """
 
         if method not in ('blur', 'otsu', 'both'):
-            raise ValueError(f"Unknown method {method}, valid methods include 'blur', 'otsu', 'both'")
+            raise errors.QCError(f"Unknown method {method}, valid methods include 'blur', 'otsu', 'both'")
         starttime = time.time()
 
         self.qc_mpp = blur_mpp
@@ -951,7 +947,12 @@ class _BaseLoader:
             thumbnail = vips.Image.new_from_file(self.path, fail=True, access=vips.enums.Access.RANDOM, level=self.slide.level_count-1)
         else:
             thumbnail = vips.Image.thumbnail(self.path, width)
-        np_thumb = vips2numpy(thumbnail)
+        try:
+            np_thumb = vips2numpy(thumbnail)
+        except vips.error.Error as e:
+            log.error(f"Error loading slide thumbnail: {e}")
+            self.load_error = True
+            return None
         image = Image.fromarray(np_thumb).resize((width, height))
 
         if coords:
@@ -1801,7 +1802,14 @@ class TMA(_BaseLoader):
             log.warning("Tile location logging for TMA slides is not yet complete; recording all locations as (0, 0).")
 
         # Setup normalization
-        normalizer = None if not normalizer else StainNormalizer(method=normalizer, source=normalizer_source)
+        normalizer = None if not normalizer else sf.norm.autoselect(method=normalizer, source=normalizer_source)
+
+        # Detect CPU cores if num_threads not specified
+        if num_threads is None:
+            try:
+                num_threads = os.cpu_count()
+            except:
+                num_threads = 8
 
         # Detect CPU cores if num_threads not specified
         if num_threads is None:

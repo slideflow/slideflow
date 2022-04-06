@@ -7,12 +7,14 @@ import torch
 import threading
 import multiprocessing as mp
 import slideflow as sf
+import kornia
 
 from os import listdir
 from tqdm import tqdm
 from os.path import isfile, join, dirname, exists
 from slideflow.tfrecord.torch.dataset import MultiTFRecordDataset, TFRecordDataset
 from slideflow.util import log, to_onehot
+from slideflow import errors
 from tqdm import tqdm
 from queue import Queue
 
@@ -20,12 +22,6 @@ FEATURE_DESCRIPTION = {'image_raw':    'byte',
                        'slide':        'byte',
                        'loc_x':        'int',
                        'loc_y':        'int'}
-
-class TFRecordsError(Exception):
-    pass
-
-class EmptyTFRecordsError(Exception):
-    pass
 
 class InterleaveIterator(torch.utils.data.IterableDataset):
     """Pytorch Iterable Dataset that interleaves tfrecords with the interleave() function below.
@@ -89,6 +85,7 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
         self.incl_loc = incl_loc
         self.num_tiles = num_tiles
         self.model_type = model_type
+        self.device = kwargs['device']
 
         # Values for random label generation, for GAN
         if labels is not None:
@@ -193,7 +190,8 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
                                 num_replicas=self.num_replicas * num_workers,
                                 rank=self.rank + worker_id,
                                 chunk_size=self.chunk_size,
-                                indices=self.indices)
+                                indices=self.indices,
+                                device=self.device)
 
         try:
             for record in dataloader:
@@ -249,7 +247,7 @@ def serialized_record(slide, image_raw, loc_x=0, loc_y=0):
     }
     return example
 
-def _decode_image(img_string, img_type, standardize=False, normalizer=None, augment=False):
+def _decode_image(img_string, img_type, standardize=False, normalizer=None, augment=False, device=None):
     '''Decodes image. Torch implementation; different than sf.io.tensorflow'''
 
     np_data = torch.from_numpy(np.fromstring(img_string, dtype=np.uint8))# np.frombuffer(s, dtype='int8')
@@ -257,24 +255,57 @@ def _decode_image(img_string, img_type, standardize=False, normalizer=None, augm
     #image = np.array(Image.open(BytesIO(img_string))) # <- Alternative method using PIL decoding
 
     def random_jpeg_compression(img):
-        q = random.randrange(50, 100)
-        img = torchvision.io.encode_jpeg(img.permute(2, 0, 1), quality=q) # WHC => CWH
+        img = torchvision.io.encode_jpeg(img.permute(2, 0, 1), quality=(torch.rand(1)[0]*50 + 50)) # WHC => CWH
         return torchvision.io.decode_image(img).permute(1, 2, 0) # CWH => WHC
 
     if augment is True or (isinstance(augment, str) and 'j' in augment):
-        if np.random.rand() < 0.5:
-            image = random_jpeg_compression(image)
+        image = torch.where(
+            torch.rand(1)[0] < 0.5,
+            random_jpeg_compression(image),
+            image
+        )
     if augment is True or (isinstance(augment, str) and 'r' in augment):
         # Rotate randomly 0, 90, 180, 270 degrees
         image = torch.rot90(image, np.random.choice(range(5)))
     if augment is True or (isinstance(augment, str) and 'x' in augment):
-        if np.random.rand() < 0.5:
-            image = torch.fliplr(image)
+        image = torch.where(
+            torch.rand(1)[0] < 0.5,
+            torch.fliplr(image),
+            image
+        )
     if augment is True or (isinstance(augment, str) and 'y' in augment):
-        if np.random.random() < 0.5:
-            image = torch.flipud(image)
+        image = torch.where(
+            torch.rand(1)[0] < 0.5,
+            torch.flipud(image),
+            image
+        )
+    if augment is True or (isinstance(augment, str) and 'b' in augment):
+        #image = image.to(device)
+        image = image.permute(2, 0, 1) # WHC => CWH
+        image = torch.where(
+            (torch.rand(1)[0] < 0.1),#.to(device),
+            torch.where(
+                (torch.rand(1)[0] < 0.5),#.to(device),
+                torch.where(
+                    (torch.rand(1)[0] < 0.5),#.to(device),
+                    torch.where(
+                        (torch.rand(1)[0] < 0.5),#.to(device),
+                        torchvision.transforms.GaussianBlur(7)(image),
+                        torchvision.transforms.GaussianBlur(5)(image)
+                    ),
+                    torchvision.transforms.GaussianBlur(3)(image)
+                ),
+                torchvision.transforms.GaussianBlur(1)(image),
+            ),
+            image
+        )
+        image = image.permute(1, 2, 0) # CWH => WHC
+        #image = image.cpu()
     if normalizer:
-        image = torch.from_numpy(normalizer.rgb_to_rgb(image.numpy()))
+        if normalizer.vectorized:
+            image = normalizer.torch_to_torch(image)
+        else:
+            image = torch.from_numpy(normalizer.rgb_to_rgb(image.numpy()))
     if standardize:
         # Note: not the same as tensorflow's per_image_standardization
         # Convert back: image = (image + 1) * (255/2)
@@ -307,7 +338,7 @@ def detect_tfrecord_format(tfr):
                 img_type = imghdr.what('', img)
                 break
         except KeyError:
-            raise TFRecordsError(f"Unable to detect TFRecord format for record: {tfr}")
+            raise errors.TFRecordsError(f"Unable to detect TFRecord format for record: {tfr}")
     except StopIteration:
         log.debug(f"Unable to detect tfrecord format for {tfr}; file is empty.")
         raise StopIteration
@@ -342,7 +373,7 @@ def get_tfrecord_parser(tfrecord_path, features_to_return=None, decode_images=Tr
     if features_to_return is None:
         features_to_return = {k:k for k in detected_features.keys()}
     elif not all(f in detected_features for f in features_to_return):
-        raise TFRecordsError(f'Not all designated features {",".join(list(features_to_return.keys()))} were found ' + \
+        raise errors.TFRecordsError(f'Not all features {",".join(list(features_to_return.keys()))} were found ' + \
                              f'in the tfrecord {",".join(list(detected_features.keys()))}')
 
     def parser(record):
@@ -371,7 +402,7 @@ def get_tfrecord_parser(tfrecord_path, features_to_return=None, decode_images=Tr
     return parser
 
 def interleave(tfrecords, prob_weights=None, incl_loc=False, clip=None, infinite=False, augment=False, standardize=True,
-               normalizer=None, num_threads=4, chunk_size=8, num_replicas=1, rank=0, indices=None):
+               normalizer=None, num_threads=4, chunk_size=8, num_replicas=1, rank=0, indices=None, device=None):
 
     """Returns a generator that interleaves records from a collection of tfrecord files, sampling from tfrecord files
     randomly according to balancing if provided (requires manifest). Assumes TFRecord files are named by slide.
@@ -403,7 +434,7 @@ def interleave(tfrecords, prob_weights=None, incl_loc=False, clip=None, infinite
             among workers without duplications. Defaults to 0 (first worker).
     """
     if not len(tfrecords):
-        raise ValueError("Interleaving failed: no tfrecords found.")
+        raise errors.TFRecordsNotFoundError
     if rank == 0:
         log.debug(f'Interleaving {len(tfrecords)} tfrecords: infinite={infinite}, num_replicas={num_replicas}')
 
@@ -422,7 +453,7 @@ def interleave(tfrecords, prob_weights=None, incl_loc=False, clip=None, infinite
             tfr = tfr.decode('utf-8')
             index_name = join(dirname(tfr), sf.util.path_to_name(tfr)+'.index')
             if not exists(index_name):
-                raise TFRecordsError(f"Could not find index path for TFRecord {tfr}")
+                raise errors.TFRecordsError(f"Could not find index path for TFRecord {tfr}")
             if os.stat(index_name).st_size == 0:
                 index = None
             else:
@@ -459,7 +490,8 @@ def interleave(tfrecords, prob_weights=None, incl_loc=False, clip=None, infinite
                                   img_type=img_type,
                                   standardize=standardize,
                                   normalizer=normalizer,
-                                  augment=augment)
+                                  augment=augment,
+                                  device=device)
         return record
 
     # Randomly interleaves datasets according to weights, reading parsed records to a buffer
@@ -541,7 +573,7 @@ def interleave(tfrecords, prob_weights=None, incl_loc=False, clip=None, infinite
 def interleave_dataloader(tfrecords, img_size, batch_size, prob_weights=None, clip=None, onehot=False, num_tiles=None,
                           incl_slidenames=False, incl_loc=False, infinite=False, rank=0, num_replicas=1, labels=None,
                           normalizer=None, chunk_size=16, preload_factor=1, augment=False, standardize=True,
-                          num_workers=2, persistent_workers=True, pin_memory=True, indices=None):
+                          num_workers=2, persistent_workers=True, pin_memory=True, indices=None, drop_last=False, device=None):
 
     """Prepares a PyTorch DataLoader with a new InterleaveIterator instance, interleaving tfrecords and processing
     labels and tiles, with support for scaling the dataset across GPUs and dataset workers.
@@ -574,19 +606,22 @@ def interleave_dataloader(tfrecords, img_size, batch_size, prob_weights=None, cl
         num_workers (int, optional): Number of DataLoader workers. Defaults to 2.
         persistent_workers (bool, optional): Sets the DataLoader persistent_workers flag. Defaults to True.
         pin_memory (bool, optional): Pin memory to GPU. Defaults to True.
+        drop_last (bool, optional): Drop the last non-full batch. Defaults to False.
     """
 
     kwargs = {var:val for var,val in locals().items() if var not in ('batch_size', 'num_workers', 'pin_memory', 'preload_factor', 'prefetch_factor')}
-    iterator = InterleaveIterator(use_labels=(labels is not None), preload=(batch_size//num_replicas)*preload_factor, **kwargs)
+    replica_batch_size = None if batch_size is None else batch_size // num_replicas
+    preload = 1 if batch_size is None else (replica_batch_size) * preload_factor
+    iterator = InterleaveIterator(use_labels=(labels is not None), preload=preload, **kwargs)
     torch.multiprocessing.set_sharing_strategy('file_system')
 
     dataloader = torch.utils.data.DataLoader(iterator,
-                                             batch_size=batch_size//num_replicas,
+                                             batch_size=replica_batch_size,
                                              num_workers=num_workers,
                                              pin_memory=pin_memory,
                                              persistent_workers=persistent_workers,
                                              worker_init_fn=worker_init_fn,
-                                             drop_last=False)
+                                             drop_last=drop_last)
     dataloader.num_tiles = iterator.num_tiles
     dataloader.close = iterator.close # Gives a closing function to the DataLoader to cleanup open files from iter()
     return dataloader

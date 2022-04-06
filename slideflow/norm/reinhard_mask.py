@@ -9,7 +9,7 @@ from __future__ import division
 
 import cv2 as cv
 import numpy as np
-import slideflow.slide.stain_utils as ut
+import slideflow.norm.utils as ut
 
 
 ### Some functions ###
@@ -62,14 +62,13 @@ def get_mean_std(I):
 
 ### Main class ###
 
-class Normalizer(object):
+class Normalizer(ut.BaseNormalizer):
     """
     A stain normalization object
     """
 
     def __init__(self):
-        self.target_means = None
-        self.target_stds = None
+        super().__init__()
 
     def fit(self, target):
         target = ut.standardize_brightness(target)

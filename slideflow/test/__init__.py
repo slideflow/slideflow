@@ -17,6 +17,7 @@ from slideflow.util.spinner import Spinner
 from slideflow.stats import SlideMap
 from os.path import join
 from tqdm import tqdm
+from PIL import Image
 
 def get_tcga_slides():
     return {
@@ -65,6 +66,22 @@ def random_annotations(slides_path):
         event = random.choice([0, 1])
         annotations += [[slide, 'TEST', cat1, cat2, lin1, lin2, time, event]]
     return annotations
+
+# ---------------------------------------
+
+def _prediction_tester(project, verbosity, **kwargs):
+    logging.getLogger("slideflow").setLevel(verbosity)
+    project.predict(**kwargs)
+
+def prediction_tester(project, **kwargs):
+    """Evaluation testing must happen in an isolated thread in order to free GPU memory
+    after evaluation has completed, due to the need for sequential testing of multiple models."""
+
+    ctx = multiprocessing.get_context('spawn')
+    verbosity = logging.getLogger('slideflow').level
+    process = ctx.Process(target=_prediction_tester, args=(project, verbosity), kwargs=kwargs)
+    process.start()
+    process.join()
 
 # ---------------------------------------
 
@@ -198,6 +215,38 @@ def reader_tester(project):
         assert len(torch_results) == len(tf_results) == dataset.num_tiles
         assert torch_results == tf_results
 
+# -----------------------------------------------
+
+def test_throughput(dts, normalizer=None, s=10, step_size=1):
+    '''Returns images / sec'''
+    start = -1
+    count = 0
+    for img, slide in dts:
+        if sf.backend() == 'torch':
+            if len(img.shape) == 3:
+                img = img.permute(1, 2, 0)
+            else:
+                img = img.permute(0, 2, 3, 1)
+        img = img.numpy()
+        if normalizer is not None:
+            norm_img = normalizer.rgb_to_rgb(img)
+        if start == -1:
+            start = time.time()
+        else:
+            count += step_size
+        if time.time() - start > s:
+            break
+    return count / (time.time() - start)
+
+def test_multithread_throughput(dataset, normalizer, s=10, batch_size=32):
+    if sf.backend() == 'tensorflow':
+        dts = dataset.tensorflow(None, batch_size, standardize=False, infinite=False, normalizer=normalizer)
+    elif sf.backend() == 'torch':
+        dts = dataset.torch(None, batch_size, standardize=False, infinite=False, normalizer=normalizer)
+    return test_throughput(dts, step_size=(1 if batch_size is None else batch_size))
+
+# -----------------------------------------------
+
 class TestConfig:
     def __init__(self, path, slides):
         '''Test Suite configuration.
@@ -226,7 +275,6 @@ class TestConfig:
             'sources': ['TEST'],
             'models_dir': './models',
             'eval_dir': './eval',
-            'mixed_precision': True,
         }
         if slides == 'download':
             tcga_slides = get_tcga_slides()
@@ -380,7 +428,7 @@ class TestSuite:
                     test.fail()
                     return
 
-    def setup_hp(self, model_type, sweep=False, normalizer=None):
+    def setup_hp(self, model_type, sweep=False, normalizer=None, uq=False):
         import slideflow.model
 
         # Setup loss function
@@ -394,28 +442,28 @@ class TestSuite:
         # Create batch train file
         if sweep:
             self.project.create_hyperparameter_sweep(tile_px=299,
-                                                 tile_um=302,
-                                                 epochs=[1,2,3],
-                                                 toplayer_epochs=[0],
-                                                 model=["xception"],
-                                                 loss=[loss],
-                                                 learning_rate=[0.001],
-                                                 batch_size=[64],
-                                                 hidden_layers=[0,1],
-                                                 optimizer=["Adam"],
-                                                 early_stop=[False],
-                                                 early_stop_patience=[15],
-                                                 early_stop_method='loss',
-                                                 hidden_layer_width=500,
-                                                 trainable_layers=0,
-                                                 L2_weight=0.1,
-                                                 dropout=0.1,
-                                                 training_balance=["category"],
-                                                 validation_balance=["none"],
-                                                 augment=[True],
-                                                 normalizer=normalizer,
-                                                 label='TEST',
-                                                 filename='sweep.json')
+                                                     tile_um=302,
+                                                     epochs=[1,2,3],
+                                                     toplayer_epochs=[0],
+                                                     model=["xception"],
+                                                     loss=[loss],
+                                                     learning_rate=[0.001],
+                                                     batch_size=[64],
+                                                     hidden_layers=[0,1],
+                                                     optimizer=["Adam"],
+                                                     early_stop=[False],
+                                                     early_stop_patience=[15],
+                                                     early_stop_method='loss',
+                                                     hidden_layer_width=500,
+                                                     trainable_layers=0,
+                                                     dropout=0.1,
+                                                     training_balance=["category"],
+                                                     validation_balance=["none"],
+                                                     augment=[True],
+                                                     normalizer=normalizer,
+                                                     label='TEST',
+                                                     uq=uq,
+                                                     filename='sweep.json')
 
         # Create single hyperparameter combination
         hp = sf.model.ModelParams(epochs=1,
@@ -429,10 +477,10 @@ class TestSuite:
                                   optimizer='Adam',
                                   early_stop=False,
                                   dropout=0.1,
-                                  L2_weight=0.1,
                                   early_stop_patience=0,
                                   training_balance='patient',
                                   validation_balance='none',
+                                  uq=uq,
                                   augment=True)
         return hp
 
@@ -449,13 +497,49 @@ class TestSuite:
                                    enable_downsample=enable_downsample,
                                    **kwargs)
 
-    def test_realtime_normalizer(self, **train_kwargs):
-        with TaskWrapper("Testing realtime normalization, using Reinhard...") as test:
-            self.project.train(outcome_label_headers='category1',
-                           val_k=1,
-                           params=self.setup_hp('categorical', normalizer='reinhard'),
-                           steps_per_epoch_override=5,
-                           **train_kwargs)
+    def test_normalizers(self, *args, single=True, multi=True):
+        # Tests throughput of normalizers and saves a single example image with each
+
+        if not len(args):
+            methods = sf.norm.GenericStainNormalizer.normalizers
+        else:
+            methods = args
+        dataset = self.project.dataset(299, 302)
+
+        if single:
+            with TaskWrapper("Testing normalization single-thread throughput...") as test:
+                if sf.backend() == 'tensorflow':
+                    dts = dataset.tensorflow(None, None, standardize=False, infinite=False)
+                    raw_img = next(iter(dts))[0].numpy()
+                elif sf.backend() == 'torch':
+                    dts = dataset.torch(None, None, standardize=False, infinite=False)
+                    raw_img = next(iter(dts))[0].permute(1, 2, 0).numpy()
+                Image.fromarray(raw_img).save(os.path.join(self.project_root, 'raw_img.png'))
+                for method in methods:
+                    gen_norm = sf.norm.autoselect(method, prefer_vectorized=False)
+                    vec_norm = sf.norm.autoselect(method, prefer_vectorized=True)
+                    print(f"\r\033[kTesting {method} [{sf.util.yellow('SINGLE-thread')}]...", end="")
+                    Image.fromarray(gen_norm.rgb_to_rgb(raw_img)).save(os.path.join(self.project_root, f'{method}.png'))
+                    gen_tpt = test_throughput(dts, gen_norm)
+                    print(f"\r\033[kTesting {method} [{sf.util.yellow('SINGLE-thread')}]... DONE " + sf.util.blue(f"[{gen_tpt:.1f} img/s]"))
+                    if type(vec_norm) != type(gen_norm):
+                        print(f"\r\033[kTesting {method} (vectorized) [{sf.util.yellow('SINGLE-thread')}]...", end="")
+                        Image.fromarray(vec_norm.rgb_to_rgb(raw_img)).save(os.path.join(self.project_root, f'{method}_vectorized.png'))
+                        vec_tpt = test_throughput(dts, vec_norm)
+                        print(f"\r\033[kTesting {method} (vectorized) [{sf.util.yellow('SINGLE-thread')}]... DONE " + sf.util.blue(f"[{vec_tpt:.1f} img/s]"))
+
+        if multi:
+            with TaskWrapper("Testing normalization multi-thread throughput...") as test:
+                for method in methods:
+                    gen_norm = sf.norm.autoselect(method, prefer_vectorized=False)
+                    vec_norm = sf.norm.autoselect(method, prefer_vectorized=True)
+                    print(f"\r\033[kTesting {method} [{sf.util.purple('MULTI-thread')}]...", end="")
+                    gen_tpt = test_multithread_throughput(dataset, gen_norm)
+                    print(f"\r\033[kTesting {method} [{sf.util.purple('MULTI-thread')}]... DONE " + sf.util.blue(f"[{gen_tpt:.1f} img/s]"))
+                    if type(vec_norm) != type(gen_norm):
+                        print(f"\r\033[kTesting {method} (vectorized) [{sf.util.purple('MULTI-thread')}]...", end="")
+                        vec_tpt = test_multithread_throughput(dataset, vec_norm)
+                        print(f"\r\033[kTesting {method} (vectorized) [{sf.util.purple('MULTI-thread')}]... DONE " + sf.util.blue(f"[{vec_tpt:.1f} img/s]"))
 
     def test_readers(self):
         ctx = multiprocessing.get_context('spawn')
@@ -463,9 +547,9 @@ class TestSuite:
         process.start()
         process.join()
 
-    def train_perf(self, **train_kwargs):
+    def train_perf(self, uq=False, **train_kwargs):
         with TaskWrapper("Training to single categorical outcome from hyperparameter sweep...") as test:
-            self.setup_hp('categorical', sweep=True)
+            self.setup_hp('categorical', sweep=True, normalizer='reinhard_fast')
             results_dict = self.project.train(exp_label='manual_hp',
                                           outcome_label_headers='category1',
                                           val_k=1,
@@ -479,10 +563,27 @@ class TestSuite:
                 log.error("Results object not received from training")
                 test.fail()
 
-    def test_training(self, categorical=True, multi_categorical=True, linear=True, multi_input=True, cph=True, multi_cph=True, **train_kwargs):
+    def test_training(self, categorical=True, uq=True, multi_categorical=True, linear=True, multi_input=True, cph=True,
+                     multi_cph=True, **train_kwargs):
+
         if categorical:
             # Test categorical outcome
             self.train_perf(**train_kwargs)
+
+        if uq:
+            # Test categorical outcome with UQ
+            with TaskWrapper("Training to single categorical outcome with UQ...") as test:
+                if sf.backend() == 'tensorflow':
+                    self.project.train(exp_label='UQ',
+                                    outcome_label_headers='category1',
+                                    val_k=1,
+                                    params=self.setup_hp('categorical', uq=True),
+                                    validate_on_batch=10,
+                                    steps_per_epoch_override=20,
+                                    save_predictions=True,
+                                    **train_kwargs)
+                else:
+                    test.skip()
 
         if multi_categorical:
             # Test multiple sequential categorical outcome models
@@ -492,6 +593,7 @@ class TestSuite:
                                    params=self.setup_hp('categorical'),
                                    validate_on_batch=10,
                                    steps_per_epoch_override=20,
+                                   save_predictions=True,
                                    **train_kwargs)
 
         if linear:
@@ -502,6 +604,7 @@ class TestSuite:
                                    params=self.setup_hp('linear'),
                                    validate_on_batch=10,
                                    steps_per_epoch_override=20,
+                                   save_predictions=True,
                                    **train_kwargs)
 
         if multi_input:
@@ -513,6 +616,7 @@ class TestSuite:
                                   val_k=1,
                                   validate_on_batch=10,
                                   steps_per_epoch_override=20,
+                                  save_predictions=True,
                                   **train_kwargs)
 
         if cph:
@@ -525,6 +629,7 @@ class TestSuite:
                                        val_k=1,
                                        validate_on_batch=10,
                                        steps_per_epoch_override=20,
+                                       save_predictions=True,
                                        **train_kwargs)
                 else:
                     test.skip()
@@ -539,11 +644,21 @@ class TestSuite:
                                        val_k=1,
                                        validate_on_batch=10,
                                        steps_per_epoch_override=20,
+                                       save_predictions=True,
                                        **train_kwargs)
                 else:
                     test.skip()
         else:
             print("Skipping CPH model testing [current backend is Pytorch]")
+
+    def test_prediction(self, **predict_kwargs):
+        perf_model = self._get_model('category1-manual_hp-TEST-HPSweep0-kfold1')
+
+        with TaskWrapper("Testing prediction from single categorical outcome model...") as test:
+            prediction_tester(project=self.project,
+                              model=perf_model,
+                              outcome_label_headers='category1',
+                              **predict_kwargs)
 
     def test_evaluation(self, **eval_kwargs):
         multi_cat_model = self._get_model('category1-category2-HP0-kfold1')
@@ -559,6 +674,18 @@ class TestSuite:
                               histogram=True,
                               save_predictions=True,
                               **eval_kwargs)
+
+        with TaskWrapper("Testing evaluation of single categorical outcome model with UQ...") as test:
+            if sf.backend() == 'tensorflow':
+                uq_model = self._get_model('category1-UQ-HP0-kfold1')
+                evaluation_tester(project=self.project,
+                                model=uq_model,
+                                outcome_label_headers='category1',
+                                histogram=True,
+                                save_predictions=True,
+                                **eval_kwargs)
+            else:
+                test.skip()
 
         with TaskWrapper("Testing evaluation of multi-categorical outcome model...") as test:
             evaluation_tester(project=self.project,
@@ -642,15 +769,16 @@ class TestSuite:
                 dataset = self.project.dataset(299, 302)
                 self.project.train_clam('TEST_CLAM', join(self.project.root, 'clam'), 'category1', dataset)
 
-    def test(self, extract=True, reader=True, train=True, normalizer=True, evaluate=True, heatmap=True,
+    def test(self, extract=True, reader=True, train=True, normalizer=True, evaluate=True, predict=True, heatmap=True,
              activations=True, predict_wsi=True, clam=True):
         '''Perform and report results of all available testing.'''
 
         if extract:             self.test_extraction()
         if reader:              self.test_readers()
         if train:               self.test_training()
-        if normalizer:          self.test_realtime_normalizer()
+        if normalizer:          self.test_normalizers()
         if evaluate:            self.test_evaluation()
+        if predict:             self.test_prediction()
         if heatmap:             self.test_heatmap()
         if activations:         self.test_activations_and_mosaic()
         if predict_wsi:         self.test_predict_wsi()

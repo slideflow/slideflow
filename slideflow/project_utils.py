@@ -8,7 +8,7 @@ from os.path import join, exists
 from slideflow.util import log
 
 def _project_config(name='MyProject', annotations='./annotations.csv', dataset_config='./datasets.json',
-                    sources=None, models_dir='./models', eval_dir='./eval', mixed_precision=True):
+                    sources=None, models_dir='./models', eval_dir='./eval'):
     args = locals()
     args['slideflow_version'] = sf.__version__
     if sources is None:
@@ -98,7 +98,7 @@ def get_validation_settings(**kwargs):
     if args.strategy is None:
         args.strategy = 'none'
     if (args.k_fold_header is None and args.strategy == 'k-fold-manual'):
-        raise Exception("Must supply 'k_fold_header' if validation strategy is 'k-fold-manual'")
+        raise ValueError("Must supply 'k_fold_header' if validation strategy is 'k-fold-manual'")
 
     return args
 
@@ -211,8 +211,6 @@ def interactive_project_setup(project_folder):
                                                 root=project_folder,
                                                 default='./eval',
                                                 create_on_invalid=True)
-
-    project['mixed_precision'] = sf.util.yes_no_input('Use mixed precision? [Y/n] ', default='yes')
 
     # Save settings as relative paths
     settings = _project_config(**project)
