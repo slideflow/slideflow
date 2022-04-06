@@ -9,7 +9,7 @@ This implementation ("fast" implementation) skips the brightness standardization
 from __future__ import division
 
 import tensorflow as tf
-import tensorflow_io as tfio
+from slideflow.norm.tensorflow import color
 
 ### Some functions ###
 
@@ -22,7 +22,7 @@ def lab_split(I):
     """
     I = tf.cast(I, tf.float32) # I = I.astype(np.float32)
     I /= 255
-    I = tfio.experimental.color.rgb_to_lab(I) #I = cv.cvtColor(I, cv.COLOR_RGB2LAB)
+    I = color.rgb_to_lab(I) #I = cv.cvtColor(I, cv.COLOR_RGB2LAB)
     I1, I2, I3 = tf.unstack(I, axis=-1) #I1, I2, I3 = cv.split(I)
     return I1, I2, I3
 
@@ -37,7 +37,7 @@ def merge_back(I1, I2, I3):
     """
 
     I = tf.stack((I1, I2, I3), axis=-1) #I = np.clip(cv.merge((I1, I2, I3)), 0, 255).astype(np.uint8)
-    I = tfio.experimental.color.lab_to_rgb(I) * 255 #cv.cvtColor(I, cv.COLOR_LAB2RGB)
+    I = color.lab_to_rgb(I) * 255 #cv.cvtColor(I, cv.COLOR_LAB2RGB)
     #I = tf.experimental.numpy.clip(I, 0, 255)
     return I#tf.cast(I, tf.uint8)
 

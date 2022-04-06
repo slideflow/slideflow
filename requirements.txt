@@ -1,5 +1,5 @@
 gast>=0.3.3
-tensorflow>=2.5
+tensorflow>=2.7, <2.8.0
 scipy
 sklearn
 matplotlib>=3.2
@@ -16,7 +16,7 @@ cplex
 cvxpy>=1.1.15
 lifelines
 torch>=1.9.1
-torch-vision
+torchvision
 pretrainedmodels
 gitpython
 scikit-image
@@ -26,6 +26,5 @@ protobuf
 tensorboard
 crc32c
 h5py
-numpy<1.21
-tensorflow_io
+numpy
 tensorflow_probability

@@ -4,8 +4,8 @@ import shutil
 import logging
 import slideflow as sf
 import numpy as np
-import tensorflow_addons as tfa
 
+from slideflow.io import gaussian
 from functools import partial
 from tqdm import tqdm
 from os import listdir
@@ -93,12 +93,12 @@ def process_image(record, *args, standardize=False, augment=False, size=None):
                     tf.random.uniform(shape=[], minval=0, maxval=1, dtype=tf.float32) < 0.5,
                     true_fn=lambda: tf.cond(
                         tf.random.uniform(shape=[], minval=0, maxval=1, dtype=tf.float32) < 0.5,
-                        true_fn=lambda: tfa.image.gaussian_filter2d(image, 8),
-                        false_fn=lambda: tfa.image.gaussian_filter2d(image, 4),
+                        true_fn=lambda: gaussian.gaussian_filter2d(image, 8),
+                        false_fn=lambda: gaussian.gaussian_filter2d(image, 4),
                     ),
-                    false_fn=lambda: tfa.image.gaussian_filter2d(image, 2),
+                    false_fn=lambda: gaussian.gaussian_filter2d(image, 2),
                 ),
-                false_fn=lambda: tfa.image.gaussian_filter2d(image, 1),
+                false_fn=lambda: gaussian.gaussian_filter2d(image, 1),
             ),
             false_fn=lambda: image
         )
