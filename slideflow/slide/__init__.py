@@ -517,7 +517,7 @@ class ExtractionReport:
                 warn_txt = ''
             with np.errstate(divide='ignore'):
                 log_b = np.log(blur_arr)
-                log_b = log_b[~np.isnan(log_b)]
+            log_b = log_b[np.isfinite(log_b)]
             plt.rc('font', size=14)
             h = sns.histplot(log_b, bins=20)
             plt.title('Quality Control: Blur Burden'+warn_txt)
