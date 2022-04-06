@@ -643,7 +643,7 @@ def _get_average_by_group(prediction_array, prediction_label, unique_groups, til
             writer = csv.writer(outfile)
             header = [label] + [f"y_true{i}" for i in range(num_cat)] + [f"{prediction_label}{j}" for j in range(num_cat)]
             if uncertainty is not None:
-                header += ['uncertainty']
+                header += [f'uncertainty{i}' for i in range(num_cat)]
             writer.writerow(header)
             for i, group in enumerate(unique_groups):
                 if uncertainty is not None:
