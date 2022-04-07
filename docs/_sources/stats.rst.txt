@@ -118,9 +118,9 @@ save_histogram
 ----------------------
 .. autofunction:: save_histogram
 
-save_predictions_to_csv
+predictions_to_dataframe
 -------------------------
-.. autofunction:: save_predictions_to_csv
+.. autofunction:: predictions_to_dataframe
 
 to_onehot
 ----------------------

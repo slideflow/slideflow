@@ -6,24 +6,24 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-
+  
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Setting up a Project &mdash; slideflow 1.1.0-rc1 documentation</title>
+  
 
-  <title>Setting up a Project &mdash; slideflow 1.0.6 documentation</title>
+  
+  
+  
+  
 
+  
 
+  
+  
+    
 
-
-
-
-
-
-
-
-
-
-
-
+  
 
   <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <!-- <link rel="stylesheet" href="_static/pygments.css" type="text/css" /> -->
@@ -34,11 +34,11 @@
     <link rel="next" title="Validation Planning" href="validation.html" />
     <link rel="prev" title="Pipeline Overview" href="pipeline.html" />
   <!-- Google Analytics -->
-
+  
   <!-- End Google Analytics -->
+  
 
-
-
+  
   <script src="_static/js/modernizr.min.js"></script>
 
   <!-- Preload the theme fonts -->
@@ -100,9 +100,9 @@
 
 <body class="pytorch-body">
 
+   
 
-
-
+    
 
     <div class="table-of-contents-link-wrapper">
       <span>Table of Contents</span>
@@ -113,21 +113,21 @@
       <div class="pytorch-side-scroll">
         <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           <div class="pytorch-left-menu-search">
+            
 
-
-
-
-
+            
+              
+              
                 <div class="version">
                   1.0
                 </div>
+              
+            
+
+            
 
 
-
-
-
-
-
+  
 
 
 <div role="search">
@@ -138,15 +138,15 @@
   </form>
 </div>
 
-
+            
           </div>
 
-
-
-
-
-
-
+          
+            
+            
+              
+            
+            
               <p class="caption" role="heading"><span class="caption-text">Overview</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
@@ -182,8 +182,8 @@
 <li class="toctree-l1"><a class="reference internal" href="tutorial3.html">Tutorial 3: Model evaluation &amp; heatmaps</a></li>
 </ul>
 
-
-
+            
+          
         </div>
       </div>
     </nav>
@@ -191,7 +191,7 @@
     <div class="pytorch-container">
       <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
         <div class="pytorch-breadcrumbs-wrapper">
-
+          
 
 
 
@@ -210,30 +210,30 @@
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="pytorch-breadcrumbs">
-
+    
       <li>
         <a href="index.html">
-
+          
             Docs
-
+          
         </a> &gt;
       </li>
 
-
+        
       <li>Setting up a Project</li>
-
-
+    
+    
       <li class="pytorch-breadcrumbs-aside">
-
-
+        
+            
             <a href="_sources/project_setup.rst.txt" rel="nofollow"><img src="_static/images/view-page-source-icon.svg"></a>
-
-
+          
+        
       </li>
-
+    
   </ul>
 
-
+  
 </div>
         </div>
 
@@ -245,13 +245,13 @@
       <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
         <div class="pytorch-content-left">
 
-
-
+        
+          
           <div class="rst-content">
-
+          
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
-
+              
   <div class="section" id="setting-up-a-project">
 <h1>Setting up a Project<a class="headerlink" href="#setting-up-a-project" title="Permalink to this headline">¶</a></h1>
 <p>The easiest way to use <code class="docutils literal notranslate"><span class="pre">slideflow</span></code> is through the bundled project management class, <a class="reference internal" href="project.html#slideflow.Project" title="slideflow.Project"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.Project</span></code></a>, which supports unified datasets, annotations, and project directory structure for all of the various pipeline functions. Projects are initialized at a directory, with settings saved in a <code class="docutils literal notranslate"><span class="pre">settings.json</span></code> file. Below are the configuration settings used to create a project:</p>
@@ -279,10 +279,6 @@ Each line is a unique slide.</p></td>
 </tr>
 <tr class="row-even"><td><p><strong>eval_dir</strong></p></td>
 <td><p>Path, where model evaluation results are saved.</p></td>
-</tr>
-<tr class="row-odd"><td><p><strong>mixed_precision</strong></p></td>
-<td><p>Bool, whether models should be trained using
-mixed precision (16-bit vs. 32-bit).</p></td>
 </tr>
 </tbody>
 </table>
@@ -338,7 +334,7 @@ mixed precision (16-bit vs. 32-bit).</p></td>
 </div>
 <div class="section" id="setting-up-annotations">
 <h2>Setting up annotations<a class="headerlink" href="#setting-up-annotations" title="Permalink to this headline">¶</a></h2>
-<p>Your annotations CSV file is used to label patients and slides with clinical data and/or other outcome variables (or additional input variables) that will be used for training. Each line in the annotations file should correspond to a unique slide.</p>
+<p>Your annotations CSV file is used to label patients and slides with clinical data and/or other outcome variables (or additional input variables) that will be used for training. Each line in the annotations file should correspond to a unique slide. Patients may have more than one slide.</p>
 <p>The annotations file may contain as many columns as you would like, but it must contain the following headers at minimum:</p>
 <ul class="simple">
 <li><p><strong>patient</strong>: patient identifier</p></li>
@@ -390,20 +386,19 @@ mixed precision (16-bit vs. 32-bit).</p></td>
 <span id="execute"></span><h2>Executing commands<a class="headerlink" href="#executing-commands" title="Permalink to this headline">¶</a></h2>
 <p>If you plan to use <code class="docutils literal notranslate"><span class="pre">run_project.py</span></code>, open the <code class="docutils literal notranslate"><span class="pre">actions.py</span></code> file located in the project directory. It should look something like this:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">main</span><span class="p">(</span><span class="n">P</span><span class="p">):</span>
-    <span class="c1">#P.extract_tiles(filters = {&#39;to_extract&#39;: &#39;yes&#39;})</span>
+    <span class="c1">#P.extract_tiles(tile_px=299, tile_um=302)</span>
 
     <span class="c1">#P.train(</span>
-    <span class="c1">#      outcome_label_headers=&quot;category&quot;,</span>
+    <span class="c1">#      &quot;category&quot;,</span>
     <span class="c1">#      filters = {</span>
-    <span class="c1">#          &#39;dataset&#39;: &#39;train&#39;,</span>
-    <span class="c1">#          &#39;category&#39;: [&#39;negative&#39;, &#39;positive&#39;]</span>
+    <span class="c1">#          &#39;category&#39;: [&#39;NEG&#39;, &#39;POS&#39;],</span>
+    <span class="c1">#          &#39;dataset&#39;: &#39;train&#39;</span>
     <span class="c1">#      },</span>
-    <span class="c1">#      batch_file=&#39;batch_train.tsv&#39;)</span>
+    <span class="c1">#)</span>
 
-    <span class="c1">#model_to_evaluate = &#39;/path_to_model/&#39;</span>
-    <span class="c1">#P.evaluate(model=model_to_evaluate, outcome_label_headers=&quot;category&quot;, filters = {&#39;dataset&#39;: &#39;eval&#39;})</span>
+    <span class="c1">#model = &#39;/path_to_model/&#39;</span>
+    <span class="c1">#P.evaluate(model, outcome_label_headers=&quot;category&quot;, filters={&#39;dataset&#39;: &#39;eval&#39;})</span>
     <span class="c1">#P.generate_heatmaps(model_to_evaluate)</span>
-    <span class="c1">#P.generate_mosaic(model_to_evaluate)</span>
     <span class="k">pass</span>
 </pre></div>
 </div>
@@ -417,25 +412,25 @@ mixed precision (16-bit vs. 32-bit).</p></td>
 
 
              </article>
-
+             
             </div>
             <footer>
-
+  
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-
+      
         <a href="validation.html" class="btn btn-neutral float-right" title="Validation Planning" accesskey="n" rel="next">Next <img src="_static/images/chevron-right-orange.svg" class="next-page"></a>
-
-
+      
+      
         <a href="pipeline.html" class="btn btn-neutral" title="Pipeline Overview" accesskey="p" rel="prev"><img src="_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
-
+      
     </div>
+  
 
-
-
+  
 
     <hr>
 
-
+  
 
   <div role="contentinfo">
     <p>
@@ -443,11 +438,11 @@ mixed precision (16-bit vs. 32-bit).</p></td>
 
     </p>
   </div>
-
+    
       <div>
         Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
       </div>
-
+     
 
 </footer>
 
@@ -473,20 +468,20 @@ mixed precision (16-bit vs. 32-bit).</p></td>
       </section>
     </div>
 
+  
 
 
+  
 
-
-
-
+     
        <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
          <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
          <script src="_static/jquery.js"></script>
          <script src="_static/underscore.js"></script>
          <script src="_static/doctools.js"></script>
+     
 
-
-
+  
 
   <script type="text/javascript" src="_static/js/vendor/popper.min.js"></script>
   <script type="text/javascript" src="_static/js/vendor/bootstrap.min.js"></script>
@@ -497,7 +492,7 @@ mixed precision (16-bit vs. 32-bit).</p></td>
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script>
+  </script> 
 
   <!-- Begin Footer -->
 

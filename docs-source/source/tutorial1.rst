@@ -112,12 +112,11 @@ to the project ``actions.py`` file:
 
 .. hint::
     Tile extraction speed is greatly improved when slides are on an SSD or ramdisk; slides can be automatically
-    buffered to an SSD or ramdisk directory by passing a directory to the argument ``buffer``. Additionally, for maximum
-    performance, set ``num_threads`` equal to twice the number of CPU cores available.
+    buffered to an SSD or ramdisk directory by passing a directory to the argument ``buffer``.
 
     .. code-block:: python
 
-        P.extract_tiles(256, 128, buffer='/mnt/ramdisk', num_threads=32)
+        P.extract_tiles(256, 128, buffer='/mnt/ramdisk')
 
 Training
 ********

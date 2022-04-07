@@ -53,11 +53,14 @@ To normalize tiles during tile extraction, use the ``normalizer`` and ``normaliz
 
     P.extract_tiles(tile_px=299, tile_um=302, normalizer='reinhard')
 
-Alternatively, real-time normalization can be performed with nearly any pipeline function that accepts TFRecord inputs. For example, to normalize tiles during training:
+Alternatively, real-time normalization can be performed with all pipeline functions that process TFRecords. For example, real-time normalization during training is enabled by setting the appropriate hyperparameter:
 
 .. code-block:: python
 
-    P.train(..., normalizer='reinhard', normalizer_source='/path/to/reference.png')
+    from slideflow.model import ModelParams
+    hp = ModelParams(..., normalizer='reinhard')
+
+If a normalizer was used during model training, the appropriate information will be stored in the model metadata file, `params.json`, located in the saved model folder. Any function within `slideflow` that uses this model will then process images using the same normalization strategy.
 
 Background filtering
 ********************

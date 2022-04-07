@@ -17,9 +17,6 @@ The easiest way to use ``slideflow`` is through the bundled project management c
 +-------------------------------+-------------------------------------------------------+
 | **eval_dir**                  | Path, where model evaluation results are saved.       |
 +-------------------------------+-------------------------------------------------------+
-| **mixed_precision**           | Bool, whether models should be trained using          |
-|                               | mixed precision (16-bit vs. 32-bit).                  |
-+-------------------------------+-------------------------------------------------------+
 
 Project class
 *************
@@ -91,7 +88,7 @@ Datasets are configured either interactively at the time of project initializati
 Setting up annotations
 **********************
 
-Your annotations CSV file is used to label patients and slides with clinical data and/or other outcome variables (or additional input variables) that will be used for training. Each line in the annotations file should correspond to a unique slide.
+Your annotations CSV file is used to label patients and slides with clinical data and/or other outcome variables (or additional input variables) that will be used for training. Each line in the annotations file should correspond to a unique slide. Patients may have more than one slide.
 
 The annotations file may contain as many columns as you would like, but it must contain the following headers at minimum:
 
@@ -130,20 +127,19 @@ If you plan to use ``run_project.py``, open the ``actions.py`` file located in t
 .. code-block:: python
 
     def main(P):
-        #P.extract_tiles(filters = {'to_extract': 'yes'})
+        #P.extract_tiles(tile_px=299, tile_um=302)
 
         #P.train(
-        #      outcome_label_headers="category",
+        #      "category",
         #      filters = {
-        #          'dataset': 'train',
-        #          'category': ['negative', 'positive']
+        #          'category': ['NEG', 'POS'],
+        #          'dataset': 'train'
         #      },
-        #      batch_file='batch_train.tsv')
+        #)
 
-        #model_to_evaluate = '/path_to_model/'
-        #P.evaluate(model=model_to_evaluate, outcome_label_headers="category", filters = {'dataset': 'eval'})
+        #model = '/path_to_model/'
+        #P.evaluate(model, outcome_label_headers="category", filters={'dataset': 'eval'})
         #P.generate_heatmaps(model_to_evaluate)
-        #P.generate_mosaic(model_to_evaluate)
         pass
 
 The ``main()`` function contains several example functions. These serve as examples to help remind you of functions and arguments you can use on projects.
