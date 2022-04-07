@@ -1175,7 +1175,7 @@ class Features:
         else:
             return self._predict(inp)
 
-    def _predict_slide(self, slide, batch_size=128, dtype=np.float16, **kwargs):
+    def _predict_slide(self, slide, batch_size=32, dtype=np.float16, **kwargs):
         """Generate activations from slide => activation grid array."""
         total_out = self.num_features + self.num_logits
         features_grid = np.zeros((slide.grid.shape[1], slide.grid.shape[0], total_out), dtype=dtype)

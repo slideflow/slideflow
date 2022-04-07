@@ -166,17 +166,17 @@ class SlideMap:
             for i in range(self.df.activations[slide].shape[0]):
                 location = self.df.locations[slide][i]
                 logits = self.df.logits[slide][i]
-                if self.df.logits[slide] != []:
-                    pred = filtered_prediction(logits, prediction_filter)
-                else:
-                    pred = None
-                self.point_meta += [{
+                pred = filtered_prediction(logits, prediction_filter) if self.df.logits[slide] != [] else None
+                pm = {
                     'slide': slide,
                     'index': i,
                     'prediction': pred,
                     'logits': logits,
                     'loc': location
-                }]
+                }
+                if self.df.hp.uq:
+                    pm.update({'uncertainty': self.df.uncertainty[slide][i]})
+                self.point_meta += [pm]
 
         coordinates = gen_umap(node_activations, **umap_kwargs)
 
@@ -389,6 +389,18 @@ class SlideMap:
         self.x = filter_by_neighbors(self.x)
         self.y = filter_by_neighbors(self.y)
         self.meta = filter_by_neighbors(self.meta)
+
+    def label_by_uncertainty(self, index=0):
+        """Labels each point with the tile-level uncertainty, if available.
+
+        Args:
+            index (int, optional): Uncertainty index. Defaults to 0.
+        """
+
+        if not self.df.hp.uq:
+            raise errors.DatasetError('Unable to label by uncertainty; UQ estimations not available.')
+        else:
+            self.labels = np.array([m['uncertainty'][index] for m in self.point_meta])
 
     def label_by_logits(self, index):
         """Displays each point with label equal to the logits (linear from 0-1)

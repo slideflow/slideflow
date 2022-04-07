@@ -15,7 +15,7 @@ class Heatmap:
     """Generates heatmap by calculating predictions from a sliding scale window across a slide."""
 
     def __init__(self, slide, model, stride_div=2, roi_dir=None, rois=None, roi_method='inside', batch_size=32,
-                 num_threads=None, buffer=None, enable_downsample=True, uq=False):
+                 num_threads=None, buffer=None, enable_downsample=True):
 
         """Convolutes across a whole slide, calculating logits and saving predictions internally for later use.
 
@@ -38,20 +38,21 @@ class Heatmap:
         from slideflow.slide import WSI
 
         self.logits = None
-        self.uq = uq
         if (roi_dir is None and rois is None) and roi_method != 'ignore':
             log.info("No ROIs provided; will generate whole-slide heatmap")
             roi_method = 'ignore'
 
-        if uq:
+        model_config = sf.util.get_model_config(model)
+        self.uq = model_config['hp']['uq']
+        if self.uq:
             interface = sf.model.tensorflow.UncertaintyInterface(model)
         else:
             interface = sf.model.Features(model, layers=None, include_logits=True)
-        model_config = sf.util.get_model_config(model)
         self.tile_px = model_config['tile_px']
         self.tile_um = model_config['tile_um']
         self.num_classes = interface.num_logits
         self.num_features = interface.num_features
+        self.num_uncertainty = interface.num_uncertainty
 
         # Create slide buffer
         if buffer and os.path.isdir(buffer):
@@ -77,12 +78,12 @@ class Heatmap:
             raise errors.HeatmapError(f'Unable to load slide {self.slide.name} for heatmap generation')
 
         logits_and_uncertainty = interface(self.slide, num_threads=num_threads, batch_size=batch_size, dtype=np.float32)
-        if uq:
-            self.uncertainty = logits_and_uncertainty[:,:,-1]
-            self.logits = logits_and_uncertainty[:,:,:-1]
+        if self.uq:
+            self.logits = logits_and_uncertainty[:,:,:-(self.num_uncertainty)]
+            self.uncertainty = logits_and_uncertainty[:,:,-(self.num_uncertainty):]
         else:
-            self.uncertainty = None
             self.logits = logits_and_uncertainty
+            self.uncertainty = None
 
         log.info(f"Heatmap complete for {sf.util.green(self.slide.name)}")
 

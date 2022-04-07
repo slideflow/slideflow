@@ -140,6 +140,7 @@ class DatasetFeatures:
 
         self.activations = defaultdict(list)
         self.logits = defaultdict(list)
+        self.uncertainty = defaultdict(list)
         self.locations = defaultdict(list)
         self.num_features = 0
         self.num_logits = 0
@@ -179,7 +180,7 @@ class DatasetFeatures:
             # Load saved PKL cache
             log.info(f'Loading pre-calculated predictions and activations from {sf.util.green(cache)}...')
             with open(cache, 'rb') as pt_pkl_file:
-                self.activations, self.logits, self.locations = pickle.load(pt_pkl_file)
+                self.activations, self.logits, self.uncertainty, self.locations = pickle.load(pt_pkl_file)
                 self.num_features = self.activations[self.slides[0]].shape[-1]
                 self.num_logits = self.logits[self.slides[0]].shape[-1]
 
@@ -202,7 +203,7 @@ class DatasetFeatures:
             elif self.activations[slide] == []:
                 missing_slides += [slide]
         num_loaded = len(self.slides)-len(missing_slides)
-        log.info(f'Loaded activations from {num_loaded}/{len(self.slides)} slides ({len(missing_slides)} missing)')
+        log.debug(f'Loaded activations from {num_loaded}/{len(self.slides)} slides ({len(missing_slides)} missing)')
         if missing_slides:
             log.warning(f'Activations missing for {len(missing_slides)} slides')
 
@@ -232,7 +233,8 @@ class DatasetFeatures:
         """
 
         # Rename tfrecord_array to tfrecords
-        log.info(f'Calculating activations from {sf.util.green(model)}')
+        log.info(f'Calculating layer activations for {self.tfrecords.shape[0]} tfrecords (layers={layers})')
+        log.info(f'Generating from {sf.util.green(model)}')
         if not isinstance(layers, list): layers = [layers]
 
         # Load model
@@ -282,6 +284,12 @@ class DatasetFeatures:
                     model_out = [m.cpu().numpy() if not isinstance(m, list) else m for m in model_out]
                     batch_loc = np.stack([batch_loc[0], batch_loc[1]], axis=1)
 
+                # Process model outputs
+                if self.hp.uq:
+                    model_out = model_out[:-1]
+                    uncertainty = model_out[-1]
+                else:
+                    uncertainty = None
                 if include_logits:
                     logits = model_out[-1]
                     activations = model_out[:-1]
@@ -297,6 +305,8 @@ class DatasetFeatures:
                         self.activations[slide].append(batch_act[d])
                     if include_logits:
                         self.logits[slide].append(logits[d])
+                    if self.hp.uq:
+                        self.uncertainty[slide].append(uncertainty[d])
                     self.locations[slide].append(batch_loc[d])
 
         batch_processing_thread = threading.Thread(target=batch_worker, daemon=True)
@@ -314,6 +324,7 @@ class DatasetFeatures:
         self.activations = {s:np.stack(v) for s,v in self.activations.items()}
         self.logits = {s:np.stack(v) for s,v in self.logits.items()}
         self.locations = {s:np.stack(v) for s,v in self.locations.items()}
+        self.uncertainty = {s:np.stack(v) for s,v in self.uncertainty.items()}
 
         fla_calc_time = time.time()
         log.debug(f'Activation calculation time: {fla_calc_time-fla_start_time:.0f} sec')
@@ -322,7 +333,7 @@ class DatasetFeatures:
         # Dump PKL dictionary to file
         if cache:
             with open(cache, 'wb') as pt_pkl_file:
-                pickle.dump([self.activations, self.logits, self.locations], pt_pkl_file)
+                pickle.dump([self.activations, self.logits, self.uncertainty, self.locations], pt_pkl_file)
             log.info(f'Predictions and activations cached to {sf.util.green(cache)}')
 
     def activations_by_category(self, idx):
@@ -642,6 +653,7 @@ class DatasetFeatures:
 
         self.activations.update(df.activations)
         self.logits.update(df.logits)
+        self.uncertainty.update(df.uncertainty)
         self.locations.update(df.locations)
         self.tfrecords = np.concatenate([self.tfrecords, df.tfrecords])
         self.slides = list(self.activations.keys())
@@ -650,6 +662,7 @@ class DatasetFeatures:
         """Removes slide from internally cached activations."""
         del self.activations[slide]
         del self.logits[slide]
+        del self.uncertainty[slide]
         del self.locations[slide]
         self.tfrecords = [t for t in self.tfrecords if sf.util.path_to_name(t) != slide]
         try:

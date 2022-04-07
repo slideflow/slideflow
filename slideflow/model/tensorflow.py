@@ -1330,6 +1330,8 @@ class Features:
         self.path = path
         self.num_logits = 0
         self.num_features = 0
+        self.num_uncertainty = 0
+        log.debug('Setting up Features interface')
         if path is not None:
             self._model = tf.keras.models.load_model(self.path)
             try:
@@ -1379,9 +1381,11 @@ class Features:
         else:
             return self._predict(inp)
 
-    def _predict_slide(self, slide, batch_size=128, dtype=np.float16, **kwargs):
+    def _predict_slide(self, slide, batch_size=32, dtype=np.float16, **kwargs):
         """Generate activations from slide => activation grid array."""
-        total_out = self.num_features + self.num_logits
+
+        log.debug(f"Slide prediction batch_size={batch_size}")
+        total_out = self.num_features + self.num_logits + self.num_uncertainty
         features_grid = np.ones((slide.grid.shape[1], slide.grid.shape[0], total_out), dtype=dtype) * -1
         generator = slide.build_generator(shuffle=False, include_loc='grid', show_progress=True, **kwargs)
 
@@ -1412,8 +1416,8 @@ class Features:
         loc_arr = []
         for i, (batch_images, batch_loc) in enumerate(tile_dataset):
             model_out = self._predict(batch_images)
-            if not isinstance(model_out, list): model_out = [model_out]
-            act_arr += [np.concatenate([m.numpy() for m in model_out])]
+            if not isinstance(model_out, (list, tuple)): model_out = [model_out]
+            act_arr += [np.concatenate([m.numpy() for m in model_out], axis=-1)]
             loc_arr += [batch_loc.numpy()]
 
         act_arr = np.concatenate(act_arr)
@@ -1469,8 +1473,9 @@ class Features:
 
 class UncertaintyInterface(Features):
     def __init__(self, path, layers=None):
+        log.debug('Setting up UncertaintyInterface')
         super().__init__(path, layers=layers, include_logits=True)
-        self.num_features += 1
+        self.num_uncertainty = 1 # TODO: As the below to-do suggests, this should be updated for multi-class uncertainty
 
     @classmethod
     def from_model(cls, model, wsi_normalizer=None, layers=None):
@@ -1478,7 +1483,7 @@ class UncertaintyInterface(Features):
 
     @tf.function
     def _predict(self, inp):
-        """Return predictions (mean) and uncertainty (stdev) for a single batch of images."""
+        """Return activations (mean), predictions (mean), and uncertainty (stdev) for a single batch of images."""
         out_drop = [[] for _ in range(self.num_outputs)]
         for _ in range(30):
             yp = self.model(inp, training=False)
@@ -1489,13 +1494,13 @@ class UncertaintyInterface(Features):
                 out_drop[0] += [yp]
         for n in range(self.num_outputs):
             out_drop[n] = tf.stack(out_drop[n], axis=0)
-        yp_drop_mean = tf.math.reduce_mean(out_drop[-1], axis=0)
-        yp_drop_std = tf.math.reduce_std(out_drop[-1], axis=0)[:,0] # Only takes STDEV from first outcome category
+        logits = tf.math.reduce_mean(out_drop[-1], axis=0)
+        uncertainty = tf.math.reduce_std(out_drop[-1], axis=0)[:,0] # Only takes STDEV from first outcome category
                                                                # Which works for outcomes with 2 categories,
                                                                # TODO: But a better solution is needed
                                                                # for num_categories > 2
-        logits_and_uncertainty = tf.concat([yp_drop_mean, tf.expand_dims(yp_drop_std, axis=-1)], axis=-1)
+        uncertainty = tf.expand_dims(uncertainty, axis=-1)
         if self.num_outputs > 1:
-            return [tf.math.reduce_mean(out_drop[n], axis=0) for n in range(self.num_outputs-1)] + [logits_and_uncertainty]
+            return [tf.math.reduce_mean(out_drop[n], axis=0) for n in range(self.num_outputs-1)] + [logits, uncertainty]
         else:
-            return logits_and_uncertainty
+            return logits, uncertainty

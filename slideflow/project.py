@@ -611,7 +611,7 @@ class Project:
         log.info(f'Wrote {len(sweep)} combinations for sweep to {sf.util.green(filename)}')
 
     def evaluate(self, model, outcome_label_headers, dataset=None, filters=None, checkpoint=None, model_config=None,
-                 eval_k_fold=None, splits="splits.json", max_tiles=0, min_tiles=0, batch_size=64, input_header=None,
+                 eval_k_fold=None, splits="splits.json", max_tiles=0, min_tiles=0, batch_size=32, input_header=None,
                  permutation_importance=False, histogram=False, save_predictions=False, mixed_precision=True, **kwargs):
 
         """Evaluates a saved model on a given set of tfrecords.
@@ -931,10 +931,7 @@ class Project:
             tile_px = dataset.tile_px
 
         dataset = dataset.filter(min_tiles=min_tiles).clip(max_tiles)
-
         outcome_annotations = dataset.labels(outcome_label_headers, format='name')[0] if outcome_label_headers else None
-        log.info(f'Visualizing activations from {len(dataset.tfrecords())} slides')
-
         df = sf.model.DatasetFeatures(model=model,
                                       dataset=dataset,
                                       annotations=outcome_annotations,
@@ -1022,7 +1019,7 @@ class Project:
                                cache=None)
         return outdir
 
-    def generate_heatmaps(self, model, filters=None, filter_blank=None, outdir=None, resolution='low', batch_size=64,
+    def generate_heatmaps(self, model, filters=None, filter_blank=None, outdir=None, resolution='low', batch_size=32,
                           roi_method='inside', buffer=None, num_threads=None, skip_completed=False, **kwargs):
 
         """Creates predictive heatmap overlays on a set of slides.
@@ -1192,7 +1189,6 @@ class Project:
 
         # Get TFrecords, and prepare a list for focus, if requested
         tfrecords_list = dataset.tfrecords()
-        log.info(f'Loaded activations from {len(df.slides)} slides')
         log.info(f'Generating mosaic from {len([t for t in tfrecords_list if sf.util.path_to_name(t) in df.slides])} slides')
 
         # If a header category is supplied and we are not showing predictions,
@@ -1284,7 +1280,7 @@ class Project:
     def generate_mosaic_from_annotations(self, header_x, header_y, dataset, model=None, mosaic_filename=None,
                                          umap_filename=None, outcome_label_headers=None, max_tiles=100,
                                          use_optimal_tile=False, activations_cache=None, normalizer=None,
-                                         normalizer_source=None, batch_size=64, **kwargs):
+                                         normalizer_source=None, batch_size=32, **kwargs):
 
         """Generates a mosaic map by overlaying images onto a set of mapped tiles.
             Slides are mapped with slide-level annotations, x-axis determined from header_x, y-axis from header_y.
@@ -1639,7 +1635,7 @@ class Project:
             raise errors.ProjectError(f'Unable to locate settings.json at location "{path}".')
 
     def predict(self, model, dataset=None, filters=None, checkpoint=None, model_config=None, eval_k_fold=None,
-                splits="splits.json", max_tiles=0, min_tiles=0, batch_size=64, input_header=None,
+                splits="splits.json", max_tiles=0, min_tiles=0, batch_size=32, input_header=None,
                 format='csv', mixed_precision=True, **kwargs):
 
         """Evaluates a saved model on a given set of tfrecords.
