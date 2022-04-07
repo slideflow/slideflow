@@ -162,26 +162,6 @@ def wsi_prediction_tester(project, model):
     process.start()
     process.join()
 
-# -----------------------------------------
-
-def _heatmap_tester(project, model, verbosity, slide):
-    logging.getLogger("slideflow").setLevel(verbosity)
-    with TaskWrapper("Testing heatmap generation...") as test:
-        if slide.lower() == 'auto':
-            dataset = project.dataset()
-            slide_paths = dataset.slide_paths(source='TEST')
-            patient_name = sf.util.path_to_name(slide_paths[0])
-        project.generate_heatmaps(model, filters={sf.util.TCGA.patient: [patient_name]}, roi_method='ignore')
-
-def heatmap_tester(project, model, slide='auto'):
-    ctx = multiprocessing.get_context('spawn')
-    verbosity = logging.getLogger('slideflow').level
-    process = ctx.Process(target=_heatmap_tester, args=(project, model, verbosity, slide))
-    process.start()
-    process.join()
-
-# -----------------------------------------
-
 
 def _clam_feature_generator(project, model, verbosity):
     logging.getLogger("slideflow").setLevel(verbosity)
@@ -236,7 +216,9 @@ def reader_tester(project):
 
 # -----------------------------------------------
 
-def normalizer_tester(project, args, single, multi):
+def normalizer_tester(project, args, single, multi, verbosity=None):
+    if verbosity is not None:
+        logging.getLogger("slideflow").setLevel(verbosity)
     if not len(args):
         methods = sf.norm.GenericStainNormalizer.normalizers
     else:
@@ -511,7 +493,7 @@ class TestSuite:
                                                      model=["xception"],
                                                      loss=[loss],
                                                      learning_rate=[0.001],
-                                                     batch_size=[64],
+                                                     batch_size=[16],
                                                      hidden_layers=[0,1],
                                                      optimizer=["Adam"],
                                                      early_stop=[False],
@@ -535,7 +517,7 @@ class TestSuite:
                                   pooling='max',
                                   loss=loss,
                                   learning_rate=0.001,
-                                  batch_size=64,
+                                  batch_size=16,
                                   hidden_layers=1,
                                   optimizer='Adam',
                                   early_stop=False,
@@ -562,8 +544,9 @@ class TestSuite:
 
     def test_normalizers(self, *args, single=True, multi=True):
         # Tests throughput of normalizers and saves a single example image with each
+        verbosity = logging.getLogger('slideflow').level
         ctx = multiprocessing.get_context('spawn')
-        process = ctx.Process(target=normalizer_tester, args=(self.project, args, single, multi))
+        process = ctx.Process(target=normalizer_tester, args=(self.project, args, single, multi, verbosity))
         process.start()
         process.join()
 
@@ -603,7 +586,7 @@ class TestSuite:
                     self.project.train(exp_label='UQ',
                                     outcome_label_headers='category1',
                                     val_k=1,
-                                    params=self.setup_hp('categorical', uq=True),
+                                    params=self.setup_hp('categorical', sweep=False, uq=True),
                                     validate_on_batch=10,
                                     steps_per_epoch_override=20,
                                     save_predictions=True,
@@ -748,24 +731,28 @@ class TestSuite:
 
     def test_heatmap(self, slide='auto', **heatmap_kwargs):
         perf_model = self._get_model('category1-manual_hp-TEST-HPSweep0-kfold1') #self._get_model('category1-manual_hp-HP0-kfold1')
-        assert os.path.exists(perf_model)
+        assert os.path.exists(perf_model), "Model has not yet been trained."
 
         with TaskWrapper("Testing heatmap generation...") as test:
-            heatmap_tester(self.project, perf_model, slide)
+            if slide.lower() == 'auto':
+                dataset = self.project.dataset()
+                slide_paths = dataset.slide_paths(source='TEST')
+                patient_name = sf.util.path_to_name(slide_paths[0])
+            self.project.generate_heatmaps(perf_model, filters={sf.util.TCGA.patient: [patient_name]}, roi_method='ignore')
 
     def test_activations_and_mosaic(self, **act_kwargs):
         perf_model = self._get_model('category1-manual_hp-TEST-HPSweep0-kfold1')
-        assert os.path.exists(perf_model)
+        assert os.path.exists(perf_model), "Model has not yet been trained."
         activations_tester(project=self.project, model=perf_model)
 
     def test_predict_wsi(self):
         perf_model = self._get_model('category1-manual_hp-TEST-HPSweep0-kfold1') #self._get_model('category1-manual_hp-HP0-kfold1')
-        assert os.path.exists(perf_model)
+        assert os.path.exists(perf_model), "Model has not yet been trained."
         wsi_prediction_tester(self.project, perf_model)
 
     def test_clam(self):
         perf_model = self._get_model('category1-manual_hp-TEST-HPSweep0-kfold1') #self._get_model('category1-manual_hp-HP0-kfold1')
-        assert os.path.exists(perf_model)
+        assert os.path.exists(perf_model), "Model has not yet been trained."
 
         try:
             skip_test = False

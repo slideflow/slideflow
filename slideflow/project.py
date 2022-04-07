@@ -103,7 +103,6 @@ class Project:
 
         # Set up logging
         logger = logging.getLogger('slideflow')
-        self.verbosity = logger.getEffectiveLevel()
         fh = logging.FileHandler(join(root, 'log.txt'))
         fh.setFormatter(sf.util.FileFormatter())
         fh.setLevel(logging.DEBUG)
@@ -134,6 +133,10 @@ class Project:
     def __repr__(self):
         with_neptune = '' if not self.use_neptune else ", use_neptune={!r}".format(self.use_neptune)
         return "Project(root={!r}{})".format(self.root, with_neptune)
+
+    @property
+    def verbosity(self):
+        return logging.getLogger('slideflow').getEffectiveLevel()
 
     @property
     def annotations(self):
@@ -1084,6 +1087,7 @@ class Project:
             log.error(f"Invalid resolution '{resolution}': must be either 'low', 'medium', or 'high'.")
             return
         heatmap_args.stride_div = stride_div
+        heatmap_args.verbosity=self.verbosity
 
         # Attempt to auto-detect supplied model name
         config = sf.util.get_model_config(model)

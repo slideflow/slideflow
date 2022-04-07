@@ -63,6 +63,13 @@ class ModelParams(_base._ModelParams):
             'inception_resnet_v2': tf.keras.applications.InceptionResNetV2,
             'mobilenet': tf.keras.applications.MobileNet,
             'mobilenet_v2': tf.keras.applications.MobileNetV2,
+            'efficientnet_v2b0': tf.keras.applications.EfficientNetV2B0,
+            'efficientnet_v2b1': tf.keras.applications.EfficientNetV2B1,
+            'efficientnet_v2b2': tf.keras.applications.EfficientNetV2B2,
+            'efficientnet_v2b3': tf.keras.applications.EfficientNetV2B3,
+            'efficientnet_v2s': tf.keras.applications.EfficientNetV2S,
+            'efficientnet_v2m': tf.keras.applications.EfficientNetV2M,
+            'efficientnet_v2l': tf.keras.applications.EfficientNetV2L,
             #'DenseNet': tf.keras.applications.DenseNet,
             #'NASNet': tf.keras.applications.NASNet
         }

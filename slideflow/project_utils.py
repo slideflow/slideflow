@@ -23,7 +23,7 @@ def _heatmap_worker(slide, heatmap_args, kwargs):
     I haven't been able to identify the root cause. Isolating processes when multiple slides are to be processed
     sequentially is a functional workaround, hence the process-isolated worker.
     """
-
+    log.setLevel(heatmap_args.verbosity)
     heatmap = sf.Heatmap(slide,
                         model=heatmap_args.model,
                         stride_div=heatmap_args.stride_div,

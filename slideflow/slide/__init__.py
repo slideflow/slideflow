@@ -1448,9 +1448,7 @@ class WSI(_BaseLoader):
 
             name_msg = sf.util.green(self.shortname)
             num_msg = f'({np.sum(self.tile_mask)} tiles of {len(self.coord)} possible)'
-            log.debug(f"Finished tile extraction for {name_msg} {num_msg}")
-            if not dry_run:
-                print(f"\r\033[KFinished tile extraction for {name_msg} {num_msg}")
+            log.info(f"Finished tile extraction for {name_msg} {num_msg}")
 
         return generator
 
