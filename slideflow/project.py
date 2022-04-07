@@ -373,7 +373,8 @@ class Project:
             eval_dts, labels, unique_labels = _labels
         else:
             eval_dts = dataset
-            labels, unique_labels = {}, []
+            labels = config['outcome_labels'] if sf.backend() == 'torch' else {}
+            unique_labels = list(config['outcome_labels'].values())
 
         # Set max tiles
         eval_dts = eval_dts.clip(max_tiles)

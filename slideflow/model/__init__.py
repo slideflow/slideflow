@@ -236,8 +236,10 @@ class DatasetFeatures:
         if not isinstance(layers, list): layers = [layers]
 
         # Load model
-        #combined_model = sf.model.Features(model, layers=layers, include_logits=include_logits)
-        combined_model = sf.model.tensorflow.UncertaintyInterface(model, layers=layers)
+        if self.hp.uq:
+            combined_model = sf.model.tensorflow.UncertaintyInterface(model, layers=layers)
+        else:
+            combined_model = sf.model.Features(model, layers=layers, include_logits=include_logits)
         self.num_features = combined_model.num_features
         self.num_logits = 0 if not include_logits else combined_model.num_logits
 

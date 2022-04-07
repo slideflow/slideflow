@@ -334,7 +334,10 @@ class Trainer:
         """Loads a state dict at the given model location. Requires that the Trainer's hyperparameters (Trainer.hp)
         match the hyperparameters of the model to be loaded."""
 
-        self.model = self.hp.build_model(labels=self.labels, num_slide_features=self.num_slide_features)
+        if self.labels is not None:
+            self.model = self.hp.build_model(labels=self.labels, num_slide_features=self.num_slide_features)
+        else:
+            self.model = self.hp.build_model(num_classes=len(self.outcome_names), num_slide_features=self.num_slide_features)
         self.model.load_state_dict(torch.load(model))
 
     def predict(self, dataset, batch_size=None, norm_fit=None, format='csv'):
@@ -362,13 +365,13 @@ class Trainer:
         device = torch.device('cuda:0')
         self.model.to(device)
         self.model.eval()
-        log_manifest(None, dataset.tfrecords(), self.labels, join(self.outdir, 'slide_manifest.csv'))
+        log_manifest(None, dataset.tfrecords(), None, join(self.outdir, 'slide_manifest.csv'))
 
         if not batch_size: batch_size = self.hp.batch_size
         interleave_args = types.SimpleNamespace(
             rank=0,
             num_replicas=1,
-            labels=self.labels,
+            labels=None,
             chunk_size=16,
             normalizer=self.normalizer,
             pin_memory=True,

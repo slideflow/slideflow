@@ -164,6 +164,25 @@ def wsi_prediction_tester(project, model):
 
 # -----------------------------------------
 
+def _heatmap_tester(project, model, verbosity, slide):
+    logging.getLogger("slideflow").setLevel(verbosity)
+    with TaskWrapper("Testing heatmap generation...") as test:
+        if slide.lower() == 'auto':
+            dataset = project.dataset()
+            slide_paths = dataset.slide_paths(source='TEST')
+            patient_name = sf.util.path_to_name(slide_paths[0])
+        project.generate_heatmaps(model, filters={sf.util.TCGA.patient: [patient_name]}, roi_method='ignore')
+
+def heatmap_tester(project, model, slide='auto'):
+    ctx = multiprocessing.get_context('spawn')
+    verbosity = logging.getLogger('slideflow').level
+    process = ctx.Process(target=_heatmap_tester, args=(project, model, verbosity, slide))
+    process.start()
+    process.join()
+
+# -----------------------------------------
+
+
 def _clam_feature_generator(project, model, verbosity):
     logging.getLogger("slideflow").setLevel(verbosity)
     outdir = join(project.root, 'clam')
@@ -214,6 +233,50 @@ def reader_tester(project):
         assert len(torch_results)
         assert len(torch_results) == len(tf_results) == dataset.num_tiles
         assert torch_results == tf_results
+
+# -----------------------------------------------
+
+def normalizer_tester(project, args, single, multi):
+    if not len(args):
+        methods = sf.norm.GenericStainNormalizer.normalizers
+    else:
+        methods = args
+    dataset = project.dataset(299, 302)
+
+    if single:
+        with TaskWrapper("Testing normalization single-thread throughput...") as test:
+            if sf.backend() == 'tensorflow':
+                dts = dataset.tensorflow(None, None, standardize=False, infinite=False)
+                raw_img = next(iter(dts))[0].numpy()
+            elif sf.backend() == 'torch':
+                dts = dataset.torch(None, None, standardize=False, infinite=False)
+                raw_img = next(iter(dts))[0].permute(1, 2, 0).numpy()
+            Image.fromarray(raw_img).save(os.path.join(project.root, 'raw_img.png'))
+            for method in methods:
+                gen_norm = sf.norm.autoselect(method, prefer_vectorized=False)
+                vec_norm = sf.norm.autoselect(method, prefer_vectorized=True)
+                print(f"\r\033[kTesting {method} [{sf.util.yellow('SINGLE-thread')}]...", end="")
+                Image.fromarray(gen_norm.rgb_to_rgb(raw_img)).save(os.path.join(project.root, f'{method}.png'))
+                gen_tpt = test_throughput(dts, gen_norm)
+                print(f"\r\033[kTesting {method} [{sf.util.yellow('SINGLE-thread')}]... DONE " + sf.util.blue(f"[{gen_tpt:.1f} img/s]"))
+                if type(vec_norm) != type(gen_norm):
+                    print(f"\r\033[kTesting {method} (vectorized) [{sf.util.yellow('SINGLE-thread')}]...", end="")
+                    Image.fromarray(vec_norm.rgb_to_rgb(raw_img)).save(os.path.join(project.root, f'{method}_vectorized.png'))
+                    vec_tpt = test_throughput(dts, vec_norm)
+                    print(f"\r\033[kTesting {method} (vectorized) [{sf.util.yellow('SINGLE-thread')}]... DONE " + sf.util.blue(f"[{vec_tpt:.1f} img/s]"))
+
+    if multi:
+        with TaskWrapper("Testing normalization multi-thread throughput...") as test:
+            for method in methods:
+                gen_norm = sf.norm.autoselect(method, prefer_vectorized=False)
+                vec_norm = sf.norm.autoselect(method, prefer_vectorized=True)
+                print(f"\r\033[kTesting {method} [{sf.util.purple('MULTI-thread')}]...", end="")
+                gen_tpt = test_multithread_throughput(dataset, gen_norm)
+                print(f"\r\033[kTesting {method} [{sf.util.purple('MULTI-thread')}]... DONE " + sf.util.blue(f"[{gen_tpt:.1f} img/s]"))
+                if type(vec_norm) != type(gen_norm):
+                    print(f"\r\033[kTesting {method} (vectorized) [{sf.util.purple('MULTI-thread')}]...", end="")
+                    vec_tpt = test_multithread_throughput(dataset, vec_norm)
+                    print(f"\r\033[kTesting {method} (vectorized) [{sf.util.purple('MULTI-thread')}]... DONE " + sf.util.blue(f"[{vec_tpt:.1f} img/s]"))
 
 # -----------------------------------------------
 
@@ -499,47 +562,10 @@ class TestSuite:
 
     def test_normalizers(self, *args, single=True, multi=True):
         # Tests throughput of normalizers and saves a single example image with each
-
-        if not len(args):
-            methods = sf.norm.GenericStainNormalizer.normalizers
-        else:
-            methods = args
-        dataset = self.project.dataset(299, 302)
-
-        if single:
-            with TaskWrapper("Testing normalization single-thread throughput...") as test:
-                if sf.backend() == 'tensorflow':
-                    dts = dataset.tensorflow(None, None, standardize=False, infinite=False)
-                    raw_img = next(iter(dts))[0].numpy()
-                elif sf.backend() == 'torch':
-                    dts = dataset.torch(None, None, standardize=False, infinite=False)
-                    raw_img = next(iter(dts))[0].permute(1, 2, 0).numpy()
-                Image.fromarray(raw_img).save(os.path.join(self.project_root, 'raw_img.png'))
-                for method in methods:
-                    gen_norm = sf.norm.autoselect(method, prefer_vectorized=False)
-                    vec_norm = sf.norm.autoselect(method, prefer_vectorized=True)
-                    print(f"\r\033[kTesting {method} [{sf.util.yellow('SINGLE-thread')}]...", end="")
-                    Image.fromarray(gen_norm.rgb_to_rgb(raw_img)).save(os.path.join(self.project_root, f'{method}.png'))
-                    gen_tpt = test_throughput(dts, gen_norm)
-                    print(f"\r\033[kTesting {method} [{sf.util.yellow('SINGLE-thread')}]... DONE " + sf.util.blue(f"[{gen_tpt:.1f} img/s]"))
-                    if type(vec_norm) != type(gen_norm):
-                        print(f"\r\033[kTesting {method} (vectorized) [{sf.util.yellow('SINGLE-thread')}]...", end="")
-                        Image.fromarray(vec_norm.rgb_to_rgb(raw_img)).save(os.path.join(self.project_root, f'{method}_vectorized.png'))
-                        vec_tpt = test_throughput(dts, vec_norm)
-                        print(f"\r\033[kTesting {method} (vectorized) [{sf.util.yellow('SINGLE-thread')}]... DONE " + sf.util.blue(f"[{vec_tpt:.1f} img/s]"))
-
-        if multi:
-            with TaskWrapper("Testing normalization multi-thread throughput...") as test:
-                for method in methods:
-                    gen_norm = sf.norm.autoselect(method, prefer_vectorized=False)
-                    vec_norm = sf.norm.autoselect(method, prefer_vectorized=True)
-                    print(f"\r\033[kTesting {method} [{sf.util.purple('MULTI-thread')}]...", end="")
-                    gen_tpt = test_multithread_throughput(dataset, gen_norm)
-                    print(f"\r\033[kTesting {method} [{sf.util.purple('MULTI-thread')}]... DONE " + sf.util.blue(f"[{gen_tpt:.1f} img/s]"))
-                    if type(vec_norm) != type(gen_norm):
-                        print(f"\r\033[kTesting {method} (vectorized) [{sf.util.purple('MULTI-thread')}]...", end="")
-                        vec_tpt = test_multithread_throughput(dataset, vec_norm)
-                        print(f"\r\033[kTesting {method} (vectorized) [{sf.util.purple('MULTI-thread')}]... DONE " + sf.util.blue(f"[{vec_tpt:.1f} img/s]"))
+        ctx = multiprocessing.get_context('spawn')
+        process = ctx.Process(target=normalizer_tester, args=(self.project, args, single, multi))
+        process.start()
+        process.join()
 
     def test_readers(self):
         ctx = multiprocessing.get_context('spawn')
@@ -547,9 +573,9 @@ class TestSuite:
         process.start()
         process.join()
 
-    def train_perf(self, uq=False, **train_kwargs):
+    def train_perf(self, **train_kwargs):
         with TaskWrapper("Training to single categorical outcome from hyperparameter sweep...") as test:
-            self.setup_hp('categorical', sweep=True, normalizer='reinhard_fast')
+            self.setup_hp('categorical', sweep=True, normalizer='reinhard_fast', uq=False)
             results_dict = self.project.train(exp_label='manual_hp',
                                           outcome_label_headers='category1',
                                           val_k=1,
@@ -657,7 +683,6 @@ class TestSuite:
         with TaskWrapper("Testing prediction from single categorical outcome model...") as test:
             prediction_tester(project=self.project,
                               model=perf_model,
-                              outcome_label_headers='category1',
                               **predict_kwargs)
 
     def test_evaluation(self, **eval_kwargs):
@@ -726,14 +751,7 @@ class TestSuite:
         assert os.path.exists(perf_model)
 
         with TaskWrapper("Testing heatmap generation...") as test:
-            if slide.lower() == 'auto':
-                dataset = self.project.dataset()
-                slide_paths = dataset.slide_paths(source='TEST')
-                patient_name = sf.util.path_to_name(slide_paths[0])
-            self.project.generate_heatmaps(perf_model,
-                                       filters={sf.util.TCGA.patient: [patient_name]},
-                                       roi_method='ignore',
-                                       **heatmap_kwargs)
+            heatmap_tester(self.project, perf_model, slide)
 
     def test_activations_and_mosaic(self, **act_kwargs):
         perf_model = self._get_model('category1-manual_hp-TEST-HPSweep0-kfold1')
