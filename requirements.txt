@@ -1,5 +1,5 @@
 gast>=0.3.3
-tensorflow>=2.7, <2.8.0
+tensorflow>=2.7
 scipy
 sklearn
 matplotlib>=3.2

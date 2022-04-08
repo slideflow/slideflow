@@ -1830,7 +1830,7 @@ class Project:
             min_tiles (int): Minimum number of tiles a slide must have to include in training. Defaults to 0.
             max_tiles (int): Only use up to this many tiles from each slide for training. Defaults to 0.
                 If zero, will include all tiles.
-            multi_gpu (bool): Train using multiple GPUs using Keras MirroredStrategy when available. Defaults to True.
+            multi_gpu (bool): Train using multiple GPUs using Keras MirroredStrategy when available. Defaults to False.
             splits (str, optional): Filename of JSON file in which to log training/validation splits. Looks for
                 filename in project root directory. Defaults to "splits.json".
             balance_headers (str): Str or list of str. Annotation column header(s) specifying labels on which to perform

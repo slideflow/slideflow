@@ -45,6 +45,6 @@ setuptools.setup(
         'tensorboard',
         'crc32c',
         'h5py',
-        'numpy<1.21'
+        'numpy'
     ],
 )
