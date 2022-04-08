@@ -20,6 +20,7 @@ import slideflow as sf
 import slideflow.model.base as _base
 import slideflow.util.neptune_utils
 
+from tensorflow.keras import applications as kapps
 from os.path import join, exists, dirname
 from slideflow.util import log
 from slideflow.model.base import no_scope, log_summary, log_manifest
@@ -47,32 +48,32 @@ class ModelParams(_base._ModelParams):
             'Nadam': tf.keras.optimizers.Nadam
         }
         self.ModelDict = {
-            'xception': tf.keras.applications.Xception,
-            'vgg16': tf.keras.applications.VGG16,
-            'vgg19': tf.keras.applications.VGG19,
-            'resnet50': tf.keras.applications.ResNet50,
-            'resnet101': tf.keras.applications.ResNet101,
-            'resnet152': tf.keras.applications.ResNet152,
-            'resnet50_v2': tf.keras.applications.ResNet50V2,
-            'resnet101_v2': tf.keras.applications.ResNet101V2,
-            'resnet152_v2': tf.keras.applications.ResNet152V2,
-            #'ResNeXt50': tf.keras.applications.ResNeXt50,
-            #'ResNeXt101': tf.keras.applications.ResNeXt101,
-            'inception': tf.keras.applications.InceptionV3,
-            'nasnet_large': tf.keras.applications.NASNetLarge,
-            'inception_resnet_v2': tf.keras.applications.InceptionResNetV2,
-            'mobilenet': tf.keras.applications.MobileNet,
-            'mobilenet_v2': tf.keras.applications.MobileNetV2,
-            'efficientnet_v2b0': tf.keras.applications.EfficientNetV2B0,
-            'efficientnet_v2b1': tf.keras.applications.EfficientNetV2B1,
-            'efficientnet_v2b2': tf.keras.applications.EfficientNetV2B2,
-            'efficientnet_v2b3': tf.keras.applications.EfficientNetV2B3,
-            'efficientnet_v2s': tf.keras.applications.EfficientNetV2S,
-            'efficientnet_v2m': tf.keras.applications.EfficientNetV2M,
-            'efficientnet_v2l': tf.keras.applications.EfficientNetV2L,
-            #'DenseNet': tf.keras.applications.DenseNet,
-            #'NASNet': tf.keras.applications.NASNet
+            'xception': kapps.Xception,
+            'vgg16': kapps.VGG16,
+            'vgg19': kapps.VGG19,
+            'resnet50': kapps.ResNet50,
+            'resnet101': kapps.ResNet101,
+            'resnet152': kapps.ResNet152,
+            'resnet50_v2': kapps.ResNet50V2,
+            'resnet101_v2': kapps.ResNet101V2,
+            'resnet152_v2': kapps.ResNet152V2,
+            'inception': kapps.InceptionV3,
+            'nasnet_large': kapps.NASNetLarge,
+            'inception_resnet_v2': kapps.InceptionResNetV2,
+            'mobilenet': kapps.MobileNet,
+            'mobilenet_v2': kapps.MobileNetV2,
+            #'ResNeXt50': kapps.ResNeXt50,
+            #'ResNeXt101': kapps.ResNeXt101,
+            #'DenseNet': kapps.DenseNet,
+            #'NASNet': kapps.NASNet
         }
+        if hasattr(kapps, 'EfficientNetV2B0'): self.ModelDict.update({'efficientnet_v2b0': kapps.EfficientNetV2B0})
+        if hasattr(kapps, 'EfficientNetV2B1'): self.ModelDict.update({'efficientnet_v2b1': kapps.EfficientNetV2B1})
+        if hasattr(kapps, 'EfficientNetV2B2'): self.ModelDict.update({'efficientnet_v2b2': kapps.EfficientNetV2B2})
+        if hasattr(kapps, 'EfficientNetV2B3'): self.ModelDict.update({'efficientnet_v2b3': kapps.EfficientNetV2B3})
+        if hasattr(kapps, 'EfficientNetV2S'): self.ModelDict.update({'efficientnet_v2s': kapps.EfficientNetV2S})
+        if hasattr(kapps, 'EfficientNetV2M'): self.ModelDict.update({'efficientnet_v2m': kapps.EfficientNetV2M})
+        if hasattr(kapps, 'EfficientNetV2L'): self.ModelDict.update({'efficientnet_v2l': kapps.EfficientNetV2L})
         self.LinearLossDict = {
             'mean_squared_error': tf.keras.losses.mean_squared_error,
             'mean_absolute_error': tf.keras.losses.mean_absolute_error,

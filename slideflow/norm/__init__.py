@@ -140,9 +140,9 @@ class GenericStainNormalizer:
     def tf_to_tf(self, image, *args):
         if isinstance(image, dict):
             image['tile_image'] = tf.py_function(self.tf_to_rgb, [image['tile_image']], tf.int32)
-            return image, *args
+            return tuple([image] + list(args))
         else:
-            return tf.py_function(self.tf_to_rgb, [image], tf.int32), *args
+            return tuple([tf.py_function(self.tf_to_rgb, [image], tf.int32)] + list(args))
 
     def tf_to_rgb(self, image):
         '''Non-normalized tensorflow image array -> normalized RGB numpy array'''

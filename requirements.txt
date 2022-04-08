@@ -27,4 +27,4 @@ tensorboard
 crc32c
 h5py
 numpy
-tensorflow_probability
+tabulate

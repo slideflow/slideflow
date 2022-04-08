@@ -7,8 +7,7 @@ E. Reinhard, M. Adhikhmin, B. Gooch, and P. Shirley, ‘Color transfer between i
 from __future__ import division
 
 import tensorflow as tf
-import tensorflow_probability as tfp
-
+from slideflow.norm.tensorflow.probability import percentile
 from slideflow.norm.tensorflow.reinhard_fast import transform as transform_fast
 from slideflow.norm.tensorflow.reinhard_fast import fit as fit_fast
 
@@ -19,7 +18,7 @@ def standardize_brightness(I):
     :param I:
     :return:
     """
-    p = tfp.stats.percentile(I, 90) #p = np.percentile(I, 90)
+    p = percentile(I, 90) #p = np.percentile(I, 90)
     p = tf.cast(p, tf.float32)
     return tf.cast(tf.experimental.numpy.clip(tf.cast(I, tf.float32) * tf.constant(255.0, dtype=tf.float32) / p, 0, 255), tf.uint8) #np.clip(I * 255.0 / p, 0, 255).astype(np.uint8)
 

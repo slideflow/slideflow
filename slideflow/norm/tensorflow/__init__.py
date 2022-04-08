@@ -130,9 +130,9 @@ class TensorflowStainNormalizer(GenericStainNormalizer):
             if isinstance(batch, dict):
                 to_return = {k:v for k,v in batch.items() if k != 'tile_image'}
                 to_return['tile_image'] = self.tf_to_tf(batch['tile_image'])
-                return to_return, *args
+                return tuple([to_return] + list(args))
             else:
-                return self.tf_to_tf(batch), *args
+                return tuple([self.tf_to_tf(batch)] + list(args))
 
     @tf.function
     def tf_to_tf(self, image):

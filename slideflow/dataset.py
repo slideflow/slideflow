@@ -634,24 +634,23 @@ class Dataset:
 
                 # Worker to grab slide path from queue and start tile extraction
                 def worker():
-                    while True:
-                        try:
-                            path = q.get()
-                            if num_workers > 1:
-                                process = ctx.Process(target=_tile_extractor, args=(path,), kwargs=extraction_kwargs)
-                                process.start()
-                                process.join()
-                            else:
-                                _tile_extractor(path, **extraction_kwargs)
-                            if buffer:
-                                os.remove(path)
+                    while not task_finished:
+                        path = q.get()
+                        if path is None:
                             q.task_done()
-                        except queue.Empty:
-                            if task_finished:
-                                return
+                            break
+                        if num_workers > 1:
+                            process = ctx.Process(target=_tile_extractor, args=(path,), kwargs=extraction_kwargs)
+                            process.start()
+                            process.join()
+                        else:
+                            _tile_extractor(path, **extraction_kwargs)
+                        if buffer:
+                            os.remove(path)
+                        q.task_done()
 
                 # Start the worker threads
-                threads = [threading.Thread(target=worker, daemon=True) for t in range(num_workers)]
+                threads = [threading.Thread(target=worker) for _ in range(num_workers)]
                 for thread in threads:
                     thread.start()
 
@@ -677,8 +676,11 @@ class Dataset:
                                 time.sleep(1)
                     else:
                         q.put(slide_path)
+                q.put(None)
                 q.join()
                 task_finished = True
+                for thread in threads:
+                    thread.join()
                 if pb: pb.end()
                 if report:
                     log.info('Generating PDF (this may take some time)...', )
@@ -706,10 +708,10 @@ class Dataset:
                     with open(join(pdf_dir, f'warn_report-{timestring}.txt'), 'w') as warn_f:
                         warn_f.write(pdf_report.warn_txt)
 
-            # Update manifest & rebuild indices
-            self.update_manifest()
-            self.build_index(True)
-            return pdf_report
+        # Update manifest & rebuild indices
+        self.update_manifest(force_update=True)
+        self.build_index(True)
+        return pdf_report
 
     def extract_tiles_from_tfrecords(self, dest):
         """Extracts tiles from a set of TFRecords.

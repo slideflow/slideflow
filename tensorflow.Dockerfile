@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM tensorflow/tensorflow:2.7.0-gpu
+FROM tensorflow/tensorflow:2.8.0-gpu
 
 # Install necessary packages
 RUN apt update && \

@@ -103,9 +103,9 @@ def process_image(record, *args, standardize=False, augment=False, size=None):
     if isinstance(record, dict):
         to_return = {k:v for k,v in record.items() if k != 'tile_image'}
         to_return['tile_image'] = image
-        return to_return, *args
+        return tuple([to_return] + list(args))
     else:
-        return image, *args
+        return tuple([image] + list(args))
 
 @tf.function
 def decode_image(img_string, img_type, size=None):

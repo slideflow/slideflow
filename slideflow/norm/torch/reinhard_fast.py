@@ -1,12 +1,12 @@
-import kornia
 import torch
+from slideflow.norm.torch import color
 
 def lab_split(I):
     '''Convert from RGB uint8 to LAB and split into channels'''
 
     I = I.float()
     I /= 255
-    I = kornia.color.rgb_to_lab(I.permute(0,3,1,2)).permute(0, 2, 3, 1) # BWHC -> BCWH -> BWHC
+    I = color.rgb_to_lab(I.permute(0,3,1,2)).permute(0, 2, 3, 1) # BWHC -> BCWH -> BWHC
     I1, I2, I3 = torch.unbind(I, dim=-1)
     return I1, I2, I3
 
@@ -14,7 +14,7 @@ def merge_back(I1, I2, I3):
     '''Take separate LAB channels and merge back to RGB uint8'''
 
     I = torch.stack((I1, I2, I3), dim=-1)
-    I = kornia.color.lab_to_rgb(I.permute(0,3,1,2), clip=False).permute(0,2,3,1) * 255 # BWHC -> BCWH -> BWHC
+    I = color.lab_to_rgb(I.permute(0,3,1,2), clip=False).permute(0,2,3,1) * 255 # BWHC -> BCWH -> BWHC
     return I
 
 def get_mean_std(I1, I2, I3, reduce=False):

@@ -7,7 +7,6 @@ import torch
 import threading
 import multiprocessing as mp
 import slideflow as sf
-import kornia
 
 from os import listdir
 from tqdm import tqdm

@@ -86,9 +86,9 @@ class TorchStainNormalizer:
         if isinstance(batch, dict):
             to_return = {k:v for k,v in batch.items() if k != 'tile_image'}
             to_return['tile_image'] = self.torch_to_torch(batch['tile_image'])
-            return to_return, *args
+            return tuple([to_return] + list(args))
         else:
-            return self.torch_to_torch(batch), *args
+            return tuple([self.torch_to_torch(batch)] + list(args))
 
     def torch_to_torch(self, image):
         if len(image.shape) == 3:

@@ -210,7 +210,6 @@ def reader_tester(project):
             tf_results += [hash(str(img.numpy())) for img in images]
         tf_results = sorted(tf_results)
 
-        assert len(torch_results)
         assert len(torch_results) == len(tf_results) == dataset.num_tiles
         assert torch_results == tf_results
 
