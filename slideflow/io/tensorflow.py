@@ -1,7 +1,7 @@
 import imghdr
 import os
 import shutil
-import logging
+import tensorflow as tf
 import slideflow as sf
 import numpy as np
 
@@ -14,11 +14,6 @@ from random import shuffle, randint
 from slideflow.util import log
 from slideflow import errors
 from glob import glob
-
-logging.getLogger("tensorflow").setLevel(logging.ERROR)
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-
-import tensorflow as tf
 
 FEATURE_DESCRIPTION_LEGACY =  {'slide':    tf.io.FixedLenFeature([], tf.string),
                                'image_raw':tf.io.FixedLenFeature([], tf.string)}

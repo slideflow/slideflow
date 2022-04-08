@@ -1103,6 +1103,7 @@ class Features:
         self.path = path
         self.num_logits = 0
         self.num_features = 0
+        self.num_uncertainty = 0
         self.mixed_precision = mixed_precision
         self.activation = {}
         self.layers = layers

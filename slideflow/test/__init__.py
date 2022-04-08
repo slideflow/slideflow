@@ -388,9 +388,14 @@ class TestSuite:
         '''Initialize testing models.'''
 
         # Set logging level
-        os.environ['TF_CPP_MIN_LOG_LEVEL'] = "3"
-        logging.getLogger("tensorflow").setLevel(logging.ERROR)
         logging.getLogger("slideflow").setLevel(verbosity)
+        # Set the tensorflow logger
+        if logging.getLogger('slideflow').level == logging.DEBUG:
+            logging.getLogger('tensorflow').setLevel(logging.DEBUG)
+            os.environ['TF_CPP_MIN_LOG_LEVEL'] = '0'
+        else:
+            logging.getLogger('tensorflow').setLevel(logging.ERROR)
+            os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
         self.verbosity = verbosity
         TaskWrapper.VERBOSITY = verbosity
 

@@ -26,9 +26,6 @@ try:
 except ImportError: # git is not needed for pypi distribution
     git = None
 
-logging.getLogger('tensorflow').setLevel(logging.ERROR)
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-
 class Project:
     """Assists with project / dataset organization and execution of pipeline functions.
 

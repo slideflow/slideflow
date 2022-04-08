@@ -1,11 +1,20 @@
 """Utility functions for Project, including functions for use in isolated processes."""
 import os
-import csv
 import types
+import logging
 import slideflow as sf
-import importlib.util
 from os.path import join, exists
 from slideflow.util import log
+
+# Set the tensorflow logger
+if logging.getLogger('slideflow').level == logging.DEBUG:
+    logging.getLogger('tensorflow').setLevel(logging.DEBUG)
+    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '0'
+else:
+    logging.getLogger('tensorflow').setLevel(logging.ERROR)
+    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+
+# --- Project utility functions ---------------------------------------------------------------------------------------
 
 def _project_config(name='MyProject', annotations='./annotations.csv', dataset_config='./datasets.json',
                     sources=None, models_dir='./models', eval_dir='./eval'):
