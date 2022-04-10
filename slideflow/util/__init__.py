@@ -3,22 +3,18 @@ import json
 import csv
 import time
 import os
-import io
 import shutil
 import threading
 import logging
-import cv2
-#import multiprocessing_logging
 import importlib
-
 import multiprocessing as mp
 import numpy as np
-import slideflow as sf
-
 from glob import glob
 from os.path import join, isdir, exists, dirname
-from PIL import Image
 from tqdm import tqdm
+
+import slideflow as sf
+from slideflow import errors
 
 # TODO: re-enable logging with maximum log file size
 
@@ -27,7 +23,7 @@ try:
     import ctypes
     kernel32 = ctypes.windll.kernel32
     kernel32.SetConsoleMode(kernel32.GetStdHandle(-11), 7)
-except:
+except Exception:
     pass
 # ------
 
@@ -53,7 +49,7 @@ if 'SF_LOGGING_LEVEL' in os.environ:
     try:
         intLevel = int(os.environ['SF_LOGGING_LEVEL'])
         log.setLevel(intLevel)
-    except:
+    except ValueError:
         pass
 else:
     log.setLevel(logging.INFO)
@@ -102,7 +98,7 @@ class TqdmLoggingHandler(logging.StreamHandler):
             tqdm.write(msg, end=self.terminator)
         except RecursionError:
             raise
-        except:
+        except Exception:
             print(f"problems with msg {record}")
             self.handleError(record)
 
@@ -433,7 +429,7 @@ def choice_input(prompt, valid_choices, default=None, multi_choice=False, input_
         elif multi_choice:
             try:
                 response = [input_type(r) for r in response.replace(" ", "").split(',')]
-            except:
+            except ValueError:
                 print(f"Invalid selection (response: {response})")
                 continue
             invalid = [r not in valid_choices for r in response]
@@ -495,8 +491,7 @@ def get_model_config(model_path):
                         "Please move params.json into model folder.")
         config = load_json(join(dirname(model_path), 'params.json'))
     else:
-        log.warning("Hyperparameters file not found.")
-        return None
+        raise errors.ModelParamsNotFoundError
 
     # Compatibility for pre-1.1
     if 'norm_mean' in config:

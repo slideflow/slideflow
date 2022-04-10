@@ -218,14 +218,17 @@ def _wsi_extraction_worker(c, args):
                     image = normalizer.jpeg_to_jpeg(image)
                 else:
                     raise ValueError(f"Unknown image format {args.img_format}")
-            except: return # The image could not be normalized, which happens when a tile is primarily one solid color
+            except Exception:
+                return None # The image could not be normalized, which happens when a tile is primarily one solid color
     else:
         image = vips2numpy(region)  # Read regions into memory and convert to numpy arrays
 
         # Apply normalization
         if normalizer:
-            try:    image = normalizer.rgb_to_rgb(image)
-            except: return # The image could not be normalized, which happens when a tile is primarily one solid color
+            try:
+                image = normalizer.rgb_to_rgb(image)
+            except Exception:
+                return None# The image could not be normalized, which happens when a tile is primarily one solid color
 
     # Include ROI / bounding box processing.
     # Used to visualize ROIs on extracted tiles, or to generate YoloV5 labels.
@@ -606,7 +609,7 @@ class _VIPSWrapper:
                 max_downsample = d
         try:
             max_level = self.level_downsamples.index(max_downsample)
-        except:
+        except Exception:
             return 0
         return max_level
 
@@ -988,7 +991,7 @@ class _BaseLoader:
             return False
         try:
             loaded_correctly = bool(self.shape)
-        except:
+        except ValueError:
             return False
         return loaded_correctly
 
@@ -1091,7 +1094,7 @@ class _BaseLoader:
         if tfrecord_dir or tiles_dir:
             try:
                 os.remove(unfinished_marker)
-            except:
+            except OSError:
                 log.error(f"Unable to mark slide {self.name} as tile extraction complete")
 
         # Generate extraction report
@@ -1361,9 +1364,8 @@ class WSI(_BaseLoader):
 
         # Detect CPU cores if num_threads not specified
         if num_threads is None:
-            try:
-                num_threads = os.cpu_count()
-            except:
+            num_threads = os.cpu_count()
+            if num_threads is None:
                 num_threads = 8
 
         # Shuffle coordinates to randomize extraction order
@@ -1503,7 +1505,7 @@ class WSI(_BaseLoader):
                 index_name = headers.index("roi_name")
                 index_x = headers.index("x_base")
                 index_y = headers.index("y_base")
-            except:
+            except Exception:
                 log.error(f'Unable to read CSV ROI file {sf.util.green(path)}, please check file integrity and ' + \
                                 'ensure headers contain "ROI_name", "X_base", and "Y_base".')
                 self.load_error = True
@@ -1804,16 +1806,8 @@ class TMA(_BaseLoader):
 
         # Detect CPU cores if num_threads not specified
         if num_threads is None:
-            try:
-                num_threads = os.cpu_count()
-            except:
-                num_threads = 8
-
-        # Detect CPU cores if num_threads not specified
-        if num_threads is None:
-            try:
-                num_threads = os.cpu_count()
-            except:
+            num_threads = os.cpu_count()
+            if num_threads is None:
                 num_threads = 8
 
         # Shuffle TMAs
@@ -1893,7 +1887,7 @@ class TMA(_BaseLoader):
                             if normalizer:
                                 try:
                                     subtile = normalizer.rgb_to_rgb(subtile)
-                                except:
+                                except Exception:
                                     # The image could not be normalized, which happens when
                                     # a tile is primarily one solid color (background)
                                     continue

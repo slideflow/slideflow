@@ -591,7 +591,7 @@ class SlideMap:
                 with open(self.cache, 'wb') as cache_file:
                     pickle.dump([self.x, self.y, self.point_meta, self.map_meta], cache_file)
                     log.info(f"Wrote UMAP cache to {sf.util.green(self.cache)}")
-            except:
+            except Exception:
                 log.info(f"Error attempting to write UMAP cache to {sf.util.green(self.cache)}")
 
     def load_cache(self):
@@ -640,12 +640,6 @@ def _get_average_by_group(prediction_array, prediction_label, unique_groups, til
     group_uncertainty = {g:np.array(u) for g,u in group_uncertainty.items()}
 
     if uncertainty is not None:
-        #log.info(f'Using uncertainty weighting for {label}-level predictions')
-        #try:
-        #    group_percents = {g:np.average(np.array(groups[g]), weights=(((group_uncertainty[g] - group_uncertainty[g].max()) * -1) + group_uncertainty[g].min() + 0.1)**2, axis=0) for g in unique_groups}
-        #except:
-        #    log.error("Error with weighted predictions; calculation without weighting")
-        #    group_percents = {g:np.average(np.array(groups[g]), axis=0) for g in unique_groups}
         group_percents = {g:np.average(np.array(groups[g]), axis=0) for g in unique_groups}
         uncertainty_by_group = [np.array(group_uncertainty[g]).mean(axis=0) for g in unique_groups]
     else:
@@ -1024,7 +1018,7 @@ def generate_roc(y_true, y_pred, save_dir=None, name='ROC', neptune_run=None):
     # Calculate optimal cutoff via maximizing Youden's J statistic (sens+spec-1, or TPR - FPR)
     try:
         optimal_threshold = threshold[list(zip(tpr,fpr)).index(max(zip(tpr,fpr), key=lambda x: x[0]-x[1]))]
-    except:
+    except Exception:
         optimal_threshold = -1
 
     # Plot

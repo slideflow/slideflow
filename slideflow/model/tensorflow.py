@@ -1335,12 +1335,7 @@ class Features:
         log.debug('Setting up Features interface')
         if path is not None:
             self._model = tf.keras.models.load_model(self.path)
-            try:
-                config = sf.util.get_model_config(path)
-            except:
-                log.warning(f"Unable to find configuration for model {path}; unable to determine normalization " + \
-                            "strategy for WSI processing.")
-
+            config = sf.util.get_model_config(path)
             self.hp = sf.model.ModelParams()
             self.hp.load_dict(config['hp'])
             self.wsi_normalizer = self.hp.get_normalizer()

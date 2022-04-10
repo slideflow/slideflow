@@ -187,7 +187,7 @@ def reader_tester(project):
         try:
             import tensorflow as tf
             import torch
-        except:
+        except ImportError:
             log.warning("Unable to import both tensorflow and pytorch, will skip TFRecord reading test")
             test.skip()
             return
@@ -761,7 +761,7 @@ class TestSuite:
         try:
             skip_test = False
             import torch
-        except:
+        except ImportError:
             log.warning("Unable to import both tensorflow and pytorch, will skip TFRecord reading test")
             skip_test = True
 

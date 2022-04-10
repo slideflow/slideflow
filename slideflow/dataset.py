@@ -603,9 +603,8 @@ class Dataset:
                 if num_workers == 1:
                     # Detect CPU cores if num_threads not specified
                     if 'num_threads' not in kwargs:
-                        try:
-                            num_threads = os.cpu_count()
-                        except:
+                        num_threads = os.cpu_count()
+                        if num_threads is None:
                             num_threads = 8
                     else:
                         num_threads = kwargs['num_threads']
@@ -1684,9 +1683,7 @@ class Dataset:
         # First, load all patient names from the annotations file
         try:
             patient_index = header.index(TCGA.patient)
-        except:
-            err_msg = f"Patient header {TCGA.patient} not found in annotations file."
-            log.error(err_msg)
+        except ValueError:
             raise errors.AnnotationsError(f"Patient header {TCGA.patient} not found in annotations file.")
         patients = []
         patient_slide_dict = {}
@@ -1749,17 +1746,7 @@ class Dataset:
                 # otherwise create new column
                 try:
                     slide_index = header.index(TCGA.slide)
-                    csv_writer.writerow(header)
-                    for row in csv_reader:
-                        patient = row[patient_index]
-                        # Only write column if no slide is documented in the annotation
-                        if (patient in patient_slide_dict) and (row[slide_index] == ''):
-                            row[slide_index] = patient_slide_dict[patient]
-                            num_updated_annotations += 1
-                        elif (patient not in patient_slide_dict) and (row[slide_index] == ''):
-                            num_missing += 1
-                        csv_writer.writerow(row)
-                except:
+                except ValueError:
                     header.extend([TCGA.slide])
                     csv_writer.writerow(header)
                     for row in csv_reader:
@@ -1769,6 +1756,17 @@ class Dataset:
                             num_updated_annotations += 1
                         else:
                             row.extend([""])
+                            num_missing += 1
+                        csv_writer.writerow(row)
+                else:
+                    csv_writer.writerow(header)
+                    for row in csv_reader:
+                        patient = row[patient_index]
+                        # Only write column if no slide is documented in the annotation
+                        if (patient in patient_slide_dict) and (row[slide_index] == ''):
+                            row[slide_index] = patient_slide_dict[patient]
+                            num_updated_annotations += 1
+                        elif (patient not in patient_slide_dict) and (row[slide_index] == ''):
                             num_missing += 1
                         csv_writer.writerow(row)
         if num_updated_annotations:

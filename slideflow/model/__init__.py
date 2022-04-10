@@ -521,14 +521,14 @@ class DatasetFeatures:
 
         try:
             pt_sorted_features = sorted(range(self.num_features), key=lambda f: pt_feature_stats[f]['p'])
-        except:
+        except Exception:
             log.warning('No stats calculated; unable to sort features.')
 
         for f in range(self.num_features):
             try:
                 log.debug(f"Tile-level P-value ({f}): {tile_feature_stats[f]['p']}")
                 log.debug(f"Patient-level P-value: ({f}): {pt_feature_stats[f]['p']}")
-            except:
+            except Exception:
                 log.warning(f'No stats calculated for feature {f}')
 
         # Export results

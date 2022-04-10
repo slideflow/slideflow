@@ -666,7 +666,7 @@ class Trainer:
                 config_path = join(self.outdir, 'params.json')
                 config = sf.util.load_json(config_path)
                 config['neptune_id'] = self.neptune_run['sys/id'].fetch()
-            except:
+            except Exception:
                 log.info("Unable to log model parameters file (params.json) with Neptune.")
 
         # Build model
@@ -1111,11 +1111,7 @@ class Features:
         self.device = device if device is not None else torch.device('cuda')
 
         if path is not None:
-            try:
-                config = sf.util.get_model_config(path)
-            except:
-                raise errors.FeaturesError(f"Unable to find configuration for model {path}")
-
+            config = sf.util.get_model_config(path)
             self.hp = ModelParams()
             self.hp.load_dict(config['hp'])
             self.wsi_normalizer = self.hp.get_normalizer()

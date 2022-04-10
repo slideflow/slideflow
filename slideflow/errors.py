@@ -1,5 +1,4 @@
-from slideflow.util import log
-
+'''Slideflow module errors.'''
 
 # --- CPLEX errors ----------------------------------------------------------------------------------------------------
 
@@ -135,3 +134,9 @@ class UserError(Exception):
 class TileCorruptionError(Exception):
     '''Raised when image normalization fails due to tile corruption.'''
     pass
+
+# --- Other errors ----------------------------------------------------------------------------------------------------
+
+class ModelParamsNotFoundError(Exception):
+    def __init__(self):
+        super().__init__('Model parameters file (params.json) not found.')

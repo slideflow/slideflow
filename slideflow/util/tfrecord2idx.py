@@ -31,7 +31,7 @@ def create_index(tfrecord_file: str, index_file: str) -> None:
             infile.read(proto_len)
             infile.read(4)
             outfile.write(str(current) + " " + str(infile.tell() - current) + "\n")
-        except:
+        except Exception:
             print("Failed to parse TFRecord.")
             break
     infile.close()

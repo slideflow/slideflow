@@ -95,7 +95,7 @@ def get_tfrecord_by_index(tfrecord, index, decode=True):
     if type(index) != int:
         try:
             index = int(index)
-        except:
+        except ValueError:
             raise IndexError(f"index must be an integer, not {type(index)} (provided {index}).")
 
     dataset = TFRecordDataset(tfrecord)
@@ -215,7 +215,7 @@ def read_tfrecord_length(tfrecord):
             infile.read(proto_len)
             infile.read(4)
             num_records += 1
-        except:
+        except Exception:
             log.error(f"Failed to parse TFRecord at {tfrecord}")
             infile.close()
             return None

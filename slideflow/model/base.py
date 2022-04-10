@@ -214,7 +214,7 @@ class _ModelParams:
                 log.error(f'Unrecognized hyperparameter {key}; unable to load')
             try:
                 setattr(self, key, value)
-            except:
+            except Exception:
                 log.error(f'Error setting hyperparameter {key} to {value}; unable to hyperparameters')
 
     def __str__(self):

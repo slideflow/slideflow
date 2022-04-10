@@ -337,8 +337,6 @@ class Project:
             config = sf.util.load_json(model_config)
         else:
             config = sf.util.get_model_config(model)
-            if not config:
-                raise OSError(f"Unable to find configuration file for model {model}.")
         hp = sf.model.ModelParams()
         hp.load_dict(config['hp'])
         model_name = f"eval-{basename(model)}"
@@ -447,7 +445,7 @@ class Project:
         if git is not None:
             try:
                 git_commit = git.Repo(search_parent_directories=True).head.object.hexsha
-            except:
+            except Exception:
                 pass
 
         eval_config = {
@@ -969,8 +967,6 @@ class Project:
 
         # First, ensure the model is valid with a hyperparameters file
         config = sf.util.get_model_config(model)
-        if not config:
-            raise errors.ModelParamsError('Unable to find model hyperparameters file.')
         tile_px = config['tile_px']
         tile_um = config['tile_um']
 
@@ -1084,10 +1080,8 @@ class Project:
         heatmap_args.verbosity=self.verbosity
 
         # Attempt to auto-detect supplied model name
-        config = sf.util.get_model_config(model)
         detected_model_name = os.path.basename(model)
-        config = sf.util.get_model_config(model)
-        if config and 'model_name' in config:
+        if 'model_name' in config:
             detected_model_name = config['model_name']
 
         # Make output directory
@@ -1174,7 +1168,7 @@ class Project:
                                        filters=filters,
                                        filter_blank=filter_blank)
         else:
-            if config and (dataset.tile_px != config['hp']['tile_px'] or dataset.tile_um != config['hp']['tile_um']):
+            if (dataset.tile_px != config['hp']['tile_px'] or dataset.tile_um != config['hp']['tile_um']):
                 raise errors.DatasetError(f"Dataset tile size ({dataset.tile_px}px, {dataset.tile_um}um) does not " + \
                                           f"match model ({config['hp']['tile_px']}px, {config['hp']['tile_um']}um)")
             if filters is not None or filter_blank is not None:
@@ -1200,13 +1194,9 @@ class Project:
 
         # If showing predictions, try to automatically load prediction labels
         if (show_prediction is not None) and (not use_float):
-            model_hp = sf.util.get_model_config(df.model)
-            if model_hp:
-                outcome_labels = model_hp['outcome_labels']
-                model_type = model_type if model_type else model_hp['model_type']
-                log.info(f'Automatically loaded prediction labels found at {sf.util.green(df.model)}')
-            else:
-                log.info(f'Unable to auto-detect prediction labels from model hyperparameters file')
+            outcome_labels = config['outcome_labels']
+            model_type = model_type if model_type else config['model_type']
+            log.info(f'Automatically loaded prediction labels found at {sf.util.green(df.model)}')
 
         # Initialize mosaic, umap
         mosaic, umap = None, None
@@ -1738,7 +1728,7 @@ class Project:
                                        filter_blank=filter_blank,
                                        verification='slides')
         else:
-            if config and (dataset.tile_px != config['hp']['tile_px'] or dataset.tile_um != config['hp']['tile_um']):
+            if (dataset.tile_px != config['hp']['tile_px'] or dataset.tile_um != config['hp']['tile_um']):
                 raise ValueError(f"Dataset tile size ({dataset.tile_px}px, {dataset.tile_um}um) does not match " + \
                                  f"model ({config['hp']['tile_px']}px, {config['hp']['tile_um']}um)")
             if filters is not None or filter_blank is not None:
@@ -2125,7 +2115,7 @@ class Project:
                 if git is not None:
                     try:
                         git_commit = git.Repo(search_parent_directories=True).head.object.hexsha
-                    except:
+                    except Exception:
                         pass
 
                 # Log model settings and hyperparameters
