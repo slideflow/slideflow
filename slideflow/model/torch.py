@@ -393,7 +393,7 @@ class Trainer:
                                                                       dataset=torch_dataset,
                                                                       model_type=self._model_type,
                                                                       pred_args=pred_args)
-        df = sf.stats.predictions_to_dataframe(None, y_pred, tile_to_slides, self.outcome_names, uncertainty=y_std)
+        df = sf.stats.pred_to_df(None, y_pred, tile_to_slides, self.outcome_names, uncertainty=y_std)
 
         if format.lower() == 'csv':
             save_path = os.path.join(self.outdir, "tile_predictions.csv")

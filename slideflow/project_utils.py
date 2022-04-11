@@ -53,27 +53,11 @@ def _heatmap_worker(slide, heatmap_args, kwargs):
     heatmap.save(heatmap_args.outdir, **kwargs)
 
 
-def _train_worker(training_args, model_kwargs, training_kwargs, results_dict):
+def _train_worker(model_kwargs, training_kwargs, results_dict, verbosity):
     """Internal function to execute model training in an isolated process."""
-
-    log.setLevel(training_args.verbosity)
-    # Build a model using the slide list as input
-    # and the annotations dictionary as output labels
-    trainer = sf.model.trainer_from_hp(
-        training_args.hp,
-        outdir=training_args.model_dir,
-        labels=training_args.labels,
-        patients=training_args.patients,
-        slide_input=training_args.slide_input,
-        config=training_args.config,
-        use_neptune=training_args.use_neptune,
-        neptune_api=training_args.neptune_api,
-        neptune_workspace=training_args.neptune_workspace,
-        **model_kwargs
-    )
-    results = trainer.train(training_args.train_dts,
-                            training_args.val_dts,
-                            **training_kwargs)
+    log.setLevel(verbosity)
+    trainer = sf.model.trainer_from_hp(**model_kwargs)
+    results = trainer.train(**training_kwargs)
     results_dict.update({model_kwargs['name']: results})
 
 

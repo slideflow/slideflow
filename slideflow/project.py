@@ -552,25 +552,26 @@ class Project:
 
         # --- Prepare k-fold validation configuration ---------------------
         results_log_path = os.path.join(self.root, 'results_log.csv')
-        k_iter = val_settings.k
         k_header = val_settings.k_fold_header
-        if k_iter is not None and not isinstance(k_iter, list):
-            k_iter = [k_iter]
+        if val_settings.k is not None and not isinstance(val_settings.k, list):
+            val_settings.k = [val_settings.k]
         if val_settings.strategy == 'k-fold-manual':
             _, valid_k = dataset.labels(k_header, format='name')
             valid_k = [int(kf) for kf in valid_k]
             k_fold = len(valid_k)
             log.info(f"Manual k-folds detected: {', '.join(valid_k)}")
-            if k_iter:
-                valid_k = [kf for kf in valid_k if kf in k_iter]
+            if val_settings.k:
+                valid_k = [kf for kf in valid_k if kf in val_settings.k]
         elif val_settings.strategy in ('k-fold',
                                        'k-fold-preserved-site',
                                        'bootstrap'):
             k_fold = val_settings.k_fold
-            if k_iter is None:
+            if val_settings.k is None:
                 valid_k = list(range(1, k_fold+1))
             else:
-                valid_k = [kf for kf in range(1, k_fold+1) if kf in k_iter]
+                valid_k = [
+                    kf for kf in range(1, k_fold+1) if kf in val_settings.k
+                ]
         else:
             k_fold = 0
             valid_k = [None]
@@ -755,34 +756,32 @@ class Project:
             'hp': hp.get_dict(),
             'training_kwargs': s_args.training_kwargs,
         }
-        training_args = types.SimpleNamespace(
-            model_dir=model_dir,
-            hp=hp,
-            config=config,
-            labels=s_args.labels,
-            patients=dataset.patients(),
-            slide_input=slide_inp,
-            train_dts=train_dts,
-            val_dts=val_dts,
-            verbosity=self.verbosity,
-            use_neptune=self.use_neptune,
-            neptune_api=self.neptune_api,
-            neptune_workspace=self.neptune_workspace,
-        )
+        s_args.training_kwargs.update({
+            'train_dts': train_dts,
+            'val_dts': val_dts
+        })
         model_kwargs = {
+            'hp': hp,
             'name': full_name,
             'manifest': manifest,
             'feature_names': s_args.input_header,
             'feature_sizes': feature_sizes,
             'outcome_names': s_args.outcomes,
-            'mixed_precision': s_args.mixed_precision
+            'outdir': model_dir,
+            'config': config,
+            'patients': dataset.patients(),
+            'slide_input': slide_inp,
+            'labels': s_args.labels,
+            'mixed_precision': s_args.mixed_precision,
+            'use_neptune': self.use_neptune,
+            'neptune_api': self.neptune_api,
+            'neptune_workspace': self.neptune_workspace,
         }
-
         process = s_args.ctx.Process(target=project_utils._train_worker,
-                                     args=(training_args,
-                                           model_kwargs,
+                                     args=(model_kwargs,
                                            s_args.training_kwargs,
-                                           s_args.results_dict))
+                                           s_args.results_dict,
+                                           self.verbosity))
         process.start()
         log.debug(f'Spawning training process (PID: {process.pid})')
         process.join()
@@ -2130,7 +2129,6 @@ class Project:
                 include in training. Defaults to 0.
             max_tiles (int): Only use up to this many tiles from each slide for
                 training. Defaults to 0 (include all tiles).
-
             splits (str, optional): Filename of JSON file in which to log
                 train/val splits. Looks for filename in project root directory.
                 Defaults to "splits.json".

@@ -8,6 +8,7 @@ import shapely.geometry as sg
 
 from slideflow import errors
 from slideflow.util import log
+from slideflow.util import colors as col
 from slideflow.util.fastim import FastImshow
 from matplotlib.widgets import Slider
 

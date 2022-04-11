@@ -874,7 +874,7 @@ class Trainer:
                                                                       model_type=self._model_type,
                                                                       pred_args=pred_args,
                                                                       num_tiles=dataset.num_tiles)
-        df = sf.stats.predictions_to_dataframe(None, y_pred, tile_to_slides, self.outcome_names, uncertainty=y_std)
+        df = sf.stats.pred_to_df(None, y_pred, tile_to_slides, self.outcome_names, uncertainty=y_std)
 
         if format.lower() == 'csv':
             save_path = os.path.join(self.outdir, "tile_predictions.csv")
@@ -942,10 +942,12 @@ class Trainer:
                 raise errors.UserError(msg)
 
             drop_images = ((self.hp.tile_px == 0) or self.hp.drop_images)
-            metrics = sf.stats.permutation_feature_importance(feature_names=self.feature_names,
-                                                              feature_sizes=self.feature_sizes,
-                                                              drop_images=drop_images,
-                                                              **metric_kwargs)
+            metrics = sf.stats.permute_importance(
+                feature_names=self.feature_names,
+                feature_sizes=self.feature_sizes,
+                drop_images=drop_images,
+                **metric_kwargs
+            )
         else:
             pred_args = types.SimpleNamespace(loss=self.hp.get_loss(), uq=bool(self.hp.uq))
             metrics, acc, loss = sf.stats.metrics_from_dataset(histogram=histogram,
