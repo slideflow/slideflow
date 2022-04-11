@@ -138,7 +138,7 @@ If you plan to use ``run_project.py``, open the ``actions.py`` file located in t
         #)
 
         #model = '/path_to_model/'
-        #P.evaluate(model, outcome_label_headers="category", filters={'dataset': 'eval'})
+        #P.evaluate(model, outcomes="category", filters={'dataset': 'eval'})
         #P.generate_heatmaps(model_to_evaluate)
         pass
 

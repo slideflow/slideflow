@@ -11,18 +11,17 @@ import shutil
 import types
 import inspect
 import atexit
-
 warnings.filterwarnings('ignore')
-
 import numpy as np
 import tensorflow as tf
+from os.path import join, exists, dirname
+from tensorflow.keras import applications as kapps
+
 import slideflow as sf
 import slideflow.model.base as _base
 import slideflow.util.neptune_utils
-
-from tensorflow.keras import applications as kapps
-from os.path import join, exists, dirname
 from slideflow.util import log
+from slideflow.util import colors as col
 from slideflow.model.base import no_scope, log_summary, log_manifest
 from slideflow.model.tensorflow_utils import *
 from slideflow import errors
@@ -182,7 +181,7 @@ class ModelParams(_base._ModelParams):
         """Builds the base image model, from a Keras model core, with the appropriate input tensors and identity layers."""
         image_shape = (self.tile_px, self.tile_px, 3)
         tile_input_tensor = tf.keras.Input(shape=image_shape, name='tile_image')
-        if pretrain: log.info(f'Using pretraining from {sf.util.green(pretrain)}')
+        if pretrain: log.info(f'Using pretraining from {col.green(pretrain)}')
         if pretrain and pretrain != 'imagenet':
             pretrained_model = tf.keras.models.load_model(pretrain)
             try:
@@ -276,7 +275,7 @@ class ModelParams(_base._ModelParams):
             model.add_loss(batch_loss_crossentropy(last_linear))
 
         if checkpoint:
-            log.info(f'Loading checkpoint weights from {sf.util.green(checkpoint)}')
+            log.info(f'Loading checkpoint weights from {col.green(checkpoint)}')
             model.load_weights(checkpoint)
 
         return model
@@ -346,7 +345,7 @@ class ModelParams(_base._ModelParams):
         model = tf.keras.Model(inputs=model_inputs, outputs=outputs)
 
         if checkpoint:
-            log.info(f'Loading checkpoint weights from {sf.util.green(checkpoint)}')
+            log.info(f'Loading checkpoint weights from {col.green(checkpoint)}')
             model.load_weights(checkpoint)
 
         return model
@@ -437,7 +436,7 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
             model_path = os.path.join(self.parent.outdir, f'{model_name}_epoch{self.epoch_count}')
             if self.cb_args.save_model:
                 self.model.save(model_path)
-                log.info(f'Trained model saved to {sf.util.green(model_path)}')
+                log.info(f'Trained model saved to {col.green(model_path)}')
 
                 # Try to copy model settings/hyperparameters file into the model folder
                 if not exists(join(model_path, 'params.json')):
@@ -499,12 +498,12 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
                 self.neptune_run["early_stop/stopped_early"] = False
 
             # Base logging message
-            batch_msg = sf.util.blue(f'Batch {batch:<5}')
-            loss_msg = f"{sf.util.green('loss')}: {logs['loss']:.3f}"
-            val_loss_msg = f"{sf.util.purple('val_loss')}: {val_loss:.3f}"
+            batch_msg = col.blue(f'Batch {batch:<5}')
+            loss_msg = f"{col.green('loss')}: {logs['loss']:.3f}"
+            val_loss_msg = f"{col.purple('val_loss')}: {val_loss:.3f}"
             if self.model_type == 'categorical':
-                acc_msg = f"{sf.util.green('acc')}: {train_acc}"
-                val_acc_msg = f"{sf.util.purple('val_acc')}: {val_acc}"
+                acc_msg = f"{col.green('acc')}: {train_acc}"
+                val_acc_msg = f"{col.purple('val_acc')}: {val_acc}"
                 log_message = f"{batch_msg} {loss_msg}, {acc_msg} | {val_loss_msg}, {val_acc_msg}"
             else:
                 log_message = f"{batch_msg} {loss_msg} | {val_loss_msg}"
@@ -884,7 +883,7 @@ class Trainer:
             import pyarrow.feather as feather
             save_path = os.path.join(self.outdir, 'tile_predictions.feather')
             feather.write_feather(df, save_path)
-        log.debug(f"Predictions saved to {sf.util.green(save_path)}")
+        log.debug(f"Predictions saved to {col.green(save_path)}")
 
         return df
 
@@ -938,6 +937,10 @@ class Trainer:
         log.info('Calculating performance metrics...')
         metric_kwargs = self._metric_kwargs(dataset=tf_dts_w_slidenames, num_tiles=dataset.num_tiles, label='eval')
         if permutation_importance:
+            if self.feature_names is None:
+                msg = 'Permutation feature importance requires clinical inputs.'
+                raise errors.UserError(msg)
+
             drop_images = ((self.hp.tile_px == 0) or self.hp.drop_images)
             metrics = sf.stats.permutation_feature_importance(feature_names=self.feature_names,
                                                               feature_sizes=self.feature_sizes,
@@ -1170,7 +1173,7 @@ class Trainer:
             except tf.errors.ResourceExhaustedError as e:
                 print()
                 print(e)
-                log.error(f"Training failed for {sf.util.bold(self.name)}, GPU memory exceeded.")
+                log.error(f"Training failed for {col.bold(self.name)}, GPU memory exceeded.")
 
             results = evaluation_callback.results
             if self.use_neptune:
@@ -1386,7 +1389,7 @@ class Features:
         generator = slide.build_generator(shuffle=False, include_loc='grid', show_progress=True, **kwargs)
 
         if not generator:
-            log.error(f"No tiles extracted from slide {sf.util.green(slide.name)}")
+            log.error(f"No tiles extracted from slide {col.green(slide.name)}")
             return
 
         @tf.function

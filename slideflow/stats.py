@@ -8,13 +8,9 @@ import seaborn as sns
 import numpy as np
 import pandas as pd
 import multiprocessing as mp
-import slideflow as sf
-
 from tqdm import tqdm
 from functools import partial
 from os.path import join
-from slideflow.util import log, ProgressBar, to_onehot
-from slideflow import errors
 from scipy import stats
 from scipy.special import softmax
 from random import sample
@@ -25,6 +21,11 @@ from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import pyplot as plt
 from matplotlib.widgets import LassoSelector
 from lifelines.utils import concordance_index as c_index
+
+import slideflow as sf
+from slideflow.util import log, ProgressBar, to_onehot
+from slideflow.util import colors as col
+from slideflow import errors
 
 # TODO: remove 'hidden_0' reference as this may not be present if the model does not have hidden layers
 # TODO: convert all this x /y /meta /values stuff to just a pandas dataframe?
@@ -223,7 +224,7 @@ class SlideMap:
         num_warned = 0
         for slide in self.df.slides:
             if slide not in successful_slides:
-                log.debug(f"Unable to calculate centroid for {sf.util.green(slide)}; will not include")
+                log.debug(f"Unable to calculate centroid for {col.green(slide)}; will not include")
         if num_warned:
             log.warning(f"Unable to calculate centroid for {num_warned} slides.")
 
@@ -510,7 +511,7 @@ class SlideMap:
         umap_figure.set_size_inches(6, 4.5)
         if title: umap_figure.axes[0].set_title(title)
         umap_figure.savefig(filename, bbox_inches='tight', dpi=dpi)
-        log.info(f"Saved 2D UMAP to {sf.util.green(filename)}")
+        log.info(f"Saved 2D UMAP to {col.green(filename)}")
 
     def save_3d_plot(self, filename, z=None, feature=None, subsample=None):
         """Saves a plot of a 3D umap, with the 3rd dimension representing values provided by argument "z".
@@ -552,7 +553,7 @@ class SlideMap:
                             linewidth=0.5,
                             edgecolor="black")
         ax.set_title(title)
-        log.info(f"Saving 3D UMAP to {sf.util.green(filename)}...")
+        log.info(f"Saving 3D UMAP to {col.green(filename)}...")
         plt.savefig(filename, bbox_inches='tight')
 
     def get_tiles_in_area(self, x_lower=-999, x_upper=999, y_lower=-999, y_upper=999):
@@ -590,19 +591,19 @@ class SlideMap:
             try:
                 with open(self.cache, 'wb') as cache_file:
                     pickle.dump([self.x, self.y, self.point_meta, self.map_meta], cache_file)
-                    log.info(f"Wrote UMAP cache to {sf.util.green(self.cache)}")
+                    log.info(f"Wrote UMAP cache to {col.green(self.cache)}")
             except Exception:
-                log.info(f"Error attempting to write UMAP cache to {sf.util.green(self.cache)}")
+                log.info(f"Error attempting to write UMAP cache to {col.green(self.cache)}")
 
     def load_cache(self):
         """Load coordinates from PKL cache."""
         try:
             with open(self.cache, 'rb') as cache_file:
                 self.x, self.y, self.point_meta, self.map_meta = pickle.load(cache_file)
-                log.info(f"Loaded UMAP cache from {sf.util.green(self.cache)}")
+                log.info(f"Loaded UMAP cache from {col.green(self.cache)}")
                 return True
         except FileNotFoundError:
-            log.info(f"No UMAP cache found at {sf.util.green(self.cache)}")
+            log.info(f"No UMAP cache found at {col.green(self.cache)}")
         return False
 
 def _generate_tile_roc(i, y_true, y_pred, data_dir, label_start, histogram=False, neptune_run=None):
@@ -1012,7 +1013,7 @@ def generate_roc(y_true, y_pred, save_dir=None, name='ROC', neptune_run=None):
     #p2 = np.sum(y_pred[np.argwhere(y_true == 0)]) / n2
 
     #binom_z, binom_p = binomial_p(n1, p1, n2, p2)
-    #log.debug(sf.util.blue("Binomial Z: ") + f"{binom_z:.3f} {sf.util.blue('P')}: {str_num(binom_p)}")
+    #log.debug(col.blue("Binomial Z: ") + f"{binom_z:.3f} {col.blue('P')}: {str_num(binom_p)}")
     # -------------------------------------------------------------------------
 
     # Calculate optimal cutoff via maximizing Youden's J statistic (sens+spec-1, or TPR - FPR)
@@ -1345,7 +1346,7 @@ def metrics_from_predictions(y_true, y_pred, tile_to_slides, labels, patients, m
                 metric_args.y_pred = y_pred
                 metric_args.y_true = y_true
 
-            log.info(f"Validation metrics for outcome {sf.util.green(outcome)}:")
+            log.info(f"Validation metrics for outcome {col.green(outcome)}:")
             _categorical_metrics(metric_args, outcome, starttime=start)
 
     elif model_type == 'linear':
@@ -1361,7 +1362,7 @@ def metrics_from_predictions(y_true, y_pred, tile_to_slides, labels, patients, m
     if metric_args.save_tile_predictions:
         df = predictions_to_dataframe(y_true, y_pred, tile_to_slides, outcome_names, uncertainty=metric_args.y_std)
         df.to_csv(os.path.join(data_dir, f"tile_predictions{label_end}.csv"))
-        log.debug(f"Predictions saved to {sf.util.green(data_dir)}")
+        log.debug(f"Predictions saved to {col.green(data_dir)}")
 
     combined_metrics = {
         'auc': metric_args.auc,

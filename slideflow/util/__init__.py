@@ -1,3 +1,4 @@
+import re
 import sys
 import json
 import csv
@@ -9,12 +10,21 @@ import logging
 import importlib
 import multiprocessing as mp
 import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.colors as mcol
 from glob import glob
 from os.path import join, isdir, exists, dirname
 from tqdm import tqdm
+from statistics import mean, median
 
 import slideflow as sf
+import slideflow.util.colors as col
 from slideflow import errors
+
+try:
+    import git
+except ImportError: # git is not needed for pypi distribution
+    git = None
 
 # TODO: re-enable logging with maximum log file size
 
@@ -34,16 +44,6 @@ LOGGING_PREFIXES_WARN = ['', ' ! ', '    ! ']
 LOGGING_PREFIXES_EMPTY = ['', '   ', '     ']
 CPLEX_AVAILABLE = (importlib.util.find_spec('cplex') is not None)
 
-def dim(text):        return '\033[2m' + str(text) + '\033[0m'
-def yellow(text):     return '\033[93m' + str(text) + '\033[0m'
-def cyan(text):       return '\033[96m' + str(text) + '\033[0m'
-def blue(text):       return '\033[94m' + str(text) + '\033[0m'
-def green(text):      return '\033[92m' + str(text) + '\033[0m'
-def red(text):        return '\033[91m' + str(text) + '\033[0m'
-def bold(text):       return '\033[1m' + str(text) + '\033[0m'
-def underline(text):  return '\033[4m' + str(text) + '\033[0m'
-def purple(text):     return '\033[38;5;5m' + str(text) + '\033[0m'
-
 log = logging.getLogger('slideflow')
 if 'SF_LOGGING_LEVEL' in os.environ:
     try:
@@ -57,11 +57,11 @@ else:
 class LogFormatter(logging.Formatter):
     MSG_FORMAT = "%(asctime)s [%(levelname)s] - %(message)s"
     LEVEL_FORMATS = {
-        logging.DEBUG: dim(MSG_FORMAT),
+        logging.DEBUG: col.dim(MSG_FORMAT),
         logging.INFO: MSG_FORMAT,
-        logging.WARNING: yellow(MSG_FORMAT),
-        logging.ERROR: red(MSG_FORMAT),
-        logging.CRITICAL: bold(red(MSG_FORMAT))
+        logging.WARNING: col.yellow(MSG_FORMAT),
+        logging.ERROR: col.red(MSG_FORMAT),
+        logging.CRITICAL: col.bold(col.red(MSG_FORMAT))
     }
 
     def format(self, record):
@@ -298,6 +298,20 @@ class ThreadSafeList:
             items, self.items = self.items, []
         return items
 
+def multi_warn(arr, compare, msg):
+    num_warned = 0
+    warn_threshold = 3
+    for item in arr:
+        if compare(item):
+            if isinstance(msg, str):
+                log.warn(msg.format(item))
+            elif callable(msg):
+                log.warn(msg(item))
+            num_warned += 1
+    if num_warned >= warn_threshold:
+        log.warn(f'...{num_warned} total warnings, see log for details')
+    return num_warned
+
 def to_onehot(val, max):
     """Converts value to one-hot encoding
 
@@ -499,6 +513,9 @@ def get_model_config(model_path):
             'target_means': config['norm_mean'],
             'target_stds': config['norm_std'],
         }
+    if 'outcome_label_headers' in config:
+        log.debug("Replacing outcome_label_headers in params.json -> outcomes")
+        config['outcomes'] = config.pop('outcome_label_headers')
 
     return config
 
@@ -518,7 +535,7 @@ def read_annotations(annotations_file):
         try:
             header = next(csv_reader, None)
         except OSError:
-            err_msg = f"Unable to open annotations file {green(annotations_file)}, is it open in another program?"
+            err_msg = f"Unable to open annotations file {col.green(annotations_file)}, is it open in another program?"
             log.error(err_msg)
             raise OSError(err_msg)
 
@@ -618,3 +635,170 @@ def update_results_log(results_log_path, model_name, results_dict):
     # Delete the old results log file
     if exists(f"{results_log_path}.temp"):
         os.remove(f"{results_log_path}.temp")
+
+def tfrecord_heatmap(tfrecord, slide, tile_px, tile_um, tile_dict, outdir):
+    """Creates a tfrecord-based WSI heatmap using a dictionary of tile values
+    for heatmap display.
+
+        Args:
+            tfrecord (str): Path to tfrecord.
+            slide (str): Path to whole-slide image.
+            tile_dict (dict): Dictionary mapping tfrecord indices to a
+                tile-level value for display in heatmap format.
+            tile_px (int): Tile width in pixels.
+            tile_um (int): Tile width in microns.
+            outdir (str): Path to directory in which to save images.
+
+        Returns:
+            Dictionary mapping slide names to dict of statistics
+                (mean, median, above_0, and above_1)
+        """
+
+    slide_name = sf.util.path_to_name(tfrecord)
+    loc_dict = sf.io.get_locations_from_tfrecord(tfrecord)
+    if tile_dict.keys() != loc_dict.keys():
+        raise errors.TFRecordsError(f'Length of tile_dict ({len(list(tile_dict.keys()))}) does not ' + \
+                                    f'match number of tiles stored in the TFRecord ({len(list(loc_dict.keys()))}).')
+
+    print(f'Generating TFRecord heatmap for {col.green(tfrecord)}...')
+    wsi = sf.slide.WSI(slide, tile_px, tile_um, skip_missing_roi=False)
+
+    stats = {}
+
+    # Loaded CSV coordinates:
+    x = [int(loc_dict[l][0]) for l in loc_dict]
+    y = [int(loc_dict[l][1]) for l in loc_dict]
+    vals = [tile_dict[l] for l in loc_dict]
+
+    stats.update({
+        slide_name: {
+            'mean':mean(vals),
+            'median':median(vals),
+            'above_0':len([v for v in vals if v > 0]),
+            'above_1':len([v for v in vals if v > 1]),
+        }
+    })
+
+    print('\nLoaded tile values')
+    print(f'Min: {min(vals)}\t Max:{max(vals)}')
+
+    scaled_x = [(xi * wsi.roi_scale) - wsi.full_extract_px/2 for xi in x]
+    scaled_y = [(yi * wsi.roi_scale) - wsi.full_extract_px/2 for yi in y]
+
+    print('\nLoaded CSV coordinates:')
+    print(f'Min x: {min(x)}\t Max x: {max(x)}')
+    print(f'Min y: {min(y)}\t Max y: {max(y)}')
+
+    print('\nScaled CSV coordinates:')
+    print(f'Min x: {min(scaled_x)}\t Max x: {max(scaled_x)}')
+    print(f'Min y: {min(scaled_y)}\t Max y: {max(scaled_y)}')
+
+    print('\nSlide properties:')
+    print(f'Raw size (x): {wsi.full_shape[0]}\t Raw size (y): {wsi.full_shape[1]}')
+
+    # Slide coordinate information
+    max_coord_x = max([c[0] for c in wsi.coord])
+    max_coord_y = max([c[1] for c in wsi.coord])
+    num_x = len(set([c[0] for c in wsi.coord]))
+    num_y = len(set([c[1] for c in wsi.coord]))
+
+    print('\nSlide tile grid:')
+    print(f'Number of tiles (x): {num_x}\t Max coord (x): {max_coord_x}')
+    print(f'Number of tiles (y): {num_y}\t Max coord (y): {max_coord_y}')
+
+    # Calculate dead space (un-extracted tiles) in x and y axes
+    dead_x = wsi.full_shape[0] - max_coord_x
+    dead_y = wsi.full_shape[1] - max_coord_y
+    fraction_dead_x = dead_x / wsi.full_shape[0]
+    fraction_dead_y = dead_y / wsi.full_shape[1]
+
+    print('\nSlide dead space')
+    print(f'x: {dead_x}\t y:{dead_y}')
+
+    # Work on grid
+    x_grid_scale = max_coord_x / (num_x-1)
+    y_grid_scale = max_coord_y / (num_y-1)
+
+    print('\nCoordinate grid scale:')
+    print(f'x: {x_grid_scale}\t y: {y_grid_scale}')
+
+    grid = np.zeros((num_y, num_x))
+
+    indexed_x = [round(xi / x_grid_scale) for xi in scaled_x]
+    indexed_y = [round(yi / y_grid_scale) for yi in scaled_y]
+
+    for i, (xi,yi,v) in enumerate(zip(indexed_x,indexed_y,vals)):
+        grid[yi][xi] = v
+
+    fig = plt.figure(figsize=(18, 16))
+    ax = fig.add_subplot(111)
+    fig.subplots_adjust(bottom = 0.25, top=0.95)
+    gca = plt.gca()
+    gca.tick_params(
+        axis='x',
+        top=True,
+        labeltop=True,
+        bottom=False,
+        labelbottom=False
+    )
+
+    print('Generating thumbnail...')
+    thumb = wsi.thumb(mpp=5)
+    print('Saving thumbnail....')
+    thumb.save(join(outdir, f'{slide_name}' + '.png'))
+    print('Generating figure...')
+    implot = ax.imshow(thumb, zorder=0)
+
+    extent = implot.get_extent()
+    extent_x = extent[1] * (1-fraction_dead_x)
+    extent_y = extent[2] * (1-fraction_dead_y)
+    grid_extent = (extent[0], extent_x, extent_y, extent[3])
+
+    print('\nImage extent:')
+    print(extent)
+    print('\nGrid extent:')
+    print(grid_extent)
+
+    divnorm=mcol.TwoSlopeNorm(
+        vmin=min(-0.01, min(vals)),
+        vcenter=0,
+        vmax=max(0.01, max(vals))
+    )
+    ax.imshow(
+        grid,
+        zorder=10,
+        alpha=0.6,
+        extent=grid_extent,
+        interpolation='bicubic',
+        cmap='coolwarm',
+        norm=divnorm
+    )
+
+    print('Saving figure...')
+    plt.savefig(join(outdir, f'{slide_name}_attn.png'), bbox_inches='tight')
+
+    # Clean up
+    print('Cleaning up...')
+    plt.clf()
+    del wsi
+    del thumb
+    return stats
+
+def detect_git_commit():
+    if git is not None:
+        try:
+            repo = git.Repo(search_parent_directories=True)
+            return repo.head.object.hexsha
+        except Exception:
+            return None
+
+def get_new_model_dir(root, model_name):
+    prev_run_dirs = [x for x in os.listdir(root)
+                       if isdir(join(root, x))]
+    prev_run_ids = [re.match(r'^\d+', x) for x in prev_run_dirs]
+    prev_run_ids = [int(x.group()) for x in prev_run_ids if x is not None]
+    cur_id = max(prev_run_ids, default=-1) + 1
+    model_dir = os.path.join(root, f'{cur_id:05d}-{model_name}')
+    assert not os.path.exists(model_dir)
+    os.makedirs(model_dir)
+    return model_dir

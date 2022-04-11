@@ -39,7 +39,7 @@ class NeptuneLog:
         '''Logs model hyperparameter data according to the given stage ('train' or 'eval')'''
 
         proj_info_keys = ['dataset_config', 'sources']
-        model_info_keys = ['model_name', 'model_type', 'k_fold_i', 'outcome_label_headers']
+        model_info_keys = ['model_name', 'model_type', 'k_fold_i', 'outcomes']
 
         if not hasattr(self, 'run'):
             raise ValueError("Unable to log; a neptune run has not yet been initialized (start with start_run())")

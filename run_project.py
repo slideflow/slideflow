@@ -11,7 +11,6 @@ if __name__=='__main__':
 
     parser = argparse.ArgumentParser(description = "Helper to guide through the Slideflow pipeline")
     parser.add_argument('-p', '--project', required=True, help='Path to project directory.')
-    parser.add_argument('-g', '--gpu', type=str, help='Manually specify GPU to use.')
     parser.add_argument('-n', '--neptune', action="store_true", help="Use Neptune logger.")
     parser.add_argument('--nfs', action="store_true", help="Sets environmental variable HDF5_USE_FILE_LOCKING='FALSE' as a fix to problems with NFS file systems.")
     parser.add_argument('--debug', action="store_true", help="Increase verbosity of logging output to include debug messages.")
@@ -30,7 +29,7 @@ if __name__=='__main__':
     print(f'+-------------------------------+')
     print()
 
-    P = sf.Project.from_prompt(args.project, gpu=args.gpu, use_neptune=args.neptune)
+    P = sf.Project.from_prompt(args.project, use_neptune=args.neptune)
     # Auto-update slidenames for newly added slides
     P.associate_slide_names()
 

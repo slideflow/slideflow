@@ -17,29 +17,29 @@ import numpy as np
 import csv
 import pyvips as vips
 import shapely.geometry as sg
-import shapely.affinity as sa
 import cv2
 import json
 import random
 import tempfile
 import warnings
 import seaborn as sns
-import slideflow as sf
 import matplotlib.colors as mcol
 import matplotlib.pyplot as plt
 import multiprocessing as mp
 import skimage
 import skimage.filters
-
 from os.path import join, exists
 from skimage import img_as_ubyte
 from skimage.color import rgb2gray
 from PIL import Image, ImageDraw, UnidentifiedImageError
-from slideflow.util import log, SUPPORTED_FORMATS
 from datetime import datetime
 from functools import partial
 from tqdm import tqdm
 from fpdf import FPDF
+
+import slideflow as sf
+from slideflow.util import log, SUPPORTED_FORMATS
+from slideflow.util import colors as col
 from slideflow import errors
 
 warnings.simplefilter('ignore', Image.DecompressionBombWarning)
@@ -261,7 +261,7 @@ def log_extraction_params(**kwargs):
     gs_t = DEFAULT_GRAYSPACE_THRESHOLD if 'grayspace_threshold' not in kwargs else kwargs['grayspace_threshold']
 
     if 'normalizer' in kwargs:
-        log.info(f'Extracting tiles using {sf.util.bold(kwargs["normalizer"])} normalization')
+        log.info(f'Extracting tiles using {col.bold(kwargs["normalizer"])} normalization')
     if ws_f < 1:
         log.info('Filtering tiles by whitespace fraction')
         log.debug(f'Whitespace defined as RGB avg > {ws_t} (exclude if >={ws_f*100:.0f}% whitespace')
@@ -754,7 +754,7 @@ class _BaseLoader:
         try:
             self.mpp = float(self.slide.properties[OPS_MPP_X])
         except KeyError:
-            log.error(f"Slide {sf.util.green(self.name)} missing MPP property ({OPS_MPP_X})")
+            log.error(f"Slide {col.green(self.name)} missing MPP property ({OPS_MPP_X})")
             self.load_error = True
             return
         self.full_shape = self.slide.dimensions
@@ -978,7 +978,7 @@ class _BaseLoader:
         if self.tile_px > self.extract_px:
             upscale_msg = 'Tiles will be up-scaled with bilinear interpolation'
             upscale_amount = f'({self.extract_px}px -> {self.tile_px}px)'
-            log.warn(f"{self.shortname}: [{sf.util.red('!WARN!')}] {upscale_msg} {upscale_amount}")
+            log.warn(f"{self.shortname}: [{col.red('!WARN!')}] {upscale_msg} {upscale_amount}")
 
         def empty_generator():
             yield None
@@ -1052,7 +1052,7 @@ class _BaseLoader:
         slidename_bytes = bytes(self.name, 'utf-8')
 
         if not generator:
-            log.error(f"No tiles extracted from slide {sf.util.green(self.name)}")
+            log.error(f"No tiles extracted from slide {col.green(self.name)}")
             return
 
         sample_tiles = []
@@ -1087,7 +1087,7 @@ class _BaseLoader:
             writer.close()
             if not num_wrote_to_tfr:
                 os.remove(join(tfrecord_dir, self.name+".tfrecords"))
-                log.info(f'No tiles extracted for slide {sf.util.green(self.name)}')
+                log.info(f'No tiles extracted for slide {col.green(self.name)}')
         if self.counter_lock is None:
             generator_iterator.close()
 
@@ -1217,14 +1217,14 @@ class WSI(_BaseLoader):
             else:
                 log.debug(warn_msg)
         if not len(self.rois) and skip_missing_roi and roi_method != 'ignore':
-            warn_msg = f"No ROI found for {sf.util.green(self.name)}, skipping slide"
+            warn_msg = f"No ROI found for {col.green(self.name)}, skipping slide"
             if not silent:  log.warning(warn_msg)
             else:           log.debug(warn_msg)
             self.shape = None
             self.load_error = True
             return None
         elif not len(self.rois):
-            info_msg = f"No ROI found for {sf.util.green(self.name)}, using whole slide."
+            info_msg = f"No ROI found for {col.green(self.name)}, using whole slide."
             if not silent and roi_method != 'ignore':
                 log.info(info_msg)
             else:
@@ -1238,7 +1238,7 @@ class WSI(_BaseLoader):
 
         # Abort if errors were raised during ROI loading
         if self.load_error:
-            log.error(f'Skipping slide {sf.util.green(self.name)} due to loading error')
+            log.error(f'Skipping slide {col.green(self.name)} due to loading error')
             return None
 
     def __repr__(self):
@@ -1359,7 +1359,7 @@ class WSI(_BaseLoader):
         super().build_generator()
 
         if self.estimated_num_tiles == 0:
-            log.warning(f"No tiles extracted at the given micron size for slide {sf.util.green(self.name)}")
+            log.warning(f"No tiles extracted at the given micron size for slide {col.green(self.name)}")
             return None
 
         # Detect CPU cores if num_threads not specified
@@ -1448,7 +1448,7 @@ class WSI(_BaseLoader):
             if should_close:
                 pool.close()
 
-            name_msg = sf.util.green(self.shortname)
+            name_msg = col.green(self.shortname)
             num_msg = f'({np.sum(self.tile_mask)} tiles of {len(self.coord)} possible)'
             log.info(f"Finished tile extraction for {name_msg} {num_msg}")
 
@@ -1506,7 +1506,7 @@ class WSI(_BaseLoader):
                 index_x = headers.index("x_base")
                 index_y = headers.index("y_base")
             except Exception:
-                log.error(f'Unable to read CSV ROI file {sf.util.green(path)}, please check file integrity and ' + \
+                log.error(f'Unable to read CSV ROI file {col.green(path)}, please check file integrity and ' + \
                                 'ensure headers contain "ROI_name", "X_base", and "Y_base".')
                 self.load_error = True
                 return
@@ -1529,7 +1529,7 @@ class WSI(_BaseLoader):
                 try:
                     self.annPolys += [sg.Polygon(annotation.scaled_area(self.roi_scale))]
                 except ValueError:
-                    log.warning(f"Unable to use ROI {i} in slide {sf.util.green(self.name)}, at least 3 points required " + \
+                    log.warning(f"Unable to use ROI {i} in slide {col.green(self.name)}, at least 3 points required " + \
                                 "to create a geometric shape.")
             roi_area = sum([poly.area for poly in self.annPolys])
         else:

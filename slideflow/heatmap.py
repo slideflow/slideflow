@@ -85,7 +85,7 @@ class Heatmap:
             self.logits = logits_and_uncertainty
             self.uncertainty = None
 
-        log.info(f"Heatmap complete for {sf.util.green(self.slide.name)}")
+        log.info(f"Heatmap complete for {col.green(self.slide.name)}")
 
         if buffered_slide:
             os.remove(new_path)
@@ -259,4 +259,4 @@ class Heatmap:
 
         plt.close()
         print('\r\033[K', end='')
-        log.info(f'Saved heatmaps for {sf.util.green(self.slide.name)}')
+        log.info(f'Saved heatmaps for {col.green(self.slide.name)}')

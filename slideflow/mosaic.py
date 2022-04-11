@@ -8,19 +8,19 @@ import cv2
 import os
 import sys
 import csv
-
 import numpy as np
 import matplotlib.pyplot as plt
-import slideflow as sf
-
-from slideflow import errors
 from random import shuffle
 from matplotlib import patches
 from multiprocessing.dummy import Pool as DPool
 from functools import partial
 from tqdm import tqdm
+
+import slideflow as sf
 from slideflow.util import log
+from slideflow.util import colors as col
 from slideflow.stats import get_centroid_index
+from slideflow import errors
 
 class Mosaic:
     """Visualization of tiles mapped using dimensionality reduction.
@@ -330,7 +330,7 @@ class Mosaic:
         for tfr in self.tfrecords:
             if sf.util.path_to_name(tfr) == slide:
                 return tfr
-        log.error(f'Unable to find TFRecord path for slide {sf.util.green(slide)}')
+        log.error(f'Unable to find TFRecord path for slide {col.green(slide)}')
 
     def _decode_image_string(self, string):
         """Internal method to convert an image string (as stored in TFRecords) to an RGB array."""
@@ -392,7 +392,7 @@ class Mosaic:
         except FileNotFoundError:
             pass
         plt.savefig(filename, bbox_inches='tight')
-        log.info(f'Saved figure to {sf.util.green(filename)}')
+        log.info(f'Saved figure to {col.green(filename)}')
         plt.close()
 
     def save_report(self, filename):
@@ -405,7 +405,7 @@ class Mosaic:
             for tfr in self.mapped_tiles:
                 for idx in self.mapped_tiles[tfr]:
                     writer.writerow([tfr, idx])
-        log.info(f'Mosaic report saved to {sf.util.green(filename)}')
+        log.info(f'Mosaic report saved to {col.green(filename)}')
 
     def show(self):
         """Displays the mosaic map as an interactive matplotlib figure."""

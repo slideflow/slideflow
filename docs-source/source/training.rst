@@ -75,13 +75,13 @@ Once your hyperparameter settings have been chosen you may begin training using 
 
 If you used the ``ModelParams`` class to configure a single combination of parameters, pass this object via the ``params`` argument. If you configured a hyperparameter sweep, set this argument to the name of your hyperparameter sweep file (saved by default to 'sweep.json').
 
-Your outcome variable(s) are specified with the ``outcome_label_headers`` argument. You may filter slides for training using the ``filter`` argument, as previously described.
+Your outcome variable(s) are specified with the ``outcomes`` argument. You may filter slides for training using the ``filter`` argument, as previously described.
 
 For example, to train using only slides labeled as "train" in the "dataset" column, with the outcome variable defined by the column "category", use the following syntax:
 
 .. code-block:: python
 
-    P.train(outcome_label_headers="category",
+    P.train(outcomes="category",
             filters={"dataset": ["train"]},
             params='sweep.json')
 
@@ -94,7 +94,7 @@ At each designated epoch, models are saved in their own folders. Each model dire
 Multiple outcomes
 *****************
 
-Slideflow supports both categorical and linear outcomes, as well as training to single or multiple outcomes at once. To use multiple outcomes simultaneously, simply pass multiple annotation headers to the ``outcome_label_headers`` argument.
+Slideflow supports both categorical and linear outcomes, as well as training to single or multiple outcomes at once. To use multiple outcomes simultaneously, simply pass multiple annotation headers to the ``outcomes`` argument.
 
 Multiple input variables
 ************************
@@ -106,7 +106,7 @@ If desired, models can also be trained with clinical input data alone, without i
 Cox Proportional Hazards (CPH) models
 *************************************
 
-Models can also be trained to a time series outcome using CPH and negative log likelihood loss. For CPH models, use 'negative_log_likelihood' loss and set ``outcome_label_header`` equal to the annotation column indicating event *time*. Specify the event *type* (0 or 1) by passing the event type annotation column to the argument ``input_header``. If you are using multiple clinical inputs, the first header passed to ``input_header`` must be event type. CPH models are not compatible with multiple outcomes.
+Models can also be trained to a time series outcome using CPH and negative log likelihood loss. For CPH models, use 'negative_log_likelihood' loss and set ``outcomes`` equal to the annotation column indicating event *time*. Specify the event *type* (0 or 1) by passing the event type annotation column to the argument ``input_header``. If you are using multiple clinical inputs, the first header passed to ``input_header`` must be event type. CPH models are not compatible with multiple outcomes.
 
 .. note::
     CPH models are currently unavailable with the PyTorch backend. PyTorch support for CPH outcomes is in development.

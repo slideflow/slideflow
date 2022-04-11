@@ -2,18 +2,20 @@ import imghdr
 import os
 import shutil
 import tensorflow as tf
-import slideflow as sf
 import numpy as np
-
-from slideflow.io import gaussian
+from glob import glob
 from functools import partial
 from tqdm import tqdm
 from os import listdir
 from os.path import isfile, isdir, join, exists
 from random import shuffle, randint
+
+import slideflow as sf
+from slideflow.io import gaussian
 from slideflow.util import log
+from slideflow.util import colors as col
 from slideflow import errors
-from glob import glob
+
 
 FEATURE_DESCRIPTION_LEGACY =  {'slide':    tf.io.FixedLenFeature([], tf.string),
                                'image_raw':tf.io.FixedLenFeature([], tf.string)}
@@ -48,7 +50,7 @@ def _print_record(filename):
 
     for i, record in enumerate(dataset):
         slide, loc_x, loc_y = parser(record)
-        print(f"{sf.util.purple(filename)}: Record {i}: Slide: {sf.util.green(str(slide))} Loc: {(loc_x, loc_y)}")
+        print(f"{col.purple(filename)}: Record {i}: Slide: {col.green(str(slide))} Loc: {(loc_x, loc_y)}")
 
 @tf.function
 def process_image(record, *args, standardize=False, augment=False, size=None):
@@ -514,12 +516,12 @@ def transform_tfrecord(origin, target, assign_slide=None, hue_shift=None, resize
     '''Transforms images in a single tfrecord. Can perform hue shifting, resizing, or re-assigning slide label.'''
 
     print_func = None if silent else print
-    log.info(f"Transforming tiles in tfrecord {sf.util.green(origin)}")
-    log.info(f"Saving to new tfrecord at {sf.util.green(target)}")
+    log.info(f"Transforming tiles in tfrecord {col.green(origin)}")
+    log.info(f"Saving to new tfrecord at {col.green(target)}")
     if assign_slide:
-        log.info(f"Assigning slide name {sf.util.bold(assign_slide)}")
+        log.info(f"Assigning slide name {col.bold(assign_slide)}")
     if hue_shift:
-        log.info(f"Shifting hue by {sf.util.bold(str(hue_shift))}")
+        log.info(f"Shifting hue by {col.bold(str(hue_shift))}")
     if resize:
         log.info(f"Resizing records to ({resize}, {resize})")
 

@@ -9,16 +9,17 @@ import torchvision
 import pretrainedmodels
 import slideflow as sf
 import numpy as np
-import slideflow.util.neptune_utils
-
+from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 from os.path import join
+
+import slideflow.util.neptune_utils
 from slideflow.util import log
+from slideflow.util.colors import col
 from slideflow.model import base as _base
 from slideflow.model import torch_utils
 from slideflow.model.base import log_manifest
 from slideflow import errors
-from torch.utils.tensorboard import SummaryWriter
 
 class LinearBlock(torch.nn.Module):
     '''Block module that includes a linear layer -> ReLU -> BatchNorm'''
@@ -401,7 +402,7 @@ class Trainer:
             import pyarrow.feather as feather
             save_path = os.path.join(self.outdir, 'tile_predictions.feather')
             feather.write_feather(df, save_path)
-        log.debug(f"Predictions saved to {sf.util.green(save_path)}")
+        log.debug(f"Predictions saved to {col.green(save_path)}")
 
         return df
 
@@ -586,7 +587,7 @@ class Trainer:
 
     def log_epoch(self, phase, epoch, loss, accuracy_description, starttime):
         elapsed = time.strftime('%H:%M:%S', time.gmtime(time.time() - starttime))
-        log.info(f'{sf.util.bold(sf.util.blue(phase))} Epoch {epoch} | loss: {loss:.4f} {accuracy_description} (Elapsed: {elapsed})')
+        log.info(f'{col.bold(col.blue(phase))} Epoch {epoch} | loss: {loss:.4f} {accuracy_description} (Elapsed: {elapsed})')
 
     def train(self, train_dts, val_dts, log_frequency=20, validate_on_batch=0, validation_batch_size=None,
               validation_steps=50, starting_epoch=0, ema_observations=20, ema_smoothing=2, use_tensorboard=True,
@@ -671,7 +672,7 @@ class Trainer:
 
         # Build model
         if checkpoint:
-            log.info(f"Loading checkpoint at {sf.util.green(checkpoint)}")
+            log.info(f"Loading checkpoint at {col.green(checkpoint)}")
             self.load(checkpoint)
         else:
             self.model = self.hp.build_model(labels=self.labels, pretrain=pretrain, num_slide_features=self.num_slide_features)
@@ -743,7 +744,7 @@ class Trainer:
             np.random.seed(seed+epoch)
             if early_stop: break
             if log.getEffectiveLevel() <= 20: print()
-            log.info(sf.util.bold('Epoch ' + str(epoch) + '/' + str(max(self.hp.epochs))))
+            log.info(col.bold('Epoch ' + str(epoch) + '/' + str(max(self.hp.epochs))))
 
             for phase in dataloaders:
                 num_records = 0
@@ -797,7 +798,7 @@ class Trainer:
                         running_corrects = self.update_corrects(outputs, labels, running_corrects)
                         acc_desc, train_acc = self.accuracy_description(running_corrects, num_records)
                         running_loss += loss.item() * images.size(0)
-                        pb.set_description(f'{sf.util.bold(sf.util.blue(phase))} loss: {running_loss / num_records:.4f} {acc_desc}')
+                        pb.set_description(f'{col.bold(col.blue(phase))} loss: {running_loss / num_records:.4f} {acc_desc}')
                         pb.update(images.size(0))
 
                         # Log to tensorboard
@@ -935,7 +936,7 @@ class Trainer:
                     model_name = self.name if self.name else 'trained_model'
                     save_path = os.path.join(self.outdir, f'{model_name}_epoch{epoch}')
                     torch.save(self.model.state_dict(), save_path)
-                    log.info(f"Model saved to {sf.util.green(save_path)}")
+                    log.info(f"Model saved to {col.green(save_path)}")
 
                 # Perform full evaluation if the epoch is one of the predetermined epochs at which to save/eval a model
                 if phase == 'val' and (val_dts is not None) and epoch in self.hp.epochs:
@@ -1179,7 +1180,7 @@ class Features:
         generator = slide.build_generator(shuffle=False, include_loc='grid', show_progress=True, **kwargs)
 
         if not generator:
-            log.error(f"No tiles extracted from slide {sf.util.green(slide.name)}")
+            log.error(f"No tiles extracted from slide {col.green(slide.name)}")
             return
 
         class SlideIterator(torch.utils.data.IterableDataset):

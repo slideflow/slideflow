@@ -11,15 +11,16 @@ import shapely.geometry as sg
 import slideflow as sf
 import numpy as np
 import pandas as pd
-
 from random import shuffle
 from glob import glob
 from datetime import datetime
 from tqdm import tqdm
 from os.path import isdir, join, exists, dirname, basename
 from multiprocessing.dummy import Pool as DPool
+
 from slideflow import errors
 from slideflow.util import log, TCGA, _shortname, ProgressBar
+from slideflow.util import colors as col
 
 def _tile_extractor(slide_path, tfrecord_dir, tiles_dir, roi_dir, roi_method, skip_missing_roi, randomize_origin, tma,
                     tile_px, tile_um, stride_div, downsample, pb_counter, counter_lock, reports, generator_kwargs, qc,
@@ -113,8 +114,8 @@ def split_patients_list(patients_dict, n, balance=None, randomize=True, preserve
                              patient_column = 'patient',
                              site_column = 'site')
 
-            log.info(sf.util.bold("Generating Split with Preserved Site Cross Validation"))
-            log.info(sf.util.bold("Category\t" + "\t".join([str(cat) for cat in range(len(set(unique_labels)))])))
+            log.info(col.bold("Generating Split with Preserved Site Cross Validation"))
+            log.info(col.bold("Category\t" + "\t".join([str(cat) for cat in range(len(set(unique_labels)))])))
             for k in range(n):
                 log.info(f"K-fold-{k}\t" + "\t".join([str(len(df[(df.CV == str(k+1)) & (df.outcome_label == o)].index))
                                                        for o in unique_labels]))
@@ -129,7 +130,7 @@ def split_patients_list(patients_dict, n, balance=None, randomize=True, preserve
             patients_split_by_outcomes_split_by_n = [list(split(sub_l, n)) for sub_l in patients_split_by_outcomes]
 
             # Print splitting as a table
-            log.info(sf.util.bold("Category\t" + "\t".join([str(cat) for cat in range(len(set(unique_labels)))])))
+            log.info(col.bold("Category\t" + "\t".join([str(cat) for cat in range(len(set(unique_labels)))])))
             for k in range(n):
                 log.info(f"K-fold-{k}\t" + "\t".join([str(len(clist[k])) for clist in patients_split_by_outcomes_split_by_n]))
 
@@ -206,6 +207,22 @@ class Dataset:
     @property
     def filtered_annotations(self):
         return self.annotations[self.annotations[TCGA.slide].isin(self.slides())]
+
+    def _assert_size_matches_hp(self, hp):
+        """Checks if dataset tile size (px/um) matches the given parameters."""
+        if isinstance(hp, dict):
+            hp_px = hp['tile_px']
+            hp_um = hp['tile_um']
+        elif isinstance(hp, sf.model.ModelParams):
+            hp_px = hp.tile_px
+            hp_um = hp.tile_um
+        else:
+            raise ValueError(f"Unrecognized hyperparameter type {type(hp)}")
+        if self.tile_px != hp_px or self.tile_um != hp_um:
+            d_sz = f'({self.tile_px}px, {self.tile_um}um)'
+            m_sz = f'({hp_px}px, {hp_um}um)'
+            msg = f"Dataset tile size {d_sz} does not match model {m_sz}"
+            raise ValueError(msg)
 
     def load_annotations(self, annotations):
         # Load annotations
@@ -522,7 +539,7 @@ class Dataset:
         sf.slide.log_extraction_params(**kwargs)
 
         for source in sources:
-            log.info(f'Working on dataset source {sf.util.bold(source)}...')
+            log.info(f'Working on dataset source {col.bold(source)}...')
 
             roi_dir = self.sources[source]['roi']
             source_config = self.sources[source]
@@ -765,6 +782,33 @@ class Dataset:
             ret._min_tiles = kwargs['min_tiles']
         return ret
 
+    def harmonize_labels(self, *args, header=None):
+        '''Returns categorical label assignments to int, harmonized with another
+        dataset to ensure consistency between datasets.
+
+        Args:
+            *args (:class:`slideflow.Dataset`): Any number of Datasets.
+            header (str): Categorical annotation header.
+
+        Returns:
+            Dict mapping slide names to categories.
+        '''
+
+        if header is None:
+            raise ValueError("Must supply kwarg 'header'")
+        if not isinstance(header, str):
+            raise ValueError('Harmonized labels require a single header.')
+
+
+        _, my_unique = self.labels(header, use_float=False)
+        other_uniques = [
+            np.array(dts.labels(header, use_float=False)[1]) for dts in args
+        ]
+        other_uniques = np.concatenate(other_uniques + [np.array(my_unique)])
+        all_unique = sorted(list(set(other_uniques)))
+        labels_to_int = dict(zip(all_unique, range(len(all_unique))))
+        return labels_to_int
+
     def is_float(self, header):
         """Returns True if labels in the given header can all be converted to `float`, else False."""
 
@@ -846,11 +890,11 @@ class Dataset:
                         raise KeyError(f"assigned_labels was provided, but label {ul} not found in this dict")
                     elif assigned_labels_for_this_header:
                         val_msg = assigned_labels_for_this_header[ul]
-                        n_s = sf.util.bold(str(num_matching_slides_filtered))
-                        log.debug(f"{header} '{sf.util.blue(ul)}' assigned to value '{val_msg}' [{n_s} slides]")
+                        n_s = col.bold(str(num_matching_slides_filtered))
+                        log.debug(f"{header} '{col.blue(ul)}' assigned to value '{val_msg}' [{n_s} slides]")
                     else:
-                        n_s = sf.util.bold(str(num_matching_slides_filtered))
-                        log.debug(f"{header} '{sf.util.blue(ul)}' assigned to value '{i}' [{n_s} slides]")
+                        n_s = col.bold(str(num_matching_slides_filtered))
+                        log.debug(f"{header} '{col.blue(ul)}' assigned to value '{i}' [{n_s} slides]")
 
             # Create function to process/convert label
             def _process_label(o):
@@ -1094,14 +1138,14 @@ class Dataset:
             if ann[TCGA.slide] not in slide_patient_dict:
                 slide_patient_dict.update({ann[TCGA.slide]: ann[TCGA.patient]})
             elif slide_patient_dict[ann[TCGA.slide]] != ann[TCGA.patient]:
-                log.error(f"Multiple patients assigned to slide {sf.util.green(ann[TCGA.slide])}.")
+                log.error(f"Multiple patients assigned to slide {col.green(ann[TCGA.slide])}.")
                 return None
 
             # Only return slides with annotation values specified in "filters"
             if self.filters:
                 for filter_key in self.filters.keys():
                     if filter_key not in ann.keys():
-                        log.error(f"Filter header {sf.util.bold(filter_key)} not found in annotations file.")
+                        log.error(f"Filter header {col.bold(filter_key)} not found in annotations file.")
                         raise IndexError(f"Filter header {filter_key} not found in annotations file.")
 
                     ann_val = ann[filter_key]
@@ -1249,7 +1293,7 @@ class Dataset:
         reports = []
         log.info('Generating TFRecords report...')
         for tfr in tfrecord_list:
-            print(f'\r\033[KGenerating report for tfrecord {sf.util.green(sf.util.path_to_name(tfr))}...', end='')
+            print(f'\r\033[KGenerating report for tfrecord {col.green(sf.util.path_to_name(tfr))}...', end='')
             dataset = sf.io.TFRecordDataset(tfr)
             parser = sf.io.get_tfrecord_parser(tfr, ('image_raw',), to_numpy=True, decode_images=False)
             if not parser: continue
@@ -1273,7 +1317,7 @@ class Dataset:
         else:
             raise ValueError(f"Could not find destination directory {destination}.")
         pdf_report.save(filename)
-        log.info(f'TFRecord report saved to {sf.util.green(filename)}')
+        log.info(f'TFRecord report saved to {col.green(filename)}')
 
     def tfrecords(self, source=None):
         """Returns a list of all tfrecords."""
@@ -1291,7 +1335,7 @@ class Dataset:
             if label is None: continue
             tfrecord_path = join(tfrecords, label)
             if not exists(tfrecord_path):
-                log.debug(f"TFRecords path not found: {sf.util.green(tfrecord_path)}")
+                log.debug(f"TFRecords path not found: {col.green(tfrecord_path)}")
                 continue
             folders_to_search += [tfrecord_path]
         for folder in folders_to_search:
@@ -1326,8 +1370,8 @@ class Dataset:
             base_dir = join(self.sources[source]['tfrecords'], self.sources[source]['label'])
             tfrecord_path = join(base_dir, subfolder)
             if not exists(tfrecord_path):
-                err_msg = f"Unable to find subfolder {sf.util.bold(subfolder)} in source {sf.util.bold(source)}, " + \
-                            f"tfrecord directory: {sf.util.green(base_dir)}"
+                err_msg = f"Unable to find subfolder {col.bold(subfolder)} in source {col.bold(source)}, " + \
+                            f"tfrecord directory: {col.green(base_dir)}"
                 raise errors.DatasetError(err_msg)
             folders_to_search += [tfrecord_path]
         for folder in folders_to_search:
@@ -1354,7 +1398,7 @@ class Dataset:
             tfrecord_dir = join(config['tfrecords'], config['label'])
             tiles_dir = join(config['tiles'], config['label'])
             if not exists(tiles_dir):
-                log.warn(f'No tiles found for dataset source {sf.util.bold(source)}')
+                log.warn(f'No tiles found for dataset source {col.bold(source)}')
                 continue
             sf.io.write_tfrecords_multi(tiles_dir, tfrecord_dir)
             self.update_manifest()
@@ -1464,7 +1508,7 @@ class Dataset:
             validation_slides = []
         elif val_strategy == 'bootstrap':
             num_val = int(val_fraction * len(patients_list))
-            log.info(f"Boostrap validation: selecting {sf.util.bold(num_val)} pts at random for validation testing")
+            log.info(f"Boostrap validation: selecting {col.bold(num_val)} pts at random for validation testing")
             validation_patients = patients_list[0:num_val]
             training_patients = patients_list[num_val:]
             if not len(validation_patients) or not len(training_patients):
@@ -1494,14 +1538,14 @@ class Dataset:
                     if [patients_dict[p]['outcome_label'] for p in split_patients] == \
                         [split['patients'][p]['outcome_label']for p in split_patients]:
 
-                        log.info(f"Using {val_strategy} validation split detected at {sf.util.green(splits_file)} (ID: {split_id})")
+                        log.info(f"Using {val_strategy} validation split detected at {col.green(splits_file)} (ID: {split_id})")
                         accepted_split = split
                         break
 
             # If no split found, create a new one
             if not accepted_split:
                 if splits_file:
-                    log.info(f"No compatible training/validation split found; will log new split at {sf.util.green(splits_file)}")
+                    log.info(f"No compatible training/validation split found; will log new split at {col.green(splits_file)}")
                 else:
                     log.info(f"No training/validation splits file provided; unable to save or load validation splits.")
                 new_split = {
@@ -1795,12 +1839,8 @@ class Dataset:
             raise errors.AnnotationsError("Duplicate slide names detected in the annotation file.")
 
         # Verify all slides in the annotation column are valid
-        num_warned = 0
-        warn_threshold = 3
-        for annotation in self.annotations.to_dict(orient="records"):
-            slide = annotation[TCGA.slide]
-            if slide == '':
-                log.warning(f"Patient {sf.util.green(annotation[TCGA.patient])} has no slide assigned.")
-                num_warned += 1
-        if num_warned >= warn_threshold:
-            log.warning(f"...{num_warned} total warnings, see project log for details")
+        sf.util.multi_warn(
+            self.annotations.to_dict(orient="records"),
+            lambda x: x[TCGA.slide] == '',
+            lambda x: f'Patient {x[TCGA.patient]} has no slide assigned.'
+        )

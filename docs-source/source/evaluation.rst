@@ -12,7 +12,7 @@ Once training and hyperparameter tuning is complete, you can test model performa
 
     P.evaluate(
         model="/path/to/trained_model_epoch1",
-        outcome_label_headers="category",
+        outcomes="category",
         filters={"dataset": ["evaluation"]})
 
 .. autofunction:: slideflow.Project.evaluate
