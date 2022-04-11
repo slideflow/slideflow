@@ -22,7 +22,7 @@ from slideflow.norm import macenko,  \
                            vahadane, \
                            augment
 
-class GenericStainNormalizer:
+class StainNormalizer:
     """Object to supervise stain normalization for images and efficiently convert between common image types."""
 
     vectorized = False
@@ -56,7 +56,7 @@ class GenericStainNormalizer:
 
     def __repr__(self):
         src = "" if not self._source else ", source={!r}".format(self._source)
-        return "GenericStainNormalizer(method={!r}{})".format(self.method, src)
+        return "StainNormalizer(method={!r}{})".format(self.method, src)
 
     @property
     def target_means(self):
@@ -135,7 +135,7 @@ class GenericStainNormalizer:
         }
 
     def batch_to_batch(self, *args):
-        raise NotImplementedError(f"Vectorized functions not available for GenericStainNormalizer (method={self.method})")
+        raise NotImplementedError(f"Vectorized functions not available for StainNormalizer (method={self.method})")
 
     def tf_to_tf(self, image, *args):
         if isinstance(image, dict):
@@ -190,4 +190,4 @@ def autoselect(method, source=None, prefer_vectorized=True):
     if prefer_vectorized and method in VectorizedNormalizer.normalizers:
         return VectorizedNormalizer(method, source)
     else:
-        return GenericStainNormalizer(method, source)
+        return StainNormalizer(method, source)

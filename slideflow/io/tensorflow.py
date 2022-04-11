@@ -170,7 +170,7 @@ def get_tfrecord_parser(tfrecord_path, features_to_return=None, to_numpy=False, 
         decode_images (bool, optional): Decode raw image strings into image arrays. Defaults to True.
         standardize (bool, optional): Standardize images into the range (0,1). Defaults to False.
         img_size (int): Width of images in pixels. Will call tf.set_shape(...) if provided. Defaults to False.
-        normalizer (:class:`slideflow.slide.StainNormalizer`): Stain normalizer to use on images. Defaults to None.
+        normalizer (:class:`slideflow.norm.StainNormalizer`): Stain normalizer to use on images. Defaults to None.
         augment (str): Image augmentations to perform. String containing characters designating augmentations.
             'x' indicates random x-flipping, 'y' y-flipping, 'r' rotating, and 'j' JPEG compression/decompression
             at random quality levels. Passing either 'xyrj' or True will use all augmentations.
@@ -254,7 +254,7 @@ def interleave(tfrecords, img_size, batch_size, prob_weights=None, clip=None, la
                 'x' indicates random x-flipping, 'y' y-flipping, 'r' rotating, and 'j' JPEG compression/decompression
                 at random quality levels. Passing either 'xyrj' or True will use all augmentations.
         standardize (bool, optional): Standardize images to (0,1). Defaults to True.
-        normalizer (:class:`slideflow.slide.StainNormalizer`, optional): Normalizer to use on images. Defaults to None.
+        normalizer (:class:`slideflow.norm.StainNormalizer`, optional): Normalizer to use on images. Defaults to None.
         num_shards (int, optional): Shard the tfrecord datasets, used for multiprocessing datasets. Defaults to None.
         shard_idx (int, optional): Index of the tfrecord shard to use. Defaults to None.
         num_parallel_reads (int, optional): Number of parallel reads for each TFRecordDataset. Defaults to 4.

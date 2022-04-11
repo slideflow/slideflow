@@ -220,7 +220,7 @@ def normalizer_tester(project, args, single, multi, verbosity=None):
     if verbosity is not None:
         logging.getLogger("slideflow").setLevel(verbosity)
     if not len(args):
-        methods = sf.norm.GenericStainNormalizer.normalizers
+        methods = sf.norm.StainNormalizer.normalizers
     else:
         methods = args
     dataset = project.dataset(299, 302)

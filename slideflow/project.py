@@ -268,10 +268,11 @@ class Project:
 
         # Get patient-level labels
         use_float = (hp.model_type() in ['linear', 'cph'])
-        labels, unique = dataset.labels(outcomes,
-                                        use_float=use_float,
-                                        assigned_labels=outcome_label_to_int)
-
+        labels, unique = dataset.labels(
+            outcomes,
+            use_float=use_float,
+            assign=outcome_label_to_int
+        )
         # Prepare labels for validation splitting
         if hp.model_type() == 'categorical' and len(outcomes) > 1:
             def process_label(v):
@@ -283,7 +284,7 @@ class Project:
         # If using a specific k-fold, load validation plan
         if eval_k_fold:
             log.info(f"Using k-fold iteration {eval_k_fold}")
-            _, eval_dts = dataset.training_validation_split(
+            _, eval_dts = dataset.train_val_split(
                 hp.model_type(),
                 split_labels,
                 val_strategy=config['validation_strategy'],
@@ -678,7 +679,7 @@ class Project:
                 site_labels, _ = dataset.labels(s_args.k_header, format='name')
             else:
                 site_labels = None
-            train_dts, val_dts = dataset.training_validation_split(
+            train_dts, val_dts = dataset.train_val_split(
                 hp.model_type(),
                 s_args.split_labels,
                 val_strategy=val_settings.strategy,
@@ -2393,7 +2394,7 @@ class Project:
         if train_slides == val_slides == 'auto':
             train_slides, val_slides = {}, {}
             for k in range(clam_args.k):
-                train_dts, val_dts = dataset.training_validation_split(
+                train_dts, val_dts = dataset.train_val_split(
                     'categorical',
                     labels,
                     val_strategy='k-fold',

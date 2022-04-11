@@ -105,7 +105,7 @@ The Dataset manifest is a dictionary mapping tfrecords to both the total number 
 Training/Validation Splitting
 -----------------------------
 
-Datasets can be split into training and validation datasets with :meth:`Dataset.training_validation_split`, with full documentation given below. The result of this function is two datasets - the first training, the second validation - each a separate instance of :class:`Dataset`.
+Datasets can be split into training and validation datasets with :meth:`Dataset.train_val_split`, with full documentation given below. The result of this function is two datasets - the first training, the second validation - each a separate instance of :class:`Dataset`.
 
 Tile and TFRecord Processing
 ----------------------------

@@ -17,16 +17,18 @@ import os
 if 'SF_BACKEND' not in os.environ:
     os.environ['SF_BACKEND'] = 'tensorflow'
 
+
 def backend():
     return os.environ['SF_BACKEND']
 
-from slideflow import io
-from slideflow import model
-from slideflow import norm
-from slideflow.model import ModelParams
-from slideflow.heatmap import Heatmap
-from slideflow.dataset import Dataset
-from slideflow.mosaic import Mosaic
-from slideflow.project import Project
-from slideflow.slide import WSI, TMA
-from slideflow.stats import SlideMap
+
+from slideflow import io  # noqa # pylint: disable=unused-import
+from slideflow import model  # noqa # pylint: disable=unused-import
+from slideflow import norm  # noqa # pylint: disable=unused-import
+from slideflow.model import ModelParams  # noqa # pylint: disable=unused-import
+from slideflow.heatmap import Heatmap  # noqa # pylint: disable=unused-import
+from slideflow.dataset import Dataset  # noqa # pylint: disable=unused-import
+from slideflow.mosaic import Mosaic  # noqa # pylint: disable=unused-import
+from slideflow.project import Project  # noqa # pylint: disable=unused-import
+from slideflow.slide import WSI, TMA  # noqa # pylint: disable=unused-import
+from slideflow.stats import SlideMap  # noqa # pylint: disable=unused-import

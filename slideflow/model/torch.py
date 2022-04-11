@@ -1081,7 +1081,7 @@ class Features:
         When the interface is called on a `slideflow.WSI`, the normalization strategy will be read from the model
         configuration file, and normalization will be performed on image tiles extracted from the WSI. If this interface
         was created from an existing model and there is no model configuration file to read, a
-        slideflow.slide.StainNormalizer object may be passed during initialization via the argument `wsi_normalizer`.
+        slideflow.norm.StainNormalizer object may be passed during initialization via the argument `wsi_normalizer`.
 
     """
 
@@ -1143,7 +1143,7 @@ class Features:
             layers (list(str), optional): Layers from which to generate activations.  The post-convolution activation layer
                 is accessed via 'postconv'. Defaults to 'postconv'.
             include_logits (bool, optional): Include logits in output. Will be returned last. Defaults to False.
-            wsi_normalizer (:class:`slideflow.slide.StainNormalizer`): Stain normalizer to use on whole-slide images.
+            wsi_normalizer (:class:`slideflow.norm.StainNormalizer`): Stain normalizer to use on whole-slide images.
                 Is not used on individual tile datasets via __call__. Defaults to None.
             device (:class:`torch.device`, optional): Device for model. Defaults to torch.device('cuda')
         """

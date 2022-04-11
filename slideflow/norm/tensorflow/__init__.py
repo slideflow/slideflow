@@ -6,11 +6,11 @@ from os.path import join
 from tqdm import tqdm
 from slideflow.dataset import Dataset
 from slideflow.util import log
-from slideflow.norm import GenericStainNormalizer
+from slideflow.norm import StainNormalizer
 from slideflow.norm.tensorflow import reinhard, reinhard_fast
 from slideflow import errors
 
-class TensorflowStainNormalizer(GenericStainNormalizer):
+class TensorflowStainNormalizer(StainNormalizer):
     vectorized = True
     backend = 'tensorflow'
     normalizers = {

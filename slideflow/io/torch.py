@@ -52,7 +52,7 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
             infinite (bool, optional): Inifitely loop through dataset. Defaults to True.
             max_size (bool, optional): Artificially limit dataset size, useful for metrics. Defaults to None.
             prob_weights (list(float), optional): Probability weights for interleaving tfrecords. Defaults to None.
-            normalizer (:class:`slideflow.slide.StainNormalizer`, optional): Digital stain normalizer. Defaults to None.
+            normalizer (:class:`slideflow.norm.StainNormalizer`, optional): Digital stain normalizer. Defaults to None.
             clip (list(int), optional): Array of maximum tiles to take for each tfrecord. Defaults to None.
             chunk_size (int, optional): Chunk size for image decoding. Defaults to 16.
             preload (int, optional): Preload this many samples for parallelization. Defaults to 8.
@@ -358,7 +358,7 @@ def get_tfrecord_parser(tfrecord_path, features_to_return=None, decode_images=Tr
             return all features as a list.
         decode_images (bool, optional): Decode raw image strings into image arrays. Defaults to True.
         standardize (bool, optional): Standardize images into the range (0,1). Defaults to False.
-        normalizer (:class:`slideflow.slide.StainNormalizer`): Stain normalizer to use on images. Defaults to None.
+        normalizer (:class:`slideflow.norm.StainNormalizer`): Stain normalizer to use on images. Defaults to None.
         augment (str): Image augmentations to perform. String containing characters designating augmentations.
             'x' indicates random x-flipping, 'y' y-flipping, 'r' rotating, and 'j' JPEG compression/decompression
             at random quality levels. Passing either 'xyrj' or True will use all augmentations.
@@ -422,7 +422,7 @@ def interleave(tfrecords, prob_weights=None, incl_loc=False, clip=None, infinite
                 'x' indicates random x-flipping, 'y' y-flipping, 'r' rotating, and 'j' JPEG compression/decompression
                 at random quality levels. Passing either 'xyrj' or True will use all augmentations.
         standardize (bool, optional): Standardize images to (0,1). Defaults to True.
-        normalizer (:class:`slideflow.slide.StainNormalizer`, optional): Normalizer to use on images. Defaults to None.
+        normalizer (:class:`slideflow.norm.StainNormalizer`, optional): Normalizer to use on images. Defaults to None.
         manifest (dict, optional): Dataset manifest containing number of tiles per tfrecord.
         num_threads (int, optional): Number of threads to use decoding images. Defaults to 4.
         chunk_size (int, optional): Chunk size for image decoding. Defaults to 16.
@@ -592,7 +592,7 @@ def interleave_dataloader(tfrecords, img_size, batch_size, prob_weights=None, cl
         num_replicas (int, optional): Number of GPUs or unique instances which will have their own DataLoader. Used to
             interleave results among workers without duplications. Defaults to 1.
         labels (dict, optional): Dict mapping slide names to outcome labels, used for balancing. Defaults to None.
-        normalizer (:class:`slideflow.slide.StainNormalizer`, optional): Normalizer to use on images. Defaults to None.
+        normalizer (:class:`slideflow.norm.StainNormalizer`, optional): Normalizer to use on images. Defaults to None.
         chunk_size (int, optional): Chunk size for image decoding. Defaults to 16.
         preload_factor (int, optional): Number of batches to preload in each SlideflowIterator. Defaults to 1.
         manifest (dict, optional): Dataset manifest containing number of tiles per tfrecord.
