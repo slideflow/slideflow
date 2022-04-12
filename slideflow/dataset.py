@@ -1102,7 +1102,7 @@ class Dataset:
                             header,
                             col.blue(ul),
                             'assigned to',
-                            val_msg,
+                            str(val_msg),
                             f'[{n_s} slides]'
                         ]))
                     else:
@@ -1111,7 +1111,7 @@ class Dataset:
                             header,
                             col.blue(ul),
                             'assigned to',
-                            i,
+                            str(i),
                             f'[{n_s} slides]'
                         ]))
 

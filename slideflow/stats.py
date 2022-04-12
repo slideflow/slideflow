@@ -953,7 +953,7 @@ def _categorical_metrics(args, outcome_name, starttime=None):
         # and copies all categories when only one is needed in each process
         # Consider implementing shared memory (although this would eliminate
         # compatibility with python 3.7)
-        p = partial(
+        par = partial(
             _generate_tile_roc,
             y_true=args.y_true,
             y_pred=args.y_pred,
@@ -962,7 +962,7 @@ def _categorical_metrics(args, outcome_name, starttime=None):
             histogram=args.histogram
         )
         try:
-            for i, (auc, ap, thresh) in enumerate(p.imap(p, range(num_cat))):
+            for i, (auc, ap, thresh) in enumerate(p.imap(par, range(num_cat))):
                 args.auc['tile'][outcome_name] += [auc]
                 args.ap['tile'][outcome_name] += [ap]
                 log_msg = f"Tile-level AUC (cat #{i:>2}): {auc:.3f} "

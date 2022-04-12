@@ -757,10 +757,6 @@ class Project:
             'hp': hp.get_dict(),
             'training_kwargs': s_args.training_kwargs,
         }
-        s_args.training_kwargs.update({
-            'train_dts': train_dts,
-            'val_dts': val_dts
-        })
         model_kwargs = {
             'hp': hp,
             'name': full_name,
@@ -779,7 +775,8 @@ class Project:
             'neptune_workspace': self.neptune_workspace,
         }
         process = s_args.ctx.Process(target=project_utils._train_worker,
-                                     args=(model_kwargs,
+                                     args=((train_dts, val_dts),
+                                           model_kwargs,
                                            s_args.training_kwargs,
                                            s_args.results_dict,
                                            self.verbosity))

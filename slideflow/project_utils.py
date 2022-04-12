@@ -53,12 +53,13 @@ def _heatmap_worker(slide, heatmap_args, kwargs):
     heatmap.save(heatmap_args.outdir, **kwargs)
 
 
-def _train_worker(model_kwargs, training_kwargs, results_dict, verbosity):
+def _train_worker(datasets, model_kw, training_kw, results_dict, verbosity):
     """Internal function to execute model training in an isolated process."""
     log.setLevel(verbosity)
-    trainer = sf.model.trainer_from_hp(**model_kwargs)
-    results = trainer.train(**training_kwargs)
-    results_dict.update({model_kwargs['name']: results})
+    train_dts, val_dts = datasets
+    trainer = sf.model.trainer_from_hp(**model_kw)
+    results = trainer.train(train_dts, val_dts, **training_kw)
+    results_dict.update({model_kw['name']: results})
 
 
 def _setup_input_labels(dts, inpt_headers, val_dts=None):
