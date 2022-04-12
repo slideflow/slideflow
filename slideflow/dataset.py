@@ -1091,7 +1091,7 @@ class Dataset:
                 unique_labels_for_this_header = list(set(filtered_labels))
                 unique_labels_for_this_header.sort()
                 for i, ul in enumerate(unique_labels_for_this_header):
-                    n_matching_filtered = sum(l == ul for l in filtered_labels)
+                    n_matching_filtered = sum(f == ul for f in filtered_labels)
                     if assigned_for_header and ul not in assigned_for_header:
                         msg = f"assign was provided, but label {ul} missing"
                         raise KeyError(msg)
@@ -1325,7 +1325,7 @@ class Dataset:
         for source in self.sources:
             rois_list += glob(join(self.sources[source]['roi'], "*.csv"))
         slides = self.slides()
-        return [l for l in list(set(rois_list)) if path_to_name(l) in slides]
+        return [r for r in list(set(rois_list)) if path_to_name(r) in slides]
 
     def slide_paths(self, source=None, apply_filters=True):
         """Returns a list of paths to either all slides, or slides matching
@@ -1847,7 +1847,7 @@ class Dataset:
 
         # Create and log a validation subset
         if val_strategy == 'none':
-            log.info(f"val_strategy is None; skipping validation")
+            log.info("val_strategy is None; skipping validation")
             train_slides = np.concatenate([
                 patients_dict[patient]['slides']
                 for patient in patients_dict.keys()
@@ -1976,71 +1976,96 @@ class Dataset:
                     val_slides = accepted_split['tfrecords']['validation']
                     train_slides = accepted_split['tfrecords']['training']
                 elif val_strategy in ('k-fold', 'k-fold-preserved-site'):
-                    val_slides = accepted_split['tfrecords'][f'k-fold-{k_fold_iter}']
-                    train_slides = np.concatenate([accepted_split['tfrecords'][f'k-fold-{ki}']
-                                                        for ki in range(1, k_fold+1)
-                                                        if ki != k_fold_iter]).tolist()
+                    k_id = f'k-fold-{k_fold_iter}'
+                    val_slides = accepted_split['tfrecords'][k_id]
+                    train_slides = np.concatenate([
+                        accepted_split['tfrecords'][f'k-fold-{ki}']
+                        for ki in range(1, k_fold+1)
+                        if ki != k_fold_iter
+                    ]).tolist()
                 else:
-                    raise errors.DatasetSplitError(f"Unknown validation strategy {val_strategy} requested.")
+                    msg = f"Unknown val_strategy {val_strategy} requested."
+                    raise errors.DatasetSplitError()
 
-            # Perform final integrity check to ensure no patients are in both training and validation slides
+            # Perform final integrity check to ensure no patients
+            # are in both training and validation slides
             if patients:
-                validation_pt = list(set([patients[slide] for slide in val_slides]))
-                training_pt = list(set([patients[slide] for slide in train_slides]))
+                validation_pt = list(set([patients[s] for s in val_slides]))
+                training_pt = list(set([patients[s] for s in train_slides]))
             else:
                 validation_pt, training_pt = val_slides, train_slides
             if sum([pt in training_pt for pt in validation_pt]):
-                raise errors.DatasetSplitError("At least one patient is in both validation and training sets.")
+                msg = "At least one patient is in both val and training sets."
+                raise errors.DatasetSplitError(msg)
 
             # Return list of tfrecords
-            val_tfrecords = [tfr for tfr in tfrecord_dir_list if path_to_name(tfr) in val_slides]
-            training_tfrecords = [tfr for tfr in tfrecord_dir_list if path_to_name(tfr) in train_slides]
-
+            val_tfrecords = [
+                tfr for tfr in tfrecord_dir_list
+                if path_to_name(tfr) in val_slides
+            ]
+            training_tfrecords = [
+                tfr for tfr in tfrecord_dir_list
+                if path_to_name(tfr) in train_slides
+            ]
         assert(len(val_tfrecords) == len(val_slides))
         assert(len(training_tfrecords) == len(train_slides))
-
-        training_dts = copy.deepcopy(self).filter(filters={'slide': train_slides})
-        val_dts = copy.deepcopy(self).filter(filters={'slide': val_slides})
-
+        training_dts = copy.deepcopy(self)
+        training_dts = training_dts.filter(filters={'slide': train_slides})
+        val_dts = copy.deepcopy(self)
+        val_dts = val_dts.filter(filters={'slide': val_slides})
         assert(sorted(training_dts.tfrecords()) == sorted(training_tfrecords))
         assert(sorted(val_dts.tfrecords()) == sorted(val_tfrecords))
-
         return training_dts, val_dts
 
     def torch(self, labels, batch_size=None, rebuild_index=False, **kwargs):
-        """Returns a PyTorch DataLoader object that interleaves tfrecords from this dataset.
+        """Returns a PyTorch DataLoader object that interleaves tfrecords.
 
-        The returned data loader yields a batch of (image, label) for each tile.
+        The returned dataloader yields a batch of (image, label) for each tile.
 
         Args:
-            labels (dict or str): If a dict is provided, expect a dict mapping slide names to outcome labels. If a str,
-                will intepret as categorical annotation header. For linear outcomes, or outcomes with manually
-                assigned labels, pass the first result of dataset.labels(...).
-                If None, will return slide name instead of label.
+            labels (dict or str): If a dict is provided, expect a dict mapping
+                slide names to outcome labels. If a str, will intepret as
+                categorical annotation header. For linear outcomes, or outcomes
+                with manually assigned labels, pass the first result of
+                dataset.labels(...). If None, returns slide instead of label.
             batch_size (int): Batch size.
-            rebuild_index (bool): Re-build index files even if already present. Defaults to True.
+            rebuild_index (bool): Re-build index files even if already present.
+                Defaults to True.
 
         Keyword Args:
             onehot (bool, optional): Onehot encode labels. Defaults to False.
-            incl_slidenames (bool, optional): Include slidenames as third returned variable. Defaults to False.
-            infinite (bool, optional): Infinitely repeat data. Defaults to False.
-            rank (int, optional): Worker ID to identify which worker this represents. Used to interleave results
-                among workers without duplications. Defaults to 0 (first worker).
-            num_replicas (int, optional): Number of GPUs or unique instances which will have their own DataLoader. Used to
-                interleave results among workers without duplications. Defaults to 1.
-            normalizer (:class:`slideflow.norm.StainNormalizer`, optional): Normalizer to use on images.
-                Defaults to None.
-            seed (int, optional): Use the following seed when randomly interleaving. Necessary for synchronized
-                multiprocessing distributed reading.
-            chunk_size (int, optional): Chunk size for image decoding. Defaults to 16.
-            preload_factor (int, optional): Number of batches to preload. Defaults to 1.
-            augment (str, optional): Image augmentations to perform. String containing characters designating augmentations.
-                    'x' indicates random x-flipping, 'y' y-flipping, 'r' rotating, and 'j' JPEG compression/decompression
-                    at random quality levels. Passing either 'xyrj' or True will use all augmentations.
-            standardize (bool, optional): Standardize images to (0,1). Defaults to True.
-            num_workers (int, optional): Number of DataLoader workers. Defaults to 2.
-            pin_memory (bool, optional): Pin memory to GPU. Defaults to True.
-            drop_last (bool, optional): Drop the last non-full batch. Defaults to False.
+            incl_slidenames (bool, optional): Include slidenames as third
+                returned variable. Defaults to False.
+            infinite (bool, optional): Infinitely repeat data.
+                Defaults to False.
+            rank (int, optional): Worker ID to identify which worker this
+                represents. Used to interleave results among workers without
+                duplications. Defaults to 0 (first worker).
+            num_replicas (int, optional): Number of GPUs or unique instances
+                which will have their own DataLoader. Used to interleave
+                results among workers without duplications. Defaults to 1.
+            normalizer (:class:`slideflow.norm.StainNormalizer`, optional):
+                Normalizer to use on images. Defaults to None.
+            seed (int, optional): Use the following seed when randomly
+                interleaving. Necessary for synchronized multiprocessing.
+            chunk_size (int, optional): Chunk size for image decoding.
+                Defaults to 16.
+            preload_factor (int, optional): Number of batches to preload.
+                Defaults to 1.
+            augment (str, optional): Image augmentations to perform. Str
+                containing characters designating augmentations. 'x' indicates
+                random x-flipping, 'y' y-flipping, 'r' rotating, 'j' JPEG
+                compression/decompression at random quality levels, and 'b'
+                random gaussian blur. Passing either 'xyrjb' or True will use
+                all augmentations. Defaults to 'xyrjb'.
+            standardize (bool, optional): Standardize images to (0,1).
+                Defaults to True.
+            num_workers (int, optional): Number of DataLoader workers.
+                Defaults to 2.
+            pin_memory (bool, optional): Pin memory to GPU.
+                Defaults to True.
+            drop_last (bool, optional): Drop the last non-full batch.
+                Defaults to False.
         """
 
         from slideflow.io.torch import interleave_dataloader
@@ -2053,7 +2078,10 @@ class Dataset:
         if not tfrecords:
             raise errors.TFRecordsNotFoundError
 
-        prob_weights = [self.prob_weights[tfr] for tfr in tfrecords] if self.prob_weights else None
+        if self.prob_weights:
+            prob_weights = [self.prob_weights[tfr] for tfr in tfrecords]
+        else:
+            prob_weights = None
         indices = self.load_indices()
         indices = [indices[path_to_name(tfr)] for tfr in tfrecords]
         return interleave_dataloader(tfrecords=tfrecords,
@@ -2072,7 +2100,6 @@ class Dataset:
         Returns:
             :class:`slideflow.dataset.Dataset` object.
         """
-
         ret = copy.deepcopy(self)
         ret._clip = {}
         return ret
@@ -2081,7 +2108,8 @@ class Dataset:
         """Updates tfrecord manifest.
 
         Args:
-            forced_update (bool, optional): Force regeneration of the manifest from scratch.
+            forced_update (bool, optional): Force regeneration of the
+                manifest from scratch.
         """
         tfrecords_folders = self.tfrecords_folders()
         for tfr_folder in tfrecords_folders:
@@ -2091,8 +2119,10 @@ class Dataset:
             )
 
     def update_annotations_with_slidenames(self, annotations_file):
-        """Attempts to automatically associate slide names from a directory with patients in a given annotations file,
-            skipping any slide names that are already present in the annotations file."""
+        """Attempts to automatically associate slide names from a directory
+        with patients in a given annotations file, skipping any slide names
+        that are already present in the annotations file.
+        """
 
         header, _ = sf.util.read_annotations(annotations_file)
         slide_list = self.slide_paths(apply_filters=False)
@@ -2101,9 +2131,10 @@ class Dataset:
         try:
             patient_index = header.index(TCGA.patient)
         except ValueError:
-            raise errors.AnnotationsError(f"Patient header {TCGA.patient} not found in annotations file.")
+            msg = f"Patient header {TCGA.patient} not found in annotations."
+            raise errors.AnnotationsError(msg)
         patients = []
-        patient_slide_dict = {}
+        pt_to_slide = {}
         with open(annotations_file) as csv_file:
             csv_reader = csv.reader(csv_file, delimiter=',')
             header = next(csv_reader, None)
@@ -2113,53 +2144,44 @@ class Dataset:
         log.debug(f"Number of patients in annotations: {len(patients)}")
         log.debug(f"Slides found: {len(slide_list)}")
 
-        # Then, check for sets of slides that would match to the same patient; due to ambiguity, these will be skipped.
-        num_occurrences = {}
+        # Then, check for sets of slides that would match to the same patient;
+        # due to ambiguity, these will be skipped.
+        n_occur = {}
         for slide in slide_list:
-            if _shortname(slide) not in num_occurrences:
-                num_occurrences[_shortname(slide)] = 1
+            if _shortname(slide) not in n_occur:
+                n_occur[_shortname(slide)] = 1
             else:
-                num_occurrences[_shortname(slide)] += 1
-        slides_to_skip = [slide for slide in slide_list if num_occurrences[_shortname(slide)] > 1]
+                n_occur[_shortname(slide)] += 1
+        slides_to_skip = [s for s in slide_list if n_occur[_shortname(s)] > 1]
 
         # Next, search through the slides folder for all valid slide files
-        num_warned = 0
-        warn_threshold = 1
-        for slide_filename in slide_list:
-            slide_name = path_to_name(slide_filename)
-            print_func = print if num_warned < warn_threshold else None
+        for file in slide_list:
+            slide = path_to_name(file)
             # First, skip this slide due to ambiguity if needed
-            if slide_name in slides_to_skip:
-                lead_msg = f"Unable to associate slide {slide_name} due to ambiguity"
-                log.warning(f"{lead_msg}; multiple slides match to patient {_shortname(slide_name)}; skipping.")
-                num_warned += 1
-            # Then, make sure the shortname and long name aren't both in the annotation file
-            if (slide_name != _shortname(slide_name)) and (slide_name in patients) and (_shortname(slide_name) in patients):
-                lead_msg = f"Unable to associate slide {slide_name} due to ambiguity"
-                log.warning(f"{lead_msg}; both {slide_name} and {_shortname(slide_name)} are patients; skipping.")
-                num_warned += 1
-
-            # Check if either the slide name or the shortened version are in the annotation file
-            if any(x in patients for x in [slide_name, _shortname(slide_name)]):
-                slide = slide_name if slide_name in patients else _shortname(slide_name)
-                patient_slide_dict.update({slide: slide_name})
-            else:
-                #log.warning(f"Slide '{slide_name}' not found in annotations file, skipping.")
-                #num_warned += 1
-                pass
-        if num_warned >= warn_threshold:
-            log.warning(f"...{num_warned} total warnings, see project log for details")
+            if slide in slides_to_skip:
+                log.warning(f"Skipping slide {slide} due to ambiguity")
+            # Then, make sure the shortname and long name
+            # aren't both in the annotation file
+            if ((slide != _shortname(slide))
+               and (slide in patients)
+               and (_shortname(slide) in patients)):
+                log.warning(f"Skipping slide {slide} due to ambiguity")
+            # Check if either the slide name or the shortened version
+            # are in the annotation file
+            if any(x in patients for x in [slide, _shortname(slide)]):
+                slide = slide if slide in patients else _shortname(slide)
+                pt_to_slide.update({slide: slide})
 
         # Now, write the assocations
-        num_updated_annotations = 0
-        num_missing = 0
+        n_updated = 0
+        n_missing = 0
         with open(annotations_file) as csv_file:
             csv_reader = csv.reader(csv_file, delimiter=',')
             header = next(csv_reader, None)
             with open('temp.csv', 'w') as csv_outfile:
                 csv_writer = csv.writer(csv_outfile, delimiter=',')
 
-                # Write to existing "slide" column in the annotations file if it exists,
+                # Write to existing "slide" column in the annotations file,
                 # otherwise create new column
                 try:
                     slide_index = header.index(TCGA.slide)
@@ -2168,34 +2190,36 @@ class Dataset:
                     csv_writer.writerow(header)
                     for row in csv_reader:
                         patient = row[patient_index]
-                        if patient in patient_slide_dict:
-                            row.extend([patient_slide_dict[patient]])
-                            num_updated_annotations += 1
+                        if patient in pt_to_slide:
+                            row.extend([pt_to_slide[patient]])
+                            n_updated += 1
                         else:
                             row.extend([""])
-                            num_missing += 1
+                            n_missing += 1
                         csv_writer.writerow(row)
                 else:
                     csv_writer.writerow(header)
                     for row in csv_reader:
-                        patient = row[patient_index]
-                        # Only write column if no slide is documented in the annotation
-                        if (patient in patient_slide_dict) and (row[slide_index] == ''):
-                            row[slide_index] = patient_slide_dict[patient]
-                            num_updated_annotations += 1
-                        elif (patient not in patient_slide_dict) and (row[slide_index] == ''):
-                            num_missing += 1
+                        pt = row[patient_index]
+                        # Only write column if no slide is in the annotation
+                        if (pt in pt_to_slide) and (row[slide_index] == ''):
+                            row[slide_index] = pt_to_slide[pt]
+                            n_updated += 1
+                        elif ((pt not in pt_to_slide)
+                              and (row[slide_index] == '')):
+                            n_missing += 1
                         csv_writer.writerow(row)
-        if num_updated_annotations:
-            log.info(f"Successfully associated slides with {num_updated_annotations} annotation entries.")
-            if num_missing:
-                log.info(f"Slides not found for {num_missing} annotations.")
-        elif num_missing:
-            log.debug(f"No annotation updates performed. Slides not found for {num_missing} annotations.")
+        if n_updated:
+            log.info(f"Done; associated slides with {n_updated} annotations.")
+            if n_missing:
+                log.info(f"Slides not found for {n_missing} annotations.")
+        elif n_missing:
+            log.debug(f"Slides missing for {n_missing} annotations.")
         else:
-            log.debug(f"Annotations up-to-date, no changes made.")
+            log.debug("Annotations up-to-date, no changes made.")
 
-        # Finally, backup the old annotation file and overwrite existing with the new data
+        # Finally, backup the old annotation file and overwrite
+        # existing with the new data
         backup_file = f"{annotations_file}.backup"
         if exists(backup_file):
             os.remove(backup_file)
@@ -2206,10 +2230,10 @@ class Dataset:
         """Verify that annotations are correctly loaded."""
 
         # Verify no duplicate slide names are found
-        slide_list_from_annotations = self.slides()
-        if len(slide_list_from_annotations) != len(list(set(slide_list_from_annotations))):
-            log.error("Duplicate slide names detected in the annotation file.")
-            raise errors.AnnotationsError("Duplicate slide names detected in the annotation file.")
+        slides_from_anns = self.slides()
+        if len(slides_from_anns) != len(list(set(slides_from_anns))):
+            msg = "Duplicate slide names detected in the annotation file."
+            raise errors.AnnotationsError(msg)
 
         # Verify all slides in the annotation column are valid
         sf.util.multi_warn(
