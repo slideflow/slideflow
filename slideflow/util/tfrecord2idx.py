@@ -3,6 +3,7 @@ from __future__ import print_function
 import sys
 import struct
 
+
 def create_index(tfrecord_file: str, index_file: str) -> None:
     """Create index from the tfrecords file.
 
@@ -21,7 +22,7 @@ def create_index(tfrecord_file: str, index_file: str) -> None:
     outfile = open(index_file, "w")
 
     while True:
-        current = infile.tell()
+        cur = infile.tell()
         try:
             byte_len = infile.read(8)
             if len(byte_len) == 0:
@@ -30,7 +31,7 @@ def create_index(tfrecord_file: str, index_file: str) -> None:
             proto_len = struct.unpack("q", byte_len)[0]
             infile.read(proto_len)
             infile.read(4)
-            outfile.write(str(current) + " " + str(infile.tell() - current) + "\n")
+            outfile.write(str(cur) + " " + str(infile.tell() - cur) + "\n")
         except Exception:
             print("Failed to parse TFRecord.")
             break

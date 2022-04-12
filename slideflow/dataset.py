@@ -1021,7 +1021,7 @@ class Dataset:
             return False
 
     def labels(self, headers, use_float=False, assign=None, format='index'):
-        """Returns a dictionary of slide names mapping to patient id and [an] label(s).
+        """Returns a dict of slide names mapped to patient id and label(s).
 
         Args:
             headers (list(str)) Annotation header(s) that specifies label.

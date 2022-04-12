@@ -20,6 +20,7 @@ from slideflow.util import colors as col
 from slideflow.util.spinner import Spinner
 from slideflow.stats import SlideMap
 
+
 def get_tcga_slides():
     return {
             'TCGA-BJ-A2N9-01Z-00-DX1.CFCB1FA9-7890-4B1B-93AB-4066E160FBF5':'0b0b560d-f3e7-4103-9b1b-d4981e00c0e7',
@@ -34,30 +35,38 @@ def get_tcga_slides():
             'TCGA-EL-A3CO-01Z-00-DX1.7BF5F004-E7E6-4320-BA89-39D05657BBCB':'0ac4f9a9-32f8-40b5-be0e-52ceeef7dbbf',
         }
 
+
 def download_from_tcga(uuid, dest, message=None):
     params = {'ids': [uuid]}
     data_endpt = "https://api.gdc.cancer.gov/data"
-    response = requests.post(data_endpt,
-                                data = json.dumps(params),
-                                headers = {"Content-Type": "application/json"},
-                                stream=True)
+    response = requests.post(
+        data_endpt,
+        data=json.dumps(params),
+        headers={"Content-Type": "application/json"},
+        stream=True
+    )
     response_head_cd = response.headers["Content-Disposition"]
     block_size = 4096
     file_size = int(response.headers.get('Content-Length', None))
     pb = ProgressBar(file_size, leadtext=message)
     file_name = join(dest, re.findall("filename=(.+)", response_head_cd)[0])
     with open(file_name, "wb") as output_file:
-        for i, chunk in enumerate(response.iter_content(chunk_size=block_size)):
+        for chunk in response.iter_content(chunk_size=block_size):
             output_file.write(chunk)
             pb.increase_bar_value(block_size)
     pb.end()
 
+
 def random_annotations(slides_path):
-    slides = [sf.util.path_to_name(f) for f in os.listdir(slides_path)
-                                        if sf.util.path_to_ext(f).lower() in sf.util.SUPPORTED_FORMATS][:10]
+    slides = [
+        sf.util.path_to_name(f)
+        for f in os.listdir(slides_path)
+        if sf.util.path_to_ext(f).lower() in sf.util.SUPPORTED_FORMATS
+    ][:10]
     if not slides:
         raise OSError(f'No slides found at {slides_path}')
-    annotations = [[sf.util.TCGA.patient, 'dataset', 'category1', 'category2', 'linear1', 'linear2', 'time', 'event']]
+    annotations = [[sf.util.TCGA.patient, 'dataset', 'category1', 'category2',
+                    'linear1', 'linear2', 'time', 'event']]
     for s, slide in enumerate(slides):
         cat1 = ['A', 'B'][s % 2]
         cat2 = ['A', 'B'][s % 2]
@@ -68,21 +77,28 @@ def random_annotations(slides_path):
         annotations += [[slide, 'TEST', cat1, cat2, lin1, lin2, time, event]]
     return annotations
 
+
 # ---------------------------------------
 
 def _prediction_tester(project, verbosity, **kwargs):
     logging.getLogger("slideflow").setLevel(verbosity)
     project.predict(**kwargs)
 
+
 def prediction_tester(project, **kwargs):
-    """Evaluation testing must happen in an isolated thread in order to free GPU memory
-    after evaluation has completed, due to the need for sequential testing of multiple models."""
+    """Prediction testing must happen in an isolated to free GPU memory
+    after evaluation is done, due to the need for testing multiple models."""
 
     ctx = multiprocessing.get_context('spawn')
     verbosity = logging.getLogger('slideflow').level
-    process = ctx.Process(target=_prediction_tester, args=(project, verbosity), kwargs=kwargs)
+    process = ctx.Process(
+        target=_prediction_tester,
+        args=(project, verbosity),
+        kwargs=kwargs
+    )
     process.start()
     process.join()
+
 
 # ---------------------------------------
 
@@ -90,13 +106,18 @@ def _evaluation_tester(project, verbosity, **kwargs):
     logging.getLogger("slideflow").setLevel(verbosity)
     project.evaluate(**kwargs)
 
+
 def evaluation_tester(project, **kwargs):
-    """Evaluation testing must happen in an isolated thread in order to free GPU memory
-    after evaluation has completed, due to the need for sequential testing of multiple models."""
+    """Evaluation testing must happen in an isolated to free GPU memory
+    after evaluation is done, due to the need for testing multiple models."""
 
     ctx = multiprocessing.get_context('spawn')
     verbosity = logging.getLogger('slideflow').level
-    process = ctx.Process(target=_evaluation_tester, args=(project, verbosity), kwargs=kwargs)
+    process = ctx.Process(
+        target=_evaluation_tester,
+        args=(project, verbosity),
+        kwargs=kwargs
+    )
     process.start()
     process.join()
 
@@ -108,7 +129,11 @@ def _activations_tester(project, model, verbosity, **kwargs):
         dataset = project.dataset(299, 302)
         test_slide = dataset.slides()[0]
 
-        df = project.generate_features(model=model, outcomes='category1', **kwargs)
+        df = project.generate_features(
+            model=model,
+            outcomes='category1',
+            **kwargs
+        )
         assert df.num_features == 2048
         assert df.num_logits == 2
         assert len(df.activations) == len(dataset.tfrecords())
@@ -128,27 +153,42 @@ def _activations_tester(project, model, verbosity, **kwargs):
         umap = SlideMap.from_features(df)
         umap.save(join(project.root, 'stats', '2d_umap.png'))
         tile_stats, pt_stats, cat_stats = df.stats()
-        top_features_by_tile = sorted(range(df.num_features), key=lambda f: tile_stats[f]['p'])
+        top_features_by_tile = sorted(
+            range(df.num_features),
+            key=lambda f: tile_stats[f]['p']
+        )
         for feature in top_features_by_tile[:5]:
-            umap.save_3d_plot(join(project.root, 'stats', f'3d_feature{feature}.png'), feature=feature)
-        df.box_plots(top_features_by_tile[:5], join(project.root, 'box_plots'))
+            umap.save_3d_plot(
+                join(project.root, 'stats', f'3d_feature{feature}.png'),
+                feature=feature
+            )
+        df.box_plots(
+            top_features_by_tile[:5],
+            join(project.root, 'box_plots')
+        )
 
-    with TaskWrapper("Testing mosaic generation...") as test:
+    with TaskWrapper("Testing mosaic generation..."):
         mosaic = project.generate_mosaic(df)
         mosaic.save(os.path.join(project.root, "mosaic_test.png"))
+
 
 def activations_tester(project, model, **kwargs):
     ctx = multiprocessing.get_context('spawn')
     verbosity = logging.getLogger('slideflow').level
-    process = ctx.Process(target=_activations_tester, args=(project, model, verbosity), kwargs=kwargs)
+    process = ctx.Process(
+        target=_activations_tester,
+        args=(project, model, verbosity),
+        kwargs=kwargs
+    )
     process.start()
     process.join()
+
 
 # -----------------------------------------
 
 def _wsi_prediction_tester(project, model, verbosity):
     logging.getLogger("slideflow").setLevel(verbosity)
-    with TaskWrapper("Testing WSI prediction...") as test:
+    with TaskWrapper("Testing WSI prediction..."):
         dataset = project.dataset()
         slide_paths = dataset.slide_paths(source='TEST')
         patient_name = sf.util.path_to_name(slide_paths[0])
@@ -156,10 +196,14 @@ def _wsi_prediction_tester(project, model, verbosity):
                             join(project.root, 'wsi'),
                             filters={sf.util.TCGA.patient: [patient_name]})
 
+
 def wsi_prediction_tester(project, model):
     ctx = multiprocessing.get_context('spawn')
     verbosity = logging.getLogger('slideflow').level
-    process = ctx.Process(target=_wsi_prediction_tester, args=(project, model, verbosity))
+    process = ctx.Process(
+        target=_wsi_prediction_tester,
+        args=(project, model, verbosity)
+    )
     process.start()
     process.join()
 
@@ -167,14 +211,23 @@ def wsi_prediction_tester(project, model):
 def _clam_feature_generator(project, model, verbosity):
     logging.getLogger("slideflow").setLevel(verbosity)
     outdir = join(project.root, 'clam')
-    project.generate_features_for_clam(model, outdir=outdir, force_regenerate=True)
+    project.generate_features_for_clam(
+        model,
+        outdir=outdir,
+        force_regenerate=True
+    )
+
 
 def clam_feature_generator(project, model):
     ctx = multiprocessing.get_context('spawn')
     verbosity = logging.getLogger('slideflow').level
-    process = ctx.Process(target=_clam_feature_generator, args=(project, model, verbosity))
+    process = ctx.Process(
+        target=_clam_feature_generator,
+        args=(project, model, verbosity)
+    )
     process.start()
     process.join()
+
 
 # ----------------------------------------
 
@@ -382,9 +435,11 @@ class TaskWrapper:
     def skip(self):
         self.skipped = True
 
+
 class TestSuite:
     '''Class to supervise standardized testing of slideflow pipeline.'''
-    def __init__(self, root, slides, buffer=None, verbosity=logging.WARNING, reset=False):
+    def __init__(self, root, slides, buffer=None, verbosity=logging.WARNING,
+                 reset=False):
         '''Initialize testing models.'''
 
         # Set logging level
@@ -438,20 +493,26 @@ class TestSuite:
         self.project.dataset(299, 302).build_index(True)
 
     def _get_model(self, name, epoch=1):
-        prev_run_dirs = [x for x in os.listdir(self.project.models_dir) if os.path.isdir(join(self.project.models_dir, x))]
+        prev_run_dirs = [
+            x for x in os.listdir(self.project.models_dir)
+            if os.path.isdir(join(self.project.models_dir, x))
+        ]
         for run in sorted(prev_run_dirs, reverse=True):
             if run[6:] == name:
                 return join(self.project.models_dir, run, f'{name}_epoch{epoch}')
         raise OSError(f"Unable to find trained model {name}")
 
     def configure_sources(self):
-        with TaskWrapper("Dataset configuration...") as test:
+        with TaskWrapper("Dataset configuration..."):
             for source in self.config.sources.keys():
-                self.project.add_source(source, slides=self.config.sources[source]['slides'],
-                                            roi=self.config.sources[source]['roi'],
-                                            tiles=self.config.sources[source]['tiles'],
-                                            tfrecords=self.config.sources[source]['tfrecords'],
-                                            path=self.project.dataset_config)
+                self.project.add_source(
+                    source,
+                    slides=self.config.sources[source]['slides'],
+                    roi=self.config.sources[source]['roi'],
+                    tiles=self.config.sources[source]['tiles'],
+                    tfrecords=self.config.sources[source]['tfrecords'],
+                    path=self.project.dataset_config
+                )
 
     def configure_annotations(self):
         with TaskWrapper("Annotation configuration...") as test:
@@ -516,42 +577,49 @@ class TestSuite:
             )
 
         # Create single hyperparameter combination
-        hp = sf.model.ModelParams(epochs=1,
-                                  toplayer_epochs=0,
-                                  model="xception",
-                                  pooling='max',
-                                  loss=loss,
-                                  learning_rate=0.001,
-                                  batch_size=16,
-                                  hidden_layers=1,
-                                  optimizer='Adam',
-                                  early_stop=False,
-                                  dropout=0.1,
-                                  early_stop_patience=0,
-                                  training_balance='patient',
-                                  validation_balance='none',
-                                  uq=uq,
-                                  augment=True)
+        hp = sf.model.ModelParams(
+            epochs=1,
+            toplayer_epochs=0,
+            model="xception",
+            pooling='max',
+            loss=loss,
+            learning_rate=0.001,
+            batch_size=16,
+            hidden_layers=1,
+            optimizer='Adam',
+            early_stop=False,
+            dropout=0.1,
+            early_stop_patience=0,
+            training_balance='patient',
+            validation_balance='none',
+            uq=uq,
+            augment=True
+        )
         return hp
 
     def test_extraction(self, enable_downsample=True, **kwargs):
         # Test tile extraction, default parameters, for regular slides
-        with TaskWrapper("Testing slide extraction...") as test:
-            self.project.extract_tiles(tile_px=299,
-                                   tile_um=302,
-                                   buffer=self.buffer,
-                                   source=['TEST'],
-                                   roi_method='ignore',
-                                   skip_extracted=False,
-                                   img_format='png',
-                                   enable_downsample=enable_downsample,
-                                   **kwargs)
+        with TaskWrapper("Testing slide extraction..."):
+            self.project.extract_tiles(
+                tile_px=299,
+                tile_um=302,
+                buffer=self.buffer,
+                source=['TEST'],
+                roi_method='ignore',
+                skip_extracted=False,
+                img_format='png',
+                enable_downsample=enable_downsample,
+                **kwargs
+            )
 
     def test_normalizers(self, *args, single=True, multi=True):
-        # Tests throughput of normalizers and saves a single example image with each
+        # Tests throughput of normalizers, save a single example image for each
         verbosity = logging.getLogger('slideflow').level
         ctx = multiprocessing.get_context('spawn')
-        process = ctx.Process(target=normalizer_tester, args=(self.project, args, single, multi, verbosity))
+        process = ctx.Process(
+            target=normalizer_tester,
+            args=(self.project, args, single, multi, verbosity)
+        )
         process.start()
         process.join()
 
@@ -563,22 +631,30 @@ class TestSuite:
 
     def train_perf(self, **train_kwargs):
         with TaskWrapper("Training to single categorical outcome from hyperparameter sweep...") as test:
-            self.setup_hp('categorical', sweep=True, normalizer='reinhard_fast', uq=False)
-            results_dict = self.project.train(exp_label='manual_hp',
-                                          outcomes='category1',
-                                          val_k=1,
-                                          validate_on_batch=10,
-                                          save_predictions=True,
-                                          steps_per_epoch_override=20,
-                                          params='sweep.json',
-                                          **train_kwargs)
+            self.setup_hp(
+                'categorical',
+                sweep=True,
+                normalizer='reinhard_fast',
+                uq=False
+            )
+            results_dict = self.project.train(
+                exp_label='manual_hp',
+                outcomes='category1',
+                val_k=1,
+                validate_on_batch=10,
+                save_predictions=True,
+                steps_per_epoch_override=20,
+                params='sweep.json',
+                **train_kwargs
+            )
 
             if not results_dict:
                 log.error("Results object not received from training")
                 test.fail()
 
-    def test_training(self, categorical=True, uq=True, multi_categorical=True, linear=True, multi_input=True, cph=True,
-                     multi_cph=True, **train_kwargs):
+    def test_training(self, categorical=True, uq=True, multi_categorical=True,
+                      linear=True, multi_input=True, cph=True, multi_cph=True,
+                      **train_kwargs):
 
         if categorical:
             # Test categorical outcome
@@ -588,90 +664,104 @@ class TestSuite:
             # Test categorical outcome with UQ
             with TaskWrapper("Training to single categorical outcome with UQ...") as test:
                 if sf.backend() == 'tensorflow':
-                    self.project.train(exp_label='UQ',
-                                    outcomes='category1',
-                                    val_k=1,
-                                    params=self.setup_hp('categorical', sweep=False, uq=True),
-                                    validate_on_batch=10,
-                                    steps_per_epoch_override=20,
-                                    save_predictions=True,
-                                    **train_kwargs)
+                    self.project.train(
+                        exp_label='UQ',
+                        outcomes='category1',
+                        val_k=1,
+                        params=self.setup_hp('categorical', sweep=False, uq=True),
+                        validate_on_batch=10,
+                        steps_per_epoch_override=20,
+                        save_predictions=True,
+                        **train_kwargs
+                    )
                 else:
                     test.skip()
 
         if multi_categorical:
             # Test multiple sequential categorical outcome models
             with TaskWrapper("Training to multiple outcomes...") as test:
-                self.project.train(outcomes=['category1', 'category2'],
-                                   val_k=1,
-                                   params=self.setup_hp('categorical'),
-                                   validate_on_batch=10,
-                                   steps_per_epoch_override=20,
-                                   save_predictions=True,
-                                   **train_kwargs)
+                self.project.train(
+                    outcomes=['category1', 'category2'],
+                    val_k=1,
+                    params=self.setup_hp('categorical'),
+                    validate_on_batch=10,
+                    steps_per_epoch_override=20,
+                    save_predictions=True,
+                    **train_kwargs
+                )
 
         if linear:
             # Test multiple linear outcome
             with TaskWrapper("Training to multiple linear outcomes...") as test:
-                self.project.train(outcomes=['linear1', 'linear2'],
-                                   val_k=1,
-                                   params=self.setup_hp('linear'),
-                                   validate_on_batch=10,
-                                   steps_per_epoch_override=20,
-                                   save_predictions=True,
-                                   **train_kwargs)
+                self.project.train(
+                    outcomes=['linear1', 'linear2'],
+                    val_k=1,
+                    params=self.setup_hp('linear'),
+                    validate_on_batch=10,
+                    steps_per_epoch_override=20,
+                    save_predictions=True,
+                    **train_kwargs
+                )
 
         if multi_input:
             with TaskWrapper("Training with multiple inputs (image + annotation feature)...") as test:
-                self.project.train(exp_label='multi_input',
-                                  outcomes='category1',
-                                  input_header='category2',
-                                  params=self.setup_hp('categorical'),
-                                  val_k=1,
-                                  validate_on_batch=10,
-                                  steps_per_epoch_override=20,
-                                  save_predictions=True,
-                                  **train_kwargs)
+                self.project.train(
+                    exp_label='multi_input',
+                    outcomes='category1',
+                    input_header='category2',
+                    params=self.setup_hp('categorical'),
+                    val_k=1,
+                    validate_on_batch=10,
+                    steps_per_epoch_override=20,
+                    save_predictions=True,
+                    **train_kwargs
+                )
 
         if cph:
             with TaskWrapper("Training a CPH model...") as test:
                 if sf.backend() == 'tensorflow':
-                    self.project.train(exp_label='cph',
-                                       outcomes='time',
-                                       input_header='event',
-                                       params=self.setup_hp('cph'),
-                                       val_k=1,
-                                       validate_on_batch=10,
-                                       steps_per_epoch_override=20,
-                                       save_predictions=True,
-                                       **train_kwargs)
+                    self.project.train(
+                        exp_label='cph',
+                        outcomes='time',
+                        input_header='event',
+                        params=self.setup_hp('cph'),
+                        val_k=1,
+                        validate_on_batch=10,
+                        steps_per_epoch_override=20,
+                        save_predictions=True,
+                        **train_kwargs
+                    )
                 else:
                     test.skip()
 
         if multi_cph:
             with TaskWrapper("Training a multi-input CPH model...") as test:
                 if sf.backend() == 'tensorflow':
-                    self.project.train(exp_label='multi_cph',
-                                       outcomes='time',
-                                       input_header=['event', 'category1'],
-                                       params=self.setup_hp('cph'),
-                                       val_k=1,
-                                       validate_on_batch=10,
-                                       steps_per_epoch_override=20,
-                                       save_predictions=True,
-                                       **train_kwargs)
+                    self.project.train(
+                        exp_label='multi_cph',
+                        outcomes='time',
+                        input_header=['event', 'category1'],
+                        params=self.setup_hp('cph'),
+                        val_k=1,
+                        validate_on_batch=10,
+                        steps_per_epoch_override=20,
+                        save_predictions=True,
+                        **train_kwargs
+                    )
                 else:
                     test.skip()
         else:
             print("Skipping CPH model testing [current backend is Pytorch]")
 
     def test_prediction(self, **predict_kwargs):
-        perf_model = self._get_model('category1-manual_hp-TEST-HPSweep0-kfold1')
+        model = self._get_model('category1-manual_hp-TEST-HPSweep0-kfold1')
 
         with TaskWrapper("Testing prediction from single categorical outcome model...") as test:
-            prediction_tester(project=self.project,
-                              model=perf_model,
-                              **predict_kwargs)
+            prediction_tester(
+                project=self.project,
+                model=model,
+                **predict_kwargs
+            )
 
     def test_evaluation(self, **eval_kwargs):
         multi_cat_model = self._get_model('category1-category2-HP0-kfold1')
@@ -679,63 +769,76 @@ class TestSuite:
         multi_inp_model = self._get_model('category1-multi_input-HP0-kfold1')
         perf_model = self._get_model('category1-manual_hp-TEST-HPSweep0-kfold1')
 
-        # Performs evaluation in isolated thread to avoid OOM errors with sequential model loading/testing
+        # Performs evaluation in isolated thread to avoid OOM errors
+        # with sequential model loading/testing
         with TaskWrapper("Testing evaluation of single categorical outcome model...") as test:
-            evaluation_tester(project=self.project,
-                              model=perf_model,
-                              outcomes='category1',
-                              histogram=True,
-                              save_predictions=True,
-                              **eval_kwargs)
+            evaluation_tester(
+                project=self.project,
+                model=perf_model,
+                outcomes='category1',
+                histogram=True,
+                save_predictions=True,
+                **eval_kwargs
+            )
 
         with TaskWrapper("Testing evaluation of single categorical outcome model with UQ...") as test:
             if sf.backend() == 'tensorflow':
                 uq_model = self._get_model('category1-UQ-HP0-kfold1')
-                evaluation_tester(project=self.project,
-                                model=uq_model,
-                                outcomes='category1',
-                                histogram=True,
-                                save_predictions=True,
-                                **eval_kwargs)
+                evaluation_tester(
+                    project=self.project,
+                    model=uq_model,
+                    outcomes='category1',
+                    histogram=True,
+                    save_predictions=True,
+                    **eval_kwargs
+                )
             else:
                 test.skip()
 
         with TaskWrapper("Testing evaluation of multi-categorical outcome model...") as test:
-            evaluation_tester(project=self.project,
-                              model=multi_cat_model,
-                              outcomes=['category1', 'category2'],
-                              histogram=True,
-                              save_predictions=True,
-                              **eval_kwargs)
+            evaluation_tester(
+                project=self.project,
+                model=multi_cat_model,
+                outcomes=['category1', 'category2'],
+                histogram=True,
+                save_predictions=True,
+                **eval_kwargs
+            )
 
         with TaskWrapper("Testing evaluation of multi-linear outcome model...") as test:
-            evaluation_tester(project=self.project,
-                              model=multi_lin_model,
-                              outcomes=['linear1', 'linear2'],
-                              histogram=True,
-                              save_predictions=True,
-                              **eval_kwargs)
+            evaluation_tester(
+                project=self.project,
+                model=multi_lin_model,
+                outcomes=['linear1', 'linear2'],
+                histogram=True,
+                save_predictions=True,
+                **eval_kwargs
+            )
 
         with TaskWrapper("Testing evaluation of multi-input (image + annotation feature) model...") as test:
-            evaluation_tester(project=self.project,
-                              model=multi_inp_model,
-                              outcomes='category1',
-                              input_header='category2',
-                              **eval_kwargs)
+            evaluation_tester(
+                project=self.project,
+                model=multi_inp_model,
+                outcomes='category1',
+                input_header='category2',
+                **eval_kwargs
+            )
 
         with TaskWrapper("Testing evaluation of CPH model...") as test:
             if sf.backend() == 'tensorflow':
                 cph_model = self._get_model('time-cph-HP0-kfold1')
-                evaluation_tester(project=self.project,
-                                model=cph_model,
-                                outcomes='time',
-                                input_header='event',
-                                **eval_kwargs)
+                evaluation_tester(
+                    project=self.project,
+                    model=cph_model,
+                    outcomes='time',
+                    input_header='event',
+                    **eval_kwargs
+                )
             else:
                 test.skip()
 
     def test_heatmap(self, slide='auto', **heatmap_kwargs):
-        perf_model = self._get_model('category1-manual_hp-TEST-HPSweep0-kfold1') #self._get_model('category1-manual_hp-HP0-kfold1')
+        perf_model = self._get_model('category1-manual_hp-TEST-HPSweep0-kfold1')
         assert os.path.exists(perf_model), "Model has not yet been trained."
 
         with TaskWrapper("Testing heatmap generation...") as test:
@@ -743,7 +846,12 @@ class TestSuite:
                 dataset = self.project.dataset()
                 slide_paths = dataset.slide_paths(source='TEST')
                 patient_name = sf.util.path_to_name(slide_paths[0])
-            self.project.generate_heatmaps(perf_model, filters={sf.util.TCGA.patient: [patient_name]}, roi_method='ignore')
+            self.project.generate_heatmaps(
+                perf_model,
+                filters={sf.util.TCGA.patient: [patient_name]},
+                roi_method='ignore',
+                **heatmap_kwargs
+            )
 
     def test_activations_and_mosaic(self, **act_kwargs):
         perf_model = self._get_model('category1-manual_hp-TEST-HPSweep0-kfold1')
@@ -751,12 +859,12 @@ class TestSuite:
         activations_tester(project=self.project, model=perf_model)
 
     def test_predict_wsi(self):
-        perf_model = self._get_model('category1-manual_hp-TEST-HPSweep0-kfold1') #self._get_model('category1-manual_hp-HP0-kfold1')
+        perf_model = self._get_model('category1-manual_hp-TEST-HPSweep0-kfold1')
         assert os.path.exists(perf_model), "Model has not yet been trained."
         wsi_prediction_tester(self.project, perf_model)
 
     def test_clam(self):
-        perf_model = self._get_model('category1-manual_hp-TEST-HPSweep0-kfold1') #self._get_model('category1-manual_hp-HP0-kfold1')
+        perf_model = self._get_model('category1-manual_hp-TEST-HPSweep0-kfold1')
         assert os.path.exists(perf_model), "Model has not yet been trained."
 
         try:
@@ -777,10 +885,16 @@ class TestSuite:
                 test.skip()
             else:
                 dataset = self.project.dataset(299, 302)
-                self.project.train_clam('TEST_CLAM', join(self.project.root, 'clam'), 'category1', dataset)
+                self.project.train_clam(
+                    'TEST_CLAM',
+                    join(self.project.root, 'clam'),
+                    'category1',
+                    dataset
+                )
 
-    def test(self, extract=True, reader=True, train=True, normalizer=True, evaluate=True, predict=True, heatmap=True,
-             activations=True, predict_wsi=True, clam=True):
+    def test(self, extract=True, reader=True, train=True, normalizer=True,
+             evaluate=True, predict=True, heatmap=True, activations=True,
+             predict_wsi=True, clam=True):
         '''Perform and report results of all available testing.'''
 
         if extract:             self.test_extraction()

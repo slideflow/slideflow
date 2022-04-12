@@ -1466,7 +1466,7 @@ class Project:
                         predict_on_axes=None, max_tiles=0, umap_cache=None,
                         use_float=False, low_memory=False, **kwargs):
 
-        """Generates a mosaic map by overlaying images onto a set of mapped tiles.
+        """Generates a mosaic map by overlaying images onto mapped tiles.
             Image tiles are extracted from the provided set of TFRecords, and
             predictions + features from layer activations are calculated using
             the specified model. Tiles are mapped either with UMAP of layer
