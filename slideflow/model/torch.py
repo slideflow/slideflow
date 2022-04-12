@@ -15,7 +15,7 @@ from os.path import join
 
 import slideflow.util.neptune_utils
 from slideflow.util import log
-from slideflow.util.colors import col
+from slideflow.util import colors as col
 from slideflow.model import base as _base
 from slideflow.model import torch_utils
 from slideflow.model.base import log_manifest

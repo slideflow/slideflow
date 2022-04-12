@@ -19,11 +19,12 @@ from statistics import mean, median
 
 import slideflow as sf
 import slideflow.util.colors as col
+from slideflow.util.colors import *  # Here for compatibility
 from slideflow import errors
 
 try:
     import git
-except ImportError: # git is not needed for pypi distribution
+except ImportError:  # git is not needed for pypi distribution
     git = None
 
 # TODO: re-enable logging with maximum log file size

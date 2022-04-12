@@ -61,21 +61,18 @@ class Mosaic:
         """
         if not len(tfrecords):
             raise errors.TFRecordsNotFoundError
-        if self.mapping_method not in ('strict', 'expanded'):
-            raise TypeError(f'Unknown mapping method {self.mapping_method}')
-        else:
-            log.debug(f'Mapping method: {self.mapping_method}')
         if tile_select not in ('nearest', 'centroid'):
             raise TypeError(f'Unknown tile selection method {tile_select}')
         else:
             log.debug(f'Tile selection method: {tile_select}')
 
         self.tile_point_distances = []
-        self.mapping_method = 'expanded' if expanded else 'strict'
         self.mapped_tiles = {}
         self.slide_map = slide_map
         self.num_tiles_x = num_tiles_x
         self.tfrecords = tfrecords
+        self.mapping_method = 'expanded' if expanded else 'strict'
+        log.debug(f'Mapping method: {self.mapping_method}')
 
         # Detect tfrecord image format
         _, self.img_format = sf.io.detect_tfrecord_format(self.tfrecords[0])

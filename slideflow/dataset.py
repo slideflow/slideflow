@@ -69,7 +69,7 @@ def _tile_extractor(tfrecord_dir, tiles_dir, reports, tma, qc,
                 tiles_dir=tiles_dir,
                 **generator_kwargs
             )
-        except sf.slide.TileCorruptionError:
+        except errors.TileCorruptionError:
             if wsi_kwargs['enable_downsample']:
                 log.warning(f'{slide_path} corrupt; disabling downsampling')
                 report = _tile_extractor(**local_args)

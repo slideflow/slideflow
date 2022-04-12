@@ -1,5 +1,6 @@
 '''Text coloring.'''
 
+
 def dim(text):
     return '\033[2m' + str(text) + '\033[0m'
 

@@ -2091,7 +2091,7 @@ class Project:
                     with open(join(outdir, wsi.name+'.pkl'), 'wb') as file:
                         pickle.dump(wsi_grid, file)
 
-                except sf.slide.TileCorruptionError:
+                except errors.TileCorruptionError:
                     fmt_slide = col.green(path_to_name(slide_path))
                     log.error(f'{fmt_slide} is corrupt; skipping slide')
                     continue
