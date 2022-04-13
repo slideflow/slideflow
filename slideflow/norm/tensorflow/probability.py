@@ -8,6 +8,7 @@ assert_greater_equal = tf.debugging.assert_greater_equal
 assert_less_equal = tf.debugging.assert_less_equal
 assert_integer = tf.debugging.assert_integer
 
+
 def as_numpy_dtype(dtype):
   """Returns a `np.dtype` based on this `dtype`."""
   dtype = tf.as_dtype(dtype)

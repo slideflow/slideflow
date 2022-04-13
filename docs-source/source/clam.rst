@@ -31,7 +31,7 @@ To train a CLAM model, use the project function :func:`slideflow.Project.train_c
     P.train_clam(
         exp_name='test_experiment',
         pt_files='/clam/path',
-        outcome_label_headers='category1',
+        outcomes='category1',
         dataset=dataset,
         clam_args=clam_args
     )
@@ -50,7 +50,7 @@ To evaluate a saved CLAM model on an external dataset, first extract features fr
     P.evaluate_clam(
         exp_name='evaluation',
         pt_files='/eval/clam/path',
-        outcome_label_headers='category1',
+        outcomes='category1',
         tile_px=299,
         tile_um=302
     )

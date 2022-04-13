@@ -2,18 +2,20 @@ import imghdr
 import os
 import shutil
 import tensorflow as tf
-import slideflow as sf
 import numpy as np
-
-from slideflow.io import gaussian
+from glob import glob
 from functools import partial
 from tqdm import tqdm
 from os import listdir
 from os.path import isfile, isdir, join, exists
 from random import shuffle, randint
+
+import slideflow as sf
+from slideflow.io import gaussian
 from slideflow.util import log
+from slideflow.util import colors as col
 from slideflow import errors
-from glob import glob
+
 
 FEATURE_DESCRIPTION_LEGACY =  {'slide':    tf.io.FixedLenFeature([], tf.string),
                                'image_raw':tf.io.FixedLenFeature([], tf.string)}
@@ -48,7 +50,7 @@ def _print_record(filename):
 
     for i, record in enumerate(dataset):
         slide, loc_x, loc_y = parser(record)
-        print(f"{sf.util.purple(filename)}: Record {i}: Slide: {sf.util.green(str(slide))} Loc: {(loc_x, loc_y)}")
+        print(f"{col.purple(filename)}: Record {i}: Slide: {col.green(str(slide))} Loc: {(loc_x, loc_y)}")
 
 @tf.function
 def process_image(record, *args, standardize=False, augment=False, size=None):
@@ -168,7 +170,7 @@ def get_tfrecord_parser(tfrecord_path, features_to_return=None, to_numpy=False, 
         decode_images (bool, optional): Decode raw image strings into image arrays. Defaults to True.
         standardize (bool, optional): Standardize images into the range (0,1). Defaults to False.
         img_size (int): Width of images in pixels. Will call tf.set_shape(...) if provided. Defaults to False.
-        normalizer (:class:`slideflow.slide.StainNormalizer`): Stain normalizer to use on images. Defaults to None.
+        normalizer (:class:`slideflow.norm.StainNormalizer`): Stain normalizer to use on images. Defaults to None.
         augment (str): Image augmentations to perform. String containing characters designating augmentations.
             'x' indicates random x-flipping, 'y' y-flipping, 'r' rotating, and 'j' JPEG compression/decompression
             at random quality levels. Passing either 'xyrj' or True will use all augmentations.
@@ -252,7 +254,7 @@ def interleave(tfrecords, img_size, batch_size, prob_weights=None, clip=None, la
                 'x' indicates random x-flipping, 'y' y-flipping, 'r' rotating, and 'j' JPEG compression/decompression
                 at random quality levels. Passing either 'xyrj' or True will use all augmentations.
         standardize (bool, optional): Standardize images to (0,1). Defaults to True.
-        normalizer (:class:`slideflow.slide.StainNormalizer`, optional): Normalizer to use on images. Defaults to None.
+        normalizer (:class:`slideflow.norm.StainNormalizer`, optional): Normalizer to use on images. Defaults to None.
         num_shards (int, optional): Shard the tfrecord datasets, used for multiprocessing datasets. Defaults to None.
         shard_idx (int, optional): Index of the tfrecord shard to use. Defaults to None.
         num_parallel_reads (int, optional): Number of parallel reads for each TFRecordDataset. Defaults to 4.
@@ -514,12 +516,12 @@ def transform_tfrecord(origin, target, assign_slide=None, hue_shift=None, resize
     '''Transforms images in a single tfrecord. Can perform hue shifting, resizing, or re-assigning slide label.'''
 
     print_func = None if silent else print
-    log.info(f"Transforming tiles in tfrecord {sf.util.green(origin)}")
-    log.info(f"Saving to new tfrecord at {sf.util.green(target)}")
+    log.info(f"Transforming tiles in tfrecord {col.green(origin)}")
+    log.info(f"Saving to new tfrecord at {col.green(target)}")
     if assign_slide:
-        log.info(f"Assigning slide name {sf.util.bold(assign_slide)}")
+        log.info(f"Assigning slide name {col.bold(assign_slide)}")
     if hue_shift:
-        log.info(f"Shifting hue by {sf.util.bold(str(hue_shift))}")
+        log.info(f"Shifting hue by {col.bold(str(hue_shift))}")
     if resize:
         log.info(f"Resizing records to ({resize}, {resize})")
 

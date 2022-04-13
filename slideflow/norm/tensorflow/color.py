@@ -2,6 +2,7 @@
 
 import tensorflow as tf
 
+
 def rgb_to_xyz(input, name=None):
     """
     Convert a RGB image to CIE XYZ.
@@ -28,6 +29,7 @@ def rgb_to_xyz(input, name=None):
         input / 12.92,
     )
     return tf.tensordot(value, tf.transpose(kernel), axes=((-1,), (0,)))
+
 
 def xyz_to_rgb(input, name=None):
     """
@@ -124,6 +126,7 @@ def lab_to_rgb(input, illuminant="D65", observer="2", name=None):
     xyz = xyz * coords
 
     return xyz_to_rgb(xyz)
+
 
 def rgb_to_lab(input, illuminant="D65", observer="2", name=None):
     """

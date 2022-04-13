@@ -11,19 +11,19 @@ import pickle
 import time
 import queue
 import threading
-import slideflow as sf
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import scipy.stats as stats
-import slideflow as sf
-
 from collections import defaultdict
-from slideflow.util import log
-from slideflow import errors
 from os.path import join, exists
 from math import isnan
 from tqdm import tqdm
+
+import slideflow as sf
+from slideflow.util import log
+from slideflow.util import colors as col
+from slideflow import errors
 
 # --- Backend-specific imports ------------------------------------------------
 
@@ -66,7 +66,7 @@ def trainer_from_hp(hp, **kwargs):
     else:
         raise ValueError(f"Unknown model type: {hp.model_type()}")
 
-def get_hp_from_batch_file(filename, models=None):
+def read_hp_sweep(filename, models=None):
     """Organizes a list of hyperparameters ojects and associated models names.
 
     Args:
@@ -178,7 +178,7 @@ class DatasetFeatures:
         # Load from PKL (cache) if present
         if cache and exists(cache):
             # Load saved PKL cache
-            log.info(f'Loading pre-calculated predictions and activations from {sf.util.green(cache)}...')
+            log.info(f'Loading pre-calculated predictions and activations from {col.green(cache)}...')
             with open(cache, 'rb') as pt_pkl_file:
                 self.activations, self.logits, self.uncertainty, self.locations = pickle.load(pt_pkl_file)
                 self.num_features = self.activations[self.slides[0]].shape[-1]
@@ -234,7 +234,7 @@ class DatasetFeatures:
 
         # Rename tfrecord_array to tfrecords
         log.info(f'Calculating layer activations for {self.tfrecords.shape[0]} tfrecords (layers={layers})')
-        log.info(f'Generating from {sf.util.green(model)}')
+        log.info(f'Generating from {col.green(model)}')
         if not isinstance(layers, list): layers = [layers]
 
         # Load model
@@ -334,7 +334,7 @@ class DatasetFeatures:
         if cache:
             with open(cache, 'wb') as pt_pkl_file:
                 pickle.dump([self.activations, self.logits, self.uncertainty, self.locations], pt_pkl_file)
-            log.info(f'Predictions and activations cached to {sf.util.green(cache)}')
+            log.info(f'Predictions and activations cached to {col.green(cache)}')
 
     def activations_by_category(self, idx):
         """For each outcome category, calculates activations of a given feature across all tiles in the category.
@@ -432,7 +432,7 @@ class DatasetFeatures:
                         csvwriter.writerow([slide] + logit + act)
                     else:
                         csvwriter.writerow([slide] + act)
-        log.debug(f'Activations saved to {sf.util.green(filename)}')
+        log.debug(f'Activations saved to {col.green(filename)}')
 
     def export_to_torch(self, outdir, slides=None):
         """Export activations in torch format to .pt files in the given directory.
@@ -449,7 +449,7 @@ class DatasetFeatures:
         slides = self.slides if not slides else slides
         for slide in tqdm(slides, ncols=80, leave=False):
             if self.activations[slide] == []:
-                log.info(f'Skipping empty slide {sf.util.green(slide)}')
+                log.info(f'Skipping empty slide {col.green(slide)}')
                 continue
             slide_activations = torch.from_numpy(self.activations[slide].astype(np.float32))
             torch.save(slide_activations, join(outdir, f'{slide}.pt'))
@@ -535,7 +535,7 @@ class DatasetFeatures:
         if outdir:
             if not exists(outdir): os.makedirs(outdir)
             filename=join(outdir, 'slide_level_summary.csv')
-            log.info(f'Writing results to {sf.util.green(filename)}...')
+            log.info(f'Writing results to {col.green(filename)}...')
             with open(filename, 'w') as outfile:
                 csv_writer = csv.writer(outfile)
                 header = ['slide', 'category'] + [f'Feature_{n}' for n in pt_sorted_features]

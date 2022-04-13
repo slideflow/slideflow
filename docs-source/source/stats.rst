@@ -83,24 +83,24 @@ get_centroid_index
 .. autofunction:: get_centroid_index
 
 metrics_from_dataset
-----------------------
+---------------------
 .. autofunction:: metrics_from_dataset
 
-metrics_from_predictions
--------------------------
-.. autofunction:: metrics_from_predictions
+metrics_from_pred
+-----------------
+.. autofunction:: metrics_from_pred
 
 normalize_layout
 ----------------
 .. autofunction:: normalize_layout
 
 read_predictions
-----------------------
+----------------
 .. autofunction:: read_predictions
 
-permutation_feature_importance
--------------------------------
-.. autofunction:: permutation_feature_importance
+permute_importance
+------------------
+.. autofunction:: permute_importance
 
 predict_from_layer
 ----------------------
@@ -118,9 +118,9 @@ save_histogram
 ----------------------
 .. autofunction:: save_histogram
 
-predictions_to_dataframe
+pred_to_df
 -------------------------
-.. autofunction:: predictions_to_dataframe
+.. autofunction:: pred_to_df
 
 to_onehot
 ----------------------

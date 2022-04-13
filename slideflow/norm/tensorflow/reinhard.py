@@ -18,9 +18,11 @@ def standardize_brightness(I):
     :param I:
     :return:
     """
-    p = percentile(I, 90) #p = np.percentile(I, 90)
+    p = percentile(I, 90)  # p = np.percentile(I, 90)
     p = tf.cast(p, tf.float32)
-    return tf.cast(tf.experimental.numpy.clip(tf.cast(I, tf.float32) * tf.constant(255.0, dtype=tf.float32) / p, 0, 255), tf.uint8) #np.clip(I * 255.0 / p, 0, 255).astype(np.uint8)
+    scaled = tf.cast(I, tf.float32) * tf.constant(255.0, dtype=tf.float32) / p
+    scaled = tf.experimental.numpy.clip(scaled, 0, 255)
+    return tf.cast(scaled, tf.uint8)  # np.clip(I * 255.0 / p, 0, 255).astype(np.uint8)
 
 @tf.function
 def transform(I, tgt_mean, tgt_std):

@@ -3,14 +3,15 @@
 import os
 import copy
 import struct
-import slideflow as sf
-
 from tqdm import tqdm
 from multiprocessing.dummy import Pool as DPool
 from random import shuffle
-from slideflow.util import log
-from slideflow import errors
 from os.path import join, exists, isdir, isfile
+
+import slideflow as sf
+from slideflow.util import log
+from slideflow.util import colors as col
+from slideflow import errors
 
 # Backend-specific imports and configuration
 if os.environ['SF_BACKEND'] == 'tensorflow':
@@ -123,8 +124,8 @@ def write_tfrecords_multi(input_directory, output_directory):
                                               output_directory,
                                               f'{slide_dir}.tfrecords',
                                               slide_dir)
-    msg_num_tiles = sf.util.bold(total_tiles)
-    msg_num_tfr = sf.util.bold(len(slide_dirs))
+    msg_num_tiles = col.bold(total_tiles)
+    msg_num_tfr = col.bold(len(slide_dirs))
     log.info(f"Wrote {msg_num_tiles} tiles across {msg_num_tfr} tfrecords in {sf.util.green(output_directory)}")
 
 def write_tfrecords_single(input_directory, output_directory, filename, slide):
