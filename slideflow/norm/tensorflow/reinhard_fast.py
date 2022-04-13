@@ -11,7 +11,6 @@ from __future__ import division
 import tensorflow as tf
 from slideflow.norm.tensorflow import color
 
-### Some functions ###
 
 @tf.function
 def lab_split(I):
@@ -20,11 +19,12 @@ def lab_split(I):
     :param I: uint8
     :return:
     """
-    I = tf.cast(I, tf.float32) # I = I.astype(np.float32)
+    I = tf.cast(I, tf.float32)  # I = I.astype(np.float32)
     I /= 255
-    I = color.rgb_to_lab(I) #I = cv.cvtColor(I, cv.COLOR_RGB2LAB)
-    I1, I2, I3 = tf.unstack(I, axis=-1) #I1, I2, I3 = cv.split(I)
+    I = color.rgb_to_lab(I)  # I = cv.cvtColor(I, cv.COLOR_RGB2LAB)
+    I1, I2, I3 = tf.unstack(I, axis=-1)  # I1, I2, I3 = cv.split(I)
     return I1, I2, I3
+
 
 @tf.function
 def merge_back(I1, I2, I3):
@@ -36,10 +36,11 @@ def merge_back(I1, I2, I3):
     :return:
     """
 
-    I = tf.stack((I1, I2, I3), axis=-1) #I = np.clip(cv.merge((I1, I2, I3)), 0, 255).astype(np.uint8)
-    I = color.lab_to_rgb(I) * 255 #cv.cvtColor(I, cv.COLOR_LAB2RGB)
-    #I = tf.experimental.numpy.clip(I, 0, 255)
-    return I#tf.cast(I, tf.uint8)
+    I = tf.stack((I1, I2, I3), axis=-1)  # I = np.clip(cv.merge((I1, I2, I3)), 0, 255).astype(np.uint8)
+    I = color.lab_to_rgb(I) * 255  # cv.cvtColor(I, cv.COLOR_LAB2RGB)
+    # I = tf.experimental.numpy.clip(I, 0, 255)
+    return I  # tf.cast(I, tf.uint8)
+
 
 @tf.function
 def get_mean_std(I1, I2, I3, reduce=False):
@@ -61,13 +62,14 @@ def get_mean_std(I1, I2, I3, reduce=False):
     stds = sd1, sd2, sd3
     return means, stds
 
+
 @tf.function
 def transform(I, tgt_mean, tgt_std):
 
     I1, I2, I3 = lab_split(I)
     means, stds = get_mean_std(I1, I2, I3)
 
-    #norm1 = ((I1 - means[0]) * (tgt_std[0] / stds[0])) + tgt_mean[0]
+    # norm1 = ((I1 - means[0]) * (tgt_std[0] / stds[0])) + tgt_mean[0]
 
     I1a = tf.subtract(I1, tf.expand_dims(tf.expand_dims(means[0], axis=-1), axis=-1))
     I1b = tf.divide(tgt_std[0], stds[0])
@@ -84,6 +86,7 @@ def transform(I, tgt_mean, tgt_std):
     merged = tf.cast(merge_back(norm1, norm2, norm3), dtype=tf.int32)
     clipped = tf.cast(tf.clip_by_value(merged, clip_value_min=0, clip_value_max=255), dtype=tf.uint8)
     return clipped
+
 
 @tf.function
 def fit(target, reduce=False):
