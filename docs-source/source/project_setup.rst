@@ -79,11 +79,13 @@ Datasets are configured either interactively at the time of project initializati
 
 .. code-block:: python
 
-    P.add_dataset( name="NAME",
-                   slides="/slides/directory",
-                   roi="/roi/directory",
-                   tiles="/tiles/directory",
-                   tfrecords="/tfrecords/directory")
+    P.add_source(
+        name="NAME",
+        slides="/slides/directory",
+        roi="/roi/directory",
+        tiles="/tiles/directory",
+        tfrecords="/tfrecords/directory"
+    )
 
 Setting up annotations
 **********************

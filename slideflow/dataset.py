@@ -892,6 +892,7 @@ class Dataset:
                     num_slides = len(slide_list)
                     img_kwargs = defaultdict(lambda: None)
                     img_kwargs.update(kwargs)
+                    img_kwargs = sf.slide._update_kw_with_defaults(img_kwargs)
                     report_meta = types.SimpleNamespace(
                         tile_px=self.tile_px,
                         tile_um=self.tile_um,

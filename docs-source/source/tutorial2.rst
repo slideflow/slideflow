@@ -26,7 +26,7 @@ If you initialize a project with keywords, you will need to manually create a ne
 
 .. code-block:: python
 
-    >>> P.add_dataset(
+    >>> P.add_source(
     ...     name="NAME",
     ...     slides="/slides/directory",
     ...     roi="/roi/directory",
