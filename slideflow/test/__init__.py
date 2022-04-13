@@ -775,8 +775,8 @@ class TestSuite:
             # Test categorical outcome with UQ
             msg = "Training single categorical outcome with UQ..."
             with TaskWrapper(msg) as test:
-                hp = self.setup_hp('categorical', sweep=False, uq=True)
                 if sf.backend() == 'tensorflow':
+                    hp = self.setup_hp('categorical', sweep=False, uq=True)
                     self.project.train(
                         exp_label='UQ',
                         outcomes='category1',
@@ -818,7 +818,7 @@ class TestSuite:
 
         if multi_input:
             msg = 'Training with multiple inputs (image + slide feature)...'
-            with TaskWrapper("msg") as test:
+            with TaskWrapper(msg) as test:
                 self.project.train(
                     exp_label='multi_input',
                     outcomes='category1',

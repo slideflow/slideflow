@@ -830,11 +830,13 @@ class _BaseLoader:
             PIL image
         '''
 
-        if (mpp is None or width is None):
-            raise ValueError("Either mpp or width must be given, but not both")
         # If no values provided, create thumbnail of width 1024
         if mpp is None and width is None:
             width = 1024
+        if (mpp is not None and width is not None):
+            msg = "Either mpp or width must be given, but not both"
+            msg += f" (got mpp={mpp}, width={width})"
+            raise ValueError(msg)
 
         # Calculate goal width/height according to specified microns-per-pixel
         if mpp:
@@ -1521,8 +1523,10 @@ class WSI(_BaseLoader):
         """
 
         if rois:
-            if (mpp is None or width is None):
-                raise ValueError("mpp or width must be given, but not both")
+            if (mpp is not None and width is not None):
+                msg = "Either mpp or width must be given, but not both"
+                msg += f" (got mpp={mpp}, width={width})"
+                raise ValueError(msg)
             # If no values provided, create thumbnail of width 1024
             if mpp is None and width is None:
                 width = 1024

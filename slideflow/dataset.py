@@ -25,7 +25,7 @@ from slideflow.util import log, TCGA, _shortname, path_to_name
 from slideflow.util import colors as col
 
 
-def _tile_extractor(tfrecord_dir, tiles_dir, reports, tma, qc,
+def _tile_extractor(path, tfrecord_dir, tiles_dir, reports, tma, qc,
                     wsi_kwargs, generator_kwargs, qc_kwargs):
     """Internal function to extract tiles. Slide processing needs to be
     process-isolated when num_workers > 1 .
@@ -44,12 +44,11 @@ def _tile_extractor(tfrecord_dir, tiles_dir, reports, tma, qc,
     # (for corrupt tiles)
     local_args = locals()
     log.handlers[0].flush_line = True
-    slide_path = wsi_kwargs['path']
     try:
-        log.debug(f'Extracting tiles for {path_to_name(slide_path)}')
+        log.debug(f'Extracting tiles for {path_to_name(path)}')
         if tma:
             slide = sf.slide.TMA(
-                path=wsi_kwargs['path'],
+                path=path,
                 tile_px=wsi_kwargs['tile_px'],
                 tile_um=wsi_kwargs['tile_um'],
                 stride_div=wsi_kwargs['stride_div'],
@@ -57,7 +56,7 @@ def _tile_extractor(tfrecord_dir, tiles_dir, reports, tma, qc,
                 report_dir=tfrecord_dir
             )
         else:
-            slide = sf.slide.WSI(**wsi_kwargs)
+            slide = sf.slide.WSI(path, **wsi_kwargs)
         # Apply quality control (blur filtering)
         if qc:
             slide.qc(method=qc, **qc_kwargs)
@@ -71,13 +70,13 @@ def _tile_extractor(tfrecord_dir, tiles_dir, reports, tma, qc,
             )
         except errors.TileCorruptionError:
             if wsi_kwargs['enable_downsample']:
-                log.warning(f'{slide_path} corrupt; disabling downsampling')
+                log.warning(f'{path} corrupt; disabling downsampling')
                 report = _tile_extractor(**local_args)
             else:
-                log.error(f'{slide_path} corrupt; skipping')
+                log.error(f'{path} corrupt; skipping')
                 return
         del slide
-        reports.update({slide_path: report})
+        reports.update({path: report})
     except (KeyboardInterrupt, SystemExit):
         print('Exiting...')
         return
@@ -196,7 +195,7 @@ def split_patients_list(patients_dict, n, balance=None, preserved_site=False):
                 "Category\t" + "\t".join([str(cat) for cat in range(n_unique)])
             ))
             for k in range(n):
-                matching = [str(len(clist[k])) for clist in pt_by_outcome]
+                matching = [str(len(clist[k])) for clist in pt_by_outcome_by_n]
                 log.info(f"K-fold-{k}\t" + "\t".join(matching))
             # Join sublists
             splits = [
@@ -831,7 +830,6 @@ class Dataset:
                     log.info(f'Extracting tiles with {num_threads} threads')
                     kwargs['pool'] = multiprocessing.Pool(num_threads)
                 wsi_kwargs = {
-                    'path': slide_path,
                     'tile_px': self.tile_px,
                     'tile_um': self.tile_um,
                     'stride_div': stride_div,
@@ -863,11 +861,12 @@ class Dataset:
                             break
                         if num_workers > 1:
                             process = ctx.Process(target=_tile_extractor,
+                                                  args=(path,),
                                                   kwargs=extraction_kwargs)
                             process.start()
                             process.join()
                         else:
-                            _tile_extractor(**extraction_kwargs)
+                            _tile_extractor(path, **extraction_kwargs)
                         if buffer:
                             os.remove(path)
                         q.task_done()
@@ -1939,7 +1938,6 @@ class Dataset:
                         patients_dict,
                         k_fold,
                         balance=balance,
-                        randomize=True,
                         preserved_site=pres_site
                     )
                     # Verify at least one patient is in each k_fold group
