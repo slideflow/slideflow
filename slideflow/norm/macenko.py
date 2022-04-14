@@ -28,8 +28,10 @@ def get_stain_matrix(I, beta=0.15, alpha=1):
     OD = (OD[(OD > beta).any(axis=1), :])
     _, V = np.linalg.eigh(np.cov(OD, rowvar=False))
     V = V[:, [2, 1]]
-    if V[0, 0] < 0: V[:, 0] *= -1
-    if V[0, 1] < 0: V[:, 1] *= -1
+    if V[0, 0] < 0:
+        V[:, 0] *= -1
+    if V[0, 1] < 0:
+        V[:, 1] *= -1
     That = np.dot(OD, V)
     phi = np.arctan2(That[:, 1], That[:, 0])
     minPhi = np.percentile(phi, alpha)

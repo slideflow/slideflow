@@ -14,6 +14,7 @@ import cv2 as cv
 import spams
 import matplotlib.pyplot as plt
 
+
 ##########################################
 
 def read_image(path):
@@ -36,9 +37,9 @@ def show_colors(C):
     n = C.shape[0]
     for i in range(n):
         if C[i].max() > 1.0:
-            plt.plot([0, 1], [n - 1 - i, n - 1 - i], c=C[i] / 255, linewidth=20)
+            plt.plot([0, 1], [n-1-i, n-1-i], c=C[i] / 255, linewidth=20)
         else:
-            plt.plot([0, 1], [n - 1 - i, n - 1 - i], c=C[i], linewidth=20)
+            plt.plot([0, 1], [n-1-i, n-1-i], c=C[i], linewidth=20)
         plt.axis('off')
         plt.axis([0, 1, -1, n])
 
@@ -197,8 +198,15 @@ def get_concentrations(I, stain_matrix, lamda=0.01):
     :return:
     """
     OD = RGB_to_OD(I).reshape((-1, 3))
-    result = spams.lasso(np.asfortranarray(OD.T), D=stain_matrix.T, mode=2, lambda1=lamda, pos=True).toarray().T
+    result = spams.lasso(
+        np.asfortranarray(OD.T),
+        D=stain_matrix.T,
+        mode=2,
+        lambda1=lamda,
+        pos=True
+    ).toarray().T
     return result
+
 
 class BaseNormalizer:
     def __init__(self):

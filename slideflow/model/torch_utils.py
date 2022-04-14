@@ -3,10 +3,12 @@
 import torch
 import types
 
+
 def cycle(iterable):
     while True:
         for i in iterable:
             yield i
+
 
 def print_module_summary(module, inputs, max_nesting=3, skip_redundant=True):
     assert isinstance(module, torch.nn.Module)
@@ -16,19 +18,22 @@ def print_module_summary(module, inputs, max_nesting=3, skip_redundant=True):
     # Register hooks.
     entries = []
     nesting = [0]
+
     def pre_hook(_mod, _inputs):
         nesting[0] += 1
+
     def post_hook(mod, _inputs, outputs):
         nesting[0] -= 1
         if nesting[0] <= max_nesting:
             outputs = list(outputs) if isinstance(outputs, (tuple, list)) else [outputs]
             outputs = [t for t in outputs if isinstance(t, torch.Tensor)]
             entries.append(types.SimpleNamespace(mod=mod, outputs=outputs))
+
     hooks = [mod.register_forward_pre_hook(pre_hook) for mod in module.modules()]
     hooks += [mod.register_forward_hook(post_hook) for mod in module.modules()]
 
     # Run module.
-    outputs = module(*inputs)
+    module(*inputs)
     for hook in hooks:
         hook.remove()
 

@@ -8,6 +8,7 @@ import slideflow as sf
 from slideflow.util import log
 from slideflow import errors
 
+
 class _ModelParams:
     """Build a set of hyperparameters."""
 
@@ -61,7 +62,8 @@ class _ModelParams:
                 Internal default tile can be found at slideflow.slide.norm_tile.jpg
             include_top (bool, optional): Include post-convolution fully-connected layers from the core model. Defaults
                 to True. include_top=False is not currently compatible with the PyTorch backend.
-            drop_images (bool, optional): Drop images, using only other slide-level features as input. Defaults to False.
+            drop_images (bool, optional): Drop images, using only other slide-level features as input.
+                Defaults to False.
         """
 
         # Additional hyperparameters to consider:
@@ -182,19 +184,26 @@ class _ModelParams:
             self._model = 'custom'
 
     def _get_args(self):
-        return [arg for arg in dir(self) if not arg[0]=='_' and arg not in ['get_opt',
-                                                                            'build_model',
-                                                                            'model_type',
-                                                                            'validate',
-                                                                            'from_dict',
-                                                                            'get_dict',
-                                                                            'get_loss',
-                                                                            'get_normalizer',
-                                                                            'load_dict',
-                                                                            'OptDict',
-                                                                            'ModelDict',
-                                                                            'LinearLossDict',
-                                                                            'AllLossDict']]
+        to_ignore = [
+            'get_opt',
+            'build_model',
+            'model_type',
+            'validate',
+            'from_dict',
+            'get_dict',
+            'get_loss',
+            'get_normalizer',
+            'load_dict',
+            'OptDict',
+            'ModelDict',
+            'LinearLossDict',
+            'AllLossDict'
+        ]
+        args = [
+            arg for arg in dir(self)
+            if arg[0] != '_' and arg not in to_ignore
+        ]
+        return args
 
     def get_dict(self):
         d = {}
@@ -228,22 +237,25 @@ class _ModelParams:
             outcome_labels = np.expand_dims(outcome_labels, axis=1)
 
         if self.model_type() == 'categorical':
-            return {i: np.unique(outcome_labels[:,i]).shape[0] for i in range(outcome_labels.shape[1])}
+            return {i: np.unique(outcome_labels[:, i]).shape[0] for i in range(outcome_labels.shape[1])}
         else:
             try:
                 return outcome_labels.shape[1]
             except TypeError:
-                raise errors.ModelParamsError('Incorrect formatting of outcome labels for linear model; must be an ndarray.')
+                raise errors.ModelParamsError('Incorrect formatting of outcomes for linear model; expected ndarray.')
 
     def validate(self):
         """Check that hyperparameter combinations are valid."""
         if (self.model_type() != 'categorical' and ((self.training_balance == 'category') or
                                                     (self.validation_balance == 'category'))):
-            raise errors.ModelParamsError(f'Cannot combine category-level balancing with model type "{self.model_type()}".')
+            msg = f'Cannot combine category-level balancing with model type "{self.model_type()}".'
+            raise errors.ModelParamsError(msg)
         if (self.model_type() != 'categorical' and self.early_stop_method == 'accuracy'):
-            raise errors.ModelParamsError(f'Model type "{self.model_type()}" is not compatible with early stopping method "accuracy"')
+            msg = f'Model type "{self.model_type()}" is not compatible with early stopping method "accuracy"'
+            raise errors.ModelParamsError(msg)
         if self.uq and not self.dropout:
-            raise errors.ModelParamsError(f"Uncertainty quantification (uq=True) requires dropout > 0 (got: dropout={self.dropout})")
+            msg = f"Uncertainty quantification (uq=True) requires dropout > 0 (got: dropout={self.dropout})"
+            raise errors.ModelParamsError(msg)
         return True
 
     def model_type(self):
@@ -255,19 +267,24 @@ class _ModelParams:
         else:
             return 'categorical'
 
+
 class HyperParameterError(Exception):
     pass
+
 
 class ModelError(Exception):
     def __init__(self, message, errors=None):
         log.error(message)
         super().__init__(message)
 
+
 class no_scope():
     def __enter__(self):
         return None
+
     def __exit__(self, exc_type, exc_value, traceback):
         return False
+
 
 def log_summary(model, neptune_run=None):
     # Print to terminal
@@ -280,6 +297,7 @@ def log_summary(model, neptune_run=None):
         summary_string = []
         model.summary(print_fn=lambda x: summary_string.append(x))
         neptune_run['summary'] = "\n".join(summary_string)
+
 
 def log_manifest(train_tfrecords=None, val_tfrecords=None, labels=None, save_loc=None):
     out = ''

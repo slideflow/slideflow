@@ -183,8 +183,8 @@ def rgb_to_lab(input, illuminant="D65", observer="2", name=None):
     x, y, z = xyz[0], xyz[1], xyz[2]
 
     # Vector scaling
-    l = (y * 116.0) - 16.0
-    a = (x - y) * 500.0
-    b = (y - z) * 200.0
+    L = (y * 116.0) - 16.0
+    A = (x - y) * 500.0
+    B = (y - z) * 200.0
 
-    return tf.stack([l, a, b], axis=-1)
+    return tf.stack([L, A, B], axis=-1)

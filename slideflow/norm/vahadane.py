@@ -29,7 +29,16 @@ def get_stain_matrix(I, threshold=0.8, lamda=0.1):
     mask = ut.notwhite_mask(I, thresh=threshold).reshape((-1,))
     OD = ut.RGB_to_OD(I).reshape((-1, 3))
     OD = OD[mask]
-    dictionary = spams.trainDL(OD.T, K=2, lambda1=lamda, mode=2, modeD=0, posAlpha=True, posD=True, verbose=False).T
+    dictionary = spams.trainDL(
+        OD.T,
+        K=2,
+        lambda1=lamda,
+        mode=2,
+        modeD=0,
+        posAlpha=True,
+        posD=True,
+        verbose=False
+    ).T
     if dictionary[0, 0] < dictionary[1, 0]:
         dictionary = dictionary[[1, 0], :]
     dictionary = ut.normalize_rows(dictionary)

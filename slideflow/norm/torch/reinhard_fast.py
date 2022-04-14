@@ -6,7 +6,7 @@ def lab_split(I):
 
     I = I.float()
     I /= 255
-    I = color.rgb_to_lab(I.permute(0,3,1,2)).permute(0, 2, 3, 1) # BWHC -> BCWH -> BWHC
+    I = color.rgb_to_lab(I.permute(0, 3, 1, 2)).permute(0, 2, 3, 1)  # BWHC -> BCWH -> BWHC
     I1, I2, I3 = torch.unbind(I, dim=-1)
     return I1, I2, I3
 
@@ -14,15 +14,15 @@ def merge_back(I1, I2, I3):
     '''Take separate LAB channels and merge back to RGB uint8'''
 
     I = torch.stack((I1, I2, I3), dim=-1)
-    I = color.lab_to_rgb(I.permute(0,3,1,2), clip=False).permute(0,2,3,1) * 255 # BWHC -> BCWH -> BWHC
+    I = color.lab_to_rgb(I.permute(0, 3, 1, 2), clip=False).permute(0, 2, 3, 1) * 255  # BWHC -> BCWH -> BWHC
     return I
 
 def get_mean_std(I1, I2, I3, reduce=False):
     '''Get mean and standard deviation of each channel.'''
 
-    m1, sd1 = torch.mean(I1, dim=(1,2)), torch.std(I1, dim=(1,2))
-    m2, sd2 = torch.mean(I2, dim=(1,2)), torch.std(I2, dim=(1,2))
-    m3, sd3 = torch.mean(I3, dim=(1,2)), torch.std(I3, dim=(1,2))
+    m1, sd1 = torch.mean(I1, dim=(1, 2)), torch.std(I1, dim=(1, 2))
+    m2, sd2 = torch.mean(I2, dim=(1, 2)), torch.std(I2, dim=(1, 2))
+    m3, sd3 = torch.mean(I3, dim=(1, 2)), torch.std(I3, dim=(1, 2))
 
     if reduce:
         m1, sd1 = torch.mean(m1), torch.mean(sd1)

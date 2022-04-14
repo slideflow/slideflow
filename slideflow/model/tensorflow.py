@@ -6,12 +6,10 @@ from __future__ import print_function
 
 import os
 import json
-import warnings
 import shutil
 import types
 import inspect
 import atexit
-warnings.filterwarnings('ignore')
 import numpy as np
 import tensorflow as tf
 from os.path import join, exists, dirname
@@ -23,8 +21,9 @@ import slideflow.util.neptune_utils
 from slideflow.util import log
 from slideflow.util import colors as col
 from slideflow.model.base import no_scope, log_summary, log_manifest
-from slideflow.model.tensorflow_utils import *
+from slideflow.model import tensorflow_utils as tf_utils
 from slideflow import errors
+
 
 class StaticDropout(tf.keras.layers.Dropout):
     def __init__(self, *args, **kwargs):
@@ -32,6 +31,7 @@ class StaticDropout(tf.keras.layers.Dropout):
 
     def call(self, inputs, **kwargs):
         return super().call(inputs, training=True)
+
 
 class ModelParams(_base._ModelParams):
     """Build a set of hyperparameters."""
@@ -61,18 +61,25 @@ class ModelParams(_base._ModelParams):
             'inception_resnet_v2': kapps.InceptionResNetV2,
             'mobilenet': kapps.MobileNet,
             'mobilenet_v2': kapps.MobileNetV2,
-            #'ResNeXt50': kapps.ResNeXt50,
-            #'ResNeXt101': kapps.ResNeXt101,
-            #'DenseNet': kapps.DenseNet,
-            #'NASNet': kapps.NASNet
+            # 'ResNeXt50': kapps.ResNeXt50,
+            # 'ResNeXt101': kapps.ResNeXt101,
+            # 'DenseNet': kapps.DenseNet,
+            # 'NASNet': kapps.NASNet
         }
-        if hasattr(kapps, 'EfficientNetV2B0'): self.ModelDict.update({'efficientnet_v2b0': kapps.EfficientNetV2B0})
-        if hasattr(kapps, 'EfficientNetV2B1'): self.ModelDict.update({'efficientnet_v2b1': kapps.EfficientNetV2B1})
-        if hasattr(kapps, 'EfficientNetV2B2'): self.ModelDict.update({'efficientnet_v2b2': kapps.EfficientNetV2B2})
-        if hasattr(kapps, 'EfficientNetV2B3'): self.ModelDict.update({'efficientnet_v2b3': kapps.EfficientNetV2B3})
-        if hasattr(kapps, 'EfficientNetV2S'): self.ModelDict.update({'efficientnet_v2s': kapps.EfficientNetV2S})
-        if hasattr(kapps, 'EfficientNetV2M'): self.ModelDict.update({'efficientnet_v2m': kapps.EfficientNetV2M})
-        if hasattr(kapps, 'EfficientNetV2L'): self.ModelDict.update({'efficientnet_v2l': kapps.EfficientNetV2L})
+        if hasattr(kapps, 'EfficientNetV2B0'):
+            self.ModelDict.update({'efficientnet_v2b0': kapps.EfficientNetV2B0})
+        if hasattr(kapps, 'EfficientNetV2B1'):
+            self.ModelDict.update({'efficientnet_v2b1': kapps.EfficientNetV2B1})
+        if hasattr(kapps, 'EfficientNetV2B2'):
+            self.ModelDict.update({'efficientnet_v2b2': kapps.EfficientNetV2B2})
+        if hasattr(kapps, 'EfficientNetV2B3'):
+            self.ModelDict.update({'efficientnet_v2b3': kapps.EfficientNetV2B3})
+        if hasattr(kapps, 'EfficientNetV2S'):
+            self.ModelDict.update({'efficientnet_v2s': kapps.EfficientNetV2S})
+        if hasattr(kapps, 'EfficientNetV2M'):
+            self.ModelDict.update({'efficientnet_v2m': kapps.EfficientNetV2M})
+        if hasattr(kapps, 'EfficientNetV2L'):
+            self.ModelDict.update({'efficientnet_v2l': kapps.EfficientNetV2L})
         self.LinearLossDict = {
             'mean_squared_error': tf.keras.losses.mean_squared_error,
             'mean_absolute_error': tf.keras.losses.mean_absolute_error,
@@ -81,7 +88,7 @@ class ModelParams(_base._ModelParams):
             'squared_hinge': tf.keras.losses.squared_hinge,
             'hinge': tf.keras.losses.hinge,
             'logcosh': tf.keras.losses.logcosh,
-            'negative_log_likelihood': negative_log_likelihood
+            'negative_log_likelihood': tf_utils.negative_log_likelihood
         }
         self.AllLossDict = {
             'mean_squared_error': tf.keras.losses.mean_squared_error,
@@ -95,11 +102,11 @@ class ModelParams(_base._ModelParams):
             'huber': tf.keras.losses.huber,
             'categorical_crossentropy': tf.keras.losses.categorical_crossentropy,
             'sparse_categorical_crossentropy': tf.keras.losses.sparse_categorical_crossentropy,
-            'batch_loss_crossentropy': batch_loss_crossentropy,
+            'batch_loss_crossentropy': tf_utils.batch_loss_crossentropy,
             'binary_crossentropy': tf.keras.losses.binary_crossentropy,
             'kullback_leibler_divergence': tf.keras.losses.kullback_leibler_divergence,
             'poisson': tf.keras.losses.poisson,
-            'negative_log_likelihood': negative_log_likelihood
+            'negative_log_likelihood': tf_utils.negative_log_likelihood
         }
         super().__init__(*args, **kwargs)
         assert self.model in self.ModelDict.keys()
@@ -130,10 +137,10 @@ class ModelParams(_base._ModelParams):
             log.debug(f"Using L1 regularization for dense layers (weight={self.l1_dense})")
             return tf.keras.regularizers.l1(self.l1_dense)
         elif self.l1_dense and self.l2_dense:
-            log.debug(f"Using L1 (weight={self.l1_dense}) and L2 (weight={self.l2_dense}) regularization for dense layers")
+            log.debug(f"Using L1 (weight={self.l1_dense}) and L2 (weight={self.l2_dense}) reg for dense layers")
             return tf.keras.regularizers.l1_l2(l1=self.l1_dense, l2=self.l2_dense)
         else:
-            log.debug(f"Not using regularization for dense layers")
+            log.debug("Not using regularization for dense layers")
             return None
 
     def _add_regularization(self, model):
@@ -148,14 +155,14 @@ class ModelParams(_base._ModelParams):
             log.debug(f"Using L1 (weight={self.l1}) and L2 (weight={self.l2}) regularization for base model")
             regularizer = tf.keras.regularizers.l1_l2(l1=self.l1, l2=self.l2)
         else:
-            log.debug(f"Not using regularization for base model")
+            log.debug("Not using regularization for base model")
             regularizer = None
         if regularizer is not None:
-            model = add_regularization(model, regularizer)
+            model = tf_utils.add_regularization(model, regularizer)
         return model
 
     def _freeze_layers(self, model):
-        freezeIndex = int(len(model.layers) - (self.trainable_layers - 1 ))# - self.hp.hidden_layers - 1))
+        freezeIndex = int(len(model.layers) - (self.trainable_layers - 1))  # - self.hp.hidden_layers - 1))
         log.info(f'Only training on last {self.trainable_layers} layers (of {len(model.layers)} total)')
         for layer in model.layers[:freezeIndex]:
             layer.trainable = False
@@ -173,15 +180,21 @@ class ModelParams(_base._ModelParams):
         }
         # Only pass kwargs accepted by model function
         model_fn_sig = inspect.signature(model_fn)
-        model_kw = [param.name for param in model_fn_sig.parameters.values() if param.kind == param.POSITIONAL_OR_KEYWORD]
-        model_kwargs = {key:model_kwargs[key] for key in model_kw if key in model_kwargs}
+        model_kw = [
+            param.name
+            for param in model_fn_sig.parameters.values()
+            if param.kind == param.POSITIONAL_OR_KEYWORD
+        ]
+        model_kwargs = {key: model_kwargs[key] for key in model_kw if key in model_kwargs}
         return model_fn(**model_kwargs)
 
     def _build_base(self, pretrain='imagenet'):
-        """Builds the base image model, from a Keras model core, with the appropriate input tensors and identity layers."""
+        """Builds the base image model, from a Keras model core, with the
+        appropriate input tensors and identity layers."""
         image_shape = (self.tile_px, self.tile_px, 3)
         tile_input_tensor = tf.keras.Input(shape=image_shape, name='tile_image')
-        if pretrain: log.info(f'Using pretraining from {col.green(pretrain)}')
+        if pretrain:
+            log.info(f'Using pretraining from {col.green(pretrain)}')
         if pretrain and pretrain != 'imagenet':
             pretrained_model = tf.keras.models.load_model(pretrain)
             try:
@@ -200,8 +213,11 @@ class ModelParams(_base._ModelParams):
         else:
             base_model = self._get_core(weights=pretrain)
             if self.include_top:
-                base_model = tf.keras.Model(inputs=base_model.input, outputs=base_model.layers[-2].output, name=base_model.name)
-
+                base_model = tf.keras.Model(
+                    inputs=base_model.input,
+                    outputs=base_model.layers[-2].output,
+                    name=base_model.name
+                )
         # Add regularization
         base_model = self._add_regularization(base_model)
 
@@ -224,7 +240,7 @@ class ModelParams(_base._ModelParams):
         return tile_image_model, model_inputs
 
     def _build_categorical_or_linear_model(self, num_classes, num_slide_features=0, activation='softmax',
-                                pretrain='imagenet', checkpoint=None):
+                                           pretrain='imagenet', checkpoint=None):
 
         """Assembles categorical or linear model, using pretraining (imagenet) or the base layers of a supplied model.
 
@@ -271,8 +287,9 @@ class ModelParams(_base._ModelParams):
         # Assemble final model
         log.debug(f'Using {activation} activation')
         model = tf.keras.Model(inputs=model_inputs, outputs=outputs)
+        # Disable experimental batch loss
         if False:
-            model.add_loss(batch_loss_crossentropy(last_linear))
+            model.add_loss(tf_utils.batch_loss_crossentropy(last_linear))
 
         if checkpoint:
             log.info(f'Loading checkpoint weights from {col.green(checkpoint)}')
@@ -360,8 +377,8 @@ class ModelParams(_base._ModelParams):
                 or dict (dict mapping categorical outcome names to number of unique categories in each outcome).
                 Must supply either `num_classes` or `label` (can detect number of classes from labels)
             num_slide_features (int, optional): Number of slide-level features separate from image input. Defaults to 0.
-            activation (str, optional): Type of final layer activation to use. Defaults to 'softmax' (categorical models)
-                or 'linear' (linear or CPH models).
+            activation (str, optional): Type of final layer activation to use. Defaults to 'softmax' (categorical
+                models) or 'linear' (linear or CPH models).
             pretrain (str, optional): Either 'imagenet' or path to model to use as pretraining. Defaults to 'imagenet'.
             checkpoint (str, optional): Path to checkpoint from which to resume model training. Defaults to None.
         """
@@ -405,6 +422,7 @@ class ModelParams(_base._ModelParams):
         else:
             return 'categorical'
 
+
 class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
     # TODO: log early stopping batch number, and record
 
@@ -429,7 +447,8 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
         self.global_step = 0
 
     def on_epoch_end(self, epoch, logs={}):
-        if log.getEffectiveLevel() <= 20: print('\r\033[K', end='')
+        if log.getEffectiveLevel() <= 20:
+            print('\r\033[K', end='')
         self.epoch_count += 1
         if self.epoch_count in [e for e in self.hp.epochs]:
             model_name = self.parent.name if self.parent.name else 'trained_model'
@@ -464,12 +483,16 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
         # Neptune logging for training metrics
         if self.neptune_run:
             self.neptune_run['metrics/train/batch/loss'].log(logs['loss'], step=self.global_step)
-            sf.util.neptune_utils.list_log(self.neptune_run, 'metrics/train/batch/accuracy', logs['accuracy'], step=self.global_step)
-
+            sf.util.neptune_utils.list_log(
+                self.neptune_run,
+                'metrics/train/batch/accuracy',
+                logs['accuracy'],
+                step=self.global_step
+            )
         # Validation metrics
         if (self.cb_args.using_validation and self.cb_args.validate_on_batch
-            and (batch > 0) and (batch % self.cb_args.validate_on_batch == 0)):
-
+           and (batch > 0)
+           and (batch % self.cb_args.validate_on_batch == 0)):
             val_metrics = self.model.evaluate(self.cb_args.validation_data,
                                               verbose=0,
                                               steps=self.cb_args.validation_steps,
@@ -486,15 +509,18 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
                 train_acc = f"{logs['accuracy']:.3f}"
             else:
                 train_acc = ', '.join([f'{logs[v]:.3f}' for v in logs if 'accuracy' in v])
-            if log.getEffectiveLevel() <= 20: print('\r\033[K', end='')
+            if log.getEffectiveLevel() <= 20:
+                print('\r\033[K', end='')
             self.moving_average += [early_stop_value]
 
             # Log to neptune
             if self.neptune_run:
                 for v in val_metrics:
-                    self.neptune_run[f"metrics/val/batch/{v}"].log(round(val_metrics[v], 3), step=self.global_step)
+                    self.neptune_run[f"metrics/val/batch/{v}"].log(round(val_metrics[v], 3),
+                                                                   step=self.global_step)
                 if self.last_ema != -1:
-                    self.neptune_run["metrics/val/batch/exp_moving_avg"].log(round(self.last_ema, 3), step=self.global_step)
+                    self.neptune_run["metrics/val/batch/exp_moving_avg"].log(round(self.last_ema, 3),
+                                                                             step=self.global_step)
                 self.neptune_run["early_stop/stopped_early"] = False
 
             # Base logging message
@@ -517,22 +543,24 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
                 if self.last_ema == -1:
                     # Calculate simple moving average
                     self.last_ema = sum(self.moving_average) / len(self.moving_average)
-                    log.info(log_message +  f' (SMA: {self.last_ema:.3f})')
+                    log.info(log_message + f' (SMA: {self.last_ema:.3f})')
                 else:
                     # Update exponential moving average
-                    self.last_ema = (early_stop_value * (self.cb_args.ema_smoothing/(1+self.cb_args.ema_observations))) + \
-                                    (self.last_ema * (1-(self.cb_args.ema_smoothing/(1+self.cb_args.ema_observations))))
+                    sm = self.cb_args.ema_smoothing
+                    obs = self.cb_args.ema_observations
+                    self.last_ema = ((early_stop_value * (sm / (1 + obs)))
+                                     + (self.last_ema * (1 - (sm / (1 + obs)))))
                     log.info(log_message + f' (EMA: {self.last_ema:.3f})')
 
             # If early stopping and our patience criteria has been met,
             #   check if validation accuracy is still improving
-            if (self.hp.early_stop and
-                (self.last_ema != -1) and
-                (float(batch)/self.cb_args.steps_per_epoch)+self.epoch_count > self.hp.early_stop_patience):
+            if (self.hp.early_stop
+               and (self.last_ema != -1)
+               and (float(batch)/self.cb_args.steps_per_epoch)+self.epoch_count > self.hp.early_stop_patience):
 
-                if (self.ema_two_checks_prior != -1 and
-                    ((self.hp.early_stop_method == 'accuracy' and self.last_ema <= self.ema_two_checks_prior) or
-                     (self.hp.early_stop_method == 'loss'     and self.last_ema >= self.ema_two_checks_prior))):
+                if (self.ema_two_checks_prior != -1
+                    and ((self.hp.early_stop_method == 'accuracy' and self.last_ema <= self.ema_two_checks_prior)
+                         or (self.hp.early_stop_method == 'loss' and self.last_ema >= self.ema_two_checks_prior))):
 
                     log.info(f'Early stop triggered: epoch {self.epoch_count+1}, batch {batch}')
                     self.model.stop_training = True
@@ -555,7 +583,8 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
         self.global_step += 1
 
     def on_train_end(self, logs={}):
-        if log.getEffectiveLevel() <= 20: print('\r\033[K')
+        if log.getEffectiveLevel() <= 20:
+            print('\r\033[K')
         if self.neptune_run:
             self.neptune_run['sys/tags'].add('training_complete')
 
@@ -581,16 +610,19 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
         # Note that Keras loss during training includes regularization losses,
         #  so this loss will not match validation loss calculated during training
         val_metrics = {'accuracy': acc, 'loss': loss}
-        log.info(f'Validation metrics: ' + json.dumps(val_metrics, indent=4))
-        self.results['epochs'][f'epoch{epoch}'] = {'train_metrics': {k:v for k,v in logs.items() if k[:3] != 'val'},
-                                                   'val_metrics': val_metrics }
+        log.info('Validation metrics: ' + json.dumps(val_metrics, indent=4))
+        self.results['epochs'][f'epoch{epoch}'] = {
+            'train_metrics': {k: v for k, v in logs.items() if k[:3] != 'val'},
+            'val_metrics': val_metrics
+        }
         if self.early_stop:
             self.results['epochs'][f'epoch{epoch}'].update({
                 'early_stop_epoch': self.early_stop_epoch,
                 'early_stop_batch': self.early_stop_batch,
             })
         for metric in metrics:
-            if metrics[metric]['tile'] is None: continue
+            if metrics[metric]['tile'] is None:
+                continue
             self.results['epochs'][f'epoch{epoch}'][f'tile_{metric}'] = metrics[metric]['tile']
             self.results['epochs'][f'epoch{epoch}'][f'slide_{metric}'] = metrics[metric]['slide']
             self.results['epochs'][f'epoch{epoch}'][f'patient_{metric}'] = metrics[metric]['patient']
@@ -602,12 +634,20 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
         if self.neptune_run:
             # Training epoch metrics
             self.neptune_run['metrics/train/epoch/loss'].log(logs['loss'], step=epoch)
-            sf.util.neptune_utils.list_log(self.neptune_run, 'metrics/train/epoch/accuracy', logs['accuracy'], step=epoch)
-
+            sf.util.neptune_utils.list_log(
+                self.neptune_run,
+                'metrics/train/epoch/accuracy',
+                logs['accuracy'],
+                step=epoch
+            )
             # Validation epoch metrics
             self.neptune_run['metrics/val/epoch/loss'].log(val_metrics['loss'], step=epoch)
-            sf.util.neptune_utils.list_log(self.neptune_run, 'metrics/val/epoch/accuracy', val_metrics['accuracy'], step=epoch)
-
+            sf.util.neptune_utils.list_log(
+                self.neptune_run,
+                'metrics/val/epoch/accuracy',
+                val_metrics['accuracy'],
+                step=epoch
+            )
             for metric in metrics:
                 if metrics[metric]['tile'] is None:
                     continue
@@ -626,9 +666,25 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
 
                     # If only one value for a metric, log to .../[metric]
                     # If more than one value for a metric (e.g. AUC for each category), log to .../[metric]/[i]
-                    sf.util.neptune_utils.list_log(self.neptune_run, metric_label('tile'), tile_metric, step=epoch)
-                    sf.util.neptune_utils.list_log(self.neptune_run, metric_label('slide'), slide_metric, step=epoch)
-                    sf.util.neptune_utils.list_log(self.neptune_run, metric_label('patient'), patient_metric, step=epoch)
+                    sf.util.neptune_utils.list_log(
+                        self.neptune_run,
+                        metric_label('tile'),
+                        tile_metric,
+                        step=epoch
+                    )
+                    sf.util.neptune_utils.list_log(
+                        self.neptune_run,
+                        metric_label('slide'),
+                        slide_metric,
+                        step=epoch
+                    )
+                    sf.util.neptune_utils.list_log(
+                        self.neptune_run,
+                        metric_label('patient'),
+                        patient_metric,
+                        step=epoch
+                    )
+
 
 class Trainer:
     """Base trainer class containing functionality for model building, input processing, training, and evaluation.
@@ -689,9 +745,10 @@ class Trainer:
         if patients:
             self.patients = patients
         else:
-            self.patients = {s:s for s in self.slides}
+            self.patients = {s: s for s in self.slides}
 
-        if not os.path.exists(outdir): os.makedirs(outdir)
+        if not os.path.exists(outdir):
+            os.makedirs(outdir)
 
         # Format outcome labels (ensures compatibility with single and multi-outcome models)
         outcome_labels = np.array(list(labels.values()))
@@ -712,14 +769,15 @@ class Trainer:
             with tf.device('/cpu'):
                 for oi in range(outcome_labels.shape[1]):
                     self.annotations_tables += [tf.lookup.StaticHashTable(
-                        tf.lookup.KeyValueTensorInitializer(self.slides, outcome_labels[:,oi]), -1
+                        tf.lookup.KeyValueTensorInitializer(self.slides, outcome_labels[:, oi]), -1
                     )]
         else:
             self.num_classes = None
 
         # Normalization setup
         self.normalizer = self.hp.get_normalizer()
-        if self.normalizer: log.info(f'Using realtime {self.hp.normalizer} normalization')
+        if self.normalizer:
+            log.info(f'Using realtime {self.hp.normalizer} normalization')
 
         if self.mixed_precision:
             log.debug('Enabling mixed precision')
@@ -761,7 +819,8 @@ class Trainer:
                 if len(self.slide_input[slide]) != self.num_slide_features:
                     err_msg = f'Length of input for slide {slide} does not match feature_sizes'
                     num_in_feature_table = len(self.slide_input[slide])
-                    raise errors.ModelError(f'{err_msg}; expected {self.num_slide_features}, got {num_in_feature_table}')
+                    msg = f'{err_msg}; expected {self.num_slide_features}, got {num_in_feature_table}'
+                    raise errors.ModelError(msg)
 
     def _compile_model(self):
         '''Compiles keras model.'''
@@ -773,7 +832,7 @@ class Trainer:
     def _parse_tfrecord_labels(self, image, slide):
         '''Parses raw entry read from TFRecord.'''
 
-        image_dict = { 'tile_image': image }
+        image_dict = {'tile_image': image}
 
         if self.num_classes is None:
             label = None
@@ -861,7 +920,8 @@ class Trainer:
             raise errors.ModelNotLoadedError
         log_manifest(None, dataset.tfrecords(), self.labels, join(self.outdir, 'slide_manifest.csv'))
 
-        if not batch_size: batch_size = self.hp.batch_size
+        if not batch_size:
+            batch_size = self.hp.batch_size
         with tf.name_scope('input'):
             interleave_kwargs = self._interleave_kwargs(batch_size=batch_size, infinite=False, augment=False)
             tf_dts_w_slidenames = dataset.tensorflow(incl_slidenames=True, **interleave_kwargs)
@@ -900,7 +960,8 @@ class Trainer:
                 of histology and each clinical slide-level feature input, if provided.
             histogram (bool, optional): Save histogram of tile predictions. Poorly optimized, uses seaborn, may
                 drastically increase evaluation time. Defaults to False.
-            save_predictions (bool, optional): Save tile, slide, and patient-level predictions to CSV. Defaults to False.
+            save_predictions (bool, optional): Save tile, slide, and patient-level predictions to CSV.
+                Defaults to False.
 
         Returns:
             Dictionary of evaluation metrics.
@@ -928,7 +989,8 @@ class Trainer:
             self.neptune_logger.log_config(self.config, 'eval')
             self.neptune_run['data/slide_manifest'].upload(os.path.join(self.outdir, 'slide_manifest.csv'))
 
-        if not batch_size: batch_size = self.hp.batch_size
+        if not batch_size:
+            batch_size = self.hp.batch_size
         with tf.name_scope('input'):
             interleave_kwargs = self._interleave_kwargs(batch_size=batch_size, infinite=False, augment=False)
             tf_dts_w_slidenames = dataset.tensorflow(incl_slidenames=True, **interleave_kwargs)
@@ -954,7 +1016,7 @@ class Trainer:
                                                                save_predictions=save_predictions,
                                                                pred_args=pred_args,
                                                                **metric_kwargs)
-            results_dict = { 'eval': {} }
+            results_dict = {'eval': {}}
         for metric in metrics:
             if metrics[metric]:
                 log.info(f"Tile {metric}: {metrics[metric]['tile']}")
@@ -970,7 +1032,7 @@ class Trainer:
         #  so this loss will not match validation loss calculated during training
         val_metrics = {'accuracy': acc, 'loss': loss}
         results_log = os.path.join(self.outdir, 'results_log.csv')
-        log.info(f'Evaluation metrics:')
+        log.info('Evaluation metrics:')
         for m in val_metrics:
             log.info(f'{m}: {val_metrics[m]}')
         results_dict['eval'].update(val_metrics)
@@ -1016,8 +1078,8 @@ class Trainer:
         """
 
         if self.hp.model_type() != self._model_type:
-            raise errors.ModelError(f"Incomptable model types: {self.hp.model_type()} (hp) and {self._model_type} (model)")
-        tf.keras.backend.clear_session() # Clear prior Tensorflow graph to free memory
+            raise errors.ModelError(f"Incomptable models: {self.hp.model_type()} (hp) and {self._model_type} (model)")
+        tf.keras.backend.clear_session()  # Clear prior Tensorflow graph to free memory
 
         # Fit the normalizer to the training data and log the source mean/stddev
         if self.normalizer and self.hp.normalizer_source == 'dataset':
@@ -1054,7 +1116,7 @@ class Trainer:
             strategy = tf.distribute.MirroredStrategy()
             log.info(f'Multi-GPU training with {strategy.num_replicas_in_sync} devices')
             # Fixes "OSError: [Errno 9] Bad file descriptor" after training
-            atexit.register(strategy._extended._collective_ops._pool.close) # type: ignore
+            atexit.register(strategy._extended._collective_ops._pool.close)  # type: ignore
         else:
             strategy = None
 
@@ -1071,14 +1133,19 @@ class Trainer:
                 log_summary(model, self.neptune_run)
 
             with tf.name_scope('input'):
-                t_kwargs = self._interleave_kwargs(batch_size=self.hp.batch_size, infinite=True, augment=self.hp.augment)
+                t_kwargs = self._interleave_kwargs(
+                    batch_size=self.hp.batch_size,
+                    infinite=True,
+                    augment=self.hp.augment
+                )
                 train_data = train_dts.tensorflow(drop_last=True, **t_kwargs)
 
             # Set up validation data
             using_validation = (val_dts and len(val_dts.tfrecords()))
             if using_validation:
                 with tf.name_scope('input'):
-                    if not validation_batch_size: validation_batch_size = self.hp.batch_size
+                    if not validation_batch_size:
+                        validation_batch_size = self.hp.batch_size
                     v_kwargs = self._interleave_kwargs(batch_size=validation_batch_size, infinite=False, augment=False)
                     val_data = val_dts.tensorflow(**v_kwargs)
                     val_data_w_slidenames = val_dts.tensorflow(incl_slidenames=True, drop_last=True, **v_kwargs)
@@ -1098,7 +1165,7 @@ class Trainer:
                     log.debug(f'Using {validation_steps} batches ({num_samples} samples) each validation check')
                 else:
                     validation_data_for_training = val_data
-                    log.debug(f'Using entire validation set each validation check')
+                    log.debug('Using entire validation set each validation check')
             else:
                 log.debug('Validation during training: None')
                 validation_data_for_training = None
@@ -1109,7 +1176,7 @@ class Trainer:
             # Calculate parameters
             if max(self.hp.epochs) <= starting_epoch:
                 max_epoch = max(self.hp.epochs)
-                log.error(f'Starting epoch ({starting_epoch}) cannot be greater than the max target epoch ({max_epoch})')
+                log.error(f'Starting epoch ({starting_epoch}) cannot be greater than max target epoch ({max_epoch})')
             if self.hp.early_stop and self.hp.early_stop_method == 'accuracy' and self._model_type != 'categorical':
                 log.error(f"Unable to use 'accuracy' early stopping with model type '{self.hp.model_type()}'")
             if starting_epoch != 0:
@@ -1141,48 +1208,56 @@ class Trainer:
             history_callback = tf.keras.callbacks.History()
             checkpoint_path = os.path.join(self.outdir, 'cp.ckpt')
             evaluation_callback = _PredictionAndEvaluationCallback(self, cb_args)
-            cp_callback = tf.keras.callbacks.ModelCheckpoint(checkpoint_path,
-                                                            save_weights_only=True,
-                                                            verbose=(log.getEffectiveLevel() <= 20))
-            tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=self.outdir,
-                                                                histogram_freq=0,
-                                                                write_graph=False,
-                                                                update_freq=log_frequency)
-
+            cp_callback = tf.keras.callbacks.ModelCheckpoint(
+                checkpoint_path,
+                save_weights_only=True,
+                verbose=(log.getEffectiveLevel() <= 20)
+            )
+            tensorboard_callback = tf.keras.callbacks.TensorBoard(
+                log_dir=self.outdir,
+                histogram_freq=0,
+                write_graph=False,
+                update_freq=log_frequency
+            )
             callbacks = [history_callback, evaluation_callback, cp_callback]
             if use_tensorboard:
                 callbacks += [tensorboard_callback]
 
             # Retrain top layer only, if using transfer learning and not resuming training
             if self.hp.toplayer_epochs:
-                self._retrain_top_layers(train_data, validation_data_for_training, steps_per_epoch,
-                                        callbacks=None, epochs=self.hp.toplayer_epochs)
-
+                self._retrain_top_layers(
+                    train_data,
+                    validation_data_for_training,
+                    steps_per_epoch,
+                    callbacks=None,
+                    epochs=self.hp.toplayer_epochs
+                )
             # Train the model
             self._compile_model()
             log.info('Beginning training')
-            #tf.debugging.enable_check_numerics()
 
             try:
-                self.model.fit(train_data,
-                                steps_per_epoch=steps_per_epoch,
-                                epochs=total_epochs,
-                                verbose=(log.getEffectiveLevel() <= 20),
-                                initial_epoch=self.hp.toplayer_epochs,
-                                validation_data=validation_data_for_training,
-                                validation_steps=validation_steps,
-                                callbacks=callbacks)
+                self.model.fit(
+                    train_data,
+                    steps_per_epoch=steps_per_epoch,
+                    epochs=total_epochs,
+                    verbose=(log.getEffectiveLevel() <= 20),
+                    initial_epoch=self.hp.toplayer_epochs,
+                    validation_data=validation_data_for_training,
+                    validation_steps=validation_steps,
+                    callbacks=callbacks
+                )
             except tf.errors.ResourceExhaustedError as e:
                 print()
                 print(e)
                 log.error(f"Training failed for {col.bold(self.name)}, GPU memory exceeded.")
-
             results = evaluation_callback.results
             if self.use_neptune:
                 self.neptune_run['results'] = results['epochs']
                 self.neptune_run.stop()
 
             return results
+
 
 class LinearTrainer(Trainer):
 
@@ -1201,7 +1276,7 @@ class LinearTrainer(Trainer):
                            metrics=[self.hp.get_loss()])
 
     def _parse_tfrecord_labels(self, image, slide):
-        image_dict = { 'tile_image': image }
+        image_dict = {'tile_image': image}
         if self.num_classes is None:
             label = None
         else:
@@ -1216,6 +1291,7 @@ class LinearTrainer(Trainer):
             image_dict.update({'slide_feature_input': slide_feature_input_val})
 
         return image_dict, label
+
 
 class CPHTrainer(LinearTrainer):
 
@@ -1238,7 +1314,7 @@ class CPHTrainer(LinearTrainer):
                 log.info(f'Training with both images and {num_features} categories of slide-level input')
                 log.info('Interpreting first feature as event for CPH model')
             else:
-                log.info(f'Training with images alone. Interpreting first feature as event for CPH model')
+                log.info('Training with images alone. Interpreting first feature as event for CPH model')
         except KeyError:
             raise errors.ModelError("Unable to find slide-level input at 'input' key in annotations")
         for slide in self.slides:
@@ -1248,18 +1324,18 @@ class CPHTrainer(LinearTrainer):
                 raise errors.ModelError(f'{err_msg}; expected {self.num_slide_features}, got {num_in_feature_table}')
 
     def load(self, model):
-        custom_objects = {'negative_log_likelihood':negative_log_likelihood,
-                          'concordance_index':concordance_index}
+        custom_objects = {'negative_log_likelihood': tf_utils.negative_log_likelihood,
+                          'concordance_index': tf_utils.concordance_index}
         self.model = tf.keras.models.load_model(model, custom_objects=custom_objects)
-        self.model.compile(loss=negative_log_likelihood, metrics=concordance_index)
+        self.model.compile(loss=tf_utils.negative_log_likelihood, metrics=tf_utils.concordance_index)
 
     def _compile_model(self):
         self.model.compile(optimizer=self.hp.get_opt(),
-                           loss=negative_log_likelihood,
-                           metrics=concordance_index)
+                           loss=tf_utils.negative_log_likelihood,
+                           metrics=tf_utils.concordance_index)
 
     def _parse_tfrecord_labels(self, image, slide):
-        image_dict = { 'tile_image': image }
+        image_dict = {'tile_image': image}
         if self.num_classes is None:
             label = None
         else:
@@ -1282,6 +1358,7 @@ class CPHTrainer(LinearTrainer):
             if not (self.num_slide_features == 1):
                 image_dict.update({'slide_feature_input': slide_feature_input_val})
         return image_dict, label
+
 
 class Features:
     """Interface for obtaining logits and features from intermediate layer activations from Slideflow models.
@@ -1327,12 +1404,13 @@ class Features:
 
         Args:
             path (str): Path to saved Slideflow model.
-            layers (list(str), optional): Layers from which to generate activations.  The post-convolution activation layer
-                is accessed via 'postconv'. Defaults to 'postconv'.
+            layers (list(str), optional): Layers from which to generate activations.  The post-convolution activation
+                layer is accessed via 'postconv'. Defaults to 'postconv'.
             include_logits (bool, optional): Include logits in output. Will be returned last. Defaults to False.
         """
 
-        if layers and not isinstance(layers, list): layers = [layers]
+        if layers and not isinstance(layers, list):
+            layers = [layers]
         self.path = path
         self.num_logits = 0
         self.num_features = 0
@@ -1357,8 +1435,8 @@ class Features:
 
         Args:
             model (:class:`tensorflow.keras.models.Model`): Loaded model.
-            layers (list(str), optional): Layers from which to generate activations.  The post-convolution activation layer
-                is accessed via 'postconv'. Defaults to 'postconv'.
+            layers (list(str), optional): Layers from which to generate activations.  The post-convolution activation
+                layer is accessed via 'postconv'. Defaults to 'postconv'.
             include_logits (bool, optional): Include logits in output. Will be returned last. Defaults to False.
             wsi_normalizer (:class:`slideflow.norm.StainNormalizer`): Stain normalizer to use on whole-slide images.
                 Is not used on individual tile datasets via __call__. Defaults to None.
@@ -1406,8 +1484,10 @@ class Features:
 
         # Generate dataset from the generator
         with tf.name_scope('dataset_input'):
-            output_signature={'image':tf.TensorSpec(shape=(slide.tile_px,slide.tile_px,3), dtype=tf.uint8),
-                              'loc':tf.TensorSpec(shape=(2), dtype=tf.uint32)}
+            output_signature = {
+                'image': tf.TensorSpec(shape=(slide.tile_px, slide.tile_px, 3), dtype=tf.uint8),
+                'loc': tf.TensorSpec(shape=(2), dtype=tf.uint32)
+            }
             tile_dataset = tf.data.Dataset.from_generator(generator, output_signature=output_signature)
             tile_dataset = tile_dataset.map(_parse_function, num_parallel_calls=8)
             tile_dataset = tile_dataset.batch(batch_size, drop_remainder=False)
@@ -1417,7 +1497,8 @@ class Features:
         loc_arr = []
         for i, (batch_images, batch_loc) in enumerate(tile_dataset):
             model_out = self._predict(batch_images)
-            if not isinstance(model_out, (list, tuple)): model_out = [model_out]
+            if not isinstance(model_out, (list, tuple)):
+                model_out = [model_out]
             act_arr += [np.concatenate([m.numpy() for m in model_out], axis=-1)]
             loc_arr += [batch_loc.numpy()]
 
@@ -1442,22 +1523,24 @@ class Features:
 
         if layers:
             log.debug(f"Setting up interface to return activations from layers {', '.join(layers)}")
-            other_layers = [l for l in layers if l != 'postconv']
+            other_layers = [la for la in layers if la != 'postconv']
         else:
             other_layers = []
         outputs = {}
         if layers:
-            intermediate_core = tf.keras.models.Model(inputs=self._model.layers[1].input,
-                                                      outputs=[self._model.layers[1].get_layer(l).output for l in other_layers])
+            intermediate_core = tf.keras.models.Model(
+                inputs=self._model.layers[1].input,
+                outputs=[self._model.layers[1].get_layer(ol).output for ol in other_layers]
+            )
             if len(other_layers) > 1:
                 int_out = intermediate_core(self._model.input)
-                for l, layer in enumerate(other_layers):
-                    outputs[layer] = int_out[l]
+                for la, layer in enumerate(other_layers):
+                    outputs[layer] = int_out[la]
             elif len(other_layers):
                 outputs[other_layers[0]] = intermediate_core(self._model.input)
             if 'postconv' in layers:
                 outputs['postconv'] = self._model.layers[1].get_output_at(0)
-        outputs_list = [] if not layers else [outputs[l] for l in layers]
+        outputs_list = [] if not layers else [outputs[la] for la in layers]
         if include_logits:
             outputs_list += [self._model.output]
         self.model = tf.keras.models.Model(inputs=self._model.input, outputs=outputs_list)
@@ -1472,11 +1555,12 @@ class Features:
             log.debug(f'Number of logits: {self.num_logits}')
         log.debug(f'Number of activation features: {self.num_features}')
 
+
 class UncertaintyInterface(Features):
     def __init__(self, path, layers=None):
         log.debug('Setting up UncertaintyInterface')
         super().__init__(path, layers=layers, include_logits=True)
-        self.num_uncertainty = 1 # TODO: As the below to-do suggests, this should be updated for multi-class uncertainty
+        self.num_uncertainty = 1  # TODO: As the below to-do suggests, this should be updated for multi-class
 
     @classmethod
     def from_model(cls, model, wsi_normalizer=None, layers=None):
@@ -1496,10 +1580,12 @@ class UncertaintyInterface(Features):
         for n in range(self.num_outputs):
             out_drop[n] = tf.stack(out_drop[n], axis=0)
         logits = tf.math.reduce_mean(out_drop[-1], axis=0)
-        uncertainty = tf.math.reduce_std(out_drop[-1], axis=0)[:,0] # Only takes STDEV from first outcome category
-                                                               # Which works for outcomes with 2 categories,
-                                                               # TODO: But a better solution is needed
-                                                               # for num_categories > 2
+
+        # TODO: Only takes STDEV from first outcome category which works for
+        # outcomes with 2 categories, but a better solution is needed
+        # for num_categories > 2
+        uncertainty = tf.math.reduce_std(out_drop[-1], axis=0)[:, 0]
+
         uncertainty = tf.expand_dims(uncertainty, axis=-1)
         if self.num_outputs > 1:
             return [tf.math.reduce_mean(out_drop[n], axis=0) for n in range(self.num_outputs-1)] + [logits, uncertainty]

@@ -21,6 +21,7 @@ from slideflow.model import torch_utils
 from slideflow.model.base import log_manifest
 from slideflow import errors
 
+
 class LinearBlock(torch.nn.Module):
     '''Block module that includes a linear layer -> ReLU -> BatchNorm'''
 
@@ -43,6 +44,7 @@ class LinearBlock(torch.nn.Module):
         if self.dropout is not None:
             x = self.dropout(x)
         return x
+
 
 class ModelWrapper(torch.nn.Module):
     '''Wrapper for PyTorch modules to support multiple outcomes, clinical inputs, and additional hidden layers.'''
@@ -98,7 +100,7 @@ class ModelWrapper(torch.nn.Module):
 
     def forward(self, img, slide_features=None):
         if slide_features is None and self.num_slide_features:
-            raise ValueError(f"Expected 2 inputs, got 1")
+            raise ValueError("Expected 2 inputs, got 1")
 
         # Last linear of core convolutional model
         if not self.drop_images:
@@ -125,7 +127,8 @@ class ModelWrapper(torch.nn.Module):
         else:
             out = self.fc0(x)
 
-        return out#, x
+        return out  # , x
+
 
 class ModelParams(_base._ModelParams):
     """Build a set of hyperparameters."""
@@ -154,7 +157,7 @@ class ModelParams(_base._ModelParams):
             'googlenet': torchvision.models.googlenet,
             'shufflenet': torchvision.models.shufflenet_v2_x1_0,
             'resnext50_32x4d': torchvision.models.resnext50_32x4d,
-            'vgg16': torchvision.models.vgg16, # needs support added
+            'vgg16': torchvision.models.vgg16,  # needs support added
             'mobilenet_v2': torchvision.models.mobilenet_v2,
             'mobilenet_v3_small': torchvision.models.mobilenet_v3_small,
             'mobilenet_v3_large': torchvision.models.mobilenet_v3_large,
@@ -166,7 +169,7 @@ class ModelParams(_base._ModelParams):
         self.LinearLossDict = {
             'L1': torch.nn.L1Loss,
             'MSE': torch.nn.MSELoss,
-            'NLL': torch.nn.NLLLoss, #negative log likelihood
+            'NLL': torch.nn.NLLLoss,  # negative log likelihood
             'HingeEmbedding': torch.nn.HingeEmbeddingLoss,
             'SmoothL1': torch.nn.SmoothL1Loss,
             'CosineEmbedding': torch.nn.CosineEmbeddingLoss,
@@ -189,7 +192,7 @@ class ModelParams(_base._ModelParams):
             'TripletMarginWithDistance': torch.nn.TripletMarginWithDistanceLoss,
             'L1': torch.nn.L1Loss,
             'MSE': torch.nn.MSELoss,
-            'NLL': torch.nn.NLLLoss, #negative log likelihood
+            'NLL': torch.nn.NLLLoss,  # negative log likelihood
             'HingeEmbedding': torch.nn.HingeEmbeddingLoss,
             'SmoothL1': torch.nn.SmoothL1Loss,
             'CosineEmbedding': torch.nn.CosineEmbeddingLoss,
@@ -225,13 +228,24 @@ class ModelParams(_base._ModelParams):
             model_fn = self.ModelDict[self.model]
             # Only pass kwargs accepted by model function
             model_fn_sig = inspect.signature(model_fn)
-            model_kw = [param.name for param in model_fn_sig.parameters.values() if param.kind == param.POSITIONAL_OR_KEYWORD]
+            model_kw = [
+                param.name
+                for param in model_fn_sig.parameters.values()
+                if param.kind == param.POSITIONAL_OR_KEYWORD
+            ]
             model_kwargs = {'image_size': self.tile_px} if 'image_size' in model_kw else {}
             _model = model_fn(pretrained=pretrain, **model_kwargs)
 
         # Add final layers to models
         hidden_layers = [self.hidden_layer_width for _ in range(self.hidden_layers)]
-        return ModelWrapper(_model, num_classes.values(), num_slide_features, hidden_layers, self.drop_images, dropout=self.dropout)
+        return ModelWrapper(
+            _model,
+            num_classes.values(),
+            num_slide_features,
+            hidden_layers,
+            self.drop_images,
+            dropout=self.dropout
+        )
 
     def model_type(self):
         if self.loss == 'NLL':
@@ -240,6 +254,7 @@ class ModelParams(_base._ModelParams):
             return 'linear'
         else:
             return 'categorical'
+
 
 class Trainer:
     """Base trainer class containing functionality for model building, input processing, training, and evaluation.
@@ -290,13 +305,14 @@ class Trainer:
         self.mixed_precision = mixed_precision
 
         # Slide-level input args
-        self.slide_input = None if not slide_input else {k:[float(vi) for vi in v] for k,v in slide_input.items()}
+        self.slide_input = None if not slide_input else {k: [float(vi) for vi in v] for k, v in slide_input.items()}
         self.feature_names = feature_names
         self.feature_sizes = feature_sizes
         self.num_slide_features = 0 if not feature_sizes else sum(feature_sizes)
 
         self.normalizer = self.hp.get_normalizer()
-        if self.normalizer: log.info(f'Using realtime {self.hp.normalizer} normalization')
+        if self.normalizer:
+            log.info(f'Using realtime {self.hp.normalizer} normalization')
         self.outcome_names = outcome_names
         outcome_labels = np.array(list(labels.values()))
         if len(outcome_labels.shape) == 1:

@@ -10,6 +10,7 @@ from slideflow.norm import StainNormalizer
 from slideflow.norm.tensorflow import reinhard, reinhard_fast
 from slideflow import errors
 
+
 class TensorflowStainNormalizer(StainNormalizer):
     vectorized = True
     backend = 'tensorflow'
@@ -72,25 +73,33 @@ class TensorflowStainNormalizer(StainNormalizer):
     def target_concentrations(self, val):
         self._target_concentrations = val
 
-
-    def fit(self, *args, target_means=None, target_stds=None, stain_matrix_target=None, target_concentrations=None,
+    def fit(self, *args, target_means=None, target_stds=None,
+            stain_matrix_target=None, target_concentrations=None,
             batch_size=64):
 
         if len(args) and isinstance(args[0], Dataset):
             # Prime the normalizer
             dataset = args[0]
-            dts = dataset.tensorflow(None, batch_size, standardize=False, infinite=False)
-            m, s = [], []
-            pb = tqdm(desc='Fitting normalizer...', ncols=80, total=dataset.num_tiles)
+            dts = dataset.tensorflow(
+                None,
+                batch_size,
+                standardize=False,
+                infinite=False
+            )
+            means, stds = [], []
+            pb = tqdm(
+                desc='Fitting normalizer...',
+                ncols=80,
+                total=dataset.num_tiles
+            )
             for i, slide in dts:
                 _m, _s = self.n.fit(i, reduce=True)
-                m += [_m]
-                s += [_s]
+                means += [_m]
+                stds += [_s]
                 pb.update(batch_size)
-            dts_mean = tf.math.reduce_mean(tf.stack(m), axis=0)
-            dts_std = tf.math.reduce_mean(tf.stack(s), axis=0)
-            self.target_means = dts_mean
-            self.target_stds = dts_std
+            self.target_means = tf.math.reduce_mean(tf.stack(means), axis=0)
+            self.target_stds = tf.math.reduce_mean(tf.stack(stds), axis=0)
+
         elif len(args) and isinstance(args[0], np.ndarray) and len(args) == 1:
             if len(args[0].shape) == 3:
                 img = tf.expand_dims(tf.constant(args[0]), axis=0)
@@ -99,36 +108,65 @@ class TensorflowStainNormalizer(StainNormalizer):
             means, stds = self.n.fit(img)
             self.target_means = tf.concat(means, 0)
             self.target_stds = tf.concat(stds, 0)
+
         elif len(args) and isinstance(args[0], str):
-            self.src_img = tf.expand_dims(tf.image.decode_jpeg(tf.io.read_file(args[0])), axis=0)
+            src_img = tf.image.decode_jpeg(tf.io.read_file(args[0]))
+            self.src_img = tf.expand_dims(src_img, axis=0)
             means, stds = self.n.fit(self.src_img)
             self.target_means = tf.concat(means, 0)
             self.target_stds = tf.concat(stds, 0)
+
         elif target_means is not None:
-            self.target_means = tf.constant(np.array(target_means), dtype=tf.float32)
-            self.target_stds = tf.constant(np.array(target_stds), dtype=tf.float32)
-        elif stain_matrix_target is not None and target_concentrations is not None:
-            self.stain_matrix_target = tf.constant(np.array(stain_matrix_target), dtype=tf.float32)
-            self.target_concentrations = tf.constant(np.array(target_concentrations), dtype=tf.float32)
+            self.target_means = tf.constant(
+                np.array(target_means),
+                dtype=tf.float32
+            )
+            self.target_stds = tf.constant(
+                np.array(target_stds),
+                dtype=tf.float32
+            )
+        elif (stain_matrix_target is not None
+              and target_concentrations is not None):
+            self.stain_matrix_target = tf.constant(
+                np.array(stain_matrix_target),
+                dtype=tf.float32
+            )
+            self.target_concentrations = tf.constant(
+                np.array(target_concentrations),
+                dtype=tf.float32
+            )
         elif stain_matrix_target is not None:
-            self.stain_matrix_target = tf.constant(np.array(stain_matrix_target), dtype=tf.float32)
+            self.stain_matrix_target = tf.constant(
+                np.array(stain_matrix_target),
+                dtype=tf.float32
+            )
         else:
-            raise errors.NormalizerError(f'Unrecognized arguments for fit: {args}')
-        log.info(f"Fit normalizer to mean {self.target_means.numpy()}, stddev {self.target_stds.numpy()}")
+            raise errors.NormalizerError(f'Unrecognized args for fit: {args}')
+
+        msg = f"Fit normalizer to mean {self.target_means.numpy()}, "
+        msg += f"stddev {self.target_stds.numpy()}"
+        log.info(msg)
 
     def get_fit(self):
+
+        def to_np(a):
+            return a.numpy().tolist()
+
         return {
-            'target_means': None if self.target_means is None else self.target_means.numpy().tolist(),
-            'target_stds': None if self.target_stds is None else self.target_stds.numpy().tolist(),
-            'stain_matrix_target': None if self.stain_matrix_target is None else self.stain_matrix_target.numpy().tolist(),
-            'target_concentrations': None if self.target_concentrations is None else self.target_concentrations.numpy().tolist()
+            'target_means': None if self.target_means is None else to_np(self.target_means),
+            'target_stds': None if self.target_stds is None else to_np(self.target_stds),
+            'stain_matrix_target': None if self.stain_matrix_target is None else to_np(self.stain_matrix_target),
+            'target_concentrations': None if self.target_concentrations is None else to_np(self.target_concentrations)
         }
 
     @tf.function
     def batch_to_batch(self, batch, *args):
         with tf.device('gpu:0'):
             if isinstance(batch, dict):
-                to_return = {k:v for k,v in batch.items() if k != 'tile_image'}
+                to_return = {
+                    k: v for k, v in batch.items()
+                    if k != 'tile_image'
+                }
                 to_return['tile_image'] = self.tf_to_tf(batch['tile_image'])
                 return tuple([to_return] + list(args))
             else:
@@ -137,7 +175,8 @@ class TensorflowStainNormalizer(StainNormalizer):
     @tf.function
     def tf_to_tf(self, image):
         if len(image.shape) == 3:
-            return self.n.transform( tf.expand_dims(image, axis=0), self.target_means, self.target_stds)[0]
+            image = tf.expand_dims(image, axis=0)
+            return self.n.transform(image, self.target_means, self.target_stds)[0]
         else:
             return self.n.transform(image, self.target_means, self.target_stds)
 
@@ -146,12 +185,13 @@ class TensorflowStainNormalizer(StainNormalizer):
 
     def rgb_to_rgb(self, image):
         '''Non-normalized RGB numpy array -> normalized RGB numpy array'''
-        return self.n.transform(tf.expand_dims(tf.constant(image, dtype=tf.uint8), axis=0), self.target_means, self.target_stds).numpy()[0]
+        image = tf.expand_dims(tf.constant(image, dtype=tf.uint8), axis=0)
+        return self.n.transform(image, self.target_means, self.target_stds).numpy()[0]
 
     def jpeg_to_rgb(self, jpeg_string):
-        '''Non-normalized compressed JPG string data -> normalized RGB numpy array'''
+        '''Non-normalized compressed JPG data -> normalized RGB numpy array'''
         return self.tf_to_rgb(tf.image.decode_jpeg(jpeg_string))
 
     def png_to_rgb(self, png_string):
-        '''Non-normalized compressed PNG string data -> normalized RGB numpy array'''
+        '''Non-normalized compressed PNG data -> normalized RGB numpy array'''
         return self.tf_to_rgb(tf.image.decode_png(png_string, channels=3))
