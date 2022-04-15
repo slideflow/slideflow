@@ -15,7 +15,7 @@ Slideflow has been used by:
 - [Dolezal et al](https://arxiv.org/abs/2204.04516) [arXiv], 2022
 - Partin et al [arXiv], 2022
 
-# Requirements
+## Requirements
 - Python >= 3.7
 - [Libvips](https://libvips.github.io/libvips/) >= 8.9. 
 - [OpenSlide](https://openslide.org/download/)
