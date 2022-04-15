@@ -1097,19 +1097,19 @@ class Dataset:
                         raise KeyError(msg)
                     elif assigned_for_header:
                         val_msg = assigned_for_header[ul]
-                        n_s = col.bold(str(n_matching_filtered))
+                        n_s = str(n_matching_filtered)
                         log.debug(" ".join([
                             header,
-                            col.blue(ul),
+                            ul,
                             'assigned to',
                             str(val_msg),
                             f'[{n_s} slides]'
                         ]))
                     else:
-                        n_s = col.bold(str(n_matching_filtered))
+                        n_s = str(n_matching_filtered)
                         log.debug(" ".join([
                             header,
-                            col.blue(ul),
+                            ul,
                             'assigned to',
                             str(i),
                             f'[{n_s} slides]'

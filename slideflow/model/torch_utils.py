@@ -85,3 +85,35 @@ def print_module_summary(module, inputs, max_nesting=3, skip_redundant=True):
         print(str_row)
     print()
     return '\n'.join(summary_rows)
+
+
+def enable_dropout(m):
+    for module in m.modules():
+        if module.__class__.__name__ == 'LinearBlock':
+            for submodule in module.modules():
+                if submodule.__class__.__name__.startswith('Dropout'):
+                    submodule.train()
+
+
+def get_uq_predictions(img, model, num_outcomes, uq_n=30):
+    enable_dropout(model)
+    yp_drop = {} if not num_outcomes else {n: [] for n in range(num_outcomes)}
+    for _ in range(uq_n):
+        yp = model(*img)
+        if not num_outcomes:
+            num_outcomes = 1 if not isinstance(yp, (list, tuple)) else len(yp)
+            yp_drop = {n: [] for n in range(num_outcomes)}
+        if num_outcomes > 1:
+            for o in range(num_outcomes):
+                yp_drop[o] += [yp[o]]
+        else:
+            yp_drop[0] += [yp]
+    if num_outcomes > 1:
+        yp_drop = [torch.stack(yp_drop[n], axis=0) for n in range(num_outcomes)]
+        yp_mean = [torch.mean(yp_drop[n], axis=0) for n in range(num_outcomes)]
+        yp_std = [torch.std(yp_drop[n], axis=0) for n in range(num_outcomes)]
+    else:
+        yp_drop = torch.stack(yp_drop[0], axis=0)
+        yp_mean = torch.mean(yp_drop, axis=0)
+        yp_std = torch.std(yp_drop, axis=0)
+    return yp_mean, yp_std, num_outcomes

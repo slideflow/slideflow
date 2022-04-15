@@ -49,23 +49,49 @@ class LinearBlock(torch.nn.Module):
 class ModelWrapper(torch.nn.Module):
     '''Wrapper for PyTorch modules to support multiple outcomes, clinical inputs, and additional hidden layers.'''
 
-    def __init__(self, model, n_classes, num_slide_features=0, hidden_layers=None, drop_images=False, dropout=None):
+    def __init__(self, model, n_classes, num_slide_features=0, hidden_layers=None, drop_images=False,
+                 dropout=None, include_top=True):
         super().__init__()
         self.model = model
         self.n_classes = len(n_classes)
         self.drop_images = drop_images
         self.num_slide_features = num_slide_features
         self.num_hidden_layers = 0 if not hidden_layers else len(hidden_layers)
-
+        self.has_aux = False
+        log.debug(f'Model class name: {model.__class__.__name__}')
         if not drop_images:
+            # Check for auxillary classifier
+            if model.__class__.__name__ in ('Inception3',):
+                log.debug("Auxillary classifier detected")
+                self.has_aux = True
+
             # Get the last linear layer prior to the logits layer
             if model.__class__.__name__ in ('Xception', 'NASNetALarge'):
                 num_ftrs = self.model.last_linear.in_features
                 self.model.last_linear = torch.nn.Identity()
-            elif model.__class__.__name__ == 'VGG':
-                last_linear_name, last_linear = list(self.model.classifier.named_children())[-1]
-                num_ftrs = last_linear.in_features
-                setattr(self.model.classifier, last_linear_name, torch.nn.Identity())
+            elif model.__class__.__name__ in ('SqueezeNet'):
+                num_ftrs = 1000
+            elif hasattr(self.model, 'classifier'):
+                if len(list(self.model.classifier.named_children())):
+                    # VGG, AlexNet
+                    if include_top:
+                        log.debug("Including existing fully-connected top classifier layers")
+                        last_linear_name, last_linear = list(self.model.classifier.named_children())[-1]
+                        num_ftrs = last_linear.in_features
+                        setattr(self.model.classifier, last_linear_name, torch.nn.Identity())
+                    elif model.__class__.__name__ in ('AlexNet', 'MobileNetV2', 'MNASNet'):
+                        log.debug("Removing fully-connected classifier layers")
+                        _, first_classifier = list(self.model.classifier.named_children())[1]
+                        num_ftrs = first_classifier.in_features
+                        self.model.classifier = torch.nn.Identity()
+                    elif model.__class__.__name__ in ('VGG', 'MobileNetV3'):
+                        log.debug("Removing fully-connected classifier layers")
+                        _, first_classifier = list(self.model.classifier.named_children())[0]
+                        num_ftrs = first_classifier.in_features
+                        self.model.classifier = torch.nn.Identity()
+                else:
+                    num_ftrs = self.model.classifier.in_features
+                    self.model.classifier = torch.nn.Identity()
             elif hasattr(self.model, 'fc'):
                 num_ftrs = self.model.fc.in_features
                 self.model.fc = torch.nn.Identity()
@@ -105,6 +131,10 @@ class ModelWrapper(torch.nn.Module):
         # Last linear of core convolutional model
         if not self.drop_images:
             x = self.model(img)
+
+        # Discard auxillary classifier
+        if self.has_aux:
+            x, _ = x
 
         # Merging image data with any slide-level input data
         if self.num_slide_features and not self.drop_images:
@@ -201,10 +231,6 @@ class ModelParams(_base._ModelParams):
         assert self.model in self.ModelDict.keys()
         assert self.optimizer in self.OptDict.keys()
         assert self.loss in self.AllLossDict
-        if not self.include_top:
-            raise errors.BackendError("PyTorch backend does not currently support include_top=False.")
-        if self.uq:
-            raise errors.BackendError("PyTorch backend does not yet support UQ (development underway).")
         if isinstance(self.augment, str) and 'b' in self.augment:
             log.warn('Gaussian blur not yet optimized in PyTorch backend; image pre-processing may be slow.')
 
@@ -244,7 +270,8 @@ class ModelParams(_base._ModelParams):
             num_slide_features,
             hidden_layers,
             self.drop_images,
-            dropout=self.dropout
+            dropout=self.dropout,
+            include_top=self.include_top
         )
 
     def model_type(self):
@@ -527,7 +554,8 @@ class Trainer:
             update_loss=update_loss,
             running_corrects=(0 if not (self.num_outcomes > 1) else {f'out-{o}': 0 for o in range(self.num_outcomes)}),
             num_slide_features=self.num_slide_features,
-            slide_input=self.slide_input
+            slide_input=self.slide_input,
+            uq=bool(self.hp.uq)
         )
 
         # Generate performance metrics
@@ -690,6 +718,10 @@ class Trainer:
         # Enable TF32 (should be enabled by default)
         torch.backends.cuda.matmul.allow_tf32 = True  # Allow PyTorch to internally use tf32 for matmul
         torch.backends.cudnn.allow_tf32 = True        # Allow PyTorch to internally use tf32 for convolutions
+
+        # Fit normalizer to dataset, if applicable
+        if self.normalizer and self.hp.normalizer_source == 'dataset':
+            self.normalizer.fit(train_dts)
 
         # Training preparation
         val_tfr = val_dts.tfrecords() if val_dts else None
@@ -1070,7 +1102,8 @@ class Trainer:
                         update_loss=update_loss,
                         running_corrects=_running_corrects,
                         num_slide_features=self.num_slide_features,
-                        slide_input=self.slide_input
+                        slide_input=self.slide_input,
+                        uq=bool(self.hp.uq)
                     )
 
                     # Calculate patient/slide/tile - level metrics (AUC, R-squared, C-index, etc)

@@ -1614,7 +1614,8 @@ def metrics_from_pred(y_true, y_pred, tile_to_slides, labels, patients,
     return combined_metrics
 
 
-def predict_from_torch(model, dataset, model_type, pred_args, **kwargs):
+def predict_from_torch(model, dataset, model_type, pred_args, uq_n=30,
+                       **kwargs):
     """Generates predictions (y_true, y_pred, tile_to_slide) from
     a given PyTorch model and dataset.
 
@@ -1631,9 +1632,12 @@ def predict_from_torch(model, dataset, model_type, pred_args, **kwargs):
         y_pred, y_std, tile_to_slides
     """
     import torch
+    from slideflow.model.torch_utils import get_uq_predictions
     # Get predictions and performance metrics
     log.debug("Generating predictions from torch model")
     y_pred, tile_to_slides = [], []
+    y_std = [] if pred_args.uq else None
+    num_outcomes = 0
     model.eval()
     device = torch.device('cuda:0')
     pb = tqdm(
@@ -1655,7 +1659,17 @@ def predict_from_torch(model, dataset, model_type, pred_args, **kwargs):
                     inp = (img, slide_inp.to(device))
                 else:
                     inp = (img,)
-                res = model(*inp)
+                if pred_args.uq:
+                    res, yp_std, num_outcomes = get_uq_predictions(
+                        inp, model, num_outcomes, uq_n
+                    )
+                    if isinstance(yp_std, list):
+                        yp_std = [y.cpu().numpy().copy() for y in yp_std]
+                    else:
+                        yp_std = yp_std.cpu().numpy().copy()
+                    y_std += [yp_std]
+                else:
+                    res = model(*inp)
                 if isinstance(res, list):
                     res = [r.cpu().numpy().copy() for r in res]
                 else:
@@ -1667,14 +1681,18 @@ def predict_from_torch(model, dataset, model_type, pred_args, **kwargs):
     # Concatenate predictions for each outcome
     if type(y_pred[0]) == list:
         y_pred = [np.concatenate(yp) for yp in zip(*y_pred)]
+        if pred_args.uq:
+            y_std = [np.concatenate(ys) for ys in zip(*y_std)]
     else:
         y_pred = np.concatenate(y_pred)
+        if pred_args.uq:
+            y_std = np.concatenate(y_std)
     tile_to_slides = np.array(tile_to_slides)
     log.debug("Prediction complete.")
-    return y_pred, None, tile_to_slides
+    return y_pred, y_std, tile_to_slides
 
 
-def eval_from_torch(model, dataset, model_type, pred_args, **kwargs):
+def eval_from_torch(model, dataset, model_type, pred_args, uq_n=30, **kwargs):
     """Generates predictions (y_true, y_pred, tile_to_slide) from
     a given PyTorch model and dataset.
 
@@ -1692,10 +1710,13 @@ def eval_from_torch(model, dataset, model_type, pred_args, **kwargs):
     """
 
     import torch
+    from slideflow.model.torch_utils import get_uq_predictions
     y_true, y_pred, tile_to_slides = [], [], []
+    y_std = [] if pred_args.uq else None
     corrects = pred_args.running_corrects
     losses = 0
     total = 0
+    num_outcomes = 0
 
     log.debug("Evaluating torch model")
 
@@ -1720,7 +1741,17 @@ def eval_from_torch(model, dataset, model_type, pred_args, **kwargs):
                     inp = (img, slide_inp.to(device))
                 else:
                     inp = (img,)
-                res = model(*inp)
+                if pred_args.uq:
+                    res, yp_std, num_outcomes = get_uq_predictions(
+                        inp, model, num_outcomes, uq_n
+                    )
+                    if isinstance(yp_std, list):
+                        yp_std = [y.cpu().numpy().copy() for y in yp_std]
+                    else:
+                        yp_std = yp_std.cpu().numpy().copy()
+                    y_std += [yp_std]
+                else:
+                    res = model(*inp)
                 corrects = pred_args.update_corrects(res, yt, corrects)
                 losses = pred_args.update_loss(res, yt, losses, img.size(0))
                 if isinstance(res, list):
@@ -1740,8 +1771,13 @@ def eval_from_torch(model, dataset, model_type, pred_args, **kwargs):
     # Concatenate predictions for each outcome
     if type(y_pred[0]) == list:
         y_pred = [np.concatenate(yp) for yp in zip(*y_pred)]
+        if pred_args.uq:
+            y_std = [np.concatenate(ys) for ys in zip(*y_std)]
     else:
         y_pred = np.concatenate(y_pred)
+        if pred_args.uq:
+            y_std = np.concatenate(y_std)
+
     # Concatenate y_true for each outcome
     if type(y_true[0]) == list:
         y_true = [np.concatenate(yt) for yt in zip(*y_true)]
@@ -1763,7 +1799,7 @@ def eval_from_torch(model, dataset, model_type, pred_args, **kwargs):
     if log.getEffectiveLevel() <= 20:
         sf.util.clear_console()
     log.debug("Evaluation complete.")
-    return y_true, y_pred, None, tile_to_slides, acc, loss
+    return y_true, y_pred, y_std, tile_to_slides, acc, loss
 
 
 def predict_from_tensorflow(model, dataset, model_type, pred_args, num_tiles=0,
@@ -1807,10 +1843,7 @@ def predict_from_tensorflow(model, dataset, model_type, pred_args, num_tiles=0,
         num_batches += 1
         if pred_args.uq:
             yp_mean, yp_std, num_outcomes = get_uq_predictions(
-                img,
-                get_predictions,
-                num_outcomes,
-                uq_n
+                img, get_predictions, num_outcomes, uq_n
             )
             y_pred += [yp_mean]
             y_std += [yp_std]
@@ -1879,10 +1912,7 @@ def eval_from_tensorflow(model, dataset, model_type, pred_args, num_tiles=0,
 
         if pred_args.uq:
             yp, yp_std, num_outcomes = get_uq_predictions(
-                img,
-                get_predictions,
-                num_outcomes,
-                uq_n
+                img, get_predictions, num_outcomes, uq_n
             )
             y_pred += [yp]
             y_std += [yp_std]

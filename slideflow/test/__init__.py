@@ -403,6 +403,8 @@ def test_throughput(dts, normalizer=None, s=10, step_size=1):
         else:
             count += step_size
         if time.time() - start > s:
+            if sf.backend() == 'torch':
+                dts.close()
             break
     return count / (time.time() - start)
 
@@ -775,20 +777,17 @@ class TestSuite:
             # Test categorical outcome with UQ
             msg = "Training single categorical outcome with UQ..."
             with TaskWrapper(msg) as test:
-                if sf.backend() == 'tensorflow':
-                    hp = self.setup_hp('categorical', sweep=False, uq=True)
-                    self.project.train(
-                        exp_label='UQ',
-                        outcomes='category1',
-                        val_k=1,
-                        params=hp,
-                        validate_on_batch=10,
-                        steps_per_epoch_override=20,
-                        save_predictions=True,
-                        **train_kwargs
-                    )
-                else:
-                    test.skip()
+                hp = self.setup_hp('categorical', sweep=False, uq=True)
+                self.project.train(
+                    exp_label='UQ',
+                    outcomes='category1',
+                    val_k=1,
+                    params=hp,
+                    validate_on_batch=10,
+                    steps_per_epoch_override=20,
+                    save_predictions=True,
+                    **train_kwargs
+                )
 
         if multi_categorical:
             # Test multiple sequential categorical outcome models
