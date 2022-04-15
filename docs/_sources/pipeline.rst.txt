@@ -3,11 +3,11 @@ Pipeline Overview
 
 The overall pipeline is separated into three phases.
 
-The first phase - **Tile extraction** - involves 1) annotating slides with regions of interest (ROIs) [*optional*], 2) setting up a project, and 3) extracting and saving image tiles from whole-slide images.
+The first phase - **Tile extraction** - involves 1) annotating slides with regions of interest (ROIs) [*optional*], 2) setting up a project, and 3) extracting image tiles from whole-slide images.
 
 The second phase - **Model training** - involves 1) performing a hyperparameter sweep [*optional*], 2) training a model using bootstrap cross-validation or *k*-fold validation, and 3) training a model across the entire training dataset without validation.
 
-The third phase - **Model evaluation** - includes 1) assessing performance of the final model on a held-out dataset, generating metrics including loss, accuracy, AUROC / AP, and various plots, 2) creating heatmaps of predictions on the evaluation dataset, and 3) generating mosaic maps from image features calculated from the evaluation dataset to aid in model explainability.
+The third phase - **Model evaluation** - includes 1) assessing performance of the final model on a held-out dataset, generating metrics including loss, accuracy, AUROC / AP, 2) creating heatmaps of predictions on the evaluation dataset, and 3) generating mosaic maps from image features calculated from the evaluation dataset to aid in model explainability.
 
 A high-level overview of each of these phases is provided below. We will examine execution of each step in more detail in the following sections.
 

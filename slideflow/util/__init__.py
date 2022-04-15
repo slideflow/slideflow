@@ -729,20 +729,19 @@ def tfrecord_heatmap(tfrecord, slide, tile_px, tile_um, tile_dict, outdir):
     """Creates a tfrecord-based WSI heatmap using a dictionary of tile values
     for heatmap display.
 
-        Args:
-            tfrecord (str): Path to tfrecord.
-            slide (str): Path to whole-slide image.
-            tile_dict (dict): Dictionary mapping tfrecord indices to a
-                tile-level value for display in heatmap format.
-            tile_px (int): Tile width in pixels.
-            tile_um (int): Tile width in microns.
-            outdir (str): Path to directory in which to save images.
+    Args:
+        tfrecord (str): Path to tfrecord.
+        slide (str): Path to whole-slide image.
+        tile_dict (dict): Dictionary mapping tfrecord indices to a
+            tile-level value for display in heatmap format.
+        tile_px (int): Tile width in pixels.
+        tile_um (int): Tile width in microns.
+        outdir (str): Path to directory in which to save images.
 
-        Returns:
-            Dictionary mapping slide names to dict of statistics
-                (mean, median, above_0, and above_1)
-        """
-
+    Returns:
+        Dictionary mapping slide names to dict of statistics
+        (mean, median, above_0, and above_1)
+    """
     slide_name = sf.util.path_to_name(tfrecord)
     loc_dict = sf.io.get_locations_from_tfrecord(tfrecord)
     if tile_dict.keys() != loc_dict.keys():

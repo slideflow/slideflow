@@ -3,18 +3,21 @@ Installation
 
 Slideflow has been tested and is supported on the following systems:
 
-- Python 3.7 - 3.9
-- Ubuntu 18.04 or later
-- CentOS 7 and 8
+- Ubuntu 18.04
+- Ubuntu 20.04
+- Centos 7
+- Centos 8
+- Centos 8 Stream
 
 Software Requirements
 *********************
 
+- Python 3.7 - 3.10
 - `OpenSlide <https://openslide.org/download/>`_
 - `Libvips 8.9+ <https://libvips.github.io/libvips/>`_
 - `CPLEX 20.1.0 <https://www.ibm.com/docs/en/icos/12.10.0?topic=v12100-installing-cplex-optimization-studio>`_ with `Python API <https://www.ibm.com/docs/en/icos/12.10.0?topic=cplex-setting-up-python-api>`_ [*optional*] - used for preserved-site cross-validation
 - `QuPath <https://qupath.github.io>`_ [*optional*] - used for ROI annotations
-- `Tensorflow 2.5+ <https://www.tensorflow.org/install>`_ or `PyTorch 1.9+ <https://pytorch.org/get-started/locally/>`_
+- `Tensorflow 2.5-2.8 <https://www.tensorflow.org/install>`_ or `PyTorch 1.9-1.11 <https://pytorch.org/get-started/locally/>`_
 
 Download with pip
 *****************
@@ -30,16 +33,16 @@ Download with pip
 Run a Docker container
 **********************
 
-The `Slideflow docker images <https://hub.docker.com/repository/docker/jamesdolezal/slideflow>`_ have been pre-configured with OpenSlide, Libvips, and either PyTorch 1.10 or Tensorflow 2.7. Using a preconfigured `Docker <https://docs.docker.com/install/>`_ container is the easiest way to get started with compatible dependencies and GPU support.
+The `Slideflow docker images <https://hub.docker.com/repository/docker/jamesdolezal/slideflow>`_ have been pre-configured with OpenSlide, Libvips, and either PyTorch 1.11 or Tensorflow 2.8. Using a preconfigured `Docker <https://docs.docker.com/install/>`_ container is the easiest way to get started with compatible dependencies and GPU support.
 
-To install with the Tensorflow 2.7 backend:
+To install with the Tensorflow 2.8 backend:
 
 .. code-block:: bash
 
     $ docker pull jamesdolezal/slideflow:latest-tf
     $ docker run -it --gpus all jamesdolezal/slideflow:latest-tf
 
-To install with the PyTorch 1.10 backend:
+To install with the PyTorch 1.11 backend:
 
 .. code-block:: bash
 

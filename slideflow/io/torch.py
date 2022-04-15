@@ -362,16 +362,16 @@ def worker_init_fn(worker_id):
 
 
 def detect_tfrecord_format(tfr):
-    '''Detects tfrecord format. Torch implementation; different than
-    sf.io.tensorflow
+    '''Detects tfrecord format.
 
     Args:
         tfr (str): Path to tfrecord.
 
     Returns:
         str: Image file type (png/jpeg)
+
         dict: Feature description dictionary (including or excluding
-            location data as supported)
+        location data as supported)
     '''
     img_type = None
     try:

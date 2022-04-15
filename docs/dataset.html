@@ -6,10 +6,11 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  
+  <meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>slideflow.dataset &mdash; slideflow 1.1.0-rc1 documentation</title>
+  <title>slideflow.dataset &mdash; slideflow 1.1.0 documentation</title>
   
 
   
@@ -119,7 +120,7 @@
               
               
                 <div class="version">
-                  1.0
+                  1.1
                 </div>
               
             
@@ -252,11 +253,11 @@
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
               
-  <div class="section" id="slideflow-dataset">
+  <section id="slideflow-dataset">
 <span id="dataset"></span><h1>slideflow.dataset<a class="headerlink" href="#slideflow-dataset" title="Permalink to this headline">¶</a></h1>
 <p>The <a class="reference internal" href="#slideflow.Dataset" title="slideflow.dataset.Dataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">Dataset</span></code></a> class in this module is used to organize dataset sources, ROI annotations,
 clinical annotations, and dataset processing.</p>
-<div class="section" id="dataset-organization">
+<section id="dataset-organization">
 <h2>Dataset Organization<a class="headerlink" href="#dataset-organization" title="Permalink to this headline">¶</a></h2>
 <p>A <em>source</em> is a set of slides, corresponding Regions of Interest (ROI) annotations (if available), and any tiles
 extracted from these slides, either as loose tiles or in the binary TFRecord format. Sources are defined in the
@@ -280,8 +281,8 @@ not mixing your training and evaluation datasets.</p>
 to include from the configuration file, and tile size parameters (<code class="docutils literal notranslate"><span class="pre">tile_px</span></code> and <code class="docutils literal notranslate"><span class="pre">tile_um</span></code>). Clinical annotations can be
 provided to this object, which can then be used to filter slides according to outcomes and perform a variety of other
 class-aware functions.</p>
-</div>
-<div class="section" id="filtering">
+</section>
+<section id="filtering">
 <h2>Filtering<a class="headerlink" href="#filtering" title="Permalink to this headline">¶</a></h2>
 <p>Datasets can be filtered with several different filtering mechanisms:</p>
 <ul class="simple">
@@ -298,8 +299,8 @@ class-aware functions.</p>
 </pre></div>
 </div>
 <p>Once applied, all dataset functions and parameters will reflect this filtering criteria, including the <code class="xref py py-attr docutils literal notranslate"><span class="pre">Dataset.num_tiles</span></code> parameter.</p>
-</div>
-<div class="section" id="dataset-manipulation">
+</section>
+<section id="dataset-manipulation">
 <h2>Dataset Manipulation<a class="headerlink" href="#dataset-manipulation" title="Permalink to this headline">¶</a></h2>
 <p>A number of different functions can be applied to Datasets in order to manipulate filters (<code class="xref py py-meth docutils literal notranslate"><span class="pre">Dataset.filter()</span></code>, <code class="xref py py-meth docutils literal notranslate"><span class="pre">Dataset.remove_filter()</span></code>, <code class="xref py py-meth docutils literal notranslate"><span class="pre">Dataset.clear_filters()</span></code>), balance datasets (<code class="xref py py-meth docutils literal notranslate"><span class="pre">Dataset.balance()</span></code>), or clip tfrecords to a maximum number of tiles (<code class="xref py py-meth docutils literal notranslate"><span class="pre">Dataset.clip()</span></code>). The full documentation of these functions is given below. Note: these functions return a Dataset copy with the functions applied, not to the original dataset. Thus, for proper use, assign the result of the function to the original dataset variable:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="mi">50</span><span class="p">)</span>
@@ -309,8 +310,8 @@ class-aware functions.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">balance</span><span class="p">(</span><span class="s1">&#39;HPV_status&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="mi">50</span><span class="p">)</span>
 </pre></div>
 </div>
-</div>
-<div class="section" id="manifest">
+</section>
+<section id="manifest">
 <h2>Manifest<a class="headerlink" href="#manifest" title="Permalink to this headline">¶</a></h2>
 <p>The Dataset manifest is a dictionary mapping tfrecords to both the total number of slides, as well as the number of slides after any clipping or balancing. For example, after clipping:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="mi">500</span><span class="p">)</span>
@@ -331,12 +332,12 @@ class-aware functions.</p>
 <span class="p">}</span>
 </pre></div>
 </div>
-</div>
-<div class="section" id="training-validation-splitting">
+</section>
+<section id="training-validation-splitting">
 <h2>Training/Validation Splitting<a class="headerlink" href="#training-validation-splitting" title="Permalink to this headline">¶</a></h2>
-<p>Datasets can be split into training and validation datasets with <code class="xref py py-meth docutils literal notranslate"><span class="pre">Dataset.training_validation_split()</span></code>, with full documentation given below. The result of this function is two datasets - the first training, the second validation - each a separate instance of <a class="reference internal" href="#slideflow.Dataset" title="slideflow.dataset.Dataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">Dataset</span></code></a>.</p>
-</div>
-<div class="section" id="tile-and-tfrecord-processing">
+<p>Datasets can be split into training and validation datasets with <code class="xref py py-meth docutils literal notranslate"><span class="pre">Dataset.train_val_split()</span></code>, with full documentation given below. The result of this function is two datasets - the first training, the second validation - each a separate instance of <a class="reference internal" href="#slideflow.Dataset" title="slideflow.dataset.Dataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">Dataset</span></code></a>.</p>
+</section>
+<section id="tile-and-tfrecord-processing">
 <h2>Tile and TFRecord Processing<a class="headerlink" href="#tile-and-tfrecord-processing" title="Permalink to this headline">¶</a></h2>
 <p>Datasets can also be used to process and extract tiles. Some example methods support tile and tfrecord processing include:</p>
 <ul class="simple">
@@ -346,16 +347,16 @@ class-aware functions.</p>
 <li><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">Dataset.split_tfrecords_by_roi()</span></code>: Splits a set of extracted tfrecords according to whether tiles are inside or outside the slide’s ROI.</p></li>
 <li><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">Dataset.tfrecord_report()</span></code>: Generates a PDF report of the tiles inside a collection of TFRecords.</p></li>
 </ul>
-</div>
-<div class="section" id="tensorflow-pytorch-datasets">
+</section>
+<section id="tensorflow-pytorch-datasets">
 <h2>Tensorflow &amp; PyTorch Datasets<a class="headerlink" href="#tensorflow-pytorch-datasets" title="Permalink to this headline">¶</a></h2>
 <p>Finally, Datasets can also return either a <code class="docutils literal notranslate"><span class="pre">tf.data.Datasets</span></code> or <code class="docutils literal notranslate"><span class="pre">torch.utils.data.Dataloader</span></code> object to quickly and easily create a deep learning dataset ready to be used as model input, with the <code class="xref py py-meth docutils literal notranslate"><span class="pre">Dataset.tensorflow()</span></code> and <code class="xref py py-meth docutils literal notranslate"><span class="pre">Dataset.torch()</span></code> methods, respectively.</p>
-</div>
-<div class="section" id="id1">
+</section>
+<section id="id1">
 <h2>Dataset<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h2>
 <dl class="py class">
 <dt class="sig sig-object py" id="slideflow.Dataset">
-<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">slideflow.</span></span><span class="sig-name descname"><span class="pre">Dataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sources</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tile_px</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tile_um</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">annotations</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filters</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter_blank</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_tiles</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.Dataset" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">slideflow.</span></span><span class="sig-name descname"><span class="pre">Dataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sources</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tile_px</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tile_um</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">annotations</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filters</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter_blank</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_tiles</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.Dataset" title="Permalink to this definition">¶</a></dt>
 <dd><p>Object to supervise organization of slides, tfrecords, and tiles
 across one or more sources in a stored configuration file.</p>
 <dl class="py method">
@@ -366,28 +367,37 @@ across one or more sources in a stored configuration file.</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="slideflow.Dataset.balance">
 <span class="sig-name descname"><span class="pre">balance</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">headers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">strategy</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'category'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.Dataset.balance" title="Permalink to this definition">¶</a></dt>
-<dd><p>Returns a dataset with prob_weights reflecting balancing per tile, slide, patient, or category.</p>
-<p>Saves balancing information to the dataset variable prob_weights, which is used by the interleaving dataloaders
-when sampling from tfrecords to create a batch.</p>
-<p>Tile level balancing will create prob_weights reflective of the number of tiles per slide, thus causing the
-batch sampling to mirror random sampling from the entire population of tiles (rather than randomly sampling
-from slides).</p>
-<p>Slide level balancing is the default behavior, where batches are assembled by randomly sampling from each
-slide/tfrecord with equal probability. This balancing behavior would be the same as not balancing.</p>
-<p>Patient level balancing is used to randomly sample from individual patients with equal probability. This is
-distinct from slide level balancing, as some patients may have multiple slides per patient.</p>
-<p>Category level balancing takes a list of annotation header(s) and generates prob_weights such that each category
-is sampled equally. This requires categorical outcomes.</p>
+<dd><p>Returns a dataset with prob_weights reflecting balancing per tile,
+slide, patient, or category.</p>
+<p>Saves balancing information to the dataset variable prob_weights, which
+is used by the interleaving dataloaders when sampling from tfrecords
+to create a batch.</p>
+<p>Tile level balancing will create prob_weights reflective of the number
+of tiles per slide, thus causing the batch sampling to mirror random
+sampling from the entire population of  tiles (rather than randomly
+sampling from slides).</p>
+<p>Slide level balancing is the default behavior, where batches are
+assembled by randomly sampling from each slide/tfrecord with equal
+probability. This balancing behavior would be the same as no balancing.</p>
+<p>Patient level balancing is used to randomly sample from individual
+patients with equal probability. This is distinct from slide level
+balancing, as some patients may have multiple slides per patient.</p>
+<p>Category level balancing takes a list of annotation header(s) and
+generates prob_weights such that each category is sampled equally.
+This requires categorical outcomes.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>headers</strong> (<em>list of str</em><em>, </em><em>optional</em>) – List of annotation headers if balancing by category. Defaults to None.</p></li>
-<li><p><strong>strategy</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – ‘tile’, ‘slide’, ‘patient’, or ‘category’. Create prob_weights used to balance
-dataset batches to evenly distribute slides, patients, or categories in a given batch. Tile-level
-balancing generates prob_weights reflective of the total number of tiles in a slide.
-Defaults to ‘category.’</p></li>
-<li><p><strong>force</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – If using category-level balancing, interpret all headers as categorical variables,
-even if the header appears to be a float.</p></li>
+<li><p><strong>headers</strong> (<em>list of str</em><em>, </em><em>optional</em>) – List of annotation headers if
+balancing by category. Defaults to None.</p></li>
+<li><p><strong>strategy</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – ‘tile’, ‘slide’, ‘patient’ or ‘category’.
+Create prob_weights used to balance dataset batches to evenly
+distribute slides, patients, or categories in a given batch.
+Tile-level balancing generates prob_weights reflective of the
+total number of tiles in a slide. Defaults to ‘category.’</p></li>
+<li><p><strong>force</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – If using category-level balancing,
+interpret all headers as categorical variables, even if the
+header appears to be a float.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
@@ -399,7 +409,7 @@ even if the header appears to be a float.</p></li>
 <dl class="py method">
 <dt class="sig sig-object py" id="slideflow.Dataset.build_index">
 <span class="sig-name descname"><span class="pre">build_index</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">force</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.Dataset.build_index" title="Permalink to this definition">¶</a></dt>
-<dd><p>Builds index files for TFRecords, required for PyTorch dataloader.</p>
+<dd><p>Builds index files for TFRecords, required for PyTorch.</p>
 </dd></dl>
 
 <dl class="py method">
@@ -416,17 +426,20 @@ even if the header appears to be a float.</p></li>
 <dl class="py method">
 <dt class="sig sig-object py" id="slideflow.Dataset.clip">
 <span class="sig-name descname"><span class="pre">clip</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">max_tiles</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">strategy</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">headers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.Dataset.clip" title="Permalink to this definition">¶</a></dt>
-<dd><p>Returns a dataset clipped to either a fixed maximum number of tiles per tfrecord, or to the minimum number
-of tiles per patient or category.</p>
+<dd><p>Returns a dataset clipped to either a fixed maximum number of tiles
+per tfrecord, or to the min number of tiles per patient or category.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>max_tiles</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Clip the maximum number of tiles per tfrecord to this number.</p></li>
-<li><p><strong>strategy</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – ‘slide’, ‘patient’, or ‘category’. Clip the maximum number of tiles to the
-minimum tiles seen across slides, patients, or categories. If ‘category’, headers must be provided.
+<li><p><strong>max_tiles</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Clip the maximum number of tiles per
+tfrecord to this number.</p></li>
+<li><p><strong>strategy</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – ‘slide’, ‘patient’, or ‘category’.
+Clip the maximum number of tiles to the minimum tiles seen
+across slides, patients, or categories. If ‘category’, headers
+must be provided. Defaults to None.</p></li>
+<li><p><strong>headers</strong> (<em>list of str</em><em>, </em><em>optional</em>) – List of annotation headers to use
+if clipping by minimum category count (strategy=’category’).
 Defaults to None.</p></li>
-<li><p><strong>headers</strong> (<em>list of str</em><em>, </em><em>optional</em>) – List of annotation headers to use if clipping by minimum category count
-(strategy=’category’). Defaults to None.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
@@ -438,69 +451,95 @@ Defaults to None.</p></li>
 <dl class="py method">
 <dt class="sig sig-object py" id="slideflow.Dataset.extract_tiles">
 <span class="sig-name descname"><span class="pre">extract_tiles</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">save_tiles</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_tfrecords</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">source</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stride_div</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">enable_downsample</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">roi_method</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'inside'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skip_missing_roi</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skip_extracted</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tma</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">randomize_origin</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">buffer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_workers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">q_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">4</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">qc</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">report</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.Dataset.extract_tiles" title="Permalink to this definition">¶</a></dt>
-<dd><p>Extract tiles from a group of slides, saving extracted tiles to either loose image or in
-TFRecord binary format.</p>
+<dd><p>Extract tiles from a group of slides, saving extracted tiles to
+either loose image or in TFRecord binary format.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>save_tiles</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Save images of extracted tiles to project tile directory. Defaults to False.</p></li>
-<li><p><strong>save_tfrecords</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Save compressed image data from extracted tiles into TFRecords
-in the corresponding TFRecord directory. Defaults to True.</p></li>
-<li><p><strong>source</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Name of dataset source from which to select slides for extraction. Defaults to None.
-If not provided, will default to all sources in project.</p></li>
-<li><p><strong>stride_div</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Stride divisor to use when extracting tiles. Defaults to 1.
+<li><p><strong>save_tiles</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Save images of extracted tiles to
+project tile directory. Defaults to False.</p></li>
+<li><p><strong>save_tfrecords</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Save compressed image data from
+extracted tiles into TFRecords in the corresponding TFRecord
+directory. Defaults to True.</p></li>
+<li><p><strong>source</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Name of dataset source from which to select
+slides for extraction. Defaults to None. If not provided, will
+default to all sources in project.</p></li>
+<li><p><strong>stride_div</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Stride divisor for tile extraction.
 A stride of 1 will extract non-overlapping tiles.
-A stride_div of 2 will extract overlapping tiles, with a stride equal to 50% of the tile width.</p></li>
-<li><p><strong>enable_downsample</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Enable downsampling when reading slide images. Defaults to True.
-This may result in corrupted image tiles if downsampled slide layers are corrupted or incomplete.
-Recommend manual confirmation of tile integrity.</p></li>
-<li><p><strong>roi_method</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Either ‘inside’, ‘outside’, or ‘ignore’. Defaults to ‘inside’.
-Indicates whether tiles are extracted inside or outside ROIs, or if ROIs are ignored entirely.</p></li>
-<li><p><strong>skip_missing_roi</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Skip slides that are missing ROIs. Defaults to False.</p></li>
-<li><p><strong>skip_extracted</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Skip slides that have already been extracted. Defaults to True.</p></li>
-<li><p><strong>tma</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Reads slides as Tumor Micro-Arrays (TMAs), detecting and extracting tumor cores.
-Defaults to False. Experimental function with limited testing.</p></li>
-<li><p><strong>randomize_origin</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Randomize pixel starting position during extraction. Defaults to False.</p></li>
-<li><p><strong>buffer</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Slides will be copied to this directory before extraction. Defaults to None.
-Using an SSD or ramdisk buffer vastly improves tile extraction speed.</p></li>
-<li><p><strong>num_workers</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Extract tiles from this many slides simultaneously. Defaults to 1.</p></li>
-<li><p><strong>q_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Size of queue when using a buffer. Defaults to 4.</p></li>
-<li><p><strong>qc</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – ‘otsu’, ‘blur’, ‘both’, or None. Perform blur detection quality control - discarding
-tiles with detected out-of-focus regions or artifact - and/or otsu’s method. Increases tile extraction
-time. Defaults to None.</p></li>
-<li><p><strong>report</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Save a PDF report of tile extraction. Defaults to True.</p></li>
+A stride_div of 2 will extract overlapping tiles, with a stride
+equal to 50% of the tile width. Defaults to 1.</p></li>
+<li><p><strong>enable_downsample</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Enable downsampling for slides.
+This may result in corrupted image tiles if downsampled slide
+layers are corrupted or incomplete. Defaults to True.</p></li>
+<li><p><strong>roi_method</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Either ‘inside’, ‘outside’ or ‘ignore’.
+Indicates whether tiles are extracted inside or outside ROIs,
+or if ROIs are ignored entirely. Defaults to ‘inside’.</p></li>
+<li><p><strong>skip_missing_roi</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Skip slides missing ROIs.
+Defaults to False.</p></li>
+<li><p><strong>skip_extracted</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Skip slides that have already
+been extracted. Defaults to True.</p></li>
+<li><p><strong>tma</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Reads slides as Tumor Micro-Arrays (TMAs),
+detecting and extracting tumor cores. Defaults to False.
+Experimental function with limited testing.</p></li>
+<li><p><strong>randomize_origin</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Randomize pixel starting
+position during extraction. Defaults to False.</p></li>
+<li><p><strong>buffer</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Slides will be copied to this directory
+before extraction. Defaults to None. Using an SSD or ramdisk
+buffer vastly improves tile extraction speed.</p></li>
+<li><p><strong>num_workers</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Extract tiles from this many slides
+simultaneously. Defaults to 1.</p></li>
+<li><p><strong>q_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Size of queue when using a buffer.
+Defaults to 4.</p></li>
+<li><p><strong>qc</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – ‘otsu’, ‘blur’, ‘both’, or None. Perform blur
+detection quality control - discarding tiles with detected
+out-of-focus regions or artifact - and/or otsu’s method.
+Increases tile extraction time. Defaults to None.</p></li>
+<li><p><strong>report</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Save a PDF report of tile extraction.
+Defaults to True.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Keyword Arguments</dt>
 <dd class="field-even"><ul class="simple">
-<li><p><strong>normalizer</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Normalization strategy to use on image tiles. Defaults to None.</p></li>
-<li><p><strong>normalizer_source</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Path to normalizer source image. Defaults to None.
-If None but using a normalizer, will use an internal tile for normalization.
-Internal default tile can be found at slideflow.slide.norm_tile.jpg</p></li>
-<li><p><strong>whitespace_fraction</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.10)"><em>float</em></a><em>, </em><em>optional</em>) – Range 0-1. Defaults to 1.
-Discard tiles with this fraction of whitespace. If 1, will not perform whitespace filtering.</p></li>
-<li><p><strong>whitespace_threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Range 0-255. Defaults to 230.
-Threshold above which a pixel (RGB average) is considered whitespace.</p></li>
-<li><p><strong>grayspace_fraction</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.10)"><em>float</em></a><em>, </em><em>optional</em>) – Range 0-1. Defaults to 0.6.
-Discard tiles with this fraction of grayspace. If 1, will not perform grayspace filtering.</p></li>
-<li><p><strong>grayspace_threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.10)"><em>float</em></a><em>, </em><em>optional</em>) – Range 0-1. Defaults to 0.05.
-Pixels in HSV format with saturation below this threshold are considered grayspace.</p></li>
-<li><p><strong>img_format</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – ‘png’ or ‘jpg’. Defaults to ‘jpg’. Image format to use in tfrecords.
-PNG (lossless) format recommended for fidelity, JPG (lossy) for efficiency.</p></li>
-<li><p><strong>full_core</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Only used if extracting from TMA. If True, will save entire TMA core as image.
-Otherwise, will extract sub-images from each core using the given tile micron size. Defaults to False.</p></li>
-<li><p><strong>shuffle</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Shuffle tiles prior to storage in tfrecords. Defaults to True.</p></li>
-<li><p><strong>num_threads</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Number of workers threads for each tile extractor.</p></li>
-<li><p><strong>qc_blur_radius</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Quality control blur radius for out-of-focus area detection. Only used if
-qc=True. Defaults to 3.</p></li>
-<li><p><strong>qc_blur_threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.10)"><em>float</em></a><em>, </em><em>optional</em>) – Quality control blur threshold for detecting out-of-focus areas.
-Only used if qc=True. Defaults to 0.1</p></li>
-<li><p><strong>qc_filter_threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.10)"><em>float</em></a><em>, </em><em>optional</em>) – Float between 0-1. Tiles with more than this proportion of blur
-will be discarded. Only used if qc=True. Defaults to 0.6.</p></li>
-<li><p><strong>qc_mpp</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.10)"><em>float</em></a><em>, </em><em>optional</em>) – Microns-per-pixel indicating image magnification level at which quality control
-is performed. Defaults to mpp=4 (effective magnification 2.5 X)</p></li>
-<li><p><strong>dry_run</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Determine tiles that would be extracted, but do not export any images.
+<li><p><strong>normalizer</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Normalization strategy.
 Defaults to None.</p></li>
+<li><p><strong>normalizer_source</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Path to normalizer source image.
+If None, will use slideflow.slide.norm_tile.jpg.
+Defaults to None.</p></li>
+<li><p><strong>whitespace_fraction</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.10)"><em>float</em></a><em>, </em><em>optional</em>) – Range 0-1. Discard tiles
+with this fraction of whitespace. If 1, will not perform
+whitespace filtering. Defaults to 1.</p></li>
+<li><p><strong>whitespace_threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Range 0-255. Defaults to 230.
+Threshold above which a pixel (RGB average) is whitespace.</p></li>
+<li><p><strong>grayspace_fraction</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.10)"><em>float</em></a><em>, </em><em>optional</em>) – Range 0-1. Defaults to 0.6.
+Discard tiles with this fraction of grayspace.
+If 1, will not perform grayspace filtering.</p></li>
+<li><p><strong>grayspace_threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.10)"><em>float</em></a><em>, </em><em>optional</em>) – Range 0-1. Defaults to 0.05.
+Pixels in HSV format with saturation below this threshold are
+considered grayspace.</p></li>
+<li><p><strong>img_format</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – ‘png’ or ‘jpg’. Defaults to ‘jpg’.
+Image format to use in tfrecords. PNG (lossless) for fidelity,
+JPG (lossy) for efficiency.</p></li>
+<li><p><strong>full_core</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Only used if extracting from TMA.
+If True, will save entire TMA core as image.
+Otherwise, will extract sub-images from each core using the
+given tile micron size. Defaults to False.</p></li>
+<li><p><strong>shuffle</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Shuffle tiles prior to storage in
+tfrecords. Defaults to True.</p></li>
+<li><p><strong>num_threads</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Number of workers threads for each
+tile extractor.</p></li>
+<li><p><strong>qc_blur_radius</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Quality control blur radius for
+out-of-focus area detection. Used if qc=True. Defaults to 3.</p></li>
+<li><p><strong>qc_blur_threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.10)"><em>float</em></a><em>, </em><em>optional</em>) – Quality control blur threshold
+for detecting out-of-focus areas. Only used if qc=True.
+Defaults to 0.1</p></li>
+<li><p><strong>qc_filter_threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.10)"><em>float</em></a><em>, </em><em>optional</em>) – Float between 0-1. Tiles
+with more than this proportion of blur will be discarded.
+Only used if qc=True. Defaults to 0.6.</p></li>
+<li><p><strong>qc_mpp</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.10)"><em>float</em></a><em>, </em><em>optional</em>) – Microns-per-pixel indicating image
+magnification level at which quality control is performed.
+Defaults to mpp=4 (effective magnification 2.5 X)</p></li>
+<li><p><strong>dry_run</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Determine tiles that would be extracted,
+but do not export any images. Defaults to None.</p></li>
 </ul>
 </dd>
 </dl>
@@ -512,7 +551,8 @@ Defaults to None.</p></li>
 <dd><p>Extracts tiles from a set of TFRecords.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>dest</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Path to directory in which to save tile images. Defaults to None. If None, uses dataset default.</p>
+<dd class="field-odd"><p><strong>dest</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Path to directory in which to save tile images.
+If None, uses dataset default. Defaults to None.</p>
 </dd>
 </dl>
 </dd></dl>
@@ -524,10 +564,13 @@ Defaults to None.</p></li>
 <dl class="field-list simple">
 <dt class="field-odd">Keyword Arguments</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.10)"><em>dict</em></a>) – Filters dict to use when selecting tfrecords. Defaults to None.
-See <code class="xref py py-meth docutils literal notranslate"><span class="pre">get_dataset()</span></code> documentation for more information on filtering.</p></li>
-<li><p><strong>filter_blank</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.10)"><em>list</em></a>) – Slides blank in these columns will be excluded. Defaults to None.</p></li>
-<li><p><strong>min_tiles</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a>) – Filter out tfrecords that have less than this minimum number of tiles.</p></li>
+<li><p><strong>filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.10)"><em>dict</em></a>) – Filters dict to use when selecting tfrecords.
+See <code class="xref py py-meth docutils literal notranslate"><span class="pre">get_dataset()</span></code> documentation for more information
+on filtering. Defaults to None.</p></li>
+<li><p><strong>filter_blank</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.10)"><em>list</em></a>) – Exclude slides blank in these columns.
+Defaults to None.</p></li>
+<li><p><strong>min_tiles</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a>) – Filter out tfrecords that have less than this
+minimum number of tiles.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
@@ -538,52 +581,74 @@ See <code class="xref py py-meth docutils literal notranslate"><span class="pre"
 
 <dl class="py property">
 <dt class="sig sig-object py" id="slideflow.Dataset.filter_blank">
-<em class="property"><span class="pre">property</span> </em><span class="sig-name descname"><span class="pre">filter_blank</span></span><a class="headerlink" href="#slideflow.Dataset.filter_blank" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">filter_blank</span></span><a class="headerlink" href="#slideflow.Dataset.filter_blank" title="Permalink to this definition">¶</a></dt>
 <dd><p>Returns the active filter_blank filter, if any.</p>
 </dd></dl>
 
 <dl class="py property">
 <dt class="sig sig-object py" id="slideflow.Dataset.filters">
-<em class="property"><span class="pre">property</span> </em><span class="sig-name descname"><span class="pre">filters</span></span><a class="headerlink" href="#slideflow.Dataset.filters" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">filters</span></span><a class="headerlink" href="#slideflow.Dataset.filters" title="Permalink to this definition">¶</a></dt>
 <dd><p>Returns the active filters, if any.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.Dataset.harmonize_labels">
+<span class="sig-name descname"><span class="pre">harmonize_labels</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">header</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.Dataset.harmonize_labels" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns categorical label assignments to int, harmonized with
+another dataset to ensure consistency between datasets.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>*args</strong> (<a class="reference internal" href="#slideflow.Dataset" title="slideflow.Dataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.Dataset</span></code></a>) – Any number of Datasets.</p></li>
+<li><p><strong>header</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Categorical annotation header.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Dict mapping slide names to categories.</p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="slideflow.Dataset.is_float">
 <span class="sig-name descname"><span class="pre">is_float</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">header</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.Dataset.is_float" title="Permalink to this definition">¶</a></dt>
-<dd><p>Returns True if labels in the given header can all be converted to <cite>float</cite>, else False.</p>
+<dd><p>Returns True if labels in the given header can all be converted to
+<cite>float</cite>, else False.</p>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="slideflow.Dataset.labels">
-<span class="sig-name descname"><span class="pre">labels</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">headers</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_float</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">assigned_labels</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">format</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'index'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.Dataset.labels" title="Permalink to this definition">¶</a></dt>
-<dd><p>Returns a dictionary of slide names mapping to patient id and [an] label(s).</p>
+<span class="sig-name descname"><span class="pre">labels</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">headers</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_float</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">assign</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">format</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'index'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.Dataset.labels" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a dict of slide names mapped to patient id and label(s).</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>headers</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.10)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>)</em><em>) </em><em>Annotation header</em><em>(</em><em>s</em>) – </p></li>
-<li><p><strong>use_float</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – If true, will try to convert all data into float. If unable, will raise TypeError.
-If false, will interpret all data as categorical.
-If a dict is provided, will look up each header to determine whether float is used.
-If ‘auto’, will try to convert all data into float. For each header in which this fails, will
-interpret as categorical instead.</p></li>
-<li><p><strong>assigned_labels</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.10)"><em>dict</em></a><em>, </em><em>optional</em>) – Dictionary mapping label ids to label names. If not provided, will map
-ids to names by sorting alphabetically.</p></li>
-<li><p><strong>format</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Either ‘index’ or ‘name.’ Indicates which format should be used for categorical
-outcomes when returning the label dictionary. If ‘name’, uses the string label name. If ‘index’,
-returns an int (index corresponding with the returned list of unique outcome names as str).
-Defaults to ‘index’.</p></li>
+<li><p><strong>headers</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.10)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>)</em><em>) </em><em>Annotation header</em><em>(</em><em>s</em>) – May be a list or string.</p></li>
+<li><p><strong>use_float</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – If true, convert data into float; if unable, raise TypeError.
+If false, interpret all data as categorical.
+If a dict is provided, look up each header to determine type.
+If ‘auto’, will try to convert all data into float. For each
+header in which this fails, will interpret as categorical.</p></li>
+<li><p><strong>assign</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.10)"><em>dict</em></a><em>, </em><em>optional</em>) – Dictionary mapping label ids to
+label names. If not provided, will map ids to names by sorting
+alphabetically.</p></li>
+<li><p><strong>format</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Either ‘index’ or ‘name.’ Indicates which
+format should be used for categorical outcomes when returning
+the label dictionary. If ‘name’, uses the string label name.
+If ‘index’, returns an int (index corresponding with the
+returned list of unique outcomes as str). Defaults to ‘index’.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><ol class="arabic simple">
 <li><dl class="simple">
-<dt>Dictionary mapping slides to outcome labels in numerical format (float for linear outcomes,</dt><dd><p>int of outcome label id for categorical outcomes).</p>
+<dt>Dictionary mapping slides to outcome labels in numerical format</dt><dd><p>(float for linear outcomes, int of outcome label id for
+categorical outcomes).</p>
 </dd>
 </dl>
 </li>
 <li><dl class="simple">
-<dt>List of unique labels. For categorical outcomes, this will be a list of str, whose indices correspond</dt><dd><p>with the outcome label id.</p>
+<dt>List of unique labels. For categorical outcomes, this will be a</dt><dd><p>list of str; indices correspond with the outcome label id.</p>
 </dd>
 </dl>
 </li>
@@ -594,15 +659,22 @@ Defaults to ‘index’.</p></li>
 </dd></dl>
 
 <dl class="py method">
+<dt class="sig sig-object py" id="slideflow.Dataset.load_indices">
+<span class="sig-name descname"><span class="pre">load_indices</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.Dataset.load_indices" title="Permalink to this definition">¶</a></dt>
+<dd><p>Reads TFRecord indices. Needed for PyTorch.</p>
+</dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="slideflow.Dataset.manifest">
 <span class="sig-name descname"><span class="pre">manifest</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'path'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.Dataset.manifest" title="Permalink to this definition">¶</a></dt>
 <dd><p>Generates a manifest of all tfrecords.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>key</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Either ‘path’ (default) or ‘name’. Determines key format in the manifest dictionary.</p>
+<dd class="field-odd"><p><strong>key</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Either ‘path’ (default) or ‘name’. Determines key format
+in the manifest dictionary.</p>
 </dd>
 <dt class="field-even">Returns</dt>
-<dd class="field-even"><p>Dictionary mapping key (path or slide name) to number of total tiles.</p>
+<dd class="field-even"><p>Dict mapping key (path or slide name) to number of tiles.</p>
 </dd>
 <dt class="field-odd">Return type</dt>
 <dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.10)">dict</a></p>
@@ -612,14 +684,15 @@ Defaults to ‘index’.</p></li>
 
 <dl class="py property">
 <dt class="sig sig-object py" id="slideflow.Dataset.min_tiles">
-<em class="property"><span class="pre">property</span> </em><span class="sig-name descname"><span class="pre">min_tiles</span></span><a class="headerlink" href="#slideflow.Dataset.min_tiles" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">min_tiles</span></span><a class="headerlink" href="#slideflow.Dataset.min_tiles" title="Permalink to this definition">¶</a></dt>
 <dd><p>Returns the active min_tiles filter, if any (defaults to 0).</p>
 </dd></dl>
 
 <dl class="py property">
 <dt class="sig sig-object py" id="slideflow.Dataset.num_tiles">
-<em class="property"><span class="pre">property</span> </em><span class="sig-name descname"><span class="pre">num_tiles</span></span><a class="headerlink" href="#slideflow.Dataset.num_tiles" title="Permalink to this definition">¶</a></dt>
-<dd><p>Returns the total number of tiles in the tfrecords in this dataset, after filtering/clipping.</p>
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">num_tiles</span></span><a class="headerlink" href="#slideflow.Dataset.num_tiles" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the total number of tiles in the tfrecords in this dataset,
+after filtering/clipping.</p>
 </dd></dl>
 
 <dl class="py method">
@@ -635,8 +708,10 @@ Defaults to ‘index’.</p></li>
 <dl class="field-list simple">
 <dt class="field-odd">Keyword Arguments</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>filters</strong> (<em>list of str</em>) – Filter keys. Will remove filters with these keys.</p></li>
-<li><p><strong>filter_blank</strong> (<em>list of str</em>) – Will remove these headers stored in filter_blank.</p></li>
+<li><p><strong>filters</strong> (<em>list of str</em>) – Filter keys. Will remove filters with
+these keys.</p></li>
+<li><p><strong>filter_blank</strong> (<em>list of str</em>) – Will remove these headers stored in
+filter_blank.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
@@ -665,13 +740,15 @@ Defaults to ‘index’.</p></li>
 <dl class="py method">
 <dt class="sig sig-object py" id="slideflow.Dataset.slide_paths">
 <span class="sig-name descname"><span class="pre">slide_paths</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">source</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">apply_filters</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.Dataset.slide_paths" title="Permalink to this definition">¶</a></dt>
-<dd><p>Returns a list of paths to either all slides, or slides matching dataset filters.</p>
+<dd><p>Returns a list of paths to either all slides, or slides matching
+dataset filters.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>source</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Dataset source name. Defaults to None (using all sources).</p></li>
-<li><p><strong>filter</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Return only slide paths meeting filter criteria. If False, return all slides.
-Defaults to True.</p></li>
+<li><p><strong>source</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Dataset source name.
+Defaults to None (using all sources).</p></li>
+<li><p><strong>filter</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Return only slide paths meeting filter
+criteria. If False, return all slides. Defaults to True.</p></li>
 </ul>
 </dd>
 </dl>
@@ -687,50 +764,70 @@ Defaults to True.</p></li>
 <dt class="sig sig-object py" id="slideflow.Dataset.split_tfrecords_by_roi">
 <span class="sig-name descname"><span class="pre">split_tfrecords_by_roi</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">destination</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.Dataset.split_tfrecords_by_roi" title="Permalink to this definition">¶</a></dt>
 <dd><p>Split dataset tfrecords into separate tfrecords according to ROI.</p>
-<p>Will generate two sets of tfrecords, with identical names: one with tiles inside the ROIs, one with tiles
-outside the ROIs. Will skip any tfrecords that are missing ROIs. Requires slides to be available.</p>
+<p>Will generate two sets of tfrecords, with identical names: one with
+tiles inside the ROIs, one with tiles outside the ROIs. Will skip any
+tfrecords that are missing ROIs. Requires slides to be available.</p>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="slideflow.Dataset.tensorflow">
 <span class="sig-name descname"><span class="pre">tensorflow</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">labels</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.Dataset.tensorflow" title="Permalink to this definition">¶</a></dt>
-<dd><p>Returns a Tensorflow Dataset object that interleaves tfrecords from this dataset.</p>
-<p>The returned dataset yields a batch of (image, label) for each tile. Labels may be specified either via
-a dict mapping slide names to outcomes, or a parsing function which accept and image and slide name and returns
-a dict {‘image_raw’: image (tensor)} and a label (int or float).</p>
+<dd><p>Returns a Tensorflow Dataset object that interleaves tfrecords
+from this dataset.</p>
+<p>The returned dataset yields a batch of (image, label) for each tile.
+Labels may be specified either via a dict mapping slide names to
+outcomes, or a parsing function which accept and image and slide name,
+returning a dict {‘image_raw’: image(tensor)} and label (int or float).</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>labels</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.10)"><em>dict</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Dict or function. If dict, must map slide names to outcome labels.
-If function, function must accept an image (tensor) and slide name (str), and return a dict
-{‘image_raw’: image (tensor)} and label (int or float). If not provided,  all labels will be None.</p></li>
+<li><p><strong>labels</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.10)"><em>dict</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Dict or function. If dict, must
+map slide names to outcome labels. If function, function must
+accept an image (tensor) and slide name (str), and return a
+dict {‘image_raw’: image (tensor)} and label (int or float).
+If not provided, all labels will be None.</p></li>
 <li><p><strong>batch_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a>) – Batch size.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Keyword Arguments</dt>
 <dd class="field-even"><ul class="simple">
 <li><p><strong>onehot</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Onehot encode labels. Defaults to False.</p></li>
-<li><p><strong>incl_slidenames</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Include slidenames as third returned variable. Defaults to False.</p></li>
-<li><p><strong>infinite</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Infinitely repeat data. Defaults to False.</p></li>
-<li><p><strong>rank</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Worker ID to identify which worker this represents. Used to interleave results
-among workers without duplications. Defaults to 0 (first worker).</p></li>
-<li><p><strong>num_replicas</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Number of GPUs or unique instances which will have their own DataLoader. Used to
-interleave results among workers without duplications. Defaults to 1.</p></li>
-<li><p><strong>normalizer</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.slide.StainNormalizer</span></code>, optional) – Normalizer to use on images.</p></li>
-<li><p><strong>seed</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Use the following seed when randomly interleaving. Necessary for synchronized
-multiprocessing distributed reading.</p></li>
-<li><p><strong>chunk_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Chunk size for image decoding. Defaults to 16.</p></li>
-<li><p><strong>preload_factor</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Number of batches to preload. Defaults to 1.</p></li>
-<li><p><strong>augment</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Image augmentations to perform. String containing characters designating augmentations.
-‘x’ indicates random x-flipping, ‘y’ y-flipping, ‘r’ rotating, and ‘j’ JPEG compression/decompression
-at random quality levels. Passing either ‘xyrj’ or True will use all augmentations.</p></li>
-<li><p><strong>standardize</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Standardize images to (0,1). Defaults to True.</p></li>
-<li><p><strong>num_workers</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Number of DataLoader workers. Defaults to 2.</p></li>
-<li><p><strong>deterministic</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – When num_parallel_calls is specified, if this boolean is specified (True or
-False), it controls the order in which the transformation produces elements. If set to False, the
-transformation is allowed to yield elements out of order to trade determinism for performance.
+<li><p><strong>incl_slidenames</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Include slidenames as third
+returned variable. Defaults to False.</p></li>
+<li><p><strong>infinite</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Infinitely repeat data.
+Defaults to True.</p></li>
+<li><p><strong>rank</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Worker ID to identify which worker this
+represents. Used to interleave results among workers without
+duplications. Defaults to 0 (first worker).</p></li>
+<li><p><strong>num_replicas</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Number of GPUs or unique instances
+which will have their own DataLoader. Used to interleave
+results among workers without duplications. Defaults to 1.</p></li>
+<li><p><strong>normalizer</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.norm.StainNormalizer</span></code>, optional) – Normalizer to use on images.</p></li>
+<li><p><strong>seed</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Use the following seed when randomly
+interleaving. Necessary for synchronized multiprocessing
+distributed reading.</p></li>
+<li><p><strong>chunk_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Chunk size for image decoding.
+Defaults to 16.</p></li>
+<li><p><strong>preload_factor</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Number of batches to preload.
+Defaults to 1.</p></li>
+<li><p><strong>augment</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Image augmentations to perform. String
+containing characters designating augmentations.
+‘x’ indicates random x-flipping, ‘y’ y-flipping,
+‘r’ rotating, and ‘j’ JPEG compression/decompression at
+random quality levels. Passing either ‘xyrj’ or True will
+use all augmentations.</p></li>
+<li><p><strong>standardize</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Standardize images to (0,1).
+Defaults to True.</p></li>
+<li><p><strong>num_workers</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Number of DataLoader workers.
+Defaults to 2.</p></li>
+<li><p><strong>deterministic</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – When num_parallel_calls is
+specified, if this boolean is specified (True or False), it
+controls the order in which the transformation produces
+elements. If set to False, the transformation is allowed to
+yield elements out of order to trade determinism for
+performance. Defaults to False.</p></li>
+<li><p><strong>drop_last</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Drop the last non-full batch.
 Defaults to False.</p></li>
-<li><p><strong>drop_last</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Drop the last non-full batch. Defaults to False.</p></li>
 </ul>
 </dd>
 </dl>
@@ -738,16 +835,14 @@ Defaults to False.</p></li>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="slideflow.Dataset.tfrecord_report">
-<span class="sig-name descname"><span class="pre">tfrecord_report</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">destination</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normalizer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normalizer_source</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.Dataset.tfrecord_report" title="Permalink to this definition">¶</a></dt>
-<dd><p>Creates a PDF report of TFRecords, including 10 example tiles per TFRecord.</p>
+<span class="sig-name descname"><span class="pre">tfrecord_report</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dest</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normalizer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.Dataset.tfrecord_report" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates a PDF report of TFRecords, including 10 example tiles
+per TFRecord.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>destination</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Path to directory in which to save the PDF report</p></li>
-<li><p><strong>normalizer</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Normalization strategy to use on image tiles. Defaults to None.</p></li>
-<li><p><strong>normalizer_source</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Path to normalizer source image. Defaults to None.
-If None but using a normalizer, will use an internal tile for normalization.
-Internal default tile can be found at slideflow.slide.norm_tile.jpg</p></li>
+<li><p><strong>dest</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Directory in which to save the PDF report.</p></li>
+<li><p><strong>normalizer</strong> (<cite>slideflow.norm.StainNormalizer</cite>, optional) – Normalizer to use on image tiles. Defaults to None.</p></li>
 </ul>
 </dd>
 </dl>
@@ -757,12 +852,22 @@ Internal default tile can be found at slideflow.slide.norm_tile.jpg</p></li>
 <dt class="sig sig-object py" id="slideflow.Dataset.tfrecords">
 <span class="sig-name descname"><span class="pre">tfrecords</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">source</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.Dataset.tfrecords" title="Permalink to this definition">¶</a></dt>
 <dd><p>Returns a list of all tfrecords.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>source</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Only return tfrecords from this dataset
+source. Defaults to None (return all tfrecords in dataset).</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>List of tfrecords paths</p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="slideflow.Dataset.tfrecords_by_subfolder">
 <span class="sig-name descname"><span class="pre">tfrecords_by_subfolder</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">subfolder</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.Dataset.tfrecords_by_subfolder" title="Permalink to this definition">¶</a></dt>
-<dd><p>Returns a list of all tfrecords in a specific subfolder, ignoring filters.</p>
+<dd><p>Returns a list of all tfrecords in a specific subfolder,
+ignoring filters.</p>
 </dd></dl>
 
 <dl class="py method">
@@ -774,82 +879,107 @@ Internal default tile can be found at slideflow.slide.norm_tile.jpg</p></li>
 <dl class="py method">
 <dt class="sig sig-object py" id="slideflow.Dataset.tfrecords_from_tiles">
 <span class="sig-name descname"><span class="pre">tfrecords_from_tiles</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">delete_tiles</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.Dataset.tfrecords_from_tiles" title="Permalink to this definition">¶</a></dt>
-<dd><p>Create tfrecord files from a collection of raw images, as stored in project tiles directory</p>
+<dd><p>Create tfrecord files from a collection of raw images,
+as stored in project tiles directory</p>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="slideflow.Dataset.torch">
 <span class="sig-name descname"><span class="pre">torch</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">labels</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rebuild_index</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.Dataset.torch" title="Permalink to this definition">¶</a></dt>
-<dd><p>Returns a PyTorch DataLoader object that interleaves tfrecords from this dataset.</p>
-<p>The returned data loader yields a batch of (image, label) for each tile.</p>
+<dd><p>Returns a PyTorch DataLoader object that interleaves tfrecords.</p>
+<p>The returned dataloader yields a batch of (image, label) for each tile.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>labels</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.10)"><em>dict</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – If a dict is provided, expect a dict mapping slide names to outcome labels. If a str,
-will intepret as categorical annotation header. For linear outcomes, or outcomes with manually
-assigned labels, pass the first result of dataset.labels(…).
-If None, will return slide name instead of label.</p></li>
+<li><p><strong>labels</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.10)"><em>dict</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – If a dict is provided, expect a dict mapping
+slide names to outcome labels. If a str, will intepret as
+categorical annotation header. For linear outcomes, or outcomes
+with manually assigned labels, pass the first result of
+dataset.labels(…). If None, returns slide instead of label.</p></li>
 <li><p><strong>batch_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a>) – Batch size.</p></li>
-<li><p><strong>rebuild_index</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a>) – Re-build index files even if already present. Defaults to True.</p></li>
+<li><p><strong>rebuild_index</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a>) – Re-build index files even if already present.
+Defaults to True.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Keyword Arguments</dt>
 <dd class="field-even"><ul class="simple">
 <li><p><strong>onehot</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Onehot encode labels. Defaults to False.</p></li>
-<li><p><strong>incl_slidenames</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Include slidenames as third returned variable. Defaults to False.</p></li>
-<li><p><strong>infinite</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Infinitely repeat data. Defaults to False.</p></li>
-<li><p><strong>rank</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Worker ID to identify which worker this represents. Used to interleave results
-among workers without duplications. Defaults to 0 (first worker).</p></li>
-<li><p><strong>num_replicas</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Number of GPUs or unique instances which will have their own DataLoader. Used to
-interleave results among workers without duplications. Defaults to 1.</p></li>
-<li><p><strong>normalizer</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.slide.StainNormalizer</span></code>, optional) – Normalizer to use on images.
-Defaults to None.</p></li>
-<li><p><strong>seed</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Use the following seed when randomly interleaving. Necessary for synchronized
-multiprocessing distributed reading.</p></li>
-<li><p><strong>chunk_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Chunk size for image decoding. Defaults to 16.</p></li>
-<li><p><strong>preload_factor</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Number of batches to preload. Defaults to 1.</p></li>
-<li><p><strong>augment</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Image augmentations to perform. String containing characters designating augmentations.
-‘x’ indicates random x-flipping, ‘y’ y-flipping, ‘r’ rotating, and ‘j’ JPEG compression/decompression
-at random quality levels. Passing either ‘xyrj’ or True will use all augmentations.</p></li>
-<li><p><strong>standardize</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Standardize images to (0,1). Defaults to True.</p></li>
-<li><p><strong>num_workers</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Number of DataLoader workers. Defaults to 2.</p></li>
-<li><p><strong>pin_memory</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Pin memory to GPU. Defaults to True.</p></li>
-<li><p><strong>drop_last</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Drop the last non-full batch. Defaults to False.</p></li>
+<li><p><strong>incl_slidenames</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Include slidenames as third
+returned variable. Defaults to False.</p></li>
+<li><p><strong>infinite</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Infinitely repeat data.
+Defaults to True.</p></li>
+<li><p><strong>rank</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Worker ID to identify which worker this
+represents. Used to interleave results among workers without
+duplications. Defaults to 0 (first worker).</p></li>
+<li><p><strong>num_replicas</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Number of GPUs or unique instances
+which will have their own DataLoader. Used to interleave
+results among workers without duplications. Defaults to 1.</p></li>
+<li><p><strong>normalizer</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.norm.StainNormalizer</span></code>, optional) – Normalizer to use on images. Defaults to None.</p></li>
+<li><p><strong>seed</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Use the following seed when randomly
+interleaving. Necessary for synchronized multiprocessing.</p></li>
+<li><p><strong>chunk_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Chunk size for image decoding.
+Defaults to 16.</p></li>
+<li><p><strong>preload_factor</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Number of batches to preload.
+Defaults to 1.</p></li>
+<li><p><strong>augment</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Image augmentations to perform. Str
+containing characters designating augmentations. ‘x’ indicates
+random x-flipping, ‘y’ y-flipping, ‘r’ rotating, ‘j’ JPEG
+compression/decompression at random quality levels, and ‘b’
+random gaussian blur. Passing either ‘xyrjb’ or True will use
+all augmentations. Defaults to ‘xyrjb’.</p></li>
+<li><p><strong>standardize</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Standardize images to (0,1).
+Defaults to True.</p></li>
+<li><p><strong>num_workers</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Number of DataLoader workers.
+Defaults to 2.</p></li>
+<li><p><strong>pin_memory</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Pin memory to GPU.
+Defaults to True.</p></li>
+<li><p><strong>drop_last</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Drop the last non-full batch.
+Defaults to False.</p></li>
 </ul>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="py method">
-<dt class="sig sig-object py" id="slideflow.Dataset.training_validation_split">
-<span class="sig-name descname"><span class="pre">training_validation_split</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model_type</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">val_strategy</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">splits</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">val_fraction</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">val_k_fold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">k_fold_iter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">site_labels</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">read_only</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.Dataset.training_validation_split" title="Permalink to this definition">¶</a></dt>
-<dd><p>From a specified subfolder within the project’s main TFRecord folder, prepare a training set and validation set.
-If a validation split has already been prepared (e.g. K-fold iterations were already determined),
-the previously generated split will be used. Otherwise, create a new split and log the result in the
-TFRecord directory so future models may use the same split for consistency.</p>
+<dt class="sig sig-object py" id="slideflow.Dataset.train_val_split">
+<span class="sig-name descname"><span class="pre">train_val_split</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model_type</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">val_strategy</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">splits</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">val_fraction</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">val_k_fold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">k_fold_iter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">site_labels</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">read_only</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.Dataset.train_val_split" title="Permalink to this definition">¶</a></dt>
+<dd><p>From a specified subfolder in the project’s main TFRecord folder,
+prepare a training set and validation set.</p>
+<p>If a validation split has already been prepared (e.g. K-fold iterations
+were already determined), the previously generated split will be used.
+Otherwise, create a new split and log the result in the TFRecord
+directory so future models may use the same split for consistency.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>model_type</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Either ‘categorical’ or ‘linear’.</p></li>
-<li><p><strong>labels</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.10)"><em>dict</em></a>) – Dictionary mapping slides to labels. Used for balancing outcome labels in
-training and validation cohorts.</p></li>
-<li><p><strong>val_strategy</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Either ‘k-fold’, ‘k-fold-preserved-site’, ‘bootstrap’, or ‘fixed’.</p></li>
-<li><p><strong>splits</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Path to JSON file containing validation splits. Defaults to None.</p></li>
-<li><p><strong>outcome_key</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Key indicating outcome label in slide_labels_dict. Defaults to ‘outcome_label’.</p></li>
-<li><p><strong>val_fraction</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.10)"><em>float</em></a><em>, </em><em>optional</em>) – Proportion of data for validation. Not used if strategy is k-fold.
-Defaults to None</p></li>
-<li><p><strong>val_k_fold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a>) – K, required if using K-fold validation. Defaults to None.</p></li>
-<li><p><strong>k_fold_iter</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Which K-fold iteration to generate starting at 1. Fequired if using K-fold
-validation. Defaults to None.</p></li>
-<li><p><strong>site_labels</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.10)"><em>dict</em></a><em>, </em><em>optional</em>) – Dict mapping patients to site labels. Used for site preserved cross validation.</p></li>
-<li><p><strong>read_only</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a>) – Prevents writing validation splits to file. Defaults to False.</p></li>
+<li><p><strong>labels</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.10)"><em>dict</em></a>) – Dictionary mapping slides to labels. Used for
+balancing outcome labels in training and validation cohorts.</p></li>
+<li><p><strong>val_strategy</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Either ‘k-fold’, ‘k-fold-preserved-site’,
+‘bootstrap’, or ‘fixed’.</p></li>
+<li><p><strong>splits</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Path to JSON file containing validation
+splits. Defaults to None.</p></li>
+<li><p><strong>outcome_key</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Key indicating outcome label in
+slide_labels_dict. Defaults to ‘outcome_label’.</p></li>
+<li><p><strong>val_fraction</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.10)"><em>float</em></a><em>, </em><em>optional</em>) – Proportion of data for validation.
+Not used if strategy is k-fold. Defaults to None.</p></li>
+<li><p><strong>val_k_fold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a>) – K, required if using K-fold validation.
+Defaults to None.</p></li>
+<li><p><strong>k_fold_iter</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Which K-fold iteration to generate
+starting at 1. Fequired if using K-fold validation.
+Defaults to None.</p></li>
+<li><p><strong>site_labels</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.10)"><em>dict</em></a><em>, </em><em>optional</em>) – Dict mapping patients to site labels.
+Used for site preserved cross validation.</p></li>
+<li><p><strong>read_only</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a>) – Prevents writing validation splits to file.
+Defaults to False.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
-<dd class="field-even"><p>training dataset, validation dataset</p>
+<dd class="field-even"><p>training dataset,
+slideflow.Dataset: validation dataset</p>
 </dd>
 <dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p>(<a class="reference internal" href="#slideflow.Dataset" title="slideflow.dataset.Dataset">slideflow.dataset.Dataset</a>, <a class="reference internal" href="#slideflow.Dataset" title="slideflow.dataset.Dataset">slideflow.dataset.Dataset</a>)</p>
+<dd class="field-odd"><p><a class="reference internal" href="#slideflow.Dataset" title="slideflow.Dataset">slideflow.Dataset</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -868,8 +998,9 @@ validation. Defaults to None.</p></li>
 <dl class="py method">
 <dt class="sig sig-object py" id="slideflow.Dataset.update_annotations_with_slidenames">
 <span class="sig-name descname"><span class="pre">update_annotations_with_slidenames</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">annotations_file</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.Dataset.update_annotations_with_slidenames" title="Permalink to this definition">¶</a></dt>
-<dd><p>Attempts to automatically associate slide names from a directory with patients in a given annotations file,
-skipping any slide names that are already present in the annotations file.</p>
+<dd><p>Attempts to automatically associate slide names from a directory
+with patients in a given annotations file, skipping any slide names
+that are already present in the annotations file.</p>
 </dd></dl>
 
 <dl class="py method">
@@ -878,7 +1009,8 @@ skipping any slide names that are already present in the annotations file.</p>
 <dd><p>Updates tfrecord manifest.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>forced_update</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Force regeneration of the manifest from scratch.</p>
+<dd class="field-odd"><p><strong>forced_update</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Force regeneration of the
+manifest from scratch.</p>
 </dd>
 </dl>
 </dd></dl>
@@ -891,8 +1023,8 @@ skipping any slide names that are already present in the annotations file.</p>
 
 </dd></dl>
 
-</div>
-</div>
+</section>
+</section>
 
 
              </article>

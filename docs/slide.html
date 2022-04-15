@@ -6,10 +6,11 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  
+  <meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>slideflow.slide &mdash; slideflow 1.1.0-rc1 documentation</title>
+  <title>slideflow.slide &mdash; slideflow 1.1.0 documentation</title>
   
 
   
@@ -119,7 +120,7 @@
               
               
                 <div class="version">
-                  1.0
+                  1.1
                 </div>
               
             
@@ -252,17 +253,17 @@
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
               
-  <div class="section" id="slideflow-slide">
+  <section id="slideflow-slide">
 <h1>slideflow.slide<a class="headerlink" href="#slideflow-slide" title="Permalink to this headline">¶</a></h1>
 <p>This module contains classes to load slides and extract tiles. For optimal performance, tile extraction should
 generally not be performed by instancing these classes directly, but by calling either
 <a class="reference internal" href="project.html#slideflow.Project.extract_tiles" title="slideflow.Project.extract_tiles"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.Project.extract_tiles()</span></code></a> or <a class="reference internal" href="dataset.html#slideflow.Dataset.extract_tiles" title="slideflow.Dataset.extract_tiles"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.Dataset.extract_tiles()</span></code></a>, which include performance
 optimizations and additional functionality.</p>
-<div class="section" id="wsi">
+<section id="wsi">
 <h2>WSI<a class="headerlink" href="#wsi" title="Permalink to this headline">¶</a></h2>
 <dl class="py class">
 <dt class="sig sig-object py" id="slideflow.slide.WSI">
-<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">slideflow.slide.</span></span><span class="sig-name descname"><span class="pre">WSI</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tile_px</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tile_um</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stride_div</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">enable_downsample</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">roi_dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rois</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">roi_method</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'inside'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skip_missing_roi</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">randomize_origin</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pb</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pb_counter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">counter_lock</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">silent</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.slide.WSI" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">slideflow.slide.</span></span><span class="sig-name descname"><span class="pre">WSI</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tile_px</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tile_um</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stride_div</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">enable_downsample</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">roi_dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rois</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">roi_method</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'inside'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skip_missing_roi</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">randomize_origin</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pb</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pb_counter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">counter_lock</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">silent</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.slide.WSI" title="Permalink to this definition">¶</a></dt>
 <dd><p>Loads a slide and its annotated region of interest (ROI).</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="slideflow.slide.WSI.__init__">
@@ -274,23 +275,34 @@ optimizations and additional functionality.</p>
 <li><p><strong>path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Path to slide.</p></li>
 <li><p><strong>tile_px</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a>) – Size of tiles to extract, in pixels.</p></li>
 <li><p><strong>tile_um</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a>) – Size of tiles to extract, in microns.</p></li>
-<li><p><strong>stride_div</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Stride divisor for tile extraction (1 = no tile overlap; 2 = 50% overlap, etc).
-Defaults to 1.</p></li>
-<li><p><strong>enable_downsample</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Allow use of downsampled intermediate layers in the slide image pyramid,
-which greatly improves tile extraction speed. May result in artifacts for slides with incompletely
-generated intermediates pyramid layers. Defaults to True.</p></li>
-<li><p><strong>roi_dir</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Directory in which to search for ROI CSV files. Defaults to None.</p></li>
-<li><p><strong>rois</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.10)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>)</em>) – Alternatively, a list of ROI paths can be explicitly provided. Defaults to None.</p></li>
-<li><p><strong>roi_method</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Either ‘inside’, ‘outside’, or ‘ignore’. Determines how ROIs are used to extract tiles.
+<li><p><strong>stride_div</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Stride divisor for tile extraction
+(1 = no tile overlap; 2 = 50% overlap, etc). Defaults to 1.</p></li>
+<li><p><strong>enable_downsample</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Allow use of downsampled
+intermediate layers in the slide image pyramid, which greatly
+improves tile extraction speed. May result in artifacts for
+slides with incompletely generated intermediates pyramids.
+Defaults to True.</p></li>
+<li><p><strong>roi_dir</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Directory in which to search for ROI CSV
+files. Defaults to None.</p></li>
+<li><p><strong>rois</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.10)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>)</em>) – Alternatively, a list of ROI paths can be
+explicitly provided. Defaults to None.</p></li>
+<li><p><strong>roi_method</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Either ‘inside’, ‘outside’, or ‘ignore’.
+Determines how ROIs are used to extract tiles.
 Defaults to ‘inside’.</p></li>
-<li><p><strong>skip_missing_roi</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Skip tiles that are missing a ROI file. Defaults to False.</p></li>
-<li><p><strong>randomize_origin</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Offset the starting grid by a random amount. Defaults to False.</p></li>
-<li><p><strong>pb</strong> (<a class="reference internal" href="util.html#slideflow.util.ProgressBar" title="slideflow.util.ProgressBar"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.util.ProgressBar</span></code></a>, optional) – Multiprocessing-capable ProgressBar instance; will
-update progress bar during tile extraction if provided. Used for multiprocessing tile extraction.</p></li>
-<li><p><strong>pb_counter</strong> (<em>obj</em>) – Multiprocessing counter (a multiprocessing Value, from Progress Bar) used to follow
-tile extraction progress. Defaults to None.</p></li>
-<li><p><strong>counter_lock</strong> (<em>obj</em>) – Lock object for updating pb_counter, if provided. Defaults to None.</p></li>
-<li><p><strong>silent</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Suppresses warnings about slide skipping if ROIs are missing. Defaults to False.</p></li>
+<li><p><strong>skip_missing_roi</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Skip tiles that are missing a
+ROI file. Defaults to False.</p></li>
+<li><p><strong>randomize_origin</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Offset the starting grid by a
+random amount. Defaults to False.</p></li>
+<li><p><strong>pb</strong> (<a class="reference internal" href="util.html#slideflow.util.ProgressBar" title="slideflow.util.ProgressBar"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.util.ProgressBar</span></code></a>, optional) – Multiprocessing
+capable ProgressBar instance; will update progress bar during
+tile extraction if provided.</p></li>
+<li><p><strong>pb_counter</strong> (<em>obj</em>) – Multiprocessing counter (a multiprocessing Value,
+from Progress Bar) used to follow tile extraction progress.
+Defaults to None.</p></li>
+<li><p><strong>counter_lock</strong> (<em>obj</em>) – Lock object for updating pb_counter, if
+provided. Defaults to None.</p></li>
+<li><p><strong>silent</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Suppresses warnings about slide skipping
+if ROIs are missing. Defaults to False.</p></li>
 </ul>
 </dd>
 </dl>
@@ -305,30 +317,42 @@ tile extraction progress. Defaults to None.</p></li>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>shuffle</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a>) – Shuffle images during extraction.</p></li>
 <li><p><strong>whitespace_fraction</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.10)"><em>float</em></a><em>, </em><em>optional</em>) – Range 0-1. Defaults to 1.
-Discard tiles with this fraction of whitespace. If 1, will not perform whitespace filtering.</p></li>
+Discard tiles with this fraction of whitespace. If 1, will not
+perform whitespace filtering.</p></li>
 <li><p><strong>whitespace_threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Range 0-255. Defaults to 230.
-Threshold above which a pixel (RGB average) is considered whitespace.</p></li>
+Threshold above which a pixel (RGB average) is whitespace.</p></li>
 <li><p><strong>grayspace_fraction</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.10)"><em>float</em></a><em>, </em><em>optional</em>) – Range 0-1. Defaults to 0.6.
-Discard tiles with this fraction of grayspace. If 1, will not perform grayspace filtering.</p></li>
+Discard tiles with this fraction of grayspace. If 1, will not
+perform grayspace filtering.</p></li>
 <li><p><strong>grayspace_threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.10)"><em>float</em></a><em>, </em><em>optional</em>) – Range 0-1. Defaults to 0.05.
-Pixels in HSV format with saturation below this threshold are considered grayspace.</p></li>
-<li><p><strong>normalizer</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Normalization strategy to use on image tiles. Defaults to None.</p></li>
-<li><p><strong>normalizer_source</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Path to normalizer source image. Defaults to None.
-If None but using a normalizer, will use an internal tile for normalization.
-Internal default tile can be found at slideflow.slide.norm_tile.jpg</p></li>
-<li><p><strong>include_loc</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Return (x,y) origin coordinates for each tile along with tile images.</p></li>
-<li><p><strong>show_progress</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Show a progress bar for tile extraction.</p></li>
-<li><p><strong>img_format</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Image format. Either ‘numpy’, ‘jpg’, or ‘png’. Defaults to ‘numpy’.</p></li>
-<li><p><strong>yolo</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Include yolo-formatted tile-level ROI annotations in the return dictionary,
-under the key ‘yolo’. Defaults to False.</p></li>
-<li><p><strong>draw_roi</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Draws ROIs onto extracted tiles. Defaults to False.</p></li>
-<li><p><strong>dry_run</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Determine tiles that would be extracted, but do not export any images.
+Pixels in HSV format with saturation below this threshold are
+considered grayspace.</p></li>
+<li><p><strong>normalizer</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Normalization strategy to use on image</p></li>
+<li><p><strong>None.</strong> (<em>tiles. Defaults to</em>) – </p></li>
+<li><p><strong>normalizer_source</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Path to normalizer source image.
+If None, will use slideflow.slide.norm_tile.jpg.
 Defaults to None.</p></li>
+<li><p><strong>include_loc</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Return (x,y) origin coordinates for
+each tile along with tile images.</p></li>
+<li><p><strong>show_progress</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Show a progress bar.</p></li>
+<li><p><strong>img_format</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Image format. Either ‘numpy’, ‘jpg’,
+or ‘png’. Defaults to ‘numpy’.</p></li>
+<li><p><strong>yolo</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Include yolo-formatted tile-level ROI
+annotations in the return dictionary, under the key ‘yolo’.
+Defaults to False.</p></li>
+<li><p><strong>draw_roi</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Draws ROIs onto extracted tiles.
+Defaults to False.</p></li>
+<li><p><strong>dry_run</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Determine tiles that would be extracted,
+but do not export any images. Defaults to None.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
-<dd class="field-even"><p>dict, with keys ‘image’ (image data), ‘yolo’ (optional yolo-formatted annotations, (x_center, y_center,
+<dd class="field-even"><p><dl class="simple">
+<dt>dict, with keys ‘image’ (image data), ‘yolo’ (optional</dt><dd><p>yolo-formatted annotations, (x_center, y_center,
 width, height)) and ‘grid’ ((x, y) slide or grid coordinates)</p>
+</dd>
+</dl>
+</p>
 </dd>
 </dl>
 </dd></dl>
@@ -341,36 +365,44 @@ saving tiles into a TFRecord file or as loose JPG tiles in a directory.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>tfrecord_dir</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – If provided, saves tiles into a TFRecord file (named according to slide name) here.</p></li>
-<li><p><strong>tiles_dir</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – If provided, saves loose images into a subdirectory (per slide name) here.</p></li>
-<li><p><strong>img_format</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – ‘png’ or ‘jpg’. Format of images for internal storage in tfrecords.
-PNG (lossless) format recommended for fidelity, JPG (lossy) for efficiency.
-Defaults to ‘jpg’.</p></li>
+<li><p><strong>tfrecord_dir</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – If provided, saves tiles into a TFRecord file</p></li>
+<li><p><strong>here.</strong> (<em>(</em><em>named according to slide name</em><em>)</em>) – </p></li>
+<li><p><strong>tiles_dir</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – If provided, saves loose images into a
+subdirectory (per slide name) here.</p></li>
+<li><p><strong>img_format</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – ‘png’ or ‘jpg’. Format of images for internal
+storage in tfrecords. PNG (lossless) format recommended for
+fidelity, JPG (lossy) for efficiency. Defaults to ‘jpg’.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Keyword Arguments</dt>
 <dd class="field-even"><ul class="simple">
 <li><p><strong>whitespace_fraction</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.10)"><em>float</em></a><em>, </em><em>optional</em>) – Range 0-1. Defaults to 1.
-Discard tiles with this fraction of whitespace. If 1, will not perform whitespace filtering.</p></li>
+Discard tiles with this fraction of whitespace. If 1, will not
+perform whitespace filtering.</p></li>
 <li><p><strong>whitespace_threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Range 0-255. Defaults to 230.
-Threshold above which a pixel (RGB average) is considered whitespace.</p></li>
+Threshold above which a pixel (RGB average) is whitespace.</p></li>
 <li><p><strong>grayspace_fraction</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.10)"><em>float</em></a><em>, </em><em>optional</em>) – Range 0-1. Defaults to 0.6.
-Discard tiles with this fraction of grayspace. If 1, will not perform grayspace filtering.</p></li>
+Discard tiles with this fraction of grayspace. If 1, will not
+perform grayspace filtering.</p></li>
 <li><p><strong>grayspace_threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.10)"><em>float</em></a><em>, </em><em>optional</em>) – Range 0-1. Defaults to 0.05.
-Pixels in HSV format with saturation below this threshold are considered grayspace.</p></li>
-<li><p><strong>normalizer</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Normalization strategy to use on image tiles. Defaults to None.</p></li>
-<li><p><strong>normalizer_source</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Path to normalizer source image. Defaults to None.
-If None but using a normalizer, will use an internal tile for normalization.
-Internal default tile can be found at slideflow.slide.norm_tile.jpg</p></li>
-<li><p><strong>full_core</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Extract an entire detected core, rather than subdividing into image tiles.
-Defaults to False.</p></li>
-<li><p><strong>shuffle</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a>) – Shuffle images during extraction.</p></li>
-<li><p><strong>num_threads</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a>) – Number of threads to allocate to tile extraction workers.</p></li>
-<li><p><strong>yolo</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Export yolo-formatted tile-level ROI annotations (.txt) in the tile directory.
-Requires that tiles_dir is set. Defaults to False.</p></li>
-<li><p><strong>draw_roi</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Draws ROIs onto extracted tiles. Defaults to False.</p></li>
-<li><p><strong>dry_run</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Determine tiles that would be extracted, but do not export any images.
+Pixels in HSV format with saturation below this threshold are
+considered grayspace.</p></li>
+<li><p><strong>normalizer</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Normalization for image tiles.
 Defaults to None.</p></li>
+<li><p><strong>normalizer_source</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Path to normalizer source image.
+If None, will use slideflow.slide.norm_tile.jpg.
+Defaults to None.</p></li>
+<li><p><strong>full_core</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Extract an entire detected core, rather
+than subdividing into image tiles. Defaults to False.</p></li>
+<li><p><strong>shuffle</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a>) – Shuffle images during extraction.</p></li>
+<li><p><strong>num_threads</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a>) – Number of threads to allocate to workers.</p></li>
+<li><p><strong>yolo</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Export yolo-formatted tile-level ROI
+annotations (.txt) in the tile directory. Requires that
+tiles_dir is set. Defaults to False.</p></li>
+<li><p><strong>draw_roi</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Draws ROIs onto extracted tiles.
+Defaults to False.</p></li>
+<li><p><strong>dry_run</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Determine tiles that would be extracted,
+but do not export any images. Defaults to None.</p></li>
 </ul>
 </dd>
 </dl>
@@ -391,33 +423,45 @@ Defaults to None.</p></li>
 <dl class="py method">
 <dt class="sig sig-object py" id="slideflow.slide.WSI.loaded_correctly">
 <span class="sig-name descname"><span class="pre">loaded_correctly</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.slide.WSI.loaded_correctly" title="Permalink to this definition">¶</a></dt>
-<dd><p>Returns True if slide loaded correctly without errors; False if otherwise.</p>
+<dd><p>Checks if slide loaded correctly.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="slideflow.slide.WSI.preview">
 <span class="sig-name descname"><span class="pre">preview</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rois</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.slide.WSI.preview" title="Permalink to this definition">¶</a></dt>
-<dd><p>Performs a dry run of tile extraction without saving any images, returning a PIL image of the slide
-thumbnail annotated with a grid of tiles that were marked for extraction.</p>
+<dd><p>Performs a dry run of tile extraction without saving any images,
+returning a PIL image of the slide thumbnail annotated with a grid of
+tiles that were marked for extraction.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>rois</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Draw ROI annotation(s) onto the image. Defaults to True.</p>
+<dd class="field-odd"><p><strong>rois</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Draw ROI annotation(s) onto the image.
+Defaults to True.</p>
 </dd>
 <dt class="field-even">Keyword Arguments</dt>
 <dd class="field-even"><ul class="simple">
 <li><p><strong>whitespace_fraction</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.10)"><em>float</em></a><em>, </em><em>optional</em>) – Range 0-1. Defaults to 1.
-Discard tiles with this fraction of whitespace. If 1, will not perform whitespace filtering.</p></li>
+Discard tiles with this fraction of whitespace. If 1, will not
+perform whitespace filtering.</p></li>
 <li><p><strong>whitespace_threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Range 0-255. Defaults to 230.
-Threshold above which a pixel (RGB average) is considered whitespace.</p></li>
+Threshold above which a pixel (RGB average) is considered
+whitespace.</p></li>
 <li><p><strong>grayspace_fraction</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.10)"><em>float</em></a><em>, </em><em>optional</em>) – Range 0-1. Defaults to 0.6.
-Discard tiles with this fraction of grayspace. If 1, will not perform grayspace filtering.</p></li>
+Discard tiles with this fraction of grayspace. If 1, will not
+perform grayspace filtering.</p></li>
 <li><p><strong>grayspace_threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.10)"><em>float</em></a><em>, </em><em>optional</em>) – Range 0-1. Defaults to 0.05.
-Pixels in HSV format with saturation below this threshold are considered grayspace.</p></li>
-<li><p><strong>full_core</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Extract an entire detected core, rather than subdividing into image tiles.
-Defaults to False.</p></li>
-<li><p><strong>num_threads</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a>) – Number of threads to allocate to tile extraction workers.</p></li>
-<li><p><strong>yolo</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Export yolo-formatted tile-level ROI annotations (.txt) in the tile directory.
-Requires that tiles_dir is set. Defaults to False.</p></li>
+Pixels in HSV format with saturation below this threshold are
+considered grayspace.</p></li>
+<li><p><strong>full_core</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Extract an entire detected core, rather
+than subdividing into image tiles. Defaults to False.</p></li>
+<li><p><strong>num_threads</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a>) – Number of threads to allocate to workers.</p></li>
+<li><p><strong>yolo</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Export yolo-formatted tile-level ROI
+annotations (.txt) in the tile directory. Requires that
+tiles_dir is set. Defaults to False.</p></li>
 </ul>
 </dd>
 </dl>
@@ -426,20 +470,24 @@ Requires that tiles_dir is set. Defaults to False.</p></li>
 <dl class="py method">
 <dt class="sig sig-object py" id="slideflow.slide.WSI.qc">
 <span class="sig-name descname"><span class="pre">qc</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">method</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">blur_radius</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">blur_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.02</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.6</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">blur_mpp</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">4</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.slide.WSI.qc" title="Permalink to this definition">¶</a></dt>
-<dd><p>Applies quality control to a slide, performing filtering based on a whole-slide image thumbnail.</p>
+<dd><p>Applies quality control to a slide, performing filtering based on
+a whole-slide image thumbnail.</p>
 <p>‘blur’ method filters out blurry or out-of-focus slide sections.
-‘otsu’ method filters out background based on automatic saturation thresholding in the HSV colorspace.
+‘otsu’ method filters out background based on automatic saturation
+thresholding in the HSV colorspace.
 ‘both’ applies both methods of filtering.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>method</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Quality control method, includes ‘blur’, ‘otsu’, or ‘both’.</p></li>
+<li><p><strong>method</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Quality control method, ‘blur’, ‘otsu’, or ‘both’.</p></li>
 <li><p><strong>blur_radius</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Blur radius.</p></li>
 <li><p><strong>blur_threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.10)"><em>float</em></a><em>, </em><em>optional</em>) – Blur threshold.</p></li>
-<li><p><strong>filter_threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.10)"><em>float</em></a><em>, </em><em>optional</em>) – Percent of a tile detected as background that will trigger a tile to be
-discarded. Defaults to 0.6.</p></li>
-<li><p><strong>blur_mpp</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.10)"><em>float</em></a><em>, </em><em>optional</em>) – Size of WSI thumbnail on which to perform blur QC, in microns-per-pixel.
-Defaults to 4 (equivalent magnification = 2.5 X)</p></li>
+<li><p><strong>filter_threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.10)"><em>float</em></a><em>, </em><em>optional</em>) – Percent of a tile detected as
+background that will trigger a tile to be discarded.
+Defaults to 0.6.</p></li>
+<li><p><strong>blur_mpp</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.10)"><em>float</em></a><em>, </em><em>optional</em>) – Size of WSI thumbnail on which to
+perform blur QC, in microns-per-pixel. Defaults to 4
+(equivalent magnification = 2.5 X).</p></li>
 </ul>
 </dd>
 </dl>
@@ -466,13 +514,15 @@ Defaults to 4 (equivalent magnification = 2.5 X)</p></li>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>mpp</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.10)"><em>float</em></a><em>, </em><em>optional</em>) – Microns-per-pixel, used to determine thumbnail size.</p></li>
-<li><p><strong>width</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Alternatively, goal thumbnail width may be supplied.</p></li>
-<li><p><strong>coords</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.10)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>)</em><em>, </em><em>optional</em>) – List of tile extraction coordinates to show as rectangles
-on the thumbnail, in [(x_center, y_center), …] format. Defaults to None.</p></li>
+<li><p><strong>mpp</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.10)"><em>float</em></a><em>, </em><em>optional</em>) – Microns-per-pixel, used to determine
+thumbnail size.</p></li>
+<li><p><strong>width</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Goal thumbnail width (alternative to mpp).</p></li>
+<li><p><strong>coords</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.10)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>)</em><em>, </em><em>optional</em>) – List of tile extraction coordinates
+to show as rectangles on the thumbnail, in [(x_center,
+y_center), …] format. Defaults to None.</p></li>
 <li><p><strong>rois</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Draw ROIs onto thumbnail. Defaults to False.</p></li>
-<li><p><strong>linewidth</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Width of ROI overlay line. Defaults to 2.</p></li>
-<li><p><strong>color</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Color of ROI overlay. Defaults to black.</p></li>
+<li><p><strong>linewidth</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Width of ROI line. Defaults to 2.</p></li>
+<li><p><strong>color</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Color of ROI. Defaults to black.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
@@ -483,12 +533,12 @@ on the thumbnail, in [(x_center, y_center), …] format. Defaults to None.</p></
 
 </dd></dl>
 
-</div>
-<div class="section" id="tma">
+</section>
+<section id="tma">
 <h2>TMA<a class="headerlink" href="#tma" title="Permalink to this headline">¶</a></h2>
 <dl class="py class">
 <dt class="sig sig-object py" id="slideflow.slide.TMA">
-<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">slideflow.slide.</span></span><span class="sig-name descname"><span class="pre">TMA</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tile_px</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tile_um</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stride_div</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">annotations_dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">enable_downsample</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">report_dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pb</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pb_id</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.slide.TMA" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">slideflow.slide.</span></span><span class="sig-name descname"><span class="pre">TMA</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tile_px</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tile_um</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stride_div</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">annotations_dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">enable_downsample</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">report_dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pb</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pb_id</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.slide.TMA" title="Permalink to this definition">¶</a></dt>
 <dd><p>Loads a TMA-formatted slide and detects tissue cores.</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="slideflow.slide.TMA.__init__">
@@ -497,14 +547,18 @@ on the thumbnail, in [(x_center, y_center), …] format. Defaults to None.</p></
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>path</strong> – Path to slide</p></li>
-<li><p><strong>tile_px</strong> – Size of tiles to extract, in pixels</p></li>
-<li><p><strong>tile_um</strong> – Size of tiles to extract, in microns</p></li>
-<li><p><strong>stride_div</strong> – Stride divisor for tile extraction (1 = no tile overlap; 2 = 50% overlap, etc)</p></li>
-<li><p><strong>enable_downsample</strong> – Bool, if True, allows use of downsampled intermediate layers in the slide image pyramid,
-which greatly improves tile extraction speed.</p></li>
-<li><p><strong>pb</strong> – ProgressBar instance; will update progress bar during tile extraction if provided</p></li>
-<li><p><strong>pb_id</strong> – ID of bar in ProgressBar, defaults to 0</p></li>
+<li><p><strong>path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Path to slide.</p></li>
+<li><p><strong>tile_px</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a>) – Size of tiles to extract, in pixels.</p></li>
+<li><p><strong>tile_um</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a>) – Size of tiles to extract, in microns.</p></li>
+<li><p><strong>stride_div</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Stride divisor for tile extraction
+(1 = no tile overlap; 2 = 50% overlap, etc). Defaults to 1.</p></li>
+<li><p><strong>enable_downsample</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Allow use of downsampled
+layers in the slide image pyramid, which greatly improves
+tile extraction speed. Defaults to True.</p></li>
+<li><p><strong>pb</strong> (<em>sf.util.ProgressBar</em><em>, </em><em>optional</em>) – ProgressBar; will update
+progress bar during tile extraction if provided.
+Defaults to None.</p></li>
+<li><p><strong>pb_id</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – ID of bar in ProgressBar. Defaults to 0.</p></li>
 </ul>
 </dd>
 </dl>
@@ -519,26 +573,35 @@ which greatly improves tile extraction speed.</p></li>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>shuffle</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a>) – Shuffle images during extraction.</p></li>
 <li><p><strong>whitespace_fraction</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.10)"><em>float</em></a><em>, </em><em>optional</em>) – Range 0-1. Defaults to 1.
-Discard tiles with this fraction of whitespace. If 1, will not perform whitespace filtering.</p></li>
+Discard tiles with this fraction of whitespace. If 1, will not
+perform whitespace filtering.</p></li>
 <li><p><strong>whitespace_threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Range 0-255. Defaults to 230.
-Threshold above which a pixel (RGB average) is considered whitespace.</p></li>
+Threshold above which a pixel (RGB average) is  whitespace.</p></li>
 <li><p><strong>grayspace_fraction</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.10)"><em>float</em></a><em>, </em><em>optional</em>) – Range 0-1. Defaults to 0.6.
-Discard tiles with this fraction of grayspace. If 1, will not perform grayspace filtering.</p></li>
+Discard tiles with this fraction of grayspace. If 1, will not
+perform grayspace filtering.</p></li>
 <li><p><strong>grayspace_threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.10)"><em>float</em></a><em>, </em><em>optional</em>) – Range 0-1. Defaults to 0.05.
-Pixels in HSV format with saturation below this threshold are considered grayspace.</p></li>
-<li><p><strong>normalizer</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Normalization strategy to use on image tiles. Defaults to None.</p></li>
-<li><p><strong>normalizer_source</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Path to normalizer source image. Defaults to None.
-If None but using a normalizer, will use an internal tile for normalization.
-Internal default tile can be found at slideflow.slide.norm_tile.jpg</p></li>
-<li><p><strong>include_loc</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Include location information in returned dictionary. Defaults to True.</p></li>
-<li><p><strong>num_threads</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Number of threads for pool. Unused if <cite>pool</cite> is specified.</p></li>
-<li><p><strong>pool</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">multiprocessing.Pool</span></code>, optional) – Multiprocessing pool to use. By using a shared pool, a slide
-no longer needs to spin up its own new pool for tile extraction, decreasing tile extraction time for
-large datasets. Defaults to None (create a new pool, using <cite>num_threads</cite>).</p></li>
-<li><p><strong>img_format</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – ‘png’, ‘jpg’, or ‘numpy’. Format images should be returned in.</p></li>
-<li><p><strong>full_core</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Extract an entire detected core, rather than subdividing into image tiles.
-Defaults to False.</p></li>
-<li><p><strong>show_progress</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Show a progress bar for tile extraction.</p></li>
+Pixels in HSV format with saturation below this threshold are
+considered grayspace.</p></li>
+<li><p><strong>normalizer</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Normalization to use on image tiles.
+Defaults to None.</p></li>
+<li><p><strong>normalizer_source</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Path to normalizer source image.
+If None, will use slideflow.slide.norm_tile.jpg
+Defaults to None.</p></li>
+<li><p><strong>include_loc</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Include location information in
+returned dictionary. Defaults to True.</p></li>
+<li><p><strong>num_threads</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Number of threads for pool. Unused if
+<cite>pool</cite> is specified.</p></li>
+<li><p><strong>pool</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">multiprocessing.Pool</span></code>, optional) – Multiprocessing pool
+to use. By using a shared pool, a slide no longer needs to spin
+up its own new pool for tile extraction, decreasing tile
+extraction time for large datasets. Defaults to None (create a
+new pool, using <cite>num_threads</cite>).</p></li>
+<li><p><strong>img_format</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – ‘png’, ‘jpg’, or ‘numpy’. Format images
+should be returned in.</p></li>
+<li><p><strong>full_core</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Extract an entire detected core, rather
+than subdividing into image tiles. Defaults to False.</p></li>
+<li><p><strong>show_progress</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Show a progress bar for extraction.</p></li>
 </ul>
 </dd>
 </dl>
@@ -552,36 +615,45 @@ saving tiles into a TFRecord file or as loose JPG tiles in a directory.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>tfrecord_dir</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – If provided, saves tiles into a TFRecord file (named according to slide name) here.</p></li>
-<li><p><strong>tiles_dir</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – If provided, saves loose images into a subdirectory (per slide name) here.</p></li>
-<li><p><strong>img_format</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – ‘png’ or ‘jpg’. Format of images for internal storage in tfrecords.
-PNG (lossless) format recommended for fidelity, JPG (lossy) for efficiency.
+<li><p><strong>tfrecord_dir</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – If provided, saves tiles into a TFRecord file
+(named according to slide name) here.</p></li>
+<li><p><strong>tiles_dir</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – If provided, saves loose images into a
+subdirectory (per slide name) here.</p></li>
+<li><p><strong>img_format</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – ‘png’ or ‘jpg’. Format of images for internal
+storage in tfrecords. PNG (lossless) format recommended for
+fidelity, JPG (lossy) for efficiency.
 Defaults to ‘jpg’.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Keyword Arguments</dt>
 <dd class="field-even"><ul class="simple">
 <li><p><strong>whitespace_fraction</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.10)"><em>float</em></a><em>, </em><em>optional</em>) – Range 0-1. Defaults to 1.
-Discard tiles with this fraction of whitespace. If 1, will not perform whitespace filtering.</p></li>
+Discard tiles with this fraction of whitespace. If 1, will not
+perform whitespace filtering.</p></li>
 <li><p><strong>whitespace_threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Range 0-255. Defaults to 230.
-Threshold above which a pixel (RGB average) is considered whitespace.</p></li>
+Threshold above which a pixel (RGB average) is whitespace.</p></li>
 <li><p><strong>grayspace_fraction</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.10)"><em>float</em></a><em>, </em><em>optional</em>) – Range 0-1. Defaults to 0.6.
-Discard tiles with this fraction of grayspace. If 1, will not perform grayspace filtering.</p></li>
+Discard tiles with this fraction of grayspace. If 1, will not
+perform grayspace filtering.</p></li>
 <li><p><strong>grayspace_threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.10)"><em>float</em></a><em>, </em><em>optional</em>) – Range 0-1. Defaults to 0.05.
-Pixels in HSV format with saturation below this threshold are considered grayspace.</p></li>
-<li><p><strong>normalizer</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Normalization strategy to use on image tiles. Defaults to None.</p></li>
-<li><p><strong>normalizer_source</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Path to normalizer source image. Defaults to None.
-If None but using a normalizer, will use an internal tile for normalization.
-Internal default tile can be found at slideflow.slide.norm_tile.jpg</p></li>
-<li><p><strong>full_core</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Extract an entire detected core, rather than subdividing into image tiles.
-Defaults to False.</p></li>
-<li><p><strong>shuffle</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a>) – Shuffle images during extraction.</p></li>
-<li><p><strong>num_threads</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a>) – Number of threads to allocate to tile extraction workers.</p></li>
-<li><p><strong>yolo</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Export yolo-formatted tile-level ROI annotations (.txt) in the tile directory.
-Requires that tiles_dir is set. Defaults to False.</p></li>
-<li><p><strong>draw_roi</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Draws ROIs onto extracted tiles. Defaults to False.</p></li>
-<li><p><strong>dry_run</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Determine tiles that would be extracted, but do not export any images.
+Pixels in HSV format with saturation below this threshold are
+considered grayspace.</p></li>
+<li><p><strong>normalizer</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Normalization for image tiles.
 Defaults to None.</p></li>
+<li><p><strong>normalizer_source</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Path to normalizer source image.
+If None, will use slideflow.slide.norm_tile.jpg.
+Defaults to None.</p></li>
+<li><p><strong>full_core</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Extract an entire detected core, rather
+than subdividing into image tiles. Defaults to False.</p></li>
+<li><p><strong>shuffle</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a>) – Shuffle images during extraction.</p></li>
+<li><p><strong>num_threads</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a>) – Number of threads to allocate to workers.</p></li>
+<li><p><strong>yolo</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Export yolo-formatted tile-level ROI
+annotations (.txt) in the tile directory. Requires that
+tiles_dir is set. Defaults to False.</p></li>
+<li><p><strong>draw_roi</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Draws ROIs onto extracted tiles.
+Defaults to False.</p></li>
+<li><p><strong>dry_run</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Determine tiles that would be extracted,
+but do not export any images. Defaults to None.</p></li>
 </ul>
 </dd>
 </dl>
@@ -590,33 +662,45 @@ Defaults to None.</p></li>
 <dl class="py method">
 <dt class="sig sig-object py" id="slideflow.slide.TMA.loaded_correctly">
 <span class="sig-name descname"><span class="pre">loaded_correctly</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.slide.TMA.loaded_correctly" title="Permalink to this definition">¶</a></dt>
-<dd><p>Returns True if slide loaded correctly without errors; False if otherwise.</p>
+<dd><p>Checks if slide loaded correctly.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="slideflow.slide.TMA.preview">
 <span class="sig-name descname"><span class="pre">preview</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rois</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.slide.TMA.preview" title="Permalink to this definition">¶</a></dt>
-<dd><p>Performs a dry run of tile extraction without saving any images, returning a PIL image of the slide
-thumbnail annotated with a grid of tiles that were marked for extraction.</p>
+<dd><p>Performs a dry run of tile extraction without saving any images,
+returning a PIL image of the slide thumbnail annotated with a grid of
+tiles that were marked for extraction.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>rois</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Draw ROI annotation(s) onto the image. Defaults to True.</p>
+<dd class="field-odd"><p><strong>rois</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Draw ROI annotation(s) onto the image.
+Defaults to True.</p>
 </dd>
 <dt class="field-even">Keyword Arguments</dt>
 <dd class="field-even"><ul class="simple">
 <li><p><strong>whitespace_fraction</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.10)"><em>float</em></a><em>, </em><em>optional</em>) – Range 0-1. Defaults to 1.
-Discard tiles with this fraction of whitespace. If 1, will not perform whitespace filtering.</p></li>
+Discard tiles with this fraction of whitespace. If 1, will not
+perform whitespace filtering.</p></li>
 <li><p><strong>whitespace_threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Range 0-255. Defaults to 230.
-Threshold above which a pixel (RGB average) is considered whitespace.</p></li>
+Threshold above which a pixel (RGB average) is considered
+whitespace.</p></li>
 <li><p><strong>grayspace_fraction</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.10)"><em>float</em></a><em>, </em><em>optional</em>) – Range 0-1. Defaults to 0.6.
-Discard tiles with this fraction of grayspace. If 1, will not perform grayspace filtering.</p></li>
+Discard tiles with this fraction of grayspace. If 1, will not
+perform grayspace filtering.</p></li>
 <li><p><strong>grayspace_threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.10)"><em>float</em></a><em>, </em><em>optional</em>) – Range 0-1. Defaults to 0.05.
-Pixels in HSV format with saturation below this threshold are considered grayspace.</p></li>
-<li><p><strong>full_core</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Extract an entire detected core, rather than subdividing into image tiles.
-Defaults to False.</p></li>
-<li><p><strong>num_threads</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a>) – Number of threads to allocate to tile extraction workers.</p></li>
-<li><p><strong>yolo</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Export yolo-formatted tile-level ROI annotations (.txt) in the tile directory.
-Requires that tiles_dir is set. Defaults to False.</p></li>
+Pixels in HSV format with saturation below this threshold are
+considered grayspace.</p></li>
+<li><p><strong>full_core</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Extract an entire detected core, rather
+than subdividing into image tiles. Defaults to False.</p></li>
+<li><p><strong>num_threads</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a>) – Number of threads to allocate to workers.</p></li>
+<li><p><strong>yolo</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Export yolo-formatted tile-level ROI
+annotations (.txt) in the tile directory. Requires that
+tiles_dir is set. Defaults to False.</p></li>
 </ul>
 </dd>
 </dl>
@@ -625,20 +709,24 @@ Requires that tiles_dir is set. Defaults to False.</p></li>
 <dl class="py method">
 <dt class="sig sig-object py" id="slideflow.slide.TMA.qc">
 <span class="sig-name descname"><span class="pre">qc</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">method</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">blur_radius</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">blur_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.02</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.6</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">blur_mpp</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">4</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.slide.TMA.qc" title="Permalink to this definition">¶</a></dt>
-<dd><p>Applies quality control to a slide, performing filtering based on a whole-slide image thumbnail.</p>
+<dd><p>Applies quality control to a slide, performing filtering based on
+a whole-slide image thumbnail.</p>
 <p>‘blur’ method filters out blurry or out-of-focus slide sections.
-‘otsu’ method filters out background based on automatic saturation thresholding in the HSV colorspace.
+‘otsu’ method filters out background based on automatic saturation
+thresholding in the HSV colorspace.
 ‘both’ applies both methods of filtering.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>method</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Quality control method, includes ‘blur’, ‘otsu’, or ‘both’.</p></li>
+<li><p><strong>method</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Quality control method, ‘blur’, ‘otsu’, or ‘both’.</p></li>
 <li><p><strong>blur_radius</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Blur radius.</p></li>
 <li><p><strong>blur_threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.10)"><em>float</em></a><em>, </em><em>optional</em>) – Blur threshold.</p></li>
-<li><p><strong>filter_threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.10)"><em>float</em></a><em>, </em><em>optional</em>) – Percent of a tile detected as background that will trigger a tile to be
-discarded. Defaults to 0.6.</p></li>
-<li><p><strong>blur_mpp</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.10)"><em>float</em></a><em>, </em><em>optional</em>) – Size of WSI thumbnail on which to perform blur QC, in microns-per-pixel.
-Defaults to 4 (equivalent magnification = 2.5 X)</p></li>
+<li><p><strong>filter_threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.10)"><em>float</em></a><em>, </em><em>optional</em>) – Percent of a tile detected as
+background that will trigger a tile to be discarded.
+Defaults to 0.6.</p></li>
+<li><p><strong>blur_mpp</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.10)"><em>float</em></a><em>, </em><em>optional</em>) – Size of WSI thumbnail on which to
+perform blur QC, in microns-per-pixel. Defaults to 4
+(equivalent magnification = 2.5 X).</p></li>
 </ul>
 </dd>
 </dl>
@@ -665,10 +753,13 @@ Defaults to 4 (equivalent magnification = 2.5 X)</p></li>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>mpp</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.10)"><em>float</em></a><em>, </em><em>optional</em>) – Microns-per-pixel, used to determine thumbnail size.</p></li>
-<li><p><strong>width</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Alternatively, goal thumbnail width may be supplied.</p></li>
-<li><p><strong>coords</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.10)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>)</em><em>, </em><em>optional</em>) – List of tile extraction coordinates to show as rectangles
-on the thumbnail, in [(x_center, y_center), …] format. Defaults to None.</p></li>
+<li><p><strong>mpp</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.10)"><em>float</em></a><em>, </em><em>optional</em>) – Microns-per-pixel, used to determine
+thumbnail size.</p></li>
+<li><p><strong>width</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Alternatively, goal thumbnail width
+may be supplied.</p></li>
+<li><p><strong>coords</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.10)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>)</em><em>, </em><em>optional</em>) – List of tile extraction coordinates
+to show as rectangles on the thumbnail, in [(x_center,
+y_center), …] format. Defaults to None.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
@@ -679,8 +770,8 @@ on the thumbnail, in [(x_center, y_center), …] format. Defaults to None.</p></
 
 </dd></dl>
 
-</div>
-</div>
+</section>
+</section>
 
 
              </article>

@@ -1381,9 +1381,9 @@ def pred_to_df(y_true, y_pred, tile_to_slides, outcome_names,
     """Save tile-level predictions.
 
     Assumes structure of y_true, y_pred, uncertainty is:
-    -- List of length num_outcomes, containing numpy arrays
-    -- Each np array is either shape (num_tiles) [single linear outcome]
-       or (num_tiles, num_categories) [categorical]
+    - List of length num_outcomes, containing numpy arrays
+    - Each np array is either shape (num_tiles) [single linear outcome]
+    or (num_tiles, num_categories) [categorical]
 
     Args:
         y_true (np.ndarray): Tile-level labels.
@@ -1394,6 +1394,7 @@ def pred_to_df(y_true, y_pred, tile_to_slides, outcome_names,
 
     Raises:
         errors.StatsError: If len(y_pred) is 1 but >1 outcome_names provided.
+
         errors.StatsError: If num outcomes in y_true and y_pred are unequal.
 
     Returns:

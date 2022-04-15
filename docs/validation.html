@@ -6,10 +6,11 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  
+  <meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Validation Planning &mdash; slideflow 1.1.0-rc1 documentation</title>
+  <title>Validation Planning &mdash; slideflow 1.1.0 documentation</title>
   
 
   
@@ -119,7 +120,7 @@
               
               
                 <div class="version">
-                  1.0
+                  1.1
                 </div>
               
             
@@ -252,25 +253,25 @@
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
               
-  <div class="section" id="validation-planning">
+  <section id="validation-planning">
 <span id="id1"></span><h1>Validation Planning<a class="headerlink" href="#validation-planning" title="Permalink to this headline">¶</a></h1>
 <p>An important first step in creating a new project is to determine the validation plan. Three groups of data are required:</p>
 <ol class="arabic simple">
 <li><p><strong>Training data</strong> - data used for learning during training</p></li>
-<li><p><strong>Validation data</strong> - data used for performance testing during training</p></li>
+<li><p><strong>Validation data</strong> - data used for testing during training, and early stopping (if applicable)</p></li>
 <li><p><strong>Evaluation data</strong> - data used for final evaluation once training has completed. Preferably an external cohort.</p></li>
 </ol>
 <p>Validation data is used to assess model performance and generalizability during training. Once the model and parameters have been tuned with training/validation, the final model’s performance is assessed on the held-out evaluation set.</p>
-<div class="section" id="configuring-a-validation-plan">
+<section id="configuring-a-validation-plan">
 <h2>Configuring a validation plan<a class="headerlink" href="#configuring-a-validation-plan" title="Permalink to this headline">¶</a></h2>
 <p>There are several ways you can plan to validate your data. The validation settings available include:</p>
 <ul class="simple">
 <li><p><strong>strategy</strong>:  <em>‘bootstrap’</em>, <em>‘k-fold’</em>, <em>k-fold-manual’</em>, <em>‘k-fold-preserved-site’</em>, <em>‘fixed’</em>, <em>‘none’</em></p></li>
-<li><p><strong>fraction</strong>:  (float between 0-1)</p></li>
+<li><p><strong>fraction</strong>:  (float between 0-1) [not used for k-fold validation]</p></li>
 <li><p><strong>k_fold</strong>:  int</p></li>
 </ul>
 <p>The default strategy is ‘k-fold’, with k=3.</p>
-<div class="section" id="validation-strategy">
+<section id="validation-strategy">
 <h3>Validation strategy<a class="headerlink" href="#validation-strategy" title="Permalink to this headline">¶</a></h3>
 <p>The <code class="docutils literal notranslate"><span class="pre">strategy</span></code> option determines how the validation data is selected.</p>
 <p>If <strong>fixed</strong>, a certain percentage of your training data is set aside for testing (determined by <code class="docutils literal notranslate"><span class="pre">fraction</span></code>). The chosen validation subset is saved to a log file and will be re-used for all training iterations.</p>
@@ -283,14 +284,14 @@
 <p>Preserved-site cross-validation requires <a class="reference external" href="https://www.ibm.com/analytics/cplex-optimizer">CPLEX</a>. The original implementation of the preserved-site cross-validation algorithm described by Howard et al can be found <a class="reference external" href="https://github.com/fmhoward/PreservedSiteCV">on GitHub</a>.</p>
 </div>
 <p>If <strong>none</strong>, no validation testing will be performed.</p>
-</div>
-</div>
-<div class="section" id="selecting-an-evaluation-cohort">
+</section>
+</section>
+<section id="selecting-an-evaluation-cohort">
 <h2>Selecting an evaluation cohort<a class="headerlink" href="#selecting-an-evaluation-cohort" title="Permalink to this headline">¶</a></h2>
 <p>Designating an evaluation cohort is done using the project annotations file, with a column indicating whether a slide is set aside for evaluation.
 The training and evaluation functions include a <code class="docutils literal notranslate"><span class="pre">filter</span></code> argument which will allow you to restrict your training or evaluation according to these annotations. This will be discussed in greater detail in subsequent sections.</p>
-</div>
-</div>
+</section>
+</section>
 
 
              </article>

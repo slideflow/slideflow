@@ -561,9 +561,11 @@ class ROI:
 
 
 class _BaseLoader:
-    '''Ooads an SVS slide and makes preparations for tile extraction.
+    '''Loads an SVS slide and makes preparations for tile extraction.
+
     Should not be used directly; this class must be inherited and extended
-    by either WSI or TMA child classes.'''
+    by either WSI or TMA child classes.
+    '''
 
     def __init__(self, path, tile_px, tile_um, stride_div,
                  enable_downsample=True, pb=None, pb_counter=None,
@@ -682,7 +684,7 @@ class _BaseLoader:
 
         'blur' method filters out blurry or out-of-focus slide sections.
         'otsu' method filters out background based on automatic saturation
-            thresholding in the HSV colorspace.
+        thresholding in the HSV colorspace.
         'both' applies both methods of filtering.
 
         Args:

@@ -6,10 +6,11 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  
+  <meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Tutorial 3: Model evaluation &amp; heatmaps &mdash; slideflow 1.1.0-rc1 documentation</title>
+  <title>Tutorial 3: Model evaluation &amp; heatmaps &mdash; slideflow 1.1.0 documentation</title>
   
 
   
@@ -118,7 +119,7 @@
               
               
                 <div class="version">
-                  1.0
+                  1.1
                 </div>
               
             
@@ -251,10 +252,10 @@
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
               
-  <div class="section" id="tutorial-3-model-evaluation-heatmaps">
+  <section id="tutorial-3-model-evaluation-heatmaps">
 <h1>Tutorial 3: Model evaluation &amp; heatmaps<a class="headerlink" href="#tutorial-3-model-evaluation-heatmaps" title="Permalink to this headline">¶</a></h1>
 <p>In this tutorial, we will evaluate a trained model on a separate, held-out evaluation dataset.</p>
-<div class="section" id="locate-a-saved-model">
+<section id="locate-a-saved-model">
 <h2>Locate a saved model<a class="headerlink" href="#locate-a-saved-model" title="Permalink to this headline">¶</a></h2>
 <p>First, locate a saved model to evaluate, which will be a *.zip file for PyTorch models and a directory for Tensorflow models.
 The directory structure for saved models trained with Tensorflow will look like:</p>
@@ -275,8 +276,8 @@ The directory structure for saved models trained with Tensorflow will look like:
 </div>
 <p>For this tutorial, we will assume that the final trained model is stored at <code class="docutils literal notranslate"><span class="pre">/home/er_project/models/00003-er_status_by_ihc/er_status_by_ihc_epoch3</span></code>.
 The results we report are a continuation of the project described in <a class="reference internal" href="tutorial1.html#tutorial1"><span class="std std-ref">Tutorial 1: Model training (simple)</span></a>.</p>
-</div>
-<div class="section" id="evaluation">
+</section>
+<section id="evaluation">
 <h2>Evaluation<a class="headerlink" href="#evaluation" title="Permalink to this headline">¶</a></h2>
 <p>To evaluate a saved model, use the <a class="reference internal" href="project.html#slideflow.Project.evaluate" title="slideflow.Project.evaluate"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Project.evaluate()</span></code></a> function:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">model</span> <span class="o">=</span> <span class="s1">&#39;/home/er_project/models/00003-er_status_by_ihc/er_status_by_ihc_epoch3&#39;</span>
@@ -297,24 +298,24 @@ The results we report are a continuation of the project described in <a class="r
 <col style="width: 50%" />
 </colgroup>
 <tbody>
-<tr class="row-odd"><td><div class="figure align-default">
+<tr class="row-odd"><td><figure class="align-default">
 <img alt="_images/val_er_roc_tile.png" src="_images/val_er_roc_tile.png" />
-</div>
+</figure>
 <p>Tile-level receiver operator curve</p>
 </td>
-<td><div class="figure align-default">
+<td><figure class="align-default">
 <img alt="_images/val_er_roc_patient.png" src="_images/val_er_roc_patient.png" />
-</div>
+</figure>
 <p>Patient-level receiver operator curve</p>
 </td>
 </tr>
 </tbody>
 </table>
-</div>
-<div class="section" id="heatmaps">
+</section>
+<section id="heatmaps">
 <h2>Heatmaps<a class="headerlink" href="#heatmaps" title="Permalink to this headline">¶</a></h2>
 <p>Predictive heatmaps can be generated for either individuals slides or for all slides in a dataset. We will give examples for both, starting with automatic heatmap generation for all slides in the evaluation dataset.</p>
-<div class="section" id="from-a-dataset">
+<section id="from-a-dataset">
 <h3>From a dataset<a class="headerlink" href="#from-a-dataset" title="Permalink to this headline">¶</a></h3>
 <p>The <a class="reference internal" href="project.html#slideflow.Project.generate_heatmaps" title="slideflow.Project.generate_heatmaps"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Project.generate_heatmaps()</span></code></a> can be used to easily and quickly create predictive heatmaps for a dataset. The filters argument is used to specify which slides should be included.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">model</span> <span class="o">=</span> <span class="s1">&#39;/home/er_project/models/00003-er_status_by_ihc/er_status_by_ihc_epoch3&#39;</span>
@@ -344,8 +345,8 @@ The results we report are a continuation of the project described in <a class="r
 </pre></div>
 </div>
 <img alt="_images/heatmap_example.png" src="_images/heatmap_example.png" />
-</div>
-<div class="section" id="from-a-single-slide">
+</section>
+<section id="from-a-single-slide">
 <h3>From a single slide<a class="headerlink" href="#from-a-single-slide" title="Permalink to this headline">¶</a></h3>
 <p>Heatmaps can also be manually created with the <a class="reference internal" href="heatmap.html#slideflow.Heatmap" title="slideflow.Heatmap"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.Heatmap</span></code></a> class. To create a heatmap from a slide located at ‘/home/user/example.svs’, use the following syntax:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
@@ -385,9 +386,9 @@ The results we report are a continuation of the project described in <a class="r
 <span class="gp">... </span><span class="p">)</span>
 </pre></div>
 </div>
-</div>
-</div>
-</div>
+</section>
+</section>
+</section>
 
 
              </article>

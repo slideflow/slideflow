@@ -6,10 +6,11 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  
+  <meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Features / layer activations &mdash; slideflow 1.1.0-rc1 documentation</title>
+  <title>Features / layer activations &mdash; slideflow 1.1.0 documentation</title>
   
 
   
@@ -119,7 +120,7 @@
               
               
                 <div class="version">
-                  1.0
+                  1.1
                 </div>
               
             
@@ -252,13 +253,13 @@
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
               
-  <div class="section" id="features-layer-activations">
+  <section id="features-layer-activations">
 <h1>Features / layer activations<a class="headerlink" href="#features-layer-activations" title="Permalink to this headline">¶</a></h1>
 <p>Once a model has been fully trained and evaluated, you may use the model to generate features from layer activations to gain better insight into the kinds of image features the model has learned.</p>
-<div class="section" id="working-with-layer-features">
+<section id="working-with-layer-features">
 <h2>Working with Layer Features<a class="headerlink" href="#working-with-layer-features" title="Permalink to this headline">¶</a></h2>
 <p>To work with features / intermediate layer activations calculated from a model, the <a class="reference internal" href="model.html#slideflow.model.Features" title="slideflow.model.Features"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.model.Features</span></code></a> class will generate features on a tile or slide level, and the <a class="reference internal" href="model.html#slideflow.model.DatasetFeatures" title="slideflow.model.DatasetFeatures"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.model.DatasetFeatures</span></code></a> class will generate features for an entire dataset.</p>
-<div class="section" id="datasetfeatures">
+<section id="datasetfeatures">
 <h3>DatasetFeatures<a class="headerlink" href="#datasetfeatures" title="Permalink to this headline">¶</a></h3>
 <p>The easiest way to get started with intermediate layer activations is the <a class="reference internal" href="model.html#slideflow.model.DatasetFeatures" title="slideflow.model.DatasetFeatures"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.model.DatasetFeatures</span></code></a> class, which is used to calculate and examine activations across an entire dataset. Instancing the class supervises the calculation and caching of layer activations, which can then be exported, viewed (as a mosaic map), or analyzed with various statistical methods. The project function <a class="reference internal" href="project.html#slideflow.Project.generate_features" title="slideflow.Project.generate_features"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.Project.generate_features()</span></code></a> creates and returns an instance of this class.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">features</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">generate_features</span><span class="p">(</span><span class="s1">&#39;/path/to/trained_model&#39;</span><span class="p">)</span>
@@ -271,9 +272,9 @@
 <span class="n">labels</span><span class="p">,</span> <span class="n">unique_outcomes</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">labels</span><span class="p">(</span><span class="s1">&#39;HPV&#39;</span><span class="p">)</span>
 
 <span class="n">features</span> <span class="o">=</span> <span class="n">DatasetFeatures</span><span class="p">(</span>
-    <span class="n">model</span><span class="o">=</span><span class="s1">&#39;/path/to/trained_model&#39;</span><span class="p">,</span>
-    <span class="n">dataset</span><span class="o">=</span><span class="n">dataset</span><span class="p">,</span>
-    <span class="n">annotations</span><span class="o">=</span><span class="n">labels</span>
+  <span class="n">model</span><span class="o">=</span><span class="s1">&#39;/path/to/trained_model&#39;</span><span class="p">,</span>
+  <span class="n">dataset</span><span class="o">=</span><span class="n">dataset</span><span class="p">,</span>
+  <span class="n">annotations</span><span class="o">=</span><span class="n">labels</span>
 <span class="p">)</span>
 </pre></div>
 </div>
@@ -289,8 +290,8 @@
 </div>
 <img alt="_images/boxplot_example.png" src="_images/boxplot_example.png" />
 <p>Many other functions are available, as described in the documentation, <a class="reference internal" href="model.html#slideflow.model.DatasetFeatures" title="slideflow.model.DatasetFeatures"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.model.DatasetFeatures</span></code></a>.</p>
-</div>
-<div class="section" id="features">
+</section>
+<section id="features">
 <h3>Features<a class="headerlink" href="#features" title="Permalink to this headline">¶</a></h3>
 <p>The <a class="reference internal" href="model.html#slideflow.model.Features" title="slideflow.model.Features"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.model.Features</span></code></a> class can be used to generate layer activations / features for a single batch of images. For example, to calculate features for a batch of images while looping through a dataset:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">slideflow.model</span> <span class="kn">import</span> <span class="n">Features</span>
@@ -310,9 +311,9 @@
 <span class="n">feature_grid</span> <span class="o">=</span> <span class="n">interface</span><span class="p">(</span><span class="n">slide</span><span class="p">)</span>
 </pre></div>
 </div>
-</div>
-</div>
-<div class="section" id="mosaic-maps">
+</section>
+</section>
+<section id="mosaic-maps">
 <h2>Mosaic maps<a class="headerlink" href="#mosaic-maps" title="Permalink to this headline">¶</a></h2>
 <p>To visualize the distribution of features across a dataset, a mosaic map can be created from a <a class="reference internal" href="model.html#slideflow.model.DatasetFeatures" title="slideflow.model.DatasetFeatures"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.model.DatasetFeatures</span></code></a> instance. Mosaic maps are generated by using features (layer activations) from a dataset, performing dimensionality reduction (UMAP) on the activations (via <a class="reference internal" href="stats.html#slideflow.SlideMap" title="slideflow.SlideMap"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.SlideMap</span></code></a>), and overlaying tile images onto the UMAP (via <a class="reference internal" href="mosaic.html#slideflow.Mosaic" title="slideflow.Mosaic"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.Mosaic</span></code></a>). By default, the post-convolutional (‘postconv’) layer is used when calculating features, but any combination of other layers can be also be used. The <code class="docutils literal notranslate"><span class="pre">Project</span></code> class has a function which can supervise these steps automatically and save the final figure to the project directory.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">features</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">generate_features</span><span class="p">(</span><span class="s1">&#39;/path/to/trained_model&#39;</span><span class="p">)</span>
@@ -322,51 +323,62 @@
 </div>
 <dl class="py function">
 <dt class="sig sig-object py">
-<span class="sig-prename descclassname"><span class="pre">slideflow.Project.</span></span><span class="sig-name descname"><span class="pre">generate_mosaic</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">df</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataset</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filters</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter_blank</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outcome_label_headers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">map_slide</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_prediction</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">restrict_pred</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">predict_on_axes</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_tiles</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">umap_cache</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_float</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">low_memory</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span></dt>
+<span class="sig-prename descclassname"><span class="pre">slideflow.Project.</span></span><span class="sig-name descname"><span class="pre">generate_mosaic</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">df</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataset</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filters</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter_blank</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outcomes</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">map_slide</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_prediction</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">restrict_pred</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">predict_on_axes</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_tiles</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">umap_cache</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_float</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">low_memory</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span></dt>
 <dd><dl class="simple">
-<dt>Generates a mosaic map by overlaying images onto a set of mapped tiles.</dt><dd><p>Image tiles are extracted from the provided set of TFRecords, and predictions + features from
-post-convolutional layer activations are calculated using the specified model. Tiles are mapped either
-with dimensionality reduction on post-convolutional layer activations (default behavior), or by using
-outcome predictions for two categories, mapped to X- and Y-axis (via predict_on_axes).</p>
+<dt>Generates a mosaic map by overlaying images onto mapped tiles.</dt><dd><p>Image tiles are extracted from the provided set of TFRecords, and
+predictions + features from layer activations are calculated using
+the specified model. Tiles are mapped either with UMAP of layer
+activations (default behavior), or by using outcome predictions for
+two categories, mapped to X- and Y-axis (via predict_on_axes).</p>
 </dd>
 </dl>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>df</strong> (<a class="reference internal" href="model.html#slideflow.model.DatasetFeatures" title="slideflow.model.DatasetFeatures"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.model.DatasetFeatures</span></code></a>) – DatasetFeatures containing model features.</p></li>
-<li><p><strong>dataset</strong> (<a class="reference internal" href="dataset.html#slideflow.Dataset" title="slideflow.dataset.Dataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.dataset.Dataset</span></code></a>, optional) – Dataset object from which to generate mosaic.
-If not supplied, will generate mosaic for all project tfrecords at the tile_px/tile_um
-matching the supplied model, optionally using provided filters and filter_blank.</p></li>
-<li><p><strong>filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.10)"><em>dict</em></a><em>, </em><em>optional</em>) – Filters dict to use when selecting tfrecords. Defaults to None.
-Ignored if dataset is supplied.
-See <code class="xref py py-meth docutils literal notranslate"><span class="pre">get_dataset()</span></code> documentation for more information on filtering.</p></li>
-<li><p><strong>filter_blank</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.10)"><em>list</em></a><em>, </em><em>optional</em>) – Slides blank in these columns will be excluded. Defaults to None.
-Ignored if dataset is supplied.</p></li>
-<li><p><strong>outcome_label_headers</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.10)"><em>list</em></a><em>, </em><em>optional</em>) – Column name in annotations file from which to read category labels.</p></li>
-<li><p><strong>map_slide</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – None (default), ‘centroid’, or ‘average’.
-If provided, will map slides using slide-level calculations, either mapping
-centroid tiles if ‘centroid’, or calculating node averages across all tiles
-in a slide and mapping slide-level node averages, if ‘average’</p></li>
-<li><p><strong>show_prediction</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – May be either int or string, corresponding to label category.
-Predictions for this category will be displayed on the exported UMAP plot.</p></li>
-<li><p><strong>restrict_pred</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.10)"><em>list</em></a><em>, </em><em>optional</em>) – List of int, if provided, will restrict predictions to only these categories
-Final tile-level prediction is made by choosing category with highest logit.</p></li>
-<li><p><strong>predict_on_axes</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.10)"><em>list</em></a><em>, </em><em>optional</em>) – (int, int). Each int corresponds to an label category id.
-If provided, predictions are generated for these two labels categories; tiles are then mapped
-with these predictions with the pattern (x, y) and the mosaic is generated from this map.
-This replaces the default dimensionality reduction mapping.</p></li>
-<li><p><strong>max_tiles</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Limits the number of tiles taken from each slide. Defaults to 0.</p></li>
-<li><p><strong>umap_cache</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Path to PKL file in which to save/cache UMAP coordinates. Defaults to None.</p></li>
-<li><p><strong>use_float</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Assume labels are float / linear (as opposed to categorical). Defaults to False.</p></li>
-<li><p><strong>low_memory</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Limit memory during UMAP calculations. Defaults to False.</p></li>
+<li><p><strong>df</strong> (<a class="reference internal" href="model.html#slideflow.model.DatasetFeatures" title="slideflow.model.DatasetFeatures"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.model.DatasetFeatures</span></code></a>) – Dataset.</p></li>
+<li><p><strong>dataset</strong> (<a class="reference internal" href="dataset.html#slideflow.Dataset" title="slideflow.dataset.Dataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.dataset.Dataset</span></code></a>, optional) – Dataset
+from which to generate mosaic. If not supplied, will generate
+mosaic for all tfrecords at the tile_px/tile_um matching
+the supplied model, optionally using filters/filter_blank.</p></li>
+<li><p><strong>filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.10)"><em>dict</em></a><em>, </em><em>optional</em>) – Filters dict to use when selecting
+tfrecords. Defaults to None.</p></li>
+<li><p><strong>filter_blank</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.10)"><em>list</em></a><em>, </em><em>optional</em>) – Slides blank in these columns will
+be excluded. Defaults to None.</p></li>
+<li><p><strong>outcomes</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.10)"><em>list</em></a><em>, </em><em>optional</em>) – Column name in annotations file from
+which to read category labels.</p></li>
+<li><p><strong>map_slide</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – None (default), ‘centroid’ or ‘average’.
+If provided, will map slides using slide-level calculations,
+either mapping centroid tiles if ‘centroid’, or calculating
+node averages across tiles in a slide and mapping slide-level
+node averages, if ‘average’.</p></li>
+<li><p><strong>show_prediction</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – May be either int or str,
+corresponding to label category. Predictions for this category
+will be displayed on the exported UMAP plot.</p></li>
+<li><p><strong>restrict_pred</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.10)"><em>list</em></a><em>, </em><em>optional</em>) – List of int, if provided, restrict
+predictions to these categories. Final tile-level prediction
+is made by choosing category with highest logit.</p></li>
+<li><p><strong>predict_on_axes</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.10)"><em>list</em></a><em>, </em><em>optional</em>) – (int, int). Each int corresponds
+to an label category id. If provided, predictions are generated
+for these two labels categories; tiles are then mapped with
+these predictions with the pattern (x, y) and the mosaic is
+generated from this map. This replaces the default UMAP.</p></li>
+<li><p><strong>max_tiles</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Limits tiles taken from each slide.
+Defaults to 0.</p></li>
+<li><p><strong>umap_cache</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Path to PKL file in which to save/cache
+UMAP coordinates. Defaults to None.</p></li>
+<li><p><strong>use_float</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Interpret labels as continuous instead
+of categorical. Defaults to False.</p></li>
+<li><p><strong>low_memory</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Limit memory during UMAP calculations.
+Defaults to False.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Keyword Arguments</dt>
 <dd class="field-even"><ul class="simple">
-<li><p><strong>resolution</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Resolution of the mosaic map. Low, medium, or high.</p></li>
+<li><p><strong>resolution</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Mosaic map resolution. Low, medium, or high.</p></li>
 <li><p><strong>num_tiles_x</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a>) – Specifies the size of the mosaic map grid.</p></li>
-<li><p><strong>expanded</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a>) – If False, limits tile assignment to the each grid space (strict display).
-If True, allows for display of nearby tiles if a given grid is empty.
+<li><p><strong>expanded</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a>) – Controls tile assignment on grid spaces.
+If False, tile assignment is strict.
+If True, allows displaying nearby tiles if a grid is empty.
 Defaults to False.</p></li>
 <li><p><strong>leniency</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.10)"><em>float</em></a>) – UMAP leniency. Defaults to 1.5.</p></li>
 </ul>
@@ -412,8 +424,8 @@ Defaults to False.</p></li>
 </pre></div>
 </div>
 <img alt="_images/3d_umap.png" src="_images/3d_umap.png" />
-</div>
-</div>
+</section>
+</section>
 
 
              </article>

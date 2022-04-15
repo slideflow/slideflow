@@ -6,10 +6,11 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  
+  <meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Switching backends &mdash; slideflow 1.1.0-rc1 documentation</title>
+  <title>Switching backends &mdash; slideflow 1.1.0 documentation</title>
   
 
   
@@ -119,7 +120,7 @@
               
               
                 <div class="version">
-                  1.0
+                  1.1
                 </div>
               
             
@@ -252,7 +253,7 @@
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
               
-  <div class="section" id="switching-backends">
+  <section id="switching-backends">
 <h1>Switching backends<a class="headerlink" href="#switching-backends" title="Permalink to this headline">¶</a></h1>
 <p>The default backend for this package is Tensorflow/Keras, but a full PyTorch backend is also included, with a dedicated TFRecord reader/writer that ensures saved image tiles can be served to both Tensorflow and PyTorch models in cross-compatible fashion.</p>
 <p>If using the Tensorflow backend, PyTorch does not need to be installed; the reverse is true as well.</p>
@@ -260,7 +261,7 @@
 <div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">export SF_BACKEND=torch</span>
 </pre></div>
 </div>
-<div class="section" id="tfrecord-dataloader">
+<section id="tfrecord-dataloader">
 <h2>TFRecord DataLoader<a class="headerlink" href="#tfrecord-dataloader" title="Permalink to this headline">¶</a></h2>
 <p>In addition to using the built-in training tools, you can use tiles that have been extracted with Slideflow with completely external projects. The <a class="reference internal" href="dataset.html#slideflow.Dataset" title="slideflow.Dataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.Dataset</span></code></a> class includes both <code class="xref py py-func docutils literal notranslate"><span class="pre">torch()</span></code> and <code class="xref py py-func docutils literal notranslate"><span class="pre">tensorflow()</span></code> functions to prepare a DataLoader or Tensorflow tf.data.Dataset instance that interleaves and processs images from stored TFRecords.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">slideflow</span> <span class="kn">import</span> <span class="n">Project</span>
@@ -286,8 +287,8 @@
 </pre></div>
 </div>
 <p>The returned dataloader can then be used directly with your external PyTorch applications.</p>
-</div>
-</div>
+</section>
+</section>
 
 
              </article>

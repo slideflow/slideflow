@@ -4,64 +4,71 @@ Training
 Prepare hyperparameters
 ***********************
 
-There are two methods for configuring model hyperparameters. If you intend to train a model using a single combination of hyperparameters, use the ``ModelParams`` class:
+The first step of model training is configuring a set of model parameters / training hyperparameters. There are two methods for configuring model parameters. If you intend to train a model using a single combination of hyperparameters, use the ``ModelParams`` class:
 
 .. code-block:: python
 
-    from slideflow.model import ModelParams
+    import slideflow as sf
 
-    hp = ModelParams(
-        epochs=[1, 5],
-        model='xception',
-        loss='sparse_categorical_crossentropy',
-        learning_rate=0.0001,
-        batch_size=8)
+    hp = sf.ModelParams(
+      epochs=[1, 5],
+      model='xception',
+      learning_rate=0.0001,
+      batch_size=8,
+      ...
+    )
 
-Alternatively, if you intend to perform a sweep across multiple hyperparameter combinations, use the ``create_hyperparameter_sweep`` function to automatically save a sweep to a TSV file. For example, the following would set up a batch_train file with two combinations; the first with a learning rate of 0.01, and the second with a learning rate of 0.001:
+Alternatively, if you intend to perform a sweep across multiple hyperparameter combinations, use the ``Project.create_hp_sweep()`` function to automatically save a sweep to a JSON file. For example, the following would set up a batch_train file with two combinations; the first with a learning rate of 0.01, and the second with a learning rate of 0.001:
 
 .. code-block:: python
 
-    P.create_hyperparameter_sweep(
-        epochs=[5],
-        toplayer_epochs=0,
-        model=['xception'],
-        pooling=['avg'],
-        loss='sparse_categorical_crossentropy',
-        learning_rate=[0.001, 0.0001],
-        batch_size=64,
-        hidden_layers=[1],
-        optimizer='Adam',
-        early_stop=True,
-        early_stop_patience=15,
-        training_balance=['category'],
-        validation_balance='none',
-        augment=True)
+    P.create_hp_sweep(
+      epochs=[5],
+      toplayer_epochs=0,
+      model=['xception'],
+      pooling=['avg'],
+      loss='sparse_categorical_crossentropy',
+      learning_rate=[0.001, 0.0001],
+      batch_size=64,
+      hidden_layers=[1],
+      optimizer='Adam',
+      augment='xyrj'
+    )
 
 Available hyperparameters include:
 
-- **tile_px** - size of extracted tiles in pixels
-- **tile_um** - size of extracted tiles in microns
-- **epochs** - number of epochs to spend training the full model
-- **toplayer_epochs** - number of epochs to spend training just the final layer, with all convolutional layers "locked" (sometimes used for transfer learning)
-- **model** - model architecture; please see `Keras application documentation <https://keras.io/applications/>`_ for all options
-- **pooling** - pooling strategy to use before final fully-connected layers; either 'max', 'avg', or 'none'
-- **loss** - loss function; please see `Keras loss documentation <https://www.tensorflow.org/api_docs/python/tf/keras/losses>`_ for all options
-- **learning_rate** - learning rate for training
-- **learning_rate_decay** - learning rate decay during training
-- **learning_rate_decay_steps** - number of steps after which to decay learning rate
-- **batch_size** - batch size for training
-- **hidden_layers** - number of fully-connected final hidden layers before softmax prediction
-- **hidden_layer_width** - width of hidden layers
-- **optimizer** - training optimizer; please see `Keras opt documentation <https://www.tensorflow.org/api_docs/python/tf/keras/optimizers>`_ for all options
-- **early_stop** - whether to use early stopping if validation loss is not decreasing
-- **early_stop_patience** - number of epochs to wait before allowing early stopping
-- **early_stop_method** - metric to use for early stopping, e.g. 'loss' or 'accuracy'
-- **training_balance** - training input balancing strategy; please see :ref:`balancing` for more details
-- **validation_balance** - validation input balancing strategy; please see :ref:`balancing` for more details
-- **trainable_layers** - number of layers available for training, other layers will be frozen. If 0, all layers are trained
-- **L2_weight** - if provided, adds L2 regularization to all layers with this weight
-- **dropout** - dropout, used for post-convolutional layer.
 - **augment** - Image augmentations to perform, including flipping/rotating and random JPEG compression. Please see :class:`slideflow.model.ModelParams` for more details.
+- **batch_size** - Batch size for training.
+- **dropout** - Adds dropout layers after each fully-connected layer.
+- **early_stop** - Stop training early if validation loss/accuracy is not decreasing.
+- **early_stop_patience** - Number of epochs to wait before allowing early stopping.
+- **early_stop_method** - mMtric to use for early stopping. Includes 'loss', 'accuracy', or 'manual'.
+- **epochs** - Number of epochs to spend training the full model.
+- **include_top** - Include the default, preconfigured, fully connected top layers of the specified model.
+- **hidden_layers** - Number of fully-connected final hidden layers before softmax prediction.
+- **hidden_layer_width** - Width of hidden layers.
+- **l1** - Adds L1 regularization to all convolutional layers with this weight.
+- **l1_dense** - Adds L1 regularization to all fully-conected Dense layers with this weight.
+- **l2** - Adds L2 regularization to all convolutional layers with this weight.
+- **l2_dense** - Adds L2 regularization to all fully-conected Dense layers with this weight.
+- **learning_rate** - Learning rate for training.
+- **learning_rate_decay** - lLarning rate decay during training.
+- **learning_rate_decay_steps** - Number of steps after which to decay learning rate
+- **loss** - loss function; please see `Keras loss documentation <https://www.tensorflow.org/api_docs/python/tf/keras/losses>`_ for all options.
+- **manual_early_stop_epoch** - Manually trigger early stopping at this epoch/batch.
+- **manual_early_stop_batch** - Manually trigger early stopping at this epoch/batch.
+- **model** - Model architecture; please see `Keras application documentation <https://keras.io/applications/>`_ for all options.
+- **normalizer** - Normalization method to use on images.
+- **normalizer_source** - Optional path to normalization image to use as the source.
+- **optimizer** - Training optimizer; please see `Keras opt documentation <https://www.tensorflow.org/api_docs/python/tf/keras/optimizers>`_ for all options.
+- **pooling** - Pooling strategy to use before final fully-connected layers; either 'max', 'avg', or 'none'.
+- **tile_px** - Size of extracted tiles in pixels.
+- **tile_um** - Size of extracted tiles in microns.
+- **toplayer_epochs** - Number of epochs to spend training just the final layer, with all convolutional layers "locked" (sometimes used for transfer learning).
+- **trainable_layers** - Number of layers available for training, other layers will be frozen. If 0, all layers are trained.
+- **training_balance** - Training input balancing strategy; please see :ref:`balancing` for more details.
+- **uq** - Enable uncertainty quantification (UQ) during inference. Requires dropout to be non-zero.
+- **validation_balance** - Validation input balancing strategy; please see :ref:`balancing` for more details.
 
 If you are using a continuous variable as an outcome measure, be sure to use a linear loss function. Linear loss functions can be viewed in ``slideflow.model.ModelParams.LinearLossDict``, and all available loss functions are in ``slideflow.model.ModelParams.AllLossDict``.
 
@@ -81,9 +88,11 @@ For example, to train using only slides labeled as "train" in the "dataset" colu
 
 .. code-block:: python
 
-    P.train(outcomes="category",
-            filters={"dataset": ["train"]},
-            params='sweep.json')
+    P.train(
+      outcomes="category",
+      filters={"dataset": ["train"]},
+      params='sweep.json'
+    )
 
 If you would like to use a different validation plan than the default, pass the relevant keyword arguments to the training function.
 
@@ -94,7 +103,7 @@ At each designated epoch, models are saved in their own folders. Each model dire
 Multiple outcomes
 *****************
 
-Slideflow supports both categorical and linear outcomes, as well as training to single or multiple outcomes at once. To use multiple outcomes simultaneously, simply pass multiple annotation headers to the ``outcomes`` argument.
+Slideflow supports both categorical and continuous outcomes, as well as training to single or multiple outcomes at once. To use multiple outcomes simultaneously, simply pass multiple annotation headers to the ``outcomes`` argument.
 
 Multiple input variables
 ************************
@@ -106,7 +115,7 @@ If desired, models can also be trained with clinical input data alone, without i
 Cox Proportional Hazards (CPH) models
 *************************************
 
-Models can also be trained to a time series outcome using CPH and negative log likelihood loss. For CPH models, use 'negative_log_likelihood' loss and set ``outcomes`` equal to the annotation column indicating event *time*. Specify the event *type* (0 or 1) by passing the event type annotation column to the argument ``input_header``. If you are using multiple clinical inputs, the first header passed to ``input_header`` must be event type. CPH models are not compatible with multiple outcomes.
+Models can also be trained to a time series outcome using CPH and negative log likelihood loss. For CPH models, use `'negative_log_likelihood'` loss and set ``outcomes`` equal to the annotation column indicating event *time*. Specify the event *type* (0 or 1) by passing the event type annotation column to the argument ``input_header``. If you are using multiple clinical inputs, the first header passed to ``input_header`` must be event type. CPH models are not compatible with multiple outcomes.
 
 .. note::
     CPH models are currently unavailable with the PyTorch backend. PyTorch support for CPH outcomes is in development.

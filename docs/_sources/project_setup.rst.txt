@@ -1,41 +1,42 @@
 Setting up a Project
 ====================
 
-The easiest way to use ``slideflow`` is through the bundled project management class, :class:`slideflow.Project`, which supports unified datasets, annotations, and project directory structure for all of the various pipeline functions. Projects are initialized at a directory, with settings saved in a ``settings.json`` file. Below are the configuration settings used to create a project:
+The easiest way to use ``slideflow`` is through the bundled project management class, :class:`slideflow.Project`, which supports unified datasets, annotations, and project directory structure for all pipeline functions.
+
+To initialize a new project, pass keyword arguments to :class:`slideflow.Project` with project settings:
+
+.. code-block:: python
+
+    import slideflow as sf
+    P = sf.Project(
+      '/path/to/project/directory',
+      name="MyProject",
+      annotations="./annotations.csv"
+      ...
+    )
+
+A project will then be initialized at the given directory, with settings saved in a ``settings.json`` file. Any project settings not provided via keyword arguments will use defaults. Each project will have the following settings:
 
 +-------------------------------+-------------------------------------------------------+
 | **name**                      | Project name.                                         |
+|                               | Defaults to "MyProject".                              |
 +-------------------------------+-------------------------------------------------------+
 | **annotations**               | Path to CSV containing annotations.                   |
 |                               | Each line is a unique slide.                          |
+|                               | Defaults to "./annotations.csv"                       |
 +-------------------------------+-------------------------------------------------------+
 | **dataset_config**            | Path to JSON file containing dataset configuration.   |
+|                               | Defaults to "./datasets.json"                         |
 +-------------------------------+-------------------------------------------------------+
 | **sources**                   | Names of dataset(s) to include in the project.        |
+|                               | Defaults to an empty list.                            |
 +-------------------------------+-------------------------------------------------------+
 | **models_dir**                | Path, where model files and results are saved.        |
+|                               | Defaults to "./models"                                |
 +-------------------------------+-------------------------------------------------------+
 | **eval_dir**                  | Path, where model evaluation results are saved.       |
+|                               | Defaults to "./eval"                                  |
 +-------------------------------+-------------------------------------------------------+
-
-Project class
-*************
-
-To interactively create a new project, initialize a Project with the ``from_prompt`` initializer:
-
-.. code-block:: python
-
-    import slideflow as sf
-    P = sf.Project.from_prompt('/path/to/project/directory')
-
-You will then be prompted for each project configuration setting.
-
-Alternatively, you may provide this configuration through keyword arguments:
-
-.. code-block:: python
-
-    import slideflow as sf
-    P = sf.Project('/path/to/project/directory', name="MyProject", ...)
 
 Once a project has been initialized at a directory, you may then load the project with the following syntax:
 
@@ -44,7 +45,7 @@ Once a project has been initialized at a directory, you may then load the projec
     import slideflow as sf
     P = sf.Project('/path/to/project/directory')
 
-Pipeline functions are then called on ``P``.
+Pipeline functions are then called on the project object ``P``.
 
 Alternatively, you can use the bundled ``run_project.py`` script to execute project functions stored in ``actions.py`` files in project directories. When ``run_project.py`` is run, it initializes a ``Project`` object at a given directory, then looks for and loads an ``actions.py`` file in this directory, executing functions contained therein.
 
@@ -54,7 +55,7 @@ To create a new project with this script, or execute functions on an existing pr
 
     $ python3 run_project.py -p /path/to/project/directory
 
-...where the -p flag is used to designate the path to your project directory. Other available flags can be seen by running ``python3 run_project.py --help``.
+where the -p flag is used to designate the path to your project directory. Other available flags can be seen by running ``python3 run_project.py --help``.
 
 Configuring Datasets
 ********************
@@ -66,31 +67,33 @@ Dataset configurations are saved in a JSON file with the below syntax. Dataset c
 .. code-block:: json
 
     {
-        "SOURCE":
-        {
-            "slides": "/directory",
-            "roi": "/directory",
-            "tiles": "/directory",
-            "tfrecords": "/directory",
-        }
+      "SOURCE":
+      {
+        "slides": "/directory",
+        "roi": "/directory",
+        "tiles": "/directory",
+        "tfrecords": "/directory",
+      }
     }
 
-Datasets are configured either interactively at the time of project initialization, or may be added by calling ``Project.add_dataset()``:
+Add a new dataset source to a project with ``Project.add_dataset()``, which will save the dataset in JSON format to the project dataset configuration file.
 
 .. code-block:: python
 
-    P.add_dataset( name="NAME",
-                   slides="/slides/directory",
-                   roi="/roi/directory",
-                   tiles="/tiles/directory",
-                   tfrecords="/tfrecords/directory")
+    P.add_source(
+      name="NAME",
+      slides="/slides/directory",
+      roi="/roi/directory",
+      tiles="/tiles/directory",
+      tfrecords="/tfrecords/directory"
+    )
 
 Setting up annotations
 **********************
 
-Your annotations CSV file is used to label patients and slides with clinical data and/or other outcome variables (or additional input variables) that will be used for training. Each line in the annotations file should correspond to a unique slide. Patients may have more than one slide.
+Your annotations file is used to label patients and slides with clinical data and/or other outcome variables that will be used for training. Each line in the annotations file should correspond to a unique slide. Patients may have more than one slide.
 
-The annotations file may contain as many columns as you would like, but it must contain the following headers at minimum:
+The annotations file may contain any number of columns, but it must contain the following headers at minimum:
 
 - **patient**: patient identifier
 - **slide**: slide name / identifier (without the file extension)
@@ -115,14 +118,14 @@ An example annotations file is generated each time a new project is initialized.
 
     P.create_blank_annotations()
 
-Slide names do not need to be explicitly set in the annotations file by the user. Rather, once a dataset has been set up, slideflow will search through the linked slide directories and attempt to match slides to entries in the annotations file using **patient**. Entries that are blank in the **slide** column will be auto-populated with any detected and matching slides, if available.
+Slide may not need to be explicitly set in the annotations file by the user. Rather, once a dataset has been set up, slideflow will search through the linked slide directories and attempt to match slides to entries in the annotations file using **patient**. Entries that are blank in the **slide** column will be auto-populated with any detected and matching slides, if available.
 
 .. _execute:
 
 Executing commands
 ******************
 
-If you plan to use ``run_project.py``, open the ``actions.py`` file located in the project directory. It should look something like this:
+If you plan to use the ``run_project.py`` script for your projects, open the ``actions.py`` file located in the project directory. It should look something like this:
 
 .. code-block:: python
 
@@ -138,7 +141,7 @@ If you plan to use ``run_project.py``, open the ``actions.py`` file located in t
         #)
 
         #model = '/path_to_model/'
-        #P.evaluate(model, outcome_label_headers="category", filters={'dataset': 'eval'})
+        #P.evaluate(model, outcomes="category", filters={'dataset': 'eval'})
         #P.generate_heatmaps(model_to_evaluate)
         pass
 

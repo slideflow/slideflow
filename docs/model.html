@@ -6,10 +6,11 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  
+  <meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>slideflow.model &mdash; slideflow 1.1.0-rc1 documentation</title>
+  <title>slideflow.model &mdash; slideflow 1.1.0 documentation</title>
   
 
   
@@ -119,7 +120,7 @@
               
               
                 <div class="version">
-                  1.0
+                  1.1
                 </div>
               
             
@@ -252,7 +253,7 @@
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
               
-  <div class="section" id="slideflow-model">
+  <section id="slideflow-model">
 <h1>slideflow.model<a class="headerlink" href="#slideflow-model" title="Permalink to this headline">¶</a></h1>
 <p>This module provides the <a class="reference internal" href="#slideflow.model.ModelParams" title="slideflow.model.ModelParams"><code class="xref py py-class docutils literal notranslate"><span class="pre">ModelParams</span></code></a> class to organize model and training
 parameters/hyperparameters and assist with model building, as well as the <a class="reference internal" href="#slideflow.model.Trainer" title="slideflow.model.Trainer"><code class="xref py py-class docutils literal notranslate"><span class="pre">Trainer</span></code></a> class that
@@ -266,7 +267,7 @@ hyperparameters.</p>
 <code class="xref py py-mod docutils literal notranslate"><span class="pre">slideflow.model.tensorflow</span></code> or <code class="xref py py-mod docutils literal notranslate"><span class="pre">slideflow.model.torch</span></code> according to the currently active backend,
 indicated by the environmental variable <code class="docutils literal notranslate"><span class="pre">SF_BACKEND</span></code>.</p>
 </div>
-<div class="section" id="configuring-and-training-models">
+<section id="configuring-and-training-models">
 <h2>Configuring and training models<a class="headerlink" href="#configuring-and-training-models" title="Permalink to this headline">¶</a></h2>
 <p><a class="reference internal" href="#slideflow.model.ModelParams" title="slideflow.model.ModelParams"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.model.ModelParams</span></code></a> will build models according to a set of model parameters and a given set of
 outcome labels. To change the core image convolutional model to another architecture, set the <code class="docutils literal notranslate"><span class="pre">model</span></code> parameter
@@ -277,8 +278,8 @@ to the custom model class.</p>
 <span class="n">mp</span> <span class="o">=</span> <span class="n">ModelParams</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="n">CustomModel</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
 </pre></div>
 </div>
-</div>
-<div class="section" id="working-with-layer-activations">
+</section>
+<section id="working-with-layer-activations">
 <h2>Working with layer activations<a class="headerlink" href="#working-with-layer-activations" title="Permalink to this headline">¶</a></h2>
 <p><a class="reference internal" href="#slideflow.model.Features" title="slideflow.model.Features"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.model.Features</span></code></a> creates an interface to efficiently generate features/layer activations and logits
 from either a batch of images (returning a batch of activations/logits) or a whole-slide image (returning a grid of
@@ -287,12 +288,12 @@ activations/logits).</p>
 result arrays into a dictionary mapping slide names to the generated activations. This buffer of whole-dataset
 activations can then be used for functions requiring analysis of whole-dataset activations, including
 <a class="reference internal" href="stats.html#slideflow.SlideMap" title="slideflow.SlideMap"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.SlideMap</span></code></a> and <code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.mosiac.Mosaic</span></code>.</p>
-</div>
-<div class="section" id="modelparams">
+</section>
+<section id="modelparams">
 <h2>ModelParams<a class="headerlink" href="#modelparams" title="Permalink to this headline">¶</a></h2>
 <dl class="py class">
 <dt class="sig sig-object py" id="slideflow.model.ModelParams">
-<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">slideflow.model.</span></span><span class="sig-name descname"><span class="pre">ModelParams</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.model.ModelParams" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">slideflow.model.</span></span><span class="sig-name descname"><span class="pre">ModelParams</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.model.ModelParams" title="Permalink to this definition">¶</a></dt>
 <dd><p>Build a set of hyperparameters.</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="slideflow.model.ModelParams.__init__">
@@ -318,6 +319,10 @@ activations can then be used for functions requiring analysis of whole-dataset a
 <li><p><strong>early_stop</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Use early stopping. Defaults to False.</p></li>
 <li><p><strong>early_stop_patience</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Patience for early stopping, in epochs. Defaults to 0.</p></li>
 <li><p><strong>early_stop_method</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Metric to monitor for early stopping. Defaults to ‘loss’.</p></li>
+<li><p><strong>manual_early_stop_epoch</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Manually override early stopping to occur at this epoch/batch.
+Defaults to None.</p></li>
+<li><p><strong>manual_early_stop_batch</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Manually override early stopping to occur at this epoch/batch.
+Defaults to None.</p></li>
 <li><p><strong>training_balance</strong> (<em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#type" title="(in Python v3.10)"><em>type</em></a><em>]</em><em>, </em><em>optional</em>) – Type of batch-level balancing to use during training.
 Options include ‘tile’, ‘category’, ‘patient’, ‘slide’, and None. Defaults to ‘category’ if a
 categorical loss is provided, and ‘patient’ if a linear loss is provided.</p></li>
@@ -340,7 +345,8 @@ If None but using a normalizer, will use an internal tile for normalization.
 Internal default tile can be found at slideflow.slide.norm_tile.jpg</p></li>
 <li><p><strong>include_top</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Include post-convolution fully-connected layers from the core model. Defaults
 to True. include_top=False is not currently compatible with the PyTorch backend.</p></li>
-<li><p><strong>drop_images</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Drop images, using only other slide-level features as input. Defaults to False.</p></li>
+<li><p><strong>drop_images</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Drop images, using only other slide-level features as input.
+Defaults to False.</p></li>
 </ul>
 </dd>
 </dl>
@@ -359,8 +365,8 @@ or the base layers of a supplied model.</p>
 or dict (dict mapping categorical outcome names to number of unique categories in each outcome).
 Must supply either <cite>num_classes</cite> or <cite>label</cite> (can detect number of classes from labels)</p></li>
 <li><p><strong>num_slide_features</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Number of slide-level features separate from image input. Defaults to 0.</p></li>
-<li><p><strong>activation</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Type of final layer activation to use. Defaults to ‘softmax’ (categorical models)
-or ‘linear’ (linear or CPH models).</p></li>
+<li><p><strong>activation</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Type of final layer activation to use. Defaults to ‘softmax’ (categorical
+models) or ‘linear’ (linear or CPH models).</p></li>
 <li><p><strong>pretrain</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Either ‘imagenet’ or path to model to use as pretraining. Defaults to ‘imagenet’.</p></li>
 <li><p><strong>checkpoint</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Path to checkpoint from which to resume model training. Defaults to None.</p></li>
 </ul>
@@ -388,12 +394,12 @@ or ‘linear’ (linear or CPH models).</p></li>
 
 </dd></dl>
 
-</div>
-<div class="section" id="trainer">
+</section>
+<section id="trainer">
 <h2>Trainer<a class="headerlink" href="#trainer" title="Permalink to this headline">¶</a></h2>
 <dl class="py class">
 <dt class="sig sig-object py" id="slideflow.model.Trainer">
-<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">slideflow.model.</span></span><span class="sig-name descname"><span class="pre">Trainer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">hp</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outdir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">patients</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">slide_input</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">manifest</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">feature_sizes</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">feature_names</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outcome_names</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mixed_precision</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_neptune</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">neptune_api</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">neptune_workspace</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.model.Trainer" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">slideflow.model.</span></span><span class="sig-name descname"><span class="pre">Trainer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">hp</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outdir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">patients</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">slide_input</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">manifest</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">feature_sizes</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">feature_names</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outcome_names</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mixed_precision</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_neptune</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">neptune_api</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">neptune_workspace</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.model.Trainer" title="Permalink to this definition">¶</a></dt>
 <dd><p>Base trainer class containing functionality for model building, input processing, training, and evaluation.</p>
 <p>This base class requires categorical outcome(s). Additional outcome types are supported by
 <a class="reference internal" href="#slideflow.model.LinearTrainer" title="slideflow.model.LinearTrainer"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.model.LinearTrainer</span></code></a> and <a class="reference internal" href="#slideflow.model.CPHTrainer" title="slideflow.model.CPHTrainer"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.model.CPHTrainer</span></code></a>.</p>
@@ -443,7 +449,8 @@ input features as input to the model.</p></li>
 of histology and each clinical slide-level feature input, if provided.</p></li>
 <li><p><strong>histogram</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Save histogram of tile predictions. Poorly optimized, uses seaborn, may
 drastically increase evaluation time. Defaults to False.</p></li>
-<li><p><strong>save_predictions</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Save tile, slide, and patient-level predictions to CSV. Defaults to False.</p></li>
+<li><p><strong>save_predictions</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Save tile, slide, and patient-level predictions to CSV.
+Defaults to False.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
@@ -506,12 +513,12 @@ Defaults to ‘imagenet’.</p></li>
 
 </dd></dl>
 
-</div>
-<div class="section" id="lineartrainer">
+</section>
+<section id="lineartrainer">
 <h2>LinearTrainer<a class="headerlink" href="#lineartrainer" title="Permalink to this headline">¶</a></h2>
 <dl class="py class">
 <dt class="sig sig-object py" id="slideflow.model.LinearTrainer">
-<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">slideflow.model.</span></span><span class="sig-name descname"><span class="pre">LinearTrainer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.model.LinearTrainer" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">slideflow.model.</span></span><span class="sig-name descname"><span class="pre">LinearTrainer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.model.LinearTrainer" title="Permalink to this definition">¶</a></dt>
 <dd><p>Extends the base <a class="reference internal" href="#slideflow.model.Trainer" title="slideflow.model.Trainer"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.model.Trainer</span></code></a> class to add support for linear outcomes. Requires that all
 outcomes be linear, with appropriate linear loss function. Uses R-squared as the evaluation metric, rather
 than AUROC.</p>
@@ -559,7 +566,8 @@ input features as input to the model.</p></li>
 of histology and each clinical slide-level feature input, if provided.</p></li>
 <li><p><strong>histogram</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Save histogram of tile predictions. Poorly optimized, uses seaborn, may
 drastically increase evaluation time. Defaults to False.</p></li>
-<li><p><strong>save_predictions</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Save tile, slide, and patient-level predictions to CSV. Defaults to False.</p></li>
+<li><p><strong>save_predictions</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Save tile, slide, and patient-level predictions to CSV.
+Defaults to False.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
@@ -622,12 +630,12 @@ Defaults to ‘imagenet’.</p></li>
 
 </dd></dl>
 
-</div>
-<div class="section" id="cphtrainer">
+</section>
+<section id="cphtrainer">
 <h2>CPHTrainer<a class="headerlink" href="#cphtrainer" title="Permalink to this headline">¶</a></h2>
 <dl class="py class">
 <dt class="sig sig-object py" id="slideflow.model.CPHTrainer">
-<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">slideflow.model.</span></span><span class="sig-name descname"><span class="pre">CPHTrainer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.model.CPHTrainer" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">slideflow.model.</span></span><span class="sig-name descname"><span class="pre">CPHTrainer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.model.CPHTrainer" title="Permalink to this definition">¶</a></dt>
 <dd><p>Cox Proportional Hazards model. Requires that the user provide event data as the first input feature,
 and time to outcome as the linear outcome. Uses concordance index as the evaluation metric.</p>
 <dl class="py method">
@@ -674,7 +682,8 @@ input features as input to the model.</p></li>
 of histology and each clinical slide-level feature input, if provided.</p></li>
 <li><p><strong>histogram</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Save histogram of tile predictions. Poorly optimized, uses seaborn, may
 drastically increase evaluation time. Defaults to False.</p></li>
-<li><p><strong>save_predictions</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Save tile, slide, and patient-level predictions to CSV. Defaults to False.</p></li>
+<li><p><strong>save_predictions</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Save tile, slide, and patient-level predictions to CSV.
+Defaults to False.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
@@ -737,42 +746,49 @@ Defaults to ‘imagenet’.</p></li>
 
 </dd></dl>
 
-</div>
-<div class="section" id="trainer-from-hp">
+</section>
+<section id="trainer-from-hp">
 <h2>trainer_from_hp<a class="headerlink" href="#trainer-from-hp" title="Permalink to this headline">¶</a></h2>
 <dl class="py function">
 <dt class="sig sig-object py" id="slideflow.model.trainer_from_hp">
 <span class="sig-prename descclassname"><span class="pre">slideflow.model.</span></span><span class="sig-name descname"><span class="pre">trainer_from_hp</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">hp</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.model.trainer_from_hp" title="Permalink to this definition">¶</a></dt>
-<dd><p>From the given <a class="reference internal" href="#slideflow.model.ModelParams" title="slideflow.model.ModelParams"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.model.ModelParams</span></code></a> object, returns the appropriate instance of
-<code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.model.Model</span></code>.</p>
+<dd><p>From the given <a class="reference internal" href="#slideflow.model.ModelParams" title="slideflow.model.ModelParams"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.model.ModelParams</span></code></a> object, returns
+the appropriate instance of <code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.model.Model</span></code>.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><p><strong>hp</strong> (<a class="reference internal" href="#slideflow.model.ModelParams" title="slideflow.model.ModelParams"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.model.ModelParams</span></code></a>) – ModelParams object.</p>
 </dd>
 <dt class="field-even">Keyword Arguments</dt>
 <dd class="field-even"><ul class="simple">
-<li><p><strong>outdir</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Location where event logs and checkpoints will be written.</p></li>
-<li><p><strong>annotations</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.10)"><em>dict</em></a>) – Nested dict, mapping slide names to a dict with patient name (key ‘patient’),
-outcome labels (key ‘outcome_label’), and any additional slide-level inputs (key ‘input’).</p></li>
-<li><p><strong>name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Optional name describing the model, used for model saving. Defaults to None.</p></li>
-<li><p><strong>manifest</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.10)"><em>dict</em></a><em>, </em><em>optional</em>) – Manifest dictionary mapping TFRecords to number of tiles. Defaults to None.</p></li>
-<li><p><strong>model_type</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Type of model outcome, ‘categorical’ or ‘linear’. Defaults to ‘categorical’.</p></li>
-<li><p><strong>feature_sizes</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.10)"><em>list</em></a><em>, </em><em>optional</em>) – List of sizes of input features. Required if providing additional
-input features as input to the model.</p></li>
-<li><p><strong>feature_names</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.10)"><em>list</em></a><em>, </em><em>optional</em>) – List of names for input features. Used when permuting feature importance.</p></li>
-<li><p><strong>outcome_names</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.10)"><em>list</em></a><em>, </em><em>optional</em>) – Name of each outcome. Defaults to “Outcome {X}” for each outcome.</p></li>
-<li><p><strong>mixed_precision</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Use FP16 mixed precision (rather than FP32). Defaults to True.</p></li>
+<li><p><strong>outdir</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Target location for event logs and checkpoints.</p></li>
+<li><p><strong>annotations</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.10)"><em>dict</em></a>) – Nested dict, mapping slide names to a dict with
+patient name (key ‘patient’), outcome labels (key ‘outcome_label’),
+and any additional slide-level inputs (key ‘input’).</p></li>
+<li><p><strong>name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Optional name describing the model, used for
+model saving. Defaults to None.</p></li>
+<li><p><strong>manifest</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.10)"><em>dict</em></a><em>, </em><em>optional</em>) – Manifest dictionary mapping TFRecords to
+number of tiles. Defaults to None.</p></li>
+<li><p><strong>model_type</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Type of model outcome, ‘categorical’ or
+‘linear’. Defaults to ‘categorical’.</p></li>
+<li><p><strong>feature_sizes</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.10)"><em>list</em></a><em>, </em><em>optional</em>) – List of sizes of input features.
+Required if providing additional input features as model input.</p></li>
+<li><p><strong>feature_names</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.10)"><em>list</em></a><em>, </em><em>optional</em>) – List of names for input features.
+Used when permuting feature importance.</p></li>
+<li><p><strong>outcome_names</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.10)"><em>list</em></a><em>, </em><em>optional</em>) – Name of each outcome. Defaults to
+“Outcome {X}” for each outcome.</p></li>
+<li><p><strong>mixed_precision</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Use FP16 mixed precision
+(rather than FP32). Defaults to True.</p></li>
 </ul>
 </dd>
 </dl>
 </dd></dl>
 
-</div>
-<div class="section" id="features">
+</section>
+<section id="features">
 <h2>Features<a class="headerlink" href="#features" title="Permalink to this headline">¶</a></h2>
 <dl class="py class">
 <dt class="sig sig-object py" id="slideflow.model.Features">
-<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">slideflow.model.</span></span><span class="sig-name descname"><span class="pre">Features</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">layers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'postconv'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">include_logits</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.model.Features" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">slideflow.model.</span></span><span class="sig-name descname"><span class="pre">Features</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">layers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'postconv'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">include_logits</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.model.Features" title="Permalink to this definition">¶</a></dt>
 <dd><p>Interface for obtaining logits and features from intermediate layer activations from Slideflow models.</p>
 <p>Use by calling on either a batch of images (returning outputs for a single batch), or by calling on a
 <code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.WSI</span></code> object, which will generate an array of spatially-mapped activations matching
@@ -801,7 +817,7 @@ performed, as it is assumed that normalization will occur during data loader ima
 When the interface is called on a <cite>slideflow.WSI</cite>, the normalization strategy will be read from the model
 configuration file, and normalization will be performed on image tiles extracted from the WSI. If this interface
 was created from an existing model and there is no model configuration file to read, a
-slideflow.slide.StainNormalizer object may be passed during initialization via the argument <cite>wsi_normalizer</cite>.</p>
+slideflow.norm.StainNormalizer object may be passed during initialization via the argument <cite>wsi_normalizer</cite>.</p>
 </div>
 <dl class="py method">
 <dt class="sig sig-object py" id="slideflow.model.Features.__init__">
@@ -813,8 +829,8 @@ at the designated layers.</p>
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Path to saved Slideflow model.</p></li>
-<li><p><strong>layers</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.10)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>)</em><em>, </em><em>optional</em>) – Layers from which to generate activations.  The post-convolution activation layer
-is accessed via ‘postconv’. Defaults to ‘postconv’.</p></li>
+<li><p><strong>layers</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.10)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>)</em><em>, </em><em>optional</em>) – Layers from which to generate activations.  The post-convolution activation
+layer is accessed via ‘postconv’. Defaults to ‘postconv’.</p></li>
 <li><p><strong>include_logits</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Include logits in output. Will be returned last. Defaults to False.</p></li>
 </ul>
 </dd>
@@ -823,7 +839,7 @@ is accessed via ‘postconv’. Defaults to ‘postconv’.</p></li>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="slideflow.model.Features.from_model">
-<em class="property"><span class="pre">classmethod</span> </em><span class="sig-name descname"><span class="pre">from_model</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">layers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'postconv'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">include_logits</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wsi_normalizer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.model.Features.from_model" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">from_model</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">layers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'postconv'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">include_logits</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wsi_normalizer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.model.Features.from_model" title="Permalink to this definition">¶</a></dt>
 <dd><p>Creates a features interface from a loaded slideflow model which outputs feature activations
 at the designated layers.</p>
 <p>Intermediate layers are returned in the order of layers. Logits are returned last.</p>
@@ -831,10 +847,10 @@ at the designated layers.</p>
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>model</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">tensorflow.keras.models.Model</span></code>) – Loaded model.</p></li>
-<li><p><strong>layers</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.10)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>)</em><em>, </em><em>optional</em>) – Layers from which to generate activations.  The post-convolution activation layer
-is accessed via ‘postconv’. Defaults to ‘postconv’.</p></li>
+<li><p><strong>layers</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.10)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>)</em><em>, </em><em>optional</em>) – Layers from which to generate activations.  The post-convolution activation
+layer is accessed via ‘postconv’. Defaults to ‘postconv’.</p></li>
 <li><p><strong>include_logits</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Include logits in output. Will be returned last. Defaults to False.</p></li>
-<li><p><strong>wsi_normalizer</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.slide.StainNormalizer</span></code>) – Stain normalizer to use on whole-slide images.
+<li><p><strong>wsi_normalizer</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.norm.StainNormalizer</span></code>) – Stain normalizer to use on whole-slide images.
 Is not used on individual tile datasets via __call__. Defaults to None.</p></li>
 </ul>
 </dd>
@@ -843,41 +859,54 @@ Is not used on individual tile datasets via __call__. Defaults to None.</p></li>
 
 </dd></dl>
 
-</div>
-<div class="section" id="datasetfeatures">
+</section>
+<section id="datasetfeatures">
 <h2>DatasetFeatures<a class="headerlink" href="#datasetfeatures" title="Permalink to this headline">¶</a></h2>
 <dl class="py class">
 <dt class="sig sig-object py" id="slideflow.model.DatasetFeatures">
-<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">slideflow.model.</span></span><span class="sig-name descname"><span class="pre">DatasetFeatures</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataset</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">annotations</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cache</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">manifest</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.model.DatasetFeatures" title="Permalink to this definition">¶</a></dt>
-<dd><p>Loads annotations, saved layer activations / features, and prepares output saving directories.
-Will also read/write processed features to a PKL cache file to save time in future iterations.</p>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">slideflow.model.</span></span><span class="sig-name descname"><span class="pre">DatasetFeatures</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataset</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">annotations</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cache</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">manifest</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.model.DatasetFeatures" title="Permalink to this definition">¶</a></dt>
+<dd><p>Loads annotations, saved layer activations / features, and prepares
+output saving directories. Will also read/write processed features to a
+PKL cache file to save time in future iterations.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>Storing logits along with layer features is optional, in order to offer the user reduced memory footprint.
-For example, saving logits for a 10,000 slide dataset with 1000 categorical outcomes would require:
-4 bytes/float32-logit * 1000 logits/slide * 3000 tiles/slide * 10000 slides ~= 112 GB</p>
+<p>Storing logits along with layer features is optional, to offer the user
+reduced memory footprint. For example, saving logits for a 10,000 slide
+dataset with 1000 categorical outcomes would require:</p>
+<p>4 bytes/float32-logit
+* 1000 logits/slide
+* 3000 tiles/slide
+* 10000 slides
+~= 112 GB</p>
 </div>
 <dl class="py method">
 <dt class="sig sig-object py" id="slideflow.model.DatasetFeatures.__init__">
 <span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataset</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">annotations</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cache</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">manifest</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.model.DatasetFeatures.__init__" title="Permalink to this definition">¶</a></dt>
-<dd><p>Calculates features / layer activations from model, storing to internal parameters <cite>self.activations</cite>, and
-<cite>self.logits</cite>, <cite>self.locations</cite>, dictionaries mapping slides to arrays of activations, logits, and locations
-for each tiles’ constituent tiles.</p>
+<dd><p>Calculates features / layer activations from model, storing to
+internal parameters <cite>self.activations</cite>, and <cite>self.logits</cite>,
+<cite>self.locations</cite>, dictionaries mapping slides to arrays of activations,
+logits, and locations for each tiles’ constituent tiles.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>model</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Path to model from which to calculate activations.</p></li>
-<li><p><strong>dataset</strong> (<a class="reference internal" href="dataset.html#slideflow.Dataset" title="slideflow.Dataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.Dataset</span></code></a>) – Dataset from which to generate activations.</p></li>
-<li><p><strong>annotations</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.10)"><em>dict</em></a><em>, </em><em>optional</em>) – Dict mapping slide names to outcome categories.</p></li>
-<li><p><strong>cache</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – File in which to store activations PKL cache.</p></li>
-<li><p><strong>manifest</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.10)"><em>dict</em></a><em>, </em><em>optional</em>) – Dict mapping tfrecords to number of tiles contained. Used for progress bars.</p></li>
+<li><p><strong>dataset</strong> (<a class="reference internal" href="dataset.html#slideflow.Dataset" title="slideflow.Dataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.Dataset</span></code></a>) – Dataset from which to
+generate activations.</p></li>
+<li><p><strong>annotations</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.10)"><em>dict</em></a><em>, </em><em>optional</em>) – Dict mapping slide names to outcome
+categories.</p></li>
+<li><p><strong>cache</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – File for PKL cache.</p></li>
+<li><p><strong>manifest</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.10)"><em>dict</em></a><em>, </em><em>optional</em>) – Dict mapping tfrecords to number of
+tiles contained. Used for progress bars.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Keyword Arguments</dt>
 <dd class="field-even"><ul class="simple">
-<li><p><strong>layers</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Model layer(s) from which to calculate activations. Defaults to ‘postconv’.</p></li>
-<li><p><strong>batch_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a>) – Batch size to use during activations calculations. Defaults to 32.</p></li>
-<li><p><strong>include_logits</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a>) – Calculate and store logits. Defaults to True.</p></li>
+<li><p><strong>layers</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Model layer(s) from which to calculate activations.
+Defaults to ‘postconv’.</p></li>
+<li><p><strong>batch_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a>) – Batch size for activations calculations.
+Defaults to 32.</p></li>
+<li><p><strong>include_logits</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a>) – Calculate and store logits.
+Defaults to True.</p></li>
 </ul>
 </dd>
 </dl>
@@ -886,14 +915,20 @@ for each tiles’ constituent tiles.</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="slideflow.model.DatasetFeatures.activations_by_category">
 <span class="sig-name descname"><span class="pre">activations_by_category</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">idx</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.model.DatasetFeatures.activations_by_category" title="Permalink to this definition">¶</a></dt>
-<dd><p>For each outcome category, calculates activations of a given feature across all tiles in the category.
-Requires annotations to have been provided.</p>
+<dd><p>For each outcome category, calculates activations of a given
+feature across all tiles in the category. Requires annotations to
+have been provided.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>idx</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a>) – Index of activations layer to return, stratified by outcome category.</p>
+<dd class="field-odd"><p><strong>idx</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a>) – Index of activations layer to return, stratified by
+outcome category.</p>
 </dd>
 <dt class="field-even">Returns</dt>
-<dd class="field-even"><p>Dict mapping categories to feature activations for all tiles in the category.</p>
+<dd class="field-even"><p><dl class="simple">
+<dt>Dict mapping categories to feature activations for all</dt><dd><p>tiles in the category.</p>
+</dd>
+</dl>
+</p>
 </dd>
 <dt class="field-odd">Return type</dt>
 <dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.10)">dict</a></p>
@@ -904,11 +939,12 @@ Requires annotations to have been provided.</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="slideflow.model.DatasetFeatures.box_plots">
 <span class="sig-name descname"><span class="pre">box_plots</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">features</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outdir</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.model.DatasetFeatures.box_plots" title="Permalink to this definition">¶</a></dt>
-<dd><p>Generates box plots comparing nodal activations at the slide-level and tile-level.</p>
+<dd><p>Generates plots comparing node activations at slide- and tile-level.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>features</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.10)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>)</em>) – List of feature indices for which to generate box plots.</p></li>
+<li><p><strong>features</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.10)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>)</em>) – List of feature indices for which to
+generate box plots.</p></li>
 <li><p><strong>outdir</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Path to directory in which to save box plots.</p></li>
 </ul>
 </dd>
@@ -923,10 +959,12 @@ Requires annotations to have been provided.</p>
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>filename</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Path to CSV file for export.</p></li>
-<li><p><strong>level</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – ‘tile’ or ‘slide’. Indicates whether tile or slide-level activations are saved.
-Defaults to ‘tile’.</p></li>
-<li><p><strong>method</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Method of summarizing slide-level results. Either ‘mean’ or ‘median’. Defaults to ‘mean’.</p></li>
-<li><p><strong>slides</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.10)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>)</em>) – Slides to export. If None, exports all slides. Defaults to None.</p></li>
+<li><p><strong>level</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – ‘tile’ or ‘slide’. Indicates whether tile or
+slide-level activations are saved. Defaults to ‘tile’.</p></li>
+<li><p><strong>method</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Method of summarizing slide-level results. Either
+‘mean’ or ‘median’. Defaults to ‘mean’.</p></li>
+<li><p><strong>slides</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.10)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>)</em>) – Slides to export. If None, exports all slides.
+Defaults to None.</p></li>
 </ul>
 </dd>
 </dl>
@@ -950,7 +988,11 @@ Defaults to ‘tile’.</p></li>
 <dd><p>Calculates the mean logits vector across all tiles in each slide.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Returns</dt>
-<dd class="field-odd"><p>This is a dictionary mapping slides to the mean logits array for all tiles in each slide.</p>
+<dd class="field-odd"><p><dl class="simple">
+<dt>This is a dictionary mapping slides to the mean logits</dt><dd><p>array for all tiles in each slide.</p>
+</dd>
+</dl>
+</p>
 </dd>
 <dt class="field-even">Return type</dt>
 <dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.10)">dict</a></p>
@@ -961,16 +1003,21 @@ Defaults to ‘tile’.</p></li>
 <dl class="py method">
 <dt class="sig sig-object py" id="slideflow.model.DatasetFeatures.logits_percent">
 <span class="sig-name descname"><span class="pre">logits_percent</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">prediction_filter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.model.DatasetFeatures.logits_percent" title="Permalink to this definition">¶</a></dt>
-<dd><p>Returns dictionary mapping slides to a vector of length num_logits with the percent of tiles in each
-slide predicted to be each outcome.</p>
+<dd><p>Returns dictionary mapping slides to a vector of length num_logits
+with the percent of tiles in each slide predicted to be each outcome.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>prediction_filter</strong> – (optional) List of int. If provided, will restrict predictions to only these
-categories, with final prediction being based based on highest logit
-among these categories.</p>
+<dd class="field-odd"><p><strong>prediction_filter</strong> – (optional) List of int. If provided, will
+restrict predictions to only these categories, with final
+prediction being based based on highest logit among these
+categories.</p>
 </dd>
 <dt class="field-even">Returns</dt>
-<dd class="field-even"><p>This is a dictionary mapping slides to an array of percentages for each logit, of length num_logits</p>
+<dd class="field-even"><p><dl class="simple">
+<dt>This is a dictionary mapping slides to an array of</dt><dd><p>percentages for each logit, of length num_logits</p>
+</dd>
+</dl>
+</p>
 </dd>
 <dt class="field-odd">Return type</dt>
 <dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.10)">dict</a></p>
@@ -981,16 +1028,18 @@ among these categories.</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="slideflow.model.DatasetFeatures.logits_predict">
 <span class="sig-name descname"><span class="pre">logits_predict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">prediction_filter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.model.DatasetFeatures.logits_predict" title="Permalink to this definition">¶</a></dt>
-<dd><p>Returns slide-level predictions, assuming the model is predicting a categorical outcome, by generating
-a prediction for each individual tile, and making a slide-level prediction by finding the mostly frequently
-predicted outcome among its constituent tiles.</p>
+<dd><p>Returns slide-level predictions, assuming the model is predicting a
+categorical outcome, by generating a prediction for each individual
+tile, and making a slide-level prediction by finding the most
+frequently predicted outcome among its constituent tiles.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>prediction_filter</strong> – (optional) List of int. If provided, will restrict predictions to only these
-categories, with final prediction being based based on highest logit among these categories.</p>
+<dd class="field-odd"><p><strong>prediction_filter</strong> – (optional) List of int. If provided, will
+restrict predictions to only these categories, with final
+prediction based based on highest logit among these categories.</p>
 </dd>
 <dt class="field-even">Returns</dt>
-<dd class="field-even"><p>Dictionary mapping slide names to final slide-level predictions.</p>
+<dd class="field-even"><p>Dictionary mapping slide names to slide-level predictions.</p>
 </dd>
 <dt class="field-odd">Return type</dt>
 <dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.10)">dict</a></p>
@@ -1006,14 +1055,16 @@ which can be used to create a SlideMap.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>x</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Outcome category id for which predictions will be mapped to the X-axis. Defaults to 0.</p></li>
-<li><p><strong>y</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Outcome category id for which predictions will be mapped to the Y-axis. Defaults to 0.</p></li>
+<li><p><strong>x</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Outcome category id for which predictions will
+be mapped to the X-axis. Defaults to 0.</p></li>
+<li><p><strong>y</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Outcome category id for which predictions will
+be mapped to the Y-axis. Defaults to 0.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
-<dd class="field-even"><p>List of x-axis coordinates (predictions for the category ‘x’)
-list:   List of y-axis coordinates (predictions for the category ‘y’)
-list:   List of dictionaries containing tile-level metadata (used for SlideMap)</p>
+<dd class="field-even"><p>List of x-axis coordinates (preds for the category ‘x’)
+list:   List of y-axis coordinates (preds for the category ‘y’)
+list:   List of dict containing tile-level metadata (for SlideMap)</p>
 </dd>
 <dt class="field-odd">Return type</dt>
 <dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.10)">list</a></p>
@@ -1027,7 +1078,8 @@ list:   List of dictionaries containing tile-level metadata (used for SlideMap)<
 <dd><p>Merges with another DatasetFeatures.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>df</strong> (<a class="reference internal" href="#slideflow.model.DatasetFeatures" title="slideflow.model.DatasetFeatures"><em>slideflow.model.DatasetFeatures</em></a>) – DatasetFeatures to merge with.</p>
+<dd class="field-odd"><p><strong>df</strong> (<a class="reference internal" href="#slideflow.model.DatasetFeatures" title="slideflow.model.DatasetFeatures"><em>slideflow.model.DatasetFeatures</em></a>) – TargetDatasetFeatures
+to merge with.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p>None</p>
@@ -1044,17 +1096,20 @@ list:   List of dictionaries containing tile-level metadata (used for SlideMap)<
 <dl class="py method">
 <dt class="sig sig-object py" id="slideflow.model.DatasetFeatures.save_example_tiles">
 <span class="sig-name descname"><span class="pre">save_example_tiles</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">features</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outdir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">slides</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tiles_per_feature</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">100</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.model.DatasetFeatures.save_example_tiles" title="Permalink to this definition">¶</a></dt>
-<dd><p>For a set of activation features, saves image tiles named according to their corresponding activations.</p>
-<p>Duplicate image tiles will be saved for each feature, organized into subfolders named according to feature.</p>
+<dd><p>For a set of activation features, saves image tiles named according
+to their corresponding activations.</p>
+<p>Duplicate image tiles will be saved for each feature, organized into
+subfolders named according to feature.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>features</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.10)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>)</em>) – Features to evaluate.</p></li>
 <li><p><strong>outdir</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Path to folder in which to save examples tiles.</p></li>
-<li><p><strong>slides</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.10)"><em>list</em></a><em>, </em><em>optional</em>) – List of slide names. If provided, will only include tiles from these slides.
-Defaults to None.</p></li>
-<li><p><strong>tiles_per_feature</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Number of tiles to include as examples for each feature. Defaults to 100.
-Will evenly sample this many tiles across the activation gradient.</p></li>
+<li><p><strong>slides</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.10)"><em>list</em></a><em>, </em><em>optional</em>) – List of slide names. If provided, will
+only include tiles from these slides. Defaults to None.</p></li>
+<li><p><strong>tiles_per_feature</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Number of tiles to include as
+examples for each feature. Defaults to 100. Will evenly sample
+this many tiles across the activation gradient.</p></li>
 </ul>
 </dd>
 </dl>
@@ -1063,26 +1118,28 @@ Will evenly sample this many tiles across the activation gradient.</p></li>
 <dl class="py method">
 <dt class="sig sig-object py" id="slideflow.model.DatasetFeatures.stats">
 <span class="sig-name descname"><span class="pre">stats</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">outdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">method</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'mean'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.model.DatasetFeatures.stats" title="Permalink to this definition">¶</a></dt>
-<dd><dl class="simple">
-<dt>Calculates activation averages across categories, as well as tile-level and patient-level statistics,</dt><dd><p>using ANOVA, exporting to CSV if desired.</p>
-</dd>
-</dl>
+<dd><p>Calculates activation averages across categories, as well as
+tile-level and patient-level statistics, using ANOVA, exporting to
+CSV if desired.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>outdir</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Path to directory in which CSV file will be saved. Defaults to None.</p></li>
-<li><p><strong>method</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Indicates method of aggregating tile-level data into slide-level data.
-Either ‘mean’ (default) or ‘threshold’. If mean, slide-level feature data is calculated by averaging
-feature activations across all tiles. If threshold, slide-level feature data is calculated by counting
-the number of tiles with feature activations &gt; threshold and dividing by the total number of tiles.
-Defaults to ‘mean’.</p></li>
+<li><p><strong>outdir</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Path to directory in which CSV file will
+be saved. Defaults to None.</p></li>
+<li><p><strong>method</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Indicates method of aggregating tile-level
+data into slide-level data. Either ‘mean’ (default) or
+‘threshold’. If mean, slide-level feature data is calculated by
+averaging feature activations across all tiles. If threshold,
+slide-level feature data is calculated by counting the number
+of tiles with feature activations &gt; threshold and dividing by
+the total number of tiles. Defaults to ‘mean’.</p></li>
 <li><p><strong>threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.10)"><em>float</em></a><em>, </em><em>optional</em>) – Threshold if using ‘threshold’ method.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
-<dd class="field-even"><p>Dict mapping slides to dict of features mapping to slide-level feature values;
-dict: Dict mapping features to tile-level dict of statistics (‘p’, ‘f’);
-dict: Dict mapping features to slide-level dict of statistics (‘p’, ‘f’);</p>
+<dd class="field-even"><p>Dict mapping slides to dict of slide-level features;
+dict: Dict mapping features to tile-level statistics (‘p’, ‘f’);
+dict: Dict mapping features to slide-level statistics (‘p’, ‘f’);</p>
 </dd>
 <dt class="field-odd">Return type</dt>
 <dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.10)">dict</a></p>
@@ -1092,8 +1149,8 @@ dict: Dict mapping features to slide-level dict of statistics (‘p’, ‘f’)
 
 </dd></dl>
 
-</div>
-</div>
+</section>
+</section>
 
 
              </article>

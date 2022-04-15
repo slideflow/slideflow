@@ -27,9 +27,9 @@ Alternatively, you can create an instance of this class directly:
     labels, unique_outcomes = dataset.labels('HPV')
 
     features = DatasetFeatures(
-        model='/path/to/trained_model',
-        dataset=dataset,
-        annotations=labels
+      model='/path/to/trained_model',
+      dataset=dataset,
+      annotations=labels
     )
 
 Tile-level feature activations for each slide can be accessed directly from ``slideflow.model.DatasetFeatures.activations``, a dict mapping slide names to numpy arrays of shape ``(num_tiles, num_features)``. Logits are stored in ``slideflow.model.DatasetFeatures.logits``, a dict mapping slide names to numpy arrays of shape ``(num_tiles, num_logits)``. Tile-level location data (coordinates from which the tiles were taken from their respective source slides) is stored in ``slideflow.model.DatasetFeatures.locations``, a dict mapping slide names to numpy arrays of shape ``(num_tiles, 2)`` (``x``, ``y``).

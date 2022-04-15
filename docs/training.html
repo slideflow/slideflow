@@ -6,10 +6,11 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  
+  <meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Training &mdash; slideflow 1.1.0-rc1 documentation</title>
+  <title>Training &mdash; slideflow 1.1.0 documentation</title>
   
 
   
@@ -119,7 +120,7 @@
               
               
                 <div class="version">
-                  1.0
+                  1.1
                 </div>
               
             
@@ -252,131 +253,163 @@
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
               
-  <div class="section" id="training">
+  <section id="training">
 <h1>Training<a class="headerlink" href="#training" title="Permalink to this headline">¶</a></h1>
-<div class="section" id="prepare-hyperparameters">
+<section id="prepare-hyperparameters">
 <h2>Prepare hyperparameters<a class="headerlink" href="#prepare-hyperparameters" title="Permalink to this headline">¶</a></h2>
-<p>There are two methods for configuring model hyperparameters. If you intend to train a model using a single combination of hyperparameters, use the <code class="docutils literal notranslate"><span class="pre">ModelParams</span></code> class:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">slideflow.model</span> <span class="kn">import</span> <span class="n">ModelParams</span>
+<p>The first step of model training is configuring a set of model parameters / training hyperparameters. There are two methods for configuring model parameters. If you intend to train a model using a single combination of hyperparameters, use the <code class="docutils literal notranslate"><span class="pre">ModelParams</span></code> class:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
 
-<span class="n">hp</span> <span class="o">=</span> <span class="n">ModelParams</span><span class="p">(</span>
-    <span class="n">epochs</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">5</span><span class="p">],</span>
-    <span class="n">model</span><span class="o">=</span><span class="s1">&#39;xception&#39;</span><span class="p">,</span>
-    <span class="n">loss</span><span class="o">=</span><span class="s1">&#39;sparse_categorical_crossentropy&#39;</span><span class="p">,</span>
-    <span class="n">learning_rate</span><span class="o">=</span><span class="mf">0.0001</span><span class="p">,</span>
-    <span class="n">batch_size</span><span class="o">=</span><span class="mi">8</span><span class="p">)</span>
+<span class="n">hp</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">ModelParams</span><span class="p">(</span>
+  <span class="n">epochs</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">5</span><span class="p">],</span>
+  <span class="n">model</span><span class="o">=</span><span class="s1">&#39;xception&#39;</span><span class="p">,</span>
+  <span class="n">learning_rate</span><span class="o">=</span><span class="mf">0.0001</span><span class="p">,</span>
+  <span class="n">batch_size</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span>
+  <span class="o">...</span>
+<span class="p">)</span>
 </pre></div>
 </div>
-<p>Alternatively, if you intend to perform a sweep across multiple hyperparameter combinations, use the <code class="docutils literal notranslate"><span class="pre">create_hyperparameter_sweep</span></code> function to automatically save a sweep to a TSV file. For example, the following would set up a batch_train file with two combinations; the first with a learning rate of 0.01, and the second with a learning rate of 0.001:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">P</span><span class="o">.</span><span class="n">create_hyperparameter_sweep</span><span class="p">(</span>
-    <span class="n">epochs</span><span class="o">=</span><span class="p">[</span><span class="mi">5</span><span class="p">],</span>
-    <span class="n">toplayer_epochs</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
-    <span class="n">model</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;xception&#39;</span><span class="p">],</span>
-    <span class="n">pooling</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;avg&#39;</span><span class="p">],</span>
-    <span class="n">loss</span><span class="o">=</span><span class="s1">&#39;sparse_categorical_crossentropy&#39;</span><span class="p">,</span>
-    <span class="n">learning_rate</span><span class="o">=</span><span class="p">[</span><span class="mf">0.001</span><span class="p">,</span> <span class="mf">0.0001</span><span class="p">],</span>
-    <span class="n">batch_size</span><span class="o">=</span><span class="mi">64</span><span class="p">,</span>
-    <span class="n">hidden_layers</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
-    <span class="n">optimizer</span><span class="o">=</span><span class="s1">&#39;Adam&#39;</span><span class="p">,</span>
-    <span class="n">early_stop</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-    <span class="n">early_stop_patience</span><span class="o">=</span><span class="mi">15</span><span class="p">,</span>
-    <span class="n">training_balance</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;category&#39;</span><span class="p">],</span>
-    <span class="n">validation_balance</span><span class="o">=</span><span class="s1">&#39;none&#39;</span><span class="p">,</span>
-    <span class="n">augment</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<p>Alternatively, if you intend to perform a sweep across multiple hyperparameter combinations, use the <code class="docutils literal notranslate"><span class="pre">Project.create_hp_sweep()</span></code> function to automatically save a sweep to a JSON file. For example, the following would set up a batch_train file with two combinations; the first with a learning rate of 0.01, and the second with a learning rate of 0.001:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">P</span><span class="o">.</span><span class="n">create_hp_sweep</span><span class="p">(</span>
+  <span class="n">epochs</span><span class="o">=</span><span class="p">[</span><span class="mi">5</span><span class="p">],</span>
+  <span class="n">toplayer_epochs</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+  <span class="n">model</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;xception&#39;</span><span class="p">],</span>
+  <span class="n">pooling</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;avg&#39;</span><span class="p">],</span>
+  <span class="n">loss</span><span class="o">=</span><span class="s1">&#39;sparse_categorical_crossentropy&#39;</span><span class="p">,</span>
+  <span class="n">learning_rate</span><span class="o">=</span><span class="p">[</span><span class="mf">0.001</span><span class="p">,</span> <span class="mf">0.0001</span><span class="p">],</span>
+  <span class="n">batch_size</span><span class="o">=</span><span class="mi">64</span><span class="p">,</span>
+  <span class="n">hidden_layers</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+  <span class="n">optimizer</span><span class="o">=</span><span class="s1">&#39;Adam&#39;</span><span class="p">,</span>
+  <span class="n">augment</span><span class="o">=</span><span class="s1">&#39;xyrj&#39;</span>
+<span class="p">)</span>
 </pre></div>
 </div>
 <p>Available hyperparameters include:</p>
 <ul class="simple">
-<li><p><strong>tile_px</strong> - size of extracted tiles in pixels</p></li>
-<li><p><strong>tile_um</strong> - size of extracted tiles in microns</p></li>
-<li><p><strong>epochs</strong> - number of epochs to spend training the full model</p></li>
-<li><p><strong>toplayer_epochs</strong> - number of epochs to spend training just the final layer, with all convolutional layers “locked” (sometimes used for transfer learning)</p></li>
-<li><p><strong>model</strong> - model architecture; please see <a class="reference external" href="https://keras.io/applications/">Keras application documentation</a> for all options</p></li>
-<li><p><strong>pooling</strong> - pooling strategy to use before final fully-connected layers; either ‘max’, ‘avg’, or ‘none’</p></li>
-<li><p><strong>loss</strong> - loss function; please see <a class="reference external" href="https://www.tensorflow.org/api_docs/python/tf/keras/losses">Keras loss documentation</a> for all options</p></li>
-<li><p><strong>learning_rate</strong> - learning rate for training</p></li>
-<li><p><strong>learning_rate_decay</strong> - learning rate decay during training</p></li>
-<li><p><strong>learning_rate_decay_steps</strong> - number of steps after which to decay learning rate</p></li>
-<li><p><strong>batch_size</strong> - batch size for training</p></li>
-<li><p><strong>hidden_layers</strong> - number of fully-connected final hidden layers before softmax prediction</p></li>
-<li><p><strong>hidden_layer_width</strong> - width of hidden layers</p></li>
-<li><p><strong>optimizer</strong> - training optimizer; please see <a class="reference external" href="https://www.tensorflow.org/api_docs/python/tf/keras/optimizers">Keras opt documentation</a> for all options</p></li>
-<li><p><strong>early_stop</strong> - whether to use early stopping if validation loss is not decreasing</p></li>
-<li><p><strong>early_stop_patience</strong> - number of epochs to wait before allowing early stopping</p></li>
-<li><p><strong>early_stop_method</strong> - metric to use for early stopping, e.g. ‘loss’ or ‘accuracy’</p></li>
-<li><p><strong>training_balance</strong> - training input balancing strategy; please see <a class="reference internal" href="appendix.html#balancing"><span class="std std-ref">A Note on Input Balancing</span></a> for more details</p></li>
-<li><p><strong>validation_balance</strong> - validation input balancing strategy; please see <a class="reference internal" href="appendix.html#balancing"><span class="std std-ref">A Note on Input Balancing</span></a> for more details</p></li>
-<li><p><strong>trainable_layers</strong> - number of layers available for training, other layers will be frozen. If 0, all layers are trained</p></li>
-<li><p><strong>L2_weight</strong> - if provided, adds L2 regularization to all layers with this weight</p></li>
-<li><p><strong>dropout</strong> - dropout, used for post-convolutional layer.</p></li>
 <li><p><strong>augment</strong> - Image augmentations to perform, including flipping/rotating and random JPEG compression. Please see <a class="reference internal" href="model.html#slideflow.model.ModelParams" title="slideflow.model.ModelParams"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.model.ModelParams</span></code></a> for more details.</p></li>
+<li><p><strong>batch_size</strong> - Batch size for training.</p></li>
+<li><p><strong>dropout</strong> - Adds dropout layers after each fully-connected layer.</p></li>
+<li><p><strong>early_stop</strong> - Stop training early if validation loss/accuracy is not decreasing.</p></li>
+<li><p><strong>early_stop_patience</strong> - Number of epochs to wait before allowing early stopping.</p></li>
+<li><p><strong>early_stop_method</strong> - mMtric to use for early stopping. Includes ‘loss’, ‘accuracy’, or ‘manual’.</p></li>
+<li><p><strong>epochs</strong> - Number of epochs to spend training the full model.</p></li>
+<li><p><strong>include_top</strong> - Include the default, preconfigured, fully connected top layers of the specified model.</p></li>
+<li><p><strong>hidden_layers</strong> - Number of fully-connected final hidden layers before softmax prediction.</p></li>
+<li><p><strong>hidden_layer_width</strong> - Width of hidden layers.</p></li>
+<li><p><strong>l1</strong> - Adds L1 regularization to all convolutional layers with this weight.</p></li>
+<li><p><strong>l1_dense</strong> - Adds L1 regularization to all fully-conected Dense layers with this weight.</p></li>
+<li><p><strong>l2</strong> - Adds L2 regularization to all convolutional layers with this weight.</p></li>
+<li><p><strong>l2_dense</strong> - Adds L2 regularization to all fully-conected Dense layers with this weight.</p></li>
+<li><p><strong>learning_rate</strong> - Learning rate for training.</p></li>
+<li><p><strong>learning_rate_decay</strong> - lLarning rate decay during training.</p></li>
+<li><p><strong>learning_rate_decay_steps</strong> - Number of steps after which to decay learning rate</p></li>
+<li><p><strong>loss</strong> - loss function; please see <a class="reference external" href="https://www.tensorflow.org/api_docs/python/tf/keras/losses">Keras loss documentation</a> for all options.</p></li>
+<li><p><strong>manual_early_stop_epoch</strong> - Manually trigger early stopping at this epoch/batch.</p></li>
+<li><p><strong>manual_early_stop_batch</strong> - Manually trigger early stopping at this epoch/batch.</p></li>
+<li><p><strong>model</strong> - Model architecture; please see <a class="reference external" href="https://keras.io/applications/">Keras application documentation</a> for all options.</p></li>
+<li><p><strong>normalizer</strong> - Normalization method to use on images.</p></li>
+<li><p><strong>normalizer_source</strong> - Optional path to normalization image to use as the source.</p></li>
+<li><p><strong>optimizer</strong> - Training optimizer; please see <a class="reference external" href="https://www.tensorflow.org/api_docs/python/tf/keras/optimizers">Keras opt documentation</a> for all options.</p></li>
+<li><p><strong>pooling</strong> - Pooling strategy to use before final fully-connected layers; either ‘max’, ‘avg’, or ‘none’.</p></li>
+<li><p><strong>tile_px</strong> - Size of extracted tiles in pixels.</p></li>
+<li><p><strong>tile_um</strong> - Size of extracted tiles in microns.</p></li>
+<li><p><strong>toplayer_epochs</strong> - Number of epochs to spend training just the final layer, with all convolutional layers “locked” (sometimes used for transfer learning).</p></li>
+<li><p><strong>trainable_layers</strong> - Number of layers available for training, other layers will be frozen. If 0, all layers are trained.</p></li>
+<li><p><strong>training_balance</strong> - Training input balancing strategy; please see <a class="reference internal" href="appendix.html#balancing"><span class="std std-ref">A Note on Input Balancing</span></a> for more details.</p></li>
+<li><p><strong>uq</strong> - Enable uncertainty quantification (UQ) during inference. Requires dropout to be non-zero.</p></li>
+<li><p><strong>validation_balance</strong> - Validation input balancing strategy; please see <a class="reference internal" href="appendix.html#balancing"><span class="std std-ref">A Note on Input Balancing</span></a> for more details.</p></li>
 </ul>
 <p>If you are using a continuous variable as an outcome measure, be sure to use a linear loss function. Linear loss functions can be viewed in <code class="docutils literal notranslate"><span class="pre">slideflow.model.ModelParams.LinearLossDict</span></code>, and all available loss functions are in <code class="docutils literal notranslate"><span class="pre">slideflow.model.ModelParams.AllLossDict</span></code>.</p>
-</div>
-<div class="section" id="begin-training">
+</section>
+<section id="begin-training">
 <h2>Begin training<a class="headerlink" href="#begin-training" title="Permalink to this headline">¶</a></h2>
 <p>Once your hyperparameter settings have been chosen you may begin training using the <code class="docutils literal notranslate"><span class="pre">train</span></code> function. Documentation of the function is given below:</p>
 <dl class="py function">
 <dt class="sig sig-object py">
-<span class="sig-prename descclassname"><span class="pre">slideflow.Project.</span></span><span class="sig-name descname"><span class="pre">train</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outcome_label_headers</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">params</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">exp_label</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filters</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter_blank</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input_header</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">resume_training</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">checkpoint</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pretrain</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'imagenet'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_tiles</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_tiles</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">multi_gpu</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">splits</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'splits.json'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">balance_headers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mixed_precision</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">training_kwargs</span></span></em><span class="sig-paren">)</span></dt>
-<dd><p>Train model(s) using a given set of hyperparameters, outcomes, and inputs.</p>
+<span class="sig-prename descclassname"><span class="pre">slideflow.Project.</span></span><span class="sig-name descname"><span class="pre">train</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outcomes</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">params</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">exp_label</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filters</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter_blank</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input_header</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_tiles</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_tiles</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">splits</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'splits.json'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">balance_headers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mixed_precision</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">training_kwargs</span></span></em><span class="sig-paren">)</span></dt>
+<dd><p>Train model(s) using a given set of parameters, outcomes, and inputs.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>outcome_label_headers</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Str or list of str. Annotation column header specifying the outcome label(s).</p></li>
-<li><p><strong>params</strong> (<a class="reference internal" href="model.html#slideflow.model.ModelParams" title="slideflow.model.ModelParams"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.model.ModelParams</span></code></a>, list, dict, or str) – Defaults to ‘sweep’.
-If ‘sweep’, will use project batch train configuration file to sweep through all HP combinations.
-Additionally, a <a class="reference internal" href="model.html#slideflow.model.ModelParams" title="slideflow.model.ModelParams"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.model.ModelParams</span></code></a> may be provided, either individually,
-as a list, or as a dictionary mapping model names to HP objects. Please see examples below for use.</p></li>
-<li><p><strong>exp_label</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Optional experiment label to add to each model name.</p></li>
-<li><p><strong>filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.10)"><em>dict</em></a><em>, </em><em>optional</em>) – Filters dict to use when selecting tfrecords. Defaults to None.
-See <code class="xref py py-meth docutils literal notranslate"><span class="pre">get_dataset()</span></code> documentation for more information on filtering.</p></li>
-<li><p><strong>filter_blank</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.10)"><em>list</em></a><em>, </em><em>optional</em>) – Slides blank in these columns will be excluded. Defaults to None.</p></li>
-<li><p><strong>input_header</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.10)"><em>list</em></a><em>, </em><em>optional</em>) – List of annotation column headers to use as model input. Defaults to None.</p></li>
-<li><p><strong>resume_training</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Path to Tensorflow model to continue training. Defaults to None.</p></li>
-<li><p><strong>checkpoint</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Path to cp.ckpt from which to load weights. Defaults to None.</p></li>
-<li><p><strong>pretrain</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Either ‘imagenet’ or path to Tensorflow model from which to load weights.
-Defaults to ‘imagenet’.</p></li>
-<li><p><strong>min_tiles</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a>) – Minimum number of tiles a slide must have to include in training. Defaults to 0.</p></li>
-<li><p><strong>max_tiles</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a>) – Only use up to this many tiles from each slide for training. Defaults to 0.
-If zero, will include all tiles.</p></li>
-<li><p><strong>multi_gpu</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a>) – Train using multiple GPUs using Keras MirroredStrategy when available. Defaults to True.</p></li>
-<li><p><strong>splits</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Filename of JSON file in which to log training/validation splits. Looks for
-filename in project root directory. Defaults to “splits.json”.</p></li>
-<li><p><strong>balance_headers</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Str or list of str. Annotation column header(s) specifying labels on which to perform
-mini-batch balancing. If performing category-level balancing and this is set to None, will default
-to balancing on outcome_label_headers. Defaults to None.</p></li>
-<li><p><strong>mixed_precision</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Ensure mixed precision is enabled. Defaults to True.</p></li>
+<li><p><strong>outcomes</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.10)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>)</em>) – Outcome label annotation header(s).</p></li>
+<li><p><strong>params</strong> (<a class="reference internal" href="model.html#slideflow.model.ModelParams" title="slideflow.model.ModelParams"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.model.ModelParams</span></code></a>, list, dict, or str) – Model parameters for training. May provide one <cite>ModelParams</cite>,
+a list, or dict mapping model names to params. If multiple
+params are provided, will train models for each. If JSON file
+is provided, will interpret as a hyperparameter sweep. See
+examples below for use.</p></li>
+<li><p><strong>exp_label</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Experiment label to add model names.</p></li>
+<li><p><strong>filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.10)"><em>dict</em></a><em>, </em><em>optional</em>) – Filters to use when selecting tfrecords.
+Defaults to None.</p></li>
+<li><p><strong>filter_blank</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.10)"><em>list</em></a><em>, </em><em>optional</em>) – Exclude slides blank in these cols.
+Defaults to None.</p></li>
+<li><p><strong>input_header</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.10)"><em>list</em></a><em>, </em><em>optional</em>) – List of annotation column headers to
+use as additional slide-level model input. Defaults to None.</p></li>
+<li><p><strong>min_tiles</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a>) – Minimum number of tiles a slide must have to
+include in training. Defaults to 0.</p></li>
+<li><p><strong>max_tiles</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a>) – Only use up to this many tiles from each slide for
+training. Defaults to 0 (include all tiles).</p></li>
+<li><p><strong>splits</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Filename of JSON file in which to log
+train/val splits. Looks for filename in project root directory.
+Defaults to “splits.json”.</p></li>
+<li><p><strong>balance_headers</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.10)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>)</em>) – Annotation header(s) specifying
+labels on which to perform mini-batch balancing. If performing
+category-level balancing and this is set to None, will default
+to balancing on outcomes. Defaults to None.</p></li>
+<li><p><strong>mixed_precision</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Enable mixed precision.
+Defaults to True.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Keyword Arguments</dt>
 <dd class="field-even"><ul class="simple">
-<li><p><strong>val_strategy</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Validation dataset selection strategy. Defaults to ‘k-fold’.
-Options include bootstrap, k-fold, k-fold-manual, k-fold-preserved-site, fixed, and none.</p></li>
-<li><p><strong>val_k_fold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a>) – Total number of K if using K-fold validation. Defaults to 3.</p></li>
-<li><p><strong>val_k</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a>) – Iteration of K-fold to train, starting at 1. Defaults to None (training all k-folds).</p></li>
-<li><p><strong>val_k_fold_header</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Annotations file header column for manually specifying k-fold or for preserved-site
-cross validation. Only used if validation strategy is ‘k-fold-manual’ or ‘k-fold-preserved-site’.
-Defaults to None for k-fold-manual and ‘site’ for k-fold-preserved-site.</p></li>
-<li><p><strong>val_fraction</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.10)"><em>float</em></a>) – Fraction of dataset to use for validation testing, if strategy is ‘fixed’.</p></li>
-<li><p><strong>val_source</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Dataset source to use for validation. Defaults to None (same as training).</p></li>
-<li><p><strong>val_annotations</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Path to annotations file for validation dataset. Defaults to None (same as training).</p></li>
-<li><p><strong>val_filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.10)"><em>dict</em></a>) – Filters dictionary to use for validation dataset. Defaults to None (same as training).</p></li>
-<li><p><strong>starting_epoch</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a>) – Start training at the specified epoch. Defaults to 0.</p></li>
-<li><p><strong>steps_per_epoch_override</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a>) – If provided, will manually set the number of steps in an epoch
-Default epoch length is the number of total tiles.</p></li>
-<li><p><strong>save_predicitons</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a>) – Save predictions with each validation. Defaults to False.
-May increase validation time for large projects.</p></li>
-<li><p><strong>save_model</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Save models when evaluating at specified epochs. Defaults to True.</p></li>
-<li><p><strong>validate_on_batch</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a>) – Validation will also be performed every N batches. Defaults to 0.</p></li>
-<li><p><strong>validation_batch_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a>) – Validation dataset batch size. Defaults to 32.</p></li>
-<li><p><strong>use_tensorboard</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a>) – Add tensorboard callback for realtime training monitoring. Defaults to False.</p></li>
-<li><p><strong>validation_steps</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a>) – Number of steps of validation to perform each time doing a validation check.
-Defaults to 200.</p></li>
+<li><p><strong>val_strategy</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Validation dataset selection strategy. Options
+include bootstrap, k-fold, k-fold-manual,
+k-fold-preserved-site, fixed, and none. Defaults to ‘k-fold’.</p></li>
+<li><p><strong>val_k_fold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a>) – Total number of K if using K-fold validation.
+Defaults to 3.</p></li>
+<li><p><strong>val_k</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a>) – Iteration of K-fold to train, starting at 1. Defaults
+to None (training all k-folds).</p></li>
+<li><p><strong>val_k_fold_header</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Annotations file header column for
+manually specifying k-fold or for preserved-site cross
+validation. Only used if validation strategy is ‘k-fold-manual’
+or ‘k-fold-preserved-site’. Defaults to None for k-fold-manual
+and ‘site’ for k-fold-preserved-site.</p></li>
+<li><p><strong>val_fraction</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.10)"><em>float</em></a>) – Fraction of dataset to use for validation
+testing, if strategy is ‘fixed’.</p></li>
+<li><p><strong>val_source</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Dataset source to use for validation. Defaults to
+None (same as training).</p></li>
+<li><p><strong>val_annotations</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Path to annotations file for validation
+dataset. Defaults to None (same as training).</p></li>
+<li><p><strong>val_filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.10)"><em>dict</em></a>) – Filters to use for validation dataset.
+Defaults to None (same as training).</p></li>
+<li><p><strong>checkpoint</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Path to cp.ckpt from which to load
+weights. Defaults to None.</p></li>
+<li><p><strong>pretrain</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Either ‘imagenet’ or path to Tensorflow
+model from which to load weights. Defaults to ‘imagenet’.</p></li>
+<li><p><strong>multi_gpu</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a>) – Train using multiple GPUs when available.
+Defaults to False.</p></li>
+<li><p><strong>resume_training</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Path to Tensorflow model to
+continue training. Defaults to None.</p></li>
+<li><p><strong>starting_epoch</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a>) – Start training at the specified epoch.
+Defaults to 0.</p></li>
+<li><p><strong>steps_per_epoch_override</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a>) – If provided, will manually set the
+number of steps in an epoch. Default epoch length is the number
+of total tiles.</p></li>
+<li><p><strong>save_predicitons</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a>) – Save predictions with each validation.
+Defaults to False.</p></li>
+<li><p><strong>save_model</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Save models when evaluating at
+specified epochs. Defaults to True.</p></li>
+<li><p><strong>validate_on_batch</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a>) – Perform validation every N batches.
+Defaults to 0 (only at epoch end).</p></li>
+<li><p><strong>validation_batch_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a>) – Validation dataset batch size.
+Defaults to 32.</p></li>
+<li><p><strong>use_tensorboard</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a>) – Add tensorboard callback for realtime
+training monitoring. Defaults to False.</p></li>
+<li><p><strong>validation_steps</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a>) – Number of steps of validation to perform
+each time doing a mid-epoch validation check. Defaults to 200.</p></li>
 </ul>
 </dd>
 <dt class="field-odd">Returns</dt>
-<dd class="field-odd"><p>A dictionary containing model names mapped to train_acc, val_loss, and val_acc</p>
+<dd class="field-odd"><p>Dict with model names mapped to train_acc, val_loss, and val_acc</p>
 </dd>
 </dl>
 <dl>
@@ -408,47 +441,49 @@ Defaults to 200.</p></li>
 </dd></dl>
 
 <p>If you used the <code class="docutils literal notranslate"><span class="pre">ModelParams</span></code> class to configure a single combination of parameters, pass this object via the <code class="docutils literal notranslate"><span class="pre">params</span></code> argument. If you configured a hyperparameter sweep, set this argument to the name of your hyperparameter sweep file (saved by default to ‘sweep.json’).</p>
-<p>Your outcome variable(s) are specified with the <code class="docutils literal notranslate"><span class="pre">outcome_label_headers</span></code> argument. You may filter slides for training using the <code class="docutils literal notranslate"><span class="pre">filter</span></code> argument, as previously described.</p>
+<p>Your outcome variable(s) are specified with the <code class="docutils literal notranslate"><span class="pre">outcomes</span></code> argument. You may filter slides for training using the <code class="docutils literal notranslate"><span class="pre">filter</span></code> argument, as previously described.</p>
 <p>For example, to train using only slides labeled as “train” in the “dataset” column, with the outcome variable defined by the column “category”, use the following syntax:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">P</span><span class="o">.</span><span class="n">train</span><span class="p">(</span><span class="n">outcome_label_headers</span><span class="o">=</span><span class="s2">&quot;category&quot;</span><span class="p">,</span>
-        <span class="n">filters</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;dataset&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;train&quot;</span><span class="p">]},</span>
-        <span class="n">params</span><span class="o">=</span><span class="s1">&#39;sweep.json&#39;</span><span class="p">)</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">P</span><span class="o">.</span><span class="n">train</span><span class="p">(</span>
+  <span class="n">outcomes</span><span class="o">=</span><span class="s2">&quot;category&quot;</span><span class="p">,</span>
+  <span class="n">filters</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;dataset&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;train&quot;</span><span class="p">]},</span>
+  <span class="n">params</span><span class="o">=</span><span class="s1">&#39;sweep.json&#39;</span>
+<span class="p">)</span>
 </pre></div>
 </div>
 <p>If you would like to use a different validation plan than the default, pass the relevant keyword arguments to the training function.</p>
 <p>Once training has finished, performance metrics - including accuracy, loss, etc. - can be found in the <code class="docutils literal notranslate"><span class="pre">results_log.csv</span></code> file in the project directory. Additional data, including ROCs and scatter plots, are saved in the model directories.</p>
 <p>At each designated epoch, models are saved in their own folders. Each model directory will include a copy of its hyperparameters in a <code class="docutils literal notranslate"><span class="pre">params.json</span></code> file, and a copy of its training/validation slide manifest in <code class="docutils literal notranslate"><span class="pre">slide.log</span></code>.</p>
-</div>
-<div class="section" id="multiple-outcomes">
+</section>
+<section id="multiple-outcomes">
 <h2>Multiple outcomes<a class="headerlink" href="#multiple-outcomes" title="Permalink to this headline">¶</a></h2>
-<p>Slideflow supports both categorical and linear outcomes, as well as training to single or multiple outcomes at once. To use multiple outcomes simultaneously, simply pass multiple annotation headers to the <code class="docutils literal notranslate"><span class="pre">outcome_label_headers</span></code> argument.</p>
-</div>
-<div class="section" id="multiple-input-variables">
+<p>Slideflow supports both categorical and continuous outcomes, as well as training to single or multiple outcomes at once. To use multiple outcomes simultaneously, simply pass multiple annotation headers to the <code class="docutils literal notranslate"><span class="pre">outcomes</span></code> argument.</p>
+</section>
+<section id="multiple-input-variables">
 <h2>Multiple input variables<a class="headerlink" href="#multiple-input-variables" title="Permalink to this headline">¶</a></h2>
 <p>In addition to training using image data, clinical data can also be provided as model input by passing annotation column headers to the variable ‘’input_header’’. This input is merged at the post-convolutional layer, prior to any configured hidden layers.</p>
 <p>If desired, models can also be trained with clinical input data alone, without images, by using the hyperparameter argument <code class="docutils literal notranslate"><span class="pre">drop_images=True</span></code>.</p>
-</div>
-<div class="section" id="cox-proportional-hazards-cph-models">
+</section>
+<section id="cox-proportional-hazards-cph-models">
 <h2>Cox Proportional Hazards (CPH) models<a class="headerlink" href="#cox-proportional-hazards-cph-models" title="Permalink to this headline">¶</a></h2>
-<p>Models can also be trained to a time series outcome using CPH and negative log likelihood loss. For CPH models, use ‘negative_log_likelihood’ loss and set <code class="docutils literal notranslate"><span class="pre">outcome_label_header</span></code> equal to the annotation column indicating event <em>time</em>. Specify the event <em>type</em> (0 or 1) by passing the event type annotation column to the argument <code class="docutils literal notranslate"><span class="pre">input_header</span></code>. If you are using multiple clinical inputs, the first header passed to <code class="docutils literal notranslate"><span class="pre">input_header</span></code> must be event type. CPH models are not compatible with multiple outcomes.</p>
+<p>Models can also be trained to a time series outcome using CPH and negative log likelihood loss. For CPH models, use <cite>‘negative_log_likelihood’</cite> loss and set <code class="docutils literal notranslate"><span class="pre">outcomes</span></code> equal to the annotation column indicating event <em>time</em>. Specify the event <em>type</em> (0 or 1) by passing the event type annotation column to the argument <code class="docutils literal notranslate"><span class="pre">input_header</span></code>. If you are using multiple clinical inputs, the first header passed to <code class="docutils literal notranslate"><span class="pre">input_header</span></code> must be event type. CPH models are not compatible with multiple outcomes.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>CPH models are currently unavailable with the PyTorch backend. PyTorch support for CPH outcomes is in development.</p>
 </div>
-</div>
-<div class="section" id="distributed-training-across-gpus">
+</section>
+<section id="distributed-training-across-gpus">
 <h2>Distributed training across GPUs<a class="headerlink" href="#distributed-training-across-gpus" title="Permalink to this headline">¶</a></h2>
 <p>If multiple GPUs are available, training can be distributed by passing the argument <code class="docutils literal notranslate"><span class="pre">multi_gpu=True</span></code>. If provided, slideflow will use all available (and visible) GPUs for training.</p>
-</div>
-<div class="section" id="monitoring-performance">
+</section>
+<section id="monitoring-performance">
 <h2>Monitoring performance<a class="headerlink" href="#monitoring-performance" title="Permalink to this headline">¶</a></h2>
 <p>During training, progress can be monitored using Tensorflow’s bundled <code class="docutils literal notranslate"><span class="pre">Tensorboard</span></code> package by passing the argument <code class="docutils literal notranslate"><span class="pre">use_tensorboard=True</span></code>. This functionality was disabled by default due to a recent bug in Tensorflow. To use tensorboard to monitor training, execute:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ tensorboard --logdir<span class="o">=</span>/path/to/model/directory
 </pre></div>
 </div>
 <p>… and open <a class="reference external" href="http://localhost:6006">http://localhost:6006</a> in your web browser.</p>
-</div>
-</div>
+</section>
+</section>
 
 
              </article>

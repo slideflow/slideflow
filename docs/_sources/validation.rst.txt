@@ -6,7 +6,7 @@ Validation Planning
 An important first step in creating a new project is to determine the validation plan. Three groups of data are required:
 
 1) **Training data** - data used for learning during training
-2) **Validation data** - data used for performance testing during training
+2) **Validation data** - data used for testing during training, and early stopping (if applicable)
 3) **Evaluation data** - data used for final evaluation once training has completed. Preferably an external cohort.
 
 Validation data is used to assess model performance and generalizability during training. Once the model and parameters have been tuned with training/validation, the final model's performance is assessed on the held-out evaluation set.
@@ -17,7 +17,7 @@ Configuring a validation plan
 There are several ways you can plan to validate your data. The validation settings available include:
 
 - **strategy**:  *'bootstrap'*, *'k-fold'*, *k-fold-manual'*, *'k-fold-preserved-site'*, *'fixed'*, *'none'*
-- **fraction**:  (float between 0-1)
+- **fraction**:  (float between 0-1) [not used for k-fold validation]
 - **k_fold**:  int
 
 The default strategy is 'k-fold', with k=3.
