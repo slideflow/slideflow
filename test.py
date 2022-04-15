@@ -3,6 +3,7 @@ import click
 import multiprocessing
 import logging
 import tabulate
+import slideflow as sf
 from slideflow.test import TestSuite
 from slideflow.util import colors as col
 
@@ -44,6 +45,15 @@ def main(slides, out, all, **kwargs):
     if all is not None:
         kwargs = {k: all if kwargs[k] is None else kwargs[k] for k in kwargs}
 
+    # Show active backend
+    if sf.backend() == 'tensorflow':
+        print(col.bold("\nActive backend:"), col.yellow('tensorflow'))
+    elif sf.backend() == 'torch':
+        print(col.bold("\nActive backend:"), col.purple('torch'))
+    else:
+        print(col.bold("\nActive backend: <Unknown>"))
+
+    # Show tests to run
     print(col.bold("\nTests to run:"))
     tests = kwargs.values()
     print(tabulate.tabulate({

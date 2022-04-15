@@ -1503,7 +1503,7 @@ class Dataset:
             incl_slidenames (bool, optional): Include slidenames as third
                 returned variable. Defaults to False.
             infinite (bool, optional): Infinitely repeat data.
-                Defaults to False.
+                Defaults to True.
             rank (int, optional): Worker ID to identify which worker this
                 represents. Used to interleave results among workers without
                 duplications. Defaults to 0 (first worker).
@@ -2036,7 +2036,7 @@ class Dataset:
             incl_slidenames (bool, optional): Include slidenames as third
                 returned variable. Defaults to False.
             infinite (bool, optional): Infinitely repeat data.
-                Defaults to False.
+                Defaults to True.
             rank (int, optional): Worker ID to identify which worker this
                 represents. Used to interleave results among workers without
                 duplications. Defaults to 0 (first worker).

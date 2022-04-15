@@ -256,12 +256,21 @@ class ModelParams(_base._ModelParams):
         tile_image_model, model_inputs = self._build_base(pretrain)
 
         if num_slide_features:
+            log.debug(f'Generating model {num_slide_features} slide input features')
             slide_feature_input_tensor = tf.keras.Input(shape=(num_slide_features), name='slide_feature_input')
+        else:
+            log.debug('Not using any slide-level input features.')
 
         # Merge layers
         if num_slide_features and ((self.tile_px == 0) or self.drop_images):
             log.info('Generating model with just clinical variables and no images')
             merged_model = slide_feature_input_tensor
+            model_inputs += [slide_feature_input_tensor]
+        elif num_slide_features and num_slide_features > 1:
+            # Add slide feature input tensors, if there are more slide features
+            #    than just the event input tensor for CPH models
+            merged_model = tf.keras.layers.Concatenate(name='input_merge')([slide_feature_input_tensor,
+                                                                            tile_image_model.output])
             model_inputs += [slide_feature_input_tensor]
         else:
             merged_model = tile_image_model.output
@@ -411,7 +420,7 @@ class ModelParams(_base._ModelParams):
             )
             return self.OptDict[self.optimizer](learning_rate=lr_schedule)
         else:
-            return self.OptDict[self.optimizer](lr=self.learning_rate)
+            return self.OptDict[self.optimizer](learning_rate=self.learning_rate)
 
     def model_type(self):
         """Returns either 'linear', 'categorical', or 'cph' depending on the loss type."""

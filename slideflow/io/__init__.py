@@ -13,18 +13,23 @@ from slideflow.util import log
 from slideflow.util import colors as col
 from slideflow import errors
 
+
 # Backend-specific imports and configuration
 if os.environ['SF_BACKEND'] == 'tensorflow':
     import tensorflow as tf
-    from slideflow.io.tensorflow import get_tfrecord_parser, detect_tfrecord_format, serialized_record, \
-                                        read_and_return_record
+    from slideflow.io.tensorflow import (get_tfrecord_parser,  # noqa F401
+                                         detect_tfrecord_format,
+                                         serialized_record,
+                                         read_and_return_record)
     from tensorflow.data import TFRecordDataset
     from tensorflow.io import TFRecordWriter
     dataloss_errors = (tf.errors.DataLossError, errors.TFRecordsError)
 
 elif os.environ['SF_BACKEND'] == 'torch':
-    from slideflow.io.torch import get_tfrecord_parser, detect_tfrecord_format, serialized_record, \
-                                   read_and_return_record
+    from slideflow.io.torch import (get_tfrecord_parser,  # noqa F401
+                                    detect_tfrecord_format,
+                                    serialized_record,
+                                    read_and_return_record)
     from slideflow.tfrecord.torch.dataset import TFRecordDataset
     from slideflow.tfrecord import TFRecordWriter
     dataloss_errors = (errors.TFRecordsError,)
@@ -32,32 +37,37 @@ elif os.environ['SF_BACKEND'] == 'torch':
 else:
     raise errors.BackendError(f"Unknown backend {os.environ['SF_BACKEND']}")
 
-def update_manifest_at_dir(directory, force_update=False):
-    '''Log number of tiles in each TFRecord file present in the given directory and all subdirectories,
-    saving manifest to file within the parent directory.'''
 
+def update_manifest_at_dir(directory, force_update=False):
+    '''Log number of tiles in each TFRecord file present in the given
+    directory and all subdirectories, saving manifest to file within
+    the parent directory.
+    '''
     manifest_path = join(directory, "manifest.json")
-    manifest = {} if not exists(manifest_path) else sf.util.load_json(manifest_path)
+    if not exists(manifest_path):
+        manifest = {}
+    else:
+        manifest = sf.util.load_json(manifest_path)
     prior_manifest = copy.deepcopy(manifest)
     try:
-        relative_tfrecord_paths = sf.util.get_relative_tfrecord_paths(directory)
+        rel_paths = sf.util.get_relative_tfrecord_paths(directory)
     except FileNotFoundError:
-        log.debug(f"Unable to update manifest at {directory}; TFRecords not found")
+        log.debug(f"Failed to update manifest {directory}; no TFRecords")
         return
 
     # Verify all tfrecords in manifest exist
     for rel_tfr in prior_manifest.keys():
         tfr = join(directory, rel_tfr)
         if not exists(tfr):
-            log.warning(f"TFRecord in manifest was not found at {tfr}; removing")
+            log.warning(f"TFRecord {tfr} in manifest was not found; removing")
             del(manifest[rel_tfr])
 
     def process_tfr(rel_tfr):
         tfr = join(directory, rel_tfr)
-
-        if (not force_update) and (rel_tfr in manifest) and ('total' in manifest[rel_tfr]):
+        if ((not force_update)
+           and (rel_tfr in manifest)
+           and ('total' in manifest[rel_tfr])):
             return None
-
         rel_tfr_manifest = {rel_tfr: {}}
         try:
             total = read_tfrecord_length(tfr)
@@ -70,10 +80,14 @@ def update_manifest_at_dir(directory, force_update=False):
 
     pool = DPool(8)
     if log.getEffectiveLevel() <= 20:
-        pb = tqdm(desc='Verifying tfrecords...', total=len(relative_tfrecord_paths), leave=False)
+        pb = tqdm(
+            desc='Verifying tfrecords...',
+            total=len(rel_paths),
+            leave=False
+        )
     else:
         pb = None
-    for m in pool.imap(process_tfr, relative_tfrecord_paths):
+    for m in pool.imap(process_tfr, rel_paths):
         if pb is not None:
             pb.update()
         if m is None:
@@ -83,16 +97,16 @@ def update_manifest_at_dir(directory, force_update=False):
             os.remove(tfr)
             continue
         manifest.update(m)
-
     # Write manifest file
     if (manifest != prior_manifest) or (manifest == {}):
         sf.util.write_json(manifest, manifest_path)
-
     return manifest
 
-def get_tfrecord_by_index(tfrecord, index, decode=True):
-    '''Reads and returns an individual record from a tfrecord by index, including slide name and processed image data.'''
 
+def get_tfrecord_by_index(tfrecord, index, decode=True):
+    '''Reads and returns an individual record from a tfrecord by index,
+    including slide name and processed image data.
+    '''
     if type(index) != int:
         try:
             index = int(index)
@@ -101,44 +115,61 @@ def get_tfrecord_by_index(tfrecord, index, decode=True):
 
     dataset = TFRecordDataset(tfrecord)
     parser = get_tfrecord_parser(tfrecord, ('slide', 'image_raw'), decode_images=decode)
-
     total = 0
     for i, record in enumerate(dataset):
         total += 1
         if i == index:
             return parser(record)
-        else: continue
-
-    log.error(f"Unable to find record at index {index} in {sf.util.green(tfrecord)} ({total} total records)")
+        else:
+            continue
+    msg = f"Unable to find record: index {index} in {sf.util.green(tfrecord)}"
+    msg += " ({total} total records)"
+    log.error(msg)
     return False, False
 
+
 def write_tfrecords_multi(input_directory, output_directory):
-    '''Scans a folder for subfolders, assumes subfolders are slide names. Assembles all image tiles within
-    subfolders and labels using the provided annotation_dict, assuming the subfolder is the slide name.
-    Collects all image tiles and exports into multiple tfrecord files, one for each slide.'''
+    '''Scans a folder for subfolders, assumes subfolders are slide names.
+    Assembles all image tiles within subfolders and labels using the provided
+    annotation_dict, assuming the subfolder is the slide name. Collects all
+    image tiles and exports into multiple tfrecord files, one for each slide.
+    '''
     log.info("No location data available; writing (0,0) for all tile locations.")
-    slide_dirs = [_dir for _dir in os.listdir(input_directory) if isdir(join(input_directory, _dir))]
+    slide_dirs = [
+        _dir for _dir in os.listdir(input_directory)
+        if isdir(join(input_directory, _dir))
+    ]
     total_tiles = 0
     for slide_dir in slide_dirs:
-        total_tiles += write_tfrecords_single(join(input_directory, slide_dir),
-                                              output_directory,
-                                              f'{slide_dir}.tfrecords',
-                                              slide_dir)
+        total_tiles += write_tfrecords_single(
+            join(input_directory, slide_dir),
+            output_directory,
+            f'{slide_dir}.tfrecords',
+            slide_dir
+        )
     msg_num_tiles = col.bold(total_tiles)
     msg_num_tfr = col.bold(len(slide_dirs))
-    log.info(f"Wrote {msg_num_tiles} tiles across {msg_num_tfr} tfrecords in {sf.util.green(output_directory)}")
+    msg = f"Wrote {msg_num_tiles} tiles across {msg_num_tfr} tfrecords "
+    msg += f"in {sf.util.green(output_directory)}"
+    log.info(msg)
+
 
 def write_tfrecords_single(input_directory, output_directory, filename, slide):
-    '''Scans a folder for image tiles, annotates using the provided slide, exports
-    into a single tfrecord file.'''
+    '''Scans a folder for image tiles, annotates using the provided slide,
+    exports into a single tfrecord file.'''
     if not exists(output_directory):
         os.makedirs(output_directory)
     tfrecord_path = join(output_directory, filename)
     image_labels = {}
-    files = [f for f in os.listdir(input_directory) if (isfile(join(input_directory, f))) and
-            (sf.util.path_to_ext(f) in ("jpg", "png"))]
+    files = [
+        f for f in os.listdir(input_directory)
+        if ((isfile(join(input_directory, f)))
+            and (sf.util.path_to_ext(f) in ("jpg", "png")))
+    ]
     for tile in files:
-        image_labels.update({join(input_directory, tile): bytes(slide, 'utf-8')})
+        image_labels.update({
+            join(input_directory, tile): bytes(slide, 'utf-8')
+        })
     keys = list(image_labels.keys())
     shuffle(keys)
     writer = TFRecordWriter(tfrecord_path)
@@ -148,25 +179,36 @@ def write_tfrecords_single(input_directory, output_directory, filename, slide):
         record = serialized_record(label, image_string, 0, 0)
         writer.write(record)
     writer.close()
-    log.info(f"Wrote {len(keys)} image tiles to {sf.util.green(tfrecord_path)}")
+    log.info(f"Wrote {len(keys)} images to {sf.util.green(tfrecord_path)}")
     return len(keys)
+
 
 def write_tfrecords_merge(input_directory, output_directory, filename):
-    '''Scans a folder for subfolders, assumes subfolders are slide names. Assembles all image tiles within
-    subfolders and labels using the provided annotation_dict, assuming the subfolder is the slide name.
-    Collects all image tiles and exports into a single tfrecord file.'''
+    '''Scans a folder for subfolders, assumes subfolders are slide names.
+    Assembles all image tiles within subfolders and labels using the provided
+    annotation_dict, assuming the subfolder is the slide name. Collects all
+    image tiles and exports into a single tfrecord file.
+    '''
     tfrecord_path = join(output_directory, filename)
     if not exists(output_directory):
         os.makedirs(output_directory)
     image_labels = {}
-    slide_dirs = [_dir for _dir in os.listdir(input_directory) if isdir(join(input_directory, _dir))]
+    slide_dirs = [
+        _dir for _dir in os.listdir(input_directory)
+        if isdir(join(input_directory, _dir))
+    ]
     for slide_dir in slide_dirs:
         directory = join(input_directory, slide_dir)
-        files = [f for f in os.listdir(directory) if (isfile(join(directory, f))) and
-                (sf.util.path_to_ext(f) in ("jpg", "png"))]
-
+        files = [
+            f for f in os.listdir(directory)
+            if ((isfile(join(directory, f)))
+                and (sf.util.path_to_ext(f) in ("jpg", "png")))
+            ]
         for tile in files:
-            image_labels.update({join(input_directory, slide_dir, tile): bytes(slide_dir, 'utf-8')})
+            tgt = join(input_directory, slide_dir, tile)
+            image_labels.update({
+                tgt: bytes(slide_dir, 'utf-8')
+            })
     keys = list(image_labels.keys())
     shuffle(keys)
     writer = TFRecordWriter(tfrecord_path)
@@ -176,8 +218,9 @@ def write_tfrecords_merge(input_directory, output_directory, filename):
         record = serialized_record(label, image_string, 0, 0)
         writer.write(record)
     writer.close()
-    log.info(f"Wrote {len(keys)} image tiles to {sf.util.green(tfrecord_path)}")
+    log.info(f"Wrote {len(keys)} images to {sf.util.green(tfrecord_path)}")
     return len(keys)
+
 
 def extract_tiles(tfrecord, destination):
     '''Reads and saves images from a TFRecord to a destination folder.'''
@@ -189,7 +232,12 @@ def extract_tiles(tfrecord, destination):
 
     dataset = TFRecordDataset(tfrecord)
     _, img_type = detect_tfrecord_format(tfrecord)
-    parser = get_tfrecord_parser(tfrecord, ('slide', 'image_raw'), to_numpy=True, decode_images=False)
+    parser = get_tfrecord_parser(
+        tfrecord,
+        ('slide', 'image_raw'),
+        to_numpy=True,
+        decode_images=False
+    )
     for i, record in enumerate(dataset):
         slide, image_raw = parser(record)
         slidename = slide if type(slide) == str else slide.decode('utf-8')
@@ -201,12 +249,13 @@ def extract_tiles(tfrecord, destination):
         image_string.write(image_raw)
         image_string.close()
 
+
 def read_tfrecord_length(tfrecord):
     """Returns number of records stored in the given tfrecord file."""
     infile = open(tfrecord, "rb")
     num_records = 0
     while True:
-        current = infile.tell()
+        infile.tell()
         try:
             byte_len = infile.read(8)
             if len(byte_len) == 0:
@@ -223,13 +272,13 @@ def read_tfrecord_length(tfrecord):
     infile.close()
     return num_records
 
+
 def get_locations_from_tfrecord(filename):
     '''Returns dictionary mapping indices to tile locations (X, Y)'''
-
     dataset = TFRecordDataset(filename)
     loc_dict = {}
     parser = get_tfrecord_parser(filename, ('loc_x', 'loc_y'), to_numpy=True)
     for i, record in enumerate(dataset):
         loc_x, loc_y = parser(record)
-        loc_dict.update({ i: (loc_x, loc_y)    })
+        loc_dict.update({i: (loc_x, loc_y)})
     return loc_dict

@@ -2,8 +2,10 @@
 
 import tensorflow as tf
 
+
 def get_ndims(image):
     return image.get_shape().ndims or tf.rank(image)
+
 
 def to_4D_image(image):
     """Convert 2/3/4D image to 4D image.
@@ -28,6 +30,7 @@ def to_4D_image(image):
             return image[None, :, :, :]
         else:
             return image
+
 
 def normalize_tuple(value, n, name):
     """Transforms an integer or iterable of integers into an integer tuple.
@@ -87,6 +90,7 @@ def normalize_tuple(value, n, name):
                 )
         return value_tuple
 
+
 def _dynamic_to_4D_image(image):
     shape = tf.shape(image)
     original_rank = tf.rank(image)
@@ -104,6 +108,7 @@ def _dynamic_to_4D_image(image):
         axis=0,
     )
     return tf.reshape(image, new_shape)
+
 
 def from_4D_image(image, ndims):
     """Convert back to an image with `ndims` rank.
@@ -125,6 +130,7 @@ def from_4D_image(image, ndims):
         else:
             return image
 
+
 def _dynamic_from_4D_image(image, original_rank):
     shape = tf.shape(image)
     # 4D image <= [N, H, W, C] or [N, C, H, W]
@@ -135,6 +141,7 @@ def _dynamic_from_4D_image(image, original_rank):
     new_shape = shape[begin:end]
     return tf.reshape(image, new_shape)
 
+
 def _get_gaussian_kernel(sigma, filter_shape):
     """Compute 1D Gaussian kernel."""
     sigma = tf.convert_to_tensor(sigma)
@@ -143,10 +150,12 @@ def _get_gaussian_kernel(sigma, filter_shape):
     x = tf.nn.softmax(-x / (2.0 * (sigma ** 2)))
     return x
 
+
 def _get_gaussian_kernel_2d(gaussian_filter_x, gaussian_filter_y):
     """Compute 2D Gaussian kernel given 1D kernels."""
     gaussian_kernel = tf.matmul(gaussian_filter_x, gaussian_filter_y)
     return gaussian_kernel
+
 
 def _pad(image, filter_shape, mode="CONSTANT", constant_values=0):
 
