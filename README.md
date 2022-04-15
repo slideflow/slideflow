@@ -7,6 +7,13 @@ Slideflow is a computational pathology Python package which provides a unified A
 
 Slideflow includes tools for **whole-slide image processing** and segmentation, **customizable deep learning model training** with dozens of supported architectures, **explainability tools** including heatmaps and mosaic maps, **analysis of activations** from model layers, **uncertainty quantification**, and more. A variety of fast, optimized whole-slide image processing tools are included, including background filtering, blur/artifact detection, digital stain normalization, and efficient storage in `*.tfrecords` format. Model training is easy and highly configurable, with support for dozens of model architectures (from `tf.keras.applications` or `torchvision.models`) and an easy drop-in API for training custom architectures. For entirely custom training loops, Slideflow can be used as an image processing front-end, serving an optimized `tf.data.Dataset` or `torch.utils.data.DataLoader` which can read and process `*.tfrecords` images and perform real-time stain normalization.
 
+Slideflow has been used by:
+
+- [Dolezal et al](https://www.nature.com/articles/s41379-020-00724-3), _Modern Pathology_, 2020
+- [Rosenberg et al](https://ascopubs.org/doi/10.1200/JCO.2020.38.15_suppl.e23529), _Journal of Clinical Oncology_ [abstract], 2020
+- [Howard et al](https://www.nature.com/articles/s41467-021-24698-1), _Nature Communications_, 2021
+- [Dolezal et al](https://arxiv.org/abs/2204.04516) [arXiv], 2022
+
 ## Installation
 Slideflow requires Python 3.7+ and [libvips](https://libvips.github.io/libvips/) 8.9+.
 
