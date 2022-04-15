@@ -498,6 +498,20 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
                 logs['accuracy'],
                 step=self.global_step
             )
+
+        # Check if manual early stopping has been triggered
+        if (self.hp.early_stop
+           and self.hp.early_stop_method == 'manual'):
+
+            if (self.hp.manual_early_stop_epoch <= (self.epoch_count+1)
+               and self.hp.manual_early_stop_batch <= batch):
+
+                log.info(f'Manual early stop triggered: epoch {self.epoch_count+1}, batch {batch}')
+                self.model.stop_training = True
+                self.early_stop = True
+                self.early_stop_batch = batch
+                self.early_stop_epoch = self.epoch_count + 1
+
         # Validation metrics
         if (self.cb_args.using_validation and self.cb_args.validate_on_batch
            and (batch > 0)
@@ -564,7 +578,8 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
             # If early stopping and our patience criteria has been met,
             #   check if validation accuracy is still improving
             if (self.hp.early_stop
-               and (self.last_ema != -1)
+               and self.hp.early_stop_method in ('loss', 'accuracy')
+               and self.last_ema != -1
                and (float(batch)/self.cb_args.steps_per_epoch)+self.epoch_count > self.hp.early_stop_patience):
 
                 if (self.ema_two_checks_prior != -1

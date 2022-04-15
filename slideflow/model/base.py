@@ -16,9 +16,9 @@ class _ModelParams:
                  loss='sparse_categorical_crossentropy', learning_rate=0.0001, learning_rate_decay=0,
                  learning_rate_decay_steps=100000, batch_size=16, hidden_layers=0, hidden_layer_width=500,
                  optimizer='Adam', early_stop=False, early_stop_patience=0, early_stop_method='loss',
-                 training_balance='auto', validation_balance='none', trainable_layers=0, l1=0, l2=0, l1_dense=None,
-                 l2_dense=None, dropout=0, uq=False, augment='xyrj', normalizer=None, normalizer_source=None,
-                 include_top=True, drop_images=False):
+                 manual_early_stop_epoch=None, manual_early_stop_batch=None, uq=False, training_balance='auto',
+                 validation_balance='none', trainable_layers=0, l1=0, l2=0, l1_dense=None, l2_dense=None, dropout=0,
+                 augment='xyrj', normalizer=None, normalizer_source=None, include_top=True, drop_images=False):
 
         """Collection of hyperparameters used for model building and training
 
@@ -40,6 +40,10 @@ class _ModelParams:
             early_stop (bool, optional): Use early stopping. Defaults to False.
             early_stop_patience (int, optional): Patience for early stopping, in epochs. Defaults to 0.
             early_stop_method (str, optional): Metric to monitor for early stopping. Defaults to 'loss'.
+            manual_early_stop_epoch (int, optional): Manually override early stopping to occur at this epoch/batch.
+                Defaults to None.
+            manual_early_stop_batch (int, optional): Manually override early stopping to occur at this epoch/batch.
+                Defaults to None.
             training_balance ([type], optional): Type of batch-level balancing to use during training.
                 Options include 'tile', 'category', 'patient', 'slide', and None. Defaults to 'category' if a
                 categorical loss is provided, and 'patient' if a linear loss is provided.
@@ -65,14 +69,6 @@ class _ModelParams:
             drop_images (bool, optional): Drop images, using only other slide-level features as input.
                 Defaults to False.
         """
-
-        # Additional hyperparameters to consider:
-        # beta1 0.9
-        # beta2 0.999
-        # epsilon 1.0
-        # batch_norm_decay 0.99
-
-        # Assert provided hyperparameters are valid
         assert isinstance(tile_px, int)
         assert isinstance(tile_um, int)
         assert isinstance(toplayer_epochs, int)
@@ -85,9 +81,11 @@ class _ModelParams:
         assert isinstance(learning_rate_decay_steps, (int))
         assert isinstance(batch_size, int)
         assert isinstance(hidden_layers, int)
+        assert isinstance(manual_early_stop_batch, int) or manual_early_stop_batch is None
+        assert isinstance(manual_early_stop_epoch, int) or manual_early_stop_epoch is None
         assert isinstance(early_stop, bool)
         assert isinstance(early_stop_patience, int)
-        assert early_stop_method in ['loss', 'accuracy']
+        assert early_stop_method in ['loss', 'accuracy', 'manual']
         assert training_balance in ['auto', 'tile', 'category', 'patient', 'slide', 'none', None]
         assert validation_balance in ['tile', 'category', 'patient', 'slide', 'none', None]
         assert isinstance(hidden_layer_width, int)
@@ -128,6 +126,8 @@ class _ModelParams:
         self.early_stop = early_stop
         self.early_stop_method = early_stop_method
         self.early_stop_patience = early_stop_patience
+        self.manual_early_stop_batch = manual_early_stop_batch
+        self.manual_early_stop_epoch = manual_early_stop_epoch
         self.hidden_layers = hidden_layers
         if training_balance == 'auto':
             self.training_balance = 'category' if self.model_type() == 'categorical' else 'patient'
@@ -255,6 +255,14 @@ class _ModelParams:
             raise errors.ModelParamsError(msg)
         if self.uq and not self.dropout:
             msg = f"Uncertainty quantification (uq=True) requires dropout > 0 (got: dropout={self.dropout})"
+            raise errors.ModelParamsError(msg)
+        if (self.early_stop
+           and self.early_stop_method == 'manual'
+           and (self.manual_early_stop_epoch is None
+                or self.manual_early_stop_batch is None)):
+            msg = f'HP warning: both manual_early_stop_batch (got: {self.manual_early_stop_batch}) and '
+            msg += f'manual_early_stop_epoch (got: {self.manual_early_stop_epoch}) must be != None '
+            msg += 'to trigger manual early stopping.'
             raise errors.ModelParamsError(msg)
         return True
 

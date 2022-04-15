@@ -894,6 +894,17 @@ class Trainer:
                                     step=global_step
                                 )
 
+                        # Check if manual early stopping has been triggered
+                        if (self.hp.early_stop
+                           and self.hp.early_stop_method == 'manual'
+                           and self.hp.manual_early_stop_epoch <= epoch
+                           and self.hp.manual_early_stop_batch <= step):
+                            log.info(f'Manual early stop triggered: epoch {epoch}, batch {step}')
+                            self.model.stop_training = True
+                            self.early_stop = True
+                            self.early_stop_batch = step
+                            self.early_stop_epoch = epoch
+
                         # === Mid-training validation =================================================================
                         if val_dts and validate_on_batch and (step % validate_on_batch == 0) and step > 0:
                             self.model.eval()
