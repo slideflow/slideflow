@@ -13,6 +13,7 @@ Slideflow has been used by:
 - [Rosenberg et al](https://ascopubs.org/doi/10.1200/JCO.2020.38.15_suppl.e23529), _Journal of Clinical Oncology_ [abstract], 2020
 - [Howard et al](https://www.nature.com/articles/s41467-021-24698-1), _Nature Communications_, 2021
 - [Dolezal et al](https://arxiv.org/abs/2204.04516) [arXiv], 2022
+- Partin et al [arXiv], 2022
 
 ## Installation
 Slideflow requires Python 3.7+ and [libvips](https://libvips.github.io/libvips/) 8.9+.
