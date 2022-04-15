@@ -15,8 +15,16 @@ Slideflow has been used by:
 - [Dolezal et al](https://arxiv.org/abs/2204.04516) [arXiv], 2022
 - Partin et al [arXiv], 2022
 
+# Requirements
+- Python >= 3.7
+- [Libvips](https://libvips.github.io/libvips/) >= 8.9. 
+- [OpenSlide](https://openslide.org/download/)
+- [Tensorflow](https://www.tensorflow.org/) >= 2.5 _or_ [PyTorch](https://pytorch.org/) >= 1.9
+- [QuPath](https://qupath.github.io/) [_optional_] - Used for pathologist ROIs
+- [CPLEX](https://www.ibm.com/docs/en/icos/12.10.0?topic=v12100-installing-cplex-optimization-studio) 20.1.0 with [Python API](https://www.ibm.com/docs/en/icos/12.10.0?topic=cplex-setting-up-python-api) [_optional_] - Used for preserved-site cross-validation
+
 ## Installation
-Slideflow requires Python 3.7+ and [libvips](https://libvips.github.io/libvips/) 8.9+.
+Slideflow requires Python 3.7+ and 
 
 Ensure you have the latest version of pip, setuptools, and wheel installed:
 
