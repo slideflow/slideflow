@@ -121,3 +121,26 @@ P.train(
 ## Evaluation, heatmaps, mosaic maps, and more
 
 Slideflow includes a host of additional tools, including model [evaluation](https://slideflow.dev/evaluation.html) and [prediction](https://slideflow.dev/project.html#slideflow.Project.predict), [heatmaps](https://slideflow.dev/project.html#slideflow.Project.generate_heatmaps), [mosaic maps](https://slideflow.dev/project.html#slideflow.Project.generate_mosaic), analysis of [layer activations](https://slideflow.dev/layer_activations.html), and more. See our [full documentation](https://slideflow.dev) for more details and tutorials.
+
+## License
+This code is made available under the GPLv3 License and is available for non-commercial academic purposes.
+
+## Reference
+The manuscript describing this protocol is in press. In the meantime, if you find our work useful for your research, or if you use parts of this code, please consider citing as follows:
+
+James Dolezal, Sara Kochanny, & Frederick Howard. (2022). jamesdolezal/slideflow: Slideflow 1.1.0-rc1 (1.1.0-rc1). Zenodo. https://doi.org/10.5281/zenodo.6426000
+
+```
+@software{james_dolezal_2022_6426000,
+  author       = {James Dolezal and
+                  Sara Kochanny and
+                  Frederick Howard},
+  title        = {jamesdolezal/slideflow: Slideflow 1.1.0-rc1},
+  month        = apr,
+  year         = 2022,
+  publisher    = {Zenodo},
+  version      = {1.1.0-rc1},
+  doi          = {10.5281/zenodo.6426000},
+  url          = {https://doi.org/10.5281/zenodo.6426000}
+}
+```
