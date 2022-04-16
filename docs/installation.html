@@ -158,7 +158,8 @@
 <li class="toctree-l1"><a class="reference internal" href="training.html">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="evaluation.html">Evaluation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="layer_activations.html">Features / layer activations</a></li>
-<li class="toctree-l1"><a class="reference internal" href="backend.html">Switching backends</a></li>
+<li class="toctree-l1"><a class="reference internal" href="custom_loops.html">Custom training loops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="uq.html">Uncertainty quantification</a></li>
 <li class="toctree-l1"><a class="reference internal" href="clam.html">CLAM</a></li>
 <li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
 <li class="toctree-l1"><a class="reference internal" href="appendix.html">Appendix</a></li>
@@ -313,6 +314,15 @@ $ pip install dist/slideflow-1.X.X-py3-any.whl
 <p>A bug in the pixman library (version=0.38) will corrupt downsampled slide images, resulting in large black boxes across the slide. We have provided a patch for version 0.38 that has been tested for Ubuntu, which is provided in the project <a class="reference external" href="https://github.com/jamesdolezal/slideflow">Github page</a> (<code class="docutils literal notranslate"><span class="pre">pixman_repair.sh</span></code>), although it may not be suitable for all environments and we make no guarantees regarding its use. The <a class="reference external" href="https://hub.docker.com/repository/docker/jamesdolezal/slideflow">Slideflow docker images</a> already have this applied. If you are installing from source, have pixman version 0.38, and are unable to apply this patch, the use of downsampled image layers must be disabled to avoid corruption (pass <code class="docutils literal notranslate"><span class="pre">enable_downsample=False</span></code> to tile extraction functions).</p>
 </div>
 </section>
+<section id="changing-backends">
+<h2>Changing backends<a class="headerlink" href="#changing-backends" title="Permalink to this headline">¶</a></h2>
+<p>The default backend for this package is Tensorflow/Keras, but a full PyTorch backend is also included, with a dedicated TFRecord reader/writer that ensures saved image tiles can be served to both Tensorflow and PyTorch models in cross-compatible fashion.</p>
+<p>If using the Tensorflow backend, PyTorch does not need to be installed; the reverse is true as well.</p>
+<p>To switch backends, simply set the environmental variable <code class="docutils literal notranslate"><span class="pre">SF_BACKEND</span></code> equal to either <code class="docutils literal notranslate"><span class="pre">torch</span></code> or <code class="docutils literal notranslate"><span class="pre">tensorflow</span></code>:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">export SF_BACKEND=torch</span>
+</pre></div>
+</div>
+</section>
 </section>
 
 
@@ -363,6 +373,7 @@ $ pip install dist/slideflow-1.X.X-py3-any.whl
 <li><a class="reference internal" href="#download-with-pip">Download with pip</a></li>
 <li><a class="reference internal" href="#run-a-docker-container">Run a Docker container</a></li>
 <li><a class="reference internal" href="#build-from-source">Build from source</a></li>
+<li><a class="reference internal" href="#changing-backends">Changing backends</a></li>
 </ul>
 </li>
 </ul>

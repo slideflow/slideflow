@@ -6,7 +6,7 @@ To use ``*.tfrecords`` from extracted tiles in a custom training loop or entirel
 TFRecord DataLoader
 *******************
 
-The :class:`slideflow.Dataset` class includes both :func:`torch` and :func:`tensorflow` functions to prepare a Tensorflow ``tf.data.Dataset`` or PyTorch ``torch.utils.data.DataLoader`` object to interleave and process images from stored TFRecords. First, create a ``Dataset`` object at a given tile size:
+The :class:`slideflow.Dataset` class includes functions to prepare a Tensorflow ``tf.data.Dataset`` or PyTorch ``torch.utils.data.DataLoader`` object to interleave and process images from stored TFRecords. First, create a ``Dataset`` object at a given tile size:
 
 .. code-block:: python
 
@@ -26,7 +26,6 @@ Other dataset options can also be applied at this step. For example, to clip the
 .. code-block:: python
 
     dts = dts.clip(500)
-
 
 Finally, use the :meth:`slideflow.Dataset.torch` method to create a DataLoader object:
 

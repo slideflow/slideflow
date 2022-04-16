@@ -24,7 +24,8 @@ The ``slideflow`` package includes a ``Project`` class to help coordinate projec
    training
    evaluation
    layer_activations
-   backend
+   custom_loops
+   uq
    clam
    troubleshooting
    appendix
