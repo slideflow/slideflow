@@ -129,19 +129,20 @@ This code is made available under the GPLv3 License and is available for non-com
 ## Reference
 The manuscript describing this protocol is in press. In the meantime, if you find our work useful for your research, or if you use parts of this code, please consider citing as follows:
 
-James Dolezal, Sara Kochanny, & Frederick Howard. (2022). jamesdolezal/slideflow: Slideflow 1.1.0-rc1 (1.1.0-rc1). Zenodo. https://doi.org/10.5281/zenodo.6426000
+James Dolezal, Sara Kochanny, & Frederick Howard. (2022). Slideflow: A Unified Deep Learning Pipeline for Digital Histology (1.1.0). Zenodo. https://doi.org/10.5281/zenodo.5703792
 
 ```
-@software{james_dolezal_2022_6426000,
+@software{james_dolezal_2022_5703792,
   author       = {James Dolezal and
                   Sara Kochanny and
                   Frederick Howard},
-  title        = {jamesdolezal/slideflow: Slideflow 1.1.0-rc1},
+  title        = {{Slideflow: A Unified Deep Learning Pipeline for 
+                   Digital Histology}},
   month        = apr,
   year         = 2022,
   publisher    = {Zenodo},
-  version      = {1.1.0-rc1},
-  doi          = {10.5281/zenodo.6426000},
-  url          = {https://doi.org/10.5281/zenodo.6426000}
+  version      = {1.1.0},
+  doi          = {10.5281/zenodo.5703792},
+  url          = {https://doi.org/10.5281/zenodo.5703792}
 }
 ```
