@@ -65,5 +65,15 @@ To build Slideflow from source, clone the repository from the project `Github pa
 .. warning::
     A bug in the pixman library (version=0.38) will corrupt downsampled slide images, resulting in large black boxes across the slide. We have provided a patch for version 0.38 that has been tested for Ubuntu, which is provided in the project `Github page <https://github.com/jamesdolezal/slideflow>`_ (``pixman_repair.sh``), although it may not be suitable for all environments and we make no guarantees regarding its use. The `Slideflow docker images <https://hub.docker.com/repository/docker/jamesdolezal/slideflow>`_ already have this applied. If you are installing from source, have pixman version 0.38, and are unable to apply this patch, the use of downsampled image layers must be disabled to avoid corruption (pass ``enable_downsample=False`` to tile extraction functions).
 
+Changing backends
+*****************
 
+The default backend for this package is Tensorflow/Keras, but a full PyTorch backend is also included, with a dedicated TFRecord reader/writer that ensures saved image tiles can be served to both Tensorflow and PyTorch models in cross-compatible fashion.
 
+If using the Tensorflow backend, PyTorch does not need to be installed; the reverse is true as well.
+
+To switch backends, simply set the environmental variable ``SF_BACKEND`` equal to either ``torch`` or ``tensorflow``:
+
+.. code-block:: console
+
+    export SF_BACKEND=torch

@@ -1,34 +1,32 @@
-Switching backends
-==================
+Custom training loops
+=====================
 
-The default backend for this package is Tensorflow/Keras, but a full PyTorch backend is also included, with a dedicated TFRecord reader/writer that ensures saved image tiles can be served to both Tensorflow and PyTorch models in cross-compatible fashion.
-
-If using the Tensorflow backend, PyTorch does not need to be installed; the reverse is true as well.
-
-To switch backends, simply set the environmental variable ``SF_BACKEND`` equal to either ``torch`` or ``tensorflow``:
-
-.. code-block:: console
-
-    export SF_BACKEND=torch
-
+To use ``*.tfrecords`` from extracted tiles in a custom training loop or entirely separate architecture (such as `StyleGAN2 <https://github.com/jamesdolezal/stylegan2-slideflow>`_ or `YoloV5 <https://github.com/ultralytics/yolov5>`_), Tensorflow ``tf.data.Dataset`` or PyTorch ``torch.utils.data.DataLoader`` objects can be created for easily serving processed images to your custom trainer.
 
 TFRecord DataLoader
 *******************
 
-In addition to using the built-in training tools, you can use tiles that have been extracted with Slideflow with completely external projects. The :class:`slideflow.Dataset` class includes both :func:`torch` and :func:`tensorflow` functions to prepare a DataLoader or Tensorflow tf.data.Dataset instance that interleaves and processs images from stored TFRecords.
+The :class:`slideflow.Dataset` class includes both :func:`torch` and :func:`tensorflow` functions to prepare a Tensorflow ``tf.data.Dataset`` or PyTorch ``torch.utils.data.DataLoader`` object to interleave and process images from stored TFRecords. First, create a ``Dataset`` object at a given tile size:
 
 .. code-block:: python
 
     from slideflow import Project
 
     P = Project('/project/path', ...)
-    dts = P.dataset(tile_px=299, tile_um=302, filters=None)
+    dts = P.dataset(tile_px=299, tile_um=302)
 
-If you want to perform any balancing, use the :meth:`slideflow.Datset.balance` method:
+If you want to perform any balancing, use the ``.balance()`` method:
 
 .. code-block:: python
 
     dts = dts.balance('HPV_status', strategy='category')
+
+Other dataset options can also be applied at this step. For example, to clip the maximum number of tiles to take from a slide, use the ``.clip()`` method:
+
+.. code-block:: python
+
+    dts = dts.clip(500)
+
 
 Finally, use the :meth:`slideflow.Dataset.torch` method to create a DataLoader object:
 
@@ -44,4 +42,16 @@ Finally, use the :meth:`slideflow.Dataset.torch` method to create a DataLoader o
         pin_memory   = False,    # Pin memory to GPUs
     )
 
-The returned dataloader can then be used directly with your external PyTorch applications.
+or the :meth:`slideflow.Dataset.tensorflow` method to create a ``tf.data.Dataset``:
+
+.. code-block:: python
+
+    dataloader = dts.tensorflow(
+        labels       = ...       # Your outcome label
+        batch_size   = 64,       # Batch size
+        infinite     = True,     # True for training, False for validation
+        augment      = True,     # Flip/rotate/compression augmentation
+        standardize  = True,     # Standardize images
+    )
+
+The returned dataloaders can then be used directly with your external applications.
