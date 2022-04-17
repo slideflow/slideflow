@@ -5,7 +5,7 @@
 
 Slideflow is a computational pathology Python package which provides a unified API for building and testing deep learning models for histopathology, supporting both Tensorflow/Keras and PyTorch.
 
-Slideflow includes tools for **whole-slide image processing** and segmentation, **customizable deep learning model training** with dozens of supported architectures, **explainability tools** including heatmaps and mosaic maps, **analysis of activations** from model layers, **uncertainty quantification**, and more. A variety of fast, optimized whole-slide image processing tools are included, including background filtering, blur/artifact detection, digital stain normalization, and efficient storage in `*.tfrecords` format. Model training is easy and highly configurable, with support for dozens of model architectures (from `tf.keras.applications` or `torchvision.models`) and an easy drop-in API for training custom architectures. For entirely custom training loops, Slideflow can be used as an image processing backend, serving an optimized `tf.data.Dataset` or `torch.utils.data.DataLoader` which can read and process `*.tfrecords` images and perform real-time stain normalization.
+Slideflow includes tools for **whole-slide image processing** and segmentation, **customizable deep learning model training** with dozens of supported architectures, **explainability tools** including heatmaps and mosaic maps, **analysis of activations** from model layers, **uncertainty quantification**, and more. A variety of fast, optimized whole-slide image processing tools are included, including background filtering, blur/artifact detection, stain normalization, and efficient storage in `*.tfrecords` format. Model training is easy and highly configurable, with an easy drop-in API for training custom architectures. For external training loops, Slideflow can be used as an image processing backend, serving an optimized `tf.data.Dataset` or `torch.utils.data.DataLoader` to read and process slide images and perform real-time stain normalization.
 
 Slideflow has been used by:
 
@@ -16,7 +16,7 @@ Slideflow has been used by:
 - [Storozuk et al](https://www.nature.com/articles/s41379-022-01039-1.pdf), _Modern Pathology_ [abstract], 2022
 - Partin et al [arXiv], 2022
 
-Full documentation example tutorials can be found at [slideflow.dev](https://www.slideflow.dev/).
+Full documentation with example tutorials can be found at [slideflow.dev](https://www.slideflow.dev/).
 
 ## Requirements
 - Python >= 3.7
