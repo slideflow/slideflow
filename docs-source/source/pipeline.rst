@@ -1,13 +1,19 @@
 Pipeline Overview
 =================
 
-The overall pipeline is separated into three phases.
+.. figure:: overview.png
 
-The first phase - **Tile extraction** - involves 1) annotating slides with regions of interest (ROIs) [*optional*], 2) setting up a project, and 3) extracting image tiles from whole-slide images.
+    *High-level overview of main functions.*
 
-The second phase - **Model training** - involves 1) performing a hyperparameter sweep [*optional*], 2) training a model using bootstrap cross-validation or *k*-fold validation, and 3) training a model across the entire training dataset without validation.
+The overall pipeline for a deep learning experiment is separated into three phases.
 
-The third phase - **Model evaluation** - includes 1) assessing performance of the final model on a held-out dataset, generating metrics including loss, accuracy, AUROC / AP, 2) creating heatmaps of predictions on the evaluation dataset, and 3) generating mosaic maps from image features calculated from the evaluation dataset to aid in model explainability.
+1) **Tile extraction** - involves annotating slides with regions of interest (ROIs) (*optional*), setting up a project, and extracting image tiles from whole-slide images.
+
+2) **Model training** - includes performing a hyperparameter sweep [*optional*], training a model, and evaluating the trained model on a held-out test set.
+
+3) **Explainability** - involves generating predictive heatmaps and analyzing learned image features.
+
+|
 
 A high-level overview of each of these phases is provided below. We will examine execution of each step in more detail in the following sections.
 

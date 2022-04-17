@@ -256,10 +256,21 @@
               
   <section id="pipeline-overview">
 <h1>Pipeline Overview<a class="headerlink" href="#pipeline-overview" title="Permalink to this headline">¶</a></h1>
-<p>The overall pipeline is separated into three phases.</p>
-<p>The first phase - <strong>Tile extraction</strong> - involves 1) annotating slides with regions of interest (ROIs) [<em>optional</em>], 2) setting up a project, and 3) extracting image tiles from whole-slide images.</p>
-<p>The second phase - <strong>Model training</strong> - involves 1) performing a hyperparameter sweep [<em>optional</em>], 2) training a model using bootstrap cross-validation or <em>k</em>-fold validation, and 3) training a model across the entire training dataset without validation.</p>
-<p>The third phase - <strong>Model evaluation</strong> - includes 1) assessing performance of the final model on a held-out dataset, generating metrics including loss, accuracy, AUROC / AP, 2) creating heatmaps of predictions on the evaluation dataset, and 3) generating mosaic maps from image features calculated from the evaluation dataset to aid in model explainability.</p>
+<figure class="align-default" id="id1">
+<img alt="_images/overview.png" src="_images/overview.png" />
+<figcaption>
+<p><span class="caption-text"><em>High-level overview of main functions.</em></span><a class="headerlink" href="#id1" title="Permalink to this image">¶</a></p>
+</figcaption>
+</figure>
+<p>The overall pipeline for a deep learning experiment is separated into three phases.</p>
+<ol class="arabic simple">
+<li><p><strong>Tile extraction</strong> - involves annotating slides with regions of interest (ROIs) (<em>optional</em>), setting up a project, and extracting image tiles from whole-slide images.</p></li>
+<li><p><strong>Model training</strong> - includes performing a hyperparameter sweep [<em>optional</em>], training a model, and evaluating the trained model on a held-out test set.</p></li>
+<li><p><strong>Explainability</strong> - involves generating predictive heatmaps and analyzing learned image features.</p></li>
+</ol>
+<div class="line-block">
+<div class="line"><br /></div>
+</div>
 <p>A high-level overview of each of these phases is provided below. We will examine execution of each step in more detail in the following sections.</p>
 <section id="step-1-roi-annotation">
 <h2>Step 1: ROI Annotation<a class="headerlink" href="#step-1-roi-annotation" title="Permalink to this headline">¶</a></h2>
