@@ -8,6 +8,7 @@ To initialize a new project, pass keyword arguments to :class:`slideflow.Project
 .. code-block:: python
 
     import slideflow as sf
+
     P = sf.Project(
       '/path/to/project/directory',
       name="MyProject",
