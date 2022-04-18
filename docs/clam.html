@@ -6,8 +6,7 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  <meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
-
+  
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
   <title>CLAM &mdash; slideflow 1.1.0 documentation</title>
@@ -181,7 +180,8 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="tutorial1.html">Tutorial 1: Model training (simple)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorial2.html">Tutorial 2: Model training (advanced)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorial3.html">Tutorial 3: Model evaluation &amp; heatmaps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial3.html">Tutorial 3: Using a custom architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial4.html">Tutorial 4: Model evaluation &amp; heatmaps</a></li>
 </ul>
 
             
@@ -254,10 +254,10 @@
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
               
-  <section id="clam">
+  <div class="section" id="clam">
 <h1>CLAM<a class="headerlink" href="#clam" title="Permalink to this headline">¶</a></h1>
 <p>In addition to standard Tensorflow/Keras model applications, slideflow supports training models with <a class="reference external" href="https://github.com/mahmoodlab/CLAM">CLAM</a>. A slightly modified version of CLAM which supports slideflow dataset and input pipelines is included in <code class="docutils literal notranslate"><span class="pre">slideflow.clam</span></code>.</p>
-<section id="creating-slide-activations">
+<div class="section" id="creating-slide-activations">
 <h2>Creating slide activations<a class="headerlink" href="#creating-slide-activations" title="Permalink to this headline">¶</a></h2>
 <p>The first step in the CLAM pipeline is generating tile-level activations across whole-slide images. While the original <a class="reference external" href="https://arxiv.org/abs/2004.09666">CLAM paper</a> used features generated from an imagenet-trained model, we have found it useful to generate feature activations from models pretrained with histology images. To this end, the project function <a class="reference internal" href="project.html#slideflow.Project.generate_features_for_clam" title="slideflow.Project.generate_features_for_clam"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.Project.generate_features_for_clam()</span></code></a> accepts any model as input and will generate feature vectors from the specified intermediate layers. For example:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">P</span><span class="o">.</span><span class="n">generate_features_for_clam</span><span class="p">(</span>
@@ -267,8 +267,8 @@
 <span class="p">)</span>
 </pre></div>
 </div>
-</section>
-<section id="training">
+</div>
+<div class="section" id="training">
 <h2>Training<a class="headerlink" href="#training" title="Permalink to this headline">¶</a></h2>
 <p>To train a CLAM model, use the project function <a class="reference internal" href="project.html#slideflow.Project.train_clam" title="slideflow.Project.train_clam"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.Project.train_clam()</span></code></a>. Clam arguments are configured with <code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.clam.get_args()</span></code>:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">dataset</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">dataset</span><span class="p">(</span><span class="n">tile_px</span><span class="o">=</span><span class="mi">299</span><span class="p">,</span> <span class="n">tile_um</span><span class="o">=</span><span class="mi">302</span><span class="p">)</span>
@@ -286,8 +286,8 @@
 </pre></div>
 </div>
 <p>The training function will, by default, save heatmaps of the attention layers for each of the validation slides. This behavior can be disabled by passing <code class="docutils literal notranslate"><span class="pre">attention_heatmaps=False</span></code>.</p>
-</section>
-<section id="evaluation">
+</div>
+<div class="section" id="evaluation">
 <h2>Evaluation<a class="headerlink" href="#evaluation" title="Permalink to this headline">¶</a></h2>
 <p>To evaluate a saved CLAM model on an external dataset, first extract features from this dataset, then use the project function <a class="reference internal" href="project.html#slideflow.Project.evaluate_clam" title="slideflow.Project.evaluate_clam"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.Project.evaluate_clam()</span></code></a>:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">P</span><span class="o">.</span><span class="n">generate_features_for_clam</span><span class="p">(</span><span class="o">...</span><span class="p">,</span> <span class="n">outdir</span><span class="o">=</span><span class="s1">&#39;/eval/clam/path&#39;</span><span class="p">)</span>
@@ -301,8 +301,8 @@
 <span class="p">)</span>
 </pre></div>
 </div>
-</section>
-</section>
+</div>
+</div>
 
 
              </article>

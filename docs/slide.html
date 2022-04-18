@@ -6,8 +6,7 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  <meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
-
+  
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
   <title>slideflow.slide &mdash; slideflow 1.1.0 documentation</title>
@@ -181,7 +180,8 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="tutorial1.html">Tutorial 1: Model training (simple)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorial2.html">Tutorial 2: Model training (advanced)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorial3.html">Tutorial 3: Model evaluation &amp; heatmaps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial3.html">Tutorial 3: Using a custom architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial4.html">Tutorial 4: Model evaluation &amp; heatmaps</a></li>
 </ul>
 
             
@@ -254,13 +254,13 @@
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
               
-  <section id="slideflow-slide">
+  <div class="section" id="slideflow-slide">
 <h1>slideflow.slide<a class="headerlink" href="#slideflow-slide" title="Permalink to this headline">¶</a></h1>
 <p>This module contains classes to load slides and extract tiles. For optimal performance, tile extraction should
 generally not be performed by instancing these classes directly, but by calling either
 <a class="reference internal" href="project.html#slideflow.Project.extract_tiles" title="slideflow.Project.extract_tiles"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.Project.extract_tiles()</span></code></a> or <a class="reference internal" href="dataset.html#slideflow.Dataset.extract_tiles" title="slideflow.Dataset.extract_tiles"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.Dataset.extract_tiles()</span></code></a>, which include performance
 optimizations and additional functionality.</p>
-<section id="wsi">
+<div class="section" id="wsi">
 <h2>WSI<a class="headerlink" href="#wsi" title="Permalink to this headline">¶</a></h2>
 <dl class="py class">
 <dt class="sig sig-object py" id="slideflow.slide.WSI">
@@ -534,8 +534,8 @@ y_center), …] format. Defaults to None.</p></li>
 
 </dd></dl>
 
-</section>
-<section id="tma">
+</div>
+<div class="section" id="tma">
 <h2>TMA<a class="headerlink" href="#tma" title="Permalink to this headline">¶</a></h2>
 <dl class="py class">
 <dt class="sig sig-object py" id="slideflow.slide.TMA">
@@ -771,8 +771,8 @@ y_center), …] format. Defaults to None.</p></li>
 
 </dd></dl>
 
-</section>
-</section>
+</div>
+</div>
 
 
              </article>

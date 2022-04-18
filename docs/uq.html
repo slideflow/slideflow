@@ -6,8 +6,7 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  <meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
-
+  
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
   <title>Uncertainty quantification &mdash; slideflow 1.1.0 documentation</title>
@@ -181,7 +180,8 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="tutorial1.html">Tutorial 1: Model training (simple)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorial2.html">Tutorial 2: Model training (advanced)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorial3.html">Tutorial 3: Model evaluation &amp; heatmaps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial3.html">Tutorial 3: Using a custom architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial4.html">Tutorial 4: Model evaluation &amp; heatmaps</a></li>
 </ul>
 
             
@@ -254,11 +254,11 @@
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
               
-  <section id="uncertainty-quantification">
+  <div class="section" id="uncertainty-quantification">
 <h1>Uncertainty quantification<a class="headerlink" href="#uncertainty-quantification" title="Permalink to this headline">¶</a></h1>
-<p>Various uncertainty quantification (UQ) methods have been developed for deep learning models and tested in digital histopathology, including MC Dropout, deep ensembles, hyper-deep ensembles, and test-time augmentation.</p>
-<p>In verison 1.1, we developed a dropout-based method of uncertainty estimation (<a class="reference external" href="https://arxiv.org/abs/2204.04516">arXiv paper</a>). MC dropout UQ methods exploit the observation that neural networks with dropout approximate sampling of the Bayesian posterior. Images undergo multiple forward passes in a dropout-enabled network during inference, which results in a distribution of predictions. The standard deviation of such a distribution represents the uncertainty estimate.</p>
-<section id="training-with-uq">
+<p>Several uncertainty quantification (UQ) methods have been developed for deep learning models and tested in digital histopathology, including MC Dropout, deep ensembles, hyper-deep ensembles, and test-time augmentation.</p>
+<p>In verison 1.1, we implemented a dropout-based method of uncertainty estimation (<a class="reference external" href="https://arxiv.org/abs/2204.04516">arXiv paper</a>). MC dropout UQ methods exploit the observation that neural networks with dropout approximate sampling of the Bayesian posterior. Images undergo multiple forward passes in a dropout-enabled network during inference, which results in a distribution of predictions. The standard deviation of such a distribution represents the uncertainty estimate.</p>
+<div class="section" id="training-with-uq">
 <h2>Training with UQ<a class="headerlink" href="#training-with-uq" title="Permalink to this headline">¶</a></h2>
 <p>Training models with UQ is straightforward, requiring only two hyperparameter settings. Dropout must be enabled (set to a nonzero value), and <code class="docutils literal notranslate"><span class="pre">uq</span></code> should be <code class="docutils literal notranslate"><span class="pre">True</span></code>:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
@@ -273,20 +273,20 @@
 </pre></div>
 </div>
 <p>All predictions from this model will now involve 30 forward passes through the network, with dropout always enabled. Final tile-level predictions will be the average from each of the 30 forward passes, and tile-level uncertainty will be the standard deviation of the forward passes.</p>
-</section>
-<section id="evaluating-with-uq">
+</div>
+<div class="section" id="evaluating-with-uq">
 <h2>Evaluating with UQ<a class="headerlink" href="#evaluating-with-uq" title="Permalink to this headline">¶</a></h2>
 <p>Any pipeline function using a model trained with UQ will automatically estimate uncertainty, without any additional action from the user. When model predictions are saved during validation or evaluation, uncertainty estimates will be saved alongside predictions in the tile- and patient-level predictions files found in the model folder.</p>
-</section>
-<section id="uncertainty-heatmaps">
+</div>
+<div class="section" id="uncertainty-heatmaps">
 <h2>Uncertainty heatmaps<a class="headerlink" href="#uncertainty-heatmaps" title="Permalink to this headline">¶</a></h2>
 <p>If a model was trained with UQ enabled, the <a class="reference internal" href="project.html#slideflow.Project.generate_heatmaps" title="slideflow.Project.generate_heatmaps"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Project.generate_heatmaps()</span></code></a> function will automatically create uncertainty heatmaps alongside the prediction heatmaps.</p>
-</section>
-<section id="slide-level-confidence-uncertainty-thresholding">
+</div>
+<div class="section" id="slide-level-confidence-uncertainty-thresholding">
 <h2>Slide-level confidence &amp; uncertainty thresholding<a class="headerlink" href="#slide-level-confidence-uncertainty-thresholding" title="Permalink to this headline">¶</a></h2>
 <p>Uncertainty information can be exploited to separate slide- and patient-level predictions into low- and high-confidence. We developed an uncertainty thresholding algorithm (<a class="reference external" href="https://github.com/jamesdolezal/biscuit/">BISCUIT</a>) to accomplish this task. Further details about slide-level confidence estimation and uncertainty thresholding can be found in our manuscript <a class="reference external" href="https://arxiv.org/abs/2204.04516">detailing the method</a>.</p>
-</section>
-</section>
+</div>
+</div>
 
 
              </article>

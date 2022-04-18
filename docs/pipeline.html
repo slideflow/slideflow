@@ -6,8 +6,7 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  <meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
-
+  
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
   <title>Pipeline Overview &mdash; slideflow 1.1.0 documentation</title>
@@ -181,7 +180,8 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="tutorial1.html">Tutorial 1: Model training (simple)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorial2.html">Tutorial 2: Model training (advanced)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorial3.html">Tutorial 3: Model evaluation &amp; heatmaps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial3.html">Tutorial 3: Using a custom architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial4.html">Tutorial 4: Model evaluation &amp; heatmaps</a></li>
 </ul>
 
             
@@ -254,14 +254,12 @@
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
               
-  <section id="pipeline-overview">
+  <div class="section" id="pipeline-overview">
 <h1>Pipeline Overview<a class="headerlink" href="#pipeline-overview" title="Permalink to this headline">¶</a></h1>
-<figure class="align-default" id="id1">
+<div class="figure align-default" id="id1">
 <img alt="_images/overview.png" src="_images/overview.png" />
-<figcaption>
-<p><span class="caption-text"><em>High-level overview of main functions.</em></span><a class="headerlink" href="#id1" title="Permalink to this image">¶</a></p>
-</figcaption>
-</figure>
+<p class="caption"><span class="caption-text"><em>High-level overview of main functions.</em></span><a class="headerlink" href="#id1" title="Permalink to this image">¶</a></p>
+</div>
 <p>The overall pipeline for a deep learning experiment is separated into three phases.</p>
 <ol class="arabic simple">
 <li><p><strong>Tile extraction</strong> - involves annotating slides with regions of interest (ROIs) (<em>optional</em>), setting up a project, and extracting image tiles from whole-slide images.</p></li>
@@ -272,7 +270,7 @@
 <div class="line"><br /></div>
 </div>
 <p>A high-level overview of each of these phases is provided below. We will examine execution of each step in more detail in the following sections.</p>
-<section id="step-1-roi-annotation">
+<div class="section" id="step-1-roi-annotation">
 <h2>Step 1: ROI Annotation<a class="headerlink" href="#step-1-roi-annotation" title="Permalink to this headline">¶</a></h2>
 <ol class="arabic simple">
 <li><p><strong>Label ROIs</strong> (optional). Using <a class="reference external" href="https://qupath.github.io/">QuPath</a>, annotate whole-slide images with the Polygon tool. Then, click <strong>Automate</strong> -&gt; <strong>Show script editor</strong>. In the box that comes up, click <strong>File</strong> -&gt; <strong>Open</strong> and load the <code class="docutils literal notranslate"><span class="pre">qupath_roi.groovy</span></code> script (QuPath 0.2 or greater) or <code class="docutils literal notranslate"><span class="pre">qupath_roi_legacy.groovy</span></code> (QuPath 0.1.x). Click <strong>Run</strong> -&gt; <strong>Run</strong> if using QuPath 0.2 or greater, or <strong>Run</strong> -&gt; <strong>Run for Project</strong> if using QuPath 0.1.x. ROIs will be exported in CSV format in the QuPath project directory, in the subdirectory “ROI”.</p></li>
@@ -281,23 +279,23 @@
 <p class="admonition-title">Note</p>
 <p>This step may be skipped if you are performing analysis on whole-slide images, rather than annotated tumor regions.</p>
 </div>
-</section>
-<section id="step-2-dataset-preparation">
+</div>
+<div class="section" id="step-2-dataset-preparation">
 <h2>Step 2: Dataset preparation<a class="headerlink" href="#step-2-dataset-preparation" title="Permalink to this headline">¶</a></h2>
 <ol class="arabic simple" start="2">
 <li><p><strong>Extract tiles</strong>. Once ROIs have been created, tiles will need to be extracted from the ROIs across all of your slides. Tiles will be extracted at a given magnification size in microns, and saved at a given resolution in pixels. The optimal extraction size in both microns and pixels will depend on your dataset and model architecture. Poor quality tiles - including background tiles or tiles with high whitespace content - will be automatically discarded. Tiles will be stored as TFRecords, a binary file format used to improve dataset reading performance during training. Each slide will have its own TFRecord file containing its extracted tiles.</p></li>
 <li><p><strong>Set aside final evaluation set</strong>. Using the project annotations CSV file, designate which slides should be saved for final evaluation.</p></li>
 <li><p><strong>Establish training and validation dataset</strong>. By default, three-fold cross-validation will be performed during training. Many other validation strategies are also supported (<a class="reference internal" href="validation.html#validation-planning"><span class="std std-ref">Validation Planning</span></a>).</p></li>
 </ol>
-</section>
-<section id="step-3-model-training">
+</div>
+<div class="section" id="step-3-model-training">
 <h2>Step 3: Model training<a class="headerlink" href="#step-3-model-training" title="Permalink to this headline">¶</a></h2>
 <ol class="arabic simple" start="5">
 <li><p><strong>Choose hyperparameters</strong>. Before training can begin, you must choose both a model architecture (e.g. InceptionV3, VGG16, ResNet, etc.) and a set of hyperparameters (e.g. batch size, learning rate, etc.). This can be done explicitly one at a time, or an automatic hyperparameter sweep can be configured.</p></li>
 <li><p><strong>Initiate training</strong>. Train your model across all desired hyperparameters and select the best-performing hyperparameter combination for final evaluation testing.</p></li>
 </ol>
-</section>
-<section id="step-4-model-evaluation">
+</div>
+<div class="section" id="step-4-model-evaluation">
 <h2>Step 4: Model evaluation<a class="headerlink" href="#step-4-model-evaluation" title="Permalink to this headline">¶</a></h2>
 <p>Validation testing is performed both during training - at specified epochs - and after training has completed. Various metrics are recorded in the project directory at these intervals to assist with model performance assessment, including:</p>
 <ul class="simple">
@@ -308,18 +306,18 @@
 <li><p><strong>Tile-level, slide-level, and patient-level C-index</strong> (for Cox Proportional Hazards models)</p></li>
 <li><p><strong>Histograms of predictions</strong> (for continuous outcomes)</p></li>
 </ul>
-</section>
-<section id="step-5-heatmaps">
+</div>
+<div class="section" id="step-5-heatmaps">
 <h2>Step 5: Heatmaps<a class="headerlink" href="#step-5-heatmaps" title="Permalink to this headline">¶</a></h2>
 <p>In addition to the above metrics, performance of a trained model can be assessed by visualizing predictions for a set slides as heatmaps.</p>
 <img alt="_images/heatmap_example.png" src="_images/heatmap_example.png" />
-</section>
-<section id="step-6-mosaic-maps">
+</div>
+<div class="section" id="step-6-mosaic-maps">
 <h2>Step 6: Mosaic maps<a class="headerlink" href="#step-6-mosaic-maps" title="Permalink to this headline">¶</a></h2>
 <p>Finally, learned image features can be visualized using dimensionality reduction on model layer activations. A set of image tiles is first provided to your trained model, which calculates activations at a specified intermediate layer. Tile-level activations are then plotted with dimensionality reduction (UMAP), and points on the plot are replaced with image tiles, generating a mosaic map.</p>
 <img alt="_images/mosaic_example.png" src="_images/mosaic_example.png" />
-</section>
-</section>
+</div>
+</div>
 
 
              </article>

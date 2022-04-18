@@ -6,8 +6,7 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  <meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
-
+  
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
   <title>Installation &mdash; slideflow 1.1.0 documentation</title>
@@ -181,7 +180,8 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="tutorial1.html">Tutorial 1: Model training (simple)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorial2.html">Tutorial 2: Model training (advanced)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorial3.html">Tutorial 3: Model evaluation &amp; heatmaps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial3.html">Tutorial 3: Using a custom architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial4.html">Tutorial 4: Model evaluation &amp; heatmaps</a></li>
 </ul>
 
             
@@ -254,7 +254,7 @@
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
               
-  <section id="installation">
+  <div class="section" id="installation">
 <h1>Installation<a class="headerlink" href="#installation" title="Permalink to this headline">¶</a></h1>
 <p>Slideflow has been tested and is supported on the following systems:</p>
 <ul class="simple">
@@ -264,7 +264,7 @@
 <li><p>Centos 8</p></li>
 <li><p>Centos 8 Stream</p></li>
 </ul>
-<section id="software-requirements">
+<div class="section" id="software-requirements">
 <h2>Software Requirements<a class="headerlink" href="#software-requirements" title="Permalink to this headline">¶</a></h2>
 <ul class="simple">
 <li><p>Python 3.7 - 3.10</p></li>
@@ -274,8 +274,8 @@
 <li><p><a class="reference external" href="https://qupath.github.io">QuPath</a> [<em>optional</em>] - used for ROI annotations</p></li>
 <li><p><a class="reference external" href="https://www.tensorflow.org/install">Tensorflow 2.5-2.8</a> or <a class="reference external" href="https://pytorch.org/get-started/locally/">PyTorch 1.9-1.11</a></p></li>
 </ul>
-</section>
-<section id="download-with-pip">
+</div>
+<div class="section" id="download-with-pip">
 <h2>Download with pip<a class="headerlink" href="#download-with-pip" title="Permalink to this headline">¶</a></h2>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Update to latest pip</span>
 $ pip install --upgrade pip
@@ -284,8 +284,8 @@ $ pip install --upgrade pip
 $ pip install slideflow
 </pre></div>
 </div>
-</section>
-<section id="run-a-docker-container">
+</div>
+<div class="section" id="run-a-docker-container">
 <h2>Run a Docker container<a class="headerlink" href="#run-a-docker-container" title="Permalink to this headline">¶</a></h2>
 <p>The <a class="reference external" href="https://hub.docker.com/repository/docker/jamesdolezal/slideflow">Slideflow docker images</a> have been pre-configured with OpenSlide, Libvips, and either PyTorch 1.11 or Tensorflow 2.8. Using a preconfigured <a class="reference external" href="https://docs.docker.com/install/">Docker</a> container is the easiest way to get started with compatible dependencies and GPU support.</p>
 <p>To install with the Tensorflow 2.8 backend:</p>
@@ -298,8 +298,8 @@ $ docker run -it --gpus all jamesdolezal/slideflow:latest-tf
 $ docker run -it --shm-size<span class="o">=</span>2g --gpus all jamesdolezal/slideflow:latest-torch
 </pre></div>
 </div>
-</section>
-<section id="build-from-source">
+</div>
+<div class="section" id="build-from-source">
 <h2>Build from source<a class="headerlink" href="#build-from-source" title="Permalink to this headline">¶</a></h2>
 <p>To build Slideflow from source, clone the repository from the project <a class="reference external" href="https://github.com/jamesdolezal/slideflow">Github page</a>:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ git clone https://github.com/jamesdolezal/slideflow
@@ -313,8 +313,8 @@ $ pip install dist/slideflow-1.X.X-py3-any.whl
 <p class="admonition-title">Warning</p>
 <p>A bug in the pixman library (version=0.38) will corrupt downsampled slide images, resulting in large black boxes across the slide. We have provided a patch for version 0.38 that has been tested for Ubuntu, which is provided in the project <a class="reference external" href="https://github.com/jamesdolezal/slideflow">Github page</a> (<code class="docutils literal notranslate"><span class="pre">pixman_repair.sh</span></code>), although it may not be suitable for all environments and we make no guarantees regarding its use. The <a class="reference external" href="https://hub.docker.com/repository/docker/jamesdolezal/slideflow">Slideflow docker images</a> already have this applied. If you are installing from source, have pixman version 0.38, and are unable to apply this patch, the use of downsampled image layers must be disabled to avoid corruption (pass <code class="docutils literal notranslate"><span class="pre">enable_downsample=False</span></code> to tile extraction functions).</p>
 </div>
-</section>
-<section id="changing-backends">
+</div>
+<div class="section" id="changing-backends">
 <h2>Changing backends<a class="headerlink" href="#changing-backends" title="Permalink to this headline">¶</a></h2>
 <p>The default backend for this package is Tensorflow/Keras, but a full PyTorch backend is also included, with a dedicated TFRecord reader/writer that ensures saved image tiles can be served to both Tensorflow and PyTorch models in cross-compatible fashion.</p>
 <p>If using the Tensorflow backend, PyTorch does not need to be installed; the reverse is true as well.</p>
@@ -322,8 +322,8 @@ $ pip install dist/slideflow-1.X.X-py3-any.whl
 <div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">export SF_BACKEND=torch</span>
 </pre></div>
 </div>
-</section>
-</section>
+</div>
+</div>
 
 
              </article>

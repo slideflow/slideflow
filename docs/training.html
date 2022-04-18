@@ -6,8 +6,7 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  <meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
-
+  
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
   <title>Training &mdash; slideflow 1.1.0 documentation</title>
@@ -181,7 +180,8 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="tutorial1.html">Tutorial 1: Model training (simple)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorial2.html">Tutorial 2: Model training (advanced)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorial3.html">Tutorial 3: Model evaluation &amp; heatmaps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial3.html">Tutorial 3: Using a custom architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial4.html">Tutorial 4: Model evaluation &amp; heatmaps</a></li>
 </ul>
 
             
@@ -254,9 +254,9 @@
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
               
-  <section id="training">
+  <div class="section" id="training">
 <h1>Training<a class="headerlink" href="#training" title="Permalink to this headline">¶</a></h1>
-<section id="prepare-hyperparameters">
+<div class="section" id="prepare-hyperparameters">
 <h2>Prepare hyperparameters<a class="headerlink" href="#prepare-hyperparameters" title="Permalink to this headline">¶</a></h2>
 <p>The first step of model training is configuring a set of model parameters / training hyperparameters. There are two methods for configuring model parameters. If you intend to train a model using a single combination of hyperparameters, use the <code class="docutils literal notranslate"><span class="pre">ModelParams</span></code> class:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
@@ -321,8 +321,8 @@
 <li><p><strong>validation_balance</strong> - Validation input balancing strategy; please see <a class="reference internal" href="appendix.html#balancing"><span class="std std-ref">A Note on Input Balancing</span></a> for more details.</p></li>
 </ul>
 <p>If you are using a continuous variable as an outcome measure, be sure to use a linear loss function. Linear loss functions can be viewed in <code class="docutils literal notranslate"><span class="pre">slideflow.model.ModelParams.LinearLossDict</span></code>, and all available loss functions are in <code class="docutils literal notranslate"><span class="pre">slideflow.model.ModelParams.AllLossDict</span></code>.</p>
-</section>
-<section id="begin-training">
+</div>
+<div class="section" id="begin-training">
 <h2>Begin training<a class="headerlink" href="#begin-training" title="Permalink to this headline">¶</a></h2>
 <p>Once your hyperparameter settings have been chosen you may begin training using the <code class="docutils literal notranslate"><span class="pre">train</span></code> function. Documentation of the function is given below:</p>
 <dl class="py function">
@@ -454,37 +454,37 @@ each time doing a mid-epoch validation check. Defaults to 200.</p></li>
 <p>If you would like to use a different validation plan than the default, pass the relevant keyword arguments to the training function.</p>
 <p>Once training has finished, performance metrics - including accuracy, loss, etc. - can be found in the <code class="docutils literal notranslate"><span class="pre">results_log.csv</span></code> file in the project directory. Additional data, including ROCs and scatter plots, are saved in the model directories.</p>
 <p>At each designated epoch, models are saved in their own folders. Each model directory will include a copy of its hyperparameters in a <code class="docutils literal notranslate"><span class="pre">params.json</span></code> file, and a copy of its training/validation slide manifest in <code class="docutils literal notranslate"><span class="pre">slide.log</span></code>.</p>
-</section>
-<section id="multiple-outcomes">
+</div>
+<div class="section" id="multiple-outcomes">
 <h2>Multiple outcomes<a class="headerlink" href="#multiple-outcomes" title="Permalink to this headline">¶</a></h2>
 <p>Slideflow supports both categorical and continuous outcomes, as well as training to single or multiple outcomes at once. To use multiple outcomes simultaneously, simply pass multiple annotation headers to the <code class="docutils literal notranslate"><span class="pre">outcomes</span></code> argument.</p>
-</section>
-<section id="multiple-input-variables">
+</div>
+<div class="section" id="multiple-input-variables">
 <h2>Multiple input variables<a class="headerlink" href="#multiple-input-variables" title="Permalink to this headline">¶</a></h2>
 <p>In addition to training using image data, clinical data can also be provided as model input by passing annotation column headers to the variable ‘’input_header’’. This input is merged at the post-convolutional layer, prior to any configured hidden layers.</p>
 <p>If desired, models can also be trained with clinical input data alone, without images, by using the hyperparameter argument <code class="docutils literal notranslate"><span class="pre">drop_images=True</span></code>.</p>
-</section>
-<section id="cox-proportional-hazards-cph-models">
+</div>
+<div class="section" id="cox-proportional-hazards-cph-models">
 <h2>Cox Proportional Hazards (CPH) models<a class="headerlink" href="#cox-proportional-hazards-cph-models" title="Permalink to this headline">¶</a></h2>
 <p>Models can also be trained to a time series outcome using CPH and negative log likelihood loss. For CPH models, use <cite>‘negative_log_likelihood’</cite> loss and set <code class="docutils literal notranslate"><span class="pre">outcomes</span></code> equal to the annotation column indicating event <em>time</em>. Specify the event <em>type</em> (0 or 1) by passing the event type annotation column to the argument <code class="docutils literal notranslate"><span class="pre">input_header</span></code>. If you are using multiple clinical inputs, the first header passed to <code class="docutils literal notranslate"><span class="pre">input_header</span></code> must be event type. CPH models are not compatible with multiple outcomes.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>CPH models are currently unavailable with the PyTorch backend. PyTorch support for CPH outcomes is in development.</p>
 </div>
-</section>
-<section id="distributed-training-across-gpus">
+</div>
+<div class="section" id="distributed-training-across-gpus">
 <h2>Distributed training across GPUs<a class="headerlink" href="#distributed-training-across-gpus" title="Permalink to this headline">¶</a></h2>
 <p>If multiple GPUs are available, training can be distributed by passing the argument <code class="docutils literal notranslate"><span class="pre">multi_gpu=True</span></code>. If provided, slideflow will use all available (and visible) GPUs for training.</p>
-</section>
-<section id="monitoring-performance">
+</div>
+<div class="section" id="monitoring-performance">
 <h2>Monitoring performance<a class="headerlink" href="#monitoring-performance" title="Permalink to this headline">¶</a></h2>
 <p>During training, progress can be monitored using Tensorflow’s bundled <code class="docutils literal notranslate"><span class="pre">Tensorboard</span></code> package by passing the argument <code class="docutils literal notranslate"><span class="pre">use_tensorboard=True</span></code>. This functionality was disabled by default due to a recent bug in Tensorflow. To use tensorboard to monitor training, execute:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ tensorboard --logdir<span class="o">=</span>/path/to/model/directory
 </pre></div>
 </div>
 <p>… and open <a class="reference external" href="http://localhost:6006">http://localhost:6006</a> in your web browser.</p>
-</section>
-</section>
+</div>
+</div>
 
 
              </article>

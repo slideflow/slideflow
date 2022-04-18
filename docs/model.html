@@ -6,8 +6,7 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  <meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
-
+  
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
   <title>slideflow.model &mdash; slideflow 1.1.0 documentation</title>
@@ -181,7 +180,8 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="tutorial1.html">Tutorial 1: Model training (simple)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorial2.html">Tutorial 2: Model training (advanced)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorial3.html">Tutorial 3: Model evaluation &amp; heatmaps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial3.html">Tutorial 3: Using a custom architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial4.html">Tutorial 4: Model evaluation &amp; heatmaps</a></li>
 </ul>
 
             
@@ -254,7 +254,7 @@
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
               
-  <section id="slideflow-model">
+  <div class="section" id="slideflow-model">
 <h1>slideflow.model<a class="headerlink" href="#slideflow-model" title="Permalink to this headline">¶</a></h1>
 <p>This module provides the <a class="reference internal" href="#slideflow.model.ModelParams" title="slideflow.model.ModelParams"><code class="xref py py-class docutils literal notranslate"><span class="pre">ModelParams</span></code></a> class to organize model and training
 parameters/hyperparameters and assist with model building, as well as the <a class="reference internal" href="#slideflow.model.Trainer" title="slideflow.model.Trainer"><code class="xref py py-class docutils literal notranslate"><span class="pre">Trainer</span></code></a> class that
@@ -268,7 +268,7 @@ hyperparameters.</p>
 <code class="xref py py-mod docutils literal notranslate"><span class="pre">slideflow.model.tensorflow</span></code> or <code class="xref py py-mod docutils literal notranslate"><span class="pre">slideflow.model.torch</span></code> according to the currently active backend,
 indicated by the environmental variable <code class="docutils literal notranslate"><span class="pre">SF_BACKEND</span></code>.</p>
 </div>
-<section id="configuring-and-training-models">
+<div class="section" id="configuring-and-training-models">
 <h2>Configuring and training models<a class="headerlink" href="#configuring-and-training-models" title="Permalink to this headline">¶</a></h2>
 <p><a class="reference internal" href="#slideflow.model.ModelParams" title="slideflow.model.ModelParams"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.model.ModelParams</span></code></a> will build models according to a set of model parameters and a given set of
 outcome labels. To change the core image convolutional model to another architecture, set the <code class="docutils literal notranslate"><span class="pre">model</span></code> parameter
@@ -279,8 +279,8 @@ to the custom model class.</p>
 <span class="n">mp</span> <span class="o">=</span> <span class="n">ModelParams</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="n">CustomModel</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
 </pre></div>
 </div>
-</section>
-<section id="working-with-layer-activations">
+</div>
+<div class="section" id="working-with-layer-activations">
 <h2>Working with layer activations<a class="headerlink" href="#working-with-layer-activations" title="Permalink to this headline">¶</a></h2>
 <p><a class="reference internal" href="#slideflow.model.Features" title="slideflow.model.Features"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.model.Features</span></code></a> creates an interface to efficiently generate features/layer activations and logits
 from either a batch of images (returning a batch of activations/logits) or a whole-slide image (returning a grid of
@@ -289,8 +289,8 @@ activations/logits).</p>
 result arrays into a dictionary mapping slide names to the generated activations. This buffer of whole-dataset
 activations can then be used for functions requiring analysis of whole-dataset activations, including
 <a class="reference internal" href="stats.html#slideflow.SlideMap" title="slideflow.SlideMap"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.SlideMap</span></code></a> and <code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.mosiac.Mosaic</span></code>.</p>
-</section>
-<section id="modelparams">
+</div>
+<div class="section" id="modelparams">
 <h2>ModelParams<a class="headerlink" href="#modelparams" title="Permalink to this headline">¶</a></h2>
 <dl class="py class">
 <dt class="sig sig-object py" id="slideflow.model.ModelParams">
@@ -395,8 +395,8 @@ models) or ‘linear’ (linear or CPH models).</p></li>
 
 </dd></dl>
 
-</section>
-<section id="trainer">
+</div>
+<div class="section" id="trainer">
 <h2>Trainer<a class="headerlink" href="#trainer" title="Permalink to this headline">¶</a></h2>
 <dl class="py class">
 <dt class="sig sig-object py" id="slideflow.model.Trainer">
@@ -514,8 +514,8 @@ Defaults to ‘imagenet’.</p></li>
 
 </dd></dl>
 
-</section>
-<section id="lineartrainer">
+</div>
+<div class="section" id="lineartrainer">
 <h2>LinearTrainer<a class="headerlink" href="#lineartrainer" title="Permalink to this headline">¶</a></h2>
 <dl class="py class">
 <dt class="sig sig-object py" id="slideflow.model.LinearTrainer">
@@ -631,8 +631,8 @@ Defaults to ‘imagenet’.</p></li>
 
 </dd></dl>
 
-</section>
-<section id="cphtrainer">
+</div>
+<div class="section" id="cphtrainer">
 <h2>CPHTrainer<a class="headerlink" href="#cphtrainer" title="Permalink to this headline">¶</a></h2>
 <dl class="py class">
 <dt class="sig sig-object py" id="slideflow.model.CPHTrainer">
@@ -747,8 +747,8 @@ Defaults to ‘imagenet’.</p></li>
 
 </dd></dl>
 
-</section>
-<section id="trainer-from-hp">
+</div>
+<div class="section" id="trainer-from-hp">
 <h2>trainer_from_hp<a class="headerlink" href="#trainer-from-hp" title="Permalink to this headline">¶</a></h2>
 <dl class="py function">
 <dt class="sig sig-object py" id="slideflow.model.trainer_from_hp">
@@ -784,8 +784,8 @@ Used when permuting feature importance.</p></li>
 </dl>
 </dd></dl>
 
-</section>
-<section id="features">
+</div>
+<div class="section" id="features">
 <h2>Features<a class="headerlink" href="#features" title="Permalink to this headline">¶</a></h2>
 <dl class="py class">
 <dt class="sig sig-object py" id="slideflow.model.Features">
@@ -860,8 +860,8 @@ Is not used on individual tile datasets via __call__. Defaults to None.</p></li>
 
 </dd></dl>
 
-</section>
-<section id="datasetfeatures">
+</div>
+<div class="section" id="datasetfeatures">
 <h2>DatasetFeatures<a class="headerlink" href="#datasetfeatures" title="Permalink to this headline">¶</a></h2>
 <dl class="py class">
 <dt class="sig sig-object py" id="slideflow.model.DatasetFeatures">
@@ -1150,8 +1150,8 @@ dict: Dict mapping features to slide-level statistics (‘p’, ‘f’);</p>
 
 </dd></dl>
 
-</section>
-</section>
+</div>
+</div>
 
 
              </article>

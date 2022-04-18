@@ -6,8 +6,7 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  <meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
-
+  
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
   <title>slideflow.io.torch &mdash; slideflow 1.1.0 documentation</title>
@@ -181,7 +180,8 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="tutorial1.html">Tutorial 1: Model training (simple)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorial2.html">Tutorial 2: Model training (advanced)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorial3.html">Tutorial 3: Model evaluation &amp; heatmaps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial3.html">Tutorial 3: Using a custom architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial4.html">Tutorial 4: Model evaluation &amp; heatmaps</a></li>
 </ul>
 
             
@@ -254,7 +254,7 @@
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
               
-  <section id="slideflow-io-torch">
+  <div class="section" id="slideflow-io-torch">
 <h1>slideflow.io.torch<a class="headerlink" href="#slideflow-io-torch" title="Permalink to this headline">¶</a></h1>
 <p>The purpose of this module is to provide a performant, backend-agnostic TFRecord reader and interleaver to use as
 input for PyTorch models. Its TFRecord reader is a modified and optimized version of
@@ -332,14 +332,6 @@ Defaults to None.</p></li>
 <dt class="sig sig-object py" id="slideflow.io.torch.InterleaveIterator.label_shape">
 <em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">label_shape</span></span><a class="headerlink" href="#slideflow.io.torch.InterleaveIterator.label_shape" title="Permalink to this definition">¶</a></dt>
 <dd><p>For use with StyleGAN2</p>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="slideflow.io.torch.InterleaveIterator.reinforce_type">
-<span class="sig-name descname"><span class="pre">reinforce_type</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">expected_type</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.io.torch.InterleaveIterator.reinforce_type" title="Permalink to this definition">¶</a></dt>
-<dd><p>Reinforce the type for DataPipe instance. And the ‘expected_type’ is required
-to be a subtype of the original type hint to restrict the type requirement
-of DataPipe instance.</p>
 </dd></dl>
 
 </dd></dl>
@@ -525,7 +517,7 @@ Defaults to False.</p></li>
 by a TFRecordWriter.</p>
 </dd></dl>
 
-</section>
+</div>
 
 
              </article>

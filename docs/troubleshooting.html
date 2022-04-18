@@ -6,8 +6,7 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  <meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
-
+  
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
   <title>Troubleshooting &mdash; slideflow 1.1.0 documentation</title>
@@ -181,7 +180,8 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="tutorial1.html">Tutorial 1: Model training (simple)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorial2.html">Tutorial 2: Model training (advanced)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorial3.html">Tutorial 3: Model evaluation &amp; heatmaps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial3.html">Tutorial 3: Using a custom architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial4.html">Tutorial 4: Model evaluation &amp; heatmaps</a></li>
 </ul>
 
             
@@ -254,11 +254,11 @@
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
               
-  <section id="troubleshooting">
+  <div class="section" id="troubleshooting">
 <h1>Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permalink to this headline">¶</a></h1>
 <p>If you’re running into problems, look for more information by including debug logging. To enable debug logging, set the environmental variable <code class="docutils literal notranslate"><span class="pre">SF_BACKEND=10</span></code>.</p>
 <p>To check for errors in your environment or installation, you can also use the test script <code class="docutils literal notranslate"><span class="pre">test.py</span></code>, which uses the testing suite <code class="docutils literal notranslate"><span class="pre">slideflow.test.TestSuite</span></code> to execute all pipeline functions on a set of provided slides.</p>
-<section id="testing">
+<div class="section" id="testing">
 <h2>Testing<a class="headerlink" href="#testing" title="Permalink to this headline">¶</a></h2>
 <p>To test all pipeline functions, use the <code class="docutils literal notranslate"><span class="pre">test.py</span></code> script, providing a path to a directory containing slides to use for testing:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ python3 test.py --slides /path/to/slides
@@ -269,12 +269,12 @@
 </pre></div>
 </div>
 <p>To view a list of all tests that will be run (and thus can be skipped), pass the argument <code class="docutils literal notranslate"><span class="pre">--help</span></code>.</p>
-</section>
-<section id="issue-reporting">
+</div>
+<div class="section" id="issue-reporting">
 <h2>Issue Reporting<a class="headerlink" href="#issue-reporting" title="Permalink to this headline">¶</a></h2>
 <p>If the issue is still unclear, please submit an Issue on the <a class="reference external" href="https://github.com/jamesdolezal/slideflow">project Github page</a>.</p>
-</section>
-</section>
+</div>
+</div>
 
 
              </article>

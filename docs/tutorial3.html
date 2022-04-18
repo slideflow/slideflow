@@ -6,11 +6,10 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  <meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
-
+  
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Tutorial 3: Model evaluation &amp; heatmaps &mdash; slideflow 1.1.0 documentation</title>
+  <title>Tutorial 3: Using a custom architecture &mdash; slideflow 1.1.0 documentation</title>
   
 
   
@@ -32,6 +31,7 @@
   <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Tutorial 4: Model evaluation &amp; heatmaps" href="tutorial4.html" />
     <link rel="prev" title="Tutorial 2: Model training (advanced)" href="tutorial2.html" />
   <!-- Google Analytics -->
   
@@ -180,7 +180,8 @@
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="tutorial1.html">Tutorial 1: Model training (simple)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorial2.html">Tutorial 2: Model training (advanced)</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Tutorial 3: Model evaluation &amp; heatmaps</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Tutorial 3: Using a custom architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial4.html">Tutorial 4: Model evaluation &amp; heatmaps</a></li>
 </ul>
 
             
@@ -221,7 +222,7 @@
       </li>
 
         
-      <li>Tutorial 3: Model evaluation &amp; heatmaps</li>
+      <li>Tutorial 3: Using a custom architecture</li>
     
     
       <li class="pytorch-breadcrumbs-aside">
@@ -253,143 +254,263 @@
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
               
-  <section id="tutorial-3-model-evaluation-heatmaps">
-<h1>Tutorial 3: Model evaluation &amp; heatmaps<a class="headerlink" href="#tutorial-3-model-evaluation-heatmaps" title="Permalink to this headline">¶</a></h1>
-<p>In this tutorial, we will evaluate a trained model on a separate, held-out evaluation dataset.</p>
-<section id="locate-a-saved-model">
-<h2>Locate a saved model<a class="headerlink" href="#locate-a-saved-model" title="Permalink to this headline">¶</a></h2>
-<p>First, locate a saved model to evaluate, which will be a *.zip file for PyTorch models and a directory for Tensorflow models.
-The directory structure for saved models trained with Tensorflow will look like:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>models/
-├── <span class="m">00001</span>-er_status_by_ihc-HP0 /
-│   ├── er_status_by_ihc-HP0-epoch1/
-         ...
-...
-</pre></div>
-</div>
-<p>And for PyTorch:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>models/
-├── <span class="m">00001</span>-er_status_by_ihc-HP0 /
-│   ├── er_status_by_ihc-HP0-epoch1.zip
-         ...
-...
-</pre></div>
-</div>
-<p>For this tutorial, we will assume that the final trained model is stored at <code class="docutils literal notranslate"><span class="pre">/home/er_project/models/00003-er_status_by_ihc/er_status_by_ihc_epoch3</span></code>.
-The results we report are a continuation of the project described in <a class="reference internal" href="tutorial1.html#tutorial1"><span class="std std-ref">Tutorial 1: Model training (simple)</span></a>.</p>
-</section>
-<section id="evaluation">
-<h2>Evaluation<a class="headerlink" href="#evaluation" title="Permalink to this headline">¶</a></h2>
-<p>To evaluate a saved model, use the <a class="reference internal" href="project.html#slideflow.Project.evaluate" title="slideflow.Project.evaluate"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Project.evaluate()</span></code></a> function:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">model</span> <span class="o">=</span> <span class="s1">&#39;/home/er_project/models/00003-er_status_by_ihc/er_status_by_ihc_epoch3&#39;</span>
+  <div class="section" id="tutorial-3-using-a-custom-architecture">
+<h1>Tutorial 3: Using a custom architecture<a class="headerlink" href="#tutorial-3-using-a-custom-architecture" title="Permalink to this headline">¶</a></h1>
+<p>Out of the box, Slideflow includes support for 21 model architectures in the Tensorflow backend and 17 with the PyTorch backend. In this tutorial, we will demonstrate how to train a custom model architecture (ViT) in either backend.</p>
+<div class="section" id="custom-tensorflow-model">
+<h2>Custom Tensorflow model<a class="headerlink" href="#custom-tensorflow-model" title="Permalink to this headline">¶</a></h2>
+<p>Any Tensorflow/Keras model (<code class="xref py py-class docutils literal notranslate"><span class="pre">tf.keras.Model</span></code>) can be trained in Slideflow by setting the <code class="docutils literal notranslate"><span class="pre">model</span></code> parameter of a <code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.ModelParams</span></code> object to a function which initalizes the model.</p>
+<p>First, define the model in a file that can be imported. In this example, we will define a vision transformer (ViT) model in a file <code class="docutils literal notranslate"><span class="pre">vit_tensorflow.py</span></code>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># From:</span>
+<span class="c1"># https://github.com/ashishpatel26/Vision-Transformer-Keras-Tensorflow-Pytorch-Examples/blob/main/Vision_Transformer_with_tf2.ipynb</span>
 
-<span class="k">def</span> <span class="nf">main</span><span class="p">(</span><span class="n">P</span><span class="p">):</span>
-    <span class="n">P</span><span class="o">.</span><span class="n">evaluate</span><span class="p">(</span>
-        <span class="n">model</span><span class="p">,</span>
-        <span class="s1">&#39;er_status_by_ihc&#39;</span><span class="p">,</span>
-        <span class="n">filters</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;dataset&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;eval&#39;</span><span class="p">],</span>
-                 <span class="s1">&#39;er_status_by_ihc&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;Positive&#39;</span><span class="p">,</span> <span class="s1">&#39;Negative&#39;</span><span class="p">]}</span>
+<span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">import</span> <span class="nn">six</span>
+<span class="kn">import</span> <span class="nn">tensorflow</span> <span class="k">as</span> <span class="nn">tf</span>
+<span class="kn">from</span> <span class="nn">einops.layers.tensorflow</span> <span class="kn">import</span> <span class="n">Rearrange</span>
+
+
+<span class="k">def</span> <span class="nf">gelu</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Gaussian Error Linear Unit.</span>
+<span class="sd">    This is a smoother version of the RELU.</span>
+<span class="sd">    Original paper: https://arxiv.org/abs/1606.08415</span>
+<span class="sd">    Args:</span>
+<span class="sd">        x: float Tensor to perform activation.</span>
+<span class="sd">    Returns:</span>
+<span class="sd">        `x` with the GELU activation applied.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">cdf</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">+</span> <span class="n">tf</span><span class="o">.</span><span class="n">tanh</span><span class="p">(</span>
+        <span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">2</span> <span class="o">/</span> <span class="n">math</span><span class="o">.</span><span class="n">pi</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">x</span> <span class="o">+</span> <span class="mf">0.044715</span> <span class="o">*</span> <span class="n">tf</span><span class="o">.</span><span class="n">pow</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="mi">3</span><span class="p">)))))</span>
+    <span class="k">return</span> <span class="n">x</span> <span class="o">*</span> <span class="n">cdf</span>
+
+
+<span class="k">def</span> <span class="nf">get_activation</span><span class="p">(</span><span class="n">identifier</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Maps a identifier to a Python function, e.g., &quot;relu&quot; =&gt; `tf.nn.relu`.</span>
+<span class="sd">    It checks string first and if it is one of customized activation not in TF,</span>
+<span class="sd">    the corresponding activation will be returned. For non-customized activation</span>
+<span class="sd">    names and callable identifiers, always fallback to tf.keras.activations.get.</span>
+<span class="sd">    Args:</span>
+<span class="sd">        identifier: String name of the activation function or callable.</span>
+<span class="sd">    Returns:</span>
+<span class="sd">        A Python function corresponding to the activation function.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">identifier</span><span class="p">,</span> <span class="n">six</span><span class="o">.</span><span class="n">string_types</span><span class="p">):</span>
+        <span class="n">name_to_fn</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;gelu&quot;</span><span class="p">:</span> <span class="n">gelu</span><span class="p">}</span>
+        <span class="n">identifier</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">identifier</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">identifier</span> <span class="ow">in</span> <span class="n">name_to_fn</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">activations</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">name_to_fn</span><span class="p">[</span><span class="n">identifier</span><span class="p">])</span>
+    <span class="k">return</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">activations</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">identifier</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">Residual</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">Model</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fn</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fn</span> <span class="o">=</span> <span class="n">fn</span>
+
+    <span class="k">def</span> <span class="nf">call</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">fn</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">+</span> <span class="n">x</span>
+
+
+<span class="k">class</span> <span class="nc">PreNorm</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">Model</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dim</span><span class="p">,</span> <span class="n">fn</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">norm</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">layers</span><span class="o">.</span><span class="n">LayerNormalization</span><span class="p">(</span><span class="n">epsilon</span><span class="o">=</span><span class="mf">1e-5</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fn</span> <span class="o">=</span> <span class="n">fn</span>
+
+    <span class="k">def</span> <span class="nf">call</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">fn</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">x</span><span class="p">))</span>
+
+
+<span class="k">class</span> <span class="nc">FeedForward</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">Model</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dim</span><span class="p">,</span> <span class="n">hidden_dim</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">net</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">Sequential</span><span class="p">([</span>
+            <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">layers</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span>
+                <span class="n">hidden_dim</span><span class="p">,</span>
+                <span class="n">activation</span><span class="o">=</span><span class="n">get_activation</span><span class="p">(</span><span class="s1">&#39;gelu&#39;</span><span class="p">)</span>
+            <span class="p">),</span>
+            <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">layers</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="n">dim</span><span class="p">)]</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">call</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">net</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">Attention</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">Model</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dim</span><span class="p">,</span> <span class="n">heads</span><span class="o">=</span><span class="mi">8</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">heads</span> <span class="o">=</span> <span class="n">heads</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">scale</span> <span class="o">=</span> <span class="n">dim</span> <span class="o">**</span> <span class="o">-</span><span class="mf">0.5</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">to_qkv</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">layers</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="n">dim</span> <span class="o">*</span> <span class="mi">3</span><span class="p">,</span> <span class="n">use_bias</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">to_out</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">layers</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="n">dim</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rearrange_qkv</span> <span class="o">=</span> <span class="n">Rearrange</span><span class="p">(</span>
+            <span class="s1">&#39;b n (qkv h d) -&gt; qkv b h n d&#39;</span><span class="p">,</span>
+            <span class="n">qkv</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
+            <span class="n">h</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">heads</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rearrange_out</span> <span class="o">=</span> <span class="n">Rearrange</span><span class="p">(</span><span class="s1">&#39;b h n d -&gt; b n (h d)&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">call</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="n">qkv</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">to_qkv</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">qkv</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rearrange_qkv</span><span class="p">(</span><span class="n">qkv</span><span class="p">)</span>
+        <span class="n">q</span> <span class="o">=</span> <span class="n">qkv</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">k</span> <span class="o">=</span> <span class="n">qkv</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">v</span> <span class="o">=</span> <span class="n">qkv</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+        <span class="n">dots</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s1">&#39;bhid,bhjd-&gt;bhij&#39;</span><span class="p">,</span> <span class="n">q</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">scale</span>
+        <span class="n">attn</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">softmax</span><span class="p">(</span><span class="n">dots</span><span class="p">,</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s1">&#39;bhij,bhjd-&gt;bhid&#39;</span><span class="p">,</span> <span class="n">attn</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rearrange_out</span><span class="p">(</span><span class="n">out</span><span class="p">)</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">to_out</span><span class="p">(</span><span class="n">out</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">out</span>
+
+
+<span class="k">class</span> <span class="nc">Transformer</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">Model</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dim</span><span class="p">,</span> <span class="n">depth</span><span class="p">,</span> <span class="n">heads</span><span class="p">,</span> <span class="n">mlp_dim</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="n">layers</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">depth</span><span class="p">):</span>
+            <span class="n">layers</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span>
+                <span class="n">Residual</span><span class="p">(</span><span class="n">PreNorm</span><span class="p">(</span><span class="n">dim</span><span class="p">,</span> <span class="n">Attention</span><span class="p">(</span><span class="n">dim</span><span class="p">,</span> <span class="n">heads</span><span class="o">=</span><span class="n">heads</span><span class="p">))),</span>
+                <span class="n">Residual</span><span class="p">(</span><span class="n">PreNorm</span><span class="p">(</span><span class="n">dim</span><span class="p">,</span> <span class="n">FeedForward</span><span class="p">(</span><span class="n">dim</span><span class="p">,</span> <span class="n">mlp_dim</span><span class="p">)))</span>
+            <span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">net</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">Sequential</span><span class="p">(</span><span class="n">layers</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">call</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">net</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">ViT</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">Model</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">image_size</span><span class="p">,</span> <span class="n">patch_size</span><span class="p">,</span> <span class="n">num_classes</span><span class="p">,</span>
+                <span class="n">dim</span><span class="p">,</span> <span class="n">depth</span><span class="p">,</span> <span class="n">heads</span><span class="p">,</span> <span class="n">mlp_dim</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">image_size</span> <span class="o">%</span> <span class="n">patch_size</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="s1">&#39;image dimensions must be divisible by the patch size&#39;</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="n">num_patches</span> <span class="o">=</span> <span class="p">(</span><span class="n">image_size</span> <span class="o">//</span> <span class="n">patch_size</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">patch_size</span> <span class="o">=</span> <span class="n">patch_size</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dim</span> <span class="o">=</span> <span class="n">dim</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pos_embedding</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">add_weight</span><span class="p">(</span>
+            <span class="s2">&quot;position_embeddings&quot;</span><span class="p">,</span>
+            <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">num_patches</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">dim</span><span class="p">],</span>
+            <span class="n">initializer</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">initializers</span><span class="o">.</span><span class="n">RandomNormal</span><span class="p">(),</span>
+            <span class="n">dtype</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">float32</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">patch_to_embedding</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">layers</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="n">dim</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cls_token</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">add_weight</span><span class="p">(</span>
+            <span class="s2">&quot;cls_token&quot;</span><span class="p">,</span>
+            <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">dim</span><span class="p">],</span>
+            <span class="n">initializer</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">initializers</span><span class="o">.</span><span class="n">RandomNormal</span><span class="p">(),</span>
+            <span class="n">dtype</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">float32</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rearrange</span> <span class="o">=</span> <span class="n">Rearrange</span><span class="p">(</span>
+            <span class="s1">&#39;b (h p1) (w p2) c -&gt; b (h w) (p1 p2 c)&#39;</span><span class="p">,</span>
+            <span class="n">p1</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">patch_size</span><span class="p">,</span>
+            <span class="n">p2</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">patch_size</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span> <span class="o">=</span> <span class="n">Transformer</span><span class="p">(</span><span class="n">dim</span><span class="p">,</span> <span class="n">depth</span><span class="p">,</span> <span class="n">heads</span><span class="p">,</span> <span class="n">mlp_dim</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">to_cls_token</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">identity</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mlp_head</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">Sequential</span><span class="p">([</span>
+            <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">layers</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="n">mlp_dim</span><span class="p">,</span> <span class="n">activation</span><span class="o">=</span><span class="n">get_activation</span><span class="p">(</span><span class="s1">&#39;gelu&#39;</span><span class="p">)),</span>
+            <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">layers</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="n">num_classes</span><span class="p">)</span>
+        <span class="p">])</span>
+
+    <span class="nd">@tf</span><span class="o">.</span><span class="n">function</span>
+    <span class="k">def</span> <span class="nf">call</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">img</span><span class="p">):</span>
+        <span class="n">shapes</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">img</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rearrange</span><span class="p">(</span><span class="n">img</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">patch_to_embedding</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">cls_tokens</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">broadcast_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cls_token</span><span class="p">,</span> <span class="p">(</span><span class="n">shapes</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">dim</span><span class="p">))</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">concat</span><span class="p">((</span><span class="n">cls_tokens</span><span class="p">,</span> <span class="n">x</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pos_embedding</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">to_cls_token</span><span class="p">(</span><span class="n">x</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">])</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">mlp_head</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Next, define a function that accepts any combination of the keyword arguments <code class="docutils literal notranslate"><span class="pre">input_shape</span></code>, <code class="docutils literal notranslate"><span class="pre">include_top</span></code>, <code class="docutils literal notranslate"><span class="pre">pooling</span></code>, and/or <code class="docutils literal notranslate"><span class="pre">weights</span></code> and returns an instanced model.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">vit_tensorflow</span> <span class="kn">import</span> <span class="n">ViT</span>
+
+<span class="k">def</span> <span class="nf">vit_model</span><span class="p">(</span><span class="n">image_shape</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">ViT</span><span class="p">(</span>
+        <span class="n">image_size</span><span class="o">=</span><span class="n">input_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+        <span class="n">patch_size</span><span class="o">=</span><span class="mi">23</span><span class="p">,</span>
+        <span class="n">num_classes</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span>
+        <span class="n">dim</span><span class="o">=</span><span class="mi">1024</span><span class="p">,</span>
+        <span class="n">depth</span><span class="o">=</span><span class="mi">6</span><span class="p">,</span>
+        <span class="n">heads</span><span class="o">=</span><span class="mi">16</span><span class="p">,</span>
+        <span class="n">mlp_dim</span><span class="o">=</span><span class="mi">2048</span>
     <span class="p">)</span>
 </pre></div>
 </div>
-<p>This function should yield the following final results:</p>
-<table class="docutils align-default">
-<colgroup>
-<col style="width: 50%" />
-<col style="width: 50%" />
-</colgroup>
-<tbody>
-<tr class="row-odd"><td><figure class="align-default">
-<img alt="_images/val_er_roc_tile.png" src="_images/val_er_roc_tile.png" />
-</figure>
-<p>Tile-level receiver operator curve</p>
-</td>
-<td><figure class="align-default">
-<img alt="_images/val_er_roc_patient.png" src="_images/val_er_roc_patient.png" />
-</figure>
-<p>Patient-level receiver operator curve</p>
-</td>
-</tr>
-</tbody>
-</table>
-</section>
-<section id="heatmaps">
-<h2>Heatmaps<a class="headerlink" href="#heatmaps" title="Permalink to this headline">¶</a></h2>
-<p>Predictive heatmaps can be generated for either individuals slides or for all slides in a dataset. We will give examples for both, starting with automatic heatmap generation for all slides in the evaluation dataset.</p>
-<section id="from-a-dataset">
-<h3>From a dataset<a class="headerlink" href="#from-a-dataset" title="Permalink to this headline">¶</a></h3>
-<p>The <a class="reference internal" href="project.html#slideflow.Project.generate_heatmaps" title="slideflow.Project.generate_heatmaps"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Project.generate_heatmaps()</span></code></a> can be used to easily and quickly create predictive heatmaps for a dataset. The filters argument is used to specify which slides should be included.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">model</span> <span class="o">=</span> <span class="s1">&#39;/home/er_project/models/00003-er_status_by_ihc/er_status_by_ihc_epoch3&#39;</span>
+<p>Then, create a <code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.ModelParams</span></code> object with your training parameters, setting the <code class="docutils literal notranslate"><span class="pre">model</span></code> argument equal to the function you just defined:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
+<span class="kn">from</span> <span class="nn">vit_tensorflow</span> <span class="n">impport</span> <span class="n">ViT</span>
 
-<span class="k">def</span> <span class="nf">main</span><span class="p">(</span><span class="n">P</span><span class="p">):</span>
-    <span class="n">P</span><span class="o">.</span><span class="n">generate_heatmaps</span><span class="p">(</span>
-        <span class="n">model</span><span class="p">,</span>
-        <span class="n">filters</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;dataset&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;eval&#39;</span><span class="p">]},</span>
-        <span class="n">resolution</span><span class="o">=</span><span class="s1">&#39;high&#39;</span> <span class="c1"># options include &quot;low&quot;, &quot;medium&quot; and &quot;high&quot;</span>
+<span class="k">def</span> <span class="nf">vit_model</span><span class="p">(</span><span class="n">image_shape</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="o">...</span>
+
+<span class="n">hp</span> <span class="o">=</span> <span class="n">ModelParams</span><span class="p">(</span>
+    <span class="n">tile_px</span><span class="o">=</span><span class="mi">299</span><span class="p">,</span>
+    <span class="n">tile_um</span><span class="o">=</span><span class="mi">302</span><span class="p">,</span>
+    <span class="n">batch_size</span><span class="o">=</span><span class="mi">32</span><span class="p">,</span>
+    <span class="n">model</span><span class="o">=</span><span class="n">vit_model</span><span class="p">,</span>
+    <span class="o">...</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>You can now train the model as described in <a class="reference internal" href="tutorial1.html#tutorial1"><span class="std std-ref">Tutorial 1: Model training (simple)</span></a>.</p>
+</div>
+<div class="section" id="custom-pytorch-model">
+<h2>Custom PyTorch model<a class="headerlink" href="#custom-pytorch-model" title="Permalink to this headline">¶</a></h2>
+<p>The process is very similar when using PyTorch. In this example, instead of defining the architecture in a separate file, we will use an implementation of ViT available via PyPI:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">pip3</span> <span class="n">install</span> <span class="n">vit</span><span class="o">-</span><span class="n">pytorch</span>
+</pre></div>
+</div>
+<p>Next, define a function which accepts any combination of the keyword arguments <code class="docutils literal notranslate"><span class="pre">image_size</span></code> and/or <code class="docutils literal notranslate"><span class="pre">pretrained</span></code> and returns an instanced model.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
+<span class="kn">from</span> <span class="nn">vit_pytorch</span> <span class="n">impport</span> <span class="n">ViT</span>
+
+<span class="k">def</span> <span class="nf">vit_model</span><span class="p">(</span><span class="n">image_shape</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="n">model</span> <span class="o">=</span> <span class="n">ViT</span><span class="p">(</span>
+        <span class="n">image_size</span><span class="o">=</span><span class="n">image_size</span><span class="p">,</span>
+        <span class="n">patch_size</span><span class="o">=</span><span class="mi">23</span><span class="p">,</span>
+        <span class="n">num_classes</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span>
+        <span class="n">dim</span><span class="o">=</span><span class="mi">1024</span><span class="p">,</span>
+        <span class="n">depth</span><span class="o">=</span><span class="mi">6</span><span class="p">,</span>
+        <span class="n">heads</span><span class="o">=</span><span class="mi">16</span><span class="p">,</span>
+        <span class="n">mlp_dim</span><span class="o">=</span><span class="mi">2048</span><span class="p">,</span>
+        <span class="n">dropout</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span>
+        <span class="n">emb_dropout</span><span class="o">=</span><span class="mf">0.1</span>
     <span class="p">)</span>
+    <span class="n">model</span><span class="o">.</span><span class="n">out_features</span> <span class="o">=</span> <span class="mi">1000</span>
+    <span class="k">return</span> <span class="n">model</span>
 </pre></div>
 </div>
-<p>If the referenced model was trained with digital stain normalization, this will be automaticaly detected and used at the time of heatmap calculation. The heatmap thumbnail image will be displayed without normalization, however.</p>
-<p>The <code class="docutils literal notranslate"><span class="pre">resolution</span></code> parameter indicates the stride at which tiles should be extracted from slides to generate predictions. <code class="docutils literal notranslate"><span class="pre">&quot;low&quot;</span></code> resolution yields predictions on non-overlapping slides (stride_div=1). <code class="docutils literal notranslate"><span class="pre">&quot;medium&quot;</span></code> resolutions uses tiles with 50% overlap (stide_div=2), and <code class="docutils literal notranslate"><span class="pre">&quot;high&quot;</span></code> resolution uses tiles with 75% overlap (stride_div=4).</p>
-<p>Heatmaps are colored and scaled in a manner optimized for categorical outcomes, with the colorscale 0 (blue) -&gt; 0.5 (white) -&gt; 1.0 (red). To change this colorscaling (particularly important for linear outcomes), set <code class="docutils literal notranslate"><span class="pre">vmin</span></code>, <code class="docutils literal notranslate"><span class="pre">vcenter</span></code>, and <code class="docutils literal notranslate"><span class="pre">vmax</span></code> accordingly.</p>
-<p>Heatmaps are displayed without any color interpolation by default. To generate a smoothed heatmap, interpolate colors with any strategy supported by matplotlib (including, for example, “bicubic”, “nearest”, “bilnear”, and many more) with the argument <code class="docutils literal notranslate"><span class="pre">interpolation</span></code>.</p>
-<p>Heatmaps are saved by default in the <code class="docutils literal notranslate"><span class="pre">project_folder/heatmaps</span></code> folder. A separate image is saved for each outcome category, as well as a base non-annotated slide thumbnail and a thumbnail with an ROI overlay (if ROIs are available). If the model had three outcomes, the heatmaps folder would contain:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>heatmaps/
-├── er_status_by_ihc-HP0-epoch1 /
-│   ├── slide_name-raw.png
-│   ├── slide_name-raw+roi.png
-│   ├── slide_name-0.png
-│   ├── slide_name-1.png
-│   ├── slide_name-2.png
-         ...
-...
+<p>Finally, set the <code class="docutils literal notranslate"><span class="pre">model</span></code> argument of a <code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.ModelParams</span></code> object equal to this function:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
+<span class="kn">from</span> <span class="nn">vit_pytorch</span> <span class="n">impport</span> <span class="n">ViT</span>
+
+<span class="k">def</span> <span class="nf">vit_model</span><span class="p">(</span><span class="n">image_shape</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="o">...</span>
+
+<span class="n">hp</span> <span class="o">=</span> <span class="n">ModelParams</span><span class="p">(</span>
+    <span class="n">tile_px</span><span class="o">=</span><span class="mi">299</span><span class="p">,</span>
+    <span class="n">tile_um</span><span class="o">=</span><span class="mi">302</span><span class="p">,</span>
+    <span class="n">batch_size</span><span class="o">=</span><span class="mi">32</span><span class="p">,</span>
+    <span class="n">model</span><span class="o">=</span><span class="n">vit_model</span><span class="p">,</span>
+    <span class="o">...</span>
+<span class="p">)</span>
 </pre></div>
 </div>
-<img alt="_images/heatmap_example.png" src="_images/heatmap_example.png" />
-</section>
-<section id="from-a-single-slide">
-<h3>From a single slide<a class="headerlink" href="#from-a-single-slide" title="Permalink to this headline">¶</a></h3>
-<p>Heatmaps can also be manually created with the <a class="reference internal" href="heatmap.html#slideflow.Heatmap" title="slideflow.Heatmap"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.Heatmap</span></code></a> class. To create a heatmap from a slide located at ‘/home/user/example.svs’, use the following syntax:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">heatmap</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">Heatmap</span><span class="p">(</span>
-<span class="gp">... </span>    <span class="s1">&#39;/home/user/example.svs&#39;</span><span class="p">,</span>
-<span class="gp">... </span>    <span class="n">model</span><span class="o">=</span><span class="s1">&#39;/path/to/model&#39;</span><span class="p">,</span>
-<span class="gp">... </span>    <span class="n">stride_div</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span>           <span class="c1"># optional, defaults to 1</span>
-<span class="gp">... </span>    <span class="n">num_threads</span><span class="o">=</span><span class="mi">32</span><span class="p">,</span>         <span class="c1"># optional, defaults to 8</span>
-<span class="gp">... </span>    <span class="n">buffer</span><span class="o">=</span><span class="s1">&#39;/mnt/ramdisk&#39;</span><span class="p">,</span>  <span class="c1"># optional</span>
-<span class="gp">... </span><span class="p">)</span>
-</pre></div>
+<p>You can now train the model as described in <a class="reference internal" href="tutorial1.html#tutorial1"><span class="std std-ref">Tutorial 1: Model training (simple)</span></a>.</p>
 </div>
-<p>To calculate heatmaps only within areas of an annotated ROI, you can pass the directory in which ROIs are contained to <code class="docutils literal notranslate"><span class="pre">roi_dir</span></code>, or pass the path (or list of ROI paths) to <code class="docutils literal notranslate"><span class="pre">rois</span></code>. The easiest way to do this is to let the <a class="reference internal" href="dataset.html#slideflow.Dataset" title="slideflow.Dataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.Dataset</span></code></a> object handle this for you:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">P</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">Project</span><span class="p">(</span><span class="s1">&#39;/project/path&#39;</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">dataset</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">dataset</span><span class="p">(</span><span class="mi">299</span><span class="p">,</span> <span class="mi">302</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">heatmap</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">Heatmap</span><span class="p">(</span>
-<span class="gp">... </span>    <span class="s1">&#39;/home/user/example.svs&#39;</span><span class="p">,</span>
-<span class="gp">... </span>    <span class="n">model</span><span class="o">=</span><span class="s1">&#39;/path/to/model&#39;</span><span class="p">,</span>
-<span class="gp">... </span>    <span class="n">rois</span><span class="o">=</span><span class="n">dataset</span><span class="o">.</span><span class="n">rois</span><span class="p">(),</span>
-<span class="gp">... </span>    <span class="o">...</span>
-<span class="gp">... </span><span class="p">)</span>
-</pre></div>
 </div>
-<p>The heatmap can then be saved with <a class="reference internal" href="heatmap.html#slideflow.Heatmap.save" title="slideflow.Heatmap.save"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Heatmap.save()</span></code></a>, which accepts a directory location as its first positional argument:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">heatmap</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s1">&#39;/save_dir&#39;</span><span class="p">)</span>
-</pre></div>
-</div>
-<p>Heatmap interpolation and colorscale settings are passed as additional arguments to the <a class="reference internal" href="heatmap.html#slideflow.Heatmap.save" title="slideflow.Heatmap.save"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Heatmap.save()</span></code></a> function, and <code class="docutils literal notranslate"><span class="pre">show_roi</span></code> can be used to indicate whether ROIs should be shown on the thumbnail images:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">heatmap</span><span class="o">.</span><span class="n">save</span><span class="p">(</span>
-<span class="gp">... </span>    <span class="s1">&#39;/save_dir&#39;</span><span class="p">,</span>
-<span class="gp">... </span>    <span class="n">interpolation</span><span class="o">=</span><span class="s1">&#39;bicubic&#39;</span><span class="p">,</span>
-<span class="gp">... </span>    <span class="n">vmin</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
-<span class="gp">... </span>    <span class="n">vcenter</span><span class="o">=</span><span class="mi">15</span><span class="p">,</span>
-<span class="gp">... </span>    <span class="n">vmax</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span>
-<span class="gp">... </span>    <span class="n">show_roi</span><span class="o">=</span><span class="kc">False</span>
-<span class="gp">... </span><span class="p">)</span>
-</pre></div>
-</div>
-</section>
-</section>
-</section>
 
 
              </article>
@@ -398,6 +519,8 @@ The results we report are a continuation of the project described in <a class="r
             <footer>
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="tutorial4.html" class="btn btn-neutral float-right" title="Tutorial 4: Model evaluation &amp; heatmaps" accesskey="n" rel="next">Next <img src="_static/images/chevron-right-orange.svg" class="next-page"></a>
       
       
         <a href="tutorial2.html" class="btn btn-neutral" title="Tutorial 2: Model training (advanced)" accesskey="p" rel="prev"><img src="_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
@@ -432,14 +555,9 @@ The results we report are a continuation of the project described in <a class="r
           <div class="pytorch-right-menu" id="pytorch-right-menu">
             <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
               <ul>
-<li><a class="reference internal" href="#">Tutorial 3: Model evaluation &amp; heatmaps</a><ul>
-<li><a class="reference internal" href="#locate-a-saved-model">Locate a saved model</a></li>
-<li><a class="reference internal" href="#evaluation">Evaluation</a></li>
-<li><a class="reference internal" href="#heatmaps">Heatmaps</a><ul>
-<li><a class="reference internal" href="#from-a-dataset">From a dataset</a></li>
-<li><a class="reference internal" href="#from-a-single-slide">From a single slide</a></li>
-</ul>
-</li>
+<li><a class="reference internal" href="#">Tutorial 3: Using a custom architecture</a><ul>
+<li><a class="reference internal" href="#custom-tensorflow-model">Custom Tensorflow model</a></li>
+<li><a class="reference internal" href="#custom-pytorch-model">Custom PyTorch model</a></li>
 </ul>
 </li>
 </ul>

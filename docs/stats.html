@@ -6,8 +6,7 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  <meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
-
+  
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
   <title>slideflow.stats &mdash; slideflow 1.1.0 documentation</title>
@@ -181,7 +180,8 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="tutorial1.html">Tutorial 1: Model training (simple)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorial2.html">Tutorial 2: Model training (advanced)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorial3.html">Tutorial 3: Model evaluation &amp; heatmaps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial3.html">Tutorial 3: Using a custom architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial4.html">Tutorial 4: Model evaluation &amp; heatmaps</a></li>
 </ul>
 
             
@@ -254,7 +254,7 @@
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
               
-  <section id="slideflow-stats">
+  <div class="section" id="slideflow-stats">
 <h1>slideflow.stats<a class="headerlink" href="#slideflow-stats" title="Permalink to this headline">¶</a></h1>
 <p>In addition to containing functions used during model training and evaluation, this module provides
 the <a class="reference internal" href="#slideflow.SlideMap" title="slideflow.SlideMap"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.SlideMap</span></code></a> class designed to assist with visualizing tiles and slides
@@ -284,7 +284,7 @@ index in the slide TFRecord.</p>
 <span class="n">slide_map</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">SlideMap</span><span class="o">.</span><span class="n">from_precalculated</span><span class="p">(</span><span class="n">slides</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">meta</span><span class="p">)</span>
 </pre></div>
 </div>
-<section id="slidemap">
+<div class="section" id="slidemap">
 <h2>SlideMap<a class="headerlink" href="#slidemap" title="Permalink to this headline">¶</a></h2>
 <dl class="py class">
 <dt class="sig sig-object py" id="slideflow.SlideMap">
@@ -573,8 +573,8 @@ containing activations for neighboring slide.</p></li>
 
 </dd></dl>
 
-</section>
-<section id="basic-metrics">
+</div>
+<div class="section" id="basic-metrics">
 <h2>basic_metrics<a class="headerlink" href="#basic-metrics" title="Permalink to this headline">¶</a></h2>
 <dl class="py function">
 <dt class="sig sig-object py" id="slideflow.stats.basic_metrics">
@@ -582,8 +582,8 @@ containing activations for neighboring slide.</p></li>
 <dd><p>Generates metrics, including sensitivity, specificity, and accuracy.</p>
 </dd></dl>
 
-</section>
-<section id="calculate-centroid">
+</div>
+<div class="section" id="calculate-centroid">
 <h2>calculate_centroid<a class="headerlink" href="#calculate-centroid" title="Permalink to this headline">¶</a></h2>
 <dl class="py function">
 <dt class="sig sig-object py" id="slideflow.stats.calculate_centroid">
@@ -604,8 +604,8 @@ dict: Dict mapping slides to activations of tile nearest to centroid</p>
 </dl>
 </dd></dl>
 
-</section>
-<section id="concordance-index">
+</div>
+<div class="section" id="concordance-index">
 <h2>concordance_index<a class="headerlink" href="#concordance-index" title="Permalink to this headline">¶</a></h2>
 <dl class="py function">
 <dt class="sig sig-object py" id="slideflow.stats.concordance_index">
@@ -613,8 +613,8 @@ dict: Dict mapping slides to activations of tile nearest to centroid</p>
 <dd><p>Calculates concordance index from a given y_true and y_pred.</p>
 </dd></dl>
 
-</section>
-<section id="filtered-prediction">
+</div>
+<div class="section" id="filtered-prediction">
 <h2>filtered_prediction<a class="headerlink" href="#filtered-prediction" title="Permalink to this headline">¶</a></h2>
 <dl class="py function">
 <dt class="sig sig-object py" id="slideflow.stats.filtered_prediction">
@@ -634,8 +634,8 @@ a prediction. All other logits will be masked.</p>
 </dl>
 </dd></dl>
 
-</section>
-<section id="generate-combined-roc">
+</div>
+<div class="section" id="generate-combined-roc">
 <h2>generate_combined_roc<a class="headerlink" href="#generate-combined-roc" title="Permalink to this headline">¶</a></h2>
 <dl class="py function">
 <dt class="sig sig-object py" id="slideflow.stats.generate_combined_roc">
@@ -643,8 +643,8 @@ a prediction. All other logits will be masked.</p>
 <dd><p>Generates and saves overlapping ROCs.</p>
 </dd></dl>
 
-</section>
-<section id="generate-roc">
+</div>
+<div class="section" id="generate-roc">
 <h2>generate_roc<a class="headerlink" href="#generate-roc" title="Permalink to this headline">¶</a></h2>
 <dl class="py function">
 <dt class="sig sig-object py" id="slideflow.stats.generate_roc">
@@ -652,8 +652,8 @@ a prediction. All other logits will be masked.</p>
 <dd><p>Generates and saves an ROC with a given set of y_true, y_pred values.</p>
 </dd></dl>
 
-</section>
-<section id="generate-scatter">
+</div>
+<div class="section" id="generate-scatter">
 <h2>generate_scatter<a class="headerlink" href="#generate-scatter" title="Permalink to this headline">¶</a></h2>
 <dl class="py function">
 <dt class="sig sig-object py" id="slideflow.stats.generate_scatter">
@@ -677,8 +677,8 @@ dimension, second dim is the outcome.</p></li>
 </dl>
 </dd></dl>
 
-</section>
-<section id="gen-umap">
+</div>
+<div class="section" id="gen-umap">
 <h2>gen_umap<a class="headerlink" href="#gen-umap" title="Permalink to this headline">¶</a></h2>
 <dl class="py function">
 <dt class="sig sig-object py" id="slideflow.stats.gen_umap">
@@ -686,8 +686,8 @@ dimension, second dim is the outcome.</p></li>
 <dd><p>Generates and returns a umap from a given array, using umap.UMAP</p>
 </dd></dl>
 
-</section>
-<section id="get-centroid-index">
+</div>
+<div class="section" id="get-centroid-index">
 <h2>get_centroid_index<a class="headerlink" href="#get-centroid-index" title="Permalink to this headline">¶</a></h2>
 <dl class="py function">
 <dt class="sig sig-object py" id="slideflow.stats.get_centroid_index">
@@ -695,8 +695,8 @@ dimension, second dim is the outcome.</p></li>
 <dd><p>Calculate index nearest to centroid from a given 2D input array.</p>
 </dd></dl>
 
-</section>
-<section id="metrics-from-dataset">
+</div>
+<div class="section" id="metrics-from-dataset">
 <h2>metrics_from_dataset<a class="headerlink" href="#metrics-from-dataset" title="Permalink to this headline">¶</a></h2>
 <dl class="py function">
 <dt class="sig sig-object py" id="slideflow.stats.metrics_from_dataset">
@@ -735,8 +735,8 @@ torch backends.</p></li>
 </dl>
 </dd></dl>
 
-</section>
-<section id="metrics-from-pred">
+</div>
+<div class="section" id="metrics-from-pred">
 <h2>metrics_from_pred<a class="headerlink" href="#metrics-from-pred" title="Permalink to this headline">¶</a></h2>
 <dl class="py function">
 <dt class="sig sig-object py" id="slideflow.stats.metrics_from_pred">
@@ -775,8 +775,8 @@ log results. Defaults to None.</p></li>
 </dl>
 </dd></dl>
 
-</section>
-<section id="normalize-layout">
+</div>
+<div class="section" id="normalize-layout">
 <h2>normalize_layout<a class="headerlink" href="#normalize-layout" title="Permalink to this headline">¶</a></h2>
 <dl class="py function">
 <dt class="sig sig-object py" id="slideflow.stats.normalize_layout">
@@ -784,8 +784,8 @@ log results. Defaults to None.</p></li>
 <dd><p>Removes outliers and scales layout to between [0,1].</p>
 </dd></dl>
 
-</section>
-<section id="read-predictions">
+</div>
+<div class="section" id="read-predictions">
 <h2>read_predictions<a class="headerlink" href="#read-predictions" title="Permalink to this headline">¶</a></h2>
 <dl class="py function">
 <dt class="sig sig-object py" id="slideflow.stats.read_predictions">
@@ -793,8 +793,8 @@ log results. Defaults to None.</p></li>
 <dd><p>Reads predictions from a previously saved CSV file.</p>
 </dd></dl>
 
-</section>
-<section id="permute-importance">
+</div>
+<div class="section" id="permute-importance">
 <h2>permute_importance<a class="headerlink" href="#permute-importance" title="Permalink to this headline">¶</a></h2>
 <dl class="py function">
 <dt class="sig sig-object py" id="slideflow.stats.permute_importance">
@@ -835,8 +835,8 @@ log results. Defaults to None.</p></li>
 </dl>
 </dd></dl>
 
-</section>
-<section id="predict-from-layer">
+</div>
+<div class="section" id="predict-from-layer">
 <h2>predict_from_layer<a class="headerlink" href="#predict-from-layer" title="Permalink to this headline">¶</a></h2>
 <dl class="py function">
 <dt class="sig sig-object py" id="slideflow.stats.predict_from_layer">
@@ -864,8 +864,8 @@ tensor) that should be excluded. Defaults to None.</p></li>
 </dl>
 </dd></dl>
 
-</section>
-<section id="predict-from-tensorflow">
+</div>
+<div class="section" id="predict-from-tensorflow">
 <h2>predict_from_tensorflow<a class="headerlink" href="#predict-from-tensorflow" title="Permalink to this headline">¶</a></h2>
 <dl class="py function">
 <dt class="sig sig-object py" id="slideflow.stats.predict_from_tensorflow">
@@ -895,8 +895,8 @@ Dataset must also return y_true.</p></li>
 </dl>
 </dd></dl>
 
-</section>
-<section id="predict-from-torch">
+</div>
+<div class="section" id="predict-from-torch">
 <h2>predict_from_torch<a class="headerlink" href="#predict-from-torch" title="Permalink to this headline">¶</a></h2>
 <dl class="py function">
 <dt class="sig sig-object py" id="slideflow.stats.predict_from_torch">
@@ -921,8 +921,8 @@ a single vector for each image. Defaults to ‘categorical’.</p></li>
 </dl>
 </dd></dl>
 
-</section>
-<section id="save-histogram">
+</div>
+<div class="section" id="save-histogram">
 <h2>save_histogram<a class="headerlink" href="#save-histogram" title="Permalink to this headline">¶</a></h2>
 <dl class="py function">
 <dt class="sig sig-object py" id="slideflow.stats.save_histogram">
@@ -930,8 +930,8 @@ a single vector for each image. Defaults to ‘categorical’.</p></li>
 <dd><p>Generates histogram of y_pred, labeled by y_true, saving to outdir.</p>
 </dd></dl>
 
-</section>
-<section id="pred-to-df">
+</div>
+<div class="section" id="pred-to-df">
 <h2>pred_to_df<a class="headerlink" href="#pred-to-df" title="Permalink to this headline">¶</a></h2>
 <dl class="py function">
 <dt class="sig sig-object py" id="slideflow.stats.pred_to_df">
@@ -963,8 +963,8 @@ or (num_tiles, num_categories) [categorical]</p>
 </dl>
 </dd></dl>
 
-</section>
-<section id="to-onehot">
+</div>
+<div class="section" id="to-onehot">
 <h2>to_onehot<a class="headerlink" href="#to-onehot" title="Permalink to this headline">¶</a></h2>
 <dl class="py function">
 <dt class="sig sig-object py" id="slideflow.stats.to_onehot">
@@ -980,8 +980,8 @@ or (num_tiles, num_categories) [categorical]</p>
 </dl>
 </dd></dl>
 
-</section>
-</section>
+</div>
+</div>
 
 
              </article>

@@ -6,8 +6,7 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  <meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
-
+  
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
   <title>Tutorial 2: Model training (advanced) &mdash; slideflow 1.1.0 documentation</title>
@@ -32,7 +31,7 @@
   <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Tutorial 3: Model evaluation &amp; heatmaps" href="tutorial3.html" />
+    <link rel="next" title="Tutorial 3: Using a custom architecture" href="tutorial3.html" />
     <link rel="prev" title="Tutorial 1: Model training (simple)" href="tutorial1.html" />
   <!-- Google Analytics -->
   
@@ -181,7 +180,8 @@
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="tutorial1.html">Tutorial 1: Model training (simple)</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Tutorial 2: Model training (advanced)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorial3.html">Tutorial 3: Model evaluation &amp; heatmaps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial3.html">Tutorial 3: Using a custom architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial4.html">Tutorial 4: Model evaluation &amp; heatmaps</a></li>
 </ul>
 
             
@@ -254,43 +254,49 @@
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
               
-  <section id="tutorial-2-model-training-advanced">
+  <div class="section" id="tutorial-2-model-training-advanced">
 <h1>Tutorial 2: Model training (advanced)<a class="headerlink" href="#tutorial-2-model-training-advanced" title="Permalink to this headline">¶</a></h1>
-<p>In the first tutorial, we used <a class="reference internal" href="project.html#slideflow.Project.train" title="slideflow.Project.train"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Project.train()</span></code></a> to execute training. This project function is useful in that it 1) configures outcome labels in a manner supporting multiple outcomes; 2) prepares any additional slide-level model input from clinical annotations; 3) configures mini-batch balancing; 4) performs full cross-validation rather than training a single model at a time; 4) supports hyperparameter sweeps; and 5) logs model parameters to the model directory.</p>
-<p>In this tutorial, however, we will walk through training a model using the <code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.Datset</span></code> and <a class="reference internal" href="model.html#slideflow.model.Trainer" title="slideflow.model.Trainer"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.model.Trainer</span></code></a> classes directly in an interactive python session, both to demonstrate how model training happens under the hood and to provide a starting point if you would like to customize any part of the model training pipeline.</p>
-<section id="project-setup">
-<h2>Project Setup<a class="headerlink" href="#project-setup" title="Permalink to this headline">¶</a></h2>
-<p>Using the same project configuration as the first tutorial, we will set up a new project with the <a class="reference internal" href="project.html#slideflow.Project.from_prompt" title="slideflow.Project.from_prompt"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Project.from_prompt()</span></code></a> initializer:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">P</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">Project</span><span class="o">.</span><span class="n">from_prompt</span><span class="p">(</span><span class="s1">&#39;/home/er_project&#39;</span><span class="p">)</span>
-</pre></div>
+<p>In the first tutorial, we used <a class="reference internal" href="project.html#slideflow.Project.train" title="slideflow.Project.train"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Project.train()</span></code></a> to execute training. This project function is useful in that it:</p>
+<ol class="arabic simple">
+<li><p>Configures outcome labels in a manner supporting multiple outcomes</p></li>
+<li><p>Configures mini-batch balancing</p></li>
+<li><p>Supports full cross-validation, as opposed to training a single model at a time</p></li>
+<li><p>Supports hyperparameter sweeps</p></li>
+<li><p>Prepares any additional slide-level model input from clinical annotations</p></li>
+<li><p>Logs model parameters to the model directory</p></li>
+</ol>
+<div class="line-block">
+<div class="line"><br /></div>
 </div>
-<p>Use the same settings as the first tutorial. Rather than providing this information via prompt, you could alternatively pass in all arguments via keyword to the regular initializer:</p>
+<p>In this tutorial, we will walk through training a model using the <code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.Datset</span></code> and <a class="reference internal" href="model.html#slideflow.model.Trainer" title="slideflow.model.Trainer"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.model.Trainer</span></code></a> classes directly in an interactive python session, rather than using the built-in <a class="reference internal" href="project.html#slideflow.Project.train" title="slideflow.Project.train"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Project.train()</span></code></a> function. This tutorial will demonstrate how model training happens under the hood, in case you would like to customize any part of the model training pipeline.</p>
+<div class="section" id="project-setup">
+<h2>Project Setup<a class="headerlink" href="#project-setup" title="Permalink to this headline">¶</a></h2>
+<p>Using the same project configuration as the first tutorial, we will set up a new project:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">P</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">Project</span><span class="p">(</span><span class="s1">&#39;/home/er_project&#39;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;Breast_ER&quot;</span><span class="p">,</span> <span class="n">annotations</span><span class="o">=...</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>If you initialize a project with keywords, you will need to manually create a new dataset source with the <code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Project.add_dataset()</span></code> method:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">P</span><span class="o">.</span><span class="n">add_source</span><span class="p">(</span>
-<span class="gp">... </span>    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;NAME&quot;</span><span class="p">,</span>
-<span class="gp">... </span>    <span class="n">slides</span><span class="o">=</span><span class="s2">&quot;/slides/directory&quot;</span><span class="p">,</span>
-<span class="gp">... </span>    <span class="n">roi</span><span class="o">=</span><span class="s2">&quot;/roi/directory&quot;</span><span class="p">,</span>
-<span class="gp">... </span>    <span class="n">tiles</span><span class="o">=</span><span class="s2">&quot;/tiles/directory&quot;</span><span class="p">,</span>
-<span class="gp">... </span>    <span class="n">tfrecords</span><span class="o">=</span><span class="s2">&quot;/tfrecords/directory&quot;</span><span class="p">)</span>
+<span class="gp">... </span>  <span class="n">name</span><span class="o">=</span><span class="s2">&quot;NAME&quot;</span><span class="p">,</span>
+<span class="gp">... </span>  <span class="n">slides</span><span class="o">=</span><span class="s2">&quot;/slides/directory&quot;</span><span class="p">,</span>
+<span class="gp">... </span>  <span class="n">roi</span><span class="o">=</span><span class="s2">&quot;/roi/directory&quot;</span><span class="p">,</span>
+<span class="gp">... </span>  <span class="n">tiles</span><span class="o">=</span><span class="s2">&quot;/tiles/directory&quot;</span><span class="p">,</span>
+<span class="gp">... </span>  <span class="n">tfrecords</span><span class="o">=</span><span class="s2">&quot;/tfrecords/directory&quot;</span><span class="p">)</span>
 <span class="gp">... </span><span class="p">)</span>
 </pre></div>
 </div>
 <p>As before, set up your annotations file, including columns “patient”, “er_status_by_ihc”, “dataset”, and “slide”.</p>
-</section>
-<section id="creating-a-dataset">
+</div>
+<div class="section" id="creating-a-dataset">
 <h2>Creating a Dataset<a class="headerlink" href="#creating-a-dataset" title="Permalink to this headline">¶</a></h2>
 <p>Next, create a <a class="reference internal" href="dataset.html#slideflow.Dataset" title="slideflow.Dataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.Dataset</span></code></a> instance to indicate which slides we will be working with (again, we are working with 256 px tiles at 128 um). We only want to use our training set for now, and only include slides with an ER status annotation. For this, we will use the filters arguments.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">dataset</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">dataset</span><span class="p">(</span>
-<span class="gp">... </span>    <span class="n">tile_px</span><span class="o">=</span><span class="mi">256</span><span class="p">,</span>
-<span class="gp">... </span>    <span class="n">tile_um</span><span class="o">=</span><span class="mi">128</span><span class="p">,</span>
-<span class="gp">... </span>    <span class="n">filters</span><span class="o">=</span><span class="p">{</span>
-<span class="gp">... </span>        <span class="s1">&#39;dataset&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;train&#39;</span><span class="p">],</span>
-<span class="gp">... </span>        <span class="s1">&#39;er_status_by_ihc&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;Positive&#39;</span><span class="p">,</span> <span class="s1">&#39;Negative&#39;</span><span class="p">]</span>
+<span class="gp">... </span>  <span class="n">tile_px</span><span class="o">=</span><span class="mi">256</span><span class="p">,</span>
+<span class="gp">... </span>  <span class="n">tile_um</span><span class="o">=</span><span class="mi">128</span><span class="p">,</span>
+<span class="gp">... </span>  <span class="n">filters</span><span class="o">=</span><span class="p">{</span>
+<span class="gp">... </span>    <span class="s1">&#39;dataset&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;train&#39;</span><span class="p">],</span>
+<span class="gp">... </span>    <span class="s1">&#39;er_status_by_ihc&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;Positive&#39;</span><span class="p">,</span> <span class="s1">&#39;Negative&#39;</span><span class="p">]</span>
 <span class="gp">... </span><span class="p">})</span>
 </pre></div>
 </div>
@@ -312,11 +318,11 @@
 <p>We can see the slideflow logs showing us that 234 slides with the outcome label “Negative” were assigned to the numerical outcome “0”, and 842 “Positive” slides were assigned “1”.</p>
 <p>Next, we’ll need to split this dataset into a training and validation set. We’ll start by training on the first of 3 k-folds for cross-validated training. To split a dataset, use the <a class="reference internal" href="dataset.html#slideflow.Dataset.train_val_split" title="slideflow.Dataset.train_val_split"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Dataset.train_val_split()</span></code></a> method. We’ll need to provide our labels to ensure that the outcome categories are balanced in the training and validation sets.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">train_dts</span><span class="p">,</span> <span class="n">val_dts</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">train_val_split</span><span class="p">(</span>
-<span class="gp">... </span>    <span class="n">model_type</span><span class="o">=</span><span class="s1">&#39;categorical&#39;</span><span class="p">,</span>
-<span class="gp">... </span>    <span class="n">labels</span><span class="o">=</span><span class="n">labels</span><span class="p">,</span>
-<span class="gp">... </span>    <span class="n">val_strategy</span><span class="o">=</span><span class="s1">&#39;k-fold&#39;</span><span class="p">,</span>
-<span class="gp">... </span>    <span class="n">val_k_fold</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
-<span class="gp">... </span>    <span class="n">k_fold_iter</span><span class="o">=</span><span class="mi">1</span>
+<span class="gp">... </span>  <span class="n">model_type</span><span class="o">=</span><span class="s1">&#39;categorical&#39;</span><span class="p">,</span>
+<span class="gp">... </span>  <span class="n">labels</span><span class="o">=</span><span class="n">labels</span><span class="p">,</span>
+<span class="gp">... </span>  <span class="n">val_strategy</span><span class="o">=</span><span class="s1">&#39;k-fold&#39;</span><span class="p">,</span>
+<span class="gp">... </span>  <span class="n">val_k_fold</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
+<span class="gp">... </span>  <span class="n">k_fold_iter</span><span class="o">=</span><span class="mi">1</span>
 <span class="gp">... </span><span class="p">)</span>
 <span class="go">2021-10-06 13:27:39 [INFO] - No validation log provided; unable to save or load validation plans.</span>
 <span class="go">2021-10-06 13:27:39 [INFO] - Category   0       1</span>
@@ -332,26 +338,26 @@
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">train_dts</span> <span class="o">=</span> <span class="n">train_dts</span><span class="o">.</span><span class="n">balance</span><span class="p">(</span><span class="s1">&#39;er_status_by_ihc&#39;</span><span class="p">)</span>
 </pre></div>
 </div>
-</section>
-<section id="training">
+</div>
+<div class="section" id="training">
 <h2>Training<a class="headerlink" href="#training" title="Permalink to this headline">¶</a></h2>
 <p>Now that our dataset is prepared, we can begin setting up our model and trainer. Our model training parameters are configured with <a class="reference internal" href="model.html#slideflow.model.ModelParams" title="slideflow.model.ModelParams"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.model.ModelParams</span></code></a>.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">slideflow.model</span> <span class="kn">import</span> <span class="n">ModelParams</span><span class="p">,</span> <span class="n">Trainer</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">hp</span> <span class="o">=</span> <span class="n">ModelParams</span><span class="p">(</span>
-<span class="gp">... </span>    <span class="n">tile_px</span><span class="o">=</span><span class="mi">256</span><span class="p">,</span>
-<span class="gp">... </span>    <span class="n">tile_um</span><span class="o">=</span><span class="mi">128</span><span class="p">,</span>
-<span class="gp">... </span>    <span class="n">model</span><span class="o">=</span><span class="s1">&#39;xception&#39;</span><span class="p">,</span>
-<span class="gp">... </span>    <span class="n">batch_size</span><span class="o">=</span><span class="mi">32</span><span class="p">,</span>
-<span class="gp">... </span>    <span class="n">epochs</span><span class="o">=</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span>
+<span class="gp">... </span>  <span class="n">tile_px</span><span class="o">=</span><span class="mi">256</span><span class="p">,</span>
+<span class="gp">... </span>  <span class="n">tile_um</span><span class="o">=</span><span class="mi">128</span><span class="p">,</span>
+<span class="gp">... </span>  <span class="n">model</span><span class="o">=</span><span class="s1">&#39;xception&#39;</span><span class="p">,</span>
+<span class="gp">... </span>  <span class="n">batch_size</span><span class="o">=</span><span class="mi">32</span><span class="p">,</span>
+<span class="gp">... </span>  <span class="n">epochs</span><span class="o">=</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span>
 <span class="gp">... </span><span class="p">)</span>
 </pre></div>
 </div>
 <p>In addition to the above model parameters, our trainer will need the outcome labels, patient list (dict mapping slide names to patient IDs, as some patients can have more than one slide), and the directory in which to save our models:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">trainer</span> <span class="o">=</span> <span class="n">Trainer</span><span class="p">(</span>
-<span class="gp">... </span>    <span class="n">hp</span><span class="o">=</span><span class="n">hp</span><span class="p">,</span>
-<span class="gp">... </span>    <span class="n">outdir</span><span class="o">=</span><span class="s1">&#39;/some/directory&#39;</span><span class="p">,</span>
-<span class="gp">... </span>    <span class="n">labels</span><span class="o">=</span><span class="n">labels</span><span class="p">,</span>
-<span class="gp">... </span>    <span class="n">patients</span><span class="o">=</span><span class="n">dataset</span><span class="o">.</span><span class="n">patients</span><span class="p">()</span>
+<span class="gp">... </span>  <span class="n">hp</span><span class="o">=</span><span class="n">hp</span><span class="p">,</span>
+<span class="gp">... </span>  <span class="n">outdir</span><span class="o">=</span><span class="s1">&#39;/some/directory&#39;</span><span class="p">,</span>
+<span class="gp">... </span>  <span class="n">labels</span><span class="o">=</span><span class="n">labels</span><span class="p">,</span>
+<span class="gp">... </span>  <span class="n">patients</span><span class="o">=</span><span class="n">dataset</span><span class="o">.</span><span class="n">patients</span><span class="p">()</span>
 <span class="gp">... </span><span class="p">)</span>
 </pre></div>
 </div>
@@ -361,44 +367,44 @@
 </div>
 <p>You’ll see logs recording model structure, training progress across epochs, and metrics. The training and validation performance results are returned in dictionary format. <code class="docutils literal notranslate"><span class="pre">results</span></code> should have contents similar to the following (values will be different):</p>
 <div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
-<span class="nt">&quot;epochs&quot;</span><span class="p">:</span> <span class="p">{</span>
+  <span class="nt">&quot;epochs&quot;</span><span class="p">:</span> <span class="p">{</span>
     <span class="nt">&quot;epoch3&quot;</span><span class="p">:</span> <span class="p">{</span>
-    <span class="nt">&quot;train_metrics&quot;</span><span class="p">:</span> <span class="p">{</span>
+      <span class="nt">&quot;train_metrics&quot;</span><span class="p">:</span> <span class="p">{</span>
         <span class="nt">&quot;loss&quot;</span><span class="p">:</span> <span class="mf">0.497</span>
         <span class="nt">&quot;accuracy&quot;</span><span class="p">:</span> <span class="mf">0.806</span>
         <span class="nt">&quot;val_loss&quot;</span><span class="p">:</span> <span class="mf">0.719</span>
         <span class="nt">&quot;val_accuracy&quot;</span><span class="p">:</span> <span class="mf">0.778</span>
-    <span class="p">},</span>
-    <span class="nt">&quot;val_metrics&quot;</span><span class="p">:</span> <span class="p">{</span>
+      <span class="p">},</span>
+      <span class="nt">&quot;val_metrics&quot;</span><span class="p">:</span> <span class="p">{</span>
         <span class="nt">&quot;loss&quot;</span><span class="p">:</span> <span class="mf">0.727</span>
         <span class="nt">&quot;accuracy&quot;</span><span class="p">:</span> <span class="mf">0.770</span>
-    <span class="p">},</span>
-    <span class="nt">&quot;tile&quot;</span><span class="p">:</span> <span class="p">{</span>
+      <span class="p">},</span>
+      <span class="nt">&quot;tile&quot;</span><span class="p">:</span> <span class="p">{</span>
         <span class="nt">&quot;Outcome 0&quot;</span><span class="p">:</span> <span class="p">[</span>
-        <span class="mf">0.580</span>
-        <span class="mf">0.580</span>
+          <span class="mf">0.580</span>
+          <span class="mf">0.580</span>
         <span class="p">]</span>
-    <span class="p">},</span>
-    <span class="nt">&quot;slide&quot;</span><span class="p">:</span> <span class="p">{</span>
+      <span class="p">},</span>
+      <span class="nt">&quot;slide&quot;</span><span class="p">:</span> <span class="p">{</span>
         <span class="nt">&quot;Outcome 0&quot;</span><span class="p">:</span> <span class="p">[</span>
-        <span class="mf">0.658</span>
-        <span class="mf">0.658</span>
+          <span class="mf">0.658</span>
+          <span class="mf">0.658</span>
         <span class="p">]</span>
-    <span class="p">},</span>
-    <span class="nt">&quot;patient&quot;</span><span class="p">:</span> <span class="p">{</span>
+      <span class="p">},</span>
+      <span class="nt">&quot;patient&quot;</span><span class="p">:</span> <span class="p">{</span>
         <span class="nt">&quot;Outcome 0&quot;</span><span class="p">:</span> <span class="p">[</span>
-        <span class="mf">0.657</span>
-        <span class="mf">0.657</span>
+          <span class="mf">0.657</span>
+          <span class="mf">0.657</span>
         <span class="p">]</span>
+      <span class="p">}</span>
     <span class="p">}</span>
-    <span class="p">}</span>
-<span class="p">}</span>
+  <span class="p">}</span>
 <span class="p">}</span>
 </pre></div>
 </div>
 <p>Training results are separated with nested dictionaries according to epoch. The raw training metrics and validation metrics are stored with the keys <code class="docutils literal notranslate"><span class="pre">&quot;train_metrics&quot;</span></code> and <code class="docutils literal notranslate"><span class="pre">&quot;val_metrics&quot;</span></code>, and tile-, slide-, and patient-level metrics (AUC for categorical data, R-squared for linear outcomes, and concordance index for CPH models) is reported under the <code class="docutils literal notranslate"><span class="pre">&quot;tile&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;slide&quot;</span></code>, and <code class="docutils literal notranslate"><span class="pre">&quot;patient&quot;</span></code> keys for each outcome, respectively.</p>
-</section>
-</section>
+</div>
+</div>
 
 
              </article>
@@ -408,7 +414,7 @@
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="tutorial3.html" class="btn btn-neutral float-right" title="Tutorial 3: Model evaluation &amp; heatmaps" accesskey="n" rel="next">Next <img src="_static/images/chevron-right-orange.svg" class="next-page"></a>
+        <a href="tutorial3.html" class="btn btn-neutral float-right" title="Tutorial 3: Using a custom architecture" accesskey="n" rel="next">Next <img src="_static/images/chevron-right-orange.svg" class="next-page"></a>
       
       
         <a href="tutorial1.html" class="btn btn-neutral" title="Tutorial 1: Model training (simple)" accesskey="p" rel="prev"><img src="_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>

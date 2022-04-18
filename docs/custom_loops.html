@@ -6,8 +6,7 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  <meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
-
+  
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
   <title>Custom training loops &mdash; slideflow 1.1.0 documentation</title>
@@ -181,7 +180,8 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="tutorial1.html">Tutorial 1: Model training (simple)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorial2.html">Tutorial 2: Model training (advanced)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorial3.html">Tutorial 3: Model evaluation &amp; heatmaps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial3.html">Tutorial 3: Using a custom architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial4.html">Tutorial 4: Model evaluation &amp; heatmaps</a></li>
 </ul>
 
             
@@ -254,10 +254,10 @@
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
               
-  <section id="custom-training-loops">
+  <div class="section" id="custom-training-loops">
 <h1>Custom training loops<a class="headerlink" href="#custom-training-loops" title="Permalink to this headline">¶</a></h1>
 <p>To use <code class="docutils literal notranslate"><span class="pre">*.tfrecords</span></code> from extracted tiles in a custom training loop or entirely separate architecture (such as <a class="reference external" href="https://github.com/jamesdolezal/stylegan2-slideflow">StyleGAN2</a> or <a class="reference external" href="https://github.com/ultralytics/yolov5">YoloV5</a>), Tensorflow <code class="docutils literal notranslate"><span class="pre">tf.data.Dataset</span></code> or PyTorch <code class="docutils literal notranslate"><span class="pre">torch.utils.data.DataLoader</span></code> objects can be created for easily serving processed images to your custom trainer.</p>
-<section id="tfrecord-dataloader">
+<div class="section" id="tfrecord-dataloader">
 <h2>TFRecord DataLoader<a class="headerlink" href="#tfrecord-dataloader" title="Permalink to this headline">¶</a></h2>
 <p>The <a class="reference internal" href="dataset.html#slideflow.Dataset" title="slideflow.Dataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.Dataset</span></code></a> class includes functions to prepare a Tensorflow <code class="docutils literal notranslate"><span class="pre">tf.data.Dataset</span></code> or PyTorch <code class="docutils literal notranslate"><span class="pre">torch.utils.data.DataLoader</span></code> object to interleave and process images from stored TFRecords. First, create a <code class="docutils literal notranslate"><span class="pre">Dataset</span></code> object at a given tile size:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">slideflow</span> <span class="kn">import</span> <span class="n">Project</span>
@@ -297,8 +297,8 @@
 </pre></div>
 </div>
 <p>The returned dataloaders can then be used directly with your external applications.</p>
-</section>
-</section>
+</div>
+</div>
 
 
              </article>
