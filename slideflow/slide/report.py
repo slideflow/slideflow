@@ -202,7 +202,7 @@ class ExtractionReport:
             pdf.ln(20)
 
             # Save thumbnail first
-            pdf.set_font('Arial', '', 7)
+            pdf.set_font('Arial', 'B', 7)
             n_images = 0
             for i, report in enumerate(reports):
                 if report is None:
@@ -216,20 +216,31 @@ class ExtractionReport:
                     # Slide thumbnail
                     with tempfile.NamedTemporaryFile() as temp:
                         report.thumb.save(temp, format="JPEG", quality=75)
+                        thumb_w, thumb_h = report.thumb.size
                         x = pdf.get_x()+((n_images+1) % 2 * 100)
                         y = pdf.get_y()-85
-                        pdf.image(temp.name, x, y, w=90, type='jpg')
+                        if (thumb_w / thumb_h) * 80 > 90:
+                            pdf.image(temp.name, x, y, w=90, type='jpg')
+                        else:
+                            calc_w = 80 * (thumb_w / thumb_h)
+                            offset = (80 - calc_w) / 2
+                            pdf.image(temp.name, x+offset+5, y, h=80, type='jpg')
                         n_images += 1
 
                     # Slide label
                     y = pdf.get_y()
-                    pdf.set_y(y-88)
+                    pdf.set_y(y-92)
                     if n_images % 2 == 1:
                         x = pdf.get_x()
                         pdf.cell(100, 5)
 
                     name = path_to_name(report.path)
-                    pdf.cell(90, 0, name, 0, 1, 'C')
+                    if isinstance(report.num_tiles, int):
+                        n_tiles = report.num_tiles
+                    else:
+                        n_tiles = 0
+                    label = name + f'\n{n_tiles} tiles'
+                    pdf.multi_cell(90, 3, label, 0, 'C')
                     if n_images % 2 == 1:
                         pdf.set_x(x)
                     pdf.set_y(y)
