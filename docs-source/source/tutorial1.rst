@@ -41,8 +41,6 @@ following settings (mostly defaults):
 +-------------------------------+-------------------------------------------------------+
 | **eval_dir**                  | ./eval                                                |
 +-------------------------------+-------------------------------------------------------+
-| **batch_train_config**        | ./batch_train_config.tsv                              |
-+-------------------------------+-------------------------------------------------------+
 
 After a blank datasets.json file is created, we will be prompted to add a new dataset source. Use the following
 configuration for the added dataset source:
@@ -213,11 +211,10 @@ Now, it's time to start our pipeline. To review, our ``actions.py`` file at this
         )
 
 To execute these functions, use the ``run_project.py`` script, passing the project directory with the ``-p`` flag.
-If you have multiple GPUs, you can assign a GPU with the ``-g`` flag.
 
 .. code-block:: bash
 
-    $ python3 run_project.py -p /home/er_project -g 0
+    $ python3 run_project.py -p /home/er_project
 
 The final training results should should show an average AUROC of around 0.87, with average AP around 0.83. Tile, slide,
 and patient-level receiver operator curves are saved in the model folder, along with precision-recall curves (not shown):

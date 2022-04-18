@@ -1,21 +1,23 @@
 Tutorial 2: Model training (advanced)
 =======================================
 
-In the first tutorial, we used :meth:`slideflow.Project.train` to execute training. This project function is useful in that it 1) configures outcome labels in a manner supporting multiple outcomes; 2) prepares any additional slide-level model input from clinical annotations; 3) configures mini-batch balancing; 4) performs full cross-validation rather than training a single model at a time; 4) supports hyperparameter sweeps; and 5) logs model parameters to the model directory.
+In the first tutorial, we used :meth:`slideflow.Project.train` to execute training. This project function is useful in that it:
 
-In this tutorial, however, we will walk through training a model using the :class:`slideflow.Datset` and :class:`slideflow.model.Trainer` classes directly in an interactive python session, both to demonstrate how model training happens under the hood and to provide a starting point if you would like to customize any part of the model training pipeline.
+1) Configures outcome labels in a manner supporting multiple outcomes
+2) Configures mini-batch balancing
+3) Supports full cross-validation, as opposed to training a single model at a time
+4) Supports hyperparameter sweeps
+5) Prepares any additional slide-level model input from clinical annotations
+6) Logs model parameters to the model directory
+
+|
+
+In this tutorial, we will walk through training a model using the :class:`slideflow.Datset` and :class:`slideflow.model.Trainer` classes directly in an interactive python session, rather than using the built-in :meth:`slideflow.Project.train` function. This tutorial will demonstrate how model training happens under the hood, in case you would like to customize any part of the model training pipeline.
 
 Project Setup
 *************
 
-Using the same project configuration as the first tutorial, we will set up a new project with the :meth:`slideflow.Project.from_prompt` initializer:
-
-.. code-block:: python
-
-    >>> import slideflow as sf
-    >>> P = sf.Project.from_prompt('/home/er_project')
-
-Use the same settings as the first tutorial. Rather than providing this information via prompt, you could alternatively pass in all arguments via keyword to the regular initializer:
+Using the same project configuration as the first tutorial, we will set up a new project:
 
 .. code-block:: python
 
@@ -27,11 +29,11 @@ If you initialize a project with keywords, you will need to manually create a ne
 .. code-block:: python
 
     >>> P.add_source(
-    ...     name="NAME",
-    ...     slides="/slides/directory",
-    ...     roi="/roi/directory",
-    ...     tiles="/tiles/directory",
-    ...     tfrecords="/tfrecords/directory")
+    ...   name="NAME",
+    ...   slides="/slides/directory",
+    ...   roi="/roi/directory",
+    ...   tiles="/tiles/directory",
+    ...   tfrecords="/tfrecords/directory")
     ... )
 
 As before, set up your annotations file, including columns "patient", "er_status_by_ihc", "dataset", and "slide".
@@ -44,11 +46,11 @@ Next, create a :class:`slideflow.Dataset` instance to indicate which slides we w
 .. code-block:: python
 
     >>> dataset = P.dataset(
-    ...     tile_px=256,
-    ...     tile_um=128,
-    ...     filters={
-    ...         'dataset': ['train'],
-    ...         'er_status_by_ihc': ['Positive', 'Negative']
+    ...   tile_px=256,
+    ...   tile_um=128,
+    ...   filters={
+    ...     'dataset': ['train'],
+    ...     'er_status_by_ihc': ['Positive', 'Negative']
     ... })
 
 To extract tiles from the slides in this dataset, use the :meth:`slideflow.Dataset.extract_tiles` method:
@@ -79,11 +81,11 @@ Next, we'll need to split this dataset into a training and validation set. We'll
 .. code-block:: python
 
     >>> train_dts, val_dts = dataset.train_val_split(
-    ...     model_type='categorical',
-    ...     labels=labels,
-    ...     val_strategy='k-fold',
-    ...     val_k_fold=3,
-    ...     k_fold_iter=1
+    ...   model_type='categorical',
+    ...   labels=labels,
+    ...   val_strategy='k-fold',
+    ...   val_k_fold=3,
+    ...   k_fold_iter=1
     ... )
     2021-10-06 13:27:39 [INFO] - No validation log provided; unable to save or load validation plans.
     2021-10-06 13:27:39 [INFO] - Category   0       1
@@ -111,11 +113,11 @@ Now that our dataset is prepared, we can begin setting up our model and trainer.
 
     >>> from slideflow.model import ModelParams, Trainer
     >>> hp = ModelParams(
-    ...     tile_px=256,
-    ...     tile_um=128,
-    ...     model='xception',
-    ...     batch_size=32,
-    ...     epochs=[3]
+    ...   tile_px=256,
+    ...   tile_um=128,
+    ...   model='xception',
+    ...   batch_size=32,
+    ...   epochs=[3]
     ... )
 
 In addition to the above model parameters, our trainer will need the outcome labels, patient list (dict mapping slide names to patient IDs, as some patients can have more than one slide), and the directory in which to save our models:
@@ -123,10 +125,10 @@ In addition to the above model parameters, our trainer will need the outcome lab
 .. code-block:: python
 
     >>> trainer = Trainer(
-    ...     hp=hp,
-    ...     outdir='/some/directory',
-    ...     labels=labels,
-    ...     patients=dataset.patients()
+    ...   hp=hp,
+    ...   outdir='/some/directory',
+    ...   labels=labels,
+    ...   patients=dataset.patients()
     ... )
 
 Finally, we can start training. Pass the training and validation datasets to the :meth:`slideflow.model.Trainer.train` method of our trainer, assinging the output to a new variable ``results``
@@ -140,38 +142,38 @@ You'll see logs recording model structure, training progress across epochs, and 
 .. code-block:: json
 
     {
-    "epochs": {
+      "epochs": {
         "epoch3": {
-        "train_metrics": {
+          "train_metrics": {
             "loss": 0.497
             "accuracy": 0.806
             "val_loss": 0.719
             "val_accuracy": 0.778
-        },
-        "val_metrics": {
+          },
+          "val_metrics": {
             "loss": 0.727
             "accuracy": 0.770
-        },
-        "tile": {
+          },
+          "tile": {
             "Outcome 0": [
-            0.580
-            0.580
+              0.580
+              0.580
             ]
-        },
-        "slide": {
+          },
+          "slide": {
             "Outcome 0": [
-            0.658
-            0.658
+              0.658
+              0.658
             ]
-        },
-        "patient": {
+          },
+          "patient": {
             "Outcome 0": [
-            0.657
-            0.657
+              0.657
+              0.657
             ]
+          }
         }
-        }
-    }
+      }
     }
 
 Training results are separated with nested dictionaries according to epoch. The raw training metrics and validation metrics are stored with the keys ``"train_metrics"`` and ``"val_metrics"``, and tile-, slide-, and patient-level metrics (AUC for categorical data, R-squared for linear outcomes, and concordance index for CPH models) is reported under the ``"tile"``, ``"slide"``, and ``"patient"`` keys for each outcome, respectively.

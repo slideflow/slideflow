@@ -1,7 +1,8 @@
-.. slideflow documentation master file, created by
-   sphinx-quickstart on Mon Jan 14 19:42:39 2019.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
+.. slideflow documentation master file
+
+.. figure:: https://i.imgur.com/YrsKN4I.jpeg
+
+    |
 
 Slideflow Documentation
 =======================
@@ -52,8 +53,4 @@ The ``slideflow`` package includes a ``Project`` class to help coordinate projec
    tutorial1
    tutorial2
    tutorial3
-
-Indices and tables
-==================
-
-* :ref:`genindex`
+   tutorial4

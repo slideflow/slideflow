@@ -297,9 +297,6 @@ following settings (mostly defaults):</p>
 <tr class="row-even"><td><p><strong>eval_dir</strong></p></td>
 <td><p>./eval</p></td>
 </tr>
-<tr class="row-odd"><td><p><strong>batch_train_config</strong></p></td>
-<td><p>./batch_train_config.tsv</p></td>
-</tr>
 </tbody>
 </table>
 <p>After a blank datasets.json file is created, we will be prompted to add a new dataset source. Use the following
@@ -491,9 +488,8 @@ we will set <code class="docutils literal notranslate"><span class="pre">val_str
     <span class="p">)</span>
 </pre></div>
 </div>
-<p>To execute these functions, use the <code class="docutils literal notranslate"><span class="pre">run_project.py</span></code> script, passing the project directory with the <code class="docutils literal notranslate"><span class="pre">-p</span></code> flag.
-If you have multiple GPUs, you can assign a GPU with the <code class="docutils literal notranslate"><span class="pre">-g</span></code> flag.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ python3 run_project.py -p /home/er_project -g <span class="m">0</span>
+<p>To execute these functions, use the <code class="docutils literal notranslate"><span class="pre">run_project.py</span></code> script, passing the project directory with the <code class="docutils literal notranslate"><span class="pre">-p</span></code> flag.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ python3 run_project.py -p /home/er_project
 </pre></div>
 </div>
 <p>The final training results should should show an average AUROC of around 0.87, with average AP around 0.83. Tile, slide,
