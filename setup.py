@@ -45,7 +45,7 @@ setuptools.setup(
         'tensorboard',
         'crc32c',
         'h5py',
-        'numpy',
+        'numpy<1.22',
         'tabulate'
     ],
 )
