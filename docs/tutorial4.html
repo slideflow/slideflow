@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Tutorial 4: Model evaluation &amp; heatmaps &mdash; slideflow 1.1.0 documentation</title>
+  <title>Tutorial 4: Model evaluation &amp; heatmaps &mdash; slideflow 1.1.1 documentation</title>
   
 
   
@@ -31,6 +31,7 @@
   <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Tutorial 5: Creating a mosaic map" href="tutorial5.html" />
     <link rel="prev" title="Tutorial 3: Using a custom architecture" href="tutorial3.html" />
   <!-- Google Analytics -->
   
@@ -181,6 +182,7 @@
 <li class="toctree-l1"><a class="reference internal" href="tutorial2.html">Tutorial 2: Model training (advanced)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorial3.html">Tutorial 3: Using a custom architecture</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Tutorial 4: Model evaluation &amp; heatmaps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial5.html">Tutorial 5: Creating a mosaic map</a></li>
 </ul>
 
             
@@ -260,16 +262,16 @@
 <h2>Locate a saved model<a class="headerlink" href="#locate-a-saved-model" title="Permalink to this headline">¶</a></h2>
 <p>First, locate a saved model to evaluate, which will be a *.zip file for PyTorch models and a directory for Tensorflow models.
 The directory structure for saved models trained with Tensorflow will look like:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>models/
-├── <span class="m">00001</span>-er_status_by_ihc-HP0 /
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>models/
+├── 00001-er_status_by_ihc-HP0 /
 │   ├── er_status_by_ihc-HP0-epoch1/
          ...
 ...
 </pre></div>
 </div>
 <p>And for PyTorch:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>models/
-├── <span class="m">00001</span>-er_status_by_ihc-HP0 /
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>models/
+├── 00001-er_status_by_ihc-HP0 /
 │   ├── er_status_by_ihc-HP0-epoch1.zip
          ...
 ...
@@ -398,6 +400,8 @@ The results we report are a continuation of the project described in <a class="r
             <footer>
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="tutorial5.html" class="btn btn-neutral float-right" title="Tutorial 5: Creating a mosaic map" accesskey="n" rel="next">Next <img src="_static/images/chevron-right-orange.svg" class="next-page"></a>
       
       
         <a href="tutorial3.html" class="btn btn-neutral" title="Tutorial 3: Using a custom architecture" accesskey="p" rel="prev"><img src="_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>

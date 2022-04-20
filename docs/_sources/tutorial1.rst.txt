@@ -57,8 +57,7 @@ configuration for the added dataset source:
 | **tfrecords**                 | /home/er_project/tfrecords                            |
 +-------------------------------+-------------------------------------------------------+
 
-For simplicity, we will not be using annotated tumor regions of interest (ROI), which mirrors the manuscript by
-Naik et al in which whole-slide images were used. Subsequent tutorials will explore the ROI step in detail.
+For simplicity, we will not be using annotated tumor regions of interest (ROI), instead training on whole-slide images.
 
 Setting up annotations
 **********************

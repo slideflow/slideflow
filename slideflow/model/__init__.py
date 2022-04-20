@@ -358,8 +358,8 @@ class DatasetFeatures:
 
                 # Process model outputs
                 if self.hp.uq:
-                    model_out = model_out[:-1]
                     uncertainty = model_out[-1]
+                    model_out = model_out[:-1]
                 else:
                     uncertainty = None
                 if include_logits:

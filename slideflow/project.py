@@ -1464,7 +1464,8 @@ class Project:
                         filter_blank=None, outcomes=None, map_slide=None,
                         show_prediction=None, restrict_pred=None,
                         predict_on_axes=None, max_tiles=0, umap_cache=None,
-                        use_float=False, low_memory=False, **kwargs):
+                        use_float=False, low_memory=False, use_norm=True,
+                        **kwargs):
 
         """Generates a mosaic map by overlaying images onto mapped tiles.
             Image tiles are extracted from the provided set of TFRecords, and
@@ -1509,6 +1510,9 @@ class Project:
                 of categorical. Defaults to False.
             low_memory (bool, optional): Limit memory during UMAP calculations.
                 Defaults to False.
+            use_norm (bool, optional): Display image tiles using the normalizer
+                used during model training (if applicable). Detected from
+                a model's metadata file (params.json). Defaults to True.
 
         Keyword Args:
             resolution (str): Mosaic map resolution. Low, medium, or high.
@@ -1644,7 +1648,7 @@ class Project:
         mosaic = sf.Mosaic(
             umap,
             dataset.tfrecords(),
-            normalizer=df.normalizer,
+            normalizer=(df.normalizer if use_norm else None),
             **kwargs
         )
         return mosaic

@@ -2,7 +2,7 @@
 
 .. figure:: https://i.imgur.com/YrsKN4I.jpeg
 
-    |
+
 
 Slideflow Documentation
 =======================
@@ -54,3 +54,4 @@ The ``slideflow`` package includes a ``Project`` class to help coordinate projec
    tutorial2
    tutorial3
    tutorial4
+   tutorial5

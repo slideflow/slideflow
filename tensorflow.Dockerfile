@@ -28,4 +28,5 @@ RUN pip3 install slideflow && \
     wget https://raw.githubusercontent.com/jamesdolezal/slideflow/master/test.py && \
     wget https://raw.githubusercontent.com/jamesdolezal/slideflow/master/run_project.py && \
     wget https://raw.githubusercontent.com/jamesdolezal/slideflow/master/qupath_roi.groovy && \
-    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/master/qupath_roi_legacy.groovy
+    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/master/qupath_roi_legacy.groovy && \
+    pip3 install spams --no-cache --force-reinstall --no-deps

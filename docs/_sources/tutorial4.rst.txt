@@ -9,7 +9,7 @@ Locate a saved model
 First, locate a saved model to evaluate, which will be a \*.zip file for PyTorch models and a directory for Tensorflow models.
 The directory structure for saved models trained with Tensorflow will look like:
 
-.. code-block:: bash
+.. code-block::
 
 	models/
 	├── 00001-er_status_by_ihc-HP0 /
@@ -19,7 +19,7 @@ The directory structure for saved models trained with Tensorflow will look like:
 
 And for PyTorch:
 
-.. code-block:: bash
+.. code-block::
 
 	models/
 	├── 00001-er_status_by_ihc-HP0 /
