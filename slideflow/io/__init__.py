@@ -3,6 +3,7 @@
 import os
 import copy
 import struct
+
 from tqdm import tqdm
 from multiprocessing.dummy import Pool as DPool
 from random import shuffle
@@ -12,13 +13,13 @@ import slideflow as sf
 from slideflow.util import log
 from slideflow.util import colors as col
 from slideflow import errors
+from slideflow.io.io_utils import detect_tfrecord_format
 
 
 # Backend-specific imports and configuration
 if os.environ['SF_BACKEND'] == 'tensorflow':
     import tensorflow as tf
     from slideflow.io.tensorflow import (get_tfrecord_parser,  # noqa F401
-                                         detect_tfrecord_format,
                                          serialized_record,
                                          read_and_return_record)
     from tensorflow.data import TFRecordDataset
@@ -27,7 +28,6 @@ if os.environ['SF_BACKEND'] == 'tensorflow':
 
 elif os.environ['SF_BACKEND'] == 'torch':
     from slideflow.io.torch import (get_tfrecord_parser,  # noqa F401
-                                    detect_tfrecord_format,
                                     serialized_record,
                                     read_and_return_record)
     from slideflow.tfrecord.torch.dataset import TFRecordDataset
@@ -164,7 +164,7 @@ def write_tfrecords_single(input_directory, output_directory, filename, slide):
     files = [
         f for f in os.listdir(input_directory)
         if ((isfile(join(input_directory, f)))
-            and (sf.util.path_to_ext(f) in ("jpg", "png")))
+            and (sf.util.path_to_ext(f) in ("jpg", "jpeg", "png")))
     ]
     for tile in files:
         image_labels.update({
@@ -202,7 +202,7 @@ def write_tfrecords_merge(input_directory, output_directory, filename):
         files = [
             f for f in os.listdir(directory)
             if ((isfile(join(directory, f)))
-                and (sf.util.path_to_ext(f) in ("jpg", "png")))
+                and (sf.util.path_to_ext(f) in ("jpg", "jpeg", "png")))
             ]
         for tile in files:
             tgt = join(input_directory, slide_dir, tile)

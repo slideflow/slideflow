@@ -10,7 +10,7 @@ try:
 except ImportError:
     crc32c = None
 
-from slideflow.tfrecord import example_pb2
+from slideflow.util import example_pb2
 
 
 class TFRecordWriter:

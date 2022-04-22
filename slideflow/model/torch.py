@@ -1274,6 +1274,7 @@ class Features:
         self.num_features = 0
         self.num_uncertainty = 0
         self.mixed_precision = mixed_precision
+        self.img_format = None
         self.activation = {}
         self.layers = layers
         self.include_logits = include_logits
@@ -1281,6 +1282,8 @@ class Features:
 
         if path is not None:
             config = sf.util.get_model_config(path)
+            if 'img_format' in config:
+                self.img_format = config['img_format']
             self.hp = ModelParams()
             self.hp.load_dict(config['hp'])
             self.wsi_normalizer = self.hp.get_normalizer()
@@ -1341,12 +1344,24 @@ class Features:
         else:
             return self._predict(inp)
 
-    def _predict_slide(self, slide, batch_size=32, dtype=np.float16, **kwargs):
+    def _predict_slide(self, slide, *, img_format='auto', batch_size=32, dtype=np.float16, **kwargs):
         """Generate activations from slide => activation grid array."""
+
+        log.debug(f"Slide prediction (batch_size={batch_size}, img_format={img_format})")
+        if img_format == 'auto' and self.img_format is None:
+            msg = 'Unable to auto-detect image format (png or jpg). Set the '
+            msg += 'format by passing img_format=... to the call function.'
+            raise ValueError(msg)
+        elif img_format == 'auto':
+            img_format = self.img_format
         total_out = self.num_features + self.num_logits
         features_grid = np.zeros((slide.grid.shape[1], slide.grid.shape[0], total_out), dtype=dtype)
-        generator = slide.build_generator(shuffle=False, include_loc='grid', show_progress=True, **kwargs)
-
+        generator = slide.build_generator(
+            shuffle=False,
+            include_loc='grid',
+            show_progress=True,
+            img_format=img_format,
+            **kwargs)
         if not generator:
             log.error(f"No tiles extracted from slide {col.green(slide.name)}")
             return
@@ -1359,10 +1374,14 @@ class Features:
             def __iter__(self):
                 for image_dict in generator():
                     img = image_dict['image']
+                    np_data = torch.from_numpy(np.fromstring(img, dtype=np.uint8))
+                    img = torchvision.io.decode_image(np_data)
                     if self.parent.wsi_normalizer:
-                        img = self.parent.wsi_normalizer.rgb_to_rgb(img)
-                    img = torch.from_numpy(img)
-                    img = img.permute(2, 0, 1)  # WHC => CWH
+                        img = img.permute(1, 2, 0)  # CWH => WHC
+                        img = torch.from_numpy(
+                            self.parent.wsi_normalizer.rgb_to_rgb(img.numpy())
+                        )
+                        img = img.permute(2, 0, 1)  # WHC => CWH
                     loc = np.array(image_dict['loc'])
                     img = img / 127.5 - 1
                     yield img, loc

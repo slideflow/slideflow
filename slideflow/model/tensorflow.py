@@ -1439,10 +1439,13 @@ class Features:
         self.num_logits = 0
         self.num_features = 0
         self.num_uncertainty = 0
+        self.img_format = None
         log.debug('Setting up Features interface')
         if path is not None:
             self._model = tf.keras.models.load_model(self.path)
             config = sf.util.get_model_config(path)
+            if 'img_format' in config:
+                self.img_format = config['img_format']
             self.hp = sf.model.ModelParams()
             self.hp.load_dict(config['hp'])
             self.wsi_normalizer = self.hp.get_normalizer()
@@ -1484,14 +1487,25 @@ class Features:
         else:
             return self._predict(inp)
 
-    def _predict_slide(self, slide, batch_size=32, dtype=np.float16, **kwargs):
+    def _predict_slide(self, slide, *, img_format='auto', batch_size=32, dtype=np.float16, **kwargs):
         """Generate activations from slide => activation grid array."""
 
-        log.debug(f"Slide prediction batch_size={batch_size}")
+        log.debug(f"Slide prediction (batch_size={batch_size}, img_format={img_format})")
+        if img_format == 'auto' and self.img_format is None:
+            msg = 'Unable to auto-detect image format (png or jpg). Set the '
+            msg += 'format by passing img_format=... to the call function.'
+            raise ValueError(msg)
+        elif img_format == 'auto':
+            img_format = self.img_format
         total_out = self.num_features + self.num_logits + self.num_uncertainty
         features_grid = np.ones((slide.grid.shape[1], slide.grid.shape[0], total_out), dtype=dtype) * -1
-        generator = slide.build_generator(shuffle=False, include_loc='grid', show_progress=True, **kwargs)
-
+        generator = slide.build_generator(
+            shuffle=False,
+            include_loc='grid',
+            show_progress=True,
+            img_format=img_format,
+            **kwargs
+        )
         if not generator:
             log.error(f"No tiles extracted from slide {col.green(slide.name)}")
             return
@@ -1499,6 +1513,10 @@ class Features:
         @tf.function
         def _parse_function(record):
             image = record['image']
+            if img_format.lower() in ('jpg', 'jpeg'):
+                image = tf.image.decode_jpeg(image, channels=3)
+            elif img_format.lower() in ('png',):
+                image = tf.image.decode_png(image, channels=3)
             loc = record['loc']
             if self.wsi_normalizer:
                 image = self.wsi_normalizer.tf_to_tf(image)
@@ -1509,7 +1527,7 @@ class Features:
         # Generate dataset from the generator
         with tf.name_scope('dataset_input'):
             output_signature = {
-                'image': tf.TensorSpec(shape=(slide.tile_px, slide.tile_px, 3), dtype=tf.uint8),
+                'image': tf.TensorSpec(shape=(), dtype=tf.string),
                 'loc': tf.TensorSpec(shape=(2), dtype=tf.uint32)
             }
             tile_dataset = tf.data.Dataset.from_generator(generator, output_signature=output_signature)
@@ -1593,14 +1611,12 @@ class UncertaintyInterface(Features):
     @tf.function
     def _predict(self, inp):
         """Return activations (mean), predictions (mean), and uncertainty (stdev) for a single batch of images."""
+
         out_drop = [[] for _ in range(self.num_outputs)]
         for _ in range(30):
             yp = self.model(inp, training=False)
-            if self.num_outputs > 1:
-                for n in range(self.num_outputs):
-                    out_drop[n] += [yp[n]]
-            else:
-                out_drop[0] += [yp]
+            for n in range(self.num_outputs):
+                out_drop[n] += [(yp[n] if self.num_outputs > 1 else yp)]
         for n in range(self.num_outputs):
             out_drop[n] = tf.stack(out_drop[n], axis=0)
         logits = tf.math.reduce_mean(out_drop[-1], axis=0)
@@ -1609,8 +1625,8 @@ class UncertaintyInterface(Features):
         # outcomes with 2 categories, but a better solution is needed
         # for num_categories > 2
         uncertainty = tf.math.reduce_std(out_drop[-1], axis=0)[:, 0]
-
         uncertainty = tf.expand_dims(uncertainty, axis=-1)
+
         if self.num_outputs > 1:
             return [tf.math.reduce_mean(out_drop[n], axis=0) for n in range(self.num_outputs-1)] + [logits, uncertainty]
         else:

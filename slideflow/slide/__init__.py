@@ -603,7 +603,7 @@ class _BaseLoader:
         if not os.path.exists(path):
             raise errors.SlideNotFoundError(f"Could not find slide {path}.")
         if filetype.lower() in sf.util.SUPPORTED_FORMATS:
-            if filetype.lower() == 'jpg':
+            if filetype.lower() in ('jpg', 'jpeg'):
                 self.slide = _JPGslideToVIPS(path)
             else:
                 try:

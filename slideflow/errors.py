@@ -55,6 +55,10 @@ class InsufficientDataForSplitError(DatasetError):
         super().__init__(msg)
 
 
+class MismatchedImageFormatsError(DatasetError):
+    pass
+
+
 # --- Mosaic & Heatmap Errors -------------------------------------------------
 class HeatmapError(Exception):
     pass

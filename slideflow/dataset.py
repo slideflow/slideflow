@@ -289,6 +289,10 @@ class Dataset:
         filtered_idx = self.annotations[TCGA.slide].isin(self.slides())
         return self.annotations[filtered_idx]
 
+    @property
+    def img_format(self):
+        return self.verify_img_format()
+
     def _assert_size_matches_hp(self, hp):
         """Checks if dataset tile size (px/um) matches the given parameters."""
         if isinstance(hp, dict):
@@ -1544,6 +1548,7 @@ class Dataset:
         tfrecords = self.tfrecords()
         if not tfrecords:
             raise errors.TFRecordsNotFoundError
+        self.verify_img_format()
 
         return interleave(tfrecords=tfrecords,
                           labels=labels,
@@ -2076,6 +2081,7 @@ class Dataset:
         tfrecords = self.tfrecords()
         if not tfrecords:
             raise errors.TFRecordsNotFoundError
+        self.verify_img_format()
 
         if self.prob_weights:
             prob_weights = [self.prob_weights[tfr] for tfr in tfrecords]
@@ -2240,3 +2246,28 @@ class Dataset:
             lambda x: x[TCGA.slide] == '',
             lambda x: f'Patient {x[TCGA.patient]} has no slide assigned.'
         )
+
+    def verify_img_format(self):
+        """Verify that all tfrecords have the same image format (PNG/JPG)."""
+
+        tfrecords = self.tfrecords()
+        if len(tfrecords):
+            img_formats = []
+            pb = tqdm(
+                tfrecords,
+                desc="Verifying tfrecord formats...",
+                leave=False
+            )
+            for tfr in pb:
+                fmt = sf.io.detect_tfrecord_format(tfr)[-1]
+                img_formats += [fmt]
+            if len(set(img_formats)) > 1:
+                log_msg = "Mismatched TFRecord image formats:\n"
+                for tfr, fmt in zip(tfrecords, img_formats):
+                    log_msg += f"{tfr}: {fmt}\n"
+                log.error(log_msg)
+                err_msg = "Mismatched TFRecord image formats detected"
+                raise errors.MismatchedImageFormatsError(err_msg)
+            return img_formats[0]
+        else:
+            return None

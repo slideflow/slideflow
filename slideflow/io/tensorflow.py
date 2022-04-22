@@ -1,4 +1,3 @@
-import imghdr
 import os
 import shutil
 import tensorflow as tf
@@ -12,15 +11,12 @@ from random import shuffle, randint
 
 import slideflow as sf
 from slideflow.io import gaussian
+from slideflow.io.io_utils import detect_tfrecord_format
 from slideflow.util import log
 from slideflow.util import colors as col
 from slideflow import errors
 
 
-FEATURE_DESCRIPTION_LEGACY = {
-    'slide': tf.io.FixedLenFeature([], tf.string),
-    'image_raw': tf.io.FixedLenFeature([], tf.string)
-}
 FEATURE_DESCRIPTION = {
     'slide': tf.io.FixedLenFeature([], tf.string),
     'image_raw': tf.io.FixedLenFeature([], tf.string),
@@ -150,38 +146,6 @@ def decode_image(img_string, img_type, size=None):
     return image
 
 
-def detect_tfrecord_format(path):
-    """Loads a tfrecord at the specified path, and detects the feature
-    description and image type.
-
-    Returns:
-        dict: Feature description dictionary.
-        str:  Stored image type, either 'png' or 'jpg'.
-    """
-    try:
-        record = next(iter(tf.data.TFRecordDataset(path)))
-    except StopIteration:
-        log.debug(f"TFRecord {path} is empty.")
-        return None, None
-    try:
-        features = tf.io.parse_single_example(record, FEATURE_DESCRIPTION)
-        for feature in FEATURE_DESCRIPTION:
-            if feature not in features:
-                raise tf.errors.InvalidArgumentError
-        feature_description = FEATURE_DESCRIPTION
-    except tf.errors.InvalidArgumentError:
-        try:
-            features = tf.io.parse_single_example(
-                record,
-                FEATURE_DESCRIPTION_LEGACY
-            )
-            feature_description = FEATURE_DESCRIPTION_LEGACY
-        except tf.errors.InvalidArgumentError:
-            raise errors.TFRecordsError(f"Unrecognized TFRecord format: {path}")
-    image_type = imghdr.what('', features['image_raw'].numpy())
-    return feature_description, image_type
-
-
 def get_tfrecord_parser(tfrecord_path, features_to_return=None, to_numpy=False,
                         decode_images=True, img_size=None,
                         error_if_invalid=True):
@@ -216,12 +180,16 @@ def get_tfrecord_parser(tfrecord_path, features_to_return=None, to_numpy=False,
         error_if_invalid (bool, optional): Raise an error if a tfrecord cannot
             be read. Defaults to True.
     """
-    feature_description, img_type = detect_tfrecord_format(tfrecord_path)
-    if feature_description is None:
+    features, img_type = detect_tfrecord_format(tfrecord_path)
+    if features is None:
         log.debug(f"Unable to read tfrecord at {tfrecord_path} - is it empty?")
         return None
     if features_to_return is None:
-        features_to_return = {k: k for k in feature_description.keys()}
+        features_to_return = {k: k for k in features}
+    feature_description = {
+        k: v for k, v in FEATURE_DESCRIPTION.items()
+        if k in features
+    }
 
     def parser(record):
         features = tf.io.parse_single_example(record, feature_description)
@@ -514,7 +482,7 @@ def merge_split_tfrecords(source, destination):
         dest = join(destination, f'{tfrecord_name}.tfrecords')
         writer = tf.io.TFRecordWriter(dest)
         datasets = []
-        feature_description, img_type = detect_tfrecord_format(
+        features, img_type = detect_tfrecord_format(
             tfrecords.values()[0]
         )
         parser = get_tfrecord_parser(
@@ -523,8 +491,8 @@ def merge_split_tfrecords(source, destination):
             to_numpy=True
         )
         for tfrecord in tfrecords[tfrecord_name]:
-            n_feat_desc, n_img_type = detect_tfrecord_format(tfrecord)
-            if n_feat_desc != feature_description or n_img_type != img_type:
+            n_features, n_img_type = detect_tfrecord_format(tfrecord)
+            if n_features != features or n_img_type != img_type:
                 msg = "Mismatching tfrecord format found, unable to merge"
                 raise errors.TFRecordsError(msg)
             dataset = tf.data.TFRecordDataset(tfrecord)
@@ -549,15 +517,15 @@ def join_tfrecord(input_folder, output_file, assign_slide=None):
     datasets = []
     if assign_slide:
         assign_slide = assign_slide.encode('utf-8')
-    feature_description, img_type = detect_tfrecord_format(tfrecord_files[0])
+    features, img_type = detect_tfrecord_format(tfrecord_files[0])
     parser = get_tfrecord_parser(
         tfrecord_files[0],
         decode_images=False,
         to_numpy=True
     )
     for tfrecord in tfrecord_files:
-        n_feat_desc, n_img_type = detect_tfrecord_format(tfrecord)
-        if n_feat_desc != feature_description or n_img_type != img_type:
+        n_feat, n_img_type = detect_tfrecord_format(tfrecord)
+        if n_feat != features or n_img_type != img_type:
             msg = "Mismatching tfrecord format found, unable to merge"
             raise errors.TFRecordsError(msg)
         dataset = tf.data.TFRecordDataset(tfrecord)

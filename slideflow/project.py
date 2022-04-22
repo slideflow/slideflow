@@ -411,7 +411,7 @@ class Project:
             outcome_labels = None
 
         git_commit = sf.util.detect_git_commit()
-        model_dir = sf.util.get_new_model_dir(self.models_dir, model_name)
+        model_dir = sf.util.get_new_model_dir(self.eval_dir, model_name)
 
         # Set missing validation keys to NA
         for v_end in ('strategy', 'fraction', 'k_fold'):
@@ -736,6 +736,7 @@ class Project:
             'model_name': s_args.model_name,
             'full_model_name': full_name,
             'stage': 'training',
+            'img_format': train_dts.img_format,
             'tile_px': hp.tile_px,
             'tile_um': hp.tile_um,
             'max_tiles': s_args.max_tiles,
@@ -1980,7 +1981,7 @@ class Project:
     def predict_wsi(self, model, outdir, dataset=None, filters=None,
                     filter_blank=None, stride_div=1, enable_downsample=True,
                     roi_method='inside', skip_missing_roi=False, source=None,
-                    randomize_origin=False, **kwargs):
+                    randomize_origin=False, img_format='auto', **kwargs):
 
         """Using a given model, generates a map of tile-level predictions for a
             whole-slide image (WSI), dumping prediction arrays into pkl files
@@ -2013,6 +2014,10 @@ class Project:
                 get slides. If None, will use all.
             randomize_origin (bool, optional): Randomize pixel starting
                 position during extraction. Defaults to False.
+            img_format (str, optional): Image format (png, jpg) to use when
+                extracting tiles from slide. Must match the image format
+                the model was trained on. If 'auto', will use the format
+                logged in the model params.json.
 
         Keyword Args:
             whitespace_fraction (float, optional): Range 0-1. Defaults to 1.
@@ -2045,6 +2050,8 @@ class Project:
             dataset._assert_size_matches_hp(config['hp'])
             tile_px = dataset.tile_px
         dataset = dataset.filter(filters=filters, filter_blank=filter_blank)
+        if img_format == 'auto':
+            img_format = config['img_format']
 
         # Log extraction parameters
         sf.slide.log_extraction_params(**kwargs)
@@ -2090,7 +2097,7 @@ class Project:
                     continue
                 try:
                     interface = sf.model.Features(model, include_logits=False)
-                    wsi_grid = interface(wsi)
+                    wsi_grid = interface(wsi, img_format=img_format)
 
                     with open(join(outdir, wsi.name+'.pkl'), 'wb') as file:
                         pickle.dump(wsi_grid, file)

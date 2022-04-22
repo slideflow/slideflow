@@ -895,18 +895,15 @@ class TestSuite:
             )
 
         with TaskWrapper("Testing categorical UQ model evaluation...") as test:
-            if sf.backend() == 'tensorflow':
-                uq_model = self._get_model('category1-UQ-HP0-kfold1')
-                evaluation_tester(
-                    project=self.project,
-                    model=uq_model,
-                    outcomes='category1',
-                    histogram=True,
-                    save_predictions=True,
-                    **eval_kwargs
-                )
-            else:
-                test.skip()
+            uq_model = self._get_model('category1-UQ-HP0-kfold1')
+            evaluation_tester(
+                project=self.project,
+                model=uq_model,
+                outcomes='category1',
+                histogram=True,
+                save_predictions=True,
+                **eval_kwargs
+            )
 
         with TaskWrapper("Testing multi-categorical model evaluation..."):
             evaluation_tester(

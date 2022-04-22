@@ -206,7 +206,7 @@ class SlideMap:
                     'logits': logits,
                     'loc': location
                 }
-                if self.df.hp.uq:
+                if self.df.hp.uq and self.df.uncertainty != {}:
                     pm.update({'uncertainty': self.df.uncertainty[slide][i]})
                 self.point_meta += [pm]
 
@@ -481,7 +481,7 @@ class SlideMap:
             index (int, optional): Uncertainty index. Defaults to 0.
         """
 
-        if not self.df.hp.uq:
+        if not self.df.hp.uq or self.df.uncertainty == {}:
             msg = 'Unable to label by uncertainty; UQ estimates not available.'
             raise errors.DatasetError(msg)
         else:

@@ -284,7 +284,7 @@ class DatasetFeatures:
             layers = [layers]
 
         # Load model
-        if self.hp.uq:
+        if self.hp.uq and include_uncertainty:
             combined_model = sf.model.tensorflow.UncertaintyInterface(model, layers=layers)
         else:
             combined_model = sf.model.Features(
@@ -357,7 +357,7 @@ class DatasetFeatures:
                     batch_loc = np.stack([batch_loc[0], batch_loc[1]], axis=1)
 
                 # Process model outputs
-                if self.hp.uq:
+                if self.hp.uq and include_uncertainty:
                     uncertainty = model_out[-1]
                     model_out = model_out[:-1]
                 else:
@@ -377,7 +377,7 @@ class DatasetFeatures:
                         self.activations[slide].append(batch_act[d])
                     if include_logits:
                         self.logits[slide].append(logits[d])
-                    if self.hp.uq:
+                    if self.hp.uq and include_uncertainty:
                         self.uncertainty[slide].append(uncertainty[d])
                     self.locations[slide].append(batch_loc[d])
 

@@ -16,9 +16,11 @@ from glob import glob
 from os.path import join, isdir, exists, dirname
 from tqdm import tqdm
 from statistics import mean, median
+from functools import partial
 
 import slideflow as sf
 import slideflow.util.colors as col
+from slideflow.util import example_pb2
 from slideflow.util.colors import *  # noqa F403,F401 - Here for compatibility
 from slideflow import errors
 
@@ -891,3 +893,73 @@ def get_new_model_dir(root, model_name):
     assert not os.path.exists(model_dir)
     os.makedirs(model_dir)
     return model_dir
+
+
+# --- TFRecord utility functions ----------------------------------------------
+
+def process_feature(feature: example_pb2.Feature,
+                    typename: str,
+                    typename_mapping: dict,
+                    key: str):
+    # NOTE: We assume that each key in the example has only one field
+    # (either "bytes_list", "float_list", or "int64_list")!
+    field = feature.ListFields()[0]
+    inferred_typename, value = field[0].name, field[1].value
+
+    if typename is not None:
+        tf_typename = typename_mapping[typename]
+        if tf_typename != inferred_typename:
+            reversed_mapping = {v: k for k, v in typename_mapping.items()}
+            raise TypeError(
+                f"Incompatible type '{typename}' for `{key}` "
+                f"(should be '{reversed_mapping[inferred_typename]}')."
+            )
+
+    if inferred_typename == "bytes_list":
+        value = np.frombuffer(value[0], dtype=np.uint8)
+    elif inferred_typename == "float_list":
+        value = np.array(value, dtype=np.float32)
+    elif inferred_typename == "int64_list":
+        value = np.array(value, dtype=np.int64)
+    return value
+
+
+def extract_feature_dict(features, description, typename_mapping):
+    if isinstance(features, example_pb2.FeatureLists):
+        features = features.feature_list
+
+        def get_value(typename, typename_mapping, key):
+            feature = features[key].feature
+            fn = partial(
+                process_feature,
+                typename=typename,
+                typename_mapping=typename_mapping,
+                key=key
+            )
+            return list(map(fn, feature))
+    elif isinstance(features, example_pb2.Features):
+        features = features.feature
+
+        def get_value(typename, typename_mapping, key):
+            return process_feature(features[key], typename,
+                                   typename_mapping, key)
+    else:
+        raise TypeError(f"Incompatible type: features should be either of type "
+                        f"example_pb2.Features or example_pb2.FeatureLists and "
+                        f"not {type(features)}")
+
+    all_keys = list(features.keys())
+
+    if description is None or len(description) == 0:
+        description = dict.fromkeys(all_keys, None)
+    elif isinstance(description, list):
+        description = dict.fromkeys(description, None)
+
+    processed_features = {}
+    for key, typename in description.items():
+        if key not in all_keys:
+            raise KeyError(f"Key {key} doesn't exist (select from {all_keys})!")
+
+        processed_features[key] = get_value(typename, typename_mapping, key)
+
+    return processed_features

@@ -1,7 +1,7 @@
 Troubleshooting
 ===============
 
-If you're running into problems, look for more information by including debug logging. To enable debug logging, set the environmental variable ``SF_BACKEND=10``.
+If you're running into problems, look for more information by including debug logging. To enable debug logging, set the environmental variable ``SF_LOGGING_LEVEL=10``.
 
 To check for errors in your environment or installation, you can also use the test script ``test.py``, which uses the testing suite ``slideflow.test.TestSuite`` to execute all pipeline functions on a set of provided slides.
 
@@ -12,13 +12,13 @@ To test all pipeline functions, use the ``test.py`` script, providing a path to 
 
 .. code-block:: bash
 
-    $ python3 test.py --slides /path/to/slides
+    $ python3 test.py --slides=/path/to/slides --all=True
 
 Individual tests can be manually skipped with the following syntax:
 
 .. code-block:: bash
 
-    $ python3 test.py --slides /path/to/slides --reader=False
+    $ python3 test.py --slides=/path/to/slides --all=True --reader=False
 
 To view a list of all tests that will be run (and thus can be skipped), pass the argument ``--help``.
 
