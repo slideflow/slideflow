@@ -345,10 +345,11 @@ def multi_warn(arr, compare, msg):
     warn_threshold = 3
     for item in arr:
         if compare(item):
+            fn = log.warn if num_warned < warn_threshold else log.debug
             if isinstance(msg, str):
-                log.warn(msg.format(item))
+                fn(msg.format(item))
             elif callable(msg):
-                log.warn(msg(item))
+                fn(msg(item))
             num_warned += 1
     if num_warned >= warn_threshold:
         log.warn(f'...{num_warned} total warnings, see log for details')

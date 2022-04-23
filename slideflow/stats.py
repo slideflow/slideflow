@@ -363,7 +363,14 @@ class SlideMap:
                 row = [slide, index, x, y]
                 csvwriter.writerow(row)
 
-    def neighbors(self, slide_categories=None, algorithm='kd_tree'):
+    def filter_index(self, idx):
+        self.x = self.x[idx]
+        self.y = self.y[idx]
+        self.point_meta = self.point_meta[idx]
+        self.labels = self.labels[idx]
+
+    def neighbors(self, slide_categories=None, algorithm='kd_tree',
+                  method='map'):
         """Calculates neighbors among tiles in this map, assigning neighboring
             statistics to tile metadata 'num_unique_neighbors' and
             'percent_matching_categories'.
@@ -374,14 +381,22 @@ class SlideMap:
                 'percent_matching_categories' statistic.
             algorithm (str, optional): NearestNeighbor algorithm, either
                 'kd_tree', 'ball_tree', or 'brute'. Defaults to 'kd_tree'.
+            method (str, optional): Either 'map' or 'features'. How neighbors
+                are determined. Defaults to 'map'.
+
         """
 
         from sklearn.neighbors import NearestNeighbors
+        if method not in ('map', 'features'):
+            raise ValueError(f'Unknown neighbor method {method}.')
         log.info("Initializing neighbor search...")
-        X = np.array([
-            self.df.activations[pm['slide']][pm['index']]
-            for pm in self.point_meta
-        ])
+        if method == 'map':
+            X = np.stack((self.x, self.y), axis=-1)
+        elif method == 'features':
+            X = np.array([
+                self.df.activations[pm['slide']][pm['index']]
+                for pm in self.point_meta
+            ])
         nbrs = NearestNeighbors(
             n_neighbors=100,
             algorithm=algorithm,
@@ -395,6 +410,7 @@ class SlideMap:
             a2 = slide_categories[self.point_meta[j]['slide']]
             return a1 == a2
 
+        log.info('Matching neighbors...')
         for i, ind in enumerate(indices):
             ind_pm = [self.point_meta[_i]['slide'] for _i in ind]
             num_unique_slides = len(list(set(ind_pm)))
