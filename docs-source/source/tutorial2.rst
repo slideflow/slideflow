@@ -94,7 +94,7 @@ Next, we'll need to split this dataset into a training and validation set. We'll
     2021-10-06 13:27:39 [INFO] - K-fold-2   68      249
     2021-10-06 13:27:39 [INFO] - Using 636 TFRecords for training, 319 for validation
 
-The first informational log tells us that no validation log was provided. We could have optionally provided a JSON file path to the argument ``validation_log``; this method can record splits to the provided validation log file for automatic re-use later (helpful for hyperparameter sweeps). However, for the purposes of this tutorial, we have opted not to save our validation plan.
+The first informational log tells us that no validation log was provided. We could have optionally provided a JSON file path to the argument ``splits``; this method can record splits to the provided file for automatic re-use later (helpful for hyperparameter sweeps). However, for the purposes of this tutorial, we have opted not to save our validation plan.
 
 The rest of the log output shows us the distribution of our outcome categories among the k-folds, as well as the total number of slides for training and validation.
 

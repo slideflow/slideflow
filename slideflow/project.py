@@ -891,10 +891,9 @@ class Project:
             outcomes (str): Str or list of str. Annotation column
                 header specifying the outcome label(s).
             dataset (:class:`slideflow.dataset.Dataset`, optional): Dataset
-                from which to generate activations. If not supplied, will
-                calculate activations for all project tfrecords at the
-                tile_px/tile_um matching the supplied model, optionally using
-                provided filters and filter_blank.
+                to evaluate. If not supplied, will evaluate all project
+                tfrecords at the tile_px/tile_um matching the supplied model,
+                optionally using provided filters and filter_blank.
             filters (dict, optional): Filters dict to use when selecting
                 tfrecords. Defaults to None. See :meth:`get_dataset`
                 documentation for more information on filtering.
@@ -1927,8 +1926,8 @@ class Project:
             outcomes (str): Str or list of str. Annotation header specifying
                 outcome label(s).
             dataset (:class:`slideflow.dataset.Dataset`, optional): Dataset
-                from which to generate activations. If not supplied, will
-                calculate activations for all project tfrecords at the
+                from which to generate predictions. If not supplied, will
+                generate predictions for all project tfrecords at the
                 tile_px/tile_um matching the model, optionally using provided
                 filters and filter_blank.
             filters (dict, optional): Filters to use when selecting tfrecords.

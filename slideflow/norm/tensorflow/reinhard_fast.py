@@ -66,6 +66,9 @@ def get_mean_std(I1, I2, I3, reduce=False):
 @tf.function
 def transform(I, tgt_mean, tgt_std):
 
+    if tgt_mean is None or tgt_std is None:
+        raise ValueError("Normalizer has not been fit: call normalizer.fit()")
+
     I1, I2, I3 = lab_split(I)
     means, stds = get_mean_std(I1, I2, I3)
 

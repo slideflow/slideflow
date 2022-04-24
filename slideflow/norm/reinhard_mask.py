@@ -77,6 +77,10 @@ class Normalizer(ut.BaseNormalizer):
         self.target_stds = stds
 
     def transform(self, I):
+
+        if self.target_means is None or self.target_stds is None:
+            raise ValueError("Normalizer has not been fit: call normalizer.fit()")
+
         I = ut.standardize_brightness(I)
         I_LAB = cv.cvtColor(I, cv.COLOR_RGB2LAB)
         I_LAB[:, :, 1] = I_LAB[:, :, 0]

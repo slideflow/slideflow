@@ -73,6 +73,10 @@ class Normalizer(ut.BaseNormalizer):
         return means, stds
 
     def transform(self, I):
+
+        if self.target_means is None or self.target_stds is None:
+            raise ValueError("Normalizer has not been fit: call normalizer.fit()")
+
         I1, I2, I3 = lab_split(I)
         means, stds = get_mean_std(I)
 

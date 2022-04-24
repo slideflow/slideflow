@@ -63,6 +63,10 @@ class Normalizer(ut.BaseNormalizer):
         return ut.OD_to_RGB(self.stain_matrix_target)
 
     def transform(self, I):
+
+        if self.stain_matrix_target is None:
+            raise ValueError("Normalizer has not been fit: call normalizer.fit()")
+
         I = ut.standardize_brightness(I)
         stain_matrix_source = get_stain_matrix(I)
         source_concentrations = ut.get_concentrations(I, stain_matrix_source)
