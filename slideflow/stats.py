@@ -4,7 +4,6 @@ import csv
 import types
 import time
 import pickle
-import seaborn as sns
 import numpy as np
 import pandas as pd
 import multiprocessing as mp
@@ -18,7 +17,6 @@ from sklearn import metrics
 from sklearn.cluster import KMeans
 from sklearn.metrics import pairwise_distances_argmin_min
 from mpl_toolkits.mplot3d import Axes3D
-from matplotlib import pyplot as plt
 from lifelines.utils import concordance_index as c_index
 
 import slideflow as sf
@@ -577,6 +575,8 @@ class SlideMap:
             legend (str, optional): Title for legend. Defaults to None.
             dpi (int, optional): DPI for final image. Defaults to 300.
         """
+        import seaborn as sns
+        from matplotlib import pyplot as plt
 
         # Subsampling
         if subsample:
@@ -651,6 +651,7 @@ class SlideMap:
             subsample (int, optional): Subsample to only include this many
                 tiles on plot. Defaults to None.
         """
+        from matplotlib import pyplot as plt
 
         title = f"UMAP with feature {feature} focus"
 
@@ -1175,6 +1176,9 @@ def gen_umap(array, dim=2, n_neighbors=50, min_dist=0.1, metric='cosine',
 def save_histogram(y_true, y_pred, outdir, name='histogram', neptune_run=None,
                    subsample=500):
     """Generates histogram of y_pred, labeled by y_true, saving to outdir."""
+    import seaborn as sns
+    from matplotlib import pyplot as plt
+
     # Subsample
     if subsample and y_pred.shape[0] > subsample:
         idx = np.arange(y_pred.shape[0])
@@ -1206,6 +1210,7 @@ def save_histogram(y_true, y_pred, outdir, name='histogram', neptune_run=None,
 
 def generate_roc(y_true, y_pred, save_dir=None, name='ROC', neptune_run=None):
     """Generates and saves an ROC with a given set of y_true, y_pred values."""
+
     # ROC
     fpr, tpr, threshold = metrics.roc_curve(y_true, y_pred)
     roc_auc = metrics.auc(fpr, tpr)
@@ -1223,6 +1228,7 @@ def generate_roc(y_true, y_pred, save_dir=None, name='ROC', neptune_run=None):
     except Exception:
         opt_thresh = -1
     if save_dir:
+        from matplotlib import pyplot as plt
         # ROC
         plt.clf()
         plt.title('ROC Curve')
@@ -1258,6 +1264,8 @@ def generate_roc(y_true, y_pred, save_dir=None, name='ROC', neptune_run=None):
 def generate_combined_roc(y_true, y_pred, save_dir, labels, name='ROC',
                           neptune_run=None):
     """Generates and saves overlapping ROCs."""
+    from matplotlib import pyplot as plt
+
     plt.clf()
     plt.title(name)
     colors = ('b', 'g', 'r', 'c', 'm', 'y', 'k')
@@ -1325,6 +1333,9 @@ def generate_scatter(y_true, y_pred, data_dir, name='_plot', plot=True,
         Returns:
             R squared.
     """
+    import seaborn as sns
+    from matplotlib import pyplot as plt
+
     if y_true.shape != y_pred.shape:
         m = f"Shape mismatch: y_true ({y_true.shape}) y_pred: ({y_pred.shape})"
         raise errors.StatsError(m)

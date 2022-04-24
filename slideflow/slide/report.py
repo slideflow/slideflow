@@ -8,8 +8,6 @@ import os
 import io
 import numpy as np
 import tempfile
-import seaborn as sns
-import matplotlib.pyplot as plt
 from os.path import join
 from PIL import Image
 from datetime import datetime
@@ -136,6 +134,7 @@ class ExtractionReport:
         Args:
             reports (list(:class:`SlideReport`)): List of SlideReport objects.
         """
+        import matplotlib.pyplot as plt
 
         self.bb_threshold = bb_threshold
         pdf = ExtractionPDF(title=title)
@@ -276,6 +275,8 @@ class ExtractionReport:
         self.pdf = pdf
 
     def num_tiles_chart(self, num_tiles):
+        import seaborn as sns
+        import matplotlib.pyplot as plt
         if np.any(num_tiles):
             plt.rc('font', size=14)
             sns.histplot(num_tiles, bins=20)
@@ -287,6 +288,8 @@ class ExtractionReport:
             return False
 
     def blur_chart(self, blur_arr):
+        import seaborn as sns
+        import matplotlib.pyplot as plt
         if np.any(blur_arr):
             num_warn = np.count_nonzero(blur_arr > self.bb_threshold)
             if num_warn:

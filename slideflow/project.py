@@ -1,5 +1,4 @@
 import os
-import types
 import json
 import logging
 import itertools
@@ -10,14 +9,19 @@ import numpy as np
 import multiprocessing
 from os.path import join, exists, basename
 from tqdm import tqdm
+from types import SimpleNamespace
+from typing import Any, List, Union, Optional, Dict, Tuple, TYPE_CHECKING
 
 import slideflow as sf
 from slideflow import project_utils, errors
 from slideflow.dataset import Dataset
 from slideflow.model import ModelParams
-from slideflow.util import log, path_to_name
+from slideflow.util import log, path_to_name, Path
 from slideflow.util import colors as col
 from slideflow.project_utils import get_validation_settings
+
+if TYPE_CHECKING:
+    from slideflow.model import Trainer
 
 
 class Project:
@@ -45,7 +49,8 @@ class Project:
 
     """
 
-    def __init__(self, root, use_neptune=False, **project_kwargs):
+    def __init__(self, root: Path, use_neptune: bool = False,
+                 **kwargs: Any) -> None:
         """Initializes project at the specified project folder, creating a new
         project using the specified kwargs if one does not already exist.
         Will create a blank annotations with slide names if one does not exist.
@@ -73,13 +78,13 @@ class Project:
 
         self.root = root
 
-        if exists(join(root, 'settings.json')) and project_kwargs:
+        if exists(join(root, 'settings.json')) and kwargs:
             raise errors.ProjectError(f"Project already exists at {root}")
         elif exists(join(root, 'settings.json')):
             self.load_project(root)
-        elif project_kwargs:
+        elif kwargs:
             log.info(f"Creating project at {root}...")
-            self._settings = project_utils._project_config(**project_kwargs)
+            self._settings = project_utils._project_config(**kwargs)
             if not exists(root):
                 os.makedirs(root)
             self.save()
@@ -107,7 +112,7 @@ class Project:
         self.use_neptune = use_neptune
 
     @classmethod
-    def from_prompt(cls, root, **kwargs):
+    def from_prompt(cls, root: Path, **kwargs: Any) -> "Project":
         """Initializes project by creating project folder, prompting user for
         project settings, and saving to "settings.json" in project directory.
 
@@ -129,33 +134,33 @@ class Project:
         return "Project(root={!r}{})".format(self.root, tail)
 
     @property
-    def verbosity(self):
+    def verbosity(self) -> int:
         return logging.getLogger('slideflow').getEffectiveLevel()
 
     @property
-    def annotations(self):
+    def annotations(self) -> str:
         """Path to annotations file."""
         return self._read_relative_path(self._settings['annotations'])
 
     @annotations.setter
-    def annotations(self, val):
+    def annotations(self, val: Path) -> None:
         if not isinstance(val, str):
             raise errors.ProjectError("'annotations' must be a path.")
         self._settings['annotations'] = val
 
     @property
-    def dataset_config(self):
+    def dataset_config(self) -> str:
         """Path to dataset configuration JSON file."""
         return self._read_relative_path(self._settings['dataset_config'])
 
     @dataset_config.setter
-    def dataset_config(self, val):
+    def dataset_config(self, val: Path) -> None:
         if not isinstance(val, str):
             raise errors.ProjectError("'dataset_config' must be path to JSON.")
         self._settings['dataset_config'] = val
 
     @property
-    def eval_dir(self):
+    def eval_dir(self) -> str:
         """Path to evaluation directory."""
         if 'eval_dir' not in self._settings:
             log.debug("Missing eval_dir in project settings, Assuming ./eval")
@@ -164,35 +169,35 @@ class Project:
             return self._read_relative_path(self._settings['eval_dir'])
 
     @eval_dir.setter
-    def eval_dir(self, val):
+    def eval_dir(self, val: Path) -> None:
         if not isinstance(val, str):
             raise errors.ProjectError("'eval_dir' must be a path")
         self._settings['eval_dir'] = val
 
     @property
-    def models_dir(self):
+    def models_dir(self) -> str:
         """Path to models directory."""
         return self._read_relative_path(self._settings['models_dir'])
 
     @models_dir.setter
-    def models_dir(self, val):
+    def models_dir(self, val: Path) -> None:
         if not isinstance(val, str):
             raise errors.ProjectError("'models_dir' must be a path")
         self._settings['models_dir'] = val
 
     @property
-    def name(self):
+    def name(self) -> str:
         """Descriptive project name."""
         return self._settings['name']
 
     @name.setter
-    def name(self, val):
+    def name(self, val: str) -> None:
         if not isinstance(val, str):
             raise errors.ProjectError("'name' must be a str")
         self._settings['name'] = val
 
     @property
-    def neptune_workspace(self):
+    def neptune_workspace(self) -> Optional[str]:
         """Neptune workspace name."""
         if 'neptune_workspace' in self._settings:
             return self._settings['neptune_workspace']
@@ -202,14 +207,14 @@ class Project:
             return None
 
     @neptune_workspace.setter
-    def neptune_workspace(self, name):
+    def neptune_workspace(self, name: str) -> None:
         """Neptune workspace name."""
         if not isinstance(name, str):
             raise errors.ProjectError('Neptune workspace must be a string.')
         self._settings['neptune_workspace'] = name
 
     @property
-    def neptune_api(self):
+    def neptune_api(self) -> Optional[str]:
         """Neptune API token."""
         if 'neptune_api' in self._settings:
             return self._settings['neptune_api']
@@ -219,33 +224,37 @@ class Project:
             return None
 
     @neptune_api.setter
-    def neptune_api(self, api_token):
+    def neptune_api(self, api_token: str) -> None:
         """Neptune API token."""
         if not isinstance(api_token, str):
             raise errors.ProjectError('API token must be a string.')
         self._settings['neptune_api'] = api_token
 
     @property
-    def sources(self):
+    def sources(self) -> List[str]:
         """Returns list of dataset sources active in this project."""
         if 'sources' in self._settings:
             return self._settings['sources']
         elif 'datasets' in self._settings:
             log.debug("'sources' misnamed 'datasets' in project settings.")
             return self._settings['datasets']
+        else:
+            raise ValueError('Unable to find project dataset sources')
 
     @sources.setter
-    def sources(self, v):
+    def sources(self, v: List[str]) -> None:
         if not isinstance(v, list) or any([not isinstance(v, str) for v in v]):
             raise errors.ProjectError("'sources' must be a list of str")
         self._settings['sources'] = v
 
-    def _read_relative_path(self, path):
+    def _read_relative_path(self, path: str) -> str:
         """Converts relative path within project directory to global path."""
         return sf.util.relative_path(path, self.root)
 
-    def _setup_labels(self, dataset, hp, outcomes, config, splits,
-                      eval_k_fold=None):
+    def _setup_labels(self, dataset: Dataset, hp: ModelParams,
+                      outcomes: List[str], config: Dict, splits: Path,
+                      eval_k_fold: Optional[int] = None
+                      ) -> Tuple[Dataset, Dict, Union[Dict, List]]:
         '''Prepares dataset and labels.'''
 
         # Assign labels into int
@@ -299,10 +308,16 @@ class Project:
         else:
             return dataset, labels, unique
 
-    def _prepare_trainer(self, model, outcomes=None, dataset=None,
-                         filters=None, checkpoint=None, eval_k_fold=None,
-                         splits="splits.json", max_tiles=0, min_tiles=0,
-                         input_header=None, mixed_precision=True):
+    def _prepare_trainer(self, model: Path,
+                         outcomes: Optional[Union[str, List[str]]] = None,
+                         dataset: Optional[Dataset] = None,
+                         filters: Optional[Dict] = None,
+                         checkpoint: Optional[Path] = None,
+                         eval_k_fold: Optional[int] = None,
+                         splits: str = "splits.json", max_tiles: int = 0,
+                         min_tiles: int = 0, mixed_precision: bool = True,
+                         input_header: Optional[List[str]] = None
+                         ) -> Tuple[Trainer, Dataset]:
 
         """Prepares a :class:`slideflow.model.Trainer` for eval or prediction.
 
@@ -353,6 +368,7 @@ class Project:
         if predicting:
             outcomes = config['outcomes']
 
+        assert outcomes is not None
         if not isinstance(outcomes, list):
             outcomes = [outcomes]
 
@@ -483,10 +499,15 @@ class Project:
 
         return trainer, eval_dts
 
-    def _train_hp(self, hp_name, hp, outcomes, val_settings, ctx, filters,
-                  filter_blank, input_header, min_tiles, max_tiles,
-                  mixed_precision, splits, balance_headers, results_dict,
-                  training_kwargs):
+    def _train_hp(self, hp_name: str, hp: ModelParams,
+                  outcomes: List[str], val_settings: SimpleNamespace,
+                  ctx: multiprocessing.context.BaseContext,
+                  filters: Optional[Dict],
+                  filter_blank: Optional[List[str]],
+                  input_header: Optional[List[str]], min_tiles: int,
+                  max_tiles: int, mixed_precision: bool, splits: str,
+                  balance_headers: List[str], results_dict: Dict,
+                  training_kwargs: dict) -> None:
         '''Trains a model(s) using the specified hyperparameters.
 
         Args:
@@ -585,7 +606,7 @@ class Project:
         else:
             model_iterations = [f'{model_name}-kfold{k}' for k in valid_k]
 
-        s_args = types.SimpleNamespace(
+        s_args = SimpleNamespace(
             model_name=model_name,
             outcomes=outcomes,
             k_header=k_header,
@@ -614,7 +635,6 @@ class Project:
         for mi in model_iterations:
             if mi not in results_dict or 'epochs' not in results_dict[mi]:
                 log.error(f'Training failed for model {model_name}')
-                return {}
             else:
                 sf.util.update_results_log(
                     results_log_path,
@@ -623,7 +643,8 @@ class Project:
                 )
         log.info(f'Training results saved to {col.green(results_log_path)}')
 
-    def _train_split(self, dataset, hp, val_settings, s_args):
+    def _train_split(self, dataset: Dataset, hp: ModelParams,
+                     val_settings: SimpleNamespace, s_args: SimpleNamespace):
         '''Trains a model for a given training/validation split.
 
         Args:
@@ -676,7 +697,7 @@ class Project:
         # Otherwise, calculate k-fold splits
         else:
             if val_settings.strategy == 'k-fold-preserved-site':
-                site_labels, _ = dataset.labels(s_args.k_header, format='name')
+                site_labels = dataset.labels(s_args.k_header, format='name')[0]  # type: Any
             else:
                 site_labels = None
             train_dts, val_dts = dataset.train_val_split(
@@ -1010,7 +1031,7 @@ class Project:
         if not exists(eval_dir):
             os.makedirs(eval_dir)
         args_dict = sf.util.load_json(join(exp_name, 'experiment.json'))
-        args = types.SimpleNamespace(**args_dict)
+        args = SimpleNamespace(**args_dict)
         args.save_dir = eval_dir
 
         dataset = self.dataset(
@@ -1410,7 +1431,7 @@ class Project:
         """
 
         # Prepare arguments for subprocess
-        heatmap_args = types.SimpleNamespace(**locals())
+        heatmap_args = SimpleNamespace(**locals())
         del heatmap_args.self
 
         # Prepare dataset1

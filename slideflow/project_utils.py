@@ -1,13 +1,14 @@
 """Utility functions for slideflow.Project."""
 
 import os
-import types
 import logging
 from os.path import join, exists, dirname, realpath
 from collections import defaultdict
+from types import SimpleNamespace
+from typing import Optional, Union, List, Dict, Any, Tuple
 
 import slideflow as sf
-from slideflow.util import log, relative_path
+from slideflow.util import log, relative_path, Path
 from slideflow.util import colors as col
 
 # Set the tensorflow logger
@@ -22,9 +23,12 @@ else:
 # --- Project utility functions -----------------------------------------------
 
 
-def _project_config(name='MyProject', annotations='./annotations.csv',
-                    dataset_config='./datasets.json', sources=None,
-                    models_dir='./models', eval_dir='./eval'):
+def _project_config(name: str = 'MyProject',
+                    annotations: str = './annotations.csv',
+                    dataset_config: str = './datasets.json',
+                    sources: Optional[Union[str, List[str]]] = None,
+                    models_dir: str = './models',
+                    eval_dir: str = './eval') -> Dict:
     args = locals()
     args['slideflow_version'] = sf.__version__
     if sources is None:
@@ -32,7 +36,8 @@ def _project_config(name='MyProject', annotations='./annotations.csv',
     return args
 
 
-def _heatmap_worker(slide, heatmap_args, kwargs):
+def _heatmap_worker(slide: Path, heatmap_args: SimpleNamespace, kwargs: Any
+                    ) -> None:
     """Heatmap worker for :meth:`slideflow.Project.generate_heatmaps.`
 
     Any function loading a slide must be kept in an isolated process, as
@@ -40,6 +45,11 @@ def _heatmap_worker(slide, heatmap_args, kwargs):
     I suspect this is a libvips or openslide issue but I haven't been able to
     identify the root cause. Isolating processes when multiple slides are to be
     processed sequentially is a workaround, hence the process-isolated worker.
+
+    Args:
+        slide (str): Path to slide.
+        heatmap_args (SimpleNamespace): Namespace of heatmap arguments.
+        kwargs (dict): kwargs for heatmap.save()
     """
     log.setLevel(heatmap_args.verbosity)
     heatmap = sf.Heatmap(slide,
@@ -53,7 +63,8 @@ def _heatmap_worker(slide, heatmap_args, kwargs):
     heatmap.save(heatmap_args.outdir, **kwargs)
 
 
-def _train_worker(datasets, model_kw, training_kw, results_dict, verbosity):
+def _train_worker(datasets: Tuple[sf.Dataset, sf.Dataset], model_kw: Dict,
+                 training_kw: Dict, results_dict: dict, verbosity: int) -> None:
     """Internal function to execute model training in an isolated process."""
     log.setLevel(verbosity)
     train_dts, val_dts = datasets
@@ -62,7 +73,9 @@ def _train_worker(datasets, model_kw, training_kw, results_dict, verbosity):
     results_dict.update({model_kw['name']: results})
 
 
-def _setup_input_labels(dts, inpt_headers, val_dts=None):
+def _setup_input_labels(dts: sf.Dataset, inpt_headers: List[str],
+                        val_dts: Optional[sf.Dataset] = None
+                        ) -> Tuple[Dict, List[int], Dict]:
     '''
     Args:
         dts (:class:`slideflow.Dataset`): Training dataset.
@@ -70,13 +83,12 @@ def _setup_input_labels(dts, inpt_headers, val_dts=None):
         val_dts (:class:`slideflow.Dataset`, optional): Validation dataset.
             Used for harmonizing categorical labels to ensure consistency.
     '''
-
     # Dict mapping input headers to # of labels
     feature_len = {}
     # Nested dict mapping input vars to either category ID dicts or 'float'
-    inpt_classes = {}
+    inpt_classes = {}  # type: Dict
     # Dict mapping slide names to slide-level model input
-    model_inputs = defaultdict(list)
+    model_inputs = defaultdict(list)  # type: Dict
     for inpt in inpt_headers:
         if val_dts is not None:
             is_float = dts.is_float(inpt) and val_dts.is_float(inpt)
@@ -105,7 +117,7 @@ def _setup_input_labels(dts, inpt_headers, val_dts=None):
     return inpt_classes, feature_sizes, model_inputs
 
 
-def get_validation_settings(**kwargs):
+def get_validation_settings(**kwargs: Any) -> SimpleNamespace:
     """Returns a namespace of validation settings.
 
     Args:
@@ -150,7 +162,7 @@ def get_validation_settings(**kwargs):
     }
     for k in kwargs:
         args_dict[k] = kwargs[k]
-    args = types.SimpleNamespace(**args_dict)
+    args = SimpleNamespace(**args_dict)
 
     if args.strategy is None:
         args.strategy = 'none'
@@ -160,7 +172,8 @@ def get_validation_settings(**kwargs):
     return args
 
 
-def add_source(name, slides, roi, tiles, tfrecords, path):
+def add_source(name: str, slides: str, roi: str, tiles: str, tfrecords: str,
+               path: Path) -> None:
     """Adds a dataset source to a dataset configuration file.
 
     Args:
@@ -186,7 +199,7 @@ def add_source(name, slides, roi, tiles, tfrecords, path):
     log.info(f'Saved dataset source {name} to {path}')
 
 
-def load_sources(path):
+def load_sources(path: Path) -> Tuple[Dict, List]:
     """Loads datasets configuration dictionaries from a datasets.json file."""
     try:
         sources_data = sf.util.load_json(path)
@@ -198,13 +211,13 @@ def load_sources(path):
     return sources_data, sources
 
 
-def interactive_project_setup(project_folder):
+def interactive_project_setup(project_folder: Path) -> Dict:
     """Guides user through project creation at the given folder,
     saving configuration to "settings.json".
     """
     if not exists(project_folder):
         os.makedirs(project_folder)
-    project = {}
+    project = {}  # type: Dict[str, Any]
     project['name'] = input('What is the project name? ')
     project['annotations'] = sf.util.path_input(
         'Annotations file location [./annotations.csv] ',

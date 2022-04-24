@@ -9,18 +9,21 @@ import os
 import sys
 import csv
 import numpy as np
-import matplotlib.pyplot as plt
 from random import shuffle
 from matplotlib import patches
 from multiprocessing.dummy import Pool as DPool
 from functools import partial
 from tqdm import tqdm
+from typing import List, Optional, Union, Dict, Any, TYPE_CHECKING
 
 import slideflow as sf
-from slideflow.util import log
+from slideflow.util import log, Path
 from slideflow.util import colors as col
-from slideflow.stats import get_centroid_index
+from slideflow.stats import get_centroid_index, SlideMap
 from slideflow import errors
+
+if TYPE_CHECKING:
+    from slideflow.norm import StainNormalizer
 
 
 class Mosaic:
@@ -31,9 +34,12 @@ class Mosaic:
 
     """
 
-    def __init__(self, slide_map, tfrecords, leniency=1.5, expanded=False,
-                 num_tiles_x=50, tile_select='nearest', tile_meta=None,
-                 normalizer=None, normalizer_source=None):
+    def __init__(self, slide_map: SlideMap, tfrecords: List[Path],
+                 leniency: float = 1.5, expanded: bool = False,
+                 num_tiles_x: int = 50, tile_select: str = 'nearest',
+                 tile_meta: Optional[Dict] = None,
+                 normalizer=Optional[Union[str, StainNormalizer]],
+                 normalizer_source: Optional[str] = None) -> None:
         """Generate a mosaic map.
 
         Args:
@@ -66,8 +72,8 @@ class Mosaic:
         else:
             log.debug(f'Tile selection method: {tile_select}')
 
-        self.tile_point_distances = []
-        self.mapped_tiles = {}
+        self.tile_point_distances = []  # type: List[Dict]
+        self.mapped_tiles = {}  # type: Dict[str, List[int]]
         self.slide_map = slide_map
         self.num_tiles_x = num_tiles_x
         self.tfrecords = tfrecords
@@ -124,7 +130,7 @@ class Mosaic:
         max_distance = math.sqrt(2*((self.tile_size/2)**2)) * leniency
 
         # Initialize grid
-        self.GRID = []
+        self.GRID = []  # type: List[Dict]
         for j in range(self.num_tiles_y):
             for i in range(self.num_tiles_x):
                 x = ((self.tile_size/2) + min_x) + (self.tile_size * i)
@@ -214,8 +220,10 @@ class Mosaic:
         if self.mapping_method == 'expanded':
             self.tile_point_distances.sort(key=lambda d: d['distance'])
 
-    def place_tiles(self, resolution='high', tile_zoom=15, relative_size=False,
-                    focus=None, focus_slide=None):
+    def place_tiles(self, resolution: str = 'high', tile_zoom: int = 15,
+                    relative_size: bool = False,
+                    focus: Optional[List[Path]] = None,
+                    focus_slide: Optional[str] = None) -> None:
         """Initializes figures and places image tiles.
 
         Args:
@@ -227,8 +235,11 @@ class Mosaic:
                 proportion to the number of tiles within the grid space.
                 Defaults to False.
             focus (list, optional): List of tfrecords (paths) to highlight
-                on the mosaic.
+                on the mosaic. Defaults to None.
+            focus_slide (str, optional): Highlight tiles from this slide.
+                Defaults to None.
         """
+        import matplotlib.pyplot as plt
 
         # Initialize figure
         if resolution not in ('high', 'low'):
@@ -301,7 +312,7 @@ class Mosaic:
                 if sf.backend() == 'tensorflow':
                     tile_image = tile_image.numpy()
                 tile_image = self._decode_image_string(tile_image)
-                tile_alpha, num_slide, num_other = 1, 0, 0
+                tile_alpha, num_slide, num_other = float(1), 0, 0
                 display_size = self.tile_size
                 if relative_size:
                     if focus_slide and len(tile['points']):
@@ -374,15 +385,16 @@ class Mosaic:
             self.focus(focus)
         ax.autoscale(enable=True, tight=None)
 
-    def _get_tfrecords_from_slide(self, slide):
+    def _get_tfrecords_from_slide(self, slide: str) -> Optional[Path]:
         """Using the internal list of TFRecord paths, returns the path to a
         TFRecord for a given corresponding slide."""
         for tfr in self.tfrecords:
             if sf.util.path_to_name(tfr) == slide:
                 return tfr
         log.error(f'Unable to find TFRecord path for slide {col.green(slide)}')
+        return None
 
-    def _decode_image_string(self, string):
+    def _decode_image_string(self, string: str) -> np.ndarray:
         """Internal method to convert an image string (as stored in TFRecords)
         to an RGB array."""
         if self.normalizer:
@@ -399,7 +411,7 @@ class Mosaic:
             tile_image = cv2.cvtColor(tile_image_bgr, cv2.COLOR_BGR2RGB)
         return tile_image
 
-    def focus(self, tfrecords):
+    def focus(self, tfrecords: Optional[List[Path]]) -> None:
         """Highlights certain tiles according to a focus list if list provided,
         or resets highlighting if no tfrecords provided."""
         if tfrecords:
@@ -421,7 +433,7 @@ class Mosaic:
                     continue
                 tile['image'].set_alpha(1)
 
-    def save(self, filename, **kwargs):
+    def save(self, filename: Path, **kwargs: Any) -> None:
         """Saves the mosaic map figure to the given filename.
 
         Args:
@@ -438,6 +450,8 @@ class Mosaic:
             focus (list, optional): List of tfrecords (paths) to highlight on
                 the mosaic.
         """
+        import matplotlib.pyplot as plt
+
         self.place_tiles(**kwargs)
         log.info('Exporting figure...')
         try:
@@ -449,7 +463,7 @@ class Mosaic:
         log.info(f'Saved figure to {col.green(filename)}')
         plt.close()
 
-    def save_report(self, filename):
+    def save_report(self, filename: Path) -> None:
         """Saves a report of which tiles (and their corresponding slide)
             were displayed on the Mosaic map, in CSV format."""
         with open(filename, 'w') as f:
@@ -459,13 +473,3 @@ class Mosaic:
                 for idx in self.mapped_tiles[tfr]:
                     writer.writerow([tfr, idx])
         log.info(f'Mosaic report saved to {col.green(filename)}')
-
-    def show(self):
-        """Displays the mosaic map as an interactive matplotlib figure."""
-        log.info('Displaying figure...')
-        while True:
-            try:
-                plt.show()
-            except UnicodeDecodeError:
-                continue
-            break

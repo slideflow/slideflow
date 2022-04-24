@@ -7,10 +7,9 @@ import os
 import shutil
 import threading
 import logging
-import importlib
+import importlib.util
 import multiprocessing as mp
 import numpy as np
-import matplotlib.pyplot as plt
 import matplotlib.colors as mcol
 from glob import glob
 from os.path import join, isdir, exists, dirname
@@ -34,7 +33,7 @@ except ImportError:
 
 # Enable color sequences on Windows
 try:
-    import ctypes
+    import ctypes.windll
     kernel32 = ctypes.windll.kernel32
     kernel32.SetConsoleMode(kernel32.GetStdHandle(-11), 7)
 except Exception:
@@ -47,7 +46,7 @@ SUPPORTED_FORMATS = ['svs', 'tif', 'ndpi', 'vms', 'vmu', 'scn', 'mrxs',
                      'tiff', 'svslide', 'bif', 'jpg']
 SLIDE_ANNOTATIONS_TO_IGNORE = ['', ' ']
 CPLEX_AVAILABLE = (importlib.util.find_spec('cplex') is not None)
-Path = Union[str, bytes, os.PathLike]
+Path = Union[str, os.PathLike]
 
 # Configure logging
 log = logging.getLogger('slideflow')
@@ -747,6 +746,7 @@ def tfrecord_heatmap(tfrecord, slide, tile_px, tile_um, tile_dict, outdir):
         Dictionary mapping slide names to dict of statistics
         (mean, median, above_0, and above_1)
     """
+    import matplotlib.pyplot as plt
     slide_name = sf.util.path_to_name(tfrecord)
     loc_dict = sf.io.get_locations_from_tfrecord(tfrecord)
     if tile_dict.keys() != loc_dict.keys():

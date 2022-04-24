@@ -12,8 +12,6 @@ import time
 import queue
 import threading
 import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
 import scipy.stats as stats
 from collections import defaultdict
 from os.path import join, exists
@@ -443,6 +441,9 @@ class DatasetFeatures:
                 generate box plots.
             outdir (str): Path to directory in which to save box plots.
         """
+        import seaborn as sns
+        import matplotlib.pyplot as plt
+
         if not isinstance(features, list):
             raise ValueError("'features' must be a list of int.")
         if not self.categories:
