@@ -9,7 +9,6 @@ import os
 import sys
 import csv
 import numpy as np
-import matplotlib.pyplot as plt
 from random import shuffle
 from matplotlib import patches
 from multiprocessing.dummy import Pool as DPool
@@ -229,6 +228,7 @@ class Mosaic:
             focus (list, optional): List of tfrecords (paths) to highlight
                 on the mosaic.
         """
+        import matplotlib.pyplot as plt
 
         # Initialize figure
         if resolution not in ('high', 'low'):
@@ -438,6 +438,8 @@ class Mosaic:
             focus (list, optional): List of tfrecords (paths) to highlight on
                 the mosaic.
         """
+        import matplotlib.pyplot as plt
+
         self.place_tiles(**kwargs)
         log.info('Exporting figure...')
         try:
@@ -459,13 +461,3 @@ class Mosaic:
                 for idx in self.mapped_tiles[tfr]:
                     writer.writerow([tfr, idx])
         log.info(f'Mosaic report saved to {col.green(filename)}')
-
-    def show(self):
-        """Displays the mosaic map as an interactive matplotlib figure."""
-        log.info('Displaying figure...')
-        while True:
-            try:
-                plt.show()
-            except UnicodeDecodeError:
-                continue
-            break

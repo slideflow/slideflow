@@ -2,7 +2,6 @@ import os
 import shutil
 import slideflow as sf
 import numpy as np
-import matplotlib.pyplot as plt
 import matplotlib.colors as mcol
 import shapely.geometry as sg
 
@@ -118,6 +117,7 @@ class Heatmap:
             os.remove(new_path)
 
     def _prepare_figure(self, show_roi=True):
+        import matplotlib.pyplot as plt
         self.fig = plt.figure(figsize=(18, 16))
         self.ax = self.fig.add_subplot(111)
         self.fig.subplots_adjust(bottom=0.25, top=0.95)
@@ -169,6 +169,7 @@ class Heatmap:
             vmax (float): Maximum value to display on heatmap.
                 Defaults to 1.
         """
+        import matplotlib.pyplot as plt
 
         print('\r\033[KSaving base figures...', end='')
         # Save base thumbnail as separate figure
