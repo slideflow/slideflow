@@ -895,8 +895,7 @@ class Project:
                 tfrecords at the tile_px/tile_um matching the supplied model,
                 optionally using provided filters and filter_blank.
             filters (dict, optional): Filters dict to use when selecting
-                tfrecords. Defaults to None. See :meth:`get_dataset`
-                documentation for more information on filtering.
+                tfrecords. Defaults to None.
             checkpoint (str, optional): Path to cp.ckpt file, if evaluating a
                 saved checkpoint. Defaults to None.
             eval_k_fold (int, optional): K-fold iteration number to evaluate.

@@ -17,6 +17,7 @@ from os.path import join, isdir, exists, dirname
 from tqdm import tqdm
 from statistics import mean, median
 from functools import partial
+from typing import Union
 
 import slideflow as sf
 import slideflow.util.colors as col
@@ -46,6 +47,7 @@ SUPPORTED_FORMATS = ['svs', 'tif', 'ndpi', 'vms', 'vmu', 'scn', 'mrxs',
                      'tiff', 'svslide', 'bif', 'jpg']
 SLIDE_ANNOTATIONS_TO_IGNORE = ['', ' ']
 CPLEX_AVAILABLE = (importlib.util.find_spec('cplex') is not None)
+Path = Union[str, bytes, os.PathLike]
 
 # Configure logging
 log = logging.getLogger('slideflow')
@@ -894,6 +896,13 @@ def get_new_model_dir(root, model_name):
     assert not os.path.exists(model_dir)
     os.makedirs(model_dir)
     return model_dir
+
+
+def split_list(a, n):
+    '''Function to split a list into n components'''
+    k, m = divmod(len(a), n)
+    return (a[i * k + min(i, m): (i + 1) * k + min(i + 1, m)]
+            for i in range(n))
 
 
 # --- TFRecord utility functions ----------------------------------------------
