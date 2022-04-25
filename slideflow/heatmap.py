@@ -152,7 +152,7 @@ class Heatmap:
                 plt.plot(x, y, zorder=20, color='k', linewidth=5)
 
     def save(self, outdir: Path, show_roi: bool = True,
-             interpolation: str ='none', cmap: str = 'coolwarm',
+             interpolation: str = 'none', cmap: str = 'coolwarm',
              logit_cmap: Optional[Union[Callable, Dict]] = None,
              vmin: float = 0, vmax: float = 1, vcenter: float = 0.5) -> None:
         """Saves calculated logits as heatmap overlays.

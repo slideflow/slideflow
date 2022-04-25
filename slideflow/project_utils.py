@@ -64,7 +64,7 @@ def _heatmap_worker(slide: Path, heatmap_args: SimpleNamespace, kwargs: Any
 
 
 def _train_worker(datasets: Tuple[sf.Dataset, sf.Dataset], model_kw: Dict,
-                 training_kw: Dict, results_dict: dict, verbosity: int) -> None:
+                  training_kw: Dict, results_dict: dict, verbosity: int) -> None:
     """Internal function to execute model training in an isolated process."""
     log.setLevel(verbosity)
     train_dts, val_dts = datasets

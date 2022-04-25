@@ -17,7 +17,7 @@ from tqdm import tqdm
 from os.path import isdir, join, exists, dirname, basename
 from multiprocessing.dummy import Pool as DPool
 from collections import defaultdict
-from typing import Optional, List, Dict, Union, TypeVar, Any, Tuple, \
+from typing import Optional, List, Dict, Union, Any, Tuple, \
                    Callable, Sequence, TYPE_CHECKING
 
 import slideflow as sf
@@ -294,7 +294,8 @@ class Dataset:
     across one or more sources in a stored configuration file."""
 
     def __init__(self, config: Path, sources: Union[str, List[str]],
-                 tile_px: int, tile_um: int, filters: Optional[Dict] = None,
+                 tile_px: Optional[int], tile_um: Optional[int],
+                 filters: Optional[Dict] = None,
                  filter_blank: Optional[Union[List[str], str]] = None,
                  annotations: Optional[Union[Path, pd.DataFrame]] = None,
                  min_tiles: int = 0) -> None:
@@ -1181,8 +1182,8 @@ class Dataset:
                use_float: Union[bool, Dict, str] = False,
                assign: Optional[Dict[str, Dict[str, int]]] = None,
                format: str = 'index'
-               ) -> Tuple[Dict[str, Union[int, float]],
-                    Union[Dict, List[Union[str, float]]]]:
+               ) -> Tuple[Dict[str, List[float]],
+                          Union[Dict, List[Union[str, float]]]]:
         """Returns a dict of slide names mapped to patient id and label(s).
 
         Args:

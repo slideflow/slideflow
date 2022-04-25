@@ -34,7 +34,7 @@ class Mosaic:
 
     """
 
-    def __init__(self, slide_map: SlideMap, tfrecords: List[Path],
+    def __init__(self, slide_map: SlideMap, tfrecords: List[str],
                  leniency: float = 1.5, expanded: bool = False,
                  num_tiles_x: int = 50, tile_select: str = 'nearest',
                  tile_meta: Optional[Dict] = None,
