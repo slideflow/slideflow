@@ -5,10 +5,12 @@ import logging
 from os.path import join, exists, dirname, realpath
 from collections import defaultdict
 from types import SimpleNamespace
-from typing import Optional, Union, List, Dict, Any, Tuple
+from typing import Optional, Union, List, Dict, Any, Tuple, Callable
+from functools import wraps
 
 import slideflow as sf
 from slideflow.util import log, relative_path, Path
+from slideflow import errors
 from slideflow.util import colors as col
 
 # Set the tensorflow logger
@@ -20,15 +22,40 @@ else:
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 
-# --- Project utility functions -----------------------------------------------
+def auto_dataset(method: Callable):
+    @wraps(method)
+    def _impl(self, model, *args, **kwargs):
+        filter_keys = ['filters', 'filter_blank', 'min_tiles']
+        has_filters = any([k in kwargs for k in filter_keys])
+        config = sf.util.get_model_config(model)
+        if has_filters and 'dataset' in kwargs:
+            k_s = ', '.join(filter_keys)
+            raise errors.ProjectError(
+                f"Cannot supply both `dataset` and filter arguments ({k_s})."
+                " Instead, supply a filtered dataset (Dataset.filter(...))"
+            )
+        if 'dataset' in kwargs:
+            kwargs['dataset']._assert_size_matches_hp(config['hp'])
+            return method(self, model, *args, **kwargs)
+        else:
+            dataset = self.dataset(
+                tile_px=config['hp']['tile_px'],
+                tile_um=config['hp']['tile_um'],
+                **{k: v for k, v in kwargs.items() if k in filter_keys},
+                verification='slides'
+            )
+            return method(self, model, *args, dataset=dataset, **kwargs)
+    return _impl
 
 
-def _project_config(name: str = 'MyProject',
-                    annotations: str = './annotations.csv',
-                    dataset_config: str = './datasets.json',
-                    sources: Optional[Union[str, List[str]]] = None,
-                    models_dir: str = './models',
-                    eval_dir: str = './eval') -> Dict:
+def _project_config(
+    name: str = 'MyProject',
+    annotations: str = './annotations.csv',
+    dataset_config: str = './datasets.json',
+    sources: Optional[Union[str, List[str]]] = None,
+    models_dir: str = './models',
+    eval_dir: str = './eval'
+) -> Dict:
     args = locals()
     args['slideflow_version'] = sf.__version__
     if sources is None:
@@ -36,8 +63,11 @@ def _project_config(name: str = 'MyProject',
     return args
 
 
-def _heatmap_worker(slide: Path, heatmap_args: SimpleNamespace, kwargs: Any
-                    ) -> None:
+def _heatmap_worker(
+    slide: str,
+    heatmap_args: SimpleNamespace,
+    kwargs: Any
+) -> None:
     """Heatmap worker for :meth:`slideflow.Project.generate_heatmaps.`
 
     Any function loading a slide must be kept in an isolated process, as
@@ -63,8 +93,13 @@ def _heatmap_worker(slide: Path, heatmap_args: SimpleNamespace, kwargs: Any
     heatmap.save(heatmap_args.outdir, **kwargs)
 
 
-def _train_worker(datasets: Tuple[sf.Dataset, sf.Dataset], model_kw: Dict,
-                  training_kw: Dict, results_dict: dict, verbosity: int) -> None:
+def _train_worker(
+    datasets: Tuple[sf.Dataset, sf.Dataset],
+    model_kw: Dict,
+    training_kw: Dict,
+    results_dict: Dict,
+    verbosity: int
+) -> None:
     """Internal function to execute model training in an isolated process."""
     log.setLevel(verbosity)
     train_dts, val_dts = datasets
@@ -73,9 +108,11 @@ def _train_worker(datasets: Tuple[sf.Dataset, sf.Dataset], model_kw: Dict,
     results_dict.update({model_kw['name']: results})
 
 
-def _setup_input_labels(dts: sf.Dataset, inpt_headers: List[str],
-                        val_dts: Optional[sf.Dataset] = None
-                        ) -> Tuple[Dict, List[int], Dict]:
+def _setup_input_labels(
+    dts: sf.Dataset,
+    inpt_headers: List[str],
+    val_dts: Optional[sf.Dataset] = None
+) -> Tuple[Dict, List[int], Dict]:
     '''
     Args:
         dts (:class:`slideflow.Dataset`): Training dataset.
@@ -109,7 +146,9 @@ def _setup_input_labels(dts: sf.Dataset, inpt_headers: List[str],
             feature_len[inpt] = len(unique)
             inpt_classes[inpt] = dict(zip(range(len(unique)), unique))
             for slide in slides:
-                onehot_label = sf.util.to_onehot(labels[slide], len(unique))
+                onehot_label = sf.util.to_onehot(
+                    labels[slide], len(unique)  # type: ignore
+                )
                 # Concatenate onehot labels together
                 model_inputs[slide] += list(onehot_label)
 
@@ -167,13 +206,20 @@ def get_validation_settings(**kwargs: Any) -> SimpleNamespace:
     if args.strategy is None:
         args.strategy = 'none'
     if (args.k_fold_header is None and args.strategy == 'k-fold-manual'):
-        msg = "val_strategy 'k-fold-manual' requires 'k_fold_header'"
-        raise ValueError(msg)
+        raise ValueError(
+            "val_strategy 'k-fold-manual' requires 'k_fold_header'"
+        )
     return args
 
 
-def add_source(name: str, slides: str, roi: str, tiles: str, tfrecords: str,
-               path: Path) -> None:
+def add_source(
+    name: str,
+    slides: str,
+    roi: str,
+    tiles: str,
+    tfrecords: str,
+    path: Path
+) -> None:
     """Adds a dataset source to a dataset configuration file.
 
     Args:
@@ -211,7 +257,7 @@ def load_sources(path: Path) -> Tuple[Dict, List]:
     return sources_data, sources
 
 
-def interactive_project_setup(project_folder: Path) -> Dict:
+def interactive_project_setup(project_folder: str) -> Dict:
     """Guides user through project creation at the given folder,
     saving configuration to "settings.json".
     """

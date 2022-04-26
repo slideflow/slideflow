@@ -17,14 +17,14 @@ from tqdm import tqdm
 from os.path import isdir, join, exists, dirname, basename
 from multiprocessing.dummy import Pool as DPool
 from collections import defaultdict
-from typing import Optional, List, Dict, Union, Any, Tuple, \
-                   Callable, Sequence, TYPE_CHECKING
+from typing import (Optional, List, Dict, Union, Any, Tuple,
+                    Sequence, TYPE_CHECKING)
 
 import slideflow as sf
 from slideflow import errors
 from slideflow.slide import WSI, ExtractionReport, SlideReport
 from slideflow.model import ModelParams
-from slideflow.util import log, TCGA, Path, _shortname, path_to_name
+from slideflow.util import log, TCGA, Path, _shortname, path_to_name, Labels
 from slideflow.util import tfrecord2idx
 from slideflow.util import colors as col
 
@@ -34,9 +34,17 @@ if TYPE_CHECKING:
     from slideflow.norm import StainNormalizer
 
 
-def _tile_extractor(path: Path, tfrecord_dir: Path, tiles_dir: Path,
-                    reports: dict, tma: bool, qc: str, wsi_kwargs: dict,
-                    generator_kwargs: dict, qc_kwargs: dict) -> None:
+def _tile_extractor(
+    path: str,
+    tfrecord_dir: str,
+    tiles_dir: str,
+    reports: Dict,
+    tma: bool,
+    qc: str,
+    wsi_kwargs: Dict,
+    generator_kwargs: Dict,
+    qc_kwargs: Dict
+) -> None:
     """Internal function to extract tiles. Slide processing needs to be
     process-isolated when num_workers > 1 .
 
@@ -92,8 +100,12 @@ def _tile_extractor(path: Path, tfrecord_dir: Path, tiles_dir: Path,
         return
 
 
-def _fill_queue(slide_list: Sequence[Path], q: Queue, q_size: int,
-                buffer: Optional[Path] = None) -> None:
+def _fill_queue(
+    slide_list: Sequence[str],
+    q: Queue,
+    q_size: int,
+    buffer: Optional[str] = None
+) -> None:
     '''Fills a queue with slide paths, using an optional buffer.'''
     for path in slide_list:
         warned = False
@@ -120,8 +132,11 @@ def _fill_queue(slide_list: Sequence[Path], q: Queue, q_size: int,
     q.join()
 
 
-def split_patients_preserved_site(patients_dict: Dict[str, Dict], n: int,
-                                  balance: str) -> List[List[str]]:
+def split_patients_preserved_site(
+    patients_dict: Dict[str, Dict],
+    n: int,
+    balance: str
+) -> List[List[str]]:
     """Splits a dictionary of patients into n groups,
     balancing according to key "balance" while preserving site.
 
@@ -184,8 +199,11 @@ def split_patients_preserved_site(patients_dict: Dict[str, Dict], n: int,
     return splits
 
 
-def split_patients_balanced(patients_dict: Dict[str, Dict], n: int,
-                            balance: str) -> List[List[str]]:
+def split_patients_balanced(
+    patients_dict: Dict[str, Dict],
+    n: int,
+    balance: str
+) -> List[List[str]]:
     """Splits a dictionary of patients into n groups,
     balancing according to key "balance".
 
@@ -254,9 +272,12 @@ def split_patients(patients_dict: Dict[str, Dict], n: int) -> List[List[str]]:
     return list(sf.util.split_list(patient_list, n))
 
 
-def split_patients_list(patients_dict: Dict[str, Dict], n: int,
-                        balance: Optional[str] = None,
-                        preserved_site: bool = False) -> List[List[str]]:
+def split_patients_list(
+    patients_dict: Dict[str, Dict],
+    n: int,
+    balance: Optional[str] = None,
+    preserved_site: bool = False
+) -> List[List[str]]:
     """Splits a dictionary of patients into n groups,
     balancing according to key "balance" if provided.
 
@@ -276,9 +297,9 @@ def split_patients_list(patients_dict: Dict[str, Dict], n: int,
         List of patient splits
     """
 
-    msg = "split_patients_list() is deprecated. Please use split_patients(), "
-    msg += "split_patients_balanced(), or split_patients_preserved_site()."
-    log.warn(msg)
+    log.warn("Deprecation warning: split_patients_list() will be removed in "
+             "slideflow>=1.2. Please use split_patients(), "
+             "split_patients_balanced(), or split_patients_preserved_site().")
     if not balance:
         patient_list = list(patients_dict.keys())
         shuffle(patient_list)
@@ -293,12 +314,17 @@ class Dataset:
     """Object to supervise organization of slides, tfrecords, and tiles
     across one or more sources in a stored configuration file."""
 
-    def __init__(self, config: Path, sources: Union[str, List[str]],
-                 tile_px: Optional[int], tile_um: Optional[int],
-                 filters: Optional[Dict] = None,
-                 filter_blank: Optional[Union[List[str], str]] = None,
-                 annotations: Optional[Union[Path, pd.DataFrame]] = None,
-                 min_tiles: int = 0) -> None:
+    def __init__(
+        self,
+        config: Path,
+        sources: Union[str, List[str]],
+        tile_px: Optional[int],
+        tile_um: Optional[int],
+        filters: Optional[Dict] = None,
+        filter_blank: Optional[Union[List[str], str]] = None,
+        annotations: Optional[Union[Path, pd.DataFrame]] = None,
+        min_tiles: int = 0
+    ) -> None:
         """Initializes dataset to organize processed images.
 
         Args:
@@ -424,8 +450,9 @@ class Dataset:
         if self.tile_px != hp_px or self.tile_um != hp_um:
             d_sz = f'({self.tile_px}px, {self.tile_um}um)'
             m_sz = f'({hp_px}px, {hp_um}um)'
-            msg = f"Dataset tile size {d_sz} does not match model {m_sz}"
-            raise ValueError(msg)
+            raise ValueError(
+                f"Dataset tile size {d_sz} does not match model {m_sz}"
+            )
 
     def load_annotations(self, annotations: Union[Path, pd.DataFrame]) -> None:
         """Loads annotations.
@@ -439,8 +466,9 @@ class Dataset:
         """
         if isinstance(annotations, str):
             if not exists(annotations):
-                msg = f'Unable to find annotations file {annotations}'
-                raise errors.AnnotationsError(msg)
+                raise errors.AnnotationsError(
+                    f'Unable to find annotations file {annotations}'
+                )
             try:
                 ann_df = pd.read_csv(annotations, dtype=str)
                 ann_df.fillna('', inplace=True)
@@ -452,28 +480,36 @@ class Dataset:
             annotations.fillna('', inplace=True)
             self.annotations = annotations
         else:
-            msg = 'Invalid annotations format; expected path or DataFrame'
-            raise errors.AnnotationsError(msg)
+            raise errors.AnnotationsError(
+                'Invalid annotations format; expected path or DataFrame'
+            )
 
         # Check annotations
         assert self.annotations is not None
         if len(self.annotations.columns) == 1:
-            msg = "Only one annotations column detected (is it in CSV format?)"
-            raise errors.AnnotationsError(msg)
+            raise errors.AnnotationsError(
+                "Only one annotations column detected (is it in CSV format?)"
+            )
         if len(self.annotations.columns) != len(set(self.annotations.columns)):
-            msg = "Annotations file has duplicate headers; all must be unique"
-            raise errors.AnnotationsError(msg)
+            raise errors.AnnotationsError(
+                "Annotations file has duplicate headers; all must be unique"
+            )
         if TCGA.patient not in self.annotations.columns:
-            msg = f'Patient identifier {TCGA.patient} missing in annotations.'
-            raise errors.AnnotationsError(msg)
+            raise errors.AnnotationsError(
+                f'Patient identifier {TCGA.patient} missing in annotations.'
+            )
         if TCGA.slide not in self.annotations.columns:
             log.info(f"Column '{TCGA.slide}' missing in annotations.")
             log.info("Attempting to associate patients with slides...")
             self.update_annotations_with_slidenames(annotations)
             self.load_annotations(annotations)
 
-    def balance(self, headers: Optional[List[str]] = None,
-                strategy: str = 'category', force: bool = False) -> "Dataset":
+    def balance(
+        self,
+        headers: Optional[List[str]] = None,
+        strategy: Optional[str] = 'category',
+        force: bool = False
+    ) -> "Dataset":
         """Returns a dataset with prob_weights reflecting balancing per tile,
         slide, patient, or category.
 
@@ -524,8 +560,9 @@ class Dataset:
             for tfr in tfrecords
         }
         if not tfrecords:
-            msg = "Unable to balance; no tfrecords found."
-            raise errors.DatasetBalanceError(msg)
+            raise errors.DatasetBalanceError(
+                "Unable to balance; no tfrecords found."
+            )
 
         if strategy == 'none' or strategy is None:
             return self
@@ -556,12 +593,12 @@ class Dataset:
             if not isinstance(headers, list):
                 headers = [headers]
             if any(ret.is_float(h) for h in headers) and not force:
-                msg = f"Headers {','.join(headers)} appear to be `float`."
-                msg += "Categorical outcomes required for balancing. "
-                msg += "To force balancing with these outcomes, pass "
-                msg += "`force=True` to Dataset.balance()"
-                raise errors.DatasetBalanceError(msg)
-
+                raise errors.DatasetBalanceError(
+                    f"Headers {','.join(headers)} appear to be `float`."
+                    "Categorical outcomes required for balancing. "
+                    "To force balancing with these outcomes, pass "
+                    "`force=True` to Dataset.balance()"
+                )
             labels, _ = ret.labels(headers, use_float=False)
             cats = {}  # type: Dict[str, Dict]
             cat_prob = {}
@@ -572,11 +609,11 @@ class Dataset:
                 if not isinstance(raw_balance_cat, list):
                     balance_cat = [raw_balance_cat]
                 else:
-                    balance_cat = raw_balance_cat
+                    balance_cat = raw_balance_cat  # type: ignore
                 balance_cat_str = '-'.join(map(str, balance_cat))
                 tfr_cats[tfrecord] = balance_cat_str
                 tiles = totals[tfrecord]
-                if balance_cat not in cats:
+                if balance_cat_str not in cats:
                     cats.update({balance_cat_str: {
                         'num_slides': 1,
                         'num_tiles': tiles
@@ -635,8 +672,12 @@ class Dataset:
         ret._min_tiles = 0
         return ret
 
-    def clip(self, max_tiles: int = 0, strategy: Optional[str] = None,
-             headers: Optional[List[str]] = None) -> "Dataset":
+    def clip(
+        self,
+        max_tiles: int = 0,
+        strategy: Optional[str] = None,
+        headers: Optional[List[str]] = None
+    ) -> "Dataset":
         '''Returns a dataset clipped to either a fixed maximum number of tiles
         per tfrecord, or to the min number of tiles per patient or category.
 
@@ -656,8 +697,9 @@ class Dataset:
         '''
 
         if strategy == 'category' and not headers:
-            msg = "headers must be provided if clip strategy is 'category'."
-            raise errors.DatasetClipError(msg)
+            raise errors.DatasetClipError(
+                "headers must be provided if clip strategy is 'category'."
+            )
         if strategy is None and headers is not None:
             strategy = 'category'
         if strategy is None and headers is None and not max_tiles:
@@ -670,8 +712,7 @@ class Dataset:
         totals = {tfr: manifest[tfr]['total'] for tfr in tfrecords}
 
         if not tfrecords:
-            msg = "Unable to clip; no tfrecords found."
-            raise errors.DatasetClipError(msg)
+            raise errors.DatasetClipError("Unable to clip; no tfrecords found.")
         if strategy == 'slide':
             if max_tiles:
                 clip = min(min(totals.values()), max_tiles)
@@ -719,7 +760,7 @@ class Dataset:
                 if not isinstance(raw_balance_category, list):
                     balance_category = [raw_balance_category]
                 else:
-                    balance_category = raw_balance_category
+                    balance_category = raw_balance_category  # type: ignore
                 balance_cat_str = '-'.join(map(str, balance_category))
                 tfr_cats[tfrecord] = balance_cat_str
                 tiles = totals[tfrecord]
@@ -742,17 +783,25 @@ class Dataset:
             }
         return ret
 
-    def extract_tiles(self, save_tiles: bool = False,
-                      save_tfrecords: bool = True, source: Optional[str] = None,
-                      stride_div: int = 1, enable_downsample: bool = True,
-                      roi_method: str = 'inside', skip_extracted: bool = True,
-                      skip_missing_roi: bool = False, tma: bool = False,
-                      randomize_origin: bool = False,
-                      buffer: Optional[Path] = None, num_workers: int = 1,
-                      q_size: int = 4, qc: Optional[str] = None,
-                      report: bool = True, **kwargs: Any
-                      ) -> Optional[ExtractionReport]:
-
+    def extract_tiles(
+        self,
+        save_tiles: bool = False,
+        save_tfrecords: bool = True,
+        source: Optional[str] = None,
+        stride_div: int = 1,
+        enable_downsample: bool = True,
+        roi_method: str = 'inside',
+        skip_extracted: bool = True,
+        skip_missing_roi: bool = False,
+        tma: bool = False,
+        randomize_origin: bool = False,
+        buffer: Optional[str] = None,
+        num_workers: int = 1,
+        q_size: int = 4,
+        qc: Optional[str] = None,
+        report: bool = True,
+        **kwargs: Any
+    ) -> Optional[ExtractionReport]:
         """Extract tiles from a group of slides, saving extracted tiles to
         either loose image or in TFRecord binary format.
 
@@ -842,16 +891,16 @@ class Dataset:
         """
 
         if not save_tiles and not save_tfrecords:
-            msg = 'Either save_tiles or save_tfrecords must be true.'
-            raise errors.DatasetError(msg)
+            raise errors.DatasetError(
+                'Either save_tiles or save_tfrecords must be true.'
+            )
         if q_size < num_workers:
-            msg = f"q_size ({q_size}) < num_workers {num_workers}; "
-            msg += "some workers will not be used"
-            log.warn(msg)
+            log.warn(f"q_size ({q_size}) < num_workers {num_workers}; "
+                     "some workers will not be used")
         if not self.tile_px or not self.tile_um:
-            msg = "Dataset tile_px and tile_um must be != 0 to extract tiles"
-            raise errors.DatasetError(msg)
-
+            raise errors.DatasetError(
+                "Dataset tile_px and tile_um must be != 0 to extract tiles"
+            )
         if source:
             sources = [source] if not isinstance(source, list) else source
         else:
@@ -938,7 +987,7 @@ class Dataset:
                         skip_missing_roi=skip_missing_roi,
                         silent=True
                     )
-                est = slide.estimated_num_tiles
+                est = slide.estimated_num_tiles  # type: ignore
                 log.debug(f"Estimated tiles for slide {slide.name}: {est}")
                 total_tiles += est
                 del slide
@@ -962,8 +1011,8 @@ class Dataset:
                         leadtext='Extracting tiles... ',
                         show_counter=True,
                         show_eta=True,
-                        mp_counter=counter,
-                        mp_lock=counter_lock
+                        mp_counter=counter,  # type: ignore
+                        mp_lock=counter_lock  # type: ignore
                     )
                     pb.auto_refresh(0.1)
                 else:
@@ -1038,7 +1087,7 @@ class Dataset:
                     pb.end()
                 if report:
                     log.info('Generating PDF (this may take some time)...', )
-                    rep_vals = reports.values()
+                    rep_vals = list(reports.values())
                     num_slides = len(slide_list)
                     img_kwargs = defaultdict(lambda: None)  # type: Dict
                     img_kwargs.update(kwargs)
@@ -1076,7 +1125,7 @@ class Dataset:
         self.build_index(True)
         return pdf_report
 
-    def extract_tiles_from_tfrecords(self, dest: Path) -> None:
+    def extract_tiles_from_tfrecords(self, dest: str) -> None:
         """Extracts tiles from a set of TFRecords.
 
         Args:
@@ -1113,9 +1162,10 @@ class Dataset:
         if len(args) == 1 and 'filters' not in kwargs:
             kwargs['filters'] = args[0]
         elif len(args):
-            msg = "filter() accepts either one argument (filters), or any "
-            msg += "combination of keywords (filters, filter_blank, min_tiles)"
-            raise ValueError(msg)
+            raise ValueError(
+                "filter() accepts either one argument (filters), or any "
+                "combination of keywords (filters, filter_blank, min_tiles)"
+            )
         for kwarg in kwargs:
             if kwarg not in ('filters', 'filter_blank', 'min_tiles'):
                 raise ValueError(f'Unknown filtering argument {kwarg}')
@@ -1134,8 +1184,11 @@ class Dataset:
             ret._min_tiles = kwargs['min_tiles']
         return ret
 
-    def harmonize_labels(self, *args: "Dataset", header: Optional[str] = None
-                         ) -> Dict[str, int]:
+    def harmonize_labels(
+        self,
+        *args: "Dataset",
+        header: Optional[str] = None
+    ) -> Dict[str, int]:
         '''Returns categorical label assignments to int, harmonized with
         another dataset to ensure consistency between datasets.
 
@@ -1178,12 +1231,13 @@ class Dataset:
         except ValueError:
             return False
 
-    def labels(self, headers: Union[str, List[str]],
-               use_float: Union[bool, Dict, str] = False,
-               assign: Optional[Dict[str, Dict[str, int]]] = None,
-               format: str = 'index'
-               ) -> Tuple[Dict[str, List[float]],
-                          Union[Dict, List[Union[str, float]]]]:
+    def labels(
+        self,
+        headers: Union[str, List[str]],
+        use_float: Union[bool, Dict, str] = False,
+        assign: Optional[Dict[str, Dict[str, int]]] = None,
+        format: str = 'index'
+    ) -> Tuple[Labels, Union[Dict, List[Union[str, float]]]]:
         """Returns a dict of slide names mapped to patient id and label(s).
 
         Args:
@@ -1220,9 +1274,10 @@ class Dataset:
             if assign and (len(headers) > 1 or header in assign):
                 assigned_for_header = assign[header]
             elif assign is not None:
-                msg = f"Unable to read outcome assignments for header {header}"
-                msg += f" (assign={assign})"
-                raise errors.DatasetError(msg)
+                raise errors.DatasetError(
+                    f"Unable to read outcome assignments for header {header}"
+                    f" (assign={assign})"
+                )
             else:
                 assigned_for_header = None
             unique_labels_for_this_header = []
@@ -1234,8 +1289,9 @@ class Dataset:
 
             # Determine whether values should be converted into float
             if isinstance(use_float, dict) and header not in use_float:
-                msg = f"use_float is dict, but header {header} is missing."
-                raise ValueError(msg)
+                raise ValueError(
+                    f"use_float is dict, but header {header} is missing."
+                )
             elif isinstance(use_float, dict):
                 header_is_float = use_float[header]
             elif isinstance(use_float, bool):
@@ -1248,9 +1304,10 @@ class Dataset:
             # Ensure labels can be converted to desired type,
             # then assign values
             if header_is_float and not self.is_float(header):
-                msg = f"Unable to convert all labels of {header} into 'float' "
-                msg += f"({','.join(filtered_labels)})."
-                raise TypeError(msg)
+                raise TypeError(
+                    f"Unable to convert all labels of {header} into 'float' "
+                    f"({','.join(filtered_labels)})."
+                )
             elif not header_is_float:
                 log.debug(f'Interpreting column "{header}" as continuous')
                 unique_labels_for_this_header = list(set(filtered_labels))
@@ -1258,8 +1315,9 @@ class Dataset:
                 for i, ul in enumerate(unique_labels_for_this_header):
                     n_matching_filtered = sum(f == ul for f in filtered_labels)
                     if assigned_for_header and ul not in assigned_for_header:
-                        msg = f"assign was provided, but label {ul} missing"
-                        raise KeyError(msg)
+                        raise KeyError(
+                            f"assign was provided, but label {ul} missing"
+                        )
                     elif assigned_for_header:
                         val_msg = assigned_for_header[ul]
                         n_s = str(n_matching_filtered)
@@ -1303,9 +1361,10 @@ class Dataset:
                 if patient not in patient_labels:
                     patient_labels[patient] = ann_label
                 elif patient_labels[patient] != ann_label:
-                    msg = f"{patient} has multiple labels (header {header}): "
-                    msg += f"{patient_labels[patient]}, {ann_label}"
-                    log.error(msg)
+                    log.error(
+                        f"{patient} has multiple labels (header {header}): "
+                        f"{patient_labels[patient]}, {ann_label}"
+                    )
                     num_warned += 1
                 elif ((slide in slides)
                       and (slide in results)
@@ -1356,8 +1415,11 @@ class Dataset:
             indices[tfr_name] = index
         return indices
 
-    def manifest(self, key: str = 'path', filter: bool = True
-                 ) -> Dict[str, Dict[str, int]]:
+    def manifest(
+        self,
+        key: str = 'path',
+        filter: bool = True
+    ) -> Dict[str, Dict[str, int]]:
         """Generates a manifest of all tfrecords.
 
         Args:
@@ -1421,9 +1483,10 @@ class Dataset:
         ))
         for slide, patient in pairs:
             if slide in result and result[slide] != patient:
-                msg = f"Slide {slide} assigned to multiple patients: "
-                msg += f"({patient}, {result[slide]})"
-                raise errors.AnnotationsError(msg)
+                raise errors.AnnotationsError(
+                    f"Slide {slide} assigned to multiple patients: "
+                    f"({patient}, {result[slide]})"
+                )
             else:
                 result[slide] = patient
         return result
@@ -1450,9 +1513,10 @@ class Dataset:
                 raise TypeError("'filters' must be a list.")
             for f in kwargs['filters']:
                 if f not in ret._filters:
-                    msg = f"Filter {f} not found in dataset (active filters:"
-                    msg += f"{','.join(list(ret._filters.keys()))})"
-                    raise errors.DatasetFilterError(msg)
+                    raise errors.DatasetFilterError(
+                        f"Filter {f} not found in dataset (active filters:"
+                        f"{','.join(list(ret._filters.keys()))})"
+                    )
                 else:
                     del ret._filters[f]
         if 'filter_blank' in kwargs:
@@ -1460,9 +1524,10 @@ class Dataset:
                 kwargs['filter_blank'] = [kwargs['filter_blank']]
             for f in kwargs['filter_blank']:
                 if f not in ret._filter_blank:
-                    msg = f"Filter_blank {f} not found in dataset (active "
-                    msg += f"filter_blank: {','.join(ret._filter_blank)})"
-                    raise errors.DatasetFilterError(msg)
+                    raise errors.DatasetFilterError(
+                        f"Filter_blank {f} not found in dataset (active "
+                        f"filter_blank: {','.join(ret._filter_blank)})"
+                    )
                 elif isinstance(ret._filter_blank, dict):
                     del ret._filter_blank[ret._filter_blank.index(f)]
         return ret
@@ -1495,8 +1560,11 @@ class Dataset:
         slides = self.slides()
         return [r for r in list(set(rois_list)) if path_to_name(r) in slides]
 
-    def slide_paths(self, source: Optional[str] = None,
-                    apply_filters: bool = True) -> List[str]:
+    def slide_paths(
+        self,
+        source: Optional[str] = None,
+        apply_filters: bool = True
+    ) -> List[str]:
         """Returns a list of paths to either all slides, or slides matching
         dataset filters.
 
@@ -1535,13 +1603,15 @@ class Dataset:
         slides = []
         slide_patient_dict = {}
         if self.annotations is None:
-            msg = "No annotations loaded; is the annotations file empty?"
-            raise errors.AnnotationsError(msg)
+            raise errors.AnnotationsError(
+                "No annotations loaded; is the annotations file empty?"
+            )
         for ann in self.annotations.to_dict(orient="records"):
             skip_annotation = False
             if TCGA.slide not in ann.keys():
-                msg = f"{TCGA.slide} not found in annotations file."
-                raise errors.AnnotationsError(msg)
+                raise errors.AnnotationsError(
+                    f"{TCGA.slide} not found in annotations file."
+                )
 
             # Skip missing or blank slides
             if ann[TCGA.slide] in sf.util.SLIDE_ANNOTATIONS_TO_IGNORE:
@@ -1551,16 +1621,17 @@ class Dataset:
             if ann[TCGA.slide] not in slide_patient_dict:
                 slide_patient_dict.update({ann[TCGA.slide]: ann[TCGA.patient]})
             elif slide_patient_dict[ann[TCGA.slide]] != ann[TCGA.patient]:
-                msg = f"Multiple patients assigned to slide {ann[TCGA.slide]}."
-                raise errors.DatasetError(msg)
+                raise errors.DatasetError(
+                    f"Multiple patients assigned to slide {ann[TCGA.slide]}."
+                )
 
             # Only return slides with annotation values specified in "filters"
             if self.filters:
                 for filter_key in self.filters.keys():
                     if filter_key not in ann.keys():
-                        msg = f"Filter header {filter_key} not in annotations."
-                        raise IndexError(msg)
-
+                        raise IndexError(
+                            f"Filter header {filter_key} not in annotations."
+                        )
                     ann_val = ann[filter_key]
                     filter_vals = self.filters[filter_key]
                     if not isinstance(filter_vals, list):
@@ -1587,8 +1658,9 @@ class Dataset:
             if self.filter_blank and self.filter_blank != [None]:
                 for fb in self.filter_blank:
                     if fb not in ann.keys():
-                        msg = f"Filter blank header {fb} not in annotations."
-                        raise errors.DatasetFilterError(msg)
+                        raise errors.DatasetFilterError(
+                            f"Filter blank header {fb} not in annotations."
+                        )
                     if ann[fb] is None or ann[fb] == '':
                         skip_annotation = True
                         break
@@ -1615,6 +1687,11 @@ class Dataset:
         rois = self.rois()
         manifest = self.manifest()
 
+        if self.tile_px is None or self.tile_um is None:
+            raise errors.DatasetError(
+                "tile_px and tile_um must be non-zero to process TFRecords."
+            )
+
         for tfr in tfrecords:
             slidename = path_to_name(tfr)
             if slidename not in slides:
@@ -1633,6 +1710,9 @@ class Dataset:
                 decode_images=False,
                 to_numpy=True
             )
+            if parser is None:
+                log.error(f"Could not read TFRecord {tfr}; skipping")
+                continue
             reader = sf.io.TFRecordDataset(tfr)
             if not exists(join(destination, 'inside')):
                 os.makedirs(join(destination, 'inside'))
@@ -1657,9 +1737,12 @@ class Dataset:
             inside_roi_writer.close()
             outside_roi_writer.close()
 
-    def tensorflow(self, labels: Optional[Union[Dict, Callable]] = None,
-                   batch_size: Optional[int] = None, **kwargs: Any
-                   ) -> "tf.data.Dataset":
+    def tensorflow(
+        self,
+        labels: Labels = None,
+        batch_size: Optional[int] = None,
+        **kwargs: Any
+    ) -> "tf.data.Dataset":
         """Returns a Tensorflow Dataset object that interleaves tfrecords
         from this dataset.
 
@@ -1723,7 +1806,9 @@ class Dataset:
         if not tfrecords:
             raise errors.TFRecordsNotFoundError
         self.verify_img_format()
-
+        if self.tile_px is None:
+            raise errors.DatasetError("tile_px and tile_um must be non-zero"
+                                      "to create dataloaders.")
         return interleave(tfrecords=tfrecords,
                           labels=labels,
                           img_size=self.tile_px,
@@ -1732,8 +1817,11 @@ class Dataset:
                           clip=self._clip,
                           **kwargs)
 
-    def tfrecord_report(self, dest: Path,
-                        normalizer: Optional["StainNormalizer"] = None) -> None:
+    def tfrecord_report(
+        self,
+        dest: str,
+        normalizer: Optional["StainNormalizer"] = None
+    ) -> None:
         """Creates a PDF report of TFRecords, including 10 example tiles
         per TFRecord.
 
@@ -1785,6 +1873,48 @@ class Dataset:
         pdf_report.save(filename)
         log.info(f'TFRecord report saved to {col.green(filename)}')
 
+    def tfrecord_heatmap(
+        self,
+        tfrecord: Union[str, List[str]],
+        tile_dict: Dict[int, float],
+        outdir: str
+    ) -> None:
+        """Creates a tfrecord-based WSI heatmap using a dictionary of tile
+        values for heatmap display, saving to project root directory.
+
+        Args:
+            tfrecord (str or list(str)): Path(s) to tfrecord(s).
+            tile_dict (dict): Dictionary mapping tfrecord indices to a
+                tile-level value for display in heatmap format
+            outdir (str): Path to destination directory.
+
+        Returns:
+            None
+        """
+        slide_paths = {
+            sf.util.path_to_name(sp): sp for sp in self.slide_paths()
+        }
+        if not self.tile_px or not self.tile_um:
+            raise errors.DatasetError(
+                "Dataset tile_px & tile_um must be set to create TFRecords."
+            )
+        if not isinstance(tfrecord, list):
+            tfrecord_list = [tfrecord]
+        else:
+            tfrecord_list = tfrecord
+        for tfr in tfrecord_list:
+            name = sf.util.path_to_name(tfr)
+            if name not in slide_paths:
+                raise errors.SlideNotFoundError(f'Unable to find slide {name}')
+            sf.util.tfrecord_heatmap(
+                tfrecord=tfr,
+                slide=slide_paths[name],
+                tile_px=self.tile_px,
+                tile_um=self.tile_um,
+                tile_dict=tile_dict,
+                outdir=outdir,
+            )
+
     def tfrecords(self, source: Optional[str] = None) -> List[str]:
         """Returns a list of all tfrecords.
 
@@ -1812,8 +1942,9 @@ class Dataset:
                 continue
             tfrecord_path = join(tfrecords, label)
             if not exists(tfrecord_path):
-                msg = f"TFRecords path not found: {col.green(tfrecord_path)}"
-                log.debug(msg)
+                log.debug(
+                    f"TFRecords path not found: {col.green(tfrecord_path)}"
+                )
                 continue
             folders_to_search += [tfrecord_path]
         for folder in folders_to_search:
@@ -1866,16 +1997,17 @@ class Dataset:
             )
             tfrecord_path = join(base_dir, subfolder)
             if not exists(tfrecord_path):
-                msg = f"Unable to find subfolder {col.bold(subfolder)} in "
-                msg += f"source {col.bold(source)}, tfrecord directory: "
-                msg += f"{col.green(base_dir)}"
-                raise errors.DatasetError(msg)
+                raise errors.DatasetError(
+                    f"Unable to find subfolder {col.bold(subfolder)} in "
+                    f"source {col.bold(source)}, tfrecord directory: "
+                    f"{col.green(base_dir)}"
+                )
             folders_to_search += [tfrecord_path]
         for folder in folders_to_search:
             tfrecords_list += glob(join(folder, "*.tfrecords"))
         return tfrecords_list
 
-    def tfrecords_folders(self) -> List[Path]:
+    def tfrecords_folders(self) -> List[str]:
         """Returns folders containing tfrecords."""
         folders = []
         for source in self.sources:
@@ -1898,9 +2030,9 @@ class Dataset:
             None
         """
         if not self.tile_px or not self.tile_um:
-            msg = "Dataset tile_px & tile_um must be set to create TFRecords."
-            raise errors.DatasetError(msg)
-
+            raise errors.DatasetError(
+                "Dataset tile_px & tile_um must be set to create TFRecords."
+            )
         for source in self.sources:
             log.info(f'Working on dataset source {source}')
             config = self.sources[source]
@@ -1914,21 +2046,79 @@ class Dataset:
             if delete_tiles:
                 shutil.rmtree(tiles_dir)
 
-    def training_validation_split(self, *args: Any, **kwargs: Any
-                                  ) -> Tuple["Dataset", "Dataset"]:
-        msg = "Dataset.training_validation_split() moved to train_val_split()"
-        msg += ", please update."
-        log.warn(msg)
+    def thumbnails(
+        self,
+        outdir: Path,
+        size: int = 512,
+        roi: bool = False,
+        enable_downsample: bool = True
+    ) -> None:
+        """Generates square slide thumbnails with black borders of fixed size,
+        and saves to project folder.
+
+        Args:
+            size (int, optional): Width/height of thumbnail in pixels.
+                Defaults to 512.
+            dataset (:class:`slideflow.dataset.Dataset`, optional): Dataset
+                from which to generate activations. If not supplied, will
+                calculate activations for all tfrecords at the tile_px/tile_um
+                matching the supplied model, optionally using provided filters
+                and filter_blank.
+            filters (dict, optional): Filters to use when selecting tfrecords.
+                Defaults to None.
+            filter_blank (list, optional): Exclude slides blank in these cols.
+                Defaults to None.
+            roi (bool, optional): Include ROI in the thumbnail images.
+                Defaults to False.
+            enable_downsample (bool, optional): If True and a thumbnail is not
+                embedded in the slide file, downsampling is permitted to
+                accelerate thumbnail calculation.
+        """
+        log.info('Generating thumbnails...')
+        slide_list = self.slide_paths()
+        rois = self.rois()
+        log.info(f'Saving thumbnails to {col.green(outdir)}')
+        for slide_path in slide_list:
+            fmt_name = col.green(path_to_name(slide_path))
+            log.info(f'Working on {fmt_name}...')
+            whole_slide = WSI(slide_path,
+                              tile_px=1000,
+                              tile_um=1000,
+                              stride_div=1,
+                              enable_downsample=enable_downsample,
+                              rois=rois,
+                              roi_method='inside',
+                              skip_missing_roi=roi)
+            if roi:
+                thumb = whole_slide.thumb(rois=True)
+            else:
+                thumb = whole_slide.square_thumb(size)
+            thumb.save(join(outdir, f'{whole_slide.name}.png'))
+        log.info('Thumbnail generation complete.')
+
+    def training_validation_split(
+        self,
+        *args: Any,
+        **kwargs: Any
+    ) -> Tuple["Dataset", "Dataset"]:
+        log.warn(
+            "Dataset.training_validation_split() moved to train_val_split()"
+            ", please update."
+        )
         return self.train_val_split(*args, **kwargs)
 
-    def train_val_split(self, model_type: str, labels: Dict, val_strategy: str,
-                        splits: Optional[Path] = None,
-                        val_fraction: Optional[float] = None,
-                        val_k_fold: Optional[int] = None,
-                        k_fold_iter: Optional[int] = None,
-                        site_labels: Optional[Dict[str, str]] = None,
-                        read_only: bool = False) -> Tuple["Dataset", "Dataset"]:
-
+    def train_val_split(
+        self,
+        model_type: str,
+        labels: Dict,
+        val_strategy: str,
+        splits: Optional[Path] = None,
+        val_fraction: Optional[float] = None,
+        val_k_fold: Optional[int] = None,
+        k_fold_iter: Optional[int] = None,
+        site_labels: Optional[Dict[str, str]] = None,
+        read_only: bool = False
+    ) -> Tuple["Dataset", "Dataset"]:
         """From a specified subfolder in the project's main TFRecord folder,
         prepare a training set and validation set.
 
@@ -1964,24 +2154,29 @@ class Dataset:
             slideflow.Dataset: validation dataset
         """
         if (not k_fold_iter and val_strategy == 'k-fold'):
-            msg = "If strategy is 'k-fold', must supply k_fold_iter "
-            msg += "(int starting at 1)"
-            raise errors.DatasetSplitError(msg)
+            raise errors.DatasetSplitError(
+                "If strategy is 'k-fold', must supply k_fold_iter "
+                "(int starting at 1)"
+            )
         if (not val_k_fold and val_strategy == 'k-fold'):
-            msg = "If strategy is 'k-fold', must supply val_k_fold (K)"
-            raise errors.DatasetSplitError(msg)
+            raise errors.DatasetSplitError(
+                "If strategy is 'k-fold', must supply val_k_fold (K)"
+            )
         if val_strategy == 'k-fold-preserved-site' and not site_labels:
-            msg = "k-fold-preserved-site requires site_labels (dict of "
-            msg += "patients:sites, or name of annotation column header"
-            raise errors.DatasetSplitError(msg)
+            raise errors.DatasetSplitError(
+                "k-fold-preserved-site requires site_labels (dict of "
+                "patients:sites, or name of annotation column header"
+            )
         if isinstance(site_labels, str):
             site_labels, _ = self.labels(site_labels, format='name')
         if val_strategy == 'k-fold-preserved-site' and site_labels is None:
-            msg = f"Must supply site_labels for strategy {val_strategy}"
-            raise errors.DatasetSplitError(msg)
+            raise errors.DatasetSplitError(
+                f"Must supply site_labels for strategy {val_strategy}"
+            )
         if val_strategy in ('bootstrap', 'fixed') and val_fraction is None:
-            msg = f"Must supply val_fraction for strategy {val_strategy}"
-            raise errors.DatasetSplitError(msg)
+            raise errors.DatasetSplitError(
+                f"Must supply val_fraction for strategy {val_strategy}"
+            )
 
         # Prepare dataset
         patients = self.patients()
@@ -2016,8 +2211,9 @@ class Dataset:
             elif patients_dict[patient]['outcome_label'] != labels[slide]:
                 ol = patients_dict[patient]['outcome_label']
                 ok = labels[slide]
-                msg = f"Multiple labels found for {patient} ({ol}, {ok})"
-                raise errors.DatasetSplitError(msg)
+                raise errors.DatasetSplitError(
+                    f"Multiple labels found for {patient} ({ol}, {ok})"
+                )
             else:
                 patients_dict[patient]['slides'] += [slide]
 
@@ -2037,8 +2233,9 @@ class Dataset:
                     ol = patients_dict[patient]['slide']
                     ok = site_labels[slide]
                     _tail = f"{patient} ({ol}, {ok})"
-                    msg = f"Multiple site labels found for {_tail}"
-                    raise errors.DatasetSplitError(msg)
+                    raise errors.DatasetSplitError(
+                        f"Multiple site labels found for {_tail}"
+                    )
         if num_warned:
             log.warning(f"{num_warned} slides missing tfrecords, skipping")
         patients_list = list(patients_dict.keys())
@@ -2057,9 +2254,10 @@ class Dataset:
         elif val_strategy == 'bootstrap':
             assert val_fraction is not None
             num_val = int(val_fraction * len(patients_list))
-            msg = f"Boostrap validation: selecting {col.bold(num_val)} "
-            msg += "patients at random for validation testing"
-            log.info(msg)
+            log.info(
+                f"Boostrap validation: selecting {col.bold(num_val)} "
+                "patients at random for validation testing"
+            )
             val_patients = patients_list[0:num_val]
             train_patients = patients_list[num_val:]
             if not len(val_patients) or not len(train_patients):
@@ -2095,9 +2293,10 @@ class Dataset:
                     c1 = [patients_dict[p]['outcome_label'] for p in sp_pts]
                     c2 = [split['patients'][p]['outcome_label']for p in sp_pts]
                     if c1 == c2:
-                        msg = f"Using {val_strategy} validation split detected"
-                        msg += f" at {col.green(splits_file)} (ID: {split_id})"
-                        log.info(msg)
+                        log.info(
+                            f"Using {val_strategy} validation split detected"
+                            f" at {col.green(splits_file)} (ID: {split_id})"
+                        )
                         accepted_split = split
                         break
 
@@ -2174,8 +2373,9 @@ class Dataset:
                         for patient in train_patients
                     ]).tolist()
                 else:
-                    msg = f"Unknown validation strategy {val_strategy}."
-                    raise errors.DatasetSplitError(msg)
+                    raise errors.DatasetSplitError(
+                        f"Unknown validation strategy {val_strategy}."
+                    )
                 # Write the new split to log
                 loaded_splits += [new_split]
                 if not read_only and splits_file:
@@ -2195,8 +2395,9 @@ class Dataset:
                         if ki != k_fold_iter
                     ]).tolist()
                 else:
-                    msg = f"Unknown val_strategy {val_strategy} requested."
-                    raise errors.DatasetSplitError()
+                    raise errors.DatasetSplitError(
+                        f"Unknown val_strategy {val_strategy} requested."
+                    )
 
             # Perform final integrity check to ensure no patients
             # are in both training and validation slides
@@ -2206,8 +2407,9 @@ class Dataset:
             else:
                 validation_pt, training_pt = val_slides, train_slides
             if sum([pt in training_pt for pt in validation_pt]):
-                msg = "At least one patient is in both val and training sets."
-                raise errors.DatasetSplitError(msg)
+                raise errors.DatasetSplitError(
+                    "At least one patient is in both val and training sets."
+                )
 
             # Return list of tfrecords
             val_tfrecords = [
@@ -2228,10 +2430,13 @@ class Dataset:
         assert(sorted(val_dts.tfrecords()) == sorted(val_tfrecords))
         return training_dts, val_dts
 
-    def torch(self, labels: Optional[Dict[str, Any]] = None,
-              batch_size: Optional[int] = None,
-              rebuild_index: bool = False,
-              **kwargs: Any) -> "DataLoader":
+    def torch(
+        self,
+        labels: Optional[Dict[str, Any]] = None,
+        batch_size: Optional[int] = None,
+        rebuild_index: bool = False,
+        **kwargs: Any
+    ) -> "DataLoader":
         """Returns a PyTorch DataLoader object that interleaves tfrecords.
 
         The returned dataloader yields a batch of (image, label) for each tile.
@@ -2286,7 +2491,9 @@ class Dataset:
 
         if isinstance(labels, str):
             labels = self.labels(labels)[0]
-
+        if self.tile_px is None:
+            raise errors.DatasetError("tile_px and tile_um must be non-zero"
+                                      "to create dataloaders.")
         self.build_index(rebuild_index)
         tfrecords = self.tfrecords()
         if not tfrecords:
@@ -2333,8 +2540,10 @@ class Dataset:
                 force_update=force_update
             )
 
-    def update_annotations_with_slidenames(self, annotations_file: Path
-                                           ) -> None:
+    def update_annotations_with_slidenames(
+        self,
+        annotations_file: Path
+    ) -> None:
         """Attempts to automatically associate slide names from a directory
         with patients in a given annotations file, skipping any slide names
         that are already present in the annotations file.
@@ -2347,13 +2556,14 @@ class Dataset:
         try:
             patient_index = header.index(TCGA.patient)
         except ValueError:
-            msg = f"Patient header {TCGA.patient} not found in annotations."
-            raise errors.AnnotationsError(msg)
+            raise errors.AnnotationsError(
+                f"Patient header {TCGA.patient} not found in annotations."
+            )
         patients = []
         pt_to_slide = {}
         with open(annotations_file) as csv_file:
             csv_reader = csv.reader(csv_file, delimiter=',')
-            header = next(csv_reader, None)
+            header = next(csv_reader)
             for row in csv_reader:
                 patients.extend([row[patient_index]])
         patients = list(set(patients))
@@ -2393,7 +2603,7 @@ class Dataset:
         n_missing = 0
         with open(annotations_file) as csv_file:
             csv_reader = csv.reader(csv_file, delimiter=',')
-            header = next(csv_reader, None)
+            header = next(csv_reader)
             with open('temp.csv', 'w') as csv_outfile:
                 csv_writer = csv.writer(csv_outfile, delimiter=',')
 
@@ -2449,8 +2659,9 @@ class Dataset:
         # Verify no duplicate slide names are found
         slides_from_anns = self.slides()
         if len(slides_from_anns) != len(list(set(slides_from_anns))):
-            msg = "Duplicate slide names detected in the annotation file."
-            raise errors.AnnotationsError(msg)
+            raise errors.AnnotationsError(
+                "Duplicate slide names detected in the annotation file."
+            )
 
         # Verify all slides in the annotation column are valid
         if self.annotations is not None:
@@ -2482,8 +2693,9 @@ class Dataset:
                 for tfr, fmt in zip(tfrecords, img_formats):
                     log_msg += f"{tfr}: {fmt}\n"
                 log.error(log_msg)
-                err_msg = "Mismatched TFRecord image formats detected"
-                raise errors.MismatchedImageFormatsError(err_msg)
+                raise errors.MismatchedImageFormatsError(
+                    "Mismatched TFRecord image formats detected"
+                )
             return img_formats[0]
         else:
             return None

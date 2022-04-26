@@ -34,12 +34,18 @@ class Mosaic:
 
     """
 
-    def __init__(self, slide_map: SlideMap, tfrecords: List[str],
-                 leniency: float = 1.5, expanded: bool = False,
-                 num_tiles_x: int = 50, tile_select: str = 'nearest',
-                 tile_meta: Optional[Dict] = None,
-                 normalizer=Optional[Union[str, StainNormalizer]],
-                 normalizer_source: Optional[str] = None) -> None:
+    def __init__(
+        self,
+        slide_map: SlideMap,
+        tfrecords: List[str],
+        leniency: float = 1.5,
+        expanded: bool = False,
+        num_tiles_x: int = 50,
+        tile_select: str = 'nearest',
+        tile_meta: Optional[Dict] = None,
+        normalizer: Optional[Union[str, "StainNormalizer"]] = None,
+        normalizer_source: Optional[str] = None
+    ) -> None:
         """Generate a mosaic map.
 
         Args:
@@ -89,7 +95,7 @@ class Mosaic:
             self.normalizer = sf.norm.autoselect(
                 method=normalizer,
                 source=normalizer_source
-            )
+            )  # type: Optional[StainNormalizer]
         elif normalizer is not None:
             self.normalizer = normalizer
         else:
@@ -177,8 +183,9 @@ class Mosaic:
                         )
                         tile['nearest_idx'] = tile['points'][np.argmin(dist)]
                     elif not tile_meta:
-                        msg = 'Mosaic centroid option requires tile_meta.'
-                        raise errors.MosaicError(msg)
+                        raise errors.MosaicError(
+                            'Mosaic centroid option requires tile_meta.'
+                        )
                     else:
                         meta_from_pts = [
                             self.points[global_index]['meta']
@@ -220,10 +227,14 @@ class Mosaic:
         if self.mapping_method == 'expanded':
             self.tile_point_distances.sort(key=lambda d: d['distance'])
 
-    def place_tiles(self, resolution: str = 'high', tile_zoom: int = 15,
-                    relative_size: bool = False,
-                    focus: Optional[List[Path]] = None,
-                    focus_slide: Optional[str] = None) -> None:
+    def place_tiles(
+        self,
+        resolution: str = 'high',
+        tile_zoom: int = 15,
+        relative_size: bool = False,
+        focus: Optional[List[Path]] = None,
+        focus_slide: Optional[str] = None
+    ) -> None:
         """Initializes figures and places image tiles.
 
         Args:
@@ -403,8 +414,9 @@ class Mosaic:
             elif self.img_format == 'png':
                 tile_image = self.normalizer.png_to_rgb(string)
             else:
-                msg = f"Unknown image format in tfrecords: {self.img_format}"
-                raise errors.MosaicError(msg)
+                raise errors.MosaicError(
+                    f"Unknown image format in tfrecords: {self.img_format}"
+                )
         else:
             image_arr = np.fromstring(string, np.uint8)
             tile_image_bgr = cv2.imdecode(image_arr, cv2.IMREAD_COLOR)

@@ -29,8 +29,9 @@ class SourceNotFoundError(DatasetError):
     def __init__(self, source, config):
         self.source = source
         self.config = config
-        msg = 'Unable to find source {} in config {}'.format(source, config)
-        super().__init__(msg)
+        super().__init__(
+            'Unable to find source {} in config {}'.format(source, config)
+        )
 
     def __reduce__(self):
         return (SourceNotFoundError, (self.source, self.config))
@@ -51,8 +52,9 @@ class DatasetSplitError(DatasetError):
 
 class InsufficientDataForSplitError(DatasetError):
     def __init__(self):
-        msg = 'Insufficient number of patients to generate validation dataset.'
-        super().__init__(msg)
+        super().__init__(
+            'Insufficient number of patients to generate validation dataset.'
+        )
 
 
 class MismatchedImageFormatsError(DatasetError):

@@ -16,13 +16,20 @@ class Heatmap:
     """Generates heatmap by calculating predictions from a sliding scale
     window across a slide."""
 
-    def __init__(self, slide: Path, model: Path, stride_div: int = 2,
-                 roi_dir: Optional[Path] = None,
-                 rois: Optional[List[Path]] = None,
-                 roi_method: str = 'inside', batch_size: int = 32,
-                 num_threads: Optional[int] = None,
-                 buffer: Optional[Path] = None, enable_downsample: bool = True,
-                 img_format: str = 'auto') -> None:
+    def __init__(
+        self,
+        slide: str,
+        model: str,
+        stride_div: int = 2,
+        roi_dir: Optional[str] = None,
+        rois: Optional[List[str]] = None,
+        roi_method: str = 'inside',
+        batch_size: int = 32,
+        num_threads: Optional[int] = None,
+        buffer: Optional[str] = None,
+        enable_downsample: bool = True,
+        img_format: str = 'auto'
+    ) -> None:
         """Convolutes across a whole slide, calculating logits and saving
         predictions internally for later use.
 
@@ -61,13 +68,14 @@ class Heatmap:
         model_config = sf.util.get_model_config(model)
         self.uq = model_config['hp']['uq']
         if img_format == 'auto' and 'img_format' not in model_config:
-            msg = f"Unable to auto-detect image format from model at {model}. "
-            msg += "Manually set to png or jpg with Heatmap(img_format=...)"
-            raise errors.HeatmapError(msg)
+            raise errors.HeatmapError(
+                f"Unable to auto-detect image format from model at {model}. "
+                "Manually set to png or jpg with Heatmap(img_format=...)"
+            )
         elif img_format == 'auto':
             img_format = model_config['img_format']
         if self.uq:
-            interface = sf.model.tensorflow.UncertaintyInterface(model)  # type: Any
+            interface = sf.model.UncertaintyInterface(model)  # type: Any
         else:
             interface = sf.model.Features(
                 model,
@@ -101,9 +109,9 @@ class Heatmap:
                          skip_missing_roi=False)
 
         if not self.slide.loaded_correctly():
-            msg = f'Unable to load slide {self.slide.name} for heatmap'
-            raise errors.HeatmapError(msg)
-
+            raise errors.HeatmapError(
+                f'Unable to load slide {self.slide.name} for heatmap'
+            )
         out = interface(
             self.slide,
             num_threads=num_threads,
@@ -151,10 +159,17 @@ class Heatmap:
                 x, y = poly.exterior.xy
                 plt.plot(x, y, zorder=20, color='k', linewidth=5)
 
-    def save(self, outdir: Path, show_roi: bool = True,
-             interpolation: str = 'none', cmap: str = 'coolwarm',
-             logit_cmap: Optional[Union[Callable, Dict]] = None,
-             vmin: float = 0, vmax: float = 1, vcenter: float = 0.5) -> None:
+    def save(
+        self,
+        outdir: Path,
+        show_roi: bool = True,
+        interpolation: str = 'none',
+        cmap: str = 'coolwarm',
+        logit_cmap: Optional[Union[Callable, Dict]] = None,
+        vmin: float = 0,
+        vmax: float = 1,
+        vcenter: float = 0.5
+    ) -> None:
         """Saves calculated logits as heatmap overlays.
 
         Args:

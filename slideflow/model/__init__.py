@@ -1,7 +1,7 @@
-'''Submodule that includes models, trainers, and tools for intermediate layer activations.
+'''Submodule that includes tools for intermediate layer activations.
 
-Supports both PyTorch and Tensorflow backends, importing either model.tensorflow or model.pytorch based on
-the active backend given by the environmental variable SF_BACKEND.
+Supports both PyTorch and Tensorflow backends, importing either model.tensorflow
+or model.pytorch based on the environmental variable SF_BACKEND.
 '''
 
 import sys
@@ -17,25 +17,32 @@ from collections import defaultdict
 from os.path import join, exists
 from math import isnan
 from tqdm import tqdm
+from typing import List, Dict, Union, Any, Optional, Tuple
 
 import slideflow as sf
-from slideflow.util import log
+from slideflow.util import log, Path, Labels
 from slideflow.util import colors as col
 from slideflow import errors
 
 # --- Backend-specific imports ------------------------------------------------
 
 if os.environ['SF_BACKEND'] == 'tensorflow':
-    from slideflow.model.tensorflow import ModelParams, Trainer, LinearTrainer, CPHTrainer, Features  # noqa F401
+    from slideflow.model.tensorflow import (  # noqa F401
+        ModelParams, Trainer, LinearTrainer, CPHTrainer, Features,
+        UncertaintyInterface
+    )
 elif os.environ['SF_BACKEND'] == 'torch':
-    from slideflow.model.torch import ModelParams, Trainer, LinearTrainer, CPHTrainer, Features  # noqa F401
+    from slideflow.model.torch import (  # type: ignore  # noqa F401
+        ModelParams, Trainer, LinearTrainer, CPHTrainer, Features,
+        UncertaintyInterface
+    )
 else:
     raise errors.BackendError(f"Unknown backend {os.environ['SF_BACKEND']}")
 
 # -----------------------------------------------------------------------------
 
 
-def trainer_from_hp(hp, **kwargs):
+def trainer_from_hp(hp: "ModelParams", **kwargs) -> Trainer:
     """From the given :class:`slideflow.model.ModelParams` object, returns
     the appropriate instance of :class:`slideflow.model.Model`.
 
@@ -72,7 +79,10 @@ def trainer_from_hp(hp, **kwargs):
         raise ValueError(f"Unknown model type: {hp.model_type()}")
 
 
-def read_hp_sweep(filename, models=None):
+def read_hp_sweep(
+    filename: str,
+    models: List[str] = None
+) -> Dict[str, "ModelParams"]:
     """Organizes a list of hyperparameters ojects and associated models names.
 
     Args:
@@ -84,7 +94,8 @@ def read_hp_sweep(filename, models=None):
         List of (Hyperparameter, model_name) for each HP combination
     """
     if models is not None and not isinstance(models, list):
-        raise ValueError("If supplying models, must be list(str) with model names.")
+        raise ValueError("If supplying models, must be list(str) "
+                         "with model names.")
     if isinstance(models, list) and not list(set(models)) == models:
         raise ValueError("Duplicate model names provided.")
 
@@ -112,9 +123,9 @@ def read_hp_sweep(filename, models=None):
         name = list(hp_dict.keys())[0]
         if name in valid_models:
             loaded.update({
-                name: sf.model.ModelParams.from_dict(hp_dict[name])
+                name: ModelParams.from_dict(hp_dict[name])
             })
-    return loaded
+    return loaded  # type: ignore
 
 
 class DatasetFeatures:
@@ -135,8 +146,14 @@ class DatasetFeatures:
         ~= 112 GB
     """
 
-    def __init__(self, model, dataset, annotations=None, cache=None,
-                 manifest=None, **kwargs):
+    def __init__(
+        self,
+        model: Path,
+        dataset: "sf.Dataset",
+        annotations: Optional[Labels] = None,
+        cache: Optional[str] = None,
+        **kwargs: Any
+    ) -> None:
 
         """Calculates features / layer activations from model, storing to
         internal parameters `self.activations`, and `self.logits`,
@@ -150,8 +167,6 @@ class DatasetFeatures:
             annotations (dict, optional): Dict mapping slide names to outcome
                 categories.
             cache (str, optional): File for PKL cache.
-            manifest (dict, optional): Dict mapping tfrecords to number of
-                tiles contained. Used for progress bars.
 
         Keyword Args:
             layers (str): Model layer(s) from which to calculate activations.
@@ -161,13 +176,13 @@ class DatasetFeatures:
             include_logits (bool): Calculate and store logits.
                 Defaults to True.
         """
-        self.activations = defaultdict(list)
-        self.logits = defaultdict(list)
-        self.uncertainty = defaultdict(list)
-        self.locations = defaultdict(list)
+        self.activations = defaultdict(list)  # type: Dict[str, Any]
+        self.logits = defaultdict(list)  # type: Dict[str, Any]
+        self.uncertainty = defaultdict(list)  # type: Dict[str, Any]
+        self.locations = defaultdict(list)  # type: Dict[str, Any]
         self.num_features = 0
         self.num_logits = 0
-        self.manifest = manifest
+        self.manifest = dataset.manifest()
         self.annotations = annotations
         self.model = model
         self.dataset = dataset
@@ -182,7 +197,7 @@ class DatasetFeatures:
             if 'norm_fit' in model_config:
                 self.normalizer.fit(**model_config['norm_fit'])
 
-        if annotations:
+        if self.annotations:
             self.categories = list(set(self.annotations.values()))
             if self.activations:
                 for slide in self.slides:
@@ -190,7 +205,7 @@ class DatasetFeatures:
                         if self.activations[slide]:
                             used = (self.used_categories
                                     + [self.annotations[slide]])
-                            self.used_categories = list(set(used))
+                            self.used_categories = list(set(used))  # type: List[Union[str, int, List[float]]]
                             self.used_categories.sort()
                     except KeyError:
                         raise KeyError(f"Slide {slide} not in annotations.")
@@ -207,7 +222,11 @@ class DatasetFeatures:
             # Load saved PKL cache
             log.info(f'Loading from cache {col.green(cache)}...')
             with open(cache, 'rb') as pt_pkl_file:
-                self.activations, self.logits, self.uncertainty, self.locations = pickle.load(pt_pkl_file)
+                loaded_pkl = pickle.load(pt_pkl_file)
+                self.activations = loaded_pkl[0]
+                self.logits = loaded_pkl[1]
+                self.uncertainty = loaded_pkl[2]
+                self.locations = loaded_pkl[3]
                 self.num_features = self.activations[self.slides[0]].shape[-1]
                 self.num_logits = self.logits[self.slides[0]].shape[-1]
 
@@ -219,9 +238,10 @@ class DatasetFeatures:
         loaded_slides = list(self.activations.keys())
         for loaded_slide in loaded_slides:
             if loaded_slide not in self.slides:
-                msg = f'Removing activations from slide {loaded_slide}'
-                msg += 'slide not in the filtered tfrecords list'
-                log.debug(msg)
+                log.debug(
+                    f'Removing activations from slide {loaded_slide}'
+                    'slide not in the filtered tfrecords list'
+                )
                 self.remove_slide(loaded_slide)
 
         # Now screen for missing slides in activations
@@ -232,14 +252,15 @@ class DatasetFeatures:
             elif self.activations[slide] == []:
                 missing += [slide]
         num_loaded = len(self.slides)-len(missing)
-        msg = f'Loaded activations from {num_loaded}/{len(self.slides)}'
-        msg += f'slides ({len(missing)} missing)'
-        log.debug(msg)
+        log.debug(
+            f'Loaded activations from {num_loaded}/{len(self.slides)}'
+            f'slides ({len(missing)} missing)'
+        )
         if missing:
             log.warning(f'Activations missing for {len(missing)} slides')
 
         # Record which categories have been included in the specified tfrecords
-        if self.categories:
+        if self.categories and self.annotations:
             self.used_categories = list(set([
                 self.annotations[slide]
                 for slide in self.slides
@@ -255,9 +276,15 @@ class DatasetFeatures:
             self.num_features = self.activations[self.slides[0]].shape[-1]
         log.debug(f'Number of activation features: {self.num_features}')
 
-    def _generate_from_model(self, model, layers='postconv',
-                             include_logits=True, include_uncertainty=True,
-                             batch_size=32, cache=None):
+    def _generate_from_model(
+        self,
+        model: Path,
+        layers: Union[str, List[str]] = 'postconv',
+        include_logits: bool = True,
+        include_uncertainty: bool = True,
+        batch_size: int = 32,
+        cache: Optional[str] = None
+    ) -> None:
 
         """Calculates activations from a given model, saving to self.activations
 
@@ -276,16 +303,20 @@ class DatasetFeatures:
         """
 
         # Rename tfrecord_array to tfrecords
-        log.info(f'Calculating activations for {self.tfrecords.shape[0]} tfrecords (layers={layers})')
+        log.info(f'Calculating activations for {self.tfrecords.shape[0]} '
+                 'tfrecords (layers={layers})')
         log.info(f'Generating from {col.green(model)}')
         if not isinstance(layers, list):
             layers = [layers]
 
         # Load model
         if self.hp.uq and include_uncertainty:
-            combined_model = sf.model.tensorflow.UncertaintyInterface(model, layers=layers)
+            combined_model = sf.model.UncertaintyInterface(
+                model,
+                layers=layers
+            )
         else:
-            combined_model = sf.model.Features(
+            combined_model = sf.model.Features(  # type: ignore
                 model,
                 layers=layers,
                 include_logits=include_logits
@@ -313,17 +344,17 @@ class DatasetFeatures:
                 None,
                 num_parallel_reads=None,
                 deterministic=True,
-                **dataset_kwargs
+                **dataset_kwargs  # type: ignore
             )
         elif sf.backend() == 'torch':
             dataloader = self.dataset.torch(
                 None,
                 num_workers=1,
-                **dataset_kwargs
+                **dataset_kwargs  # type: ignore
             )
 
         # Worker to process activations/logits, for more efficient throughput
-        q = queue.Queue()
+        q = queue.Queue()  # type: queue.Queue
 
         def batch_worker():
             while True:
@@ -403,10 +434,19 @@ class DatasetFeatures:
         # Dump PKL dictionary to file
         if cache:
             with open(cache, 'wb') as pt_pkl_file:
-                pickle.dump([self.activations, self.logits, self.uncertainty, self.locations], pt_pkl_file)
+                pickle.dump(
+                    [self.activations,
+                     self.logits,
+                     self.uncertainty,
+                     self.locations],
+                    pt_pkl_file
+                )
             log.info(f'Data cached to {col.green(cache)}')
 
-    def activations_by_category(self, idx):
+    def activations_by_category(
+        self,
+        idx: int
+    ) -> Dict[Union[str, int, List[float]], np.ndarray]:
         """For each outcome category, calculates activations of a given
         feature across all tiles in the category. Requires annotations to
         have been provided.
@@ -421,8 +461,9 @@ class DatasetFeatures:
         """
 
         if not self.categories:
-            msg = 'Unable to calculate by category; annotations not provided.'
-            raise errors.FeaturesError(msg)
+            raise errors.FeaturesError(
+                'Unable to calculate by category; annotations not provided.'
+            )
 
         def act_by_cat(c):
             return np.concatenate([
@@ -430,10 +471,9 @@ class DatasetFeatures:
                 for pt in self.slides
                 if self.annotations[pt] == c
             ])
-
         return {c: act_by_cat(c) for c in self.used_categories}
 
-    def box_plots(self, features, outdir):
+    def box_plots(self, features: List[int], outdir: str) -> None:
         """Generates plots comparing node activations at slide- and tile-level.
 
         Args:
@@ -479,8 +519,13 @@ class DatasetFeatures:
             plt.gcf().canvas.start_event_loop(sys.float_info.min)
             plt.savefig(boxplot_filename, bbox_inches='tight')
 
-    def export_to_csv(self, filename, level='tile', method='mean',
-                      slides=None):
+    def export_to_csv(
+        self,
+        filename: str,
+        level: str = 'tile',
+        method: str = 'mean',
+        slides: Optional[List[str]] = None
+    ):
         """Exports calculated activations to csv.
 
         Args:
@@ -508,20 +553,34 @@ class DatasetFeatures:
                 if level == 'tile':
                     for i, tile_act in enumerate(self.activations[slide]):
                         if self.logits[slide] != []:
-                            csvwriter.writerow([slide] + self.logits[slide][i].tolist() + tile_act.tolist())
+                            csvwriter.writerow(
+                                [slide]
+                                + self.logits[slide][i].tolist()
+                                + tile_act.tolist()
+                            )
                         else:
                             csvwriter.writerow([slide] + tile_act.tolist())
                 else:
-                    act = meth_fn[method](self.activations[slide], axis=0).tolist()
+                    act = meth_fn[method](
+                        self.activations[slide],
+                        axis=0
+                    ).tolist()
                     if self.logits[slide] != []:
-                        logit = meth_fn[method](self.logits[slide], axis=0).tolist()
+                        logit = meth_fn[method](
+                            self.logits[slide],
+                            axis=0
+                        ).tolist()
                         csvwriter.writerow([slide] + logit + act)
                     else:
                         csvwriter.writerow([slide] + act)
         log.debug(f'Activations saved to {col.green(filename)}')
 
-    def export_to_torch(self, outdir, slides=None):
-        """Export activations in torch format to .pt files in the given directory.
+    def export_to_torch(
+        self,
+        outdir: str,
+        slides: Optional[List[str]] = None
+    ) -> None:
+        """Export activations in torch format to .pt files in the directory.
 
         Used for training CLAM models.
 
@@ -537,7 +596,9 @@ class DatasetFeatures:
             if self.activations[slide] == []:
                 log.info(f'Skipping empty slide {col.green(slide)}')
                 continue
-            slide_activations = torch.from_numpy(self.activations[slide].astype(np.float32))
+            slide_activations = torch.from_numpy(
+                self.activations[slide].astype(np.float32)
+            )
             torch.save(slide_activations, join(outdir, f'{slide}.pt'))
         args = {
             'model': self.model,
@@ -546,7 +607,14 @@ class DatasetFeatures:
         sf.util.write_json(args, join(outdir, 'settings.json'))
         log.info('Activations exported in Torch format.')
 
-    def stats(self, outdir=None, method='mean', threshold=0.5):
+    def stats(
+        self,
+        outdir: Optional[str] = None,
+        method: str = 'mean',
+        threshold: float = 0.5
+    ) -> Tuple[Dict[int, Dict[str, float]],
+               Dict[int, Dict[str, float]],
+               List[np.ndarray]]:
         """Calculates activation averages across categories, as well as
         tile-level and patient-level statistics, using ANOVA, exporting to
         CSV if desired.
@@ -573,6 +641,9 @@ class DatasetFeatures:
             raise errors.FeaturesError('No annotations loaded')
         if method not in ('mean', 'threshold'):
             raise errors.FeaturesError(f"Stats method {method} unknown")
+        if not self.annotations:
+            raise errors.FeaturesError("No annotations provided, unable"
+                                       "to calculate feature stats.")
 
         log.info('Calculating activation averages & stats across features...')
 
@@ -639,25 +710,35 @@ class DatasetFeatures:
             log.info(f'Writing results to {col.green(filename)}...')
             with open(filename, 'w') as outfile:
                 csv_writer = csv.writer(outfile)
-                header = ['slide', 'category'] + [f'Feature_{n}' for n in pt_sorted_ft]
+                header = (['slide', 'category']
+                          + [f'Feature_{n}' for n in pt_sorted_ft])
                 csv_writer.writerow(header)
                 for slide in self.slides:
                     category = self.annotations[slide]
-                    row = [slide, category] + list(activation_stats[slide][pt_sorted_ft])
+                    row = ([slide, category]
+                           + list(activation_stats[slide][pt_sorted_ft]))
                     csv_writer.writerow(row)
                 if tile_stats:
-                    csv_writer.writerow(['Tile statistic', 'ANOVA P-value'] + [tile_stats[n]['p']
-                                                                               for n in pt_sorted_ft])
-                    csv_writer.writerow(['Tile statistic', 'ANOVA F-value'] + [tile_stats[n]['f']
-                                                                               for n in pt_sorted_ft])
+                    csv_writer.writerow(
+                        ['Tile statistic', 'ANOVA P-value']
+                        + [tile_stats[n]['p'] for n in pt_sorted_ft]
+                    )
+                    csv_writer.writerow(
+                        ['Tile statistic', 'ANOVA F-value']
+                        + [tile_stats[n]['f'] for n in pt_sorted_ft]
+                    )
                 if pt_stats:
-                    csv_writer.writerow(['Slide statistic', 'ANOVA P-value'] + [pt_stats[n]['p']
-                                                                                for n in pt_sorted_ft])
-                    csv_writer.writerow(['Slide statistic', 'ANOVA F-value'] + [pt_stats[n]['f']
-                                                                                for n in pt_sorted_ft])
+                    csv_writer.writerow(
+                        ['Slide statistic', 'ANOVA P-value']
+                        + [pt_stats[n]['p'] for n in pt_sorted_ft]
+                    )
+                    csv_writer.writerow(
+                        ['Slide statistic', 'ANOVA F-value']
+                        + [pt_stats[n]['f'] for n in pt_sorted_ft]
+                    )
         return tile_stats, pt_stats, category_stats
 
-    def logits_mean(self):
+    def logits_mean(self) -> Dict[str, np.ndarray]:
         """Calculates the mean logits vector across all tiles in each slide.
 
         Returns:
@@ -667,7 +748,10 @@ class DatasetFeatures:
 
         return {s: np.mean(v, axis=0) for s, v in self.logits.items()}
 
-    def logits_percent(self, prediction_filter=None):
+    def logits_percent(
+        self,
+        prediction_filter: Optional[List[int]] = None
+    ) -> Dict[str, np.ndarray]:
         """Returns dictionary mapping slides to a vector of length num_logits
         with the percent of tiles in each slide predicted to be each outcome.
 
@@ -689,13 +773,16 @@ class DatasetFeatures:
             ])
             assert max(prediction_filter) <= self.num_logits
         else:
-            prediction_filter = range(self.num_logits)
+            prediction_filter = list(range(self.num_logits))
 
         slide_percentages = {}
         for slide in self.logits:
             # Find the index of the highest prediction for each tile, only for
             # logits within prediction_filter
-            tile_pred = np.argmax(self.logits[slide][:, prediction_filter], axis=1)
+            tile_pred = np.argmax(
+                self.logits[slide][:, prediction_filter],
+                axis=1
+            )
             slide_perc = np.array([
                 np.count_nonzero(tile_pred == logit) / len(tile_pred)
                 for logit in range(self.num_logits)
@@ -703,7 +790,10 @@ class DatasetFeatures:
             slide_percentages.update({slide: slide_perc})
         return slide_percentages
 
-    def logits_predict(self, prediction_filter=None):
+    def logits_predict(
+        self,
+        prediction_filter: Optional[List[int]] = None
+    ) -> Dict[str, int]:
         """Returns slide-level predictions, assuming the model is predicting a
         categorical outcome, by generating a prediction for each individual
         tile, and making a slide-level prediction by finding the most
@@ -723,23 +813,30 @@ class DatasetFeatures:
             assert all([isinstance(i, int) for i in prediction_filter])
             assert max(prediction_filter) <= self.num_logits
         else:
-            prediction_filter = range(self.num_logits)
+            prediction_filter = list(range(self.num_logits))
 
         slide_predictions = {}
         for slide in self.logits:
             # Find the index of the highest prediction for each tile, only for
             # logits within prediction_filter
-            tile_pred = np.argmax(self.logits[slide][:, prediction_filter], axis=1)
+            tile_pred = np.argmax(
+                self.logits[slide][:, prediction_filter],
+                axis=1
+            )
             slide_perc = np.array([
                 np.count_nonzero(tile_pred == logit) / len(tile_pred)
                 for logit in range(self.num_logits)
             ])
-            slide_predictions.update({slide: np.argmax(slide_perc)})
+            slide_predictions.update({slide: int(np.argmax(slide_perc))})
         return slide_predictions
 
-    def map_to_predictions(self, x=0, y=0):
-        """Returns coordinates and metadata for tile-level predictions for all tiles,
-        which can be used to create a SlideMap.
+    def map_to_predictions(
+        self,
+        x: int = 0,
+        y: int = 0
+    ) -> Tuple[np.ndarray, np.ndarray, List[Dict[str, Any]]]:
+        """Returns coordinates and metadata for tile-level predictions for all
+        tiles, which can be used to create a SlideMap.
 
         Args:
             x (int, optional): Outcome category id for which predictions will
@@ -764,11 +861,11 @@ class DatasetFeatures:
                 }]
         return np.array(umap_x), np.array(umap_y), umap_meta
 
-    def merge(self, df):
+    def merge(self, df: "DatasetFeatures") -> None:
         '''Merges with another DatasetFeatures.
 
         Args:
-            df (slideflow.model.DatasetFeatures): TargetDatasetFeatures
+            df (slideflow.DatasetFeatures): TargetDatasetFeatures
                 to merge with.
 
         Returns:
@@ -782,23 +879,28 @@ class DatasetFeatures:
         self.tfrecords = np.concatenate([self.tfrecords, df.tfrecords])
         self.slides = list(self.activations.keys())
 
-    def remove_slide(self, slide):
+    def remove_slide(self, slide: str) -> None:
         """Removes slide from internally cached activations."""
         del self.activations[slide]
         del self.logits[slide]
         del self.uncertainty[slide]
         del self.locations[slide]
-        self.tfrecords = [
+        self.tfrecords = np.array([
             t for t in self.tfrecords
             if sf.util.path_to_name(t) != slide
-        ]
+        ])
         try:
             self.slides.remove(slide)
         except ValueError:
             pass
 
-    def save_example_tiles(self, features, outdir, slides=None,
-                           tiles_per_feature=100):
+    def save_example_tiles(
+        self,
+        features: List[int],
+        outdir: str,
+        slides: Optional[List[str]] = None,
+        tiles_per_feature: int = 100
+    ) -> None:
         """For a set of activation features, saves image tiles named according
         to their corresponding activations.
 
@@ -824,20 +926,20 @@ class DatasetFeatures:
             if not exists(join(outdir, str(f))):
                 os.makedirs(join(outdir, str(f)))
 
-            gradient = []
+            gradient_list = []
             for slide in slides:
                 for i, val in enumerate(self.activations[slide][:, f]):
-                    gradient += [{
+                    gradient_list += [{
                                     'val': val,
                                     'slide': slide,
                                     'index': i
                     }]
-            gradient = np.array(sorted(gradient, key=lambda k: k['val']))
+            gradient = np.array(sorted(gradient_list, key=lambda k: k['val']))
             sample_idx = np.linspace(
                 0,
                 gradient.shape[0]-1,
                 num=tiles_per_feature,
-                dtype=np.int
+                dtype=int
             )
             for i, g in tqdm(enumerate(gradient[sample_idx]),
                              ncols=80,
@@ -848,9 +950,15 @@ class DatasetFeatures:
                     if sf.util.path_to_name(tfr) == g['slide']:
                         tfr_dir = tfr
                 if not tfr_dir:
-                    log.warning(f"TFRecord location not found for slide {g['slide']}")
-                slide, image = sf.io.get_tfrecord_by_index(tfr_dir, g['index'], decode=False)
-                tile_filename = f"{i}-tfrecord{g['slide']}-{g['index']}-{g['val']:.2f}.jpg"
+                    log.warning("TFRecord location not found for "
+                                f"slide {g['slide']}")
+                slide, image = sf.io.get_tfrecord_by_index(
+                    tfr_dir,
+                    g['index'],
+                    decode=False
+                )
+                tile_filename = (f"{i}-tfrecord{g['slide']}-{g['index']}"
+                                 + f"-{g['val']:.2f}.jpg")
                 image_string = open(join(outdir, str(f), tile_filename), 'wb')
                 image_string.write(image.numpy())
                 image_string.close()

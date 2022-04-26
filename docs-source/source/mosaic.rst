@@ -9,7 +9,7 @@ generating mosaic maps.
 The idea of a mosaic map is to visualize image feature variation across slides and among categories, in an attempt
 to better understand the kinds of image features discriminative models might be using to generate class predictions.
 They are created by first generating whole-dataset layer features (using
-:class:`slideflow.model.DatasetFeatures`), which are then mapped into two-dimensional space using UMAP
+:class:`slideflow.DatasetFeatures`), which are then mapped into two-dimensional space using UMAP
 dimensionality reduction (:class:`slideflow.SlideMap`). This resulting SlideMap is then passed to
 :class:`slideflow.Mosaic`, which overlays tile images onto the dimensionality-reduced slide map.
 

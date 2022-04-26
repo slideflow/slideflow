@@ -27,10 +27,10 @@ class Normalizer(ut.BaseNormalizer):
     def __init__(self):
         return
 
-    def fit(self, target):
+    def fit(self, target: np.ndarray) -> None:
         return
 
-    def transform(self, I):
+    def transform(self, I: np.ndarray) -> np.ndarray:
 
         hsv = cv.cvtColor(I, cv.COLOR_RGB2HSV)
         hsv[:, :, 2] = cv.equalizeHist(hsv[:, :, 2])

@@ -25,7 +25,7 @@ def backend():
 from slideflow import io  # noqa # pylint: disable=unused-import
 from slideflow import model  # noqa # pylint: disable=unused-import
 from slideflow import norm  # noqa # pylint: disable=unused-import
-from slideflow.model import ModelParams  # noqa # pylint: disable=unused-import
+from slideflow.model import ModelParams, DatasetFeatures  # noqa # pylint: disable=unused-import
 from slideflow.heatmap import Heatmap  # noqa # pylint: disable=unused-import
 from slideflow.dataset import Dataset  # noqa # pylint: disable=unused-import
 from slideflow.mosaic import Mosaic  # noqa # pylint: disable=unused-import

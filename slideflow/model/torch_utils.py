@@ -2,15 +2,33 @@
 
 import torch
 import types
+from typing import Iterable, Generator, Tuple, Dict, List, Union
 
 
-def cycle(iterable):
+def cycle(iterable: Iterable) -> Generator:
     while True:
         for i in iterable:
             yield i
 
 
-def print_module_summary(module, inputs, max_nesting=3, skip_redundant=True):
+def print_module_summary(
+    module: torch.nn.Module,
+    inputs: List[torch.Tensor],
+    max_nesting: int = 3,
+    skip_redundant: bool = True
+) -> str:
+    """Prints and returns summary of a torch module.
+
+    Args:
+        module (torch.nn.Module): PyTorch module.
+        inputs (torch.Tensor): Input tensors, for calculating layer sizes.
+        max_nesting (int, optional): Module depth. Defaults to 3.
+        skip_redundant (bool, optional): Skip redundant entries.
+            Defaults to True.
+
+    Returns:
+        str: Summary of the module.
+    """
     assert isinstance(module, torch.nn.Module)
     assert not isinstance(module, torch.jit.ScriptModule)
     assert isinstance(inputs, (tuple, list))
@@ -87,7 +105,7 @@ def print_module_summary(module, inputs, max_nesting=3, skip_redundant=True):
     return '\n'.join(summary_rows)
 
 
-def enable_dropout(m):
+def enable_dropout(m: torch.nn.Module) -> None:
     for module in m.modules():
         if module.__class__.__name__ == 'LinearBlock':
             for submodule in module.modules():
@@ -95,9 +113,33 @@ def enable_dropout(m):
                     submodule.train()
 
 
-def get_uq_predictions(img, model, num_outcomes, uq_n=30):
+def get_uq_predictions(
+    img: Union[torch.Tensor, Tuple[torch.Tensor, ...]],
+    model: torch.nn.Module,
+    num_outcomes: int,
+    uq_n: int = 30
+) -> Tuple[Union[torch.Tensor, List[torch.Tensor]],
+           Union[torch.Tensor, List[torch.Tensor]],
+           int]:
+    """Performs UQ inference (mean and stdev/uncertainty), calculated
+    using a set number of forward passes.
+
+    Args:
+        img (torch.Tensor): Batch of input images.
+        model (torch.nn.Module): Model to use for inference.
+        num_outcomes (int): Number of expected outcomes.
+        uq_n (int, optional): Number of forward passes. Defaults to 30.
+
+    Returns:
+        torch.Tensor: Mean of forward passes.
+        torch.Tensor: Standard deviation of forward passes.
+        int: Number of detected outcomes.
+    """
     enable_dropout(model)
-    yp_drop = {} if not num_outcomes else {n: [] for n in range(num_outcomes)}
+    if not num_outcomes:
+        yp_drop = {}  # type: Dict[int, List]
+    else:
+        yp_drop = {n: [] for n in range(num_outcomes)}
     for _ in range(uq_n):
         yp = model(*img)
         if not num_outcomes:
@@ -109,11 +151,11 @@ def get_uq_predictions(img, model, num_outcomes, uq_n=30):
         else:
             yp_drop[0] += [yp]
     if num_outcomes > 1:
-        yp_drop = [torch.stack(yp_drop[n], axis=0) for n in range(num_outcomes)]
-        yp_mean = [torch.mean(yp_drop[n], axis=0) for n in range(num_outcomes)]
-        yp_std = [torch.std(yp_drop[n], axis=0) for n in range(num_outcomes)]
+        stacked = [torch.stack(yp_drop[n], dim=0) for n in range(num_outcomes)]
+        yp_mean = [torch.mean(stacked[n], dim=0) for n in range(num_outcomes)]
+        yp_std = [torch.std(stacked[n], dim=0) for n in range(num_outcomes)]
     else:
-        yp_drop = torch.stack(yp_drop[0], axis=0)
-        yp_mean = torch.mean(yp_drop, axis=0)
-        yp_std = torch.std(yp_drop, axis=0)
+        stacked = torch.stack(yp_drop[0], dim=0)  # type: ignore
+        yp_mean = torch.mean(stacked, dim=0)  # type: ignore
+        yp_std = torch.std(stacked, dim=0)  # type: ignore
     return yp_mean, yp_std, num_outcomes

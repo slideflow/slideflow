@@ -16,7 +16,7 @@ from os.path import join, isdir, exists, dirname
 from tqdm import tqdm
 from statistics import mean, median
 from functools import partial
-from typing import Union
+from typing import Union, Optional, Any, List, Dict, Tuple, Callable
 
 import slideflow as sf
 import slideflow.util.colors as col
@@ -39,16 +39,27 @@ try:
 except Exception:
     pass
 
-# -----------------------------------------------------------------------------
 
-# Global vars
+# --- Global vars -------------------------------------------------------------
+
 SUPPORTED_FORMATS = ['svs', 'tif', 'ndpi', 'vms', 'vmu', 'scn', 'mrxs',
                      'tiff', 'svslide', 'bif', 'jpg']
 SLIDE_ANNOTATIONS_TO_IGNORE = ['', ' ']
 CPLEX_AVAILABLE = (importlib.util.find_spec('cplex') is not None)
+
+
+# --- Commonly used types -----------------------------------------------------
+
+# Path
 Path = Union[str, os.PathLike]
 
-# Configure logging
+# Outcome labels
+Labels = Union[Dict[str, str], Dict[str, int], Dict[str, List[float]]]
+
+# Normalizer fit keyword arguments
+NormFit = Union[Dict[str, np.ndarray], Dict[str, List]]
+
+# --- Configure logging--------------------------------------------------------
 log = logging.getLogger('slideflow')
 if 'SF_LOGGING_LEVEL' in os.environ:
     try:
@@ -95,10 +106,6 @@ class FileFormatter(logging.Formatter):
 
 class TqdmLoggingHandler(logging.StreamHandler):
     """Avoid tqdm progress bar interruption by logger's output to console"""
-    # see logging.StreamHandler.eval method:
-    # https://github.com/python/cpython/blob/d2e2534751fd675c4d5d3adc208bf4fc984da7bf/Lib/logging/__init__.py#L1082-L1091
-    # and tqdm.write method:
-    # https://github.com/tqdm/tqdm/blob/f86104a1f30c38e6f80bfd8fb16d5fcde1e7749f/tqdm/std.py#L614-L620
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -126,37 +133,51 @@ log.addHandler(ch)
 
 # --- Multiprocessing-compatible progress bars --------------------------------
 class DummyLock:
-    def __init__(self, *args): pass
-    def __enter__(self, *args): pass
-    def __exit__(self, *args): pass
+    def __init__(self, *args):
+        pass
+
+    def __enter__(self, *args):
+        pass
+
+    def __exit__(self, *args):
+        pass
 
 
 class DummyCounter:
-    def __init__(self, value):
+    def __init__(self, value: int):
         self.value = value
 
 
 class Bar:
-    def __init__(self, ending_value, starting_value=0, bar_length=20, label='',
-                 show_eta=False, show_counter=False, counter_text='',
-                 update_interval=1, mp_counter=None, mp_lock=None):
-
+    def __init__(
+        self,
+        ending_value: int,
+        starting_value: int = 0,
+        bar_length: int = 20,
+        label: str = '',
+        show_eta: bool = False,
+        show_counter: bool = False,
+        counter_text: str = '',
+        update_interval: int = 1,
+        mp_counter: Optional["mp.sharedctypes.Synchronized"] = None,
+        mp_lock: Optional["mp.synchronize.Lock"] = None
+    ) -> None:
         if mp_counter is not None:
             self.counter = mp_counter
             self.mp_lock = mp_lock
         else:
             try:
                 manager = mp.Manager()
-                self.counter = manager.Value('i', 0)
-                self.mp_lock = manager.Lock()
+                self.counter = manager.Value('i', 0)  # type: ignore
+                self.mp_lock = manager.Lock()  # type: ignore
             except AssertionError:
-                self.counter = DummyCounter(0)
-                self.mp_lock = DummyLock()
+                self.counter = DummyCounter(0)  # type: ignore
+                self.mp_lock = DummyLock()  # type: ignore
 
         # Setup timing
-        self.starttime = None
-        self.lastupdated = None
-        self.checkpoint_time = None
+        self.starttime = None  # type: Optional[int]
+        self.lastupdated = None  # type: Optional[int]
+        self.checkpoint_time = None  # type: Optional[int]
         self.checkpoint_val = starting_value
 
         # Other initializing variables
@@ -171,7 +192,7 @@ class Bar:
         self.num_per_sec = 0
         self.update_interval = update_interval
 
-    def get_text(self):
+    def get_text(self) -> str:
         current_time = int(time.time())
         if not self.starttime:
             self.starttime = current_time
@@ -186,9 +207,13 @@ class Bar:
         timediff = int(time.time())-self.starttime
 
         # Checkpoint every 5 seconds
+        assert self.checkpoint_time is not None
         if (current_time - self.checkpoint_time) > self.update_interval:
-            self.num_per_sec = ((self.counter.value - self.checkpoint_val)
-                                / (current_time - self.checkpoint_time))
+
+            self.num_per_sec = (
+                (self.counter.value - self.checkpoint_val)
+                / (current_time - self.checkpoint_time)
+            )
             # Reset checkpoint
             self.checkpoint_val = self.counter.value
             self.checkpoint_time = current_time
@@ -219,14 +244,23 @@ class ProgressBar:
     multiprocessing support.
     '''
 
-    def __init__(self, ending_val, starting_val=0, bar_length=20, endtext='',
-                 show_eta=False, show_counter=False, counter_text='',
-                 leadtext='', mp_counter=None, mp_lock=None):
-
+    def __init__(
+        self,
+        ending_val: int,
+        starting_val: int = 0,
+        bar_length: int = 20,
+        endtext: str = '',
+        show_eta: bool = False,
+        show_counter: bool = False,
+        counter_text: str = '',
+        leadtext: str = '',
+        mp_counter: Optional["mp.sharedctypes.Synchronized"] = None,
+        mp_lock: Optional["mp.synchronize.Lock"] = None
+    ) -> None:
         self.leadtext = leadtext
         self.tail = ''
         self.text = ''
-        self.refresh_thread = None
+        self.refresh_thread = None  # type: Optional[threading.Thread]
         self.live = True
         self.BARS = [Bar(ending_val,
                          starting_val,
@@ -239,9 +273,30 @@ class ProgressBar:
                          mp_lock=mp_lock)]
         self.refresh()
 
-    def add_bar(self, val, endval, bar_length=20, endtext='', show_eta=False,
-                show_counter=False, counter_text=''):
+    def add_bar(
+        self,
+        val: int,
+        endval: int,
+        bar_length: int = 20,
+        endtext: str = '',
+        show_eta: bool = False,
+        show_counter: bool = False,
+        counter_text: str = ''
+    ) -> int:
+        """Adds a bar to the ProgressBar.
 
+        Args:
+            val (int): Current bar value.
+            endval (int): Ending bar value.
+            bar_length (int, optional): Length of bar. Defaults to 20.
+            endtext (str, optional): Text description. Defaults to ''.
+            show_eta (bool, optional): Show ETA. Defaults to False.
+            show_counter (bool, optional): Show the counter. Defaults to False.
+            counter_text (str, optional): Counter text. Defaults to ''.
+
+        Returns:
+            int: Bar ID
+        """
         self.BARS += [Bar(val,
                           endval,
                           bar_length,
@@ -252,40 +307,68 @@ class ProgressBar:
         self.refresh()
         return len(self.BARS)-1
 
-    def increase_bar_value(self, amount=1, id=0):
-        with self.BARS[id].mp_lock:
+    def increase_bar_value(self, amount: int = 1, id: int = 0) -> None:
+        """Increase value of a progress bar.
+
+        Args:
+            amount (int, optional): Amount to increase bar value. Defaults to 1.
+            id (int, optional): Bar ID. Defaults to 0.
+        """
+        with self.BARS[id].mp_lock:  # type: ignore
             self.BARS[id].counter.value = min(
                 self.BARS[id].counter.value + amount,
                 self.BARS[id].end_value
             )
         self.refresh()
 
-    def get_counter(self, id=0):
+    def get_counter(
+        self, id: int = 0
+    ) -> Union["mp.sharedctypes.Synchronized", DummyCounter]:
         return self.BARS[id].counter
 
-    def get_lock(self, id=0):
-        return self.BARS[id].mp_lock
+    def get_lock(
+        self, id: int = 0
+    ) -> Union["mp.synchronize.Lock", DummyLock]:
+        return self.BARS[id].mp_lock  # type: ignore
 
-    def set_bar_value(self, value, id=0):
-        with self.BARS[id].mp_lock:
+    def set_bar_value(self, value: int, id: int = 0) -> None:
+        """Set the bar to a given value.
+
+        Args:
+            value (int): Value to set bar at.
+            id (int, optional): Bar ID. Defaults to 0.
+        """
+        with self.BARS[id].mp_lock:  # type: ignore
             self.BARS[id].counter.value = min(value, self.BARS[id].end_value)
         self.refresh()
 
-    def set_bar_text(self, text, id=0):
+    def set_bar_text(self, text: str, id: int = 0):
+        """Set the bar text description.
+
+        Args:
+            text (str): Text description
+            id (int, optional): Bar ID. Defaults to 0.
+        """
         self.BARS[id].text = text
         self.refresh()
 
-    def auto_refresh(self, freq=0.1):
+    def auto_refresh(self, freq: float = 0.1) -> None:
+        """Auto-refresh bar at this interval.
+
+        Args:
+            freq (float, optional): Refresh interval (sec). Defaults to 0.1.
+        """
         def auto_refresh_worker():
             while self.live:
                 self.refresh()
                 time.sleep(freq)
 
-        self.refresh_thread = threading.Thread(target=auto_refresh_worker,
-                                               daemon=True)
+        self.refresh_thread = threading.Thread(
+            target=auto_refresh_worker, daemon=True
+        )
         self.refresh_thread.start()
 
-    def refresh(self):
+    def refresh(self) -> None:
         if len(self.BARS) == 0:
             sys.stdout.write("\r\033[K")
             sys.stdout.flush()
@@ -301,7 +384,7 @@ class ProgressBar:
             sys.stdout.flush()
             self.text = new_text
 
-    def end(self, id=-1):
+    def end(self, id: int = -1) -> None:
         if id == -1:
             self.BARS = []
             print("\r\033[K", end="")
@@ -310,7 +393,7 @@ class ProgressBar:
             print(f"\r\033[K{self.text}", end="")
         self.live = False
 
-    def print(self, string):
+    def print(self, string: str) -> None:
         sys.stdout.write(f"\r\033[K{string}\n")
         sys.stdout.flush()
         sys.stdout.write(self.text)
@@ -330,18 +413,27 @@ class ThreadSafeList:
         self.lock = threading.Lock()
         self.items = []
 
-    def add(self, item):
+    def add(self, item: Any) -> None:
         with self.lock:
             self.items.append(item)
 
-    def getAll(self):
+    def getAll(self) -> Any:
         with self.lock:
             items, self.items = self.items, []
         return items
 
 
-def multi_warn(arr, compare, msg):
-    '''Logs multiple warnings.'''
+def multi_warn(arr: List, compare: Callable, msg: Union[Callable, str]) -> int:
+    """Logs multiple warning
+
+    Args:
+        arr (List): Array to compare.
+        compare (Callable): Comparison to perform on array. If True, will warn.
+        msg (str): Warning message.
+
+    Returns:
+        int: Number of warnings.
+    """
     num_warned = 0
     warn_threshold = 3
     for item in arr:
@@ -357,7 +449,7 @@ def multi_warn(arr, compare, msg):
     return num_warned
 
 
-def to_onehot(val, max):
+def to_onehot(val: int, max: int) -> np.ndarray:
     """Converts value to one-hot encoding
 
     Args:
@@ -370,12 +462,12 @@ def to_onehot(val, max):
     return onehot
 
 
-def clear_console():
+def clear_console() -> None:
     sys.stdout.write("\r\033[K")
     sys.stdout.flush()
 
 
-def make_dir(_dir):
+def make_dir(_dir: Path) -> None:
     """Makes a directory if one does not already exist,
     in a manner compatible with multithreading.
     """
@@ -386,7 +478,7 @@ def make_dir(_dir):
             pass
 
 
-def relative_path(path, root):
+def relative_path(path: str, root: str):
     """Returns a relative path, from a given root directory."""
     if path[0] == '.':
         return join(root, path[2:])
@@ -396,7 +488,7 @@ def relative_path(path, root):
         return path
 
 
-def global_path(root, path_string):
+def global_path(root: str, path_string: str):
     '''Returns global path from a local path.'''
     if not root:
         root = ""
@@ -408,7 +500,7 @@ def global_path(root, path_string):
         return path_string
 
 
-def _shortname(string):
+def _shortname(string: str):
     if len(string) == 60:
         # May be TCGA slide with long name; convert to
         # patient name by returning first 12 characters
@@ -417,23 +509,26 @@ def _shortname(string):
         return string
 
 
-def yes_no_input(prompt, default='no'):
+def yes_no_input(prompt: str, default: str = 'no') -> bool:
     '''Prompts user for yes/no input.'''
-    yes = ['yes', 'y']
-    no = ['no', 'n']
     while True:
         response = input(prompt)
         if not response and default:
-            return True if default in yes else False
-        if response.lower() in yes:
-            return True
-        if response.lower() in no:
-            return False
-        print("Invalid response.")
+            return (default in ('yes', 'y'))
+        elif response.lower() in ('yes', 'no', 'y', 'n'):
+            return (response.lower() in ('yes', 'y'))
+        else:
+            print("Invalid response.")
 
 
-def path_input(prompt, root, default=None, create_on_invalid=False,
-               filetype=None, verify=True):
+def path_input(
+    prompt: str,
+    root: str,
+    default: Optional[str] = None,
+    create_on_invalid: bool = False,
+    filetype: Optional[Path] = None,
+    verify: bool = True
+) -> str:
     '''Prompts user for directory input.'''
     while True:
         relative_response = input(f"{prompt}")
@@ -462,39 +557,6 @@ def path_input(prompt, root, default=None, create_on_invalid=False,
         return relative_response
 
 
-def int_input(prompt, default=None):
-    '''Prompts user for int input.'''
-    while True:
-        response = input(f"{prompt}")
-        if not response and default:
-            return default
-        try:
-            int_response = int(response)
-        except ValueError:
-            print("Please supply a valid number.")
-            continue
-        return int_response
-
-
-def float_input(prompt, default=None, valid_range=None):
-    '''Prompts user for float input.'''
-    assert len(valid_range) == 2
-    start = valid_range[0]
-    end = valid_range[1]
-    while True:
-        response = input(f"{prompt}")
-        if not response and default:
-            return default
-        try:
-            r = float(response)
-        except ValueError:
-            print("Please supply a valid number.")
-            continue
-        if valid_range and not (r >= start and r <= end):
-            print(f"Please supply valid numer in range {start} to {end}")
-        return r
-
-
 def choice_input(prompt, valid_choices, default=None, multi_choice=False,
                  input_type=str):
     '''Prompts user for multi-choice input.'''
@@ -519,19 +581,22 @@ def choice_input(prompt, valid_choices, default=None, multi_choice=False,
         return response
 
 
-def load_json(filename):
+def load_json(filename: Path) -> Any:
     '''Reads JSON data from file.'''
     with open(filename, 'r') as data_file:
         return json.load(data_file)
 
 
-def write_json(data, filename):
+def write_json(data: Any, filename: Path) -> None:
     '''Writes data to JSON file.'''
     with open(filename, "w") as data_file:
         json.dump(data, data_file, indent=1)
 
 
-def get_slides_from_model_manifest(model_path, dataset=None):
+def get_slides_from_model_manifest(
+    model_path: Path,
+    dataset: Optional[str] = None
+) -> List[str]:
     """Get list of slides from a model manifest.
 
     Args:
@@ -552,7 +617,7 @@ def get_slides_from_model_manifest(model_path, dataset=None):
         manifest = join(dirname(model_path), 'slide_manifest.csv')
     else:
         log.error('Slide manifest not found in model folder')
-        return None
+        return []
     with open(manifest, 'r') as manifest_file:
         reader = csv.reader(manifest_file)
         header = next(reader)
@@ -566,20 +631,20 @@ def get_slides_from_model_manifest(model_path, dataset=None):
     return slides
 
 
-def get_model_config(model_path):
+def get_model_config(model_path: Path) -> Dict:
     """Loads model configuration JSON file."""
 
     if exists(join(model_path, 'params.json')):
         config = load_json(join(model_path, 'params.json'))
     elif exists(join(dirname(model_path), 'params.json')):
         if sf.backend() == 'tensorflow':
-            msg = "Hyperparameters not in model directory; loading from parent"
-            msg += " directory. Please move params.json into model folder."
-            log.warning(msg)
+            log.warning(
+                "Hyperparameters not in model directory; loading from parent"
+                " directory. Please move params.json into model folder."
+            )
         config = load_json(join(dirname(model_path), 'params.json'))
     else:
         raise errors.ModelParamsNotFoundError
-
     # Compatibility for pre-1.1
     if 'norm_mean' in config:
         config['norm_fit'] = {
@@ -589,11 +654,10 @@ def get_model_config(model_path):
     if 'outcome_label_headers' in config:
         log.debug("Replacing outcome_label_headers in params.json -> outcomes")
         config['outcomes'] = config.pop('outcome_label_headers')
-
     return config
 
 
-def get_slide_paths(slides_dir):
+def get_slide_paths(slides_dir: Path) -> List[str]:
     '''Get all slide paths from a given directory containing slides.'''
     slide_list = [
         i for i in glob(join(slides_dir, '**/*.*'))
@@ -606,17 +670,19 @@ def get_slide_paths(slides_dir):
     return slide_list
 
 
-def read_annotations(annotations_file):
+def read_annotations(path: Path) -> Tuple[List[str], List[Dict]]:
     '''Read an annotations file.'''
     results = []
-    with open(annotations_file, 'r') as csv_file:
+    with open(path, 'r') as csv_file:
         csv_reader = csv.reader(csv_file, delimiter=',')
         # First, try to open file
         try:
             header = next(csv_reader, None)
         except OSError:
-            err_msg = f"Failed to open annotations file {annotations_file}"
-            raise OSError(err_msg)
+            raise OSError(
+                f"Failed to open annotations file {path}"
+            )
+        assert isinstance(header, list)
         for row in csv_reader:
             row_dict = {}
             for i, key in enumerate(header):
@@ -625,7 +691,7 @@ def read_annotations(annotations_file):
     return header, results
 
 
-def get_relative_tfrecord_paths(root, directory=""):
+def get_relative_tfrecord_paths(root: Path, directory: str = "") -> List[str]:
     '''Returns relative tfrecord paths with respect to the given directory.'''
 
     tfrecords = [
@@ -642,7 +708,7 @@ def get_relative_tfrecord_paths(root, directory=""):
     return tfrecords
 
 
-def contains_nested_subdirs(directory):
+def contains_nested_subdirs(directory: Path) -> bool:
     subdirs = [
         _dir for _dir in os.listdir(directory)
         if isdir(join(directory, _dir))
@@ -655,7 +721,7 @@ def contains_nested_subdirs(directory):
     return False
 
 
-def path_to_name(path):
+def path_to_name(path: str) -> str:
     '''Returns name of a file, without extension,
     from a given full path string.'''
     _file = path.split('/')[-1]
@@ -665,7 +731,7 @@ def path_to_name(path):
         return '.'.join(_file.split('.')[:-1])
 
 
-def path_to_ext(path):
+def path_to_ext(path: str) -> str:
     '''Returns extension of a file path string.'''
     _file = path.split('/')[-1]
     if len(_file.split('.')) == 1:
@@ -674,10 +740,14 @@ def path_to_ext(path):
         return _file.split('.')[-1]
 
 
-def update_results_log(results_log_path, model_name, results_dict):
+def update_results_log(
+    results_log_path: str,
+    model_name: str,
+    results_dict: Dict
+) -> None:
     '''Dynamically update results_log when recording training metrics.'''
     # First, read current results log into a dictionary
-    results_log = {}
+    results_log = {}  # type: Dict[str, Any]
     if exists(results_log_path):
         with open(results_log_path, "r") as results_file:
             reader = csv.reader(results_file)
@@ -729,7 +799,14 @@ def update_results_log(results_log_path, model_name, results_dict):
         os.remove(f"{results_log_path}.temp")
 
 
-def tfrecord_heatmap(tfrecord, slide, tile_px, tile_um, tile_dict, outdir):
+def tfrecord_heatmap(
+    tfrecord: str,
+    slide: str,
+    tile_px: int,
+    tile_um: int,
+    tile_dict: Dict[int, float],
+    outdir: str
+) -> Dict[str, Dict[str, float]]:
     """Creates a tfrecord-based WSI heatmap using a dictionary of tile values
     for heatmap display.
 
@@ -752,10 +829,11 @@ def tfrecord_heatmap(tfrecord, slide, tile_px, tile_um, tile_dict, outdir):
     if tile_dict.keys() != loc_dict.keys():
         td_len = len(list(tile_dict.keys()))
         loc_len = len(list(loc_dict.keys()))
-        msg = f'tile_dict length ({td_len}) != TFRecord length ({loc_len}).'
-        raise errors.TFRecordsError(msg)
+        raise errors.TFRecordsError(
+            f'tile_dict length ({td_len}) != TFRecord length ({loc_len}).'
+        )
 
-    print(f'Generating TFRecord heatmap for {col.green(tfrecord)}...')
+    log.info(f'Generating TFRecord heatmap for {col.green(tfrecord)}...')
     wsi = sf.slide.WSI(slide, tile_px, tile_um, skip_missing_roi=False)
 
     stats = {}
@@ -774,22 +852,20 @@ def tfrecord_heatmap(tfrecord, slide, tile_px, tile_um, tile_dict, outdir):
         }
     })
 
-    print('\nLoaded tile values')
-    print(f'Min: {min(vals)}\t Max:{max(vals)}')
+    log.debug('Loaded tile values')
+    log.debug(f'Min: {min(vals)}\t Max:{max(vals)}')
 
     scaled_x = [(xi * wsi.roi_scale) - wsi.full_extract_px/2 for xi in x]
     scaled_y = [(yi * wsi.roi_scale) - wsi.full_extract_px/2 for yi in y]
 
-    print('\nLoaded CSV coordinates:')
-    print(f'Min x: {min(x)}\t Max x: {max(x)}')
-    print(f'Min y: {min(y)}\t Max y: {max(y)}')
-
-    print('\nScaled CSV coordinates:')
-    print(f'Min x: {min(scaled_x)}\t Max x: {max(scaled_x)}')
-    print(f'Min y: {min(scaled_y)}\t Max y: {max(scaled_y)}')
-
-    print('\nSlide properties:')
-    print(f'Size (x): {wsi.full_shape[0]}\t Size (y): {wsi.full_shape[1]}')
+    log.debug('Loaded CSV coordinates:')
+    log.debug(f'Min x: {min(x)}\t Max x: {max(x)}')
+    log.debug(f'Min y: {min(y)}\t Max y: {max(y)}')
+    log.debug('Scaled CSV coordinates:')
+    log.debug(f'Min x: {min(scaled_x)}\t Max x: {max(scaled_x)}')
+    log.debug(f'Min y: {min(scaled_y)}\t Max y: {max(scaled_y)}')
+    log.debug('Slide properties:')
+    log.debug(f'Size (x): {wsi.full_shape[0]}\t Size (y): {wsi.full_shape[1]}')
 
     # Slide coordinate information
     max_coord_x = max([c[0] for c in wsi.coord])
@@ -797,9 +873,9 @@ def tfrecord_heatmap(tfrecord, slide, tile_px, tile_um, tile_dict, outdir):
     num_x = len(set([c[0] for c in wsi.coord]))
     num_y = len(set([c[1] for c in wsi.coord]))
 
-    print('\nSlide tile grid:')
-    print(f'Number of tiles (x): {num_x}\t Max coord (x): {max_coord_x}')
-    print(f'Number of tiles (y): {num_y}\t Max coord (y): {max_coord_y}')
+    log.debug('Slide tile grid:')
+    log.debug(f'Number of tiles (x): {num_x}\t Max coord (x): {max_coord_x}')
+    log.debug(f'Number of tiles (y): {num_y}\t Max coord (y): {max_coord_y}')
 
     # Calculate dead space (un-extracted tiles) in x and y axes
     dead_x = wsi.full_shape[0] - max_coord_x
@@ -807,18 +883,17 @@ def tfrecord_heatmap(tfrecord, slide, tile_px, tile_um, tile_dict, outdir):
     fraction_dead_x = dead_x / wsi.full_shape[0]
     fraction_dead_y = dead_y / wsi.full_shape[1]
 
-    print('\nSlide dead space')
-    print(f'x: {dead_x}\t y:{dead_y}')
+    log.debug('Slide dead space')
+    log.debug(f'x: {dead_x}\t y:{dead_y}')
 
     # Work on grid
     x_grid_scale = max_coord_x / (num_x-1)
     y_grid_scale = max_coord_y / (num_y-1)
 
-    print('\nCoordinate grid scale:')
-    print(f'x: {x_grid_scale}\t y: {y_grid_scale}')
+    log.debug('Coordinate grid scale:')
+    log.debug(f'x: {x_grid_scale}\t y: {y_grid_scale}')
 
     grid = np.zeros((num_y, num_x))
-
     indexed_x = [round(xi / x_grid_scale) for xi in scaled_x]
     indexed_y = [round(yi / y_grid_scale) for yi in scaled_y]
 
@@ -836,20 +911,20 @@ def tfrecord_heatmap(tfrecord, slide, tile_px, tile_um, tile_dict, outdir):
         bottom=False,
         labelbottom=False
     )
-    print('Generating thumbnail...')
+    log.info('Generating thumbnail...')
     thumb = wsi.thumb(mpp=5)
-    print('Saving thumbnail....')
+    log.info('Saving thumbnail....')
     thumb.save(join(outdir, f'{slide_name}' + '.png'))
-    print('Generating figure...')
+    log.info('Generating figure...')
     implot = ax.imshow(thumb, zorder=0)
     extent = implot.get_extent()
     extent_x = extent[1] * (1-fraction_dead_x)
     extent_y = extent[2] * (1-fraction_dead_y)
     grid_extent = (extent[0], extent_x, extent_y, extent[3])
-    print('\nImage extent:')
-    print(extent)
-    print('\nGrid extent:')
-    print(grid_extent)
+    log.debug('\nImage extent:')
+    log.debug(extent)
+    log.debug('\nGrid extent:')
+    log.debug(grid_extent)
 
     divnorm = mcol.TwoSlopeNorm(
         vmin=min(-0.01, min(vals)),
@@ -865,31 +940,32 @@ def tfrecord_heatmap(tfrecord, slide, tile_px, tile_um, tile_dict, outdir):
         cmap='coolwarm',
         norm=divnorm
     )
-    print('Saving figure...')
+    log.info('Saving figure...')
     plt.savefig(join(outdir, f'{slide_name}_attn.png'), bbox_inches='tight')
-    # Clean up
-    print('Cleaning up...')
+    log.debug('Cleaning up...')
     plt.clf()
     del wsi
     del thumb
     return stats
 
 
-def detect_git_commit():
+def detect_git_commit() -> Optional[str]:
     if git is not None:
         try:
             repo = git.Repo(search_parent_directories=True)
             return repo.head.object.hexsha
         except Exception:
             return None
+    else:
+        return None
 
 
-def get_new_model_dir(root, model_name):
+def get_new_model_dir(root: Path, model_name: str) -> str:
     prev_run_dirs = [
         x for x in os.listdir(root)
         if isdir(join(root, x))
     ]
-    prev_run_ids = [re.match(r'^\d+', x) for x in prev_run_dirs]
+    prev_run_ids = [re.match(r'^\d+', x) for x in prev_run_dirs]  # type: List
     prev_run_ids = [int(x.group()) for x in prev_run_ids if x is not None]
     cur_id = max(prev_run_ids, default=-1) + 1
     model_dir = os.path.join(root, f'{cur_id:05d}-{model_name}')
@@ -898,22 +974,24 @@ def get_new_model_dir(root, model_name):
     return model_dir
 
 
-def split_list(a, n):
+def split_list(a: List, n: int) -> List[List]:
     '''Function to split a list into n components'''
     k, m = divmod(len(a), n)
-    return (a[i * k + min(i, m): (i + 1) * k + min(i + 1, m)]
-            for i in range(n))
+    return [a[i * k + min(i, m): (i + 1) * k + min(i + 1, m)]
+            for i in range(n)]
 
 
 # --- TFRecord utility functions ----------------------------------------------
 
-def process_feature(feature: example_pb2.Feature,
-                    typename: str,
-                    typename_mapping: dict,
-                    key: str):
+def process_feature(
+    feature: example_pb2.Feature,  # type: ignore
+    typename: str,
+    typename_mapping: Dict,
+    key: str
+) -> np.ndarray:
     # NOTE: We assume that each key in the example has only one field
     # (either "bytes_list", "float_list", or "int64_list")!
-    field = feature.ListFields()[0]
+    field = feature.ListFields()[0]  # type: ignore
     inferred_typename, value = field[0].name, field[1].value
 
     if typename is not None:
@@ -934,9 +1012,14 @@ def process_feature(feature: example_pb2.Feature,
     return value
 
 
-def extract_feature_dict(features, description, typename_mapping):
+def extract_feature_dict(
+    features: Union[example_pb2.FeatureLists,  # type: ignore
+                    example_pb2.Features],  # type: ignore
+    description: Optional[Union[List, Dict]],
+    typename_mapping: Dict
+) -> Dict[str, Any]:
     if isinstance(features, example_pb2.FeatureLists):
-        features = features.feature_list
+        features = features.feature_list  # type: ignore
 
         def get_value(typename, typename_mapping, key):
             feature = features[key].feature
@@ -948,7 +1031,7 @@ def extract_feature_dict(features, description, typename_mapping):
             )
             return list(map(fn, feature))
     elif isinstance(features, example_pb2.Features):
-        features = features.feature
+        features = features.feature  # type: ignore
 
         def get_value(typename, typename_mapping, key):
             return process_feature(features[key], typename,
@@ -958,7 +1041,7 @@ def extract_feature_dict(features, description, typename_mapping):
                         f"example_pb2.Features or example_pb2.FeatureLists and "
                         f"not {type(features)}")
 
-    all_keys = list(features.keys())
+    all_keys = list(features.keys())  # type: ignore
 
     if description is None or len(description) == 0:
         description = dict.fromkeys(all_keys, None)

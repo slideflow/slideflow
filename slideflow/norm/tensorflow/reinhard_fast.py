@@ -9,11 +9,12 @@ This implementation ("fast" implementation) skips the brightness standardization
 from __future__ import division
 
 import tensorflow as tf
+from typing import Tuple
 from slideflow.norm.tensorflow import color
 
 
 @tf.function
-def lab_split(I):
+def lab_split(I: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor]:
     """
     Convert from RGB uint8 to LAB and split into channels
     :param I: uint8
@@ -27,7 +28,11 @@ def lab_split(I):
 
 
 @tf.function
-def merge_back(I1, I2, I3):
+def merge_back(
+    I1: tf.Tensor,
+    I2: tf.Tensor,
+    I3: tf.Tensor
+) -> tf.Tensor:
     """
     Take seperate LAB channels and merge back to give RGB uint8
     :param I1:
@@ -43,7 +48,13 @@ def merge_back(I1, I2, I3):
 
 
 @tf.function
-def get_mean_std(I1, I2, I3, reduce=False):
+def get_mean_std(
+    I1: tf.Tensor,
+    I2: tf.Tensor,
+    I3: tf.Tensor,
+    reduce: bool = False
+) -> Tuple[Tuple[tf.Tensor, tf.Tensor, tf.Tensor],
+           Tuple[tf.Tensor, tf.Tensor, tf.Tensor]]:
     """
     Get mean and standard deviation of each channel
     :param I: uint8
@@ -64,8 +75,24 @@ def get_mean_std(I1, I2, I3, reduce=False):
 
 
 @tf.function
-def transform(I, tgt_mean, tgt_std):
+def transform(
+    I: tf.Tensor,
+    tgt_mean: tf.Tensor,
+    tgt_std: tf.Tensor
+) -> tf.Tensor:
+    """Transform an image using a given target means & stds.
 
+    Args:
+        I (tf.Tensor): Image to transform
+        tgt_mean (tf.Tensor): Target means.
+        tgt_std (tf.Tensor): Target means.
+
+    Raises:
+        ValueError: If tgt_mean or tgt_std is None.
+
+    Returns:
+        tf.Tensor: Transformed image.
+    """
     if tgt_mean is None or tgt_std is None:
         raise ValueError("Normalizer has not been fit: call normalizer.fit()")
 
@@ -92,6 +119,18 @@ def transform(I, tgt_mean, tgt_std):
 
 
 @tf.function
-def fit(target, reduce=False):
+def fit(target: tf.Tensor, reduce: bool = False) -> Tuple[tf.Tensor, tf.Tensor]:
+    """Fit a target image.
+
+    Args:
+        target (torch.Tensor): Batch of images to fit.
+        reduce (bool, optional): Reduce the fit means/stds across the batch
+            of images to a single mean/std array, reduced by average.
+            Defaults to False (provides fit for each image in the batch).
+
+    Returns:
+        tf.Tensor: Fit means
+        tf.Tensor: Fit stds
+    """
     means, stds = get_mean_std(*lab_split(target), reduce=reduce)
     return means, stds

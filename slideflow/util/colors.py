@@ -1,37 +1,39 @@
 '''Text coloring.'''
 
+from typing import Any
 
-def dim(text):
+
+def dim(text: Any) -> str:
     return '\033[2m' + str(text) + '\033[0m'
 
 
-def yellow(text):
+def yellow(text: Any) -> str:
     return '\033[93m' + str(text) + '\033[0m'
 
 
-def cyan(text):
+def cyan(text: Any) -> str:
     return '\033[96m' + str(text) + '\033[0m'
 
 
-def blue(text):
+def blue(text: Any) -> str:
     return '\033[94m' + str(text) + '\033[0m'
 
 
-def green(text):
+def green(text: Any) -> str:
     return '\033[92m' + str(text) + '\033[0m'
 
 
-def red(text):
+def red(text: Any) -> str:
     return '\033[91m' + str(text) + '\033[0m'
 
 
-def bold(text):
+def bold(text: Any) -> str:
     return '\033[1m' + str(text) + '\033[0m'
 
 
-def underline(text):
+def underline(text: Any) -> str:
     return '\033[4m' + str(text) + '\033[0m'
 
 
-def purple(text):
+def purple(text: Any) -> str:
     return '\033[38;5;5m' + str(text) + '\033[0m'

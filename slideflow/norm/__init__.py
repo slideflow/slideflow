@@ -1,26 +1,30 @@
 import os
 import cv2
 import numpy as np
-import slideflow as sf
 import multiprocessing as mp
-
+from tqdm import tqdm
 from io import BytesIO
 from os.path import join
 from PIL import Image
+from typing import Optional, Union, Dict, Any, Tuple, List, TYPE_CHECKING
+
+import slideflow as sf
 from slideflow.dataset import Dataset
 from slideflow.util import log
-from tqdm import tqdm
 from slideflow import errors
+from slideflow.norm.utils import BaseNormalizer
 
 if sf.backend() == 'tensorflow':
     import tensorflow as tf
+elif TYPE_CHECKING:
+    import tensorflow as tf
 
-from slideflow.norm import macenko,  \
-                           reinhard, \
-                           reinhard_fast, \
-                           reinhard_mask, \
-                           vahadane, \
-                           augment
+from slideflow.norm import (macenko,
+                            reinhard,
+                            reinhard_fast,
+                            reinhard_mask,
+                            vahadane,
+                            augment)
 
 
 class StainNormalizer:
@@ -36,9 +40,13 @@ class StainNormalizer:
         'reinhard_mask': reinhard_mask.Normalizer,
         'vahadane': vahadane.Normalizer,
         'augment': augment.Normalizer
-    }
+    }  # type: Dict[str, Any]
 
-    def __init__(self, method='reinhard', source=None):
+    def __init__(
+        self,
+        method: str = 'reinhard',
+        source: Optional[str] = None
+    ) -> None:
         """Initializer. Establishes normalization method.
 
         Args:
@@ -63,34 +71,62 @@ class StainNormalizer:
         return "StainNormalizer(method={!r}{})".format(self.method, src)
 
     @property
-    def target_means(self):
+    def target_means(self) -> Optional[np.ndarray]:
         return self.n.target_means
 
     @property
-    def target_stds(self):
+    def target_stds(self) -> Optional[np.ndarray]:
         return self.n.target_stds
 
     @property
-    def stain_matrix_target(self):
+    def stain_matrix_target(self) -> Optional[np.ndarray]:
         return self.n.stain_matrix_target
 
     @property
-    def target_concentrations(self):
+    def target_concentrations(self) -> Optional[np.ndarray]:
         return self.n.target_concentrations
 
-    def fit(self, *args, target_means=None, target_stds=None,
-            stain_matrix_target=None, target_concentrations=None,
-            batch_size=64, num_threads='auto'):
+    def fit(
+        self,
+        *args: Optional[Union[Dataset, np.ndarray, str]],
+        target_means: Optional[Union[List[float], np.ndarray]] = None,
+        target_stds: Optional[Union[List[float], np.ndarray]] = None,
+        stain_matrix_target: Optional[Union[List[float], np.ndarray]] = None,
+        target_concentrations: Optional[Union[List[float], np.ndarray]] = None,
+        batch_size: int = 64,
+        num_threads: Union[str, int] = 'auto'
+    ) -> None:
+        """Fit the normalizer.
 
+        Args:
+            target_means (Optional[np.ndarray], optional): Target means.
+                Defaults to None.
+            target_stds (Optional[np.ndarray], optional): Target stds.
+                Defaults to None.
+            stain_matrix_target (Optional[np.ndarray], optional): Target stain
+                matrix. Defaults to None.
+            target_concentrations (Optional[np.ndarray], optional): Target
+                concentrations. Defaults to None.
+            batch_size (int, optional): Batch size during fitting, if fitting
+                to dataset. Defaults to 64.
+            num_threads (Union[str, int], optional): Number of threads to use
+                during fitting, if fitting to a dataset. Defaults to 'auto'.
+
+        Raises:
+            NotImplementedError: If attempting to fit Dataset using
+            non-vectorized normalizer.
+
+            errors.NormalizerError: If unrecognized arguments are provided.
+        """
         if (len(args)
            and isinstance(args[0], Dataset)
            and self.method in ('reinhard', 'reinhard_fast')):
             # Set up thread pool
             if num_threads == 'auto':
-                num_threads = os.cpu_count()
+                num_threads = os.cpu_count()  # type: ignore
             log.debug(f"Setting up pool (size={num_threads}) for norm fitting")
             log.debug(f"Using normalizer batch size of {batch_size}")
-            pool = mp.dummy.Pool(num_threads)
+            pool = mp.dummy.Pool(num_threads)  # type: ignore
 
             dataset = args[0]
             if sf.backend() == 'tensorflow':
@@ -127,8 +163,9 @@ class StainNormalizer:
             self.n.target_stds = np.array(stds).mean(axis=0)
 
         elif len(args) and isinstance(args[0], Dataset):
-            msg = f"Dataset fitting not supported for method '{self.method}'."
-            raise NotImplementedError(msg)
+            raise NotImplementedError(
+                f"Dataset fitting not supported for method '{self.method}'."
+            )
 
         elif len(args) and isinstance(args[0], np.ndarray) and len(args) == 1:
             self.n.fit(args[0])
@@ -151,12 +188,12 @@ class StainNormalizer:
 
         else:
             raise errors.NormalizerError(f'Unrecognized args for fit: {args}')
+        log.info(
+            f"Fit normalizer to mean {self.target_means}"
+            f", stddev {self.target_stds}"
+        )
 
-        fit_msg = f"Fit normalizer to mean {self.target_means}"
-        fit_msg += f", stddev {self.target_stds}"
-        log.info(fit_msg)
-
-    def get_fit(self):
+    def get_fit(self) -> Dict[str, Optional[List[float]]]:
         return {
             'target_means': self.n.target_means.tolist(),
             'target_stds': self.n.target_stds.tolist(),
@@ -164,12 +201,11 @@ class StainNormalizer:
             'target_concentrations': self.n.target_concentrations.tolist()
         }
 
-    def batch_to_batch(self, *args):
-        msg = "Vectorized functions not available for StainNormalizer "
-        msg += f"(method={self.method})"
-        raise NotImplementedError(msg)
-
-    def tf_to_tf(self, image, *args):
+    def tf_to_tf(
+        self,
+        image: Union[Dict, "tf.Tensor"],
+        *args: Any
+    ) -> Tuple[Union[Dict, "tf.Tensor"], ...]:
         if isinstance(image, dict):
             image['tile_image'] = tf.py_function(
                 self.tf_to_rgb,
@@ -180,16 +216,16 @@ class StainNormalizer:
             image = tf.py_function(self.tf_to_rgb, [image], tf.int32)
         return tuple([image] + list(args))
 
-    def tf_to_rgb(self, image):
+    def tf_to_rgb(self, image: "tf.Tensor") -> np.ndarray:
         '''Non-normalized tensorflow RGB array -> normalized RGB numpy array'''
         return self.rgb_to_rgb(np.array(image))
 
-    def rgb_to_rgb(self, image):
+    def rgb_to_rgb(self, image: np.ndarray) -> np.ndarray:
         '''Non-normalized RGB numpy array -> normalized RGB numpy array'''
         cv_image = self.n.transform(image)
         return cv_image
 
-    def jpeg_to_rgb(self, jpeg_string):
+    def jpeg_to_rgb(self, jpeg_string: Union[str, bytes]) -> np.ndarray:
         '''Non-normalized compressed JPG data -> normalized RGB numpy array'''
         cv_image = cv2.imdecode(
             np.fromstring(jpeg_string, dtype=np.uint8),
@@ -198,12 +234,18 @@ class StainNormalizer:
         cv_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB)
         return self.n.transform(cv_image)
 
-    def png_to_rgb(self, png_string):
+    def png_to_rgb(self, png_string: Union[str, bytes]) -> np.ndarray:
         '''Non-normalized compressed PNG data -> normalized RGB numpy array'''
         return self.jpeg_to_rgb(png_string)  # It should auto-detect format
 
-    def jpeg_to_jpeg(self, jpeg_string, quality=75):
-        '''Non-normalized compressed JPG string data -> normalized compressed JPG data'''  # noqa F401
+    def jpeg_to_jpeg(
+        self,
+        jpeg_string: Union[str, bytes],
+        quality: int = 75
+    ) -> bytes:
+        '''Non-normalized compressed JPG string data -> normalized
+        compressed JPG data
+        '''
         cv_image = self.jpeg_to_rgb(jpeg_string)
         with BytesIO() as output:
             Image.fromarray(cv_image).save(
@@ -213,7 +255,7 @@ class StainNormalizer:
             )
             return output.getvalue()
 
-    def png_to_png(self, png_string):
+    def png_to_png(self, png_string: Union[str, bytes]) -> bytes:
         '''Non-normalized PNG string data -> normalized PNG string data'''
         cv_image = self.png_to_rgb(png_string)
         with BytesIO() as output:
@@ -221,19 +263,20 @@ class StainNormalizer:
             return output.getvalue()
 
 
-def autoselect(method, source=None, prefer_vectorized=True):
+def autoselect(
+    method: str,
+    source: Optional[str] = None,
+    prefer_vectorized: bool = True
+) -> StainNormalizer:
     '''Auto-selects best normalizer based on method,
     choosing backend-appropriate vectorized normalizer if available.
     '''
-
     if sf.backend() == 'tensorflow' and prefer_vectorized:
-        from slideflow.norm.tensorflow import TensorflowStainNormalizer as VectorizedNormalizer  # noqa F401
+        from slideflow.norm.tensorflow import TensorflowStainNormalizer
+        if method in TensorflowStainNormalizer.normalizers:
+            return TensorflowStainNormalizer(method, source)
     elif sf.backend() == 'torch' and prefer_vectorized:
-        from slideflow.norm.torch import TorchStainNormalizer as VectorizedNormalizer  # noqa F401
-    elif prefer_vectorized:
-        raise errors.BackendError(f"Unknown backend {sf.backend()}")
-
-    if prefer_vectorized and method in VectorizedNormalizer.normalizers:
-        return VectorizedNormalizer(method, source)
-    else:
-        return StainNormalizer(method, source)
+        from slideflow.norm.torch import TorchStainNormalizer
+        if method in TorchStainNormalizer.normalizers:
+            return TorchStainNormalizer(method, source)
+    return StainNormalizer(method, source)

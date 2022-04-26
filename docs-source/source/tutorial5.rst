@@ -115,7 +115,7 @@ Layer activations calculated on very large datasets may result in high memory us
       max_tiles=100
     )
 
-This function will return an instance of :class:`slideflow.model.DatasetFeatures`, which contains tile-level predictions (in ``DatasetFeatures.logits``), tile X,Y locations from their respective slides (in ``DatasetFeatures.locations``), layer activations (in ``DatasetFeatures.activations``), and uncertainty (if applicable, in ``DatasetFeatures.uncertainty``).
+This function will return an instance of :class:`slideflow.DatasetFeatures`, which contains tile-level predictions (in ``DatasetFeatures.logits``), tile X,Y locations from their respective slides (in ``DatasetFeatures.locations``), layer activations (in ``DatasetFeatures.activations``), and uncertainty (if applicable, in ``DatasetFeatures.uncertainty``).
 
 
 Create the mosaic map

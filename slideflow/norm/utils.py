@@ -12,6 +12,7 @@ from __future__ import division
 import numpy as np
 import cv2 as cv
 import spams
+from typing import Optional, Tuple
 
 
 ######################################
@@ -115,3 +116,9 @@ class BaseNormalizer:
         self.target_stds = None
         self.stain_matrix_target = None
         self.target_concentrations = None
+
+    def fit(self, target: np.ndarray) -> Optional[Tuple[np.ndarray, np.ndarray]]:
+        pass
+
+    def transform(self, I: np.ndarray) -> np.ndarray:
+        pass

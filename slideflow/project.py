@@ -18,7 +18,7 @@ from slideflow.dataset import Dataset
 from slideflow.model import ModelParams
 from slideflow.util import log, path_to_name, Path
 from slideflow.util import colors as col
-from slideflow.project_utils import get_validation_settings
+from slideflow.project_utils import get_validation_settings, auto_dataset
 
 if TYPE_CHECKING:
     from slideflow.model import Trainer, DatasetFeatures
@@ -50,8 +50,7 @@ class Project:
 
     """
 
-    def __init__(self, root: Path, use_neptune: bool = False,
-                 **kwargs: Any) -> None:
+    def __init__(self, root: str, use_neptune: bool = False, **kwargs) -> None:
         """Initializes project at the specified project folder, creating a new
         project using the specified kwargs if one does not already exist.
         Will create a blank annotations with slide names if one does not exist.
@@ -113,7 +112,7 @@ class Project:
         self.use_neptune = use_neptune
 
     @classmethod
-    def from_prompt(cls, root: Path, **kwargs: Any) -> "Project":
+    def from_prompt(cls, root: str, **kwargs: Any) -> "Project":
         """Initializes project by creating project folder, prompting user for
         project settings, and saving to "settings.json" in project directory.
 
@@ -252,10 +251,15 @@ class Project:
         """Converts relative path within project directory to global path."""
         return sf.util.relative_path(path, self.root)
 
-    def _setup_labels(self, dataset: Dataset, hp: ModelParams,
-                      outcomes: List[str], config: Dict, splits: Path,
-                      eval_k_fold: Optional[int] = None
-                      ) -> Tuple[Dataset, Dict, Union[Dict, List]]:
+    def _setup_labels(
+        self,
+        dataset: Dataset,
+        hp: ModelParams,
+        outcomes: List[str],
+        config: Dict,
+        splits: Path,
+        eval_k_fold: Optional[int] = None
+    ) -> Tuple[Dataset, Dict, Union[Dict, List]]:
         '''Prepares dataset and labels.'''
 
         # Assign labels into int
@@ -309,28 +313,26 @@ class Project:
         else:
             return dataset, labels, unique
 
-    def _prepare_trainer(self, model: Path,
-                         outcomes: Optional[Union[str, List[str]]] = None,
-                         dataset: Optional[Dataset] = None,
-                         filters: Optional[Dict] = None,
-                         checkpoint: Optional[Path] = None,
-                         eval_k_fold: Optional[int] = None,
-                         splits: str = "splits.json", max_tiles: int = 0,
-                         min_tiles: int = 0, mixed_precision: bool = True,
-                         input_header: Optional[Union[str, List[str]]] = None
-                         ) -> Tuple[Trainer, Dataset]:
-
+    def _prepare_trainer(
+        self,
+        model: Path,
+        dataset: Dataset,
+        outcomes: Optional[Union[str, List[str]]] = None,
+        checkpoint: Optional[Path] = None,
+        eval_k_fold: Optional[int] = None,
+        splits: str = "splits.json",
+        max_tiles: int = 0,
+        mixed_precision: bool = True,
+        input_header: Optional[Union[str, List[str]]] = None
+    ) -> Tuple["Trainer", Dataset]:
         """Prepares a :class:`slideflow.model.Trainer` for eval or prediction.
 
         Args:
             model (str): Path to model to evaluate.
             outcomes (str): Str or list of str. Annotation column
                 header specifying the outcome label(s).
-            dataset (:class:`slideflow.dataset.Dataset`, optional): Dataset
-                from which to generate activations. If not supplied, uses all
-                data available in a project.
-            filters (dict, optional): Filters to use when selecting tfrecords.
-                Defaults to None.
+            dataset (:class:`slideflow.dataset.Dataset`): Dataset
+                from which to generate activations.
             checkpoint (str, optional): Path to cp.ckpt file, if evaluating
                 saved checkpoint. Defaults to None.
             eval_k_fold (int, optional): K-fold iteration number to evaluate.
@@ -340,8 +342,6 @@ class Project:
                 Defaults to "splits.json".
             max_tiles (int, optional): Maximum number of tiles from each slide
                 to evaluate. Defaults to 0 (include all tiles).
-            min_tiles (int, optional): Min number of tiles a slide must have
-                to be included in evaluation. Defaults to 0.
             input_header (str, optional): Annotation column header to use as
                 additional input. Defaults to None.
             permutation_importance (bool, optional): Determines relative
@@ -381,13 +381,6 @@ class Project:
         if input_header is not None:
             filter_blank += input_header
 
-        # Load dataset and annotations for evaluation
-        if dataset is None:
-            dataset = self.dataset(tile_px=hp.tile_px, tile_um=hp.tile_um)
-            dataset = dataset.filter(filters=filters, min_tiles=min_tiles)
-        else:
-            dataset._assert_size_matches_hp(hp)
-
         # Set up outcome labels
         if not predicting:
             dataset = dataset.filter(filter_blank=filter_blank)
@@ -417,9 +410,10 @@ class Project:
         n_feat = 0 if feature_sizes is None else sum(feature_sizes)
         if feature_sizes and n_feat != sum(config['input_feature_sizes']):
             n_model_feat = sum(config['input_feature_sizes'])
-            msg = f'Patient feature matrix (size {n_feat}) '
-            msg += f'is different from model (size {n_model_feat}).'
-            raise Exception(msg)
+            raise ValueError(
+                f'Patient feature matrix (size {n_feat}) '
+                f'is different from model (size {n_model_feat}).'
+            )
 
         # Log model settings and hyperparameters
         if hp.model_type() == 'categorical':
@@ -459,13 +453,13 @@ class Project:
             'validation_fraction': config['validation_fraction'],
             'validation_k_fold': config['validation_k_fold'],
             'k_fold_i': eval_k_fold,
-            'filters': filters,
+            'filters': dataset.filters,
             'pretrain': None,
             'resume_training': None,
             'checkpoint': checkpoint,
             'hp': hp.get_dict(),
             'max_tiles': max_tiles,
-            'min_tiles': min_tiles,
+            'min_tiles': dataset.min_tiles,
         }
         if 'norm_fit' in config:
             eval_config.update({'norm_fit': config['norm_fit']})
@@ -500,15 +494,24 @@ class Project:
 
         return trainer, eval_dts
 
-    def _train_hp(self, hp_name: str, hp: ModelParams,
-                  outcomes: List[str], val_settings: SimpleNamespace,
-                  ctx: multiprocessing.context.BaseContext,
-                  filters: Optional[Dict],
-                  filter_blank: Optional[Union[str, List[str]]],
-                  input_header: Optional[Union[str, List[str]]],
-                  min_tiles: int, max_tiles: int, mixed_precision: bool,
-                  splits: str, results_dict: Dict, training_kwargs: dict,
-                  balance_headers: Optional[Union[str, List[str]]]) -> None:
+    def _train_hp(
+        self,
+        hp_name: str,
+        hp: ModelParams,
+        outcomes: List[str],
+        val_settings: SimpleNamespace,
+        ctx: multiprocessing.context.BaseContext,
+        filters: Optional[Dict],
+        filter_blank: Optional[Union[str, List[str]]],
+        input_header: Optional[Union[str, List[str]]],
+        min_tiles: int,
+        max_tiles: int,
+        mixed_precision: bool,
+        splits: str,
+        results_dict: Dict,
+        training_kwargs: Dict,
+        balance_headers: Optional[Union[str, List[str]]]
+    ) -> None:
         '''Trains a model(s) using the specified hyperparameters.
 
         Args:
@@ -571,7 +574,8 @@ class Project:
         # create a merged variable for k-fold splitting
         if hp.model_type() == 'categorical' and len(outcomes) > 1:
             split_labels = {
-                k: '-'.join(map(str, v)) for k, v in labels.items()
+                k: '-'.join(map(str, v))  # type: ignore
+                for k, v in labels.items()
             }
         else:
             split_labels = labels  # type: ignore
@@ -647,8 +651,13 @@ class Project:
                 )
         log.info(f'Training results saved to {col.green(results_log_path)}')
 
-    def _train_split(self, dataset: Dataset, hp: ModelParams,
-                     val_settings: SimpleNamespace, s_args: SimpleNamespace):
+    def _train_split(
+        self,
+        dataset: Dataset,
+        hp: ModelParams,
+        val_settings: SimpleNamespace,
+        s_args: SimpleNamespace
+    ) -> None:
         '''Trains a model for a given training/validation split.
 
         Args:
@@ -701,7 +710,10 @@ class Project:
         # Otherwise, calculate k-fold splits
         else:
             if val_settings.strategy == 'k-fold-preserved-site':
-                site_labels = dataset.labels(s_args.k_header, format='name')[0]  # type: Any
+                site_labels = dataset.labels(
+                    s_args.k_header,
+                    format='name'
+                )[0]  # type: Any
             else:
                 site_labels = None
             train_dts, val_dts = dataset.train_val_split(
@@ -810,8 +822,16 @@ class Project:
         log.debug(f'Spawning training process (PID: {process.pid})')
         process.join()
 
-    def add_source(self, name: str, slides: str, roi: str, tiles: str,
-                   tfrecords: str, path: Optional[str] = None) -> None:
+    def add_source(
+        self,
+        name: str,
+        *,
+        slides: str,
+        roi: str,
+        tiles: str,
+        tfrecords: str,
+        path: Optional[str] = None
+    ) -> None:
         """Adds a dataset source to the dataset configuration file.
 
         Args:
@@ -836,7 +856,10 @@ class Project:
         dataset = self.dataset(tile_px=0, tile_um=0, verification=None)
         dataset.update_annotations_with_slidenames(self.annotations)
 
-    def create_blank_annotations(self, filename: Optional[Path] = None) -> None:
+    def create_blank_annotations(
+        self,
+        filename: Optional[Path] = None
+    ) -> None:
         """Creates an empty annotations file.
 
         Args:
@@ -847,12 +870,13 @@ class Project:
         if filename is None:
             filename = self.annotations
         if exists(filename):
-            msg = f"Error creating annotations {filename}; file already exists"
-            raise errors.AnnotationsError(msg)
+            raise errors.AnnotationsError(
+                f"Error creating annotations {filename}; file already exists"
+            )
         if not exists(self.dataset_config):
-            msg = f"Dataset config {self.dataset_config} missing."
-            raise errors.AnnotationsError(msg)
-
+            raise errors.AnnotationsError(
+                f"Dataset config {self.dataset_config} missing."
+            )
         dataset = Dataset(
             config=self.dataset_config,
             sources=self.sources,
@@ -860,7 +884,6 @@ class Project:
             tile_um=None,
             annotations=None
         )
-
         all_paths = dataset.slide_paths(apply_filters=False)
         slides = [path_to_name(s) for s in all_paths]
         with open(filename, 'w') as csv_outfile:
@@ -871,8 +894,12 @@ class Project:
                 csv_writer.writerow([slide, '', ''])
         log.info(f"Wrote annotations file to {col.green(filename)}")
 
-    def create_hp_sweep(self, filename: Path = 'sweep.json',
-                        label: Optional[str] = None, **kwargs: Any) -> None:
+    def create_hp_sweep(
+        self,
+        filename: Path = 'sweep.json',
+        label: Optional[str] = None,
+        **kwargs: Any
+    ) -> None:
         """Prepares a hyperparameter sweep, saving to a batch train TSV file.
 
         Args:
@@ -903,19 +930,29 @@ class Project:
         log.info(f'Wrote hp sweep (len {len(sweep)}) to {col.green(filename)}')
 
     def create_hyperparameter_sweep(self, *args: Any, **kwargs: Any) -> None:
-        log.warn("Project.create_hyperparameter_sweep() -> create_hp_sweep()")
+        log.warn(
+            "Deprecation warning: Project.create_hyperparameter_sweep() will"
+            " be removed in slideflow>=1.2. Use Project.create_hp_sweep()."
+        )
         self.create_hp_sweep(*args, **kwargs)
 
-    def evaluate(self, model: Path, outcomes: Union[str, List[str]],
-                 dataset: Optional[Dataset] = None,
-                 filters: Optional[Dict] = None,
-                 checkpoint: Optional[Path] = None,
-                 eval_k_fold: Optional[int] = None,
-                 splits: str = "splits.json", max_tiles: int = 0,
-                 min_tiles: int = 0, mixed_precision: bool = True,
-                 input_header: Optional[Union[str, List[str]]] = None,
-                 **kwargs: Any) -> Dict:
-
+    @auto_dataset
+    def evaluate(
+        self,
+        model: Path,
+        outcomes: Union[str, List[str]], *,
+        dataset: Dataset,
+        filters: Optional[Dict] = None,
+        filter_blank: Optional[Union[str, List[str]]] = None,
+        min_tiles: int = 0,
+        checkpoint: Optional[Path] = None,
+        eval_k_fold: Optional[int] = None,
+        splits: str = "splits.json",
+        max_tiles: int = 0,
+        mixed_precision: bool = True,
+        input_header: Optional[Union[str, List[str]]] = None,
+        **kwargs: Any
+    ) -> Dict:
         """Evaluates a saved model on a given set of tfrecords.
 
         Args:
@@ -963,14 +1000,12 @@ class Project:
 
         trainer, eval_dts = self._prepare_trainer(
             model=model,
-            outcomes=outcomes,
             dataset=dataset,
-            filters=filters,
+            outcomes=outcomes,
             checkpoint=checkpoint,
             eval_k_fold=eval_k_fold,
             splits=splits,
             max_tiles=max_tiles,
-            min_tiles=min_tiles,
             input_header=input_header,
             mixed_precision=mixed_precision
         )
@@ -978,13 +1013,19 @@ class Project:
         log.info(f'Evaluating {len(eval_dts.tfrecords())} tfrecords')
         return trainer.evaluate(eval_dts, **kwargs)
 
-    def evaluate_clam(self, exp_name: str, pt_files: Path,
-                      outcomes: Union[str, List[str]], tile_px: int,
-                      tile_um: int, k: int = 0, eval_tag: Optional[str] = None,
-                      filters: Optional[Dict] = None,
-                      filter_blank: Optional[Union[str, List[str]]] = None,
-                      attention_heatmaps: bool = True) -> None:
-        """Evaluate CLAM model on saved activations & export attention heatmaps.
+    def evaluate_clam(
+        self,
+        exp_name: str,
+        pt_files: Path,
+        outcomes: Union[str, List[str]],
+        tile_px: int,
+        tile_um: int, *, k: int = 0,
+        eval_tag: Optional[str] = None,
+        filters: Optional[Dict] = None,
+        filter_blank: Optional[Union[str, List[str]]] = None,
+        attention_heatmaps: bool = True
+    ) -> None:
+        """Evaluate CLAM model on activations and export attention heatmaps.
 
         Args:
             exp_name (str): Name of experiment to evaluate (subfolder in clam/)
@@ -1115,18 +1156,20 @@ class Project:
                 except FileNotFoundError:
                     print(f'No attention scores for slide {slide}, skipping')
                     continue
-                self.generate_tfrecord_heatmap(
+                dataset.tfrecord_heatmap(
                     tfr,
-                    tile_px=tile_px,
-                    tile_um=tile_um,
                     tile_dict=attention_dict,
                     outdir=heatmaps_dir
                 )
 
-    def extract_tiles(self, tile_px: int, tile_um: int,
-                      filters: Optional[Dict] = None,
-                      filter_blank: Optional[Union[str, List[str]]] = None,
-                      **kwargs: Any) -> None:
+    def extract_tiles(
+        self,
+        tile_px: int,
+        tile_um: int, *,
+        filters: Optional[Dict] = None,
+        filter_blank: Optional[Union[str, List[str]]] = None,
+        **kwargs: Any
+    ) -> None:
         """Extracts tiles from slides. Preferred use is calling
         :func:`slideflow.dataset.Dataset.extract_tiles` on a
         :class:`slideflow.dataset.Dataset` directly.
@@ -1210,7 +1253,6 @@ class Project:
             dry_run (bool, optional): Determine tiles that would be extracted,
                 but do not export any images. Defaults to None.
         """
-
         dataset = self.dataset(
             tile_px,
             tile_um,
@@ -1220,13 +1262,19 @@ class Project:
         )
         dataset.extract_tiles(**kwargs)
 
-    def generate_features(self, model: Path, dataset: Optional[Dataset] = None,
-                          filters: Optional[Dict] = None,
-                          filter_blank: Optional[Union[str, List[str]]] = None,
-                          min_tiles: int = 0, max_tiles: int = 0,
-                          outcomes: Optional[List[str]] = None,
-                          torch_export: Optional[Path] = None, **kwargs: Any
-                          ) -> "pd.DataFrame":
+    @auto_dataset
+    def generate_features(
+        self, model: Path,
+        *,
+        dataset: Dataset,
+        filters: Optional[Dict] = None,
+        filter_blank: Optional[Union[str, List[str]]] = None,
+        min_tiles: int = 0,
+        max_tiles: int = 0,
+        outcomes: Optional[List[str]] = None,
+        torch_export: Optional[str] = None,
+        **kwargs: Any
+    ) -> sf.DatasetFeatures:
         """Calculate layer features / activations.
 
         Args:
@@ -1261,56 +1309,36 @@ class Project:
                 Defaults to 32.
 
         Returns:
-            :class:`slideflow.model.DatasetFeatures`:
+            :class:`slideflow.DatasetFeatures`:
         """
-
-        # Setup directories
-        stats_root = join(self.root, 'stats')
-        if not exists(stats_root):
-            os.makedirs(stats_root)
-
-        # Load dataset for evaluation
-        config = sf.util.get_model_config(model)
-        if dataset is None:
-            dataset = self.dataset(
-                tile_px=config['hp']['tile_px'],
-                tile_um=config['hp']['tile_um'],
-                filters=filters,
-                filter_blank=filter_blank
-            )
-        else:
-            dataset._assert_size_matches_hp(config['hp'])
-
         # Prepare dataset and annotations
-        dataset = dataset.filter(
-            filters=filters,
-            filter_blank=filter_blank,
-            min_tiles=min_tiles
-        )
         dataset = dataset.clip(max_tiles)
         if outcomes is not None:
-            outcome_annotations = dataset.labels(outcomes, format='name')[0]
+            labels = dataset.labels(outcomes, format='name')[0]
         else:
-            outcome_annotations = None
-
-        df = sf.model.DatasetFeatures(model=model,
-                                      dataset=dataset,
-                                      annotations=outcome_annotations,
-                                      manifest=dataset.manifest(),
-                                      **kwargs)
+            labels = None
+        df = sf.DatasetFeatures(model=model,
+                                dataset=dataset,
+                                annotations=labels,
+                                **kwargs)
         if torch_export:
             df.export_to_torch(torch_export)
         return df
 
-    def generate_features_for_clam(self, model: Path, outdir: str = 'auto',
-                                   layers: Union[str, List[str]] = 'postconv',
-                                   max_tiles: int = 0, min_tiles: int = 16,
-                                   filters: Optional[Dict] = None,
-                                   filter_blank: Optional[
-                                                    Union[str, List[str]]
-                                                 ] = None,
-                                   force_regenerate: bool = False) -> str:
-
+    @auto_dataset
+    def generate_features_for_clam(
+        self,
+        model: Path,
+        outdir: str = 'auto',
+        *,
+        dataset: Dataset,
+        min_tiles: int = 16,
+        filters: Optional[Dict] = None,
+        filter_blank: Optional[Union[str, List[str]]] = None,
+        layers: Union[str, List[str]] = 'postconv',
+        max_tiles: int = 0,
+        force_regenerate: bool = False
+    ) -> str:
         """Generate tile-level features for slides for use with CLAM.
 
         Args:
@@ -1337,11 +1365,12 @@ class Project:
 
         if min_tiles < 8:
             raise ValueError('Slides must have at >=8 tiles to train CLAM.')
+        if min_tiles != dataset.min_tiles:
+            dataset = dataset.filter(min_tiles=min_tiles)
+        dataset = dataset.clip(max_tiles)
 
         # First, ensure the model is valid with a hyperparameters file
         config = sf.util.get_model_config(model)
-        tile_px = config['tile_px']
-        tile_um = config['tile_um']
 
         # Set up the pt_files directory for storing model activations
         if outdir.lower() == 'auto':
@@ -1359,16 +1388,8 @@ class Project:
             if sf.util.path_to_ext(join(outdir, f)) == 'pt'
         ]
 
-        if force_regenerate or not len(done):
-            activation_filters = filters
-        else:
-            pt_dataset = self.dataset(
-                tile_px,
-                tile_um,
-                filters=filters,
-                filter_blank=filter_blank
-            )
-            all_slides = pt_dataset.slides()
+        if not force_regenerate and len(done):
+            all_slides = dataset.slides()
             slides_to_generate = [s for s in all_slides if s not in done]
             if len(slides_to_generate) != len(all_slides):
                 to_skip = len(all_slides) - len(slides_to_generate)
@@ -1377,42 +1398,48 @@ class Project:
             if not slides_to_generate:
                 log.warn("No slides to generate CLAM features.")
                 return outdir
-            activation_filters = {} if filters is None else filters.copy()
-            activation_filters['slide'] = slides_to_generate
-            filtered_dataset = self.dataset(
-                tile_px,
-                tile_um,
-                filters=activation_filters,
-                filter_blank=filter_blank
-            )
-            filtered_slides_to_generate = filtered_dataset.slides()
+            dataset = dataset.filter(filters={'slide': slides_to_generate})
+            filtered_slides_to_generate = dataset.slides()
             log.info(f'Skipping {len(done)} files already done.')
             log.info(f'Working on {len(filtered_slides_to_generate)} slides')
 
         # Set up activations interface
-        self.generate_features(model,
-                               filters=activation_filters,
-                               filter_blank=filter_blank,
-                               layers=layers,
-                               max_tiles=max_tiles,
-                               min_tiles=min_tiles,
-                               torch_export=outdir,
-                               include_logits=False,
-                               cache=None)
+        df = sf.DatasetFeatures(
+            model=model,
+            dataset=dataset,
+            layers=layers,
+            include_logits=False,
+        )
+        df.export_to_torch(outdir)
         return outdir
 
-    def generate_heatmaps(self, model: Path, filters: Optional[Dict] = None,
-                          filter_blank: Optional[Union[str, List[str]]] = None,
-                          outdir: Optional[str] = None, resolution: str = 'low',
-                          batch_size: int = 32, roi_method: str = 'inside',
-                          buffer: Optional[Path] = None,
-                          num_threads: Optional[int] = None,
-                          skip_completed: bool = False, **kwargs: Any) -> None:
-
+    @auto_dataset
+    def generate_heatmaps(
+        self,
+        model: Path,
+        *,
+        dataset: Dataset,
+        filters: Optional[Dict] = None,
+        filter_blank: Optional[Union[str, List[str]]] = None,
+        min_tiles: int = 0,
+        outdir: Optional[str] = None,
+        resolution: str = 'low',
+        batch_size: int = 32,
+        roi_method: str = 'inside',
+        buffer: Optional[Path] = None,
+        num_threads: Optional[int] = None,
+        skip_completed: bool = False,
+        **kwargs: Any
+    ) -> None:
         """Creates predictive heatmap overlays on a set of slides.
 
         Args:
             model (str): Path to Tensorflow model.
+            dataset (:class:`slideflow.dataset.Dataset`, optional): Dataset
+                from which to generate predictions. If not supplied, will
+                generate predictions for all project tfrecords at the
+                tile_px/tile_um matching the model, optionally using provided
+                filters and filter_blank.
             filters (dict, optional): Filters to use when selecting tfrecords.
                 Defaults to None.
             filter_blank (list, optional): Exclude slides blank in these cols.
@@ -1462,14 +1489,9 @@ class Project:
         heatmap_args = SimpleNamespace(**locals())
         del heatmap_args.self
 
-        # Prepare dataset1
+        # Prepare dataset
         config = sf.util.get_model_config(model)
-        heatmaps_dataset = self.dataset(filters=filters,
-                                        filter_blank=filter_blank,
-                                        tile_px=config['hp']['tile_px'],
-                                        tile_um=config['hp']['tile_um'])
-        slide_list = heatmaps_dataset.slide_paths()
-        heatmap_args.rois = heatmaps_dataset.rois()
+        heatmap_args.rois = dataset.rois()
 
         # Set resolution / stride
         resolutions = {'low': 1, 'medium': 2, 'high': 4}
@@ -1496,7 +1518,7 @@ class Project:
         # I suspect this is a libvips or openslide issue but I haven't been
         # able to identify the root cause. Isolating processes when multiple
         # slides are to be processed sequentially is a functional workaround.
-        for slide in slide_list:
+        for slide in dataset.slide_paths():
             name = path_to_name(slide)
             if (skip_completed and exists(join(outdir, f'{name}-custom.png'))):
                 log.info(f'Skipping completed heatmap for slide {name}')
@@ -1508,19 +1530,24 @@ class Project:
             process.start()
             process.join()
 
-    def generate_mosaic(self, df: "DatasetFeatures",
-                        dataset: Optional[Dataset] = None,
-                        filters: Optional[Dict] = None,
-                        filter_blank: Optional[Union[str, List[str]]] = None,
-                        outcomes: Optional[Union[str, List[str]]] = None,
-                        map_slide: Optional[str] = None,
-                        show_prediction: Optional[Union[int, str]] = None,
-                        restrict_pred: Optional[List[int]] = None,
-                        predict_on_axes: Optional[List[int]] = None,
-                        max_tiles: int = 0, umap_cache: Optional[Path] = None,
-                        use_float: bool = False, low_memory: bool = False,
-                        use_norm: bool = True, **kwargs: Any) -> sf.Mosaic:
-
+    def generate_mosaic(
+        self,
+        df: "DatasetFeatures", *,
+        dataset: Optional[Dataset] = None,
+        filters: Optional[Dict] = None,
+        filter_blank: Optional[Union[str, List[str]]] = None,
+        outcomes: Optional[Union[str, List[str]]] = None,
+        map_slide: Optional[str] = None,
+        show_prediction: Optional[Union[int, str]] = None,
+        restrict_pred: Optional[List[int]] = None,
+        predict_on_axes: Optional[List[int]] = None,
+        max_tiles: int = 0,
+        umap_cache: Optional[Path] = None,
+        use_float: bool = False,
+        low_memory: bool = False,
+        use_norm: bool = True,
+        **kwargs: Any
+    ) -> sf.Mosaic:
         """Generates a mosaic map by overlaying images onto mapped tiles.
             Image tiles are extracted from the provided set of TFRecords, and
             predictions + features from layer activations are calculated using
@@ -1529,7 +1556,7 @@ class Project:
             two categories, mapped to X- and Y-axis (via predict_on_axes).
 
         Args:
-            df (:class:`slideflow.model.DatasetFeatures`): Dataset.
+            df (:class:`slideflow.DatasetFeatures`): Dataset.
             dataset (:class:`slideflow.dataset.Dataset`, optional): Dataset
                 from which to generate mosaic. If not supplied, will generate
                 mosaic for all tfrecords at the tile_px/tile_um matching
@@ -1617,7 +1644,7 @@ class Project:
                                        use_float=use_float,
                                        format='name')
         else:
-            labels = {}
+            labels = {}  # type: ignore
 
         # If showing predictions, try to automatically load prediction labels
         if (show_prediction is not None) and (not use_float):
@@ -1656,7 +1683,7 @@ class Project:
                 s_pred = df.logits_predict(restrict_pred)
                 s_perc = df.logits_percent(restrict_pred)
             else:
-                s_pred = s_perc = df.logits_mean()
+                s_pred = s_perc = df.logits_mean()  # type: ignore
 
             # If show_prediction is provided (either a number or string),
             # then display ONLY the prediction for the provided category
@@ -1678,8 +1705,9 @@ class Project:
                 show_prediction = None
             elif use_float:
                 # Displaying linear predictions needs to be implemented here
-                msg = "Showing slide preds not supported for linear outcomes."
-                raise NotImplementedError(msg)
+                raise NotImplementedError(
+                    "Showing slide preds not supported for linear outcomes."
+                )
             # Otherwise, show_prediction is assumed to be just "True",
             # in which case show categorical predictions
             else:
@@ -1707,19 +1735,21 @@ class Project:
         )
         return mosaic
 
-    def generate_mosaic_from_annotations(self, header_x: str, header_y: str,
-                                         dataset: Dataset,
-                                         model: Optional[Path] = None,
-                                         outcomes: Optional[
-                                                        Union[str, List[str]]
-                                                   ] = None,
-                                         max_tiles: int = 100,
-                                         use_optimal_tile: bool = False,
-                                         cache: Optional[Path] = None,
-                                         batch_size: int = 32, **kwargs: Any
-                                         ) -> sf.Mosaic:
-
-        """Generates mosaic map by overlaying images onto a set of mapped tiles.
+    def generate_mosaic_from_annotations(
+        self,
+        header_x: str,
+        header_y: str,
+        *,
+        dataset: Dataset,
+        model: Optional[Path] = None,
+        outcomes: Optional[Union[str, List[str]]] = None,
+        max_tiles: int = 100,
+        use_optimal_tile: bool = False,
+        cache: Optional[str] = None,
+        batch_size: int = 32,
+        **kwargs: Any
+    ) -> sf.Mosaic:
+        """Generates mosaic map by overlaying images onto mapped tiles.
             Slides are mapped with slide-level annotations, x-axis determined
             from header_x, y-axis from header_y. If use_optimal_tile is False
             and no model is provided, tje first image tile in each TFRecord
@@ -1777,18 +1807,20 @@ class Project:
         # & some slides may be in the annotations but are missing a slide)
         slides = [path_to_name(tfr) for tfr in dataset.tfrecords()]
         labels, _ = dataset.labels([header_x, header_y], use_float=True)
+        umap_x = np.array([labels[slide][0]  # type: ignore
+                           for slide in slides])
+        umap_y = np.array([labels[slide][1]  # type: ignore
+                           for slide in slides])
 
-        umap_x = np.array([labels[slide][0] for slide in slides])  # type: ignore
-        umap_y = np.array([labels[slide][1] for slide in slides])  # type: ignore
-
-        if use_optimal_tile and not model:
+        if use_optimal_tile and model is None:
             raise ValueError("Optimal tile calculation requires a model.")
         elif use_optimal_tile:
             # Calculate most representative tile in each TFRecord for display
-            df = sf.model.DatasetFeatures(model=model,
-                                          dataset=dataset,
-                                          batch_size=batch_size,
-                                          cache=cache)
+            assert model is not None
+            df = sf.DatasetFeatures(model=model,
+                                    dataset=dataset,
+                                    batch_size=batch_size,
+                                    cache=cache)
             opt_ind, _ = sf.stats.calculate_centroid(df.activations)
 
             # Restrict mosaic to only slides that had enough tiles to
@@ -1831,14 +1863,16 @@ class Project:
         )
         return mosaic
 
-    def generate_thumbnails(self, size: int = 512,
-                            dataset: Optional[Dataset] = None,
-                            filters: Optional[Dict] = None,
-                            filter_blank: Optional[
-                                            Union[str, List[str]]
-                                          ] = None,
-                            roi: bool = False,
-                            enable_downsample: bool = True) -> None:
+    def generate_thumbnails(
+        self,
+        size: int = 512,
+        *,
+        dataset: Optional[Dataset] = None,
+        filters: Optional[Dict] = None,
+        filter_blank: Optional[Union[str, List[str]]] = None,
+        roi: bool = False,
+        enable_downsample: bool = True
+    ) -> None:
         """Generates square slide thumbnails with black borders of fixed size,
         and saves to project folder.
 
@@ -1860,41 +1894,31 @@ class Project:
                 embedded in the slide file, downsampling is permitted to
                 accelerate thumbnail calculation.
         """
-
-        from slideflow.slide import WSI
-        log.info('Generating thumbnails...')
-
+        log.warn(
+            "Deprecation warning: Project.generate_thumbnails() will "
+            "be moved to Dataset.thumbnails() in slideflow>=1.2"
+        )
         thumb_folder = join(self.root, 'thumbs')
         if not exists(thumb_folder):
             os.makedirs(thumb_folder)
         if dataset is None:
             dataset = self.dataset(tile_px=0, tile_um=0)
         dataset = dataset.filter(filters=filters, filter_blank=filter_blank)
-        slide_list = dataset.slide_paths()
-        rois = dataset.rois()
-        log.info(f'Saving thumbnails to {col.green(thumb_folder)}')
+        dataset.thumbnails(
+            thumb_folder,
+            size=size,
+            roi=roi,
+            enable_downsample=enable_downsample
+        )
 
-        for slide_path in slide_list:
-            fmt_name = col.green(path_to_name(slide_path))
-            log.info(f'Working on {fmt_name}...')
-            whole_slide = WSI(slide_path,
-                              tile_px=1000,
-                              tile_um=1000,
-                              stride_div=1,
-                              enable_downsample=enable_downsample,
-                              rois=rois,
-                              roi_method='inside',
-                              skip_missing_roi=roi)
-            if roi:
-                thumb = whole_slide.thumb(rois=True)
-            else:
-                thumb = whole_slide.square_thumb(size)
-            thumb.save(join(thumb_folder, f'{whole_slide.name}.png'))
-        log.info('Thumbnail generation complete.')
-
-    def generate_tfrecord_heatmap(self, tfrecord: Path, tile_px: int,
-                                  tile_um: int, tile_dict: Dict[int, float],
-                                  outdir: Optional[Path] = None) -> None:
+    def generate_tfrecord_heatmap(
+        self,
+        tfrecord: str,
+        tile_px: int,
+        tile_um: int,
+        tile_dict: Dict[int, float],
+        outdir: Optional[str] = None
+    ) -> None:
         """Creates a tfrecord-based WSI heatmap using a dictionary of tile
         values for heatmap display, saving to project root directory.
 
@@ -1904,36 +1928,28 @@ class Project:
                 tile-level value for display in heatmap format
             tile_px (int): Tile width in pixels
             tile_um (int): Tile width in microns
+            outdir (str, optional): Destination path to save heatmap.
 
         Returns:
-            Dictionary mapping slide names to dict of statistics
-                (mean, median, above_0, and above_1)
+            None
         """
-
-        name = path_to_name(tfrecord)
+        log.warn(
+            "Deprecation warning: Project.generate_tfrecord_heatmap() will "
+            "be moved to Dataset.tfrecord_heatmap() in slideflow>=1.2"
+        )
         dataset = self.dataset(tile_px=tile_px, tile_um=tile_um)
-        slide_paths = {
-            path_to_name(sp): sp for sp in dataset.slide_paths()
-        }
         if outdir is None:
             outdir = self.root
-        try:
-            slide_path = slide_paths[name]
-        except KeyError:
-            raise errors.SlideNotFoundError(f'Unable to find slide {name}')
-        sf.util.tfrecord_heatmap(
-            tfrecord=tfrecord,
-            slide=slide_path,
-            tile_px=tile_px,
-            tile_um=tile_um,
-            tile_dict=tile_dict,
-            outdir=outdir
-        )
+        dataset.tfrecord_heatmap(tfrecord, tile_dict, outdir)
 
-    def dataset(self, tile_px: Optional[int] = None,
-                tile_um: Optional[int] = None,
-                verification: Optional[str] = 'both',
-                **kwargs: Any) -> Dataset:
+    def dataset(
+        self,
+        tile_px: Optional[int] = None,
+        tile_um: Optional[int] = None,
+        *,
+        verification: Optional[str] = 'both',
+        **kwargs: Any
+    ) -> Dataset:
         """Returns :class:`slideflow.Dataset` object using project settings.
 
         Args:
@@ -1991,15 +2007,25 @@ class Project:
         else:
             raise errors.ProjectError('Unable to find settings.json.')
 
-    def predict(self, model: Path, dataset: Optional[Dataset] = None,
-                filters: Optional[Dict] = None,
-                checkpoint: Optional[Path] = None,
-                eval_k_fold: Optional[int] = None,
-                splits: str = "splits.json", max_tiles: int = 0,
-                min_tiles: int = 0, batch_size: int = 32,
-                input_header: Optional[Union[str, List[str]]] = None,
-                format: str = 'csv', mixed_precision: bool = True,
-                **kwargs: Any) -> "pd.DataFrame":
+    @auto_dataset
+    def predict(
+        self,
+        model: Path,
+        *,
+        dataset: Dataset,
+        filters: Optional[Dict] = None,
+        filter_blank: Optional[Union[str, List[str]]] = None,
+        min_tiles: int = 0,
+        checkpoint: Optional[Path] = None,
+        eval_k_fold: Optional[int] = None,
+        splits: str = "splits.json",
+        max_tiles: int = 0,
+        batch_size: int = 32,
+        format: str = 'csv',
+        input_header: Optional[Union[str, List[str]]] = None,
+        mixed_precision: bool = True,
+        **kwargs: Any
+    ) -> "pd.DataFrame":
         """Evaluates a saved model on a given set of tfrecords.
 
         Args:
@@ -2041,12 +2067,10 @@ class Project:
         trainer, eval_dts = self._prepare_trainer(
             model=model,
             dataset=dataset,
-            filters=filters,
             checkpoint=checkpoint,
             eval_k_fold=eval_k_fold,
             splits=splits,
             max_tiles=max_tiles,
-            min_tiles=min_tiles,
             input_header=input_header,
             mixed_precision=mixed_precision
         )
@@ -2058,15 +2082,25 @@ class Project:
         )
         return results
 
-    def predict_wsi(self, model: Path, outdir: Path,
-                    dataset: Optional[Dataset] = None,
-                    filters: Optional[Dict] = None,
-                    filter_blank: Optional[Union[str, List[str]]] = None,
-                    stride_div: int = 1, enable_downsample: bool = True,
-                    roi_method: str = 'inside', skip_missing_roi: bool = False,
-                    source: Optional[str] = None, img_format: str = 'auto',
-                    randomize_origin: bool = False, **kwargs: Any) -> None:
-
+    @auto_dataset
+    def predict_wsi(
+        self,
+        model: Path,
+        outdir: Path,
+        *,
+        dataset: Dataset,
+        filters: Optional[Dict] = None,
+        filter_blank: Optional[Union[str, List[str]]] = None,
+        min_tiles: int = 0,
+        stride_div: int = 1,
+        enable_downsample: bool = True,
+        roi_method: str = 'inside',
+        skip_missing_roi: bool = False,
+        source: Optional[str] = None,
+        img_format: str = 'auto',
+        randomize_origin: bool = False,
+        **kwargs: Any
+    ) -> None:
         """Using a given model, generates a map of tile-level predictions for a
             whole-slide image (WSI), dumping prediction arrays into pkl files
             for later use.
@@ -2124,17 +2158,13 @@ class Project:
             sources = [source] if not isinstance(source, list) else source
         else:
             sources = self.sources
-
+        if dataset.tile_px is None or dataset.tile_um is None:
+            raise errors.DatasetError(
+                "Dataset must have non-zero tile_px and tile_um"
+            )
         # Prepare dataset & model
-        config = sf.util.get_model_config(model)
-        if dataset is None:
-            tile_px, tile_um = config['hp']['tile_px'], config['hp']['tile_um']
-            dataset = self.dataset(tile_px, tile_um, verification='slides')
-        else:
-            dataset._assert_size_matches_hp(config['hp'])
-            tile_px = dataset.tile_px
-        dataset = dataset.filter(filters=filters, filter_blank=filter_blank)
         if img_format == 'auto':
+            config = sf.util.get_model_config(model)
             img_format = config['img_format']
 
         # Log extraction parameters
@@ -2153,8 +2183,8 @@ class Project:
             total_tiles = 0
             for slide_path in tqdm(slide_list, leave=False):
                 slide = sf.WSI(slide_path,
-                               tile_px,
-                               tile_um,
+                               dataset.tile_px,
+                               dataset.tile_um,
                                stride_div,
                                roi_dir=roi_dir,
                                roi_method=roi_method,
@@ -2169,8 +2199,8 @@ class Project:
             for slide_path in slide_list:
                 log.info(f'Working on slide {path_to_name(slide_path)}')
                 wsi = sf.WSI(slide_path,
-                             tile_px,
-                             tile_um,
+                             dataset.tile_px,
+                             dataset.tile_um,
                              stride_div,
                              enable_downsample=enable_downsample,
                              roi_dir=roi_dir,
@@ -2195,15 +2225,25 @@ class Project:
         """Saves current project configuration as "settings.json"."""
         sf.util.write_json(self._settings, join(self.root, 'settings.json'))
 
-    def train(self, outcomes: Union[str, List[str]], params: ModelParams,
-              exp_label: Optional[str] = None, filters: Optional[Dict] = None,
-              filter_blank: Optional[Union[str, List[str]]] = None,
-              input_header: Optional[Union[str, List[str]]] = None,
-              min_tiles: int = 0, max_tiles: int = 0,
-              splits: str = "splits.json", mixed_precision: bool = True,
-              balance_headers: Optional[Union[str, List[str]]] = None,
-              **training_kwargs: Any) -> Dict:
-
+    def train(
+        self,
+        outcomes: Union[str, List[str]],
+        params: Union[str,
+                      ModelParams,
+                      List[ModelParams],
+                      Dict[str, ModelParams]],
+        *,
+        exp_label: Optional[str] = None,
+        filters: Optional[Dict] = None,
+        filter_blank: Optional[Union[str, List[str]]] = None,
+        input_header: Optional[Union[str, List[str]]] = None,
+        min_tiles: int = 0,
+        max_tiles: int = 0,
+        splits: str = "splits.json",
+        mixed_precision: bool = True,
+        balance_headers: Optional[Union[str, List[str]]] = None,
+        **training_kwargs: Any
+    ) -> Dict:
         """Train model(s) using a given set of parameters, outcomes, and inputs.
 
         Args:
@@ -2331,17 +2371,20 @@ class Project:
             hp_dict = {'HP0': params}
         elif isinstance(params, list):
             if not all([isinstance(hp, ModelParams) for hp in params]):
-                msg = 'If params is a list, items must be sf.model.ModelParams'
-                raise errors.ModelParamsError(msg)
+                raise errors.ModelParamsError(
+                    'If params is a list, items must be sf.model.ModelParams'
+                )
             hp_dict = {f'HP{i}': hp for i, hp in enumerate(params)}
         elif isinstance(params, dict):
             if not all([isinstance(hp, str) for hp in params.keys()]):
-                msg = 'If params is a dict, keys must be of type str'
-                raise errors.ModelParamsError(msg)
+                raise errors.ModelParamsError(
+                    'If params is a dict, keys must be of type str'
+                )
             all_hp = params.values()
             if not all([isinstance(hp, ModelParams) for hp in all_hp]):
-                msg = 'If params is a dict, values must be sf.ModelParams'
-                raise errors.ModelParamsError(msg)
+                raise errors.ModelParamsError(
+                    'If params is a dict, values must be sf.ModelParams'
+                )
             hp_dict = params
         else:
             raise ValueError(f"Unable to interprest params value {params}")
@@ -2414,13 +2457,18 @@ class Project:
                         log.info(f'{m}: {final_val_metrics[m]}')
         return results_dict
 
-    def train_clam(self, exp_name: str, pt_files: Path,
-                   outcomes: Union[str, List[str]], dataset: Dataset,
-                   train_slides: Union[str, List[str]] = 'auto',
-                   val_slides: Union[str, List[str]] = 'auto',
-                   splits: str = 'splits.json',
-                   clam_args: Optional[SimpleNamespace] = None,
-                   attention_heatmaps: bool = True) -> None:
+    def train_clam(
+        self,
+        exp_name: str,
+        pt_files: Path,
+        outcomes: Union[str, List[str]],
+        dataset: Dataset,
+        train_slides: Union[str, List[str]] = 'auto',
+        val_slides: Union[str, List[str]] = 'auto',
+        splits: str = 'splits.json',
+        clam_args: Optional[SimpleNamespace] = None,
+        attention_heatmaps: bool = True
+    ) -> None:
         """Train a CLAM model from layer activations exported with
         :meth:`slideflow.project.generate_features_for_clam`.
 
@@ -2613,10 +2661,8 @@ class Project:
                     except FileNotFoundError:
                         print(f'Attention scores for slide {slide} not found')
                         continue
-                    self.generate_tfrecord_heatmap(
+                    dataset.tfrecord_heatmap(
                         att_tfr,
-                        tile_px=dataset.tile_px,  # type: ignore
-                        tile_um=dataset.tile_um,  # type: ignore
                         tile_dict=attention_dict,
                         outdir=heatmaps_dir
                     )

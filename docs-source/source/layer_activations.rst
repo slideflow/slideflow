@@ -6,12 +6,12 @@ Once a model has been fully trained and evaluated, you may use the model to gene
 Working with Layer Features
 ***************************
 
-To work with features / intermediate layer activations calculated from a model, the :class:`slideflow.model.Features` class will generate features on a tile or slide level, and the :class:`slideflow.model.DatasetFeatures` class will generate features for an entire dataset.
+To work with features / intermediate layer activations calculated from a model, the :class:`slideflow.model.Features` class will generate features on a tile or slide level, and the :class:`slideflow.DatasetFeatures` class will generate features for an entire dataset.
 
 DatasetFeatures
 ---------------
 
-The easiest way to get started with intermediate layer activations is the :class:`slideflow.model.DatasetFeatures` class, which is used to calculate and examine activations across an entire dataset. Instancing the class supervises the calculation and caching of layer activations, which can then be exported, viewed (as a mosaic map), or analyzed with various statistical methods. The project function :func:`slideflow.Project.generate_features` creates and returns an instance of this class.
+The easiest way to get started with intermediate layer activations is the :class:`slideflow.DatasetFeatures` class, which is used to calculate and examine activations across an entire dataset. Instancing the class supervises the calculation and caching of layer activations, which can then be exported, viewed (as a mosaic map), or analyzed with various statistical methods. The project function :func:`slideflow.Project.generate_features` creates and returns an instance of this class.
 
 .. code-block:: python
 
@@ -32,17 +32,17 @@ Alternatively, you can create an instance of this class directly:
       annotations=labels
     )
 
-Tile-level feature activations for each slide can be accessed directly from ``slideflow.model.DatasetFeatures.activations``, a dict mapping slide names to numpy arrays of shape ``(num_tiles, num_features)``. Logits are stored in ``slideflow.model.DatasetFeatures.logits``, a dict mapping slide names to numpy arrays of shape ``(num_tiles, num_logits)``. Tile-level location data (coordinates from which the tiles were taken from their respective source slides) is stored in ``slideflow.model.DatasetFeatures.locations``, a dict mapping slide names to numpy arrays of shape ``(num_tiles, 2)`` (``x``, ``y``).
+Tile-level feature activations for each slide can be accessed directly from ``slideflow.DatasetFeatures.activations``, a dict mapping slide names to numpy arrays of shape ``(num_tiles, num_features)``. Logits are stored in ``slideflow.DatasetFeatures.logits``, a dict mapping slide names to numpy arrays of shape ``(num_tiles, num_logits)``. Tile-level location data (coordinates from which the tiles were taken from their respective source slides) is stored in ``slideflow.DatasetFeatures.locations``, a dict mapping slide names to numpy arrays of shape ``(num_tiles, 2)`` (``x``, ``y``).
 
-To return the average logits value for each slide (averaged across constituent tiles), use :func:`slideflow.model.DatasetFeatures.logits_mean`. Similarly, :func:`slideflow.model.DatasetFeatures.logits_predict` can be used to generate final slide-level logit predictions.
+To return the average logits value for each slide (averaged across constituent tiles), use :func:`slideflow.DatasetFeatures.logits_mean`. Similarly, :func:`slideflow.DatasetFeatures.logits_predict` can be used to generate final slide-level logit predictions.
 
-Features across categories can be statistically compared using :func:`slideflow.model.DatasetFeatures.stats`, which will calculate and save statistics to a specified directory.
+Features across categories can be statistically compared using :func:`slideflow.DatasetFeatures.stats`, which will calculate and save statistics to a specified directory.
 
 .. code-block:: python
 
     features.stats('/outdir', method='mean')
 
-To compare layer features across outcome categories and find features which differ significantly across categories, use the :func:`slideflow.model.DatasetFeatures.box_plots` function. For example, to generate boxplots for the first 100 features:
+To compare layer features across outcome categories and find features which differ significantly across categories, use the :func:`slideflow.DatasetFeatures.box_plots` function. For example, to generate boxplots for the first 100 features:
 
 .. code-block:: python
 
@@ -50,7 +50,7 @@ To compare layer features across outcome categories and find features which diff
 
 .. image:: boxplot_example.png
 
-Many other functions are available, as described in the documentation, :class:`slideflow.model.DatasetFeatures`.
+Many other functions are available, as described in the documentation, :class:`slideflow.DatasetFeatures`.
 
 Features
 --------
@@ -82,7 +82,7 @@ To calculate layer features across an entire slide, the same interface can be ca
 Mosaic maps
 ***********
 
-To visualize the distribution of features across a dataset, a mosaic map can be created from a :class:`slideflow.model.DatasetFeatures` instance. Mosaic maps are generated by using features (layer activations) from a dataset, performing dimensionality reduction (UMAP) on the activations (via :class:`slideflow.SlideMap`), and overlaying tile images onto the UMAP (via :class:`slideflow.Mosaic`). By default, the post-convolutional ('postconv') layer is used when calculating features, but any combination of other layers can be also be used. The ``Project`` class has a function which can supervise these steps automatically and save the final figure to the project directory.
+To visualize the distribution of features across a dataset, a mosaic map can be created from a :class:`slideflow.DatasetFeatures` instance. Mosaic maps are generated by using features (layer activations) from a dataset, performing dimensionality reduction (UMAP) on the activations (via :class:`slideflow.SlideMap`), and overlaying tile images onto the UMAP (via :class:`slideflow.Mosaic`). By default, the post-convolutional ('postconv') layer is used when calculating features, but any combination of other layers can be also be used. The ``Project`` class has a function which can supervise these steps automatically and save the final figure to the project directory.
 
 .. code-block:: python
 
