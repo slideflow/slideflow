@@ -402,12 +402,6 @@ class ProgressBar:
 
 # --- Utility functions and classes -------------------------------------------
 
-class TCGA:
-    patient = 'patient'
-    project = 'project_id'
-    slide = 'slide'
-
-
 class ThreadSafeList:
     def __init__(self):
         self.lock = threading.Lock()

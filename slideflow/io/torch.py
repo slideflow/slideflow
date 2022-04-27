@@ -617,6 +617,7 @@ def interleave(
             indices += [index]
             if rank == 0:
                 pb.update()
+        pool.close()
 
     #  -------  Interleave and batch datasets ---------------------------------
     if prob_weights is not None:

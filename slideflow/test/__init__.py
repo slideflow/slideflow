@@ -80,7 +80,7 @@ def random_annotations(slides_path: Path) -> List[List]:
     ][:10]
     if not slides:
         raise OSError(f'No slides found at {slides_path}')
-    annotations = [[sf.util.TCGA.patient, 'dataset', 'category1', 'category2',
+    annotations = [['patient', 'dataset', 'category1', 'category2',
                     'linear1', 'linear2', 'time', 'event']]
     for s, slide in enumerate(slides):
         cat1 = ['A', 'B'][s % 2]
@@ -227,7 +227,7 @@ def _wsi_prediction_tester(
         project.predict_wsi(
             model,
             join(project.root, 'wsi'),
-            filters={sf.util.TCGA.patient: [patient_name]}
+            filters={'patient': [patient_name]}
         )
 
 
@@ -311,7 +311,7 @@ def reader_tester(project: sf.Project, verbosity: int) -> None:
                 for img in images
             ]
         if verbosity < logging.WARNING:
-            torch_dts.close()
+            torch_dts.close()  # type: ignore
         torch_results = sorted(torch_results)
 
         # Tensorflow backend
@@ -620,7 +620,6 @@ class TestSuite:
         self.project.save()
 
         # Check if GPU available
-
         with TaskWrapper("Checking GPU availability...") as gpu_test:
             if sf.backend() == 'tensorflow':
                 import tensorflow as tf
@@ -1029,7 +1028,7 @@ class TestSuite:
                 patient_name = sf.util.path_to_name(slide_paths[0])
             self.project.generate_heatmaps(
                 model,
-                filters={sf.util.TCGA.patient: [patient_name]},
+                filters={'patient': [patient_name]},
                 roi_method='ignore',
                 **heatmap_kwargs
             )

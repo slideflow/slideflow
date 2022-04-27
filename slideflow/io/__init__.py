@@ -106,6 +106,7 @@ def update_manifest_at_dir(
     # Write manifest file
     if (manifest != prior_manifest) or (manifest == {}):
         sf.util.write_json(manifest, manifest_path)
+    pool.close()
     return manifest
 
 

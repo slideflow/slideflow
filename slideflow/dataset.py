@@ -24,7 +24,7 @@ import slideflow as sf
 from slideflow import errors
 from slideflow.slide import WSI, ExtractionReport, SlideReport
 from slideflow.model import ModelParams
-from slideflow.util import log, TCGA, Path, _shortname, path_to_name, Labels
+from slideflow.util import log, Path, _shortname, path_to_name, Labels
 from slideflow.util import tfrecord2idx
 from slideflow.util import colors as col
 
@@ -58,10 +58,6 @@ def _tile_extractor(
         generator_kwargs (dict): Keyword arguments for WSI.extract_tiles()
         qc_kwargs(dict): Keyword arguments for quality control.
     """
-    # Record function arguments in case we need to re-call the function
-    # (for corrupt tiles)
-    local_args = locals()
-    # log.handlers[0].flush_line = True
     try:
         log.debug(f'Extracting tiles for {path_to_name(path)}')
         if tma:
@@ -87,12 +83,8 @@ def _tile_extractor(
                 **generator_kwargs
             )
         except errors.TileCorruptionError:
-            if wsi_kwargs['enable_downsample']:
-                log.warning(f'{path} corrupt; disabling downsampling')
-                _tile_extractor(**local_args)
-            else:
-                log.error(f'{path} corrupt; skipping')
-                return
+            log.error(f'{path} corrupt; skipping')
+            return
         del slide
         reports.update({path: report})
     except (KeyboardInterrupt, SystemExit):
@@ -422,7 +414,7 @@ class Dataset:
     @property
     def filtered_annotations(self) -> pd.DataFrame:
         if self.annotations is not None:
-            filtered_idx = self.annotations[TCGA.slide].isin(self.slides())
+            filtered_idx = self.annotations['slide'].isin(self.slides())
             return self.annotations[filtered_idx]
         else:
             return None
@@ -494,12 +486,12 @@ class Dataset:
             raise errors.AnnotationsError(
                 "Annotations file has duplicate headers; all must be unique"
             )
-        if TCGA.patient not in self.annotations.columns:
+        if 'patient' not in self.annotations.columns:
             raise errors.AnnotationsError(
-                f'Patient identifier {TCGA.patient} missing in annotations.'
+                f'Patient identifier "patient" missing in annotations.'
             )
-        if TCGA.slide not in self.annotations.columns:
-            log.info(f"Column '{TCGA.slide}' missing in annotations.")
+        if 'slide' not in self.annotations.columns:
+            log.info(f"Column 'slide' missing in annotations.")
             log.info("Attempting to associate patients with slides...")
             self.update_annotations_with_slidenames(annotations)
             self.load_annotations(annotations)
@@ -658,6 +650,7 @@ class Dataset:
                       total=len(self.tfrecords()),
                       leave=False):
             pass
+        pool.close()
 
     def clear_filters(self) -> "Dataset":
         """Returns a dataset with all filters cleared.
@@ -1237,7 +1230,9 @@ class Dataset:
         use_float: Union[bool, Dict, str] = False,
         assign: Optional[Dict[str, Dict[str, int]]] = None,
         format: str = 'index'
-    ) -> Tuple[Labels, Union[Dict, List[Union[str, float]]]]:
+    ) -> Tuple[Labels, Union[Dict[str, Union[List[str], List[float]]],
+                             List[str],
+                             List[float]]]:
         """Returns a dict of slide names mapped to patient id and label(s).
 
         Args:
@@ -1246,7 +1241,7 @@ class Dataset:
             use_float (bool, optional) Either bool, dict, or 'auto'.
                 If true, convert data into float; if unable, raise TypeError.
                 If false, interpret all data as categorical.
-                If a dict is provided, look up each header to determine type.
+                If a dict(bool), look up each header to determine type.
                 If 'auto', will try to convert all data into float. For each
                 header in which this fails, will interpret as categorical.
             assign (dict, optional):  Dictionary mapping label ids to
@@ -1265,11 +1260,11 @@ class Dataset:
             2) List of unique labels. For categorical outcomes, this will be a
                 list of str; indices correspond with the outcome label id.
         """
-        slides = self.slides()
         results = {}  # type: Dict
         headers = [headers] if not isinstance(headers, list) else headers
-        headers_done = {}  # type: Dict
         unique_labels = {}
+        filtered_pts = self.filtered_annotations.patient
+        filtered_slides = self.filtered_annotations.slide
         for header in headers:
             if assign and (len(headers) > 1 or header in assign):
                 assigned_for_header = assign[header]
@@ -1281,7 +1276,6 @@ class Dataset:
             else:
                 assigned_for_header = None
             unique_labels_for_this_header = []
-            headers_done[header] = {}
             try:
                 filtered_labels = self.filtered_annotations[header]
             except KeyError:
@@ -1308,7 +1302,9 @@ class Dataset:
                     f"Unable to convert all labels of {header} into 'float' "
                     f"({','.join(filtered_labels)})."
                 )
-            elif not header_is_float:
+            elif header_is_float:
+                filtered_labels = filtered_labels.astype(float)
+            else:
                 log.debug(f'Interpreting column "{header}" as continuous')
                 unique_labels_for_this_header = list(set(filtered_labels))
                 unique_labels_for_this_header.sort()
@@ -1338,52 +1334,38 @@ class Dataset:
                             f'[{n_s} slides]'
                         ]))
 
-            def _process_label(o):
-                if header_is_float:
-                    return float(o)
-                elif assigned_for_header:
+            def _process_cat_label(o):
+                if assigned_for_header:
                     return assigned_for_header[o]
                 elif format == 'name':
                     return o
                 else:
                     return unique_labels_for_this_header.index(o)
 
-            # Assemble results dictionary
-            patient_labels = {}
-            num_warned = 0
-            warn_threshold = 3
-            for ann in self.filtered_annotations.to_dict(orient="records"):
-                slide = ann[TCGA.slide]
-                patient = ann[TCGA.patient]
-                ann_label = _process_label(ann[header])
+            # Assemble results dictionary - refactored ------------------------
+            # Check for multiple, different labels per patient and warn
+            pt_assign = np.array(list(set(zip(filtered_pts, filtered_labels))))
+            unique_pt, counts = np.unique(pt_assign[:, 0], return_counts=True)
+            for pt in unique_pt[np.argwhere(counts > 1)][:, 0]:
+                dup_vals = pt_assign[pt_assign[:, 0] == pt][:, 1]
+                dups = ", ".join([str(d) for d in dup_vals])
+                log.error(
+                    f"{pt} has multiple labels (header {header}): {dups}"
+                )
 
-                # Ensure patients do not have multiple labels
-                if patient not in patient_labels:
-                    patient_labels[patient] = ann_label
-                elif patient_labels[patient] != ann_label:
-                    log.error(
-                        f"{patient} has multiple labels (header {header}): "
-                        f"{patient_labels[patient]}, {ann_label}"
-                    )
-                    num_warned += 1
-                elif ((slide in slides)
-                      and (slide in results)
-                      and (slide in headers_done[header])):
-                    continue
-                # Mark this slide as having been already assigned a label
-                # with his header
-                headers_done[header][slide] = True
-                if slide in slides:
-                    if slide in results:
-                        if not isinstance(results[slide], list):
-                            results[slide] = [results[slide]]
-                        results[slide] += [ann_label]
-                    elif header_is_float:
-                        results[slide] = [ann_label]
-                    else:
-                        results[slide] = ann_label
-            if num_warned >= warn_threshold:
-                log.warning(f"...{num_warned} warnings, see log for details")
+            # Assemble results dictionary
+            #for ann in self.filtered_annotations.to_dict(orient="records"):
+            for slide, lbl in zip(filtered_slides, filtered_labels):
+                if not header_is_float:
+                    lbl = _process_cat_label(lbl)
+                if slide in results:
+                    if not isinstance(results[slide], list):
+                        results[slide] = [results[slide]]
+                    results[slide] += [lbl]
+                elif header_is_float:
+                    results[slide] = [lbl]
+                else:
+                    results[slide] = lbl
             unique_labels[header] = unique_labels_for_this_header
         if len(headers) == 1:
             return results, unique_labels[headers[0]]
@@ -1413,6 +1395,7 @@ class Dataset:
                                     total=len(tfrecords),
                                     leave=False):
             indices[tfr_name] = index
+        pool.close()
         return indices
 
     def manifest(
@@ -1478,8 +1461,8 @@ class Dataset:
         """Returns a list of patient IDs from this dataset."""
         result = {}  # type: Dict[str, str]
         pairs = list(zip(
-            self.filtered_annotations[TCGA.slide],
-            self.filtered_annotations[TCGA.patient]
+            self.filtered_annotations['slide'],
+            self.filtered_annotations['patient']
         ))
         for slide, patient in pairs:
             if slide in result and result[slide] != patient:
@@ -1608,21 +1591,21 @@ class Dataset:
             )
         for ann in self.annotations.to_dict(orient="records"):
             skip_annotation = False
-            if TCGA.slide not in ann.keys():
+            if 'slide' not in ann.keys():
                 raise errors.AnnotationsError(
-                    f"{TCGA.slide} not found in annotations file."
+                    f"{'slide'} not found in annotations file."
                 )
 
             # Skip missing or blank slides
-            if ann[TCGA.slide] in sf.util.SLIDE_ANNOTATIONS_TO_IGNORE:
+            if ann['slide'] in sf.util.SLIDE_ANNOTATIONS_TO_IGNORE:
                 continue
 
             # Ensure slides are only assigned to a single patient
-            if ann[TCGA.slide] not in slide_patient_dict:
-                slide_patient_dict.update({ann[TCGA.slide]: ann[TCGA.patient]})
-            elif slide_patient_dict[ann[TCGA.slide]] != ann[TCGA.patient]:
+            if ann['slide'] not in slide_patient_dict:
+                slide_patient_dict.update({ann['slide']: ann['patient']})
+            elif slide_patient_dict[ann['slide']] != ann['patient']:
                 raise errors.DatasetError(
-                    f"Multiple patients assigned to slide {ann[TCGA.slide]}."
+                    f"Multiple patients assigned to slide {ann['slide']}."
                 )
 
             # Only return slides with annotation values specified in "filters"
@@ -1638,8 +1621,8 @@ class Dataset:
                         filter_vals = [filter_vals]
 
                     # Allow filtering based on shortnames if the key
-                    # is a TCGA patient ID
-                    if filter_key == TCGA.patient:
+                    # is a patient ID
+                    if filter_key == 'patient':
                         if ((ann_val not in filter_vals)
                             and (_shortname(ann_val) not in filter_vals)
                             and (ann_val not in
@@ -1666,7 +1649,7 @@ class Dataset:
                         break
             if skip_annotation:
                 continue
-            slides += [ann[TCGA.slide]]
+            slides += [ann['slide']]
         return slides
 
     def split_tfrecords_by_roi(self, destination: Path) -> None:
@@ -2554,10 +2537,10 @@ class Dataset:
 
         # First, load all patient names from the annotations file
         try:
-            patient_index = header.index(TCGA.patient)
+            patient_index = header.index('patient')
         except ValueError:
             raise errors.AnnotationsError(
-                f"Patient header {TCGA.patient} not found in annotations."
+                f"Patient header {'patient'} not found in annotations."
             )
         patients = []
         pt_to_slide = {}
@@ -2610,9 +2593,9 @@ class Dataset:
                 # Write to existing "slide" column in the annotations file,
                 # otherwise create new column
                 try:
-                    slide_index = header.index(TCGA.slide)
+                    slide_index = header.index('slide')
                 except ValueError:
-                    header.extend([TCGA.slide])
+                    header.extend(['slide'])
                     csv_writer.writerow(header)
                     for row in csv_reader:
                         patient = row[patient_index]
@@ -2667,8 +2650,8 @@ class Dataset:
         if self.annotations is not None:
             sf.util.multi_warn(
                 self.annotations.to_dict(orient="records"),
-                lambda x: x[TCGA.slide] == '',
-                lambda x: f'Patient {x[TCGA.patient]} has no slide assigned.'
+                lambda x: x['slide'] == '',
+                lambda x: f"Patient {x['patient']} has no slide assigned."
             )
 
     def verify_img_format(self) -> Optional[str]:

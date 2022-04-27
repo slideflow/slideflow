@@ -6,7 +6,7 @@ from slideflow.util import log
 
 
 def generate(data, category, values, crossfolds=3, target_column='CV3',
-             patient_column=sf.util.TCGA.patient, site_column='SITE',
+             patient_column='patient', site_column='SITE',
              timelimit=10):
 
     """Generates site preserved cross-folds, balanced on a given category.
