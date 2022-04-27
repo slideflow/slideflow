@@ -161,6 +161,7 @@ class StainNormalizer:
                 pb.update(batch_size)
             self.n.target_means = np.array(means).mean(axis=0)
             self.n.target_stds = np.array(stds).mean(axis=0)
+            pool.close()
 
         elif len(args) and isinstance(args[0], Dataset):
             raise NotImplementedError(

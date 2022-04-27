@@ -3,16 +3,11 @@ import os
 import torch
 import numpy as np
 import pandas as pd
-import math
-import re
-import pdb
-import pickle
 from scipy import stats
 
 from torch.utils.data import Dataset
 import h5py
 
-import slideflow as sf
 from slideflow.clam.utils import generate_split, nth
 
 class ClamError(Exception):
@@ -100,11 +95,11 @@ class Generic_WSI_Classification_Dataset(Dataset):
 			self.slide_cls_ids[i] = np.where(self.slide_data['label'] == i)[0]
 
 	def patient_data_prep(self, patient_voting='max'):
-		patients = np.unique(np.array(self.slide_data[sf.util.TCGA.patient])) # get unique patients
+		patients = np.unique(np.array(self.slide_data['patient'])) # get unique patients
 		patient_labels = []
 
 		for p in patients:
-			locations = self.slide_data[self.slide_data[sf.util.TCGA.patient] == p].index.tolist()
+			locations = self.slide_data[self.slide_data['patient'] == p].index.tolist()
 			assert len(locations) > 0
 			label = self.slide_data['label'][locations].values
 			if patient_voting == 'max':
@@ -115,7 +110,7 @@ class Generic_WSI_Classification_Dataset(Dataset):
 				raise NotImplementedError
 			patient_labels.append(label)
 
-		self.patient_data = {sf.util.TCGA.patient:patients, 'label':np.array(patient_labels)}
+		self.patient_data = {'patient':patients, 'label':np.array(patient_labels)}
 
 	@staticmethod
 	def df_prep(data, label_dict, ignore, label_col):

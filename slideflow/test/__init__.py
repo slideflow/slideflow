@@ -9,6 +9,7 @@ import time
 import logging
 import random
 import multiprocessing
+import unittest
 from os.path import join, exists
 from tqdm import tqdm
 from PIL import Image
@@ -21,6 +22,7 @@ from slideflow.util import colors as col
 from slideflow.util.spinner import Spinner
 from slideflow.stats import SlideMap
 from slideflow import errors
+from slideflow.test.dataset_test import TestLabels
 
 
 def get_tcga_slides() -> Dict[str, str]:
@@ -80,7 +82,7 @@ def random_annotations(slides_path: Path) -> List[List]:
     ][:10]
     if not slides:
         raise OSError(f'No slides found at {slides_path}')
-    annotations = [[sf.util.TCGA.patient, 'dataset', 'category1', 'category2',
+    annotations = [['patient', 'dataset', 'category1', 'category2',
                     'linear1', 'linear2', 'time', 'event']]
     for s, slide in enumerate(slides):
         cat1 = ['A', 'B'][s % 2]
@@ -227,7 +229,7 @@ def _wsi_prediction_tester(
         project.predict_wsi(
             model,
             join(project.root, 'wsi'),
-            filters={sf.util.TCGA.patient: [patient_name]}
+            filters={'patient': [patient_name]}
         )
 
 
@@ -311,7 +313,7 @@ def reader_tester(project: sf.Project, verbosity: int) -> None:
                 for img in images
             ]
         if verbosity < logging.WARNING:
-            torch_dts.close()
+            torch_dts.close()  # type: ignore
         torch_results = sorted(torch_results)
 
         # Tensorflow backend
@@ -608,6 +610,7 @@ class TestSuite:
         # Configure testing environment
         self.test_root = root
         self.project_root = join(root, 'project')
+        self.slides_root = slides
         self.config = TestConfig(root, slides=slides)
 
         if exists(join(self.project_root, 'settings.json')) and reset:
@@ -620,7 +623,6 @@ class TestSuite:
         self.project.save()
 
         # Check if GPU available
-
         with TaskWrapper("Checking GPU availability...") as gpu_test:
             if sf.backend() == 'tensorflow':
                 import tensorflow as tf
@@ -1029,7 +1031,7 @@ class TestSuite:
                 patient_name = sf.util.path_to_name(slide_paths[0])
             self.project.generate_heatmaps(
                 model,
-                filters={sf.util.TCGA.patient: [patient_name]},
+                filters={'patient': [patient_name]},
                 roi_method='ignore',
                 **heatmap_kwargs
             )
@@ -1088,6 +1090,7 @@ class TestSuite:
     ) -> None:
         '''Perform and report results of all available testing.'''
 
+        self.unittests()
         if extract:
             self.test_extraction()
         if reader:
@@ -1108,3 +1111,11 @@ class TestSuite:
             self.test_predict_wsi()
         if clam:
             self.test_clam()
+
+    def unittests(self) -> None:
+        print("Running unit tests...")
+        for module in (TestLabels,):
+            module.PROJECT = self.project
+            runner = unittest.TextTestRunner()
+            itersuite = unittest.TestLoader().loadTestsFromTestCase(module)
+            runner.run(itersuite)

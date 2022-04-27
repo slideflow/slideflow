@@ -563,7 +563,8 @@ class Project:
         elif hp.model_type() == 'categorical':
             assert isinstance(unique, dict)
             outcome_labels = {
-                k: dict(zip(range(len(ul)), ul)) for k, ul in unique.items()
+                k: dict(zip(range(len(ul)), ul))  # type: ignore
+                for k, ul in unique.items()
             }
         else:
             outcome_labels = dict(zip(range(len(outcomes)), outcomes))
@@ -888,7 +889,7 @@ class Project:
         slides = [path_to_name(s) for s in all_paths]
         with open(filename, 'w') as csv_outfile:
             csv_writer = csv.writer(csv_outfile, delimiter=',')
-            header = [sf.util.TCGA.patient, 'dataset', 'category']
+            header = ['patient', 'dataset', 'category']
             csv_writer.writerow(header)
             for slide in slides:
                 csv_writer.writerow([slide, '', ''])
@@ -1104,7 +1105,7 @@ class Project:
         outcome_dict = dict(zip(range(len(unique_labels)), unique_labels))
         with open(join(eval_dir, 'eval_annotations.csv'), 'w') as eval_file:
             writer = csv.writer(eval_file)
-            header = [sf.util.TCGA.patient, sf.util.TCGA.slide, outcomes]
+            header = ['patient', 'slide', outcomes]
             writer.writerow(header)
             for slide in eval_slides:
                 row = [slide, slide]
