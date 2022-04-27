@@ -8,7 +8,7 @@ import itertools
 
 class Spinner:
 
-    def __init__(self, message, delay=0.1):
+    def __init__(self, message: str, delay: float = 0.1) -> None:
         self.spinner = itertools.cycle(['-', '/', '|', '\\'])
         self.delay = delay
         self.busy = False
@@ -22,7 +22,7 @@ class Spinner:
                 self.spinner_visible = True
                 sys.stdout.flush()
 
-    def remove_spinner(self, cleanup=False):
+    def remove_spinner(self, cleanup: bool = False) -> None:
         with self._screen_lock:
             if self.spinner_visible:
                 sys.stdout.write('\b')
@@ -32,20 +32,20 @@ class Spinner:
                     sys.stdout.write('\r')      # move to next line
                 sys.stdout.flush()
 
-    def spinner_task(self):
+    def spinner_task(self) -> None:
         while self.busy:
             self.write_next()
             time.sleep(self.delay)
             self.remove_spinner()
 
-    def __enter__(self):
+    def __enter__(self) -> None:
         if sys.stdout.isatty():
             self._screen_lock = threading.Lock()
             self.busy = True
             self.thread = threading.Thread(target=self.spinner_task)
             self.thread.start()
 
-    def __exit__(self, exc_type, exc_val, exc_traceback):
+    def __exit__(self, exc_type, exc_val, exc_traceback) -> None:
         if sys.stdout.isatty():
             self.busy = False
             self.remove_spinner(cleanup=True)

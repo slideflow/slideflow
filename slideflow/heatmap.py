@@ -2,12 +2,12 @@ import os
 import shutil
 import slideflow as sf
 import numpy as np
-import matplotlib.pyplot as plt
 import matplotlib.colors as mcol
 import shapely.geometry as sg
+from typing import Optional, List, Any, Callable, Dict, Union
 
 from slideflow import errors
-from slideflow.util import log
+from slideflow.util import log, Path
 from slideflow.util import colors as col
 from slideflow.slide import WSI
 
@@ -16,9 +16,20 @@ class Heatmap:
     """Generates heatmap by calculating predictions from a sliding scale
     window across a slide."""
 
-    def __init__(self, slide, model, stride_div=2, roi_dir=None, rois=None,
-                 roi_method='inside', batch_size=32, num_threads=None,
-                 buffer=None, enable_downsample=True, img_format='auto'):
+    def __init__(
+        self,
+        slide: str,
+        model: str,
+        stride_div: int = 2,
+        roi_dir: Optional[str] = None,
+        rois: Optional[List[str]] = None,
+        roi_method: str = 'inside',
+        batch_size: int = 32,
+        num_threads: Optional[int] = None,
+        buffer: Optional[str] = None,
+        enable_downsample: bool = True,
+        img_format: str = 'auto'
+    ) -> None:
         """Convolutes across a whole slide, calculating logits and saving
         predictions internally for later use.
 
@@ -57,13 +68,14 @@ class Heatmap:
         model_config = sf.util.get_model_config(model)
         self.uq = model_config['hp']['uq']
         if img_format == 'auto' and 'img_format' not in model_config:
-            msg = f"Unable to auto-detect image format from model at {model}. "
-            msg += "Manually set to png or jpg with Heatmap(img_format=...)"
-            raise errors.HeatmapError(msg)
+            raise errors.HeatmapError(
+                f"Unable to auto-detect image format from model at {model}. "
+                "Manually set to png or jpg with Heatmap(img_format=...)"
+            )
         elif img_format == 'auto':
             img_format = model_config['img_format']
         if self.uq:
-            interface = sf.model.tensorflow.UncertaintyInterface(model)
+            interface = sf.model.UncertaintyInterface(model)  # type: Any
         else:
             interface = sf.model.Features(
                 model,
@@ -97,9 +109,9 @@ class Heatmap:
                          skip_missing_roi=False)
 
         if not self.slide.loaded_correctly():
-            msg = f'Unable to load slide {self.slide.name} for heatmap'
-            raise errors.HeatmapError(msg)
-
+            raise errors.HeatmapError(
+                f'Unable to load slide {self.slide.name} for heatmap'
+            )
         out = interface(
             self.slide,
             num_threads=num_threads,
@@ -117,7 +129,13 @@ class Heatmap:
         if buffered_slide:
             os.remove(new_path)
 
-    def _prepare_figure(self, show_roi=True):
+    def _prepare_figure(self, show_roi: bool = True) -> None:
+        """Prepares matplotlib figure of Heatmap.
+
+        Args:
+            show_roi (bool, optional): Include ROI on heatmap. Defaults to True.
+        """
+        import matplotlib.pyplot as plt
         self.fig = plt.figure(figsize=(18, 16))
         self.ax = self.fig.add_subplot(111)
         self.fig.subplots_adjust(bottom=0.25, top=0.95)
@@ -141,8 +159,17 @@ class Heatmap:
                 x, y = poly.exterior.xy
                 plt.plot(x, y, zorder=20, color='k', linewidth=5)
 
-    def save(self, outdir, show_roi=True, interpolation='none',
-             cmap='coolwarm', logit_cmap=None, vmin=0, vmax=1, vcenter=0.5):
+    def save(
+        self,
+        outdir: Path,
+        show_roi: bool = True,
+        interpolation: str = 'none',
+        cmap: str = 'coolwarm',
+        logit_cmap: Optional[Union[Callable, Dict]] = None,
+        vmin: float = 0,
+        vmax: float = 1,
+        vcenter: float = 0.5
+    ) -> None:
         """Saves calculated logits as heatmap overlays.
 
         Args:
@@ -169,6 +196,10 @@ class Heatmap:
             vmax (float): Maximum value to display on heatmap.
                 Defaults to 1.
         """
+        import matplotlib.pyplot as plt
+
+        if self.logits is None:
+            raise errors.HeatmapError("Logits not yet calculated.")
 
         print('\r\033[KSaving base figures...', end='')
         # Save base thumbnail as separate figure
@@ -194,6 +225,7 @@ class Heatmap:
             zorder=0
         )
         self.ax.set_facecolor("black")
+
         if logit_cmap:
             if callable(logit_cmap):
                 map_logit = logit_cmap

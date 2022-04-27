@@ -4,24 +4,25 @@ from __future__ import division
 
 import typing
 import warnings
-import threading
 import numpy as np
-import random
-from collections import deque
+
 
 class EmptyIterator(Exception):
     pass
+
 
 def cycle(iterator):
     """Create a repeating iterator from an iterator."""
 
     while True:
-        has_element=False
+        has_element = False
         for element in iterator:
-            if not has_element: has_element=True
+            if not has_element:
+                has_element = True
             yield element
-        if not has_element: # Handles empty TFRecords
+        if not has_element:  # Handles empty TFRecords
             raise EmptyIterator
+
 
 class RandomSampler:
     def __init__(self, loaders, ratios, infinite=True, shard=None):
@@ -42,8 +43,12 @@ class RandomSampler:
         global_idx = -1
         while iterators:
             global_idx += 1
-            choice = np.random.choice(ratio_indices[:self.ratios.shape[0]], p=self.ratios)
-            if self.shard is not None and (global_idx % self.shard[1] != self.shard[0]):
+            choice = np.random.choice(
+                ratio_indices[:self.ratios.shape[0]],
+                p=self.ratios
+            )
+            if (self.shard is not None
+               and (global_idx % self.shard[1] != self.shard[0])):
                 continue
             try:
                 for _ in range(8):
@@ -58,6 +63,7 @@ class RandomSampler:
     def close(self):
         for loader in self.loaders:
             loader.close()
+
 
 def shuffle_iterator(iterator: typing.Iterator,
                      queue_size: int) -> typing.Iterable[typing.Any]:

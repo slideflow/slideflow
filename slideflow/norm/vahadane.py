@@ -18,7 +18,11 @@ import numpy as np
 import slideflow.norm.utils as ut
 
 
-def get_stain_matrix(I, threshold=0.8, lamda=0.1):
+def get_stain_matrix(
+    I: np.ndarray,
+    threshold: float = 0.8,
+    lamda: float = 0.1
+) -> np.ndarray:
     """
     Get 2x3 stain matrix. First row H and second row E
     :param I:
@@ -52,24 +56,28 @@ class Normalizer(ut.BaseNormalizer):
     A stain normalization object
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
-    def fit(self, target):
+    def fit(self, target: np.ndarray) -> None:
         target = ut.standardize_brightness(target)
         self.stain_matrix_target = get_stain_matrix(target)
 
-    def target_stains(self):
+    def target_stains(self) -> np.ndarray:
         return ut.OD_to_RGB(self.stain_matrix_target)
 
-    def transform(self, I):
+    def transform(self, I: np.ndarray) -> np.ndarray:
+
+        if self.stain_matrix_target is None:
+            raise ValueError("Normalizer has not been fit: call normalizer.fit()")
+
         I = ut.standardize_brightness(I)
         stain_matrix_source = get_stain_matrix(I)
         source_concentrations = ut.get_concentrations(I, stain_matrix_source)
         return (255 * np.exp(-1 * np.dot(source_concentrations, self.stain_matrix_target).reshape(I.shape))).astype(
             np.uint8)
 
-    def hematoxylin(self, I):
+    def hematoxylin(self, I: np.ndarray) -> np.ndarray:
         I = ut.standardize_brightness(I)
         h, w, c = I.shape
         stain_matrix_source = get_stain_matrix(I)

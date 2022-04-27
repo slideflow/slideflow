@@ -3,15 +3,44 @@
 import tensorflow as tf
 import os
 import tempfile
+from typing import Tuple, Dict, List, Union, Any, TYPE_CHECKING
+from slideflow.util import log
+
+if TYPE_CHECKING:
+    import neptune.new as neptune
 
 
-def get_layer_index_by_name(model, name):
+def log_summary(
+    model: tf.keras.Model,
+    neptune_run: "neptune.Run" = None
+) -> None:
+    """Log the model summary.
+
+    Args:
+        model (tf.keras.Model): Tensorflow/Keras model.
+        neptune_run (neptune.Run, optional): Neptune run. Defaults to None.
+    """
+    if log.getEffectiveLevel() <= 20:
+        print()
+        model.summary()
+    if neptune_run:
+        summary_string = []
+        model.summary(print_fn=lambda x: summary_string.append(x))
+        neptune_run['summary'] = "\n".join(summary_string)
+
+
+def get_layer_index_by_name(model: tf.keras.Model, name: str) -> int:
     for i, layer in enumerate(model.layers):
         if layer.name == name:
             return i
+    raise IndexError(f"Layer {name} not found.")
 
 
-def batch_loss_crossentropy(features, diff=0.5, eps=1e-5):
+def batch_loss_crossentropy(
+    features: tf.Tensor,
+    diff: float = 0.5,
+    eps: float = 1e-5
+) -> tf.Tensor:
     split = tf.split(features, 8, axis=0)
 
     def tstat(first, rest):
@@ -39,9 +68,19 @@ def batch_loss_crossentropy(features, diff=0.5, eps=1e-5):
     return tf.math.reduce_mean(tf.stack(stats)) * eps
 
 
-def negative_log_likelihood(y_true, y_pred):
-    '''Implemented by Fred Howard, adapted from: https://github.com/havakv/pycox/blob/master/pycox/models/loss.py'''
+def negative_log_likelihood(y_true: tf.Tensor, y_pred: tf.Tensor) -> tf.Tensor:
+    """Negative log likelihood loss.
 
+    Implemented by Fred Howard, adapted from
+    https://github.com/havakv/pycox/blob/master/pycox/models/loss.py
+
+    Args:
+        y_true (tf.Tensor): True labels.
+        y_pred (tf.Tensor): Predictions.
+
+    Returns:
+        tf.Tensor: Loss.
+    """
     events = tf.reshape(y_pred[:, -1], [-1])  # E
     pred_hr = tf.reshape(y_pred[:, 0], [-1])  # y_pred
     time = tf.reshape(y_true, [-1])           # y_true
@@ -75,8 +114,19 @@ def negative_log_likelihood(y_true, y_pred):
     return neg_likelihood
 
 
-def negative_log_likelihood_breslow(y_true, y_pred):
-    '''Breslow approximation'''
+def negative_log_likelihood_breslow(
+    y_true: tf.Tensor,
+    y_pred: tf.Tensor
+) -> tf.Tensor:
+    """Negative log likelihood loss, Breslow approximation.
+
+    Args:
+        y_true (tf.Tensor): True labels.
+        y_pred (tf.Tensor): Predictions.
+
+    Returns:
+        tf.Tensor: Breslow loss.
+    """
     events = tf.reshape(y_pred[:, -1], [-1])
     pred = tf.reshape(y_pred[:, 0], [-1])
     time = tf.reshape(y_true, [-1])
@@ -105,11 +155,19 @@ def negative_log_likelihood_breslow(y_true, y_pred):
     loss_s2 = tf.reduce_sum(tf.multiply(loss_s2_v, loss_s2_count))
     loss_s1 = tf.reduce_sum(tf.multiply(Y_hat_c, Y_label_E))
     loss_breslow = tf.divide(tf.subtract(loss_s2, loss_s1), Obs)
-
     return loss_breslow
 
 
-def concordance_index(y_true, y_pred):
+def concordance_index(y_true: tf.Tensor, y_pred: tf.Tensor) -> tf.Tensor:
+    """Calculate concordance index (C-index).
+
+    Args:
+        y_true (tf.Tensor): True labels.
+        y_pred (tf.Tensor): Predictions.
+
+    Returns:
+        tf.Tensor: Concordance index.
+    """
     E = y_pred[:, -1]
     y_pred = y_pred[:, :-1]
     E = tf.reshape(E, [-1])
@@ -126,7 +184,10 @@ def concordance_index(y_true, y_pred):
     return tf.where(tf.equal(f, 0), 0.0, g/f)
 
 
-def add_regularization(model, regularizer):
+def add_regularization(
+    model: tf.keras.Model,
+    regularizer: tf.keras.layers.Layer
+) -> tf.keras.Model:
     '''Adds regularization (e.g. L2) to all eligible layers of a model.
     This function is from "https://sthalles.github.io/keras-regularizer/" '''
 
@@ -154,8 +215,16 @@ def add_regularization(model, regularizer):
     return model
 
 
-def get_uq_predictions(img, pred_fn, num_outcomes, uq_n=30):
-    yp_drop = {} if not num_outcomes else {n: [] for n in range(num_outcomes)}
+def get_uq_predictions(
+    img: tf.Tensor,
+    pred_fn: tf.keras.Model,
+    num_outcomes: int,
+    uq_n: int = 30
+) -> Tuple[tf.Tensor, tf.Tensor, int]:
+    if not num_outcomes:
+        yp_drop = {}  # type: Union[List[Any], Dict[int, List]]
+    else:
+        yp_drop = {n: [] for n in range(num_outcomes)}
     for _ in range(uq_n):
         yp = pred_fn(img, training=False)
         if not num_outcomes:

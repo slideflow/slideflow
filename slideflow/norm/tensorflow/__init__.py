@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import tensorflow as tf
+from typing import Optional, Union, List, Dict, Any, Tuple
 
 from os.path import join
 from tqdm import tqdm
@@ -19,7 +20,18 @@ class TensorflowStainNormalizer(StainNormalizer):
         'reinhard_fast': reinhard_fast
     }
 
-    def __init__(self, method='reinhard', source=None):
+    def __init__(
+        self,
+        method: str='reinhard',
+        source: Optional[str] = None
+    ) -> None:
+        """Initializes the Tensorflow stain normalizer
+
+        Args:
+            method (str, optional): Normalizer method. Defaults to 'reinhard'.
+            source (Optional[str], optional): Normalizer source image,
+                'dataset', or None. Defaults to None.
+        """
         self.method = method
         self._source = source
         self.n = self.normalizers[method]
@@ -37,46 +49,137 @@ class TensorflowStainNormalizer(StainNormalizer):
         self.stain_matrix_target = None
         self.target_concentrations = None
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         src = "" if not self._source else ", source={!r}".format(self._source)
         return "TensorflowStainNormalizer(method={!r}{})".format(self.method, src)
 
+    # === Normalizer parameters ===============================================
+
+    # --- Target means --------------------------------------------------------
+
     @property
-    def target_means(self):
+    def target_means(self) -> Optional[np.ndarray]:
         return self._target_means
 
     @target_means.setter
-    def target_means(self, val):
-        self._target_means = val
+    def target_means(self, val: Optional[Union[np.ndarray, tf.Tensor]]) -> None:
+        if val is not None:
+            if isinstance(val, tf.Tensor):
+                self._target_means = val.numpy()
+                self._target_means_tensor = val
+            else:
+                self._target_means = val
+                self._target_means_tensor = tf.constant(val)
+        else:
+            self._target_means = None
+            self._target_means_tensor = None
 
     @property
-    def target_stds(self):
+    def target_means_tensor(self) -> Optional[tf.Tensor]:
+        return self._target_means_tensor
+
+    # --- Target stds ---------------------------------------------------------
+
+    @property
+    def target_stds(self) -> Optional[np.ndarray]:
         return self._target_stds
 
     @target_stds.setter
-    def target_stds(self, val):
-        self._target_stds = val
+    def target_stds(self, val: Optional[Union[np.ndarray, tf.Tensor]]) -> None:
+        if val is not None:
+            if isinstance(val, tf.Tensor):
+                self._target_stds = val.numpy()
+                self._target_stds_tensor = val
+            else:
+                self._target_stds = val
+                self._target_stds_tensor = tf.constant(val)
+        else:
+            self._target_stds = None
+            self._target_stds_tensor = None
 
     @property
-    def stain_matrix_target(self):
+    def target_stds_tensor(self) -> Optional[tf.Tensor]:
+        return self._target_stds_tensor
+
+    # --- Target stain matrix -------------------------------------------------
+
+    @property
+    def stain_matrix_target(self) -> Optional[np.ndarray]:
         return self._stain_matrix_target
 
     @stain_matrix_target.setter
-    def stain_matrix_target(self, val):
-        self._stain_matrix_target = val
+    def stain_matrix_target(
+        self,
+        val: Optional[Union[np.ndarray, tf.Tensor]]
+    ) -> None:
+        if val is not None:
+            if isinstance(val, tf.Tensor):
+                self._stain_matrix_target = val.numpy()
+                self._stain_matrix_target_tensor = val
+            else:
+                self._stain_matrix_target = val
+                self._stain_matrix_target_tensor = tf.constant(val)
+        else:
+            self._stain_matrix_target = None
+            self._stain_matrix_target_tensor = None
 
     @property
-    def target_concentrations(self):
+    def stain_matrix_target_tensor(self) -> Optional[tf.Tensor]:
+        return self._stain_matrix_target_tensor
+
+    # --- Target concentrations -----------------------------------------------
+
+    @property
+    def target_concentrations(self) -> Optional[np.ndarray]:
         return self._target_concentrations
 
     @target_concentrations.setter
-    def target_concentrations(self, val):
-        self._target_concentrations = val
+    def target_concentrations(
+        self,
+        val: Optional[Union[np.ndarray, tf.Tensor]]
+    ) -> None:
+        if val is not None:
+            if isinstance(val, tf.Tensor):
+                self._target_concentrations = val.numpy()
+                self._target_concentrations_tensor = val
+            else:
+                self._target_concentrations = val
+                self._target_concentrations_tensor = tf.constant(val)
+        else:
+            self._target_concentrations = None
+            self._target_concentrations_tensor = None
 
-    def fit(self, *args, target_means=None, target_stds=None,
-            stain_matrix_target=None, target_concentrations=None,
-            batch_size=64):
+    @property
+    def target_concentrations_tensor(self) -> Optional[tf.Tensor]:
+        return self._target_concentrations_tensor
 
+    # =========================================================================
+
+    def fit(
+        self,
+        *args: Optional[Union[Dataset, np.ndarray, str]],
+        target_means: Optional[Union[List[float], np.ndarray]] = None,
+        target_stds: Optional[Union[List[float], np.ndarray]] = None,
+        stain_matrix_target: Optional[Union[List[float], np.ndarray]] = None,
+        target_concentrations: Optional[Union[List[float], np.ndarray]] = None,
+        batch_size: int = 64,
+        num_threads: Union[str, int] = 'auto'
+    ) -> None:
+        """Fit the normalizer.
+
+        Args:
+            target_means (_type_, optional): Target means. Defaults to None.
+            target_stds (_type_, optional): Target stds. Defaults to None.
+            stain_matrix_target (_type_, optional): Stain matrix target.
+                Defaults to None.
+            target_concentrations (_type_, optional): Target concentrations.
+                Defaults to None.
+            batch_size (int, optional): Batch size during dataset fitting.
+                Defaults to 64.
+
+        Raises:
+            errors.NormalizerError: If unrecognized arguments are provided.
+        """
         if len(args) and isinstance(args[0], Dataset):
             # Prime the normalizer
             dataset = args[0]
@@ -142,25 +245,35 @@ class TensorflowStainNormalizer(StainNormalizer):
             )
         else:
             raise errors.NormalizerError(f'Unrecognized args for fit: {args}')
+        log.info(
+            f"Fit normalizer to mean {self.target_means}, "
+            f"stddev {self.target_stds}"
+        )
 
-        msg = f"Fit normalizer to mean {self.target_means.numpy()}, "
-        msg += f"stddev {self.target_stds.numpy()}"
-        log.info(msg)
-
-    def get_fit(self):
-
-        def to_np(a):
-            return a.numpy().tolist()
-
+    def get_fit(self) -> Dict[str, Optional[List[float]]]:
         return {
-            'target_means': None if self.target_means is None else to_np(self.target_means),
-            'target_stds': None if self.target_stds is None else to_np(self.target_stds),
-            'stain_matrix_target': None if self.stain_matrix_target is None else to_np(self.stain_matrix_target),
-            'target_concentrations': None if self.target_concentrations is None else to_np(self.target_concentrations)
+            'target_means': None if self.target_means is None else self.target_means.tolist(),
+            'target_stds': None if self.target_stds is None else self.target_stds.tolist(),
+            'stain_matrix_target': None if self.stain_matrix_target is None else self.stain_matrix_target.tolist(),
+            'target_concentrations': None if self.target_concentrations is None else self.target_concentrations.tolist()
         }
 
     @tf.function
-    def batch_to_batch(self, batch, *args):
+    def batch_to_batch(
+        self,
+        batch: Union[Dict, tf.Tensor],
+        *args: Any
+    ) -> Tuple[Union[Dict, tf.Tensor], ...]:
+        """Normalize a batch of tensors.
+
+        Args:
+            batch (Union[Dict, tf.Tensor]): Dict of tensors with image batches
+                (via key "tile_image") or a batch of images.
+
+        Returns:
+            Tuple[Union[Dict, tf.Tensor], ...]: Normalized images in the same
+            format as the input.
+        """
         with tf.device('gpu:0'):
             if isinstance(batch, dict):
                 to_return = {
@@ -173,25 +286,25 @@ class TensorflowStainNormalizer(StainNormalizer):
                 return tuple([self.tf_to_tf(batch)] + list(args))
 
     @tf.function
-    def tf_to_tf(self, image):
+    def tf_to_tf(self, image: tf.Tensor) -> tf.Tensor:
         if len(image.shape) == 3:
             image = tf.expand_dims(image, axis=0)
-            return self.n.transform(image, self.target_means, self.target_stds)[0]
+            return self.n.transform(image, self.target_means_tensor, self.target_stds_tensor)[0]
         else:
-            return self.n.transform(image, self.target_means, self.target_stds)
+            return self.n.transform(image, self.target_means_tensor, self.target_stds_tensor)
 
-    def tf_to_rgb(self, image):
+    def tf_to_rgb(self, image: tf.Tensor) -> np.ndarray:
         return self.tf_to_tf(image).numpy()
 
-    def rgb_to_rgb(self, image):
+    def rgb_to_rgb(self, image: np.ndarray) -> np.ndarray:
         '''Non-normalized RGB numpy array -> normalized RGB numpy array'''
         image = tf.expand_dims(tf.constant(image, dtype=tf.uint8), axis=0)
-        return self.n.transform(image, self.target_means, self.target_stds).numpy()[0]
+        return self.n.transform(image, self.target_means_tensor, self.target_stds_tensor).numpy()[0]
 
-    def jpeg_to_rgb(self, jpeg_string):
+    def jpeg_to_rgb(self, jpeg_string: Union[str, bytes]) -> np.ndarray:
         '''Non-normalized compressed JPG data -> normalized RGB numpy array'''
         return self.tf_to_rgb(tf.image.decode_jpeg(jpeg_string))
 
-    def png_to_rgb(self, png_string):
+    def png_to_rgb(self, png_string: Union[str, bytes]) -> np.ndarray:
         '''Non-normalized compressed PNG data -> normalized RGB numpy array'''
         return self.tf_to_rgb(tf.image.decode_png(png_string, channels=3))

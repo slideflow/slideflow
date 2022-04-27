@@ -1,10 +1,11 @@
 """Writer utils."""
 
+from __future__ import absolute_import
+
 import io
 import struct
-import typing
-
 import numpy as np
+from typing import Tuple, Dict, Union, Any, List
 try:
     import crc32c
 except ImportError:
@@ -29,9 +30,11 @@ class TFRecordWriter:
         """Close the tfrecord file."""
         self.file.close()
 
-    def write(self, datum: typing.Dict[str, typing.Tuple[typing.Any, str]],
-              sequence_datum: typing.Union[typing.Dict[str, typing.Tuple[typing.List[typing.Any], str]], None] = None,
-              ) -> None:
+    def write(
+        self,
+        datum: Dict[str, Tuple[Any, str]],
+        sequence_datum: Union[Dict[str, Tuple[List[Any], str]], None] = None,
+    ) -> None:
         """Write an example into tfrecord file. Either as a Example
         SequenceExample depending on the presence of `sequence_datum`.
         If `sequence_datum` is None (by default), this writes a Example
@@ -52,8 +55,9 @@ class TFRecordWriter:
         if sequence_datum is None:
             record = TFRecordWriter.serialize_tf_example(datum)
         else:
-            record = TFRecordWriter.serialize_tf_sequence_example(datum, sequence_datum)
-
+            record = TFRecordWriter.serialize_tf_sequence_example(
+                datum, sequence_datum
+            )
         length = len(record)
         length_bytes = struct.pack("<Q", length)
         self.file.write(length_bytes)
@@ -72,7 +76,7 @@ class TFRecordWriter:
         return masked_bytes
 
     @staticmethod
-    def serialize_tf_example(datum: typing.Dict[str, typing.Tuple[typing.Any, str]]) -> bytes:
+    def serialize_tf_example(datum: Dict[str, Tuple[Any, str]]) -> bytes:
         """Serialize example into tfrecord.Example proto.
 
         Params:
@@ -100,14 +104,20 @@ class TFRecordWriter:
                 value = [value]
             return feature_map[dtype](value)
 
-        features = {key: serialize(value, dtype) for key, (value, dtype) in datum.items()}
-        example_proto = example_pb2.Example(features=example_pb2.Features(feature=features))
+        features = {
+            key: serialize(value, dtype)
+            for key, (value, dtype) in datum.items()
+        }
+        example_proto = example_pb2.Example(
+            features=example_pb2.Features(feature=features)
+        )
         return example_proto.SerializeToString()
 
     @staticmethod
-    def serialize_tf_sequence_example(context_datum: typing.Dict[str, typing.Tuple[typing.Any, str]],
-                                      features_datum: typing.Dict[str, typing.Tuple[typing.List[typing.Any], str]],
-                                      ) -> bytes:
+    def serialize_tf_sequence_example(
+        context_datum: Dict[str, Tuple[Any, str]],
+        features_datum: Dict[str, Tuple[List[Any], str]],
+    ) -> bytes:
         """Serialize sequence example into tfrecord.SequenceExample proto.
 
         Params:
@@ -144,10 +154,17 @@ class TFRecordWriter:
                 feature_list.feature.append(serialize(v, dtype))
             return feature_list
 
-        context = {key: serialize(value, dtype) for key, (value, dtype) in context_datum.items()}
-        features = {key: serialize_repeated(value, dtype) for key, (value, dtype) in features_datum.items()}
+        context = {
+            key: serialize(value, dtype)
+            for key, (value, dtype) in context_datum.items()}
+        features = {
+            key: serialize_repeated(value, dtype)
+            for key, (value, dtype) in features_datum.items()}
 
         context = example_pb2.Features(feature=context)
         features = example_pb2.FeatureLists(feature_list=features)
-        proto = example_pb2.SequenceExample(context=context, feature_lists=features)
+        proto = example_pb2.SequenceExample(
+            context=context,
+            feature_lists=features
+        )
         return proto.SerializeToString()

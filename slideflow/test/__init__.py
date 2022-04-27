@@ -9,20 +9,21 @@ import time
 import logging
 import random
 import multiprocessing
-from os.path import join
+from os.path import join, exists
 from tqdm import tqdm
 from PIL import Image
+from typing import Dict, List, Any, Tuple, Optional, Callable
 
 import slideflow as sf
 from slideflow.dataset import Dataset
-from slideflow.util import log, ProgressBar
+from slideflow.util import log, ProgressBar, Path
 from slideflow.util import colors as col
 from slideflow.util.spinner import Spinner
 from slideflow.stats import SlideMap
 from slideflow import errors
 
 
-def get_tcga_slides():
+def get_tcga_slides() -> Dict[str, str]:
     slides = [
         'TCGA-BJ-A2N9-01Z-00-DX1.CFCB1FA9-7890-4B1B-93AB-4066E160FBF5',
         'TCGA-BJ-A3PT-01Z-00-DX1.A307F39F-AE85-42F4-B705-11AF06F391D9',
@@ -50,7 +51,7 @@ def get_tcga_slides():
     return dict(zip(slides, uuids))
 
 
-def download_from_tcga(uuid, dest, message=None):
+def download_from_tcga(uuid: str, dest: str, message: str = '') -> None:
     params = {'ids': [uuid]}
     data_endpt = "https://api.gdc.cancer.gov/data"
     response = requests.post(
@@ -61,7 +62,7 @@ def download_from_tcga(uuid, dest, message=None):
     )
     response_head_cd = response.headers["Content-Disposition"]
     block_size = 4096
-    file_size = int(response.headers.get('Content-Length', None))
+    file_size = int(response.headers.get('Content-Length', ''))
     pb = ProgressBar(file_size, leadtext=message)
     file_name = join(dest, re.findall("filename=(.+)", response_head_cd)[0])
     with open(file_name, "wb") as output_file:
@@ -71,7 +72,7 @@ def download_from_tcga(uuid, dest, message=None):
     pb.end()
 
 
-def random_annotations(slides_path):
+def random_annotations(slides_path: Path) -> List[List]:
     slides = [
         sf.util.path_to_name(f)
         for f in os.listdir(slides_path)
@@ -88,18 +89,18 @@ def random_annotations(slides_path):
         lin2 = random.random()
         time = random.randint(0, 100)
         event = random.choice([0, 1])
-        annotations += [[slide, 'TEST', cat1, cat2, lin1, lin2, time, event]]
+        annotations += [[slide, 'TEST', cat1, cat2, lin1, lin2, time, event]]  # type: ignore
     return annotations
 
 
 # ---------------------------------------
 
-def _prediction_tester(project, verbosity, **kwargs):
+def _prediction_tester(project: sf.Project, verbosity: int, **kwargs) -> None:
     logging.getLogger("slideflow").setLevel(verbosity)
     project.predict(**kwargs)
 
 
-def prediction_tester(project, **kwargs):
+def prediction_tester(project: sf.Project, **kwargs) -> None:
     """Prediction testing must happen in an isolated to free GPU memory
     after evaluation is done, due to the need for testing multiple models."""
 
@@ -116,12 +117,12 @@ def prediction_tester(project, **kwargs):
 
 # ---------------------------------------
 
-def _evaluation_tester(project, verbosity, **kwargs):
+def _evaluation_tester(project: sf.Project, verbosity: int, **kwargs) -> None:
     logging.getLogger("slideflow").setLevel(verbosity)
     project.evaluate(**kwargs)
 
 
-def evaluation_tester(project, **kwargs):
+def evaluation_tester(project: sf.Project, **kwargs) -> None:
     """Evaluation testing must happen in an isolated to free GPU memory
     after evaluation is done, due to the need for testing multiple models."""
 
@@ -138,7 +139,12 @@ def evaluation_tester(project, **kwargs):
 
 # -----------------------------------------
 
-def _activations_tester(project, model, verbosity, **kwargs):
+def _activations_tester(
+    project: sf.Project,
+    model: Path,
+    verbosity: int,
+    **kwargs
+) -> None:
     logging.getLogger("slideflow").setLevel(verbosity)
     with TaskWrapper("Testing activations..."):
         dataset = project.dataset(299, 302)
@@ -171,6 +177,8 @@ def _activations_tester(project, model, verbosity, **kwargs):
         assert len(l_pred) == len(df.activations)
 
         umap = SlideMap.from_features(df)
+        if not exists(join(project.root, 'stats')):
+            os.makedirs(join(project.root, 'stats'))
         umap.save(join(project.root, 'stats', '2d_umap.png'))
         tile_stats, pt_stats, cat_stats = df.stats()
         top_features_by_tile = sorted(
@@ -192,7 +200,7 @@ def _activations_tester(project, model, verbosity, **kwargs):
         mosaic.save(join(project.root, "mosaic_test.png"))
 
 
-def activations_tester(project, model, **kwargs):
+def activations_tester(project: sf.Project, model: Path, **kwargs) -> None:
     ctx = multiprocessing.get_context('spawn')
     verbosity = logging.getLogger('slideflow').level
     process = ctx.Process(
@@ -206,18 +214,24 @@ def activations_tester(project, model, **kwargs):
 
 # -----------------------------------------
 
-def _wsi_prediction_tester(project, model, verbosity):
+def _wsi_prediction_tester(
+    project: sf.Project,
+    model: Path,
+    verbosity: int
+) -> None:
     logging.getLogger("slideflow").setLevel(verbosity)
     with TaskWrapper("Testing WSI prediction..."):
         dataset = project.dataset()
         slide_paths = dataset.slide_paths(source='TEST')
         patient_name = sf.util.path_to_name(slide_paths[0])
-        project.predict_wsi(model,
-                            join(project.root, 'wsi'),
-                            filters={sf.util.TCGA.patient: [patient_name]})
+        project.predict_wsi(
+            model,
+            join(project.root, 'wsi'),
+            filters={sf.util.TCGA.patient: [patient_name]}
+        )
 
 
-def wsi_prediction_tester(project, model):
+def wsi_prediction_tester(project: sf.Project, model: Path) -> None:
     ctx = multiprocessing.get_context('spawn')
     verbosity = logging.getLogger('slideflow').level
     process = ctx.Process(
@@ -228,7 +242,11 @@ def wsi_prediction_tester(project, model):
     process.join()
 
 
-def _clam_feature_generator(project, model, verbosity):
+def _clam_feature_generator(
+    project: sf.Project,
+    model: Path,
+    verbosity: int
+) -> None:
     logging.getLogger("slideflow").setLevel(verbosity)
     outdir = join(project.root, 'clam')
     project.generate_features_for_clam(
@@ -238,7 +256,7 @@ def _clam_feature_generator(project, model, verbosity):
     )
 
 
-def clam_feature_generator(project, model):
+def clam_feature_generator(project: sf.Project, model: Path) -> None:
     ctx = multiprocessing.get_context('spawn')
     verbosity = logging.getLogger('slideflow').level
     process = ctx.Process(
@@ -251,8 +269,8 @@ def clam_feature_generator(project, model):
 
 # ----------------------------------------
 
-def reader_tester(project):
-    dataset = project.project.dataset(299, 302)
+def reader_tester(project: sf.Project, verbosity: int) -> None:
+    dataset = project.dataset(299, 302)
     tfrecords = dataset.tfrecords()
     batch_size = 128
     assert len(tfrecords)
@@ -262,8 +280,9 @@ def reader_tester(project):
             import tensorflow as tf  # noqa F401
             import torch  # noqa F401
         except ImportError:
-            msg = "Can't import tensorflow and pytorch, skipping TFRecord test"
-            log.warning(msg)
+            log.warning(
+                "Can't import tensorflow and pytorch, skipping TFRecord test"
+            )
             test.skip()
             return
 
@@ -278,7 +297,7 @@ def reader_tester(project):
             num_workers=6,
             pin_memory=False
         )
-        if project.verbosity < logging.WARNING:
+        if verbosity < logging.WARNING:
             torch_dts = tqdm(
                 torch_dts,
                 leave=False,
@@ -291,6 +310,8 @@ def reader_tester(project):
                 hash(str(img.numpy().transpose(1, 2, 0)))  # CWH -> WHC
                 for img in images
             ]
+        if verbosity < logging.WARNING:
+            torch_dts.close()
         torch_results = sorted(torch_results)
 
         # Tensorflow backend
@@ -302,7 +323,7 @@ def reader_tester(project):
             augment=False,
             standardize=False
         )
-        if project.verbosity < logging.WARNING:
+        if verbosity < logging.WARNING:
             tf_dts = tqdm(
                 tf_dts,
                 leave=False,
@@ -312,6 +333,8 @@ def reader_tester(project):
             )
         for images, labels in tf_dts:
             tf_results += [hash(str(img.numpy())) for img in images]
+        if verbosity < logging.WARNING:
+            tf_dts.close()
         tf_results = sorted(tf_results)
 
         assert len(torch_results) == len(tf_results) == dataset.num_tiles
@@ -320,13 +343,19 @@ def reader_tester(project):
 
 # -----------------------------------------------
 
-def normalizer_tester(project, args, single, multi, verbosity=None):
+def normalizer_tester(
+    project: sf.Project,
+    args: Tuple,
+    single: bool,
+    multi: bool,
+    verbosity: Optional[int] = None
+) -> None:
     if verbosity is not None:
         logging.getLogger("slideflow").setLevel(verbosity)
     if not len(args):
         methods = sf.norm.StainNormalizer.normalizers
     else:
-        methods = args
+        methods = args  # type: ignore
     dataset = project.dataset(299, 302)
 
     prefix = '\r\033[kTesting '
@@ -354,7 +383,7 @@ def normalizer_tester(project, args, single, multi, verbosity=None):
 
                 gen_tpt = test_throughput(dts, gen_norm)
                 dur = col.blue(f"[{gen_tpt:.1f} img/s]")
-                print(f"{prefix}Testing {method} [{st_msg}]... DONE " + dur)
+                print(f"{prefix}{method} [{st_msg}]... DONE " + dur)
                 if type(vec_norm) != type(gen_norm):
                     print(f"{prefix}{method} {v} [{st_msg}]...", end="")
 
@@ -385,10 +414,16 @@ def normalizer_tester(project, args, single, multi, verbosity=None):
 
 # -----------------------------------------------
 
-def test_throughput(dts, normalizer=None, s=10, step_size=1):
+def test_throughput(
+    dts: Any,
+    normalizer: sf.norm.StainNormalizer = None,
+    s: int = 10,
+    step_size: int = 1
+) -> float:
     '''Returns images / sec'''
-    start = -1
+    start = -1  # type: float
     count = 0
+    total_time = 0  # type: float
     for img, slide in dts:
         if sf.backend() == 'torch':
             if len(img.shape) == 3:
@@ -403,13 +438,17 @@ def test_throughput(dts, normalizer=None, s=10, step_size=1):
         else:
             count += step_size
         if time.time() - start > s:
-            if sf.backend() == 'torch':
-                dts.close()
+            total_time = count / (time.time() - start)
             break
-    return count / (time.time() - start)
+    return total_time
 
 
-def test_multithread_throughput(dataset, normalizer, s=10, batch_size=32):
+def test_multithread_throughput(
+    dataset: Any,
+    normalizer: sf.norm.StainNormalizer,
+    s: int = 10,
+    batch_size: int = 32
+) -> float:
     if sf.backend() == 'tensorflow':
         dts = dataset.tensorflow(
             None,
@@ -424,16 +463,16 @@ def test_multithread_throughput(dataset, normalizer, s=10, batch_size=32):
             batch_size,
             standardize=False,
             infinite=False,
-            normalizer=normalizer
+            normalizer=normalizer,
         )
     step_size = 1 if batch_size is None else batch_size
-    return test_throughput(dts, step_size=step_size)
+    return test_throughput(dts, step_size=step_size, s=s)
 
 
 # -----------------------------------------------
 
 class TestConfig:
-    def __init__(self, path, slides):
+    def __init__(self, path: Path, slides: str) -> None:
         """Test Suite configuration.
 
         Args:
@@ -445,7 +484,7 @@ class TestConfig:
         """
         random.seed(0)
         slides_path = join(path, 'slides') if slides == 'download' else slides
-        if not os.path.exists(slides_path):
+        if not exists(slides_path):
             os.makedirs(slides_path)
         self.sources = {
             'TEST': {
@@ -462,7 +501,7 @@ class TestConfig:
             'sources': ['TEST'],
             'models_dir': './models',
             'eval_dir': './eval',
-        }
+        }  # type: Dict[str, Any]
         if slides == 'download':
             tcga_slides = get_tcga_slides()
             with TaskWrapper("Downloading slides..."):
@@ -486,7 +525,7 @@ class TaskWrapper:
     '''Test wrapper to assist with logging.'''
     VERBOSITY = logging.DEBUG
 
-    def __init__(self, message):
+    def __init__(self, message: str) -> None:
         self.message = message
         self.failed = False
         self.skipped = False
@@ -501,7 +540,7 @@ class TaskWrapper:
             print(self.message)
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_traceback):
+    def __exit__(self, exc_type, exc_val, exc_traceback) -> None:
         duration = time.time() - self.start
         if self.VERBOSITY >= logging.WARNING:
             self.spinner.__exit__(exc_type, exc_val, exc_traceback)
@@ -517,7 +556,13 @@ class TaskWrapper:
         if self.VERBOSITY < logging.WARNING:
             print()
 
-    def _end_msg(self, end_str, color_func, trail, width=80):
+    def _end_msg(
+        self,
+        end_str: str,
+        color_func: Callable,
+        trail: str,
+        width: int = 80
+    ) -> None:
         right_msg = f' {color_func(end_str)}{trail}'
         if len(self.message) > width:
             left_msg = self.message[:width]
@@ -529,17 +574,23 @@ class TaskWrapper:
         sys.stdout.flush()
         print()
 
-    def fail(self):
+    def fail(self) -> None:
         self.failed = True
 
-    def skip(self):
+    def skip(self) -> None:
         self.skipped = True
 
 
 class TestSuite:
     '''Class to supervise standardized testing of slideflow pipeline.'''
-    def __init__(self, root, slides, buffer=None, verbosity=logging.WARNING,
-                 reset=False):
+    def __init__(
+        self,
+        root: Path,
+        slides: str,
+        buffer: Optional[Path] = None,
+        verbosity: int = logging.WARNING,
+        reset: bool = False
+    ) -> None:
         '''Initialize testing models.'''
 
         # Set logging level
@@ -559,9 +610,9 @@ class TestSuite:
         self.project_root = join(root, 'project')
         self.config = TestConfig(root, slides=slides)
 
-        if os.path.exists(join(self.project_root, 'settings.json')) and reset:
+        if exists(join(self.project_root, 'settings.json')) and reset:
             shutil.rmtree(self.project_root)
-        if os.path.exists(join(self.project_root, 'settings.json')):
+        if exists(join(self.project_root, 'settings.json')):
             self.project = sf.Project(self.project_root)
         else:
             self.project = sf.Project(self.project_root,
@@ -580,9 +631,10 @@ class TestSuite:
                 if not torch.cuda.is_available():
                     gpu_test.fail()
             else:
-                msg = f"Unknown backend {sf.backend()} "
-                msg += "Valid backends: 'tensorflow' or 'torch'"
-                raise errors.BackendError(msg)
+                raise errors.BackendError(
+                    f"Unknown backend {sf.backend()} "
+                    "Valid backends: 'tensorflow' or 'torch'"
+                )
 
         # Configure datasets (input)
         self.configure_sources()
@@ -592,7 +644,7 @@ class TestSuite:
         # Rebuild tfrecord indices
         self.project.dataset(299, 302).build_index(True)
 
-    def _get_model(self, name, epoch=1):
+    def _get_model(self, name: str, epoch: int = 1) -> str:
         prev_run_dirs = [
             x for x in os.listdir(self.project.models_dir)
             if os.path.isdir(join(self.project.models_dir, x))
@@ -606,7 +658,7 @@ class TestSuite:
                 )
         raise OSError(f"Unable to find trained model {name}")
 
-    def configure_sources(self):
+    def configure_sources(self) -> None:
         with TaskWrapper("Dataset configuration..."):
             for source in self.config.sources.keys():
                 self.project.add_source(
@@ -618,7 +670,7 @@ class TestSuite:
                     path=self.project.dataset_config
                 )
 
-    def configure_annotations(self):
+    def configure_annotations(self) -> None:
         with TaskWrapper("Annotation configuration...") as test:
             outfile = self.project.annotations
             with open(outfile, 'w') as csv_outfile:
@@ -645,9 +697,15 @@ class TestSuite:
                     test.fail()
                     return
 
-    def setup_hp(self, model_type, sweep=False, normalizer=None, uq=False):
+    def setup_hp(
+        self,
+        model_type: str,
+        sweep: bool = False,
+        normalizer: Optional[str] = None,
+        uq: bool = False
+    ) -> sf.ModelParams:
+        """Set up hyperparameters."""
 
-        # Setup loss function
         if model_type == 'categorical':
             loss = ('sparse_categorical_crossentropy'
                     if sf.backend() == 'tensorflow'
@@ -710,7 +768,7 @@ class TestSuite:
         )
         return hp
 
-    def test_extraction(self, enable_downsample=True, **kwargs):
+    def test_extraction(self, enable_downsample: bool = True, **kwargs) -> None:
         # Test tile extraction, default parameters, for regular slides
         with TaskWrapper("Testing slide extraction..."):
             self.project.extract_tiles(
@@ -725,7 +783,12 @@ class TestSuite:
                 **kwargs
             )
 
-    def test_normalizers(self, *args, single=True, multi=True):
+    def test_normalizers(
+        self,
+        *args,
+        single: bool = True,
+        multi: bool = True,
+    ) -> None:
         # Tests throughput of normalizers, save a single example image for each
         verbosity = logging.getLogger('slideflow').level
         ctx = multiprocessing.get_context('spawn')
@@ -736,13 +799,14 @@ class TestSuite:
         process.start()
         process.join()
 
-    def test_readers(self):
+    def test_readers(self) -> None:
         ctx = multiprocessing.get_context('spawn')
-        process = ctx.Process(target=reader_tester, args=(self,))
+        process = ctx.Process(target=reader_tester, args=(self.project,
+                                                          self.verbosity))
         process.start()
         process.join()
 
-    def train_perf(self, **train_kwargs):
+    def train_perf(self, **train_kwargs) -> None:
         msg = "Training single categorical outcome from HP sweep..."
         with TaskWrapper(msg) as test:
             self.setup_hp(
@@ -765,10 +829,17 @@ class TestSuite:
                 log.error("Results object not received from training")
                 test.fail()
 
-    def test_training(self, categorical=True, uq=True, multi_categorical=True,
-                      linear=True, multi_input=True, cph=True, multi_cph=True,
-                      **train_kwargs):
-
+    def test_training(
+        self,
+        categorical: bool = True,
+        uq: bool = True,
+        multi_categorical: bool = True,
+        linear: bool = True,
+        multi_input: bool = True,
+        cph: bool = True,
+        multi_cph: bool = True,
+        **train_kwargs
+    ) -> None:
         if categorical:
             # Test categorical outcome
             self.train_perf(**train_kwargs)
@@ -866,7 +937,7 @@ class TestSuite:
         else:
             print("Skipping CPH model testing [current backend is Pytorch]")
 
-    def test_prediction(self, **predict_kwargs):
+    def test_prediction(self, **predict_kwargs) -> None:
         model = self._get_model('category1-manual_hp-TEST-HPSweep0-kfold1')
 
         with TaskWrapper("Testing categorical model predictions..."):
@@ -876,7 +947,7 @@ class TestSuite:
                 **predict_kwargs
             )
 
-    def test_evaluation(self, **eval_kwargs):
+    def test_evaluation(self, **eval_kwargs) -> None:
         multi_cat_model = self._get_model('category1-category2-HP0-kfold1')
         multi_lin_model = self._get_model('linear1-linear2-HP0-kfold1')
         multi_inp_model = self._get_model('category1-multi_input-HP0-kfold1')
@@ -947,9 +1018,9 @@ class TestSuite:
             else:
                 test.skip()
 
-    def test_heatmap(self, slide='auto', **heatmap_kwargs):
+    def test_heatmap(self, slide: str = 'auto', **heatmap_kwargs) -> None:
         model = self._get_model('category1-manual_hp-TEST-HPSweep0-kfold1')
-        assert os.path.exists(model), "Model has not yet been trained."
+        assert exists(model), "Model has not yet been trained."
 
         with TaskWrapper("Testing heatmap generation..."):
             if slide.lower() == 'auto':
@@ -963,19 +1034,19 @@ class TestSuite:
                 **heatmap_kwargs
             )
 
-    def test_activations_and_mosaic(self, **act_kwargs):
+    def test_activations_and_mosaic(self, **act_kwargs) -> None:
         model = self._get_model('category1-manual_hp-TEST-HPSweep0-kfold1')
-        assert os.path.exists(model), "Model has not yet been trained."
+        assert exists(model), "Model has not yet been trained."
         activations_tester(project=self.project, model=model)
 
-    def test_predict_wsi(self):
+    def test_predict_wsi(self) -> None:
         model = self._get_model('category1-manual_hp-TEST-HPSweep0-kfold1')
-        assert os.path.exists(model), "Model has not yet been trained."
+        assert exists(model), "Model has not yet been trained."
         wsi_prediction_tester(self.project, model)
 
-    def test_clam(self):
+    def test_clam(self) -> None:
         model = self._get_model('category1-manual_hp-TEST-HPSweep0-kfold1')
-        assert os.path.exists(model), "Model has not yet been trained."
+        assert exists(model), "Model has not yet been trained."
 
         try:
             skip_test = False
@@ -1002,9 +1073,19 @@ class TestSuite:
                     dataset
                 )
 
-    def test(self, extract=True, reader=True, train=True, normalizer=True,
-             evaluate=True, predict=True, heatmap=True, activations=True,
-             predict_wsi=True, clam=True):
+    def test(
+        self,
+        extract: bool = True,
+        reader: bool = True,
+        train: bool = True,
+        normalizer: bool = True,
+        evaluate: bool = True,
+        predict: bool = True,
+        heatmap: bool = True,
+        activations: bool = True,
+        predict_wsi: bool = True,
+        clam: bool = True
+    ) -> None:
         '''Perform and report results of all available testing.'''
 
         if extract:

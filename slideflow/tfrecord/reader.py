@@ -1,16 +1,18 @@
 """Reader utils."""
 
-import functools
+from __future__ import absolute_import
+
 import gzip
 import io
 import os
 import struct
-import typing
 import numpy as np
+from typing import Optional, Tuple, Dict, Union, List, Iterable
 
 from slideflow.util import log
 from slideflow.util import example_pb2, extract_feature_dict
 from slideflow.tfrecord import iterator_utils
+
 
 class TFRecordIterator:
     typename_mapping = {
@@ -18,16 +20,17 @@ class TFRecordIterator:
         "float": "float_list",
         "int": "int64_list"
     }
+
     def __init__(
         self,
         data_path: str,
-        index = None,
-        shard: typing.Optional[typing.Tuple[int, int]] = None,
-        clip: typing.Optional[int] = None,
-        compression_type: typing.Optional[str] = None,
+        index: Optional[np.ndarray] = None,
+        shard: Optional[Tuple[int, int]] = None,
+        clip: Optional[int] = None,
+        compression_type: Optional[str] = None,
         random_start: bool = False,
-        datum_bytes = None,
-    ) -> typing.Iterable[memoryview]:
+        datum_bytes: Optional[bytearray] = None,
+    ) -> None:
         """Create an iterator over the tfrecord dataset.
 
         Since the tfrecords file stores each example as bytes, we can
@@ -60,25 +63,29 @@ class TFRecordIterator:
         if compression_type == "gzip":
             self.file = gzip.open(data_path, 'rb')
         elif compression_type is None:
-            self.file = io.open(data_path, 'rb')
+            self.file = io.open(data_path, 'rb')  # type: ignore
         else:
-            raise ValueError("compression_type should be either 'gzip' or None")
+            raise ValueError("compression_type should be 'gzip' or None")
 
         self.data_path = data_path
         self.shard = shard
         self.clip = clip
         self.random_start = random_start
-        self.datum_bytes = datum_bytes if datum_bytes is not None else bytearray(1024 * 1024)
+        if datum_bytes is not None:
+            self.datum_bytes = datum_bytes
+        else:
+            self.datum_bytes = bytearray(1024 * 1024)
         self.length_bytes = bytearray(8)
         self.crc_bytes = bytearray(4)
         self.index = index
         if self.index is not None:
-            if len(self.index.shape) == 1: # For the case that there is only a single record in the file
+            # For the case that there is only a single record in the file
+            if len(self.index.shape) == 1:
                 self.index = np.expand_dims(self.index, axis=0)
-            self.index = self.index[:, 0]
+            self.index = self.index[:, 0]  # type: ignore
 
-    def __iter__(self):
-
+    def __iter__(self) -> Iterable[memoryview]:
+        """Create the iterator."""
         def read_records(start_offset=None, end_offset=None):
             if start_offset is not None:
                 self.file.seek(start_offset)
@@ -92,9 +99,11 @@ class TFRecordIterator:
                 length, = struct.unpack("<Q", self.length_bytes)
                 if length > len(self.datum_bytes):
                     try:
-                        self.datum_bytes = self.datum_bytes.zfill(int(length * 1.5))
-                    except OverflowError as e:
-                        raise OverflowError('Error reading tfrecords; please try regenerating index files')
+                        _fill = int(length * 1.5)
+                        self.datum_bytes = self.datum_bytes.zfill(_fill)
+                    except OverflowError:
+                        raise OverflowError('Error reading tfrecords; please '
+                                            'try regenerating index files')
                 datum_bytes_view = memoryview(self.datum_bytes)[:length]
                 if self.file.readinto(datum_bytes_view) != length:
                     raise RuntimeError("Failed to read the record.")
@@ -106,7 +115,10 @@ class TFRecordIterator:
             yield from read_records()
         else:
             if self.clip:
-                clip_offset = None if self.clip == len(self.index) else self.index[self.clip]
+                if self.clip == len(self.index):
+                    clip_offset = None
+                else:
+                    clip_offset = self.index[self.clip]
                 self.index = self.index[:self.clip]
             else:
                 clip_offset = None
@@ -119,7 +131,7 @@ class TFRecordIterator:
             else:
                 shard_idx, shard_count = self.shard
                 all_shard_indices = np.array_split(self.index, shard_count)
-                if shard_count >= self.index.shape[0]:
+                if shard_count >= self.index.shape[0]:  # type: ignore
                     return
                 start_byte = all_shard_indices[shard_idx][0]
                 if shard_idx < (shard_count-1):
@@ -134,17 +146,18 @@ class TFRecordIterator:
     def close(self):
         self.file.close()
 
+
 class ExampleIterator(TFRecordIterator):
     def __init__(
         self,
         data_path: str,
-        index = None,
-        shard: typing.Optional[typing.Tuple[int, int]] = None,
-        clip: typing.Optional[int] = None,
-        compression_type: typing.Optional[str] = None,
+        index: Optional[np.ndarray] = None,
+        shard: Optional[Tuple[int, int]] = None,
+        clip: Optional[int] = None,
+        compression_type: Optional[str] = None,
         random_start: bool = False,
-        datum_bytes = None,
-        description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
+        datum_bytes: Optional[bytearray] = None,
+        description: Union[List[str], Dict[str, str], None] = None,
     ):
         """
         description: list or dict of str, optional, default=None
@@ -155,30 +168,39 @@ class ExampleIterator(TFRecordIterator):
             inferred type for compatibility purposes. If None (default),
             then all features contained in the file are extracted.
         """
-        super().__init__(data_path, index, shard, clip, compression_type, random_start, datum_bytes)
+        super().__init__(
+            data_path,
+            index,
+            shard,
+            clip,
+            compression_type,
+            random_start,
+            datum_bytes
+        )
         self.description = description
 
     def process(self, record):
         example = example_pb2.Example()
         example.ParseFromString(record)
-        return extract_feature_dict(example.features, self.description, self.typename_mapping)
+        return extract_feature_dict(
+            example.features,
+            self.description,
+            self.typename_mapping
+        )
+
 
 class SequenceIterator(TFRecordIterator):
     def __init__(
         self,
         data_path: str,
-        index = None,
-        shard: typing.Optional[typing.Tuple[int, int]] = None,
-        clip: typing.Optional[int] = None,
-        compression_type: typing.Optional[str] = None,
+        index: Optional[np.ndarray] = None,
+        shard: Optional[Tuple[int, int]] = None,
+        clip: Optional[int] = None,
+        compression_type: Optional[str] = None,
         random_start: bool = False,
-        datum_bytes = None,
-        context_description: typing.Union[
-            typing.List[str], typing.Dict[str, str], None
-        ] = None,
-        features_description: typing.Union[
-            typing.List[str], typing.Dict[str, str], None
-        ] = None,
+        datum_bytes: Optional[bytearray] = None,
+        context_description: Union[List[str], Dict[str, str], None] = None,
+        features_description: Union[List[str], Dict[str, str], None] = None,
     ):
         """
         description: list or dict of str, optional, default=None
@@ -189,36 +211,46 @@ class SequenceIterator(TFRecordIterator):
             inferred type for compatibility purposes. If None (default),
             then all features contained in the file are extracted.
         """
-        super().__init__(data_path, index, shard, clip, compression_type, random_start, datum_bytes)
+        super().__init__(
+            data_path,
+            index,
+            shard,
+            clip,
+            compression_type,
+            random_start,
+            datum_bytes
+        )
         self.context_description = context_description
         self.features_description = features_description
 
     def process(self, record):
         example = example_pb2.SequenceExample()
         example.ParseFromString(record)
-        context = extract_feature_dict(example.context, self.context_description, self.typename_mapping)
-        features = extract_feature_dict(example.feature_lists, self.features_description, self.typename_mapping)
+        context = extract_feature_dict(
+            example.context,
+            self.context_description,
+            self.typename_mapping
+        )
+        features = extract_feature_dict(
+            example.feature_lists,
+            self.features_description,
+            self.typename_mapping
+        )
         yield context, features
+
 
 def tfrecord_loader(
     data_path: str,
-    index: None,#typing.Union[str, None],
-    description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
-    shard: typing.Optional[typing.Tuple[int, int]] = None,
-    clip: typing.Optional[int] = None,
-    sequence_description: typing.Union[
-        typing.List[str], typing.Dict[str, str], None
-    ] = None,
-    compression_type: typing.Optional[str] = None,
-    datum_bytes = None,
-) -> typing.Iterable[
-    typing.Union[
-        typing.Dict[str, np.ndarray],
-        typing.Tuple[
-            typing.Dict[str, np.ndarray], typing.Dict[str, typing.List[np.ndarray]]
-        ],
-    ]
-]:
+    index: None,
+    description: Union[List[str], Dict[str, str], None] = None,
+    shard: Optional[Tuple[int, int]] = None,
+    clip: Optional[int] = None,
+    sequence_description: Union[List[str], Dict[str, str], None] = None,
+    compression_type: Optional[str] = None,
+    datum_bytes: Optional[bytearray] = None,
+) -> Iterable[Union[
+        Dict[str, np.ndarray],
+        Tuple[Dict[str, np.ndarray], Dict[str, List[np.ndarray]]]]]:
     """Create an iterator over the (decoded) examples contained within
     the dataset.
 
@@ -267,16 +299,16 @@ def tfrecord_loader(
         instance of a `SequenceExample`.
     """
     if sequence_description is not None:
-        return SequenceIterator(
+        return SequenceIterator(  # type: ignore
             data_path=data_path,
-            index_path=index,
+            index=index,
             context_description=description,
             features_description=sequence_description,
             shard=shard,
             clip=clip,
             compression_type=compression_type
         )
-    return ExampleIterator(
+    return ExampleIterator(  # type: ignore
         data_path=data_path,
         index=index,
         description=description,
@@ -286,18 +318,20 @@ def tfrecord_loader(
         datum_bytes=datum_bytes
     )
 
-def multi_tfrecord_loader(paths: typing.List[str],
-                          indices,
-                          splits: typing.Dict[str, float],
-                          description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
-                          sequence_description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
-                          compression_type: typing.Optional[str] = None,
-                          shard: typing.Optional[typing.Tuple[int, int]] = None,
-                          clip: typing.Optional[typing.Dict[str, int]] = None,
-                          infinite: bool = True,
-                          ) -> typing.Iterable[typing.Union[typing.Dict[str, np.ndarray],
-                                                            typing.Tuple[typing.Dict[str, np.ndarray],
-                                                                         typing.Dict[str, typing.List[np.ndarray]]]]]:
+
+def multi_tfrecord_loader(
+    paths: List[bytes],
+    indices,
+    splits: Optional[Dict[str, float]],
+    description: Union[List[str], Dict[str, str], None] = None,
+    sequence_description: Union[List[str], Dict[str, str], None] = None,
+    compression_type: Optional[str] = None,
+    shard: Optional[Tuple[int, int]] = None,
+    clip: List[int] = None,
+    infinite: bool = True,
+) -> Iterable[Union[Dict[str, np.ndarray],
+                    Tuple[Dict[str, np.ndarray],
+                    Dict[str, List[np.ndarray]]]]]:
     """Create an iterator by reading and merging multiple tfrecord datasets.
 
     Params:
@@ -342,16 +376,28 @@ def multi_tfrecord_loader(paths: typing.List[str],
     """
 
     if indices is None and (shard is not None or clip is not None):
-        log.debug(f"Index files not found for tfrecord; unable to perform clipping or sharding (data will be duplicated).")
+        log.debug("Index files not found for tfrecord; unable to perform "
+                  " clipping or sharding (data will be duplicated).")
 
     datum_bytes = bytearray(1024 * 1024)
-    loaders = [tfrecord_loader(data_path=tfr_path.decode('utf-8'),
-                               index=indices[i] if indices is not None else None,
-                               description=description,
-                               shard=shard,
-                               clip=(None if not clip else clip[i]),
-                               sequence_description=sequence_description,
-                               compression_type=compression_type,
-                               datum_bytes=datum_bytes) for i, tfr_path in enumerate(paths)]
-    splits_list = splits if splits is not None else np.array([0.5 for t in range(len(paths))])
-    return iterator_utils.RandomSampler(loaders, splits_list, infinite=infinite, shard=shard)
+    loaders = [
+        tfrecord_loader(
+            data_path=tfr_path.decode('utf-8'),
+            index=indices[i] if indices is not None else None,
+            description=description,
+            shard=shard,
+            clip=(None if not clip else clip[i]),
+            sequence_description=sequence_description,
+            compression_type=compression_type,
+            datum_bytes=datum_bytes)
+        for i, tfr_path in enumerate(paths)
+    ]
+    if splits is not None:
+        splits_list = splits
+    else:
+        splits_list = np.array(  # type: ignore
+            [0.5 for t in range(len(paths))]
+        )
+    return iterator_utils.RandomSampler(
+        loaders, splits_list, infinite=infinite, shard=shard
+    )

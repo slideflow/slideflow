@@ -1,18 +1,29 @@
 import random
 import slideflow as sf
 from slideflow.util import log
+from typing import Optional, List, Dict, Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import neptune.new as neptune
+    from slideflow import Dataset
 
 
 class NeptuneLog:
     '''Creates neptune runs and assists with run logging.'''
 
-    def __init__(self, api_token, workspace):
+    def __init__(self, api_token: str, workspace: str) -> None:
         '''Initializes with a given Neptune API token and workspace name.'''
 
         self.api_token = api_token
         self.workspace = workspace
 
-    def start_run(self, name, project, dataset, tags=None):
+    def start_run(
+        self,
+        name: str,
+        project: str,
+        dataset: "Dataset",
+        tags: Optional[List[str]] = None
+    ) -> "neptune.Run":
         '''Starts a neptune run'''
 
         import neptune.new as neptune
@@ -37,15 +48,16 @@ class NeptuneLog:
         self.run['data/annotations_file'] = dataset.annotations_file
         return self.run
 
-    def log_config(self, hp_data, stage):
+    def log_config(self, hp_data: Dict, stage: str) -> None:
         '''Logs model hyperparameter data according to the given stage
         ('train' or 'eval')'''
 
         proj_keys = ['dataset_config', 'sources']
         model_keys = ['model_name', 'model_type', 'k_fold_i', 'outcomes']
         if not hasattr(self, 'run'):
-            msg = "Neptune run not yet initialized (start with start_run())"
-            raise ValueError(msg)
+            raise ValueError(
+                "Neptune run not yet initialized (start with start_run())"
+            )
         for model_info_key in model_keys:
             self.run[model_info_key] = hp_data[model_info_key]
         outcomes = {
@@ -80,7 +92,7 @@ class NeptuneLog:
             self.run['eval/max_tiles'] = hp_data['max_tiles']
 
 
-def list_log(run, label, val, **kwargs):
+def list_log(run: "neptune.Run", label: str, val: Any, **kwargs: Any) -> None:
     # If only one value for a metric, log to .../[metric]
     # If more than one value for a metric (e.g. AUC for each category),
     # log to .../[metric]/[i]

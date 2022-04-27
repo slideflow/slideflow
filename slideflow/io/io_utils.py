@@ -1,22 +1,25 @@
+from __future__ import absolute_import
+
 import os
 import io
 import struct
 import imghdr
+from typing import List, Tuple, Optional
+
 from slideflow.util import log, example_pb2, extract_feature_dict
 from slideflow import errors
 
 
-def detect_tfrecord_format(tfr):
+def detect_tfrecord_format(tfr: str) -> Tuple[Optional[List[str]],
+                                              Optional[str]]:
     '''Detects tfrecord format.
 
     Args:
         tfr (str): Path to tfrecord.
 
     Returns:
+        list(str): List of detected features.
         str: Image file type (png/jpeg)
-
-        dict: Feature description dictionary (including or excluding
-        location data as supported)
     '''
     typename_mapping = {
         "byte": "bytes_list",
@@ -33,7 +36,10 @@ def detect_tfrecord_format(tfr):
     def process(record, description):
         example = example_pb2.Example()
         example.ParseFromString(record)
-        return extract_feature_dict(example.features, description, typename_mapping)
+        return extract_feature_dict(
+            example.features,
+            description,
+            typename_mapping)
 
     length_bytes = bytearray(8)
     crc_bytes = bytearray(4)
@@ -52,7 +58,8 @@ def detect_tfrecord_format(tfr):
         try:
             datum_bytes = datum_bytes.zfill(int(length * 1.5))
         except OverflowError:
-            raise OverflowError('Error reading tfrecords; please try regenerating index files')
+            raise OverflowError('Error reading tfrecords; please try '
+                                'regenerating index files')
     datum_bytes_view = memoryview(datum_bytes)[:length]
     if file.readinto(datum_bytes_view) != length:
         raise RuntimeError("Failed to read the record.")
@@ -68,9 +75,9 @@ def detect_tfrecord_format(tfr):
         try:
             record = process(datum_bytes_view, description=feature_description)
         except KeyError:
-            msg = f'Unable to detect TFRecord format: {tfr}'
-            raise errors.TFRecordsError(msg)
-
+            raise errors.TFRecordsError(
+                f'Unable to detect TFRecord format: {tfr}'
+            )
     img = bytes(record['image_raw'])
     img_type = imghdr.what('', img)
     return list(feature_description.keys()), img_type

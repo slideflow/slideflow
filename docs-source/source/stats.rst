@@ -8,19 +8,19 @@ the :class:`slideflow.SlideMap` class designed to assist with visualizing tiles 
 in two-dimensional space.
 
 Once a model has been trained, tile-level predictions and intermediate layer activations can be calculated
-across an entire dataset with :class:`slideflow.model.DatasetFeatures`.
+across an entire dataset with :class:`slideflow.DatasetFeatures`.
 The :class:`slideflow.SlideMap` class can then perform dimensionality reduction on these dataset-wide
 activations, plotting tiles and slides in two-dimensional space. Visualizing the distribution and clustering
 of tile-level and slide-level layer activations can help reveal underlying structures in the dataset and shared
 visual features among classes.
 
-The primary method of use is first generating an :class:`slideflow.model.DatasetFeatures` from a trained
+The primary method of use is first generating an :class:`slideflow.DatasetFeatures` from a trained
 model, then creating an instance of a :class:`slideflow.SlideMap` by using the ``from_features`` class
 method:
 
 .. code-block:: python
 
-    df = sf.model.DatasetFeatures(model='/path/', ...)
+    df = sf.DatasetFeatures(model='/path/', ...)
     slide_map = sf.SlideMap.from_features(df)
 
 Alternatively, if you would like to map slides from a dataset in two-dimensional space using pre-calculated *x* and *y*

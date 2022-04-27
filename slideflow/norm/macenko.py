@@ -16,7 +16,11 @@ from __future__ import division
 import numpy as np
 import slideflow.norm.utils as ut
 
-def get_stain_matrix(I, beta=0.15, alpha=1):
+def get_stain_matrix(
+    I: np.ndarray,
+    beta: float = 0.15,
+    alpha: float = 1
+) -> np.ndarray:
     """
     Get stain matrix (2x3)
     :param I:
@@ -55,15 +59,19 @@ class Normalizer(ut.BaseNormalizer):
     def __init__(self):
         super().__init__()
 
-    def fit(self, target):
+    def fit(self, target: np.ndarray) -> None:
         target = ut.standardize_brightness(target)
         self.stain_matrix_target = get_stain_matrix(target)
         self.target_concentrations = ut.get_concentrations(target, self.stain_matrix_target)
 
-    def target_stains(self):
+    def target_stains(self) -> np.ndarray:
         return ut.OD_to_RGB(self.stain_matrix_target)
 
-    def transform(self, I):
+    def transform(self, I: np.ndarray) -> np.ndarray:
+
+        if self.stain_matrix_target is None or self.target_concentrations is None:
+            raise ValueError("Normalizer has not been fit: call normalizer.fit()")
+
         I = ut.standardize_brightness(I)
         stain_matrix_source = get_stain_matrix(I)
         source_concentrations = ut.get_concentrations(I, stain_matrix_source)

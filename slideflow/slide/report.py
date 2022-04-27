@@ -8,12 +8,12 @@ import os
 import io
 import numpy as np
 import tempfile
-import seaborn as sns
-import matplotlib.pyplot as plt
 from os.path import join
 from PIL import Image
 from datetime import datetime
 from fpdf import FPDF
+from types import SimpleNamespace
+from typing import List, Optional, Dict, Any
 
 import slideflow as sf
 from slideflow.util import log, path_to_name  # noqa F401
@@ -23,7 +23,14 @@ class SlideReport:
     '''Report to summarize tile extraction from a slide, including
     example images of extracted tiles.'''
 
-    def __init__(self, images, path, thumb=None, data=None, compress=True):
+    def __init__(
+        self,
+        images: List[bytes],
+        path: str,
+        thumb: Optional[Image.Image] = None,
+        data: Dict[str, Any] = None,
+        compress: bool = True
+    ) -> None:
         """Initializer.
 
         Args:
@@ -42,30 +49,34 @@ class SlideReport:
         else:
             self.thumb = Image.fromarray(np.array(thumb)[:, :, 0:3])
         if not compress:
-            self.images = images
+            self.images = images  # type: List[bytes]
         else:
             self.images = [self._compress(img) for img in images]
 
     @property
-    def blur_burden(self):
+    def blur_burden(self) -> Optional[float]:
+        if self.data is None:
+            return None
         if 'blur_burden' in self.data:
             return self.data['blur_burden']
         else:
             return None
 
     @property
-    def num_tiles(self):
+    def num_tiles(self) -> Optional[int]:
+        if self.data is None:
+            return None
         if 'num_tiles' in self.data:
             return self.data['num_tiles']
         else:
             return None
 
-    def _compress(self, img):
+    def _compress(self, img: bytes) -> bytes:
         with io.BytesIO() as output:
             Image.open(io.BytesIO(img)).save(output, format="JPEG", quality=75)
             return output.getvalue()
 
-    def image_row(self):
+    def image_row(self) -> Optional[bytes]:
         '''Merges images into a single row of images'''
         if not self.images:
             return None
@@ -85,11 +96,16 @@ class SlideReport:
 
 class ExtractionPDF(FPDF):
     # Length is 220
-    def __init__(self, *args, title='Tile extraction report', **kwargs):
+    def __init__(
+        self,
+        *args,
+        title: str = 'Tile extraction report',
+        **kwargs
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.title_msg = title
 
-    def header(self):
+    def header(self) -> None:
         package_directory = os.path.dirname(os.path.abspath(__file__))
         logo = join(package_directory, 'slideflow-logo-name-small.jpg')
 
@@ -102,7 +118,7 @@ class ExtractionPDF(FPDF):
         self.set_text_color(0, 0, 0)
         # Framed title
         self.set_font('Arial', 'B', 16)
-        top = self.y
+        top = self.y  # type: ignore
         self.cell(40, 10, self.title_msg, 0, 1)
         self.y = top
         self.cell(150)
@@ -119,7 +135,7 @@ class ExtractionPDF(FPDF):
         self.cell(40, 10, sf.__version__, align='R')
         self.ln(15)
 
-    def footer(self):
+    def footer(self) -> None:
         self.set_y(-15)
         self.set_font('Arial', 'I', 8)
         self.cell(0, 10, 'Page ' + str(self.page_no()) + ' of {nb}', 0, 0, 'C')
@@ -129,20 +145,26 @@ class ExtractionReport:
     """Creates a PDF report summarizing extracted tiles, from a collection of
     tile extraction reports."""
 
-    def __init__(self, reports, meta=None, bb_threshold=0.05,
-                 title='Tile extraction report'):
+    def __init__(
+        self,
+        reports: List[SlideReport],
+        meta: SimpleNamespace = None,
+        bb_threshold: float = 0.05,
+        title: str = 'Tile extraction report'
+    ) -> None:
         """Initializer.
 
         Args:
             reports (list(:class:`SlideReport`)): List of SlideReport objects.
         """
+        import matplotlib.pyplot as plt
 
         self.bb_threshold = bb_threshold
         pdf = ExtractionPDF(title=title)
         pdf.alias_nb_pages()
         pdf.add_page()
 
-        if hasattr(meta, 'ws_frac'):
+        if meta is not None and hasattr(meta, 'ws_frac'):
             n_tiles = np.array([r.num_tiles for r in reports if r is not None])
             bb = np.array([r.blur_burden for r in reports if r is not None])
             bb_names = [r.path for r in reports if r is not None]
@@ -236,11 +258,10 @@ class ExtractionReport:
 
                     name = path_to_name(report.path)
                     if isinstance(report.num_tiles, int):
-                        n_tiles = report.num_tiles
+                        num_tiles = report.num_tiles
                     else:
-                        n_tiles = 0
-                    label = name + f'\n{n_tiles} tiles'
-                    pdf.multi_cell(90, 3, label, 0, 'C')
+                        num_tiles = 0
+                    pdf.multi_cell(90, 3, f'{name}\n{num_tiles} tiles', 0, 'C')
                     if n_images % 2 == 1:
                         pdf.set_x(x)
                     pdf.set_y(y)
@@ -275,7 +296,9 @@ class ExtractionReport:
 
         self.pdf = pdf
 
-    def num_tiles_chart(self, num_tiles):
+    def num_tiles_chart(self, num_tiles: np.ndarray) -> bool:
+        import seaborn as sns
+        import matplotlib.pyplot as plt
         if np.any(num_tiles):
             plt.rc('font', size=14)
             sns.histplot(num_tiles, bins=20)
@@ -286,7 +309,9 @@ class ExtractionReport:
         else:
             return False
 
-    def blur_chart(self, blur_arr):
+    def blur_chart(self, blur_arr: np.ndarray) -> bool:
+        import seaborn as sns
+        import matplotlib.pyplot as plt
         if np.any(blur_arr):
             num_warn = np.count_nonzero(blur_arr > self.bb_threshold)
             if num_warn:
@@ -306,5 +331,5 @@ class ExtractionReport:
         else:
             return False
 
-    def save(self, filename):
+    def save(self, filename: str) -> None:
         self.pdf.output(filename)
