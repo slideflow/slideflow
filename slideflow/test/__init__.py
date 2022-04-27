@@ -9,6 +9,7 @@ import time
 import logging
 import random
 import multiprocessing
+import unittest
 from os.path import join, exists
 from tqdm import tqdm
 from PIL import Image
@@ -21,6 +22,7 @@ from slideflow.util import colors as col
 from slideflow.util.spinner import Spinner
 from slideflow.stats import SlideMap
 from slideflow import errors
+from slideflow.test.dataset_test import TestLabels
 
 
 def get_tcga_slides() -> Dict[str, str]:
@@ -608,6 +610,7 @@ class TestSuite:
         # Configure testing environment
         self.test_root = root
         self.project_root = join(root, 'project')
+        self.slides_root = slides
         self.config = TestConfig(root, slides=slides)
 
         if exists(join(self.project_root, 'settings.json')) and reset:
@@ -1087,6 +1090,7 @@ class TestSuite:
     ) -> None:
         '''Perform and report results of all available testing.'''
 
+        self.unittests()
         if extract:
             self.test_extraction()
         if reader:
@@ -1107,3 +1111,11 @@ class TestSuite:
             self.test_predict_wsi()
         if clam:
             self.test_clam()
+
+    def unittests(self) -> None:
+        print("Running unit tests...")
+        for module in (TestLabels,):
+            module.PROJECT = self.project
+            runner = unittest.TextTestRunner()
+            itersuite = unittest.TestLoader().loadTestsFromTestCase(module)
+            runner.run(itersuite)
