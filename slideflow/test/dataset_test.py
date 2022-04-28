@@ -1,17 +1,27 @@
-from typing import Optional, TYPE_CHECKING
+import shutil
 import unittest
+import logging
+from typing import Optional, TYPE_CHECKING
+from slideflow.test.utils import TestConfig
 
 if TYPE_CHECKING:
     import slideflow as sf
 
+
 class TestLabels(unittest.TestCase):
 
-    PROJECT = None  # type: Optional["sf.Project"]
+    @classmethod
+    def setUpClass(cls) -> None:
+        logging.getLogger('slideflow').setLevel(40)
+        cls.PROJECT = TestConfig().create_project(overwrite=True)  # type: ignore
+        cls.dataset = cls.PROJECT.dataset()  # type: ignore
+        cls.num_slides = len(cls.dataset.slides())  # type: ignore
 
     @classmethod
-    def setUpClass(cls):
-        cls.dataset = cls.PROJECT.dataset(299, 302)
-        cls.num_slides = len(cls.dataset.slides())
+    def tearDownClass(cls) -> None:
+        super().tearDownClass()
+        if cls.PROJECT is not None:  # type: ignore
+            shutil.rmtree(cls.PROJECT.root)  # type: ignore
 
     def _check_label_format(self, labels):
         self.assertIsInstance(labels, dict)
@@ -122,3 +132,6 @@ class TestLabels(unittest.TestCase):
         for cat_idx in range(2):
             self.assertTrue(all([isinstance(lbl[cat_idx], str) for lbl in labels.values()]))
             self.assertTrue(all([isinstance(lbl, str) for lbl in unique['category1']]))
+
+if __name__ == '__main__':
+    unittest.main()

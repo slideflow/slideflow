@@ -1597,7 +1597,9 @@ class Project:
                 a model's metadata file (params.json). Defaults to True.
 
         Keyword Args:
-            resolution (str): Mosaic map resolution. Low, medium, or high.
+            resolution (str): Mosaic map resolution, determines size of
+                exported figure. Either 'low', 'medium' or 'high'.
+                Defaults to 'high'.
             num_tiles_x (int): Specifies the size of the mosaic map grid.
             expanded (bool): Controls tile assignment on grid spaces.
                 If False, tile assignment is strict.

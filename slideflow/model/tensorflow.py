@@ -1431,6 +1431,7 @@ class Trainer:
         resume_training: Optional[str] = None,
         pretrain: Optional[str] = 'imagenet',
         checkpoint: Optional[str] = None,
+        save_checkpoints: bool = True,
         multi_gpu: bool = False,
         norm_fit: Optional[NormFit] = None,
     ):
@@ -1471,6 +1472,8 @@ class Trainer:
                 model from which to load weights. Defaults to 'imagenet'.
             checkpoint (str, optional): Path to cp.ckpt from which to load
                 weights. Defaults to None.
+            save_checkpoint(bool, optional): Save checkpoints at each epoch.
+                Defaults to True.
             multi_gpu(bool, optional): Enable multi-GPU training using
                 Tensorflow/Keras MirroredStrategy.
             norm_fit (Dict[str, np.ndarray]): Normalizer fit, mapping fit
@@ -1638,22 +1641,22 @@ class Trainer:
 
             # Create callbacks for early stopping, checkpoint saving,
             # summaries, and history
-            history_callback = tf.keras.callbacks.History()
-            checkpoint_path = os.path.join(self.outdir, 'cp.ckpt')
             val_callback = _PredictionAndEvaluationCallback(self, cb_args)
-            cp_callback = tf.keras.callbacks.ModelCheckpoint(
-                checkpoint_path,
-                save_weights_only=True,
-                verbose=(log.getEffectiveLevel() <= 20)
-            )
-            tensorboard_callback = tf.keras.callbacks.TensorBoard(
-                log_dir=self.outdir,
-                histogram_freq=0,
-                write_graph=False,
-                update_freq=log_frequency
-            )
-            callbacks = [history_callback, val_callback, cp_callback]
+            callbacks = [tf.keras.callbacks.History(), val_callback]
+            if save_checkpoints:
+                cp_callback = tf.keras.callbacks.ModelCheckpoint(
+                    os.path.join(self.outdir, 'cp.ckpt'),
+                    save_weights_only=True,
+                    verbose=(log.getEffectiveLevel() <= 20)
+                )
+                callbacks += [cp_callback]
             if use_tensorboard:
+                tensorboard_callback = tf.keras.callbacks.TensorBoard(
+                    log_dir=self.outdir,
+                    histogram_freq=0,
+                    write_graph=False,
+                    update_freq=log_frequency
+                )
                 callbacks += [tensorboard_callback]
 
             # Retrain top layer only, if using transfer learning and

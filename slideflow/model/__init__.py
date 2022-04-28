@@ -11,6 +11,7 @@ import pickle
 import time
 import queue
 import threading
+import warnings
 import numpy as np
 import scipy.stats as stats
 from collections import defaultdict
@@ -671,22 +672,23 @@ class DatasetFeatures:
         for f in range(self.num_features):
             # Tile-level ANOVA
             stats_vals = list(self.activations_by_category(f).values())
-            fvalue, pvalue = stats.f_oneway(*stats_vals)
-            if not isnan(fvalue) and not isnan(pvalue):
-                tile_stats.update({f: {'f': fvalue,
-                                       'p': pvalue}})
-            else:
-                tile_stats.update({f: {'f': -1,
-                                       'p': 1}})
-            # Patient-level ANOVA
-            fvalue, pvalue = stats.f_oneway(*[c[:, f] for c in category_stats])
-            if not isnan(fvalue) and not isnan(pvalue):
-                pt_stats.update({f: {'f': fvalue,
-                                     'p': pvalue}})
-            else:
-                pt_stats.update({f: {'f': -1,
-                                     'p': 1}})
-
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", category=stats.F_onewayConstantInputWarning)
+                fvalue, pvalue = stats.f_oneway(*stats_vals)
+                if not isnan(fvalue) and not isnan(pvalue):
+                    tile_stats.update({f: {'f': fvalue,
+                                        'p': pvalue}})
+                else:
+                    tile_stats.update({f: {'f': -1,
+                                        'p': 1}})
+                # Patient-level ANOVA
+                fvalue, pvalue = stats.f_oneway(*[c[:, f] for c in category_stats])
+                if not isnan(fvalue) and not isnan(pvalue):
+                    pt_stats.update({f: {'f': fvalue,
+                                        'p': pvalue}})
+                else:
+                    pt_stats.update({f: {'f': -1,
+                                        'p': 1}})
         try:
             pt_sorted_ft = sorted(
                 range(self.num_features),

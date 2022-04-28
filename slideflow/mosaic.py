@@ -215,7 +215,8 @@ class Mosaic:
         pool = DPool(8)
         for i, _ in tqdm(enumerate(pool.imap_unordered(dist_fn, self.GRID), 1),
                          total=len(self.GRID),
-                         ncols=80):
+                         ncols=80,
+                         leave=False):
             if log.getEffectiveLevel() <= 20:
                 sys.stderr.write(f'\rCompleted {i/len(self.GRID):.2%}')
         pool.close()
@@ -355,7 +356,8 @@ class Mosaic:
         elif self.mapping_method == 'expanded':
             for distance_pair in tqdm(self.tile_point_distances,
                                       total=len(self.tile_point_distances),
-                                      ncols=80):
+                                      ncols=80,
+                                      leave=False):
                 # Attempt to place pair, skipping if unable
                 # (due to other prior pair)
                 point = self.points[distance_pair['point_index']]

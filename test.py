@@ -10,7 +10,7 @@ from slideflow.util import colors as col
 
 @click.command()
 @click.option('--slides', help='Path to directory containing slides',
-              required=True, metavar='DIR')
+              required=False, metavar='DIR')
 @click.option('--out', help='Directory in which to store test project files.',
               required=False, metavar='DIR')
 @click.option('--all', help='Perform all tests.',

@@ -131,10 +131,16 @@ class TFRecordIterator:
             else:
                 shard_idx, shard_count = self.shard
                 all_shard_indices = np.array_split(self.index, shard_count)
-                if shard_count >= self.index.shape[0]:  # type: ignore
-                    return
                 start_byte = all_shard_indices[shard_idx][0]
-                if shard_idx < (shard_count-1):
+                if shard_count >= self.index.shape[0]:  # type: ignore
+                    # There are fewer records than shards, so
+                    # only the first shard will read
+                    if shard_idx == 0:
+                        yield from read_records(start_byte, clip_offset)
+                        return
+                    else:
+                        return
+                elif shard_idx < (shard_count-1):
                     end_byte = all_shard_indices[shard_idx + 1][0]
                 else:
                     end_byte = clip_offset
@@ -399,5 +405,5 @@ def multi_tfrecord_loader(
             [0.5 for t in range(len(paths))]
         )
     return iterator_utils.RandomSampler(
-        loaders, splits_list, infinite=infinite, shard=shard
+        loaders, splits_list, infinite=infinite, shard=None
     )
