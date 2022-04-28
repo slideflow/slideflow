@@ -1,14 +1,6 @@
-source/run_project.py
 docs/build/*
-source/slideflow/__pycache__/*
-source/slideflow/convoluter/__pycache__/*
-source/slideflow/mosaic/__pycache__/*
-source/slideflow/trainer/__pycache__/*
-source/slideflow/util/__pycache__/*
-source/.vscode/*
-source/build/*
-source/dist/*
 *.pyc
+*.egg-info
 .neptune/*
 docs-source/build/*
 build/*

@@ -1,3 +1,5 @@
+'''Test script for running both unit tests and functional tests.'''
+
 import os
 import click
 import multiprocessing
@@ -36,6 +38,33 @@ from slideflow.util import colors as col
 @click.option('--clam', help='Test CLAM.',
               required=False, type=bool)
 def main(slides, out, all, **kwargs):
+    '''Test script for running both unit tests and functional tests.
+
+    Unit tests are included in `slideflow.test` and use the builtin `unittest`
+    framework. These tests can be run by executing this script with no arguments:
+
+        python3 test.py
+
+    Most functions are difficult to test without sample slides. To this end, an
+    additional set of functional tests are provided in `slideflow.test.TestSuite`,
+    which require a set of sample slides. These tests can be enabled by providing
+    a path to a directory with sample slides to the argument `--slides`:
+
+        python3 test.py --slides=/path/to/slides
+
+    To run all functional tests, set the `--all` flag to True:
+
+        python3 test.py --slides=/path/to/slides --all=True
+
+    To run only certain tests, set the individual flag to True:
+
+        python3 test.py --slides=/path/to/slides --extract=True
+
+    To run all tests while omitting some, set `--all` to True and other
+    flags to False:
+
+        python3 test.py --slides=/path/to/slides --all=True --clam=False
+    '''
     if not out:
         out = 'slideflow_test'
     if 'SF_LOGGING_LEVEL' in os.environ:
