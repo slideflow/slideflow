@@ -14,7 +14,7 @@ from slideflow.util import log, Path
 from slideflow.util import colors as col
 from slideflow.stats import SlideMap
 from slideflow import errors
-from slideflow.test.dataset_test import TestLabels
+from slideflow.test import dataset_test
 from slideflow.test.utils import TaskWrapper, TestConfig
 
 
@@ -889,6 +889,7 @@ class TestSuite:
     ) -> None:
         '''Perform and report results of all available testing.'''
 
+        start = time.time()
         self.unittests()
         if self.project is None:
             print(col.yellow("Slides not provided; unable to perform "
@@ -914,10 +915,16 @@ class TestSuite:
                 self.test_predict_wsi()
             if clam:
                 self.test_clam()
+        end = time.time()
+        m, s = divmod(end-start, 60)
+        print(f'Tests complete. Time: {int(m)} min, {s:.2f} sec')
 
     def unittests(self) -> None:
         print("Running unit tests...")
-        for module in (TestLabels,):
-            runner = unittest.TextTestRunner()
-            itersuite = unittest.TestLoader().loadTestsFromTestCase(module)
-            runner.run(itersuite)
+        runner = unittest.TextTestRunner()
+        all_tests = [
+            unittest.TestLoader().loadTestsFromModule(module)
+            for module in (dataset_test, )
+        ]
+        suite = unittest.TestSuite(all_tests)
+        runner.run(suite)

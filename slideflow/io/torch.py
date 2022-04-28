@@ -268,7 +268,7 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
         except GeneratorExit as e:
             queue_retriever.close()
             try:
-                self.dataloader._iterator._pin_memory_thread.join()
+                #self.dataloader._iterator._pin_memory_thread.join()
                 self.dataloader._iterator._worker_result_queue.cancel_join_thread()
             except (AttributeError, RuntimeError):
                 pass

@@ -133,7 +133,7 @@ def split_patients_preserved_site(
     balancing according to key "balance" while preserving site.
 
     Args:
-        patients_dict (dict): Nested ditionary mapping patient names to
+        patients_dict (dict): Nested dictionary mapping patient names to
             dict of outcomes: labels
         n (int): Number of splits to generate.
         balance (str): Annotation header to balance splits across.
@@ -491,6 +491,11 @@ class Dataset:
                 f'Patient identifier "patient" missing in annotations.'
             )
         if 'slide' not in self.annotations.columns:
+            if isinstance(annotations, pd.DataFrame):
+                raise errors.AnnotationsError(
+                    "If loading annotations from a pandas DataFrame,"
+                    " must include column 'slide' containing slide names."
+                )
             log.info(f"Column 'slide' missing in annotations.")
             log.info("Attempting to associate patients with slides...")
             self.update_annotations_with_slidenames(annotations)
