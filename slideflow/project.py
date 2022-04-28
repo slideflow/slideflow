@@ -635,22 +635,28 @@ class Project:
             input_header=input_header
         )
 
-        # --- Train on a specific K-fold ------------ -------------------------
+        # --- Train on a specific K-fold --------------------------------------
         for k in valid_k:
             s_args.k = k
             self._train_split(dataset, hp, val_settings, s_args)
 
-        # Record results
-        for mi in model_iterations:
-            if mi not in results_dict or 'epochs' not in results_dict[mi]:
-                log.error(f'Training failed for model {model_name}')
-            else:
-                sf.util.update_results_log(
-                    results_log_path,
-                    mi,
-                    results_dict[mi]['epochs']
-                )
-        log.info(f'Training results saved to {col.green(results_log_path)}')
+        # --- Record results --------------------------------------------------
+        if (not val_settings.source
+            and (val_settings.strategy is None
+                 or val_settings.strategy == 'none')):
+            log.info(f'No validation performed.')
+        else:
+            for mi in model_iterations:
+                if mi not in results_dict or 'epochs' not in results_dict[mi]:
+                    log.error(f'Training failed for model {model_name}')
+                else:
+                    sf.util.update_results_log(
+                        results_log_path,
+                        mi,
+                        results_dict[mi]['epochs']
+                    )
+            log.info(f'Training results saved: {col.green(results_log_path)}')
+
 
     def _train_split(
         self,

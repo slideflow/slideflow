@@ -1317,22 +1317,14 @@ class Dataset:
                     elif assigned_for_header:
                         val_msg = assigned_for_header[ul]
                         n_s = str(n_matching_filtered)
-                        log.debug(" ".join([
-                            header,
-                            ul,
-                            'assigned to',
-                            str(val_msg),
-                            f'[{n_s} slides]'
-                        ]))
+                        log.debug(
+                            f"{header} {ul} assigned {val_msg} [{n_s} slides]"
+                        )
                     else:
                         n_s = str(n_matching_filtered)
-                        log.debug(" ".join([
-                            header,
-                            ul,
-                            'assigned to',
-                            str(i),
-                            f'[{n_s} slides]'
-                        ]))
+                        log.debug(
+                            f"{header} {ul} assigned {i} [{n_s} slides]"
+                        )
 
             def _process_cat_label(o):
                 if assigned_for_header:
@@ -1342,7 +1334,6 @@ class Dataset:
                 else:
                     return unique_labels_for_this_header.index(o)
 
-            # Assemble results dictionary - refactored ------------------------
             # Check for multiple, different labels per patient and warn
             pt_assign = np.array(list(set(zip(filtered_pts, filtered_labels))))
             unique_pt, counts = np.unique(pt_assign[:, 0], return_counts=True)
@@ -1354,7 +1345,6 @@ class Dataset:
                 )
 
             # Assemble results dictionary
-            #for ann in self.filtered_annotations.to_dict(orient="records"):
             for slide, lbl in zip(filtered_slides, filtered_labels):
                 if not header_is_float:
                     lbl = _process_cat_label(lbl)

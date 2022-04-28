@@ -2,7 +2,7 @@ import os
 import click
 import multiprocessing
 import logging
-import tabulate
+import tabulate  # type: ignore
 import slideflow as sf
 from slideflow.test import TestSuite
 from slideflow.util import colors as col
