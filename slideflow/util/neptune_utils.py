@@ -69,27 +69,32 @@ class NeptuneLog:
             for key in hp_data.keys()
             if 'validation' in key
         }
-        self.run['stage'] = hp_data['stage']
         self.run['backend'] = sf.backend()
         self.run['project_info'] = {key: hp_data[key] for key in proj_keys}
         self.run['outcomes'] = outcomes
         self.run['model_params/validation'] = validation_params
-        self.run['model_params/hp'] = hp_data['hp']
-        self.run['model_params/hp/pretrain'] = hp_data['pretrain']
-        self.run['model_params/resume_training'] = hp_data['resume_training']
-        self.run['model_params/checkpoint'] = hp_data['checkpoint']
-        self.run['model_params/filters'] = hp_data['filters']
-
+        self._log_hp(hp_data, 'stage', 'stage')
+        self._log_hp(hp_data, 'model_params/hp', 'hp')
+        self._log_hp(hp_data, 'model_params/hp/pretrain', 'pretrain')
+        self._log_hp(hp_data, 'model_params/resume_training', 'resume_training')
+        self._log_hp(hp_data, 'model_params/checkpoint', 'checkpoint')
+        self._log_hp(hp_data, 'model_params/filters', 'filters')
         if stage == 'train':
-            self.run['input_features'] = hp_data['input_features']
-            self.run['input_feature_labels'] = hp_data['input_feature_labels']
-            self.run['model_params/max_tiles'] = hp_data['max_tiles']
-            self.run['model_params/min_tiles'] = hp_data['min_tiles']
-            self.run['full_model_name'] = hp_data['full_model_name']
+            self._log_hp(hp_data, 'input_features', 'input_features')
+            self._log_hp(hp_data, 'input_feature_labels', 'input_feature_labels')
+            self._log_hp(hp_data, 'model_params/max_tiles', 'max_tiles')
+            self._log_hp(hp_data, 'model_params/min_tiles', 'min_tiles')
+            self._log_hp(hp_data, 'full_model_name', 'full_model_name')
         else:
-            self.run['eval/dataset'] = hp_data['sources']
-            self.run['eval/min_tiles'] = hp_data['min_tiles']
-            self.run['eval/max_tiles'] = hp_data['max_tiles']
+            self._log_hp(hp_data, 'eval/dataset', 'sources')
+            self._log_hp(hp_data, 'eval/min_tiles', 'min_tiles')
+            self._log_hp(hp_data, 'eval/max_tiles', 'max_tiles')
+
+    def _log_hp(self, hp_data, run_key, hp_key) -> None:
+        try:
+            self.run[run_key] = hp_data[hp_key]
+        except KeyError:
+            log.debug(f"Unable to log Neptune hp_data key '{hp_key}'")
 
 
 def list_log(run: "neptune.Run", label: str, val: Any, **kwargs: Any) -> None:
