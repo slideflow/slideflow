@@ -792,6 +792,7 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
             self.neptune_run['sys/tags'].add('training_complete')
 
     def evaluate_model(self, logs={}) -> None:
+        log.debug("Evaluating model from evaluation callback")
         epoch = self.epoch_count
         epoch_label = f'val_epoch{epoch}'
         pred_args = SimpleNamespace(
