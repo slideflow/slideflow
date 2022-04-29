@@ -370,8 +370,7 @@ class Project:
             outcomes = config['outcomes']
 
         assert outcomes is not None
-        if not isinstance(outcomes, list):
-            outcomes = [outcomes]
+        outcomes = sf.util.as_list(outcomes)
 
         # Filter out slides that are blank in the outcome label,
         # or blank in any of the input_header categories
@@ -2164,7 +2163,7 @@ class Project:
             os.makedirs(outdir)
 
         if source:
-            sources = [source] if not isinstance(source, list) else source
+            sources = sf.util.as_list(source)
         else:
             sources = self.sources
         if dataset.tile_px is None or dataset.tile_um is None:

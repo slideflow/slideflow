@@ -1859,9 +1859,7 @@ class Features:
         act_arr = []
         loc_arr = []
         for i, (batch_images, batch_loc) in enumerate(tile_dataset):
-            model_out = self._predict(batch_images)
-            if not isinstance(model_out, list):
-                model_out = [model_out]
+            model_out = sf.util.as_list(self._predict(batch_images))
             act_arr += [
                 np.concatenate([m.cpu().detach().numpy()
                                 for m in model_out])

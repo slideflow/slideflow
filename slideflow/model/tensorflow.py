@@ -1007,8 +1007,7 @@ class Trainer:
                 f'Outcome {i}'
                 for i in range(outcome_labels.shape[1])
             ]
-        if not isinstance(outcome_names, list):
-            outcome_names = [outcome_names]
+        outcome_names = sf.util.as_list(outcome_names)
         if len(outcome_names) != outcome_labels.shape[1]:
             num_names = len(outcome_names)
             num_outcomes = outcome_labels.shape[1]

@@ -307,8 +307,7 @@ class DatasetFeatures:
         log.info(f'Calculating activations for {self.tfrecords.shape[0]} '
                  'tfrecords (layers={layers})')
         log.info(f'Generating from {col.green(model)}')
-        if not isinstance(layers, list):
-            layers = [layers]
+        layers = sf.util.as_list(layers)
 
         # Load model
         if self.hp.uq and include_uncertainty:
@@ -362,8 +361,7 @@ class DatasetFeatures:
                 model_out, batch_slides, batch_loc = q.get()
                 if model_out is None:
                     return
-                if not isinstance(model_out, list):
-                    model_out = [model_out]
+                model_out = sf.util.as_list(model_out)
 
                 if sf.backend() == 'tensorflow':
                     decoded_slides = [
