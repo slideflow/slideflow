@@ -58,6 +58,9 @@ def _tile_extractor(
         generator_kwargs (dict): Keyword arguments for WSI.extract_tiles()
         qc_kwargs(dict): Keyword arguments for quality control.
     """
+    # Flush console tqdm log handler; improves console readability
+    # when using a progress bar
+    log.handlers[0].flush_line = True  # type: ignore
     try:
         log.debug(f'Extracting tiles for {path_to_name(path)}')
         if tma:
@@ -959,7 +962,7 @@ class Dataset:
                 if len(done):
                     log.info(f'Skipping {len(done)} slides; already done.')
             _tail = f"({self.tile_um} um, {self.tile_px} px)"
-            log.info(f'Extracting tiles from {len(slide_list)} slides{_tail}')
+            log.info(f'Extracting tiles from {len(slide_list)} slides {_tail}')
 
             # Verify slides and estimate total number of tiles
             log.info('Verifying slides...')
