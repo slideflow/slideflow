@@ -15,7 +15,7 @@ from slideflow.util import colors as col
 from slideflow.stats import SlideMap
 from slideflow import errors
 from slideflow.test import dataset_test
-from slideflow.test.utils import TaskWrapper, TestConfig
+from slideflow.test.utils import TaskWrapper, TestConfig, _assert_valid_results
 
 
 # ---------------------------------------
@@ -597,7 +597,7 @@ class TestSuite:
                 normalizer='reinhard_fast',
                 uq=False
             )
-            results_dict = self.project.train(
+            results = self.project.train(
                 exp_label='manual_hp',
                 outcomes='category1',
                 val_k=1,
@@ -608,9 +608,7 @@ class TestSuite:
                 pretrain=None,
                 **train_kwargs
             )
-            if not results_dict:
-                log.error("Results object not received from training")
-                test.fail()
+            _assert_valid_results(results)
 
     def test_training(
         self,
@@ -618,6 +616,7 @@ class TestSuite:
         uq: bool = True,
         multi_categorical: bool = True,
         linear: bool = True,
+        multi_linear: bool = True,
         multi_input: bool = True,
         cph: bool = True,
         multi_cph: bool = True,
@@ -638,7 +637,7 @@ class TestSuite:
             msg = "Training single categorical outcome with UQ..."
             with TaskWrapper(msg) as test:
                 hp = self.setup_hp('categorical', sweep=False, uq=True)
-                self.project.train(
+                results = self.project.train(
                     exp_label='UQ',
                     outcomes='category1',
                     val_k=1,
@@ -649,11 +648,12 @@ class TestSuite:
                     pretrain=None,
                     **train_kwargs
                 )
+                _assert_valid_results(results)
 
         if multi_categorical:
             # Test multiple sequential categorical outcome models
             with TaskWrapper("Training to multiple outcomes...") as test:
-                self.project.train(
+                results = self.project.train(
                     outcomes=['category1', 'category2'],
                     val_k=1,
                     params=self.setup_hp('categorical'),
@@ -663,11 +663,12 @@ class TestSuite:
                     pretrain=None,
                     **train_kwargs
                 )
+                _assert_valid_results(results)
 
         if linear:
             # Test multiple linear outcome
             with TaskWrapper("Training multiple linear outcomes...") as test:
-                self.project.train(
+                results = self.project.train(
                     outcomes=['linear1', 'linear2'],
                     val_k=1,
                     params=self.setup_hp('linear'),
@@ -677,11 +678,27 @@ class TestSuite:
                     pretrain=None,
                     **train_kwargs
                 )
+                _assert_valid_results(results)
+
+        if multi_linear:
+            # Test multiple linear outcome
+            with TaskWrapper("Training multiple linear outcomes...") as test:
+                results = self.project.train(
+                    outcomes=['linear1'],
+                    val_k=1,
+                    params=self.setup_hp('linear'),
+                    validate_on_batch=10,
+                    steps_per_epoch_override=20,
+                    save_predictions=True,
+                    pretrain=None,
+                    **train_kwargs
+                )
+                _assert_valid_results(results)
 
         if multi_input:
             msg = 'Training with multiple inputs (image + slide feature)...'
             with TaskWrapper(msg) as test:
-                self.project.train(
+                results = self.project.train(
                     exp_label='multi_input',
                     outcomes='category1',
                     input_header='category2',
@@ -693,11 +710,12 @@ class TestSuite:
                     pretrain=None,
                     **train_kwargs
                 )
+                _assert_valid_results(results)
 
         if cph:
             with TaskWrapper("Training a CPH model...") as test:
                 if sf.backend() == 'tensorflow':
-                    self.project.train(
+                    results = self.project.train(
                         exp_label='cph',
                         outcomes='time',
                         input_header='event',
@@ -709,13 +727,14 @@ class TestSuite:
                         pretrain=None,
                         **train_kwargs
                     )
+                    _assert_valid_results(results)
                 else:
                     test.skip()
 
         if multi_cph:
             with TaskWrapper("Training a multi-input CPH model...") as test:
                 if sf.backend() == 'tensorflow':
-                    self.project.train(
+                    results = self.project.train(
                         exp_label='multi_cph',
                         outcomes='time',
                         input_header=['event', 'category1'],
@@ -727,6 +746,7 @@ class TestSuite:
                         pretrain=None,
                         **train_kwargs
                     )
+                    _assert_valid_results(results)
                 else:
                     test.skip()
         else:

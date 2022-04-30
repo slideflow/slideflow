@@ -91,6 +91,15 @@ def random_annotations(
     return annotations
 
 
+def _assert_valid_results(results):
+    assert isinstance(results, dict)
+    assert len(results)
+    model = list(results.keys())[0]
+    assert 'epochs' in results[model]
+    assert isinstance (results[model]['epochs'], dict)
+    assert len(results[model]['epochs'])
+
+
 class TaskWrapper:
     '''Test wrapper to assist with logging.'''
     VERBOSITY = logging.DEBUG

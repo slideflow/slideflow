@@ -877,7 +877,10 @@ def _average_by_group(
                 header += [f'uncertainty{i}' for i in range(num_cat)]
             writer.writerow(header)
             for i, group in enumerate(unique_groups):
-                yt_group = as_list(y_true_group[group])
+                if not isinstance(y_true_group[group], (list, np.ndarray)):
+                    yt_group = as_list(y_true_group[group])
+                else:
+                    yt_group = y_true_group[group]
                 row = [[group], yt_group, avg_by_group[i]]
                 if uncertainty is not None:
                     row += [np.array(uncertainty_by_group[i])]

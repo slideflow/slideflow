@@ -2463,7 +2463,7 @@ class Project:
                     log.info(f'{col.green(model)} validation metrics:')
                     for m in final_val_metrics:
                         log.info(f'{m}: {final_val_metrics[m]}')
-        return results_dict
+        return dict(results_dict)
 
     def train_clam(
         self,
