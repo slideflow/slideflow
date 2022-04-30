@@ -21,7 +21,7 @@ from lifelines.utils import concordance_index as c_index
 from typing import List, Optional, Dict, Union, Any, Tuple, TYPE_CHECKING
 
 import slideflow as sf
-from slideflow.util import log, ProgressBar, to_onehot, Path
+from slideflow.util import log, ProgressBar, to_onehot, Path, as_list
 from slideflow.util import colors as col
 from slideflow import errors
 
@@ -34,7 +34,7 @@ if TYPE_CHECKING:
 # TODO: remove 'hidden_0' reference as this may not be present
 # if the model does not have hidden layers
 # TODO: refactor all this x /y /meta /values stuff to a pd.DataFrame
-# TODO: replace _get_average_by_group with pandas group-level averaging
+# TODO: replace _average_by_group with pandas group-level averaging
 
 
 class SlideMap:
@@ -812,12 +812,12 @@ def _generate_tile_roc(
     return auc, ap, thresh  # ROC AUC, Average Precision, Optimal Threshold
 
 
-def _get_average_by_group(
+def _average_by_group(
     pred_arr: np.ndarray,
     pred_label: str,
     unique_groups: np.ndarray,
     tile_to_group: np.ndarray,
-    y_true_group: Dict[str, Union[str, int]],
+    y_true_group: Dict[str, float],
     num_cat: int,
     label_end: str,
     uncertainty: Optional[np.ndarray] = None,
@@ -877,7 +877,8 @@ def _get_average_by_group(
                 header += [f'uncertainty{i}' for i in range(num_cat)]
             writer.writerow(header)
             for i, group in enumerate(unique_groups):
-                row = [[group], y_true_group[group], avg_by_group[i]]
+                yt_group = as_list(y_true_group[group])
+                row = [[group], yt_group, avg_by_group[i]]
                 if uncertainty is not None:
                     row += [np.array(uncertainty_by_group[i])]
                 row = np.concatenate(row)
@@ -891,7 +892,7 @@ def _cph_metrics(args: SimpleNamespace) -> None:
     """
     num_cat = args.y_pred.shape[1]
     args.c_index['tile'] = concordance_index(args.y_true, args.y_pred)
-    avg_by_slide = _get_average_by_group(
+    avg_by_slide = _average_by_group(
         args.y_pred,
         pred_label="average",
         unique_groups=args.unique_slides,
@@ -908,7 +909,7 @@ def _cph_metrics(args: SimpleNamespace) -> None:
     )
     args.c_index['slide'] = concordance_index(yt_by_slide, avg_by_slide)
     if not args.patient_error:
-        avg_by_patient = _get_average_by_group(
+        avg_by_patient = _average_by_group(
             args.y_pred,
             pred_label="average",
             unique_groups=args.patients,
@@ -942,7 +943,7 @@ def _linear_metrics(args: SimpleNamespace) -> None:
         neptune_run=args.neptune_run
     )
     # Generate and save slide-level averages of each outcome
-    avg_by_slide = _get_average_by_group(
+    avg_by_slide = _average_by_group(
         args.y_pred,
         pred_label="average",
         unique_groups=args.unique_slides,
@@ -955,7 +956,7 @@ def _linear_metrics(args: SimpleNamespace) -> None:
         label="slide"
     )
     yt_by_slide = np.array(
-        [args.y_true_slide[slide] for slide in args.unique_slides]
+        [as_list(args.y_true_slide[slide]) for slide in args.unique_slides]
     )
     args.r_squared['slide'] = generate_scatter(
         yt_by_slide,
@@ -966,7 +967,7 @@ def _linear_metrics(args: SimpleNamespace) -> None:
     )
     if not args.patient_error:
         # Generate and save patient-level averages of each outcome
-        avg_by_patient = _get_average_by_group(
+        avg_by_patient = _average_by_group(
             args.y_pred,
             pred_label="average",
             unique_groups=args.patients,
@@ -980,7 +981,7 @@ def _linear_metrics(args: SimpleNamespace) -> None:
             uncertainty=args.y_std
         )
         yt_by_patient = np.array(
-            [args.y_true_patient[patient] for patient in args.patients]
+            [as_list(args.y_true_patient[pt]) for pt in args.patients]
         )
         args.r_squared['patient'] = generate_scatter(
             yt_by_patient,
@@ -1068,7 +1069,7 @@ def _categorical_metrics(args: SimpleNamespace, outcome_name: str) -> None:
         except IndexError:
             log.warning(f"Error with category accuracy for cat # {ci}")
     # Generate slide-level percent calls
-    percent_calls_by_slide = _get_average_by_group(
+    percent_calls_by_slide = _average_by_group(
         onehot_predictions,
         pred_label="percent_tiles_positive",
         unique_groups=args.unique_slides,
@@ -1106,7 +1107,7 @@ def _categorical_metrics(args: SimpleNamespace, outcome_name: str) -> None:
 
     if not args.patient_error:
         # Generate patient-level percent calls
-        percent_calls_by_patient = _get_average_by_group(
+        percent_calls_by_patient = _average_by_group(
             onehot_predictions,
             pred_label="percent_tiles_positive",
             unique_groups=args.patients,
@@ -1438,7 +1439,7 @@ def generate_scatter(
     from matplotlib import pyplot as plt
 
     if y_true.shape != y_pred.shape:
-        m = f"Shape mismatch: y_true ({y_true.shape}) y_pred: ({y_pred.shape})"
+        m = f"Shape mismatch: y_true {y_true.shape} y_pred: {y_pred.shape}"
         raise errors.StatsError(m)
     if y_true.shape[0] < 2:
         raise errors.StatsError("Only one observation provided, need >1")
@@ -1563,8 +1564,7 @@ def pred_to_df(
         else:
             y_true = [y_true]  # type: ignore
 
-    if not isinstance(y_pred, list):
-        y_pred = [y_pred]  # type: ignore
+    y_pred = as_list(y_pred)  # type: ignore
     if uncertainty is not None and not isinstance(uncertainty, list):
         uncertainty = [uncertainty]
 
@@ -1740,6 +1740,8 @@ def metrics_from_pred(
     elif model_type == 'linear':
         metric_args.y_true_slide = y_true_slide
         metric_args.y_true_patient = y_true_patient
+        if len(metric_args.y_true.shape) < 2:
+            metric_args.y_true = np.expand_dims(metric_args.y_true, axis=0)
         _linear_metrics(metric_args)
 
     elif model_type == 'cph':

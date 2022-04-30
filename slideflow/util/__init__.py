@@ -417,6 +417,13 @@ class ThreadSafeList:
         return items
 
 
+def as_list(arg1: Any) -> List[Any]:
+    if not isinstance(arg1, list):
+        return [arg1]
+    else:
+        return arg1
+
+
 def multi_warn(arr: List, compare: Callable, msg: Union[Callable, str]) -> int:
     """Logs multiple warning
 

@@ -347,9 +347,10 @@ class Dataset:
         self.tile_px = tile_px
         self.tile_um = tile_um
         self._filters = filters if filters else {}
-        self._filter_blank = filter_blank if filter_blank is not None else []
-        if not isinstance(self._filter_blank, list):
-            self._filter_blank = [self._filter_blank]
+        if filter_blank is None:
+            self._filter_blank = []
+        else:
+            self._filter_blank = sf.util.as_list(filter_blank)
         self._min_tiles = min_tiles
         self._clip = {}  # type: Dict[str, int]
         self.prob_weights = None  # type: Optional[Dict]
@@ -590,8 +591,7 @@ class Dataset:
             if headers is None:
                 raise ValueError('Category balancing requires headers.')
             # Ensure that header is not type 'float'
-            if not isinstance(headers, list):
-                headers = [headers]
+            headers = sf.util.as_list(headers)
             if any(ret.is_float(h) for h in headers) and not force:
                 raise errors.DatasetBalanceError(
                     f"Headers {','.join(headers)} appear to be `float`."
@@ -605,11 +605,7 @@ class Dataset:
             tfr_cats = {}  # type: Dict[str, str]
             for tfrecord in tfrecords:
                 slide = path_to_name(tfrecord)
-                raw_balance_cat = labels[slide]
-                if not isinstance(raw_balance_cat, list):
-                    balance_cat = [raw_balance_cat]
-                else:
-                    balance_cat = raw_balance_cat  # type: ignore
+                balance_cat = sf.util.as_list(labels[slide])
                 balance_cat_str = '-'.join(map(str, balance_cat))
                 tfr_cats[tfrecord] = balance_cat_str
                 tiles = totals[tfrecord]
@@ -757,11 +753,7 @@ class Dataset:
             tfr_cats = {}
             for tfrecord in tfrecords:
                 slide = path_to_name(tfrecord)
-                raw_balance_category = labels[slide]
-                if not isinstance(raw_balance_category, list):
-                    balance_category = [raw_balance_category]
-                else:
-                    balance_category = raw_balance_category  # type: ignore
+                balance_category = sf.util.as_list(labels[slide])
                 balance_cat_str = '-'.join(map(str, balance_category))
                 tfr_cats[tfrecord] = balance_cat_str
                 tiles = totals[tfrecord]
@@ -903,7 +895,7 @@ class Dataset:
                 "Dataset tile_px and tile_um must be != 0 to extract tiles"
             )
         if source:
-            sources = [source] if not isinstance(source, list) else source
+            sources = sf.util.as_list(source)
         else:
             sources = list(self.sources.keys())
         pdf_report = None
@@ -1005,6 +997,19 @@ class Dataset:
                 counter = manager.Value('i', 0)
                 counter_lock = manager.Lock()
 
+                # If only one worker, use a single shared multiprocessing pool
+                if num_workers == 1:
+                    # Detect CPU cores if num_threads not specified
+                    if 'num_threads' not in kwargs:
+                        num_threads = os.cpu_count()
+                        if num_threads is None:
+                            num_threads = 8
+                    else:
+                        num_threads = kwargs['num_threads']
+                    log.info(f'Extracting tiles with {num_threads} threads')
+                    kwargs['pool'] = multiprocessing.Pool(num_threads)
+
+                # Set up the multiprocessing progress bar
                 if total_tiles:
                     pb = sf.util.ProgressBar(
                         total_tiles,
@@ -1019,17 +1024,6 @@ class Dataset:
                 else:
                     pb = None
 
-                # If only one worker, use a single shared multiprocessing pool
-                if num_workers == 1:
-                    # Detect CPU cores if num_threads not specified
-                    if 'num_threads' not in kwargs:
-                        num_threads = os.cpu_count()
-                        if num_threads is None:
-                            num_threads = 8
-                    else:
-                        num_threads = kwargs['num_threads']
-                    log.info(f'Extracting tiles with {num_threads} threads')
-                    kwargs['pool'] = multiprocessing.Pool(num_threads)
                 wsi_kwargs = {
                     'tile_px': self.tile_px,
                     'tile_um': self.tile_um,
@@ -1269,7 +1263,7 @@ class Dataset:
                 list of str; indices correspond with the outcome label id.
         """
         results = {}  # type: Dict
-        headers = [headers] if not isinstance(headers, list) else headers
+        headers = sf.util.as_list(headers)
         unique_labels = {}
         filtered_pts = self.filtered_annotations.patient
         filtered_slides = self.filtered_annotations.slide
@@ -1357,8 +1351,7 @@ class Dataset:
                 if not header_is_float:
                     lbl = _process_cat_label(lbl)
                 if slide in results:
-                    if not isinstance(results[slide], list):
-                        results[slide] = [results[slide]]
+                    results[slide] = sf.util.as_list(results[slide])
                     results[slide] += [lbl]
                 elif header_is_float:
                     results[slide] = [lbl]
@@ -1501,8 +1494,7 @@ class Dataset:
                 else:
                     del ret._filters[f]
         if 'filter_blank' in kwargs:
-            if not isinstance(kwargs['filter_blank'], list):
-                kwargs['filter_blank'] = [kwargs['filter_blank']]
+            kwargs['filter_blank'] = sf.util.as_list(kwargs['filter_blank'])
             for f in kwargs['filter_blank']:
                 if f not in ret._filter_blank:
                     raise errors.DatasetFilterError(
@@ -1614,9 +1606,7 @@ class Dataset:
                             f"Filter header {filter_key} not in annotations."
                         )
                     ann_val = ann[filter_key]
-                    filter_vals = self.filters[filter_key]
-                    if not isinstance(filter_vals, list):
-                        filter_vals = [filter_vals]
+                    filter_vals = sf.util.as_list(self.filters[filter_key])
 
                     # Allow filtering based on shortnames if the key
                     # is a patient ID
@@ -1879,11 +1869,7 @@ class Dataset:
             raise errors.DatasetError(
                 "Dataset tile_px & tile_um must be set to create TFRecords."
             )
-        if not isinstance(tfrecord, list):
-            tfrecord_list = [tfrecord]
-        else:
-            tfrecord_list = tfrecord
-        for tfr in tfrecord_list:
+        for tfr in sf.util.as_list(tfrecord):
             name = sf.util.path_to_name(tfr)
             if name not in slide_paths:
                 raise errors.SlideNotFoundError(f'Unable to find slide {name}')
