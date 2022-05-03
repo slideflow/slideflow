@@ -60,7 +60,7 @@ overview of the structure of the Dataset class is as follows:
   │TFRecords├────────────┤
   └─────────┘            │ .extract_tiles
                          │  _from_tfrecords()
-                         ▼  
+                         ▼
                        ┌─────────────┐
                        │Loose images │
                        │ (.png, .jpg)│
@@ -398,7 +398,7 @@ class Dataset:
         config: Path,
         sources: Union[str, List[str]],
         tile_px: Optional[int],
-        tile_um: Optional[int],
+        tile_um: Optional[Union[str, int]],
         filters: Optional[Dict] = None,
         filter_blank: Optional[Union[List[str], str]] = None,
         annotations: Optional[Union[Path, pd.DataFrame]] = None,
@@ -411,7 +411,8 @@ class Dataset:
             sources (List[str]): List of dataset sources to include from
                 configuration file.
             tile_px (int): Tile size in pixels.
-            tile_um (int): Tile size in microns.
+            tile_um (int or str): Tile size in microns (int) or magnification
+                (str, e.g. "20x").
             filters (Optional[Dict], optional): Filters for selecting slides
                 from annotations. Defaults to None.
             filter_blank (Optional[Union[List[str], str]], optional): Omit
@@ -427,6 +428,9 @@ class Dataset:
             errors.SourceNotFoundError: If provided source does not exist
             in the dataset config.
         """
+        if isinstance(tile_um, str):
+            sf.util.assert_is_mag(tile_um)
+            tile_um = tile_um.lower()
 
         self.tile_px = tile_px
         self.tile_um = tile_um
@@ -452,7 +456,10 @@ class Dataset:
             sources_list = ', '.join(sources)
             raise errors.SourceNotFoundError(sources_list, config)
         if (tile_px is not None) and (tile_um is not None):
-            label = f"{tile_px}px_{tile_um}um"
+            if isinstance(tile_um, str):
+                label = f"{tile_px}px_{tile_um.lower()}"
+            else:
+                label = f"{tile_px}px_{tile_um}um"
         else:
             label = None
         for source in self.sources:
@@ -528,8 +535,8 @@ class Dataset:
         else:
             raise ValueError(f"Unrecognized hyperparameter type {type(hp)}")
         if self.tile_px != hp_px or self.tile_um != hp_um:
-            d_sz = f'({self.tile_px}px, {self.tile_um}um)'
-            m_sz = f'({hp_px}px, {hp_um}um)'
+            d_sz = f'({self.tile_px}px, tile_um={self.tile_um})'
+            m_sz = f'({hp_px}px, tile_um={hp_um})'
             raise ValueError(
                 f"Dataset tile size {d_sz} does not match model {m_sz}"
             )
@@ -1037,7 +1044,7 @@ class Dataset:
                 ]
                 if len(done):
                     log.info(f'Skipping {len(done)} slides; already done.')
-            _tail = f"({self.tile_um} um, {self.tile_px} px)"
+            _tail = f"(tile_px={self.tile_px}, tile_um={self.tile_um})"
             log.info(f'Extracting tiles from {len(slide_list)} slides {_tail}')
 
             # Verify slides and estimate total number of tiles

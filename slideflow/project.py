@@ -1025,7 +1025,9 @@ class Project:
         pt_files: Path,
         outcomes: Union[str, List[str]],
         tile_px: int,
-        tile_um: int, *, k: int = 0,
+        tile_um: Union[int, str],
+        *,
+        k: int = 0,
         eval_tag: Optional[str] = None,
         filters: Optional[Dict] = None,
         filter_blank: Optional[Union[str, List[str]]] = None,
@@ -1038,7 +1040,8 @@ class Project:
             pt_files (str): Path to pt_files containing tile-level features.
             outcomes (str or list): Annotation column that specifies labels.
             tile_px (int): Tile width in pixels.
-            tile_um (int): Tile width in microns.
+            tile_um (int or str): Tile width in microns (int) or magnification
+                (str, e.g. "20x").
             k (int, optional): K-fold / split iteration to evaluate. Evaluates
                 the model saved as s_{k}_checkpoint.pt. Defaults to 0.
             eval_tag (str, optional): Unique identifier for this evaluation.
@@ -1171,7 +1174,8 @@ class Project:
     def extract_tiles(
         self,
         tile_px: int,
-        tile_um: int, *,
+        tile_um: Union[int, str],
+        *,
         filters: Optional[Dict] = None,
         filter_blank: Optional[Union[str, List[str]]] = None,
         **kwargs: Any
@@ -1181,6 +1185,9 @@ class Project:
         :class:`slideflow.dataset.Dataset` directly.
 
         Args:
+            tile_px (int): Size of tiles to extract, in pixels.
+            tile_um (int or str): Size of tiles to extract, in microns (int) or
+                magnification (str, e.g. "20x").
             save_tiles (bool, optional): Save tile images in loose format.
                 Defaults to False.
             save_tfrecords (bool, optional): Save tile images as TFRecords.
@@ -1923,7 +1930,7 @@ class Project:
         self,
         tfrecord: str,
         tile_px: int,
-        tile_um: int,
+        tile_um: Union[int, str],
         tile_dict: Dict[int, float],
         outdir: Optional[str] = None
     ) -> None:
@@ -1935,7 +1942,8 @@ class Project:
             tile_dict (dict): Dictionary mapping tfrecord indices to a
                 tile-level value for display in heatmap format
             tile_px (int): Tile width in pixels
-            tile_um (int): Tile width in microns
+            tile_um (int or str): Tile width in microns (int) or magnification
+                (str, e.g. "20x").
             outdir (str, optional): Destination path to save heatmap.
 
         Returns:
@@ -1953,7 +1961,7 @@ class Project:
     def dataset(
         self,
         tile_px: Optional[int] = None,
-        tile_um: Optional[int] = None,
+        tile_um: Optional[Union[int, str]] = None,
         *,
         verification: Optional[str] = 'both',
         **kwargs: Any
@@ -1962,7 +1970,8 @@ class Project:
 
         Args:
             tile_px (int): Tile size in pixels
-            tile_um (int): Tile size in microns
+            tile_um (int or str): Tile size in microns (int) or magnification
+                (str, e.g. "20x").
 
         Keyword Args:
             filters (dict, optional): Filters for selecting tfrecords.

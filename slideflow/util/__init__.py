@@ -424,6 +424,33 @@ def as_list(arg1: Any) -> List[Any]:
         return arg1
 
 
+def is_mag(arg1: str) -> bool:
+    arg1_split = arg1.lower().split('x')
+    if (len(arg1_split) != 2) or (arg1_split[1] != ''):
+        return False
+    try:
+        mag = float(arg1_split[0])
+    except ValueError:
+        return False
+    return True
+
+
+def assert_is_mag(arg1: str):
+    if not isinstance(arg1, str) or not is_mag(arg1):
+        raise ValueError(
+            f'Invalid magnification {arg1}. Must be of format'
+            f' [int/float]x, such as "10x", "20X", or "2.5x"'
+        )
+
+
+def to_mag(arg1: str) -> Union[int, float]:
+    assert_is_mag(arg1)
+    try:
+        return int(arg1.lower().split('x')[0])
+    except ValueError:
+        return float(arg1.lower().split('x')[0])
+
+
 def multi_warn(arr: List, compare: Callable, msg: Union[Callable, str]) -> int:
     """Logs multiple warning
 
@@ -804,7 +831,7 @@ def tfrecord_heatmap(
     tfrecord: str,
     slide: str,
     tile_px: int,
-    tile_um: int,
+    tile_um: Union[int, str],
     tile_dict: Dict[int, float],
     outdir: str
 ) -> Dict[str, Dict[str, float]]:
@@ -817,7 +844,8 @@ def tfrecord_heatmap(
         tile_dict (dict): Dictionary mapping tfrecord indices to a
             tile-level value for display in heatmap format.
         tile_px (int): Tile width in pixels.
-        tile_um (int): Tile width in microns.
+        tile_um (int or str): Tile width in microns (int) or magnification
+            (str, e.g. "20x").
         outdir (str): Path to directory in which to save images.
 
     Returns:
