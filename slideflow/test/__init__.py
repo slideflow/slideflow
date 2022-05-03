@@ -87,11 +87,11 @@ def evaluation_tester(project, **kwargs):
 def _activations_tester(project, model, verbosity, **kwargs):
     logging.getLogger("slideflow").setLevel(verbosity)
     with TaskWrapper("Testing activations...") as test:
-        dataset = project.dataset(299, 302)
+        dataset = project.dataset(76, 1208)
         test_slide = dataset.slides()[0]
 
         df = project.generate_features(model=model, outcome_label_headers='category1', **kwargs)
-        assert df.num_features == 2048
+        assert df.num_features == 1280  # mobilenet_v2
         assert df.num_logits == 2
         assert len(df.activations) == len(dataset.tfrecords())
         assert len(df.locations) == len(df.activations) == len(df.logits)
@@ -162,7 +162,7 @@ def clam_feature_generator(project, model):
 # ----------------------------------------
 
 def reader_tester(project):
-    dataset = project.project.dataset(299, 302)
+    dataset = project.project.dataset(76, 1208)
     tfrecords = dataset.tfrecords()
     batch_size = 128
     assert len(tfrecords)
@@ -339,7 +339,7 @@ class TestSuite:
         self.buffer = buffer
 
         # Rebuild tfrecord indices
-        self.project.dataset(299, 302).build_index(True)
+        self.project.dataset(76, 1208).build_index(True)
 
     def _get_model(self, name, epoch=1):
         prev_run_dirs = [x for x in os.listdir(self.project.models_dir) if os.path.isdir(join(self.project.models_dir, x))]
@@ -364,8 +364,8 @@ class TestSuite:
                 csv_writer = csv.writer(csv_outfile, delimiter=',')
                 for an in self.config.annotations:
                     csv_writer.writerow(an)
-            project_dataset = Dataset(tile_px=299,
-                                      tile_um=302,
+            project_dataset = Dataset(tile_px=76,
+                                      tile_um=1208,
                                       sources='TEST',
                                       config=self.project.dataset_config,
                                       annotations=self.project.annotations)
@@ -393,11 +393,11 @@ class TestSuite:
 
         # Create batch train file
         if sweep:
-            self.project.create_hyperparameter_sweep(tile_px=299,
-                                                 tile_um=302,
+            self.project.create_hyperparameter_sweep(tile_px=76,
+                                                 tile_um=1208,
                                                  epochs=[1,2,3],
                                                  toplayer_epochs=[0],
-                                                 model=["xception"],
+                                                 model=["mobilenet_v2"],
                                                  loss=[loss],
                                                  learning_rate=[0.001],
                                                  batch_size=[64],
@@ -418,9 +418,11 @@ class TestSuite:
                                                  filename='sweep.json')
 
         # Create single hyperparameter combination
-        hp = sf.model.ModelParams(epochs=1,
+        hp = sf.model.ModelParams(tile_px=76,
+                                  tile_um=1208,
+                                  epochs=1,
                                   toplayer_epochs=0,
-                                  model="xception",
+                                  model="mobilenet_v2",
                                   pooling='max',
                                   loss=loss,
                                   learning_rate=0.001,
@@ -439,8 +441,8 @@ class TestSuite:
     def test_extraction(self, enable_downsample=True, **kwargs):
         # Test tile extraction, default parameters, for regular slides
         with TaskWrapper("Testing slide extraction...") as test:
-            self.project.extract_tiles(tile_px=299,
-                                   tile_um=302,
+            self.project.extract_tiles(tile_px=76,
+                                   tile_um=1208,
                                    buffer=self.buffer,
                                    source=['TEST'],
                                    roi_method='ignore',
@@ -455,6 +457,7 @@ class TestSuite:
                            val_k=1,
                            params=self.setup_hp('categorical', normalizer='reinhard'),
                            steps_per_epoch_override=5,
+                           pretrain=None,
                            **train_kwargs)
 
     def test_readers(self):
@@ -473,6 +476,7 @@ class TestSuite:
                                           save_predictions=True,
                                           steps_per_epoch_override=20,
                                           params='sweep.json',
+                                          pretrain=None,
                                           **train_kwargs)
 
             if not results_dict:
@@ -492,6 +496,7 @@ class TestSuite:
                                    params=self.setup_hp('categorical'),
                                    validate_on_batch=10,
                                    steps_per_epoch_override=20,
+                                   pretrain=None,
                                    **train_kwargs)
 
         if linear:
@@ -502,6 +507,7 @@ class TestSuite:
                                    params=self.setup_hp('linear'),
                                    validate_on_batch=10,
                                    steps_per_epoch_override=20,
+                                   pretrain=None,
                                    **train_kwargs)
 
         if multi_input:
@@ -513,6 +519,7 @@ class TestSuite:
                                   val_k=1,
                                   validate_on_batch=10,
                                   steps_per_epoch_override=20,
+                                  pretrain=None,
                                   **train_kwargs)
 
         if cph:
@@ -525,6 +532,7 @@ class TestSuite:
                                        val_k=1,
                                        validate_on_batch=10,
                                        steps_per_epoch_override=20,
+                                       pretrain=None,
                                        **train_kwargs)
                 else:
                     test.skip()
@@ -539,6 +547,7 @@ class TestSuite:
                                        val_k=1,
                                        validate_on_batch=10,
                                        steps_per_epoch_override=20,
+                                       pretrain=None,
                                        **train_kwargs)
                 else:
                     test.skip()
@@ -639,7 +648,7 @@ class TestSuite:
             if skip_test:
                 test.skip()
             else:
-                dataset = self.project.dataset(299, 302)
+                dataset = self.project.dataset(76, 1208)
                 self.project.train_clam('TEST_CLAM', join(self.project.root, 'clam'), 'category1', dataset)
 
     def test(self, extract=True, reader=True, train=True, normalizer=True, evaluate=True, heatmap=True,

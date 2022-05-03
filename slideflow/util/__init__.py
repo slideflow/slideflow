@@ -17,7 +17,8 @@ import slideflow as sf
 
 from glob import glob
 from os.path import join, isdir, exists, dirname
-from PIL import Image
+from functools import partial
+from slideflow.util import example_pb2
 from tqdm import tqdm
 
 # TODO: re-enable logging with maximum log file size
@@ -307,6 +308,30 @@ class ThreadSafeList:
         with self.lock:
             items, self.items = self.items, []
         return items
+
+def is_mag(arg1):
+    arg1_split = arg1.lower().split('x')
+    if (len(arg1_split) != 2) or (arg1_split[1] != ''):
+        return False
+    try:
+        mag = float(arg1_split[0])
+    except ValueError:
+        return False
+    return True
+
+def assert_is_mag(arg1):
+    if not isinstance(arg1, str) or not is_mag(arg1):
+        raise ValueError(
+            f'Invalid magnification {arg1}. Must be of format'
+            f' [int/float]x, such as "10x", "20X", or "2.5x"'
+        )
+
+def to_mag(arg1):
+    assert_is_mag(arg1)
+    try:
+        return int(arg1.lower().split('x')[0])
+    except ValueError:
+        return float(arg1.lower().split('x')[0])
 
 def to_onehot(val, max):
     """Converts value to one-hot encoding
@@ -621,3 +646,72 @@ def update_results_log(results_log_path, model_name, results_dict):
     # Delete the old results log file
     if exists(f"{results_log_path}.temp"):
         os.remove(f"{results_log_path}.temp")
+
+# --- TFRecord utility functions ----------------------------------------------
+
+def process_feature(feature: example_pb2.Feature,
+                    typename: str,
+                    typename_mapping: dict,
+                    key: str):
+    # NOTE: We assume that each key in the example has only one field
+    # (either "bytes_list", "float_list", or "int64_list")!
+    field = feature.ListFields()[0]
+    inferred_typename, value = field[0].name, field[1].value
+
+    if typename is not None:
+        tf_typename = typename_mapping[typename]
+        if tf_typename != inferred_typename:
+            reversed_mapping = {v: k for k, v in typename_mapping.items()}
+            raise TypeError(
+                f"Incompatible type '{typename}' for `{key}` "
+                f"(should be '{reversed_mapping[inferred_typename]}')."
+            )
+
+    if inferred_typename == "bytes_list":
+        value = np.frombuffer(value[0], dtype=np.uint8)
+    elif inferred_typename == "float_list":
+        value = np.array(value, dtype=np.float32)
+    elif inferred_typename == "int64_list":
+        value = np.array(value, dtype=np.int64)
+    return value
+
+
+def extract_feature_dict(features, description, typename_mapping):
+    if isinstance(features, example_pb2.FeatureLists):
+        features = features.feature_list
+
+        def get_value(typename, typename_mapping, key):
+            feature = features[key].feature
+            fn = partial(
+                process_feature,
+                typename=typename,
+                typename_mapping=typename_mapping,
+                key=key
+            )
+            return list(map(fn, feature))
+    elif isinstance(features, example_pb2.Features):
+        features = features.feature
+
+        def get_value(typename, typename_mapping, key):
+            return process_feature(features[key], typename,
+                                   typename_mapping, key)
+    else:
+        raise TypeError(f"Incompatible type: features should be either of type "
+                        f"example_pb2.Features or example_pb2.FeatureLists and "
+                        f"not {type(features)}")
+
+    all_keys = list(features.keys())
+
+    if description is None or len(description) == 0:
+        description = dict.fromkeys(all_keys, None)
+    elif isinstance(description, list):
+        description = dict.fromkeys(description, None)
+
+    processed_features = {}
+    for key, typename in description.items():
+        if key not in all_keys:
+            raise KeyError(f"Key {key} doesn't exist (select from {all_keys})!")
+
+        processed_features[key] = get_value(typename, typename_mapping, key)
+
+    return processed_features

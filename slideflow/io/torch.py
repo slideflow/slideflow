@@ -1,5 +1,4 @@
 import os
-import imghdr
 import numpy as np
 import random
 import torchvision
@@ -13,6 +12,7 @@ from tqdm import tqdm
 from os.path import isfile, join, dirname, exists
 from slideflow.tfrecord.torch.dataset import MultiTFRecordDataset, TFRecordDataset
 from slideflow.util import log, to_onehot
+from slideflow.io.io_utils import detect_tfrecord_format
 from tqdm import tqdm
 from queue import Queue
 
@@ -227,7 +227,7 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
 
 def _get_images_by_dir(directory):
     files = [f for f in listdir(directory) if (isfile(join(directory, f))) and
-                (sf.util.path_to_ext(f) in ("jpg", "png"))]
+                (sf.util.path_to_ext(f) in ("jpg", "jpeg", "png"))]
     return files
 
 def read_and_return_record(record, parser, assign_slide=None):
@@ -284,36 +284,6 @@ def _decode_image(img_string, img_type, standardize=False, normalizer=None, augm
 def worker_init_fn(worker_id):
     np.random.seed(np.random.get_state()[1][0])
 
-def detect_tfrecord_format(tfr):
-    '''Detects tfrecord format. Torch implementation; different than sf.io.tensorflow
-
-    Returns:
-        str: Image file type (png/jpeg)
-        dict: Feature description dictionary (including or excluding location data as supported)
-    '''
-
-    img_type = None
-    try:
-        for record in TFRecordDataset(tfr, None, FEATURE_DESCRIPTION, autoshard=False):
-            img = bytes(record['image_raw'])
-            img_type = imghdr.what('', img)
-            break
-        feature_description = FEATURE_DESCRIPTION
-    except KeyError:
-        feature_description = {k:v for k,v in FEATURE_DESCRIPTION.items() if k in ('slide', 'image_raw')}
-        try:
-            for record in TFRecordDataset(tfr, None, feature_description, autoshard=False):
-                img = bytes(record['image_raw'])
-                img_type = imghdr.what('', img)
-                break
-        except KeyError:
-            raise TFRecordsError(f"Unable to detect TFRecord format for record: {tfr}")
-    except StopIteration:
-        log.debug(f"Unable to detect tfrecord format for {tfr}; file is empty.")
-        raise StopIteration
-
-    return feature_description, img_type
-
 def get_tfrecord_parser(tfrecord_path, features_to_return=None, decode_images=True, standardize=False,
                         normalizer=None, augment=False, **kwargs):
 
@@ -338,12 +308,12 @@ def get_tfrecord_parser(tfrecord_path, features_to_return=None, decode_images=Tr
         dict: Detected feature description for the tfrecord
     """
 
-    detected_features, img_type = detect_tfrecord_format(tfrecord_path)
+    features, img_type = detect_tfrecord_format(tfrecord_path)
     if features_to_return is None:
-        features_to_return = {k:k for k in detected_features.keys()}
-    elif not all(f in detected_features for f in features_to_return):
+        features_to_return = {k: k for k in features}
+    elif not all(f in features for f in features_to_return):
         raise TFRecordsError(f'Not all designated features {",".join(list(features_to_return.keys()))} were found ' + \
-                             f'in the tfrecord {",".join(list(detected_features.keys()))}')
+                             f'in the tfrecord {",".join(list(features.keys()))}')
 
     def parser(record):
         '''Each item in args is an array with one item, as the dareblopy reader returns items in batches

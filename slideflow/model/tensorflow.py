@@ -1120,6 +1120,7 @@ class Features:
         self.path = path
         self.num_logits = 0
         self.num_features = 0
+        self.img_format = None
         if path is not None:
             self._model = tf.keras.models.load_model(self.path)
             try:
@@ -1127,7 +1128,8 @@ class Features:
             except:
                 log.warning(f"Unable to find configuration for model {path}; unable to determine normalization " + \
                             "strategy for WSI processing.")
-
+            if 'img_format' in config:
+                self.img_format = config['img_format']
             self.hp = sf.model.ModelParams()
             self.hp.load_dict(config['hp'])
             self.wsi_normalizer = self.hp.get_normalizer()
@@ -1167,11 +1169,19 @@ class Features:
         else:
             return self._predict(inp)
 
-    def _predict_slide(self, slide, batch_size=128, dtype=np.float16, **kwargs):
+    def _predict_slide(self, slide, img_format='auto', batch_size=128, dtype=np.float16, **kwargs):
         """Generate activations from slide => activation grid array."""
+        log.debug(f"Slide prediction (batch_size={batch_size}, img_format={img_format})")
+        if img_format == 'auto' and self.img_format is None:
+            msg = 'Unable to auto-detect image format (png or jpg). Set the '
+            msg += 'format by passing img_format=... to the call function.'
+            raise ValueError(msg)
+        elif img_format == 'auto':
+            img_format = self.img_format
+
         total_out = self.num_features + self.num_logits
         features_grid = np.zeros((slide.grid.shape[1], slide.grid.shape[0], total_out), dtype=dtype)
-        generator = slide.build_generator(shuffle=False, include_loc='grid', show_progress=True, **kwargs)
+        generator = slide.build_generator(shuffle=False, include_loc='grid', show_progress=True, img_format=img_format, **kwargs)
 
         if not generator:
             log.error(f"No tiles extracted from slide {sf.util.green(slide.name)}")
@@ -1179,6 +1189,10 @@ class Features:
 
         def _parse_function(record):
             image = record['image']
+            if img_format.lower() in ('jpg', 'jpeg'):
+                image = tf.image.decode_jpeg(image, channels=3)
+            elif img_format.lower() in ('png',):
+                image = tf.image.decode_png(image, channels=3)
             loc = record['loc']
             parsed_image = tf.image.per_image_standardization(image)
             parsed_image.set_shape([slide.tile_px, slide.tile_px, 3])
@@ -1188,7 +1202,7 @@ class Features:
 
         # Generate dataset from the generator
         with tf.name_scope('dataset_input'):
-            output_signature={'image':tf.TensorSpec(shape=(slide.tile_px,slide.tile_px,3), dtype=tf.uint8),
+            output_signature={'image': tf.TensorSpec(shape=(), dtype=tf.string),
                               'loc':tf.TensorSpec(shape=(2), dtype=tf.uint32)}
             tile_dataset = tf.data.Dataset.from_generator(generator, output_signature=output_signature)
             tile_dataset = tile_dataset.map(_parse_function, num_parallel_calls=8)

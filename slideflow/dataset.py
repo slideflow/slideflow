@@ -147,6 +147,9 @@ class Dataset:
 
     def __init__(self, config, sources, tile_px, tile_um, annotations=None, filters=None, filter_blank=None, min_tiles=0):
 
+        if isinstance(tile_um, str):
+            sf.util.assert_is_mag(tile_um)
+            tile_um = tile_um.lower()
         self.tile_px = tile_px
         self.tile_um = tile_um
         self._filters = filters if filters else {}
@@ -172,7 +175,10 @@ class Dataset:
             raise DatasetError(err_msg)
 
         if (tile_px is not None) and (tile_um is not None):
-            label = f"{tile_px}px_{tile_um}um"
+            if isinstance(tile_um, str):
+                label = f"{tile_px}px_{tile_um.lower()}"
+            else:
+                label = f"{tile_px}px_{tile_um}um"
         else:
             label = None
 
@@ -212,6 +218,10 @@ class Dataset:
     @property
     def filtered_annotations(self):
         return self.annotations[self.annotations[TCGA.slide].isin(self.slides())]
+
+    @property
+    def img_format(self):
+        return self.verify_img_format()
 
     def load_annotations(self, annotations):
         # Load annotations
@@ -560,7 +570,7 @@ class Dataset:
                 slide_list = [slide for slide in slide_list if sf.util.path_to_name(slide) not in already_done]
                 if len(already_done):
                     log.info(f'Skipping {len(already_done)} slides; TFRecords already generated.')
-            log.info(f'Extracting tiles from {len(slide_list)} slides ({self.tile_um} um, {self.tile_px} px)')
+            log.info(f'Extracting tiles from {len(slide_list)} slides (tile_px={self.tile_px}, tile_um={self.tile_um})')
 
             # Verify slides and estimate total number of tiles
             log.info('Verifying slides...')
@@ -1229,6 +1239,7 @@ class Dataset:
         tfrecords = self.tfrecords()
         if not tfrecords:
             raise DatasetError("No TFRecords found.")
+        self.verify_img_format()
 
         return interleave(tfrecords=tfrecords,
                           labels=labels,
@@ -1660,6 +1671,7 @@ class Dataset:
         tfrecords = self.tfrecords()
         if not tfrecords:
             raise DatasetError("No TFRecords found.")
+        self.verify_img_format()
 
         prob_weights = [self.prob_weights[tfr] for tfr in tfrecords] if self.prob_weights else None
         indices = self.load_indices()
@@ -1834,3 +1846,31 @@ class Dataset:
                 num_warned += 1
         if num_warned >= warn_threshold:
             log.warning(f"...{num_warned} total warnings, see project log for details")
+
+    def verify_img_format(self):
+        """Verify that all tfrecords have the same image format (PNG/JPG)."""
+        tfrecords = self.tfrecords()
+        if len(tfrecords):
+            img_formats = []
+            pb = tqdm(
+                tfrecords,
+                desc="Verifying tfrecord formats...",
+                leave=False
+            )
+            for tfr in pb:
+                fmt = sf.io.detect_tfrecord_format(tfr)[-1]
+                if fmt is not None:
+                    img_formats += [fmt]
+            if len(set(img_formats)) > 1:
+                log_msg = "Mismatched TFRecord image formats:\n"
+                for tfr, fmt in zip(tfrecords, img_formats):
+                    log_msg += f"{tfr}: {fmt}\n"
+                log.error(log_msg)
+                err_msg = "Mismatched TFRecord image formats detected"
+                raise ValueError(err_msg)
+            if len(img_formats):
+                return img_formats[0]
+            else:
+                return None
+        else:
+            return None

@@ -635,7 +635,7 @@ class Project:
             pt_files (str): Path to pt_files containing tile-level features.
             outcome_label_headers (str or list): Name in annotation column which specifies the outcome label.
             tile_px (int): Tile width in pixels.
-            tile_um (int): Tile width in microns.
+            tile_um (int): Tile width in microns (int) or magnification (str, e.g. "20x").
             k (int, optional): K-fold / split iteration to evaluate. Defaults to 0.
                 Evaluates the model saved as s_{k}_checkpoint.pt in the CLAM results folder.
             eval_tag (str, optional): Unique identifier for this evaluation. Defaults to None
@@ -752,6 +752,8 @@ class Project:
         :func:`slideflow.dataset.Dataset.extract_tiles` on a :class:`slideflow.dataset.Dataset` directly.
 
         Args:
+            tile_px (int): Size of tiles to extract, in pixels.
+            tile_um (int or str): Size of tiles to extract, in microns (int) or magnification (str, e.g. "20x").
             save_tiles (bool, optional): Save images of extracted tiles to project tile directory. Defaults to False.
             save_tfrecords (bool, optional): Save compressed image data from extracted tiles into TFRecords
                 in the corresponding TFRecord directory. Defaults to True.
@@ -1406,7 +1408,7 @@ class Project:
             tile_dict (dict): Dictionary mapping tfrecord indices to a tile-level value for display in heatmap format
             outdir (str): Path to directory in which to save images
             tile_px (int): Tile width in pixels
-            tile_um (int): Tile width in microns
+            tile_um (int): Tile width in microns (int) or magnification (str, e.g. "20x").
 
         Returns:
             Dictionary mapping slide names to dict of statistics (mean, median, above_0, and above_1)
@@ -1542,8 +1544,8 @@ class Project:
         """Returns :class:`slideflow.Dataset` object using project settings.
 
         Args:
-            tile_px (int): Tile size in pixels
-            tile_um (int): Tile size in microns
+            tile_px (int): Tile size in pixels.
+            tile_um (int): Tile width in microns (int) or magnification (str, e.g. "20x").
             filters (dict, optional): Filters dict to use when selecting tfrecords. Defaults to None.
             filter_blank (list, optional): Slides blank in these columns will be excluded. Defaults to None.
             verification (str, optional): 'tfrecords', 'slides', or 'both'. Defaults to 'both'.
@@ -1590,7 +1592,7 @@ class Project:
 
     def predict_wsi(self, model, outdir, dataset=None, filters=None, filter_blank=None, stride_div=1,
                     enable_downsample=True, roi_method='inside', skip_missing_roi=False, source=None,
-                    randomize_origin=False, **kwargs):
+                    randomize_origin=False, img_format='auto', **kwargs):
 
         """Using a given model, generates a spatial map of tile-level predictions for a whole-slide image (WSI)
             and dumps prediction arrays into pkl files for later use.
@@ -1617,6 +1619,8 @@ class Project:
             skip_missing_roi (bool, optional): Skip slides that are missing ROIs. Defaults to True.
             source (list, optional): Name(s) of dataset sources from which to get slides. If None, will use all.
             randomize_origin (bool, optional): Randomize pixel starting position during extraction. Defaults to False.
+            img_format (str, optional): Image format (png, jpg) to use when extracting tiles from slide. Must match the
+                image format the model was trained on. If 'auto', will use the format logged in the model params.json.
 
         Keyword Args:
             whitespace_fraction (float, optional): Range 0-1. Defaults to 1.
@@ -1652,6 +1656,8 @@ class Project:
             if filters is not None or filter_blank is not None:
                 log.warning("Dataset supplied; ignoring provided filters and filter_blank")
             tile_px = dataset.tile_px
+        if img_format == 'auto':
+            img_format = config['img_format']
 
         # Log extraction parameters
         sf.slide.log_extraction_params(**kwargs)
@@ -1697,7 +1703,7 @@ class Project:
 
                 try:
                     interface = sf.model.Features(model, include_logits=False)
-                    wsi_grid = interface(whole_slide)
+                    wsi_grid = interface(whole_slide, img_format=img_format)
 
                     with open (join(outdir, whole_slide.name+'.pkl'), 'wb') as pkl_file:
                         pickle.dump(wsi_grid, pkl_file)
@@ -2037,6 +2043,7 @@ class Project:
                     'model_name': model_name,
                     'full_model_name': full_model_name,
                     'stage': 'training',
+                    'img_format': train_dts.img_format,
                     'tile_px': hp.tile_px,
                     'tile_um': hp.tile_um,
                     'max_tiles': max_tiles,

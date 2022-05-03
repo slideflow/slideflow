@@ -20,12 +20,12 @@ ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib
 
 # Repair pixman
 WORKDIR "/scripts"
-RUN wget https://github.com/jamesdolezal/slideflow/blob/master/pixman_repair.sh && \
+RUN wget https://github.com/jamesdolezal/slideflow/blob/1.0.7/pixman_repair.sh && \
     chmod +x pixman_repair.sh
 
 # Install slideflow & download scripts
-RUN pip3 install slideflow && \
-    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/master/test.py && \
-    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/master/run_project.py && \
-    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/master/qupath_roi.groovy && \
-    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/master/qupath_roi_legacy.groovy
+RUN pip3 install slideflow==1.0.7 && \
+    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/1.0.7/test.py && \
+    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/1.0.7/run_project.py && \
+    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/1.0.7/qupath_roi.groovy && \
+    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/1.0.7/qupath_roi_legacy.groovy

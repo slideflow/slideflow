@@ -3,7 +3,7 @@
 from slideflow.tfrecord import tools
 from slideflow.tfrecord import torch
 
-from slideflow.tfrecord import example_pb2
+from slideflow.util import example_pb2
 from slideflow.tfrecord import iterator_utils
 from slideflow.tfrecord import reader
 from slideflow.tfrecord import writer

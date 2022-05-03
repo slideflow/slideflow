@@ -40,30 +40,64 @@ class LinearBlock(torch.nn.Module):
 class ModelWrapper(torch.nn.Module):
     '''Wrapper for PyTorch modules to support multiple outcomes, clinical inputs, and additional hidden layers.'''
 
-    def __init__(self, model, n_classes, num_slide_features=0, hidden_layers=None, drop_images=False):
+    def __init__(self, model, n_classes, num_slide_features=0, hidden_layers=None, drop_images=False, include_top=True):
         super().__init__()
         self.model = model
         self.n_classes = len(n_classes)
         self.drop_images = drop_images
+        self.has_aux = False
         self.num_slide_features = num_slide_features
         self.num_hidden_layers = 0 if not hidden_layers else len(hidden_layers)
 
         if not drop_images:
+            # Check for auxillary classifier
+            if model.__class__.__name__ in ('Inception3',):
+                log.debug("Auxillary classifier detected")
+                self.has_aux = True
+
             # Get the last linear layer prior to the logits layer
-            if model.__class__.__name__ == 'Xception':
+            if model.__class__.__name__ in ('Xception', 'NASNetALarge'):
                 num_ftrs = self.model.last_linear.in_features
                 self.model.last_linear = torch.nn.Identity()
-            elif model.__class__.__name__ == 'VGG':
-                last_linear_name, last_linear = list(self.model.classifier.named_children())[-1]
-                num_ftrs = last_linear.in_features
-                setattr(self.model.classifier, last_linear_name, torch.nn.Identity())
+            elif model.__class__.__name__ in ('SqueezeNet'):
+                num_ftrs = 1000
+            elif hasattr(self.model, 'classifier'):
+                children = list(self.model.classifier.named_children())
+                if len(children):
+                    # VGG, AlexNet
+                    if include_top:
+                        log.debug("Including existing fully-connected "
+                                  "top classifier layers")
+                        last_linear_name, last_linear = children[-1]
+                        num_ftrs = last_linear.in_features
+                        setattr(
+                            self.model.classifier,
+                            last_linear_name,
+                            torch.nn.Identity()
+                        )
+                    elif model.__class__.__name__ in ('AlexNet',
+                                                      'MobileNetV2',
+                                                      'MNASNet'):
+                        log.debug("Removing fully-connected classifier layers")
+                        _, first_classifier = children[1]
+                        num_ftrs = first_classifier.in_features
+                        self.model.classifier = torch.nn.Identity()
+                    elif model.__class__.__name__ in ('VGG', 'MobileNetV3'):
+                        log.debug("Removing fully-connected classifier layers")
+                        _, first_classifier = children[0]
+                        num_ftrs = first_classifier.in_features
+                        self.model.classifier = torch.nn.Identity()
+                else:
+                    num_ftrs = self.model.classifier.in_features
+                    self.model.classifier = torch.nn.Identity()
             elif hasattr(self.model, 'fc'):
                 num_ftrs = self.model.fc.in_features
                 self.model.fc = torch.nn.Identity()
             elif hasattr(self.model, 'out_features'):
                 num_ftrs = self.model.out_features
             else:
-                raise _base.ModelError("Unable to find last linear layer")
+                raise ValueError("Unable to find last linear layer for "
+                                 f"model {model.__class__.__name__}")
         else:
             num_ftrs = 0
 
@@ -96,6 +130,10 @@ class ModelWrapper(torch.nn.Module):
         # Last linear of core convolutional model
         if not self.drop_images:
             x = self.model(img)
+
+        # Discard auxillary classifier
+        if self.has_aux:
+            x, _ = x
 
         # Merging image data with any slide-level input data
         if self.num_slide_features and not self.drop_images:
@@ -190,8 +228,6 @@ class ModelParams(_base._ModelParams):
         assert self.model in self.ModelDict.keys()
         assert self.optimizer in self.OptDict.keys()
         assert self.loss in self.AllLossDict
-        if not self.include_top:
-            raise _base.HyperParameterError("PyTorch backend does not currently support include_top=False.")
 
     def get_opt(self, params_to_update):
         return self.OptDict[self.optimizer](params_to_update, lr=self.learning_rate)
@@ -219,7 +255,7 @@ class ModelParams(_base._ModelParams):
 
         # Add final layers to models
         hidden_layers = [self.hidden_layer_width for h in range(self.hidden_layers)]
-        _model = ModelWrapper(_model, num_classes.values(), num_slide_features, hidden_layers, self.drop_images)
+        _model = ModelWrapper(_model, num_classes.values(), num_slide_features, hidden_layers, self.drop_images, include_top=self.include_top)
 
         return _model
 
@@ -984,6 +1020,7 @@ class Features:
         self.activation = {}
         self.layers = layers
         self.include_logits = include_logits
+        self.img_format = None
         self.device = device if device is not None else torch.device('cuda')
 
         if path is not None:
@@ -991,7 +1028,8 @@ class Features:
                 config = sf.util.get_model_config(path)
             except:
                 raise FeatureError(f"Unable to find configuration for model {path}")
-
+            if 'img_format' in config:
+                self.img_format = config['img_format']
             self.hp = ModelParams()
             self.hp.load_dict(config['hp'])
             self.wsi_normalizer = self.hp.get_normalizer()
@@ -1050,11 +1088,19 @@ class Features:
         else:
             return self._predict(inp)
 
-    def _predict_slide(self, slide, batch_size=128, dtype=np.float16, **kwargs):
+    def _predict_slide(self, slide, img_format='auto', batch_size=128, dtype=np.float16, **kwargs):
         """Generate activations from slide => activation grid array."""
+
+        log.debug(f"Slide prediction (batch_size={batch_size}, img_format={img_format})")
+        if img_format == 'auto' and self.img_format is None:
+            msg = 'Unable to auto-detect image format (png or jpg). Set the '
+            msg += 'format by passing img_format=... to the call function.'
+            raise ValueError(msg)
+        elif img_format == 'auto':
+            img_format = self.img_format
         total_out = self.num_features + self.num_logits
         features_grid = np.zeros((slide.grid.shape[1], slide.grid.shape[0], total_out), dtype=dtype)
-        generator = slide.build_generator(shuffle=False, include_loc='grid', show_progress=True, **kwargs)
+        generator = slide.build_generator(shuffle=False, include_loc='grid', show_progress=True, img_format=img_format, **kwargs)
 
         if not generator:
             log.error(f"No tiles extracted from slide {sf.util.green(slide.name)}")
@@ -1067,10 +1113,14 @@ class Features:
             def __iter__(self):
                 for image_dict in generator():
                     img = image_dict['image']
+                    np_data = torch.from_numpy(np.fromstring(img, dtype=np.uint8))
+                    img = torchvision.io.decode_image(np_data)
                     if self.parent.wsi_normalizer:
-                        img = self.parent.wsi_normalizer.rgb_to_rgb(img)
-                    img = torch.from_numpy(img)
-                    img = img.permute(2, 0, 1) # WHC => CWH
+                        img = img.permute(1, 2, 0)  # CWH => WHC
+                        img = torch.from_numpy(
+                            self.parent.wsi_normalizer.rgb_to_rgb(img.numpy())
+                        )
+                        img = img.permute(2, 0, 1)  # WHC => CWH
                     loc = np.array(image_dict['loc'])
                     img = img / 127.5 - 1
                     yield img, loc

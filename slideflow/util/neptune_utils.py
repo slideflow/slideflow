@@ -44,25 +44,31 @@ class NeptuneLog:
         if not hasattr(self, 'run'):
             raise ValueError("Unable to log; a neptune run has not yet been initialized (start with start_run())")
 
-        self.run['stage'] = hp_data['stage']
         self.run['backend'] = sf.backend()
         self.run['project_info'] = {key: hp_data[key] for key in proj_info_keys}
         self.run['model_info'] = {key: hp_data[key] for key in model_info_keys}
         self.run['model_info/outcomes'] = {str(key): str(value) for key, value in hp_data['outcome_labels'].items()}
         self.run['model_info/model_params/validation'] = {key: hp_data[key] for key in hp_data.keys() if 'validation' in key}
-        self.run['model_info/model_params/hp'] = hp_data['hp']
-        self.run['model_info/model_params/hp/pretrain'] = hp_data['pretrain']
-        self.run['model_info/model_params/resume_training'] = hp_data['resume_training']
-        self.run['model_info/model_params/checkpoint'] = hp_data['checkpoint']
-        self.run['model_info/model_params/filters'] = hp_data['filters']
 
+        self._log_hp(hp_data, 'stage', 'stage')
+        self._log_hp(hp_data, 'model_info/model_params/hp', 'hp')
+        self._log_hp(hp_data, 'model_info/model_params/hp/pretrain', 'pretrain')
+        self._log_hp(hp_data, 'model_info/model_params/resume_training', 'resume_training')
+        self._log_hp(hp_data, 'model_info/model_params/checkpoint', 'checkpoint')
+        self._log_hp(hp_data, 'model_info/model_params/filters', 'filters')
         if stage == 'train':
-            self.run['model_info/input_features'] = hp_data['input_features']
-            self.run['model_info/input_feature_labels'] = hp_data['input_feature_labels']
-            self.run['model_info/model_params/max_tiles'] = hp_data['max_tiles']
-            self.run['model_info/model_params/min_tiles'] = hp_data['min_tiles']
-            self.run['model_info/full_model_name'] = hp_data['full_model_name']
+            self._log_hp(hp_data, 'model_info/input_features', 'input_features')
+            self._log_hp(hp_data, 'model_info/input_feature_labels', 'input_feature_labels')
+            self._log_hp(hp_data, 'model_info/model_params/max_tiles', 'max_tiles')
+            self._log_hp(hp_data, 'model_info/model_params/min_tiles', 'min_tiles')
+            self._log_hp(hp_data, 'model_info/full_model_name', 'full_model_name')
         else:
-            self.run['eval/dataset'] = hp_data['sources']
-            self.run['eval/min_tiles'] = hp_data['min_tiles']
-            self.run['eval/max_tiles'] = hp_data['max_tiles']
+            self._log_hp(hp_data, 'eval/dataset', 'sources')
+            self._log_hp(hp_data, 'eval/min_tiles', 'min_tiles')
+            self._log_hp(hp_data, 'eval/max_tiles', 'max_tiles')
+
+    def _log_hp(self, hp_data, run_key, hp_key):
+        try:
+            self.run[run_key] = hp_data[hp_key]
+        except KeyError:
+            log.debug(f"Unable to log Neptune hp_data key '{hp_key}'")

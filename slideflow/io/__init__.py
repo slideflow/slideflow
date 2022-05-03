@@ -10,18 +10,19 @@ from multiprocessing.dummy import Pool as DPool
 from random import shuffle
 from slideflow.util import log
 from os.path import join, exists, isdir, isfile
+from slideflow.io.io_utils import detect_tfrecord_format
 
 # Backend-specific imports and configuration
 if os.environ['SF_BACKEND'] == 'tensorflow':
     import tensorflow as tf
-    from slideflow.io.tensorflow import get_tfrecord_parser, detect_tfrecord_format, serialized_record, \
+    from slideflow.io.tensorflow import get_tfrecord_parser, serialized_record, \
                                         read_and_return_record, TFRecordsError
     from tensorflow.data import TFRecordDataset
     from tensorflow.io import TFRecordWriter
     dataloss_errors = (tf.errors.DataLossError, TFRecordsError)
 
 elif os.environ['SF_BACKEND'] == 'torch':
-    from slideflow.io.torch import get_tfrecord_parser, detect_tfrecord_format, serialized_record, \
+    from slideflow.io.torch import get_tfrecord_parser, serialized_record, \
                                    read_and_return_record, TFRecordsError
     from slideflow.tfrecord.torch.dataset import TFRecordDataset
     from slideflow.tfrecord import TFRecordWriter
@@ -134,7 +135,7 @@ def write_tfrecords_single(input_directory, output_directory, filename, slide):
     tfrecord_path = join(output_directory, filename)
     image_labels = {}
     files = [f for f in os.listdir(input_directory) if (isfile(join(input_directory, f))) and
-            (sf.util.path_to_ext(f) in ("jpg", "png"))]
+            (sf.util.path_to_ext(f) in ("jpg", "jpeg", "png"))]
     for tile in files:
         image_labels.update({join(input_directory, tile): bytes(slide, 'utf-8')})
     keys = list(image_labels.keys())
@@ -161,7 +162,7 @@ def write_tfrecords_merge(input_directory, output_directory, filename):
     for slide_dir in slide_dirs:
         directory = join(input_directory, slide_dir)
         files = [f for f in os.listdir(directory) if (isfile(join(directory, f))) and
-                (sf.util.path_to_ext(f) in ("jpg", "png"))]
+                (sf.util.path_to_ext(f) in ("jpg", "jpeg", "png"))]
 
         for tile in files:
             image_labels.update({join(input_directory, slide_dir, tile): bytes(slide_dir, 'utf-8')})

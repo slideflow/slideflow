@@ -4,7 +4,7 @@ import json
 import os
 import csv
 import numpy as np
-from slideflow.util import log
+from slideflow.util import log, assert_is_mag
 from slideflow.slide import StainNormalizer
 
 class FeatureError(Exception):
@@ -24,7 +24,7 @@ class _ModelParams:
 
         Args:
             tile_px (int, optional): Tile width in pixels. Defaults to 299.
-            tile_um (int, optional): Tile width in microns. Defaults to 302.
+            tile_um (int, optional): Tile width in microns (int) or magnification (str, e.g. "20x"). Defaults to 302.
             epochs (int, optional): Number of epochs to train the full model. Defaults to 3.
             toplayer_epochs (int, optional): Number of epochs to only train the fully-connected layers. Defaults to 0.
             model (str, optional): Base model architecture name. Defaults to 'xception'.
@@ -69,7 +69,7 @@ class _ModelParams:
 
         # Assert provided hyperparameters are valid
         assert isinstance(tile_px, int)
-        assert isinstance(tile_um, int)
+        assert isinstance(tile_um, (str, int))
         assert isinstance(toplayer_epochs, int)
         assert isinstance(epochs, (int, list))
         if isinstance(epochs, list):
@@ -96,6 +96,10 @@ class _ModelParams:
         assert 0 <= learning_rate_decay <= 1
         assert 0 <= L2_weight <= 1
         assert 0 <= dropout <= 1
+
+        if isinstance(tile_um, str):
+            assert_is_mag(tile_um)
+            tile_um = tile_um.lower()
 
         self.tile_px = tile_px
         self.tile_um = tile_um

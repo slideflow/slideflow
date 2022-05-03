@@ -17,7 +17,7 @@ class Heatmap:
     """Generates heatmap by calculating predictions from a sliding scale window across a slide."""
 
     def __init__(self, slide, model, stride_div=2, roi_dir=None, rois=None, roi_method='inside', batch_size=32,
-                 num_threads=None, buffer=None, enable_downsample=True):
+                 num_threads=None, buffer=None, enable_downsample=True, img_format='auto'):
 
         """Convolutes across a whole slide, calculating logits and saving predictions internally for later use.
 
@@ -35,6 +35,8 @@ class Heatmap:
             buffer (str, optional): Path to directory to use for buffering slides. Defaults to None.
                 Significantly improves performance for slides on HDDs.
             enable_downsample (bool, optional): Enable the use of downsampled slide image layers. Defaults to True.
+            img_format (str, optional): Image format (png, jpg) to use when extracting tiles from slide. Must match the
+                image format the model was trained on. If 'auto', will use the format logged in the model params.json.
         """
 
         from slideflow.slide import WSI
@@ -50,6 +52,13 @@ class Heatmap:
         self.tile_um = model_config['tile_um']
         self.num_classes = interface.num_logits
         self.num_features = interface.num_features
+
+        if img_format == 'auto' and 'img_format' not in model_config:
+            msg = f"Unable to auto-detect image format from model at {model}. "
+            msg += "Manually set to png or jpg with Heatmap(img_format=...)"
+            raise ValueError(msg)
+        elif img_format == 'auto':
+            img_format = model_config['img_format']
 
         # Create slide buffer
         if buffer and os.path.isdir(buffer):
@@ -79,6 +88,7 @@ class Heatmap:
                                 normalizer_source=model_config['hp']['normalizer_source'],
                                 num_threads=num_threads,
                                 batch_size=batch_size,
+                                img_format=img_format,
                                 dtype=np.float32)
 
         log.info(f"Heatmap complete for {sf.util.green(self.slide.name)}")

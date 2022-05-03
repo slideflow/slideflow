@@ -9,7 +9,7 @@ import typing
 import numpy as np
 
 from slideflow.util import log
-from slideflow.tfrecord import example_pb2
+from slideflow.util import example_pb2, extract_feature_dict
 from slideflow.tfrecord import iterator_utils
 
 class TFRecordIterator:
@@ -71,8 +71,8 @@ class TFRecordIterator:
         self.datum_bytes = datum_bytes if datum_bytes is not None else bytearray(1024 * 1024)
         self.length_bytes = bytearray(8)
         self.crc_bytes = bytearray(4)
-        self.index = index
-        if self.index is not None:
+        self.index = np.array(index)
+        if index is not None:
             if len(self.index.shape) == 1: # For the case that there is only a single record in the file
                 self.index = np.expand_dims(self.index, axis=0)
             self.index = self.index[:, 0]
@@ -119,13 +119,20 @@ class TFRecordIterator:
             else:
                 shard_idx, shard_count = self.shard
                 all_shard_indices = np.array_split(self.index, shard_count)
-                if shard_count >= self.index.shape[0]:
-                    return
-                start_byte = all_shard_indices[shard_idx][0]
-                if shard_idx < (shard_count-1):
+                if shard_count >= self.index.shape[0]:  # type: ignore
+                    # There are fewer records than shards, so
+                    # only the first shard will read
+                    if shard_idx == 0:
+                        start_byte = all_shard_indices[shard_idx][0]
+                        yield from read_records(start_byte, clip_offset)
+                        return
+                    else:
+                        return
+                elif shard_idx < (shard_count-1):
                     end_byte = all_shard_indices[shard_idx + 1][0]
                 else:
                     end_byte = clip_offset
+                start_byte = all_shard_indices[shard_idx][0]
                 yield from read_records(start_byte, end_byte)
 
     def process(self, record):
@@ -200,65 +207,6 @@ class SequenceIterator(TFRecordIterator):
         features = extract_feature_dict(example.feature_lists, self.features_description, self.typename_mapping)
         yield context, features
 
-def process_feature(feature: example_pb2.Feature,
-                    typename: str,
-                    typename_mapping: dict,
-                    key: str):
-    # NOTE: We assume that each key in the example has only one field
-    # (either "bytes_list", "float_list", or "int64_list")!
-    field = feature.ListFields()[0]
-    inferred_typename, value = field[0].name, field[1].value
-
-    if typename is not None:
-        tf_typename = typename_mapping[typename]
-        if tf_typename != inferred_typename:
-            reversed_mapping = {v: k for k, v in typename_mapping.items()}
-            raise TypeError(f"Incompatible type '{typename}' for `{key}` "
-                        f"(should be '{reversed_mapping[inferred_typename]}').")
-
-    if inferred_typename == "bytes_list":
-        value = np.frombuffer(value[0], dtype=np.uint8)
-    elif inferred_typename == "float_list":
-        value = np.array(value, dtype=np.float32)
-    elif inferred_typename == "int64_list":
-        value = np.array(value, dtype=np.int64)
-    return value
-
-def extract_feature_dict(features, description, typename_mapping):
-    if isinstance(features, example_pb2.FeatureLists):
-        features = features.feature_list
-
-        def get_value(typename, typename_mapping, key):
-            feature = features[key].feature
-            fn = functools.partial(process_feature, typename=typename,
-                                   typename_mapping=typename_mapping, key=key)
-            return list(map(fn, feature))
-    elif isinstance(features, example_pb2.Features):
-        features = features.feature
-
-        def get_value(typename, typename_mapping, key):
-            return process_feature(features[key], typename,
-                                   typename_mapping, key)
-    else:
-        raise TypeError(f"Incompatible type: features should be either of type "
-                        f"example_pb2.Features or example_pb2.FeatureLists and "
-                        f"not {type(features)}")
-
-    all_keys = list(features.keys())
-
-    if description is None or len(description) == 0:
-        description = dict.fromkeys(all_keys, None)
-    elif isinstance(description, list):
-        description = dict.fromkeys(description, None)
-
-    processed_features = {}
-    for key, typename in description.items():
-        if key not in all_keys:
-            raise KeyError(f"Key {key} doesn't exist (select from {all_keys})!")
-
-        processed_features[key] = get_value(typename, typename_mapping, key)
-
-    return processed_features
 
 def tfrecord_loader(
     data_path: str,
