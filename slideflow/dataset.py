@@ -2745,7 +2745,8 @@ class Dataset:
             )
             for tfr in pb:
                 fmt = sf.io.detect_tfrecord_format(tfr)[-1]
-                img_formats += [fmt]
+                if fmt is not None:
+                    img_formats += [fmt]
             if len(set(img_formats)) > 1:
                 log_msg = "Mismatched TFRecord image formats:\n"
                 for tfr, fmt in zip(tfrecords, img_formats):
@@ -2754,6 +2755,9 @@ class Dataset:
                 raise errors.MismatchedImageFormatsError(
                     "Mismatched TFRecord image formats detected"
                 )
-            return img_formats[0]
+            if len(img_formats):
+                return img_formats[0]
+            else:
+                return None
         else:
             return None
