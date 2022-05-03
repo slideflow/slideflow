@@ -687,7 +687,7 @@ class _BaseLoader:
                                  "enable_downsample=False")
             self.downsample_factor = self.slide.level_downsamples[self.downsample_level]  # noqa E501
             self.extract_px = tile_px
-            self.full_extract_px = self.downsample_factor * tile_px
+            self.full_extract_px = int(self.downsample_factor * tile_px)
             self.tile_um = int(self.downsample_factor * self.mpp * tile_px)
             log.debug(f"Using magnification {closest_mag:.1f}x (level="
                       f"{self.downsample_level}, tile_um={self.tile_um})")
