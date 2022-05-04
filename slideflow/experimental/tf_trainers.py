@@ -187,7 +187,7 @@ class ExperimentalProject(Project):
         super().__init__()
 
 
-    def _train_hp_with_val_labels(
+    def _train_hp(
         self,
         hp_name: str,
         hp: ModelParams,
