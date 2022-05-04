@@ -880,7 +880,7 @@ def _average_by_group(
                 if not isinstance(y_true_group[group], (list, np.ndarray)):
                     yt_group = as_list(y_true_group[group])
                 else:
-                    yt_group = y_true_group[group]
+                    yt_group = y_true_group[group]  # type: ignore
                 row = [[group], yt_group, avg_by_group[i]]
                 if uncertainty is not None:
                     row += [np.array(uncertainty_by_group[i])]
@@ -1166,7 +1166,7 @@ def filtered_prediction(
     else:
         prediction_mask = np.ones(logits.shape, dtype=int)
         prediction_mask[filter] = 0
-    masked_logits = np.ma.masked_array(logits, mask=prediction_mask)
+    masked_logits = np.ma.masked_array(logits, mask=prediction_mask)  # type: ignore
     return int(np.argmax(masked_logits))
 
 

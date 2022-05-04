@@ -161,7 +161,7 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
             self.label_prob = _lbls / len(_all_labels)
         else:
             self.unique_labels = None
-            self.label_prob = None
+            self.label_prob = None  # type: ignore
             self.num_outcomes = 1
         self.labels = labels
 
@@ -286,7 +286,8 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
         if self.use_labels and self.model_type == 'categorical':
             return random.choices(
                 self.unique_labels,
-                weights=self.label_prob, k=1
+                weights=self.label_prob, # type: ignore
+                k=1
             )[0]
         elif self.use_labels:
             return [np.random.rand()]
@@ -411,7 +412,7 @@ def _decode_image(
 
 
 def worker_init_fn(worker_id) -> None:
-    np.random.seed(np.random.get_state()[1][0])
+    np.random.seed(np.random.get_state()[1][0])  # type: ignore
 
 
 def get_tfrecord_parser(

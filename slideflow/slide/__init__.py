@@ -599,7 +599,7 @@ class _BaseLoader:
         self,
         path: str,
         tile_px: int,
-        tile_um: int,
+        tile_um: Union[int, str],
         stride_div: int,
         enable_downsample: bool = True,
         pb: Optional[sf.util.ProgressBar] = None,
@@ -624,7 +624,6 @@ class _BaseLoader:
         self.name = path_to_name(path)
         self.shortname = sf.util._shortname(self.name)
         self.tile_px = tile_px
-        self.tile_um = tile_um
         self.tile_mask = None  # type: Optional[np.ndarray]
         self.enable_downsample = enable_downsample
         self.thumb_image = None  # type: Optional[Image.Image]
@@ -652,7 +651,7 @@ class _BaseLoader:
                     self.load_error = True
                     return
         else:
-            log.error(f"Slide {self.name}: unsupported filetype '{filetype}'")
+            log.error(f"{self.name}: unsupported filetype '{filetype}'")
             self.load_error = True
             return
 
@@ -666,28 +665,58 @@ class _BaseLoader:
             self.load_error = True
             return
         self.full_shape = self.slide.dimensions
-        self.full_extract_px = int(self.tile_um / self.mpp)
 
-        # Load downsampled level based on desired extraction size
-        ds = self.full_extract_px / tile_px
-        if enable_downsample:
-            self.downsample_level = self.slide.best_level_for_downsample(ds)
+        # Calculate downsample by magnification
+        if isinstance(tile_um, str):
+            sf.util.assert_is_mag(tile_um)
+            _mag_lvl = 10 / (np.array(self.slide.level_downsamples) * self.mpp)
+            mag_levels = _mag_lvl.tolist()
+            closest_mag = min(
+                mag_levels,
+                key=lambda x: abs(x - sf.util.to_mag(tile_um))  # type: ignore
+            )
+            if abs(closest_mag - sf.util.to_mag(tile_um)) > 2:
+                log.error(
+                    f"{self.name}: Could not find magnification level "
+                    f"matching {tile_um} (closest: {closest_mag:.1f})")
+                self.load_error = True
+                return
+            ds_level = mag_levels.index(closest_mag)
+            if not enable_downsample and ds_level != 0:
+                raise ValueError(f"Unable to use magnification {tile_um} with "
+                                 "enable_downsample=False")
+            self.downsample_factor = self.slide.level_downsamples[ds_level]
+            self.extract_px = tile_px
+            self.full_extract_px = int(self.downsample_factor * tile_px)
+            self.tile_um = int(self.downsample_factor * self.mpp * tile_px)
+            log.debug(f"Using magnification {closest_mag:.1f}x (level="
+                      f"{ds_level}, tile_um={self.tile_um})")
+
+        # Calculate downsample level by tile micron size
         else:
-            self.downsample_level = 0
-        self.downsample_factor = self.slide.level_downsamples[self.downsample_level]  # noqa E501
-        self.shape = self.slide.level_dimensions[self.downsample_level]
-
-        # Calculate pixel size of extraction window using downsampling
-        self.extract_px = self.full_extract_px // self.downsample_factor
-        self.full_stride = self.full_extract_px // stride_div
-        self.stride = self.extract_px // stride_div
+            assert isinstance(tile_um, int)
+            self.tile_um = tile_um
+            self.full_extract_px = int(tile_um / self.mpp)
+            ds = self.full_extract_px / tile_px
+            if enable_downsample:
+                ds_level = self.slide.best_level_for_downsample(ds)
+            else:
+                ds_level = 0
+            self.downsample_factor = self.slide.level_downsamples[ds_level]
+            self.extract_px = self.full_extract_px // self.downsample_factor
 
         # Calculate filter dimensions (low magnification for filtering out
         # white background and performing edge detection)
         self.filter_dimensions = self.slide.level_dimensions[-1]
         self.filter_magnification = (self.filter_dimensions[0]
-                                     / self.full_shape[0])
+                                    / self.full_shape[0])
         self.filter_px = int(self.full_extract_px * self.filter_magnification)
+
+        # Calculate shape and stride
+        self.downsample_level = ds_level
+        self.shape = self.slide.level_dimensions[self.downsample_level]
+        self.stride = self.extract_px // stride_div
+        self.full_stride = self.full_extract_px // stride_div
 
     @property
     def dimensions(self) -> Tuple[int, int]:
@@ -966,7 +995,10 @@ class _BaseLoader:
         dry_run: bool = False
     ) -> Callable:
         lead_msg = f'Extracting {self.tile_um}um tiles'
-        resize_msg = f'(resizing {self.extract_px}px -> {self.tile_px}px)'
+        if self.extract_px != self.tile_px:
+            resize_msg = f'(resizing {self.extract_px}px -> {self.tile_px}px)'
+        else:
+            resize_msg = f'({self.extract_px}px, not resizing)'
         stride_msg = f'stride: {int(self.stride)}px'
         log.debug(f"{self.shortname}: {lead_msg} {resize_msg}; {stride_msg}")
         if self.tile_px > self.extract_px:
@@ -1210,7 +1242,7 @@ class WSI(_BaseLoader):
         self,
         path: str,
         tile_px: int,
-        tile_um: int,
+        tile_um: Union[int, str],
         stride_div: int = 1,
         enable_downsample: bool = True,
         roi_dir: Optional[Path] = None,
@@ -1228,7 +1260,8 @@ class WSI(_BaseLoader):
         Args:
             path (str): Path to slide.
             tile_px (int): Size of tiles to extract, in pixels.
-            tile_um (int): Size of tiles to extract, in microns.
+            tile_um (int or str): Size of tiles to extract, in microns (int) or
+                magnification (str, e.g. "20x").
             stride_div (int, optional): Stride divisor for tile extraction
                 (1 = no tile overlap; 2 = 50% overlap, etc). Defaults to 1.
             enable_downsample (bool, optional): Allow use of downsampled
@@ -1328,7 +1361,7 @@ class WSI(_BaseLoader):
             self.load_error = True
             return None
         elif not len(self.rois):
-            info_msg = f"No ROI for {col.green(self.name)}, using whole slide."
+            info_msg = f"No ROI for {self.name}, using whole slide."
             if not silent and roi_method != 'ignore':
                 log.info(info_msg)
             else:
@@ -1771,7 +1804,7 @@ class TMA(_BaseLoader):
         self,
         path: str,
         tile_px: int,
-        tile_um: int,
+        tile_um: Union[str, int],
         stride_div: int = 1,
         enable_downsample: bool = True,
         report_dir: Optional[Path] = None,
@@ -1783,7 +1816,8 @@ class TMA(_BaseLoader):
         Args:
             path (str): Path to slide.
             tile_px (int): Size of tiles to extract, in pixels.
-            tile_um (int): Size of tiles to extract, in microns.
+            tile_um (int or str): Size of tiles to extract, in microns (int) or
+                magnification (str, e.g. "20x").
             stride_div (int, optional): Stride divisor for tile extraction
                 (1 = no tile overlap; 2 = 50% overlap, etc). Defaults to 1.
             enable_downsample (bool, optional): Allow use of downsampled
