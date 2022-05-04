@@ -62,6 +62,20 @@ def linear_to_cat_metrics_from_dataset(
     return metrics, acc, loss
 
 
+def _train_val_worker(
+    datasets: Tuple[sf.Dataset, sf.Dataset],
+    model_kw: Dict,
+    training_kw: Dict,
+    results_dict: Dict,
+    verbosity: int
+) -> None:
+    """Internal function to execute model training in an isolated process."""
+    log.setLevel(verbosity)
+    train_dts, val_dts = datasets
+    trainer = CatValLinearTrainer(**model_kw)
+    results = trainer.train(train_dts, val_dts, **training_kw)
+    results_dict.update({model_kw['name']: results})
+
 class _ValLabelEvalCallback(_PredictionAndEvaluationCallback):
     """Modified to support conversion of linear predictions to categorical."""
 
@@ -483,7 +497,7 @@ class ExperimentalProject(Project):
                 'neptune_api': self.neptune_api,
                 'neptune_workspace': self.neptune_workspace,
             }
-            process = s_args.ctx.Process(target=project_utils._train_worker,
+            process = s_args.ctx.Process(target=_train_val_worker,
                                         args=((train_dts, val_dts),
                                             model_kwargs,
                                             s_args.training_kwargs,
