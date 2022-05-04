@@ -1056,9 +1056,12 @@ def _categorical_metrics(args: SimpleNamespace, outcome_name: str) -> None:
             return
 
     # Convert predictions to one-hot encoding
-    onehot_predictions = np.array([
-        to_onehot(x, num_cat) for x in np.argmax(args.y_pred, axis=1)
-    ])
+    if args.preds_to_onehot:
+        onehot_predictions = np.array([
+            to_onehot(x, num_cat) for x in np.argmax(args.y_pred, axis=1)
+        ])
+    else:
+        onehot_predictions = args.y_pred
     # Compare one-hot predictions to one-hot y_true for category-level accuracy
     split_predictions = np.split(onehot_predictions, num_cat, 1)
     for ci, cat_pred_array in enumerate(split_predictions):
@@ -1738,6 +1741,7 @@ def metrics_from_pred(
                 metric_args.y_pred = y_pred
                 metric_args.y_true = y_true
             log.info(f"Validation metrics for outcome {col.green(outcome)}:")
+            metric_args.preds_to_onehot = True
             _categorical_metrics(metric_args, outcome)
 
     elif model_type == 'linear':

@@ -495,6 +495,7 @@ class Project:
 
     def _train_hp(
         self,
+        *,
         hp_name: str,
         hp: ModelParams,
         outcomes: List[str],

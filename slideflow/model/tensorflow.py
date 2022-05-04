@@ -594,6 +594,26 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
         self.neptune_run = self.parent.neptune_run
         self.global_step = 0
 
+    def _metrics_from_dataset(
+        self,
+        epoch_label: str,
+        pred_args: SimpleNamespace
+    ) -> Tuple[Dict, float, float]:
+        return sf.stats.metrics_from_dataset(
+            self.model,
+            model_type=self.hp.model_type(),
+            labels=self.parent.labels,
+            patients=self.parent.patients,
+            dataset=self.cb_args.validation_data_with_slidenames,
+            outcome_names=self.parent.outcome_names,
+            label=epoch_label,
+            data_dir=self.parent.outdir,
+            num_tiles=self.cb_args.num_val_tiles,
+            histogram=False,
+            save_predictions=self.cb_args.save_predictions,
+            pred_args=pred_args
+        )
+
     def on_epoch_end(self, epoch: int, logs={}) -> None:
         if log.getEffectiveLevel() <= 20:
             print('\r\033[K', end='')
@@ -794,24 +814,9 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
     def evaluate_model(self, logs={}) -> None:
         log.debug("Evaluating model from evaluation callback")
         epoch = self.epoch_count
-        epoch_label = f'val_epoch{epoch}'
-        pred_args = SimpleNamespace(
-            loss=self.hp.get_loss(),
-            uq=bool(self.hp.uq)
-        )
-        metrics, acc, loss = sf.stats.metrics_from_dataset(
-            self.model,
-            model_type=self.hp.model_type(),
-            labels=self.parent.labels,
-            patients=self.parent.patients,
-            dataset=self.cb_args.validation_data_with_slidenames,
-            outcome_names=self.parent.outcome_names,
-            label=epoch_label,
-            data_dir=self.parent.outdir,
-            num_tiles=self.cb_args.num_val_tiles,
-            histogram=False,
-            save_predictions=self.cb_args.save_predictions,
-            pred_args=pred_args
+        metrics, acc, loss = self._metrics_from_dataset(
+            f'val_epoch{epoch}',
+            SimpleNamespace(loss=self.hp.get_loss(), uq=bool(self.hp.uq))
         )
 
         # Note that Keras loss during training includes regularization losses,
@@ -988,6 +993,7 @@ class Trainer:
         self.name = name
         self.neptune_run = None
         self.annotations_tables = []
+        self.eval_callback = _PredictionAndEvaluationCallback  # type: tf.keras.callbacks.Callback
 
         if patients:
             self.patients = patients
@@ -1178,6 +1184,9 @@ class Trainer:
         )
         return vars(args)
 
+    def _interleave_kwargs_val(self, **kwargs) -> Dict[str, Any]:
+        return self._interleave_kwargs(**kwargs)
+
     def _metric_kwargs(self, **kwargs) -> Dict[str, Any]:
         args = SimpleNamespace(
             model=self.model,
@@ -1233,7 +1242,7 @@ class Trainer:
         if not batch_size:
             batch_size = self.hp.batch_size
         with tf.name_scope('input'):
-            interleave_kwargs = self._interleave_kwargs(
+            interleave_kwargs = self._interleave_kwargs_val(
                 batch_size=batch_size,
                 infinite=False,
                 augment=False
@@ -1344,7 +1353,7 @@ class Trainer:
         if not batch_size:
             batch_size = self.hp.batch_size
         with tf.name_scope('input'):
-            interleave_kwargs = self._interleave_kwargs(
+            interleave_kwargs = self._interleave_kwargs_val(
                 batch_size=batch_size,
                 infinite=False,
                 augment=False
@@ -1576,7 +1585,7 @@ class Trainer:
                 with tf.name_scope('input'):
                     if not validation_batch_size:
                         validation_batch_size = self.hp.batch_size
-                    v_kwargs = self._interleave_kwargs(
+                    v_kwargs = self._interleave_kwargs_val(
                         batch_size=validation_batch_size,
                         infinite=False,
                         augment=False
@@ -1641,7 +1650,7 @@ class Trainer:
 
             # Create callbacks for early stopping, checkpoint saving,
             # summaries, and history
-            val_callback = _PredictionAndEvaluationCallback(self, cb_args)
+            val_callback = self.eval_callback(self, cb_args)
             callbacks = [tf.keras.callbacks.History(), val_callback]
             if save_checkpoints:
                 cp_callback = tf.keras.callbacks.ModelCheckpoint(
