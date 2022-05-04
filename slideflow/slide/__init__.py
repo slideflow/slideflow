@@ -669,10 +669,10 @@ class _BaseLoader:
         # Calculate downsample by magnification
         if isinstance(tile_um, str):
             sf.util.assert_is_mag(tile_um)
-            mag_lvls = 10 / (np.array(self.slide.level_downsamples) * self.mpp)
-            mag_lvls = mag_lvls.tolist()
+            _mag_lvl = 10 / (np.array(self.slide.level_downsamples) * self.mpp)
+            mag_levels = _mag_lvl.tolist()
             closest_mag = min(
-                mag_lvls,
+                mag_levels,
                 key=lambda x: abs(x - sf.util.to_mag(tile_um))  # type: ignore
             )
             if abs(closest_mag - sf.util.to_mag(tile_um)) > 2:
@@ -681,16 +681,16 @@ class _BaseLoader:
                     f"matching {tile_um} (closest: {closest_mag:.1f})")
                 self.load_error = True
                 return
-            self.downsample_level = mag_lvls.index(closest_mag)
-            if not enable_downsample and self.downsample_level != 0:
+            ds_level = mag_levels.index(closest_mag)
+            if not enable_downsample and ds_level != 0:
                 raise ValueError(f"Unable to use magnification {tile_um} with "
                                  "enable_downsample=False")
-            self.downsample_factor = self.slide.level_downsamples[self.downsample_level]  # noqa E501
+            self.downsample_factor = self.slide.level_downsamples[ds_level]
             self.extract_px = tile_px
             self.full_extract_px = int(self.downsample_factor * tile_px)
             self.tile_um = int(self.downsample_factor * self.mpp * tile_px)
             log.debug(f"Using magnification {closest_mag:.1f}x (level="
-                      f"{self.downsample_level}, tile_um={self.tile_um})")
+                      f"{ds_level}, tile_um={self.tile_um})")
 
         # Calculate downsample level by tile micron size
         else:
@@ -699,10 +699,10 @@ class _BaseLoader:
             self.full_extract_px = int(tile_um / self.mpp)
             ds = self.full_extract_px / tile_px
             if enable_downsample:
-                self.downsample_level = self.slide.best_level_for_downsample(ds)
+                ds_level = self.slide.best_level_for_downsample(ds)
             else:
-                self.downsample_level = 0
-            self.downsample_factor = self.slide.level_downsamples[self.downsample_level]  # noqa E501
+                ds_level = 0
+            self.downsample_factor = self.slide.level_downsamples[ds_level]
             self.extract_px = self.full_extract_px // self.downsample_factor
 
         # Calculate filter dimensions (low magnification for filtering out
@@ -713,6 +713,7 @@ class _BaseLoader:
         self.filter_px = int(self.full_extract_px * self.filter_magnification)
 
         # Calculate shape and stride
+        self.downsample_level = ds_level
         self.shape = self.slide.level_dimensions[self.downsample_level]
         self.stride = self.extract_px // stride_div
         self.full_stride = self.full_extract_px // stride_div

@@ -946,7 +946,8 @@ class Project:
     def evaluate(
         self,
         model: Path,
-        outcomes: Union[str, List[str]], *,
+        outcomes: Union[str, List[str]],
+        *,
         dataset: Dataset,
         filters: Optional[Dict] = None,
         filter_blank: Optional[Union[str, List[str]]] = None,
@@ -1277,7 +1278,8 @@ class Project:
 
     @auto_dataset
     def generate_features(
-        self, model: Path,
+        self,
+        model: Path,
         *,
         dataset: Dataset,
         filters: Optional[Dict] = None,
@@ -1545,8 +1547,9 @@ class Project:
 
     def generate_mosaic(
         self,
-        df: "DatasetFeatures", *,
+        df: "DatasetFeatures",
         dataset: Optional[Dataset] = None,
+        *,
         filters: Optional[Dict] = None,
         filter_blank: Optional[Union[str, List[str]]] = None,
         outcomes: Optional[Union[str, List[str]]] = None,
