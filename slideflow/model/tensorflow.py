@@ -580,6 +580,7 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
         super(_PredictionAndEvaluationCallback, self).__init__()
         self.parent = parent
         self.hp = parent.hp
+        self.val_labels = parent.val_labels
         self.cb_args = cb_args
         self.early_stop = False
         self.early_stop_batch = 0
@@ -801,8 +802,8 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
         )
         metrics, acc, loss = sf.stats.metrics_from_dataset(
             self.model,
-            model_type=self.hp.model_type(),
-            labels=self.parent.labels,
+            model_type=self.hp.model_type() if self.val_labels == None else 'categorical',
+            labels=self.parent.labels if self.val_labels == None else self.val_labels,
             patients=self.parent.patients,
             dataset=self.cb_args.validation_data_with_slidenames,
             outcome_names=self.parent.outcome_names,
@@ -931,6 +932,8 @@ class Trainer:
         feature_sizes: Optional[List[int]] = None,
         feature_names: Optional[List[str]] = None,
         outcome_names: Optional[List[str]] = None,
+        val_labels: Dict[str, Any] = None,
+        val_outcome_names: Optional[List[str]] = None,
         mixed_precision: bool = True,
         config: Dict[str, Any] = None,
         use_neptune: bool = False,
@@ -978,6 +981,7 @@ class Trainer:
         self.manifest = manifest
         self.tile_px = hp.tile_px
         self.labels = labels
+        self.val_labels = val_labels
         self.hp = hp
         self.slides = list(labels.keys())
         self.slide_input = slide_input
@@ -988,7 +992,7 @@ class Trainer:
         self.name = name
         self.neptune_run = None
         self.annotations_tables = []
-
+        self.val_annotations_tables = []
         if patients:
             self.patients = patients
         else:
@@ -1027,7 +1031,26 @@ class Trainer:
                     )]
         else:
             self.num_classes = None  # type: ignore
-
+            
+        if val_labels:
+            val_outcome_labels = np.array(list(val_labels.values()))
+            if len(val_outcome_labels.shape) == 1:
+                val_outcome_labels = np.expand_dims(val_outcome_labels, axis=1)
+            if not val_outcome_names:
+                val_outcome_names = [f'Outcome {i}' for i in range(val_outcome_labels.shape[1])]
+            if not isinstance(val_outcome_names, list):
+                val_outcome_names = [val_outcome_names]
+            if len(val_outcome_names) != val_outcome_labels.shape[1]:
+                num_names = len(val_outcome_names)
+                num_outcomes = val_outcome_labels.shape[1]
+                raise errors.ModelError(f'Size of val_outcome_names ({num_names}) != number of outcomes {num_outcomes}')
+            self.val_outcome_names = val_outcome_names
+            self.val_num_classes = {i: np.unique(val_outcome_labels[:,i]).shape[0] for i in range(val_outcome_labels.shape[1])}
+            with tf.device('/cpu'):
+                for oi in range(val_outcome_labels.shape[1]):
+                    self.val_annotations_tables += [tf.lookup.StaticHashTable(
+                        tf.lookup.KeyValueTensorInitializer(self.slides, val_outcome_labels[:,oi]), -1
+                    )]
         # Normalization setup
         self.normalizer = self.hp.get_normalizer()
         if self.normalizer:
@@ -1106,6 +1129,19 @@ class Trainer:
             log.debug("Detecting normalizer fit from model config")
             self.normalizer.fit(**self.config['norm_fit'])
 
+    def _parse_val_tfrecord_labels(self, image, slide):
+        '''Parses raw entry read from TFRecord.'''
+
+        image_dict = { 'tile_image': image }
+
+        if self.val_num_classes is None:
+            label = None
+        elif len(self.val_num_classes) > 1:
+            label = {f'out-{oi}': self.val_annotations_tables[oi].lookup(slide) for oi in range(len(self.val_num_classes))}
+        else:
+            label = self.val_annotations_tables[0].lookup(slide)
+        return image_dict, label
+    
     def _parse_tfrecord_labels(
         self,
         image: tf.Tensor,
@@ -1170,13 +1206,29 @@ class Trainer:
         self.model.layers[0].trainable = True
         return toplayer_model.history
 
-    def _interleave_kwargs(self, **kwargs) -> Dict[str, Any]:
+    def _interleave_kwargs(self, **kwargs):
         args = SimpleNamespace(
             labels=self._parse_tfrecord_labels,
             normalizer=self.normalizer,
             **kwargs
         )
         return vars(args)
+
+    def _interleave_kwargs_val(self, **kwargs):
+        if self.val_labels:
+            args = SimpleNamespace(
+                labels=self._parse_val_tfrecord_labels,
+                normalizer=self.normalizer,
+                **kwargs
+            )
+        else:
+            args = SimpleNamespace(
+                labels=self._parse_tfrecord_labels,
+                normalizer=self.normalizer,
+                **kwargs
+            )
+        return vars(args)
+
 
     def _metric_kwargs(self, **kwargs) -> Dict[str, Any]:
         args = SimpleNamespace(
@@ -1233,11 +1285,7 @@ class Trainer:
         if not batch_size:
             batch_size = self.hp.batch_size
         with tf.name_scope('input'):
-            interleave_kwargs = self._interleave_kwargs(
-                batch_size=batch_size,
-                infinite=False,
-                augment=False
-            )
+            interleave_kwargs = self._interleave_kwargs_val(batch_size=batch_size, infinite=False, augment=False)
             tf_dts_w_slidenames = dataset.tensorflow(
                 incl_slidenames=True,
                 **interleave_kwargs
@@ -1344,11 +1392,7 @@ class Trainer:
         if not batch_size:
             batch_size = self.hp.batch_size
         with tf.name_scope('input'):
-            interleave_kwargs = self._interleave_kwargs(
-                batch_size=batch_size,
-                infinite=False,
-                augment=False
-            )
+            self._interleave_kwargs_val(batch_size=batch_size, infinite=False, augment=False)
             tf_dts_w_slidenames = dataset.tensorflow(
                 incl_slidenames=True,
                 **interleave_kwargs
@@ -1576,7 +1620,7 @@ class Trainer:
                 with tf.name_scope('input'):
                     if not validation_batch_size:
                         validation_batch_size = self.hp.batch_size
-                    v_kwargs = self._interleave_kwargs(
+                    v_kwargs = self._interleave_kwargs_val(
                         batch_size=validation_batch_size,
                         infinite=False,
                         augment=False
