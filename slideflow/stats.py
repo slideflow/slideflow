@@ -880,7 +880,7 @@ def _average_by_group(
                 if not isinstance(y_true_group[group], (list, np.ndarray)):
                     yt_group = as_list(y_true_group[group])
                 else:
-                    yt_group = y_true_group[group]  # type: ignore
+                    yt_group = y_true_group[group]
                 row = [[group], yt_group, avg_by_group[i]]
                 if uncertainty is not None:
                     row += [np.array(uncertainty_by_group[i])]
@@ -995,7 +995,7 @@ def _linear_metrics(args: SimpleNamespace) -> None:
         )
 
 
-def _categorical_metrics(args: SimpleNamespace, outcome_name: str) -> None:
+def _categorical_metrics(args: SimpleNamespace, outcome_name: str, onehot: bool = True) -> None:
     """Internal function to calculate tile, slide, and patient level metrics
     for a categorical outcome.
     """
@@ -1056,9 +1056,11 @@ def _categorical_metrics(args: SimpleNamespace, outcome_name: str) -> None:
             return
 
     # Convert predictions to one-hot encoding
-    onehot_predictions = np.array([
-        to_onehot(x, num_cat) for x in np.argmax(args.y_pred, axis=1)
-    ])
+    onehot_predictions = args.y_pred
+    if onehot:
+        onehot_predictions = np.array([
+            to_onehot(x, num_cat) for x in np.argmax(args.y_pred, axis=1)
+        ])
     # Compare one-hot predictions to one-hot y_true for category-level accuracy
     split_predictions = np.split(onehot_predictions, num_cat, 1)
     for ci, cat_pred_array in enumerate(split_predictions):
@@ -1166,7 +1168,7 @@ def filtered_prediction(
     else:
         prediction_mask = np.ones(logits.shape, dtype=int)
         prediction_mask[filter] = 0
-    masked_logits = np.ma.masked_array(logits, mask=prediction_mask)  # type: ignore
+    masked_logits = np.ma.masked_array(logits, mask=prediction_mask)
     return int(np.argmax(masked_logits))
 
 
@@ -1737,8 +1739,17 @@ def metrics_from_pred(
                 metric_args.y_true_patient = y_true_patient
                 metric_args.y_pred = y_pred
                 metric_args.y_true = y_true
+            num_observed_outcome_categories = np.max(metric_args.y_true)+1
+            onehot = True
+            if num_observed_outcome_categories != metric_args.y_pred.shape[1]:
+                log.warning(f"Model predictions have different number of outcome categories ({metric_args.y_pred.shape[1]}) " + \
+                            f"than provided annotations ({num_observed_outcome_categories})!")
+                if num_observed_outcome_categories == 2 and metric_args.y_pred.shape[1] == 1:
+                    log.warning(f"Assuming linear model being evaluated as categorical.")
+                    metric_args.y_pred = np.array([[x[0], x[0]] for x in metric_args.y_pred])
+                    onehot = False
             log.info(f"Validation metrics for outcome {col.green(outcome)}:")
-            _categorical_metrics(metric_args, outcome)
+            _categorical_metrics(metric_args, outcome, onehot)
 
     elif model_type == 'linear':
         metric_args.y_true_slide = y_true_slide

@@ -580,6 +580,20 @@ class Project:
         else:
             split_labels = labels  # type: ignore
 
+        # --- Load validation labels ------------------------------------------------------------------------------
+
+        if val_settings.outcomes:
+            if not isinstance(val_settings.outcomes, list):
+                val_settings.outcomes = [val_settings.outcomes]
+            if len(val_settings.outcomes) > 1:
+                raise errors.ModelParamsError(f"Can only use single validation header")
+
+        if val_settings.outcomes:
+            val_labels, val_unique_labels = dataset.labels(val_settings.outcomes, use_float=False)
+            val_outcome_labels = dict(zip(range(len(val_unique_labels)), val_unique_labels))
+        else:
+            val_labels = None
+
         # --- Prepare k-fold validation configuration ---------------------
         results_log_path = os.path.join(self.root, 'results_log.csv')
         k_header = val_settings.k_fold_header
@@ -587,7 +601,7 @@ class Project:
             val_settings.k = [val_settings.k]
         if val_settings.strategy == 'k-fold-manual':
             _, unique_k = dataset.labels(k_header, format='name')
-            valid_k = [int(kf) for kf in unique_k]
+            valid_k = unique_k #converting to int leads to error for me [int(kf) for kf in unique_k]
             k_fold = len(valid_k)
             log.info(f"Manual folds: {', '.join([str(ks) for ks in valid_k])}")
             if val_settings.k:
@@ -613,18 +627,20 @@ class Project:
             model_iterations = [model_name]
         else:
             model_iterations = [f'{model_name}-kfold{k}' for k in valid_k]
-
         s_args = SimpleNamespace(
             model_name=model_name,
             outcomes=outcomes,
+            val_outcomes=val_settings.outcomes,
             k_header=k_header,
             valid_k=valid_k,
             split_labels=split_labels,
             splits=splits,
             labels=labels,
+            val_labels=val_labels,
             min_tiles=min_tiles,
             max_tiles=max_tiles,
             outcome_labels=outcome_labels,
+            val_outcome_labels=val_outcome_labels,
             filters=filters,
             training_kwargs=training_kwargs,
             mixed_precision=mixed_precision,
@@ -736,6 +752,7 @@ class Project:
         # ---- Balance and clip datasets --------------------------------------
         if s_args.bal_headers is None:
             s_args.bal_headers = s_args.outcomes
+        print(s_args.outcomes)
         train_dts = train_dts.balance(s_args.bal_headers, hp.training_balance)
         train_dts = train_dts.clip(s_args.max_tiles)
         if val_dts:
@@ -786,6 +803,7 @@ class Project:
             'min_tiles': s_args.min_tiles,
             'model_type': hp.model_type(),
             'outcomes': s_args.outcomes,
+            'val_outcome_label_headers': s_args.val_outcomes,
             'input_features': s_args.input_header,
             'input_feature_sizes': feature_sizes,
             'input_feature_labels': inpt_labels,
@@ -808,11 +826,13 @@ class Project:
             'feature_names': s_args.input_header,
             'feature_sizes': feature_sizes,
             'outcome_names': s_args.outcomes,
+            'val_outcome_names': s_args.val_outcomes,
             'outdir': model_dir,
             'config': config,
             'patients': dataset.patients(),
             'slide_input': slide_inp,
             'labels': s_args.labels,
+			'val_labels': s_args.val_labels,
             'mixed_precision': s_args.mixed_precision,
             'use_neptune': self.use_neptune,
             'neptune_api': self.neptune_api,
@@ -946,8 +966,7 @@ class Project:
     def evaluate(
         self,
         model: Path,
-        outcomes: Union[str, List[str]],
-        *,
+        outcomes: Union[str, List[str]], *,
         dataset: Dataset,
         filters: Optional[Dict] = None,
         filter_blank: Optional[Union[str, List[str]]] = None,
@@ -1026,9 +1045,7 @@ class Project:
         pt_files: Path,
         outcomes: Union[str, List[str]],
         tile_px: int,
-        tile_um: Union[int, str],
-        *,
-        k: int = 0,
+        tile_um: int, *, k: int = 0,
         eval_tag: Optional[str] = None,
         filters: Optional[Dict] = None,
         filter_blank: Optional[Union[str, List[str]]] = None,
@@ -1041,8 +1058,7 @@ class Project:
             pt_files (str): Path to pt_files containing tile-level features.
             outcomes (str or list): Annotation column that specifies labels.
             tile_px (int): Tile width in pixels.
-            tile_um (int or str): Tile width in microns (int) or magnification
-                (str, e.g. "20x").
+            tile_um (int): Tile width in microns.
             k (int, optional): K-fold / split iteration to evaluate. Evaluates
                 the model saved as s_{k}_checkpoint.pt. Defaults to 0.
             eval_tag (str, optional): Unique identifier for this evaluation.
@@ -1175,8 +1191,7 @@ class Project:
     def extract_tiles(
         self,
         tile_px: int,
-        tile_um: Union[int, str],
-        *,
+        tile_um: int, *,
         filters: Optional[Dict] = None,
         filter_blank: Optional[Union[str, List[str]]] = None,
         **kwargs: Any
@@ -1186,9 +1201,6 @@ class Project:
         :class:`slideflow.dataset.Dataset` directly.
 
         Args:
-            tile_px (int): Size of tiles to extract, in pixels.
-            tile_um (int or str): Size of tiles to extract, in microns (int) or
-                magnification (str, e.g. "20x").
             save_tiles (bool, optional): Save tile images in loose format.
                 Defaults to False.
             save_tfrecords (bool, optional): Save tile images as TFRecords.
@@ -1278,8 +1290,7 @@ class Project:
 
     @auto_dataset
     def generate_features(
-        self,
-        model: Path,
+        self, model: Path,
         *,
         dataset: Dataset,
         filters: Optional[Dict] = None,
@@ -1547,9 +1558,8 @@ class Project:
 
     def generate_mosaic(
         self,
-        df: "DatasetFeatures",
+        df: "DatasetFeatures", *,
         dataset: Optional[Dataset] = None,
-        *,
         filters: Optional[Dict] = None,
         filter_blank: Optional[Union[str, List[str]]] = None,
         outcomes: Optional[Union[str, List[str]]] = None,
@@ -1933,7 +1943,7 @@ class Project:
         self,
         tfrecord: str,
         tile_px: int,
-        tile_um: Union[int, str],
+        tile_um: int,
         tile_dict: Dict[int, float],
         outdir: Optional[str] = None
     ) -> None:
@@ -1945,8 +1955,7 @@ class Project:
             tile_dict (dict): Dictionary mapping tfrecord indices to a
                 tile-level value for display in heatmap format
             tile_px (int): Tile width in pixels
-            tile_um (int or str): Tile width in microns (int) or magnification
-                (str, e.g. "20x").
+            tile_um (int): Tile width in microns
             outdir (str, optional): Destination path to save heatmap.
 
         Returns:
@@ -1964,7 +1973,7 @@ class Project:
     def dataset(
         self,
         tile_px: Optional[int] = None,
-        tile_um: Optional[Union[int, str]] = None,
+        tile_um: Optional[int] = None,
         *,
         verification: Optional[str] = 'both',
         **kwargs: Any
@@ -1973,8 +1982,7 @@ class Project:
 
         Args:
             tile_px (int): Tile size in pixels
-            tile_um (int or str): Tile size in microns (int) or magnification
-                (str, e.g. "20x").
+            tile_um (int): Tile size in microns
 
         Keyword Args:
             filters (dict, optional): Filters for selecting tfrecords.
@@ -2378,6 +2386,7 @@ class Project:
         if len(outcomes) > 1:
             log.info(f'Training with {len(outcomes)} outcomes')
             log.info(f'Outcomes: {", ".join(outcomes)}')
+        # Prepare val_outcome_label_headers
 
         # Prepare hyperparameters
         if isinstance(params, str):
