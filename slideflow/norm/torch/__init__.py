@@ -1,12 +1,13 @@
 import os
+from os.path import join
+from typing import Dict, List, Optional, Tuple, Union
+
+import numpy as np
 import torch
 import torchvision
-import numpy as np
-from os.path import join
-from typing import Dict, Optional, Tuple, Union, List
 
-from slideflow.norm.torch import reinhard, reinhard_fast
 from slideflow.norm import StainNormalizer
+from slideflow.norm.torch import reinhard, reinhard_fast
 
 
 class TorchStainNormalizer(StainNormalizer):

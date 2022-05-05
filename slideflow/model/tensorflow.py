@@ -1,32 +1,33 @@
 '''Tensorflow backend for the slideflow.model submodule.'''
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function
 
-import os
-import json
-import shutil
-import inspect
 import atexit
+import inspect
+import json
+import os
+import shutil
+from os.path import dirname, exists, join
+from types import SimpleNamespace
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+
 import numpy as np
 import tensorflow as tf
-from types import SimpleNamespace
-from os.path import join, exists, dirname
-from typing import Tuple, Optional, Dict, List, Any, Union, TYPE_CHECKING
 from tensorflow.keras import applications as kapps
 
 import slideflow as sf
 import slideflow.model.base as _base
 import slideflow.util.neptune_utils
-from slideflow.util import log, Path, NormFit
-from slideflow.util import colors as col
-from slideflow.model.base import no_scope, log_manifest
-from slideflow.model import tensorflow_utils as tf_utils
 from slideflow import errors
+from slideflow.model import tensorflow_utils as tf_utils
+from slideflow.model.base import log_manifest, no_scope
+from slideflow.util import NormFit, Path
+from slideflow.util import colors as col
+from slideflow.util import log
 
 if TYPE_CHECKING:
     import pandas as pd
+
     from slideflow.norm import StainNormalizer
 
 

@@ -1,20 +1,19 @@
-import pickle
-import torch
-import numpy as np
-import torch.nn as nn
-import pdb
-
-import torch
-import numpy as np
-import torch.nn as nn
-from torchvision import transforms
-from torch.utils.data import DataLoader, Sampler, WeightedRandomSampler, RandomSampler, SequentialSampler, sampler
-import torch.optim as optim
-import pdb
-import torch.nn.functional as F
-import math
-from itertools import islice
 import collections
+import math
+import pdb
+import pickle
+from itertools import islice
+
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import torch.optim as optim
+from torch.utils.data import (DataLoader, RandomSampler, Sampler,
+                              SequentialSampler, WeightedRandomSampler,
+                              sampler)
+from torchvision import transforms
+
 device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class SubsetSequentialSampler(Sampler):

@@ -1,23 +1,23 @@
-import os
-import numpy as np
-import random
-import torchvision
-import torch
-import threading
 import multiprocessing as mp
+import os
+import random
+import threading
 from os import listdir
-from tqdm import tqdm
-from os.path import isfile, join, dirname, exists
+from os.path import dirname, exists, isfile, join
 from queue import Queue
-from typing import (
-    List, Dict, Union, Any, Tuple, Optional, Callable, Iterable, TYPE_CHECKING
-)
+from typing import (TYPE_CHECKING, Any, Callable, Dict, Iterable, List,
+                    Optional, Tuple, Union)
+
+import numpy as np
+import torch
+import torchvision
+from tqdm import tqdm
 
 import slideflow as sf
-from slideflow.tfrecord.torch.dataset import MultiTFRecordDataset
-from slideflow.util import log, to_onehot, Labels
-from slideflow.io.io_utils import detect_tfrecord_format
 from slideflow import errors
+from slideflow.io.io_utils import detect_tfrecord_format
+from slideflow.tfrecord.torch.dataset import MultiTFRecordDataset
+from slideflow.util import Labels, log, to_onehot
 
 if TYPE_CHECKING:
     from slideflow.norm import StainNormalizer

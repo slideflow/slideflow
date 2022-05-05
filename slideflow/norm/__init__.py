@@ -1,30 +1,27 @@
-import os
-import cv2
-import numpy as np
 import multiprocessing as mp
-from tqdm import tqdm
+import os
 from io import BytesIO
 from os.path import join
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+
+import cv2
+import numpy as np
 from PIL import Image
-from typing import Optional, Union, Dict, Any, Tuple, List, TYPE_CHECKING
+from tqdm import tqdm
 
 import slideflow as sf
-from slideflow.dataset import Dataset
-from slideflow.util import log
 from slideflow import errors
+from slideflow.dataset import Dataset
 from slideflow.norm.utils import BaseNormalizer
+from slideflow.util import log
 
 if sf.backend() == 'tensorflow':
     import tensorflow as tf
 elif TYPE_CHECKING:
     import tensorflow as tf
 
-from slideflow.norm import (macenko,
-                            reinhard,
-                            reinhard_fast,
-                            reinhard_mask,
-                            vahadane,
-                            augment)
+from slideflow.norm import (augment, macenko, reinhard, reinhard_fast,
+                            reinhard_mask, vahadane)
 
 
 class StainNormalizer:

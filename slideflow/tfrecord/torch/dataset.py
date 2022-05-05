@@ -1,11 +1,11 @@
 """Load tfrecord files into torch datasets."""
 
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+
 import numpy as np
 import torch.utils.data
-from typing import Union, Optional, Callable, List, Dict, Any, Tuple
 
-from slideflow.tfrecord import reader
-from slideflow.tfrecord import iterator_utils
+from slideflow.tfrecord import iterator_utils, reader
 
 
 class TFRecordDataset(torch.utils.data.IterableDataset):

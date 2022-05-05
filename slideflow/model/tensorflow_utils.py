@@ -1,9 +1,11 @@
 """Tensorflow model utility functions."""
 
-import tensorflow as tf
 import os
 import tempfile
-from typing import Tuple, Dict, List, Union, Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict, List, Tuple, Union
+
+import tensorflow as tf
+
 from slideflow.util import log
 
 if TYPE_CHECKING:

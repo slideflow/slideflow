@@ -4,39 +4,40 @@ images or stored in the binary format TFRecords, with or without augmentation.
 
 Requires: libvips (https://libvips.github.io/libvips/).'''
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function
 
-import os
-import time
-import io
-import numpy as np
 import csv
+import io
+import json
+import multiprocessing as mp
+import os
+import random
+import time
+import warnings
+from functools import partial
+from os.path import exists, join
+from types import SimpleNamespace
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+
+import cv2
+import matplotlib.colors as mcol
+import numpy as np
 import pyvips as vips
 import shapely.geometry as sg
-import cv2
-import json
-import random
-import warnings
-import matplotlib.colors as mcol
-import multiprocessing as mp
 import skimage
 import skimage.filters
-from os.path import join, exists
+from PIL import Image, ImageDraw, UnidentifiedImageError
 from skimage import img_as_ubyte
 from skimage.color import rgb2gray
-from PIL import Image, ImageDraw, UnidentifiedImageError
-from functools import partial
 from tqdm import tqdm
-from types import SimpleNamespace
-from typing import Dict, List, Union, Tuple, Optional, Any, Callable
 
 import slideflow as sf
-from slideflow.util import log, SUPPORTED_FORMATS, path_to_name, Path  # noqa F401
-from slideflow.util import colors as col
-from slideflow.slide.report import SlideReport, ExtractionReport, ExtractionPDF  # noqa F401
 from slideflow import errors
+from slideflow.slide.report import (ExtractionPDF,  # noqa F401
+                                    ExtractionReport, SlideReport)
+from slideflow.util import SUPPORTED_FORMATS, Path  # noqa F401
+from slideflow.util import colors as col
+from slideflow.util import log, path_to_name  # noqa F401
 
 warnings.simplefilter('ignore', Image.DecompressionBombWarning)
 Image.MAX_IMAGE_PIXELS = 100000000000

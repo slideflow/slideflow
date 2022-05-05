@@ -6,11 +6,14 @@ E. Reinhard, M. Adhikhmin, B. Gooch, and P. Shirley, ‘Color transfer between i
 
 from __future__ import division
 
-import tensorflow as tf
 from typing import Tuple
+
+import tensorflow as tf
+
 from slideflow.norm.tensorflow.probability import percentile
-from slideflow.norm.tensorflow.reinhard_fast import transform as transform_fast
 from slideflow.norm.tensorflow.reinhard_fast import fit as fit_fast
+from slideflow.norm.tensorflow.reinhard_fast import transform as transform_fast
+
 
 @tf.function
 def standardize_brightness(I: tf.Tensor) -> tf.Tensor:

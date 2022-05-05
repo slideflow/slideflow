@@ -14,7 +14,9 @@ Use with python via e.g https://anaconda.org/conda-forge/python-spams
 from __future__ import division
 
 import numpy as np
+
 import slideflow.norm.utils as ut
+
 
 def get_stain_matrix(
     I: np.ndarray,

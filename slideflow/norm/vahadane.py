@@ -13,8 +13,9 @@ Use with python via e.g https://anaconda.org/conda-forge/python-spams
 
 from __future__ import division
 
-import spams
 import numpy as np
+import spams
+
 import slideflow.norm.utils as ut
 
 

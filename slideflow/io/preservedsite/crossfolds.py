@@ -1,6 +1,7 @@
-import pandas as pd
-import numpy as np
 import cvxpy as cp
+import numpy as np
+import pandas as pd
+
 import slideflow as sf
 from slideflow.util import log
 

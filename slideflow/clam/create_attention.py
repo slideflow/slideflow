@@ -1,13 +1,17 @@
 from __future__ import print_function
-import numpy as np
+
 import argparse
-import torch
-import pdb
+import csv
 import os
+import pdb
+
+import numpy as np
+import torch
+
+from slideflow.clam.models.model_clam import CLAM_MB, CLAM_SB
 from slideflow.clam.utils import *
 from slideflow.clam.utils.eval_utils import initiate_model as initiate_model
-from slideflow.clam.models.model_clam import CLAM_MB, CLAM_SB
-import csv
+
 
 def path_to_name(path):
     '''Returns name of a file, without extension, from a given full path string.'''

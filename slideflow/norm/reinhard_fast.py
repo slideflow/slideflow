@@ -9,11 +9,13 @@ This implementation ("fast" implementation) skips the brightness standardization
 
 from __future__ import division
 
-import cv2 as cv
-import numpy as np
 from typing import Tuple
 
+import cv2 as cv
+import numpy as np
+
 import slideflow.norm.utils as ut
+
 
 def lab_split(I: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """

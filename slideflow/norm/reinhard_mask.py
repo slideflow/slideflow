@@ -7,12 +7,12 @@ E. Reinhard, M. Adhikhmin, B. Gooch, and P. Shirley, ‘Color transfer between i
 
 from __future__ import division
 
-import cv2 as cv
-import numpy as np
 from typing import Tuple
 
-import slideflow.norm.utils as ut
+import cv2 as cv
+import numpy as np
 
+import slideflow.norm.utils as ut
 
 ### Some functions ###
 

@@ -1,9 +1,9 @@
 # From https://github.com/Tagar/stuff/blob/master/spinner.py
 
+import itertools
 import sys
 import threading
 import time
-import itertools
 
 
 class Spinner:

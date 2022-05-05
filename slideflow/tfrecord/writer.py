@@ -4,8 +4,10 @@ from __future__ import absolute_import
 
 import io
 import struct
+from typing import Any, Dict, List, Tuple, Union
+
 import numpy as np
-from typing import Tuple, Dict, Union, Any, List
+
 try:
     import crc32c
 except ImportError:

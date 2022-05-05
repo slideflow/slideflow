@@ -1,19 +1,21 @@
-import re
-import os
-import sys
 import csv
-import time
 import json
 import logging
-import requests
-import shutil
+import os
 import random
-from typing import Callable, Dict, List, Any, Optional
-from os.path import join, exists
+import re
+import shutil
+import sys
+import time
+from os.path import exists, join
+from typing import Any, Callable, Dict, List, Optional
+
+import requests
 
 import slideflow as sf
+from slideflow.util import ProgressBar
 from slideflow.util import colors as col
-from slideflow.util import ProgressBar, log
+from slideflow.util import log
 from slideflow.util.spinner import Spinner
 
 

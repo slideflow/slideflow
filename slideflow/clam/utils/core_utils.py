@@ -1,13 +1,16 @@
+import os
+
 import numpy as np
 import torch
-from slideflow.clam.utils import *
-import os
-from slideflow.clam.datasets.dataset_generic import save_splits
-from slideflow.clam.models.model_mil import MIL_fc, MIL_fc_mc
-from slideflow.clam.models.model_clam import CLAM_MB, CLAM_SB
-from sklearn.preprocessing import label_binarize
-from sklearn.metrics import roc_auc_score, roc_curve
 from sklearn.metrics import auc as calc_auc
+from sklearn.metrics import roc_auc_score, roc_curve
+from sklearn.preprocessing import label_binarize
+
+from slideflow.clam.datasets.dataset_generic import save_splits
+from slideflow.clam.models.model_clam import CLAM_MB, CLAM_SB
+from slideflow.clam.models.model_mil import MIL_fc, MIL_fc_mc
+from slideflow.clam.utils import *
+
 
 class Accuracy_Logger(object):
     """Accuracy logger"""

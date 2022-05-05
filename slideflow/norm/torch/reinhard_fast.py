@@ -1,6 +1,9 @@
-import torch
 from typing import Tuple
+
+import torch
+
 from slideflow.norm.torch import color
+
 
 def lab_split(
     I: torch.Tensor

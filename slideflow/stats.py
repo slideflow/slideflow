@@ -1,35 +1,38 @@
-import os
-import sys
 import csv
-import time
-import pickle
-import numpy as np
-import pandas as pd
 import multiprocessing as mp
-from types import SimpleNamespace
-from tqdm import tqdm
+import os
+import pickle
+import sys
+import time
 from functools import partial
 from os.path import join
+from random import sample
+from types import SimpleNamespace
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+
+import numpy as np
+import pandas as pd
+from lifelines.utils import concordance_index as c_index
+from mpl_toolkits.mplot3d import Axes3D
 from scipy import stats
 from scipy.special import softmax
-from random import sample
 from sklearn import metrics
 from sklearn.cluster import KMeans
 from sklearn.metrics import pairwise_distances_argmin_min
-from mpl_toolkits.mplot3d import Axes3D
-from lifelines.utils import concordance_index as c_index
-from typing import List, Optional, Dict, Union, Any, Tuple, TYPE_CHECKING
+from tqdm import tqdm
 
 import slideflow as sf
-from slideflow.util import log, ProgressBar, to_onehot, Path, as_list
-from slideflow.util import colors as col
 from slideflow import errors
+from slideflow.util import Path, ProgressBar, as_list
+from slideflow.util import colors as col
+from slideflow.util import log, to_onehot
 
 if TYPE_CHECKING:
-    from slideflow.model import DatasetFeatures
     import neptune.new as neptune
-    import torch
     import tensorflow as tf
+    import torch
+
+    from slideflow.model import DatasetFeatures
 
 # TODO: remove 'hidden_0' reference as this may not be present
 # if the model does not have hidden layers
@@ -1319,6 +1322,7 @@ def generate_roc(
         opt_thresh = -1
     if save_dir:
         from matplotlib import pyplot as plt
+
         # ROC
         plt.clf()
         plt.title('ROC Curve')
@@ -1796,7 +1800,9 @@ def predict_from_torch(
         y_pred, y_std, tile_to_slides
     """
     import torch
+
     from slideflow.model.torch_utils import get_uq_predictions
+
     # Get predictions and performance metrics
     log.debug("Generating predictions from torch model")
     y_pred, tile_to_slides = [], []
@@ -1885,6 +1891,7 @@ def eval_from_torch(
     """
 
     import torch
+
     from slideflow.model.torch_utils import get_uq_predictions
     y_true, y_pred, tile_to_slides = [], [], []
     y_std = [] if pred_args.uq else None  # type: ignore
@@ -2006,6 +2013,7 @@ def predict_from_tensorflow(
         y_true, y_pred, tile_to_slides, accuracy, loss
     """
     import tensorflow as tf
+
     from slideflow.model.tensorflow_utils import get_uq_predictions
 
     @tf.function
@@ -2082,6 +2090,7 @@ def eval_from_tensorflow(
     """
 
     import tensorflow as tf
+
     from slideflow.model.tensorflow_utils import get_uq_predictions
 
     @tf.function
@@ -2268,6 +2277,7 @@ def predict_from_layer(
     if sf.backend() != 'tensorflow':
         raise ValueError("Prediction from layer only supported for tensorflow.")
     import tensorflow as tf
+
     from slideflow.model.tensorflow_utils import get_layer_index_by_name
 
     first_hidden_layer_index = get_layer_index_by_name(model, input_layer_name)

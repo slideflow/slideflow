@@ -1,26 +1,26 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function
 
+import csv
 import math
-import time
-import cv2
 import os
 import sys
-import csv
-import numpy as np
-from random import shuffle
-from matplotlib import patches
-from multiprocessing.dummy import Pool as DPool
+import time
 from functools import partial
+from multiprocessing.dummy import Pool as DPool
+from random import shuffle
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+
+import cv2
+import numpy as np
+from matplotlib import patches
 from tqdm import tqdm
-from typing import List, Optional, Union, Dict, Any, TYPE_CHECKING
 
 import slideflow as sf
-from slideflow.util import log, Path
-from slideflow.util import colors as col
-from slideflow.stats import get_centroid_index, SlideMap
 from slideflow import errors
+from slideflow.stats import SlideMap, get_centroid_index
+from slideflow.util import Path
+from slideflow.util import colors as col
+from slideflow.util import log
 
 if TYPE_CHECKING:
     from slideflow.norm import StainNormalizer

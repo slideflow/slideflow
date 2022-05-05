@@ -1,38 +1,39 @@
 """TFRecord reading/writing utilities for both Tensorflow and PyTorch."""
 
-import os
 import copy
+import os
 import struct
-from tqdm import tqdm
 from multiprocessing.dummy import Pool as DPool
+from os.path import exists, isdir, isfile, join
 from random import shuffle
-from os.path import join, exists, isdir, isfile
-from typing import Union, Optional, Dict, Any, Tuple
+from typing import Any, Dict, Optional, Tuple, Union
+
+from tqdm import tqdm
 
 import slideflow as sf
-from slideflow.util import log
-from slideflow.util import colors as col
 from slideflow import errors
 from slideflow.io.io_utils import detect_tfrecord_format
-
+from slideflow.util import colors as col
+from slideflow.util import log
 
 # --- Backend-specific imports and configuration ------------------------------
 
 if os.environ['SF_BACKEND'] == 'tensorflow':
     import tensorflow as tf
-    from slideflow.io.tensorflow import (get_tfrecord_parser,  # noqa F401
-                                         serialized_record,
-                                         read_and_return_record)  # noqa F401
     from tensorflow.data import TFRecordDataset
     from tensorflow.io import TFRecordWriter
+
+    from slideflow.io.tensorflow import get_tfrecord_parser  # noqa F401
+    from slideflow.io.tensorflow import read_and_return_record  # noqa F401
+    from slideflow.io.tensorflow import serialized_record
     dataloss_errors = [tf.errors.DataLossError, errors.TFRecordsError]
 
 elif os.environ['SF_BACKEND'] == 'torch':
-    from slideflow.io.torch import (get_tfrecord_parser,  # type: ignore  # noqa F401
-                                    serialized_record,
-                                    read_and_return_record)
-    from slideflow.tfrecord.torch.dataset import TFRecordDataset
+    from slideflow.io.torch import \
+        get_tfrecord_parser  # type: ignore  # noqa F401
+    from slideflow.io.torch import read_and_return_record, serialized_record
     from slideflow.tfrecord import TFRecordWriter
+    from slideflow.tfrecord.torch.dataset import TFRecordDataset
     dataloss_errors = [errors.TFRecordsError]
 
 else:

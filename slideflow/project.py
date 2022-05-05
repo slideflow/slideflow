@@ -1,28 +1,31 @@
-import os
+import copy
+import csv
+import itertools
 import json
 import logging
-import itertools
-import csv
-import copy
-import pickle
-import numpy as np
 import multiprocessing
-from os.path import join, exists, basename
-from tqdm import tqdm
+import os
+import pickle
+from os.path import basename, exists, join
 from types import SimpleNamespace
-from typing import Any, List, Union, Optional, Dict, Tuple, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+
+import numpy as np
+from tqdm import tqdm
 
 import slideflow as sf
-from slideflow import project_utils, errors
+from slideflow import errors, project_utils
 from slideflow.dataset import Dataset
 from slideflow.model import ModelParams
-from slideflow.util import log, path_to_name, Path
+from slideflow.project_utils import auto_dataset, get_validation_settings
+from slideflow.util import Path
 from slideflow.util import colors as col
-from slideflow.project_utils import get_validation_settings, auto_dataset
+from slideflow.util import log, path_to_name
 
 if TYPE_CHECKING:
-    from slideflow.model import Trainer, DatasetFeatures
     import pandas as pd
+
+    from slideflow.model import DatasetFeatures, Trainer
 
 
 class Project:
@@ -1059,8 +1062,8 @@ class Project:
         """
 
         import slideflow.clam as clam
-        from slideflow.clam.datasets.dataset_generic import Generic_MIL_Dataset
         from slideflow.clam.create_attention import export_attention
+        from slideflow.clam.datasets.dataset_generic import Generic_MIL_Dataset
 
         # Detect source CLAM experiment which we are evaluating.
         # First, assume it lives in this project's clam folder
@@ -2533,8 +2536,8 @@ class Project:
         """
 
         import slideflow.clam as clam
-        from slideflow.clam.datasets.dataset_generic import Generic_MIL_Dataset
         from slideflow.clam.create_attention import export_attention
+        from slideflow.clam.datasets.dataset_generic import Generic_MIL_Dataset
 
         # Set up CLAM experiment data directory
         clam_dir = join(self.root, 'clam', exp_name)

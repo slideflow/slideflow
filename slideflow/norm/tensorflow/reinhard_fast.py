@@ -8,8 +8,10 @@ This implementation ("fast" implementation) skips the brightness standardization
 
 from __future__ import division
 
-import tensorflow as tf
 from typing import Tuple
+
+import tensorflow as tf
+
 from slideflow.norm.tensorflow import color
 
 

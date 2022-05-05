@@ -5,11 +5,13 @@ Normalize a patch stain to the target image using the method of:
 E. Reinhard, M. Adhikhmin, B. Gooch, and P. Shirley, ‘Color transfer between images’, IEEE Computer Graphics and Applications, vol. 21, no. 5, pp. 34–41, Sep. 2001.
 """
 
-import numpy as np
 from typing import Tuple
+
+import numpy as np
 
 import slideflow.norm.utils as ut
 from slideflow.norm.reinhard_fast import Normalizer as FastNormalizer
+
 
 class Normalizer(FastNormalizer):
     """

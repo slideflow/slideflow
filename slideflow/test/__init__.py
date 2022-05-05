@@ -1,22 +1,23 @@
-import os
 import csv
-import time
 import logging
 import multiprocessing
+import os
+import time
 import unittest
-from os.path import join, exists
-from tqdm import tqdm
+from os.path import exists, join
+from typing import Any, Optional, Tuple
+
 from PIL import Image
-from typing import Any, Tuple, Optional
+from tqdm import tqdm
 
 import slideflow as sf
-from slideflow.util import log, Path
-from slideflow.util import colors as col
-from slideflow.stats import SlideMap
 from slideflow import errors
+from slideflow.stats import SlideMap
 from slideflow.test import dataset_test
 from slideflow.test.utils import TaskWrapper, TestConfig, _assert_valid_results
-
+from slideflow.util import Path
+from slideflow.util import colors as col
+from slideflow.util import log
 
 # ---------------------------------------
 

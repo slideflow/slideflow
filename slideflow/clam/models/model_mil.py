@@ -1,8 +1,10 @@
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
 from slideflow.clam.utils import initialize_weights
-import numpy as np
+
 
 class MIL_fc(nn.Module):
 	def __init__(self, gate = True, size_arg = "small", dropout = False, n_classes = 2, top_k=1):

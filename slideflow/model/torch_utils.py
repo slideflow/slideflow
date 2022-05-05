@@ -1,8 +1,9 @@
 """PyTorch model utility functions."""
 
-import torch
 import types
-from typing import Iterable, Generator, Tuple, Dict, List, Union
+from typing import Dict, Generator, Iterable, List, Tuple, Union
+
+import torch
 
 
 def cycle(iterable: Iterable) -> Generator:

@@ -9,11 +9,11 @@ Use with python via e.g https://anaconda.org/conda-forge/python-spams
 
 from __future__ import division
 
-import numpy as np
-import cv2 as cv
-import spams
 from typing import Optional, Tuple
 
+import cv2 as cv
+import numpy as np
+import spams
 
 ######################################
 

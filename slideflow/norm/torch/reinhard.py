@@ -7,10 +7,11 @@ E. Reinhard, M. Adhikhmin, B. Gooch, and P. Shirley, ‘Color transfer between i
 from __future__ import division
 
 from typing import Tuple
+
 import torch
 
-from slideflow.norm.torch.reinhard_fast import transform as transform_fast
 from slideflow.norm.torch.reinhard_fast import fit as fit_fast
+from slideflow.norm.torch.reinhard_fast import transform as transform_fast
 
 
 def standardize_brightness(I: torch.Tensor) -> torch.Tensor:

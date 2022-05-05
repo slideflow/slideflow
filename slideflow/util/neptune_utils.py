@@ -1,10 +1,12 @@
 import random
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
+
 import slideflow as sf
 from slideflow.util import log
-from typing import Optional, List, Dict, Any, TYPE_CHECKING
 
 if TYPE_CHECKING:
     import neptune.new as neptune
+
     from slideflow import Dataset
 
 

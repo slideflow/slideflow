@@ -1,33 +1,35 @@
 '''PyTorch backend for the slideflow.model submodule.'''
 
+import inspect
+import json
 import os
 import types
-import json
-import torch
-import inspect
-import torchvision
-import pretrainedmodels
-import slideflow as sf
-import numpy as np
-from torch.utils.tensorboard import SummaryWriter
-from torch import Tensor
-from tqdm import tqdm
-from os.path import join
 from collections import defaultdict
-from typing import (
-    Optional, List, Any, Dict, Union, Tuple, Iterable, TYPE_CHECKING
-)
+from os.path import join
+from typing import (TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple,
+                    Union)
 
+import numpy as np
+import pretrainedmodels
+import torch
+import torchvision
+from torch import Tensor
+from torch.utils.tensorboard import SummaryWriter
+from tqdm import tqdm
+
+import slideflow as sf
 import slideflow.util.neptune_utils
-from slideflow.util import log, NormFit, Path
-from slideflow.util import colors as col
+from slideflow import errors
 from slideflow.model import base as _base
 from slideflow.model import torch_utils
 from slideflow.model.base import log_manifest, no_scope
-from slideflow import errors
+from slideflow.util import NormFit, Path
+from slideflow.util import colors as col
+from slideflow.util import log
 
 if TYPE_CHECKING:
     import pandas as pd
+
     from slideflow.norm import StainNormalizer
 
 

@@ -1,15 +1,16 @@
 import os
+from os.path import join
+from typing import Any, Dict, List, Optional, Tuple, Union
+
 import numpy as np
 import tensorflow as tf
-from typing import Optional, Union, List, Dict, Any, Tuple
-
-from os.path import join
 from tqdm import tqdm
+
+from slideflow import errors
 from slideflow.dataset import Dataset
-from slideflow.util import log
 from slideflow.norm import StainNormalizer
 from slideflow.norm.tensorflow import reinhard, reinhard_fast
-from slideflow import errors
+from slideflow.util import log
 
 
 class TensorflowStainNormalizer(StainNormalizer):
