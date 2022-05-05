@@ -1076,7 +1076,7 @@ def _categorical_metrics(args: SimpleNamespace, outcome_name: str) -> None:
             log.warning(f"Error with category accuracy for cat # {ci}")
     # Generate slide-level percent calls
     percent_calls_by_slide = _average_by_group(
-        onehot_predictions,
+        onehot_predictions if args.cat_reduce == 'onehot' else args.y_pred,
         pred_label="percent_tiles_positive",
         unique_groups=args.unique_slides,
         tile_to_group=args.tile_to_slides,
@@ -1114,7 +1114,7 @@ def _categorical_metrics(args: SimpleNamespace, outcome_name: str) -> None:
     if not args.patient_error:
         # Generate patient-level percent calls
         percent_calls_by_patient = _average_by_group(
-            onehot_predictions,
+            onehot_predictions if args.cat_reduce == 'onehot' else args.y_pred,
             pred_label="percent_tiles_positive",
             unique_groups=args.patients,
             tile_to_group=args.tile_to_patients,
@@ -1613,6 +1613,7 @@ def metrics_from_pred(
     labels: Dict[str, Any],
     patients: Dict[str, str],
     model_type: str,
+    categorical_reduce: str = 'raw',
     y_std: Optional[np.ndarray] = None,
     outcome_names: Optional[List[str]] = None,
     label: str = '',
@@ -1638,6 +1639,12 @@ def metrics_from_pred(
 
     Keyword args:
         y_std (np.ndarray, optional): Std. deviation (uncertainty) for dataset.
+        categorical_reduce (str, optional): Reduction strategy for calculating
+            slide-level and patient-level predictions for categorical outcomes.
+            Either 'raw' or 'onehot'. If 'raw', will reduce with average of
+            each logit across tiles. If 'onehot', will convert tile predictions
+            into onehot encoding via `np.argmax`, then reduce by averaging
+            these onehot values. Defaults to 'raw'.
         outcome_names (list, optional): List of str, names for outcomes.
             Defaults to None.
         label (str, optional): Label prefix/suffix for saving.
@@ -1655,6 +1662,11 @@ def metrics_from_pred(
         neptune_run (:class:`neptune.Run`, optional): Neptune run in which to
             log results. Defaults to None.
     """
+    if categorical_reduce not in ('raw', 'onehot'):
+        raise ValueError(
+            f"Unrecognized reduction strategy {categorical_reduce}; "
+            "must be either 'raw' or 'onehot'."
+        )
     label_end = "" if label == '' else f"_{label}"
     label_start = "" if label == '' else f"{label}_"
     tile_to_patients = np.array([patients[slide] for slide in tile_to_slides])
@@ -1742,6 +1754,7 @@ def metrics_from_pred(
                 metric_args.y_pred = y_pred
                 metric_args.y_true = y_true
             log.info(f"Validation metrics for outcome {col.green(outcome)}:")
+            metric_args.cat_reduce = categorical_reduce
             _categorical_metrics(metric_args, outcome)
 
     elif model_type == 'linear':
@@ -2309,13 +2322,8 @@ def metrics_from_dataset(
     patients: Dict[str, str],
     dataset: Union["tf.data.Dataset", "torch.utils.data.DataLoader"],
     pred_args: SimpleNamespace,
-    outcome_names: Optional[List[str]] = None,
-    label: str = '',
-    data_dir: str = '',
     num_tiles: int = 0,
-    histogram: bool = False,
-    save_predictions: bool = True,
-    neptune_run: Optional["neptune.Run"] = None,
+    **kwargs
 ) -> Tuple[Dict, float, float]:
 
     """Evaluate performance of a given model on a given TFRecord dataset,
@@ -2327,22 +2335,32 @@ def metrics_from_dataset(
         labels (dict): Dictionary mapping slidenames to outcomes.
         patients (dict): Dictionary mapping slidenames to patients.
         dataset (tf.data.Dataset or torch.utils.data.DataLoader): Dataset.
-        outcome_names (list, optional): List of str, names for outcomes.
-            Defaults to None.
-        label (str, optional): Label prefix/suffix for saving.
-            Defaults to None.
-        data_dir (str, optional): Path to data directory for saving.
-            Defaults to None.
         num_tiles (int, optional): Number of total tiles expected in dataset.
             Used for progress bar. Defaults to 0.
+        neptune_run (:class:`neptune.Run`, optional): Neptune run in which to
+            log results. Defaults to None.
+        pred_args (namespace, optional): Additional arguments to tensorflow and
+            torch backends.
+
+    Keyword args:
+        categorical_reduce (str, optional): Reduction strategy for calculating
+            slide-level and patient-level predictions for categorical outcomes.
+            Either 'raw' or 'onehot'. If 'raw', will reduce with average of
+            each logit across tiles. If 'onehot', will convert tile predictions
+            into onehot encoding via `np.argmax`, then reduce by averaging
+            these onehot values. Defaults to 'raw'.
+        label (str, optional): Label prefix/suffix for saving.
+            Defaults to None.
+        outcome_names (list, optional): List of str, names for outcomes.
+            Defaults to None.
+        data_dir (str): Path to data directory for saving.
+            Defaults to empty string (current directory).
         histogram (bool, optional): Write histograms to data_dir.
             Defaults to False.
         save_predictions (bool, optional): Save tile, slide, and patient-level
             predictions to CSV. Defaults to True.
         neptune_run (:class:`neptune.Run`, optional): Neptune run in which to
             log results. Defaults to None.
-        pred_args (namespace, optional): Additional arguments to tensorflow and
-            torch backends.
 
     Returns:
         metrics [dict], accuracy [float], loss [float]
@@ -2364,13 +2382,8 @@ def metrics_from_dataset(
         labels=labels,
         patients=patients,
         model_type=model_type,
-        outcome_names=outcome_names,
-        label=label,
-        data_dir=data_dir,
-        save_predictions=save_predictions,
-        histogram=histogram,
         plot=True,
-        neptune_run=neptune_run
+        **kwargs
     )
     after_metrics = time.time()
     log.debug(f'Metrics generated ({after_metrics - before_metrics:.2f} s)')
