@@ -598,7 +598,7 @@ class Dataset:
 
     def balance(
         self,
-        headers: Optional[List[str]] = None,
+        headers: Optional[Union[str, List[str]]] = None,
         strategy: Optional[str] = 'category',
         force: bool = False
     ) -> "Dataset":

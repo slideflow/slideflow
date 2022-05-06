@@ -406,7 +406,7 @@ class SlideMap:
                 row = [slide, index, x, y]
                 csvwriter.writerow(row)
 
-    def filter_index(self, idx: Union[int, List[int]]) -> None:
+    def filter_index(self, idx: Union[int, List[int], np.ndarray]) -> None:
         self.x = self.x[idx]
         self.y = self.y[idx]
         self.point_meta = self.point_meta[idx]

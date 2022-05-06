@@ -1425,7 +1425,7 @@ class Trainer:
     def train(
         self,
         train_dts: "sf.Dataset",
-        val_dts: "sf.Dataset",
+        val_dts: Optional["sf.Dataset"],
         log_frequency: int = 100,
         validate_on_batch: int = 0,
         validation_batch_size: int = None,
@@ -1582,6 +1582,7 @@ class Trainer:
             # Set up validation data
             using_validation = (val_dts and len(val_dts.tfrecords()))
             if using_validation:
+                assert val_dts is not None
                 with tf.name_scope('input'):
                     if not validation_batch_size:
                         validation_batch_size = self.hp.batch_size

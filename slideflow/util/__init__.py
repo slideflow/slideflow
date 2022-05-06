@@ -1,28 +1,28 @@
-import re
-import sys
-import json
 import csv
-import time
-import os
-import shutil
-import threading
-import logging
 import importlib.util
+import json
+import logging
 import multiprocessing as mp
-import numpy as np
-import matplotlib.colors as mcol
-from glob import glob
-from os.path import join, isdir, exists, dirname
-from tqdm import tqdm
-from statistics import mean, median
+import os
+import re
+import shutil
+import sys
+import threading
+import time
 from functools import partial
-from typing import Union, Optional, Any, List, Dict, Tuple, Callable
+from glob import glob
+from os.path import dirname, exists, isdir, join
+from statistics import mean, median
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
+import matplotlib.colors as mcol
+import numpy as np
 import slideflow as sf
 import slideflow.util.colors as col
+from slideflow import errors
 from slideflow.util import example_pb2
 from slideflow.util.colors import *  # noqa F403,F401 - Here for compatibility
-from slideflow import errors
+from tqdm import tqdm
 
 # --- Optional imports --------------------------------------------------------
 # git is not needed for pypi distribution
@@ -833,7 +833,8 @@ def tfrecord_heatmap(
     tile_px: int,
     tile_um: Union[int, str],
     tile_dict: Dict[int, float],
-    outdir: str
+    outdir: str,
+    interpolation: Optional[str] = 'bicubic'
 ) -> Dict[str, Dict[str, float]]:
     """Creates a tfrecord-based WSI heatmap using a dictionary of tile values
     for heatmap display.
@@ -965,7 +966,7 @@ def tfrecord_heatmap(
         zorder=10,
         alpha=0.6,
         extent=grid_extent,
-        interpolation='bicubic',
+        interpolation=interpolation,
         cmap='coolwarm',
         norm=divnorm
     )
