@@ -419,7 +419,8 @@ class SlideMap:
         self,
         slide_categories: Optional[Dict] = None,
         algorithm: str = 'kd_tree',
-        method: str = 'map'
+        method: str = 'map',
+        pca_dim: int = 100
     ) -> None:
         """Calculates neighbors among tiles in this map, assigning neighboring
             statistics to tile metadata 'num_unique_neighbors' and
@@ -431,17 +432,19 @@ class SlideMap:
                 'percent_matching_categories' statistic.
             algorithm (str, optional): NearestNeighbor algorithm, either
                 'kd_tree', 'ball_tree', or 'brute'. Defaults to 'kd_tree'.
-            method (str, optional): Either 'map' or 'features'. How neighbors
-                are determined. Defaults to 'map'.
+            method (str, optional): Either 'map', 'pca', or 'features'. How
+                neighbors are determined. If 'map', calculates neighbors based
+                on UMAP coordinates. If 'features', calculates neighbors on the
+                full feature space. If 'pca', reduces features into `pca_dim`
+                space. Defaults to 'map'.
         """
+        from sklearn.decomposition import PCA
         from sklearn.neighbors import NearestNeighbors
-        if method not in ('map', 'features'):
-            raise ValueError(f'Unknown neighbor method {method}.')
         if self.df is None:
             raise errors.SlideMapError(
                 "Unable perform neighbor search; no DatasetFeatures provided"
             )
-        log.info("Initializing neighbor search...")
+        log.info(f"Initializing neighbor search (method={method})...")
         if method == 'map':
             X = np.stack((self.x, self.y), axis=-1)
         elif method == 'features':
@@ -449,6 +452,18 @@ class SlideMap:
                 self.df.activations[pm['slide']][pm['index']]
                 for pm in self.point_meta
             ])
+        elif method == 'pca':
+            log.info(f"Reducing dimensionality with PCA (dim={pca_dim})...")
+            pca = PCA(n_components=pca_dim)
+            features = np.array([
+                self.df.activations[pm['slide']][pm['index']]
+                for pm in self.point_meta
+            ])
+            pca.fit(features)
+            X = pca.transform(features)
+
+        else:
+            raise ValueError(f'Unknown neighbor method {method}.')
         nbrs = NearestNeighbors(
             n_neighbors=100,
             algorithm=algorithm,

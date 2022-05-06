@@ -19,13 +19,12 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import scipy.stats as stats
-from tqdm import tqdm
-
 import slideflow as sf
 from slideflow import errors
 from slideflow.util import Labels, Path
 from slideflow.util import colors as col
 from slideflow.util import log
+from tqdm import tqdm
 
 # --- Backend-specific imports ------------------------------------------------
 
@@ -34,8 +33,8 @@ if os.environ['SF_BACKEND'] == 'tensorflow':
                                             LinearTrainer, ModelParams,
                                             Trainer, UncertaintyInterface)
 elif os.environ['SF_BACKEND'] == 'torch':
-    from slideflow.model.torch import (CPHTrainer,  # type: ignore  # noqa F401
-                                       Features, LinearTrainer, ModelParams,
+    from slideflow.model.torch import CPHTrainer  # type: ignore  # noqa F401
+    from slideflow.model.torch import (Features, LinearTrainer, ModelParams,
                                        Trainer, UncertaintyInterface)
 else:
     raise errors.BackendError(f"Unknown backend {os.environ['SF_BACKEND']}")
@@ -305,7 +304,7 @@ class DatasetFeatures:
 
         # Rename tfrecord_array to tfrecords
         log.info(f'Calculating activations for {self.tfrecords.shape[0]} '
-                 'tfrecords (layers={layers})')
+                 f'tfrecords (layers={layers})')
         log.info(f'Generating from {col.green(model)}')
         layers = sf.util.as_list(layers)
 
