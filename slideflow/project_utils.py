@@ -89,6 +89,7 @@ def _heatmap_worker(
                          roi_method=heatmap_args.roi_method,
                          buffer=heatmap_args.buffer,
                          batch_size=heatmap_args.batch_size,
+                         img_format=heatmap_args.img_format,
                          num_threads=heatmap_args.num_threads)
     heatmap.save(heatmap_args.outdir, **kwargs)
 
