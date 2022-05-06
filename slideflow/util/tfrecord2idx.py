@@ -1,7 +1,7 @@
 from __future__ import print_function
 
-import sys
 import struct
+import sys
 
 
 def create_index(tfrecord_file: str, index_file: str) -> None:

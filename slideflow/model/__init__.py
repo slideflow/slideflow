@@ -33,8 +33,8 @@ if os.environ['SF_BACKEND'] == 'tensorflow':
                                             LinearTrainer, ModelParams,
                                             Trainer, UncertaintyInterface)
 elif os.environ['SF_BACKEND'] == 'torch':
-    from slideflow.model.torch import (CPHTrainer,  # type: ignore  # noqa F401
-                                       Features, LinearTrainer, ModelParams,
+    from slideflow.model.torch import CPHTrainer  # type: ignore  # noqa F401
+    from slideflow.model.torch import (Features, LinearTrainer, ModelParams,
                                        Trainer, UncertaintyInterface)
 else:
     raise errors.BackendError(f"Unknown backend {os.environ['SF_BACKEND']}")

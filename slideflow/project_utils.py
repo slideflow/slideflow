@@ -1,17 +1,18 @@
 """Utility functions for slideflow.Project."""
 
-import os
 import logging
-from os.path import join, exists, dirname, realpath
+import os
 from collections import defaultdict
-from types import SimpleNamespace
-from typing import Optional, Union, List, Dict, Any, Tuple, Callable
 from functools import wraps
+from os.path import dirname, exists, join, realpath
+from types import SimpleNamespace
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import slideflow as sf
-from slideflow.util import log, relative_path, Path
 from slideflow import errors
+from slideflow.util import Path
 from slideflow.util import colors as col
+from slideflow.util import log, relative_path
 
 # Set the tensorflow logger
 if logging.getLogger('slideflow').level == logging.DEBUG:

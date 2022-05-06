@@ -1,22 +1,22 @@
-import os
 import csv
-import time
 import logging
 import multiprocessing
+import os
+import time
 import unittest
-from os.path import join, exists
-from tqdm import tqdm
-from PIL import Image
-from typing import Any, Tuple, Optional
+from os.path import exists, join
+from typing import Any, Optional, Tuple
 
 import slideflow as sf
-from slideflow.util import log, Path
-from slideflow.util import colors as col
-from slideflow.stats import SlideMap
+from PIL import Image
 from slideflow import errors
+from slideflow.stats import SlideMap
 from slideflow.test import dataset_test
 from slideflow.test.utils import TaskWrapper, TestConfig, _assert_valid_results
-
+from slideflow.util import Path
+from slideflow.util import colors as col
+from slideflow.util import log
+from tqdm import tqdm
 
 # ---------------------------------------
 
@@ -666,10 +666,10 @@ class TestSuite:
                 _assert_valid_results(results)
 
         if linear:
-            # Test multiple linear outcome
-            with TaskWrapper("Training multiple linear outcomes...") as test:
+            # Test single linear outcome
+            with TaskWrapper("Training with single linear outcome...") as test:
                 results = self.project.train(
-                    outcomes=['linear1', 'linear2'],
+                    outcomes=['linear1'],
                     val_k=1,
                     params=self.setup_hp('linear'),
                     validate_on_batch=10,
@@ -684,7 +684,7 @@ class TestSuite:
             # Test multiple linear outcome
             with TaskWrapper("Training multiple linear outcomes...") as test:
                 results = self.project.train(
-                    outcomes=['linear1'],
+                    outcomes=['linear1' 'linear2'],
                     val_k=1,
                     params=self.setup_hp('linear'),
                     validate_on_batch=10,

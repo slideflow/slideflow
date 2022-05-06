@@ -1,15 +1,17 @@
 import os
 import shutil
-import slideflow as sf
-import numpy as np
-import matplotlib.colors as mcol
-import shapely.geometry as sg
-from typing import Optional, List, Any, Callable, Dict, Union
+from typing import Any, Callable, Dict, List, Optional, Union
 
+import matplotlib.colors as mcol
+import numpy as np
+import shapely.geometry as sg
+
+import slideflow as sf
 from slideflow import errors
-from slideflow.util import log, Path
-from slideflow.util import colors as col
 from slideflow.slide import WSI
+from slideflow.util import Path
+from slideflow.util import colors as col
+from slideflow.util import log
 
 
 class Heatmap:

@@ -1,27 +1,28 @@
 import os
 import shutil
-import tensorflow as tf
-import numpy as np
-from glob import glob
 from functools import partial
-from tqdm import tqdm
+from glob import glob
 from os import listdir
-from os.path import isfile, join, exists
-from random import shuffle, randint
-from typing import (
-    Callable, Optional, Any, Dict, Tuple, Union, List, Iterable,
-    TYPE_CHECKING
-)
+from os.path import exists, isfile, join
+from random import randint, shuffle
+from typing import (TYPE_CHECKING, Any, Callable, Dict, Iterable, List,
+                    Optional, Tuple, Union)
+
+import numpy as np
+import tensorflow as tf
+from tqdm import tqdm
 
 import slideflow as sf
+from slideflow import errors
 from slideflow.io import gaussian
 from slideflow.io.io_utils import detect_tfrecord_format
-from slideflow.util import log, Labels
+from slideflow.util import Labels
 from slideflow.util import colors as col
-from slideflow import errors
+from slideflow.util import log
 
 if TYPE_CHECKING:
-    from tensorflow.core.example.feature_pb2 import Feature, Example
+    from tensorflow.core.example.feature_pb2 import Example, Feature
+
     from slideflow.norm import StainNormalizer
 
 

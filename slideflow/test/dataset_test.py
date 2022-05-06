@@ -1,8 +1,10 @@
+import logging
 import random
 import shutil
 import unittest
-import logging
+
 import pandas as pd
+
 import slideflow as sf
 from slideflow.test.utils import TestConfig
 

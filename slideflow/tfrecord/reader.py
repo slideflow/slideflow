@@ -6,12 +6,12 @@ import gzip
 import io
 import os
 import struct
-import numpy as np
-from typing import Optional, Tuple, Dict, Union, List, Iterable
+from typing import Dict, Iterable, List, Optional, Tuple, Union
 
-from slideflow.util import log
-from slideflow.util import example_pb2, extract_feature_dict
+import numpy as np
+
 from slideflow.tfrecord import iterator_utils
+from slideflow.util import example_pb2, extract_feature_dict, log
 
 
 class TFRecordIterator:

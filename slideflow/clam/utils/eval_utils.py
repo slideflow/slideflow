@@ -1,18 +1,20 @@
-import numpy as np
+import os
+import pdb
 
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from sklearn.metrics import auc, roc_auc_score, roc_curve
+from sklearn.preprocessing import label_binarize
+
+from slideflow.clam.models.model_clam import CLAM_MB, CLAM_SB
 from slideflow.clam.models.model_mil import MIL_fc, MIL_fc_mc
-from slideflow.clam.models.model_clam import CLAM_SB, CLAM_MB
-import pdb
-import os
-import pandas as pd
 from slideflow.clam.utils import *
 from slideflow.clam.utils.core_utils import Accuracy_Logger
-from sklearn.metrics import roc_auc_score, roc_curve, auc
-from sklearn.preprocessing import label_binarize
-import matplotlib.pyplot as plt
+
 
 def initiate_model(args, ckpt_path):
 	print('Init Model')    

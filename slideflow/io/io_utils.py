@@ -1,13 +1,13 @@
 from __future__ import absolute_import
 
-import os
-import io
-import struct
 import imghdr
-from typing import List, Tuple, Optional
+import io
+import os
+import struct
+from typing import List, Optional, Tuple
 
-from slideflow.util import log, example_pb2, extract_feature_dict
 from slideflow import errors
+from slideflow.util import example_pb2, extract_feature_dict, log
 
 
 def detect_tfrecord_format(tfr: str) -> Tuple[Optional[List[str]],

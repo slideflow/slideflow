@@ -1,19 +1,18 @@
 '''Functions for slide extraction reports (PDF).'''
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function
 
-import os
 import io
-import numpy as np
+import os
 import tempfile
-from os.path import join
-from PIL import Image
 from datetime import datetime
-from fpdf import FPDF
+from os.path import join
 from types import SimpleNamespace
-from typing import List, Optional, Dict, Any
+from typing import Any, Dict, List, Optional
+
+import numpy as np
+from fpdf import FPDF
+from PIL import Image
 
 import slideflow as sf
 from slideflow.util import log, path_to_name  # noqa F401
@@ -297,8 +296,8 @@ class ExtractionReport:
         self.pdf = pdf
 
     def num_tiles_chart(self, num_tiles: np.ndarray) -> bool:
-        import seaborn as sns
         import matplotlib.pyplot as plt
+        import seaborn as sns
         if np.any(num_tiles):
             plt.rc('font', size=14)
             sns.histplot(num_tiles, bins=20)
@@ -310,8 +309,8 @@ class ExtractionReport:
             return False
 
     def blur_chart(self, blur_arr: np.ndarray) -> bool:
-        import seaborn as sns
         import matplotlib.pyplot as plt
+        import seaborn as sns
         if np.any(blur_arr):
             num_warn = np.count_nonzero(blur_arr > self.bb_threshold)
             if num_warn:

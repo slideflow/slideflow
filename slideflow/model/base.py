@@ -1,14 +1,15 @@
 '''Submodule that includes base classes to be extended by framework-specific implementations.'''
 
+import csv
 import json
 import os
-import csv
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+
 import numpy as np
-from typing import Union, List, Optional, Dict, Any, TYPE_CHECKING
 
 import slideflow as sf
-from slideflow.util import log
 from slideflow import errors
+from slideflow.util import log
 
 if TYPE_CHECKING:
     from slideflow.norm import StainNormalizer

@@ -1,14 +1,16 @@
-from __future__ import print_function, division
+from __future__ import division, print_function
+
 import os
-import torch
+
+import h5py
 import numpy as np
 import pandas as pd
+import torch
 from scipy import stats
-
 from torch.utils.data import Dataset
-import h5py
 
 from slideflow.clam.utils import generate_split, nth
+
 
 class ClamError(Exception):
 	pass

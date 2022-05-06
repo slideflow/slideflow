@@ -1,21 +1,21 @@
 import os
 import types
 
-# internal imports
-from slideflow.clam.utils.file_utils import save_pkl
-from slideflow.clam.utils import *
-from slideflow.clam.datasets.dataset_generic import Generic_MIL_Dataset
-from slideflow.clam.utils.core_utils import train
-from slideflow.clam.utils.eval_utils import *
-
+import numpy as np
+import pandas as pd
 # pytorch imports
 import torch
-from torch.utils.data import DataLoader, sampler
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.utils.data import DataLoader, sampler
 
-import pandas as pd
-import numpy as np
+from slideflow.clam.datasets.dataset_generic import Generic_MIL_Dataset
+from slideflow.clam.utils import *
+from slideflow.clam.utils.core_utils import train
+from slideflow.clam.utils.eval_utils import *
+# internal imports
+from slideflow.clam.utils.file_utils import save_pkl
+
 
 def get_args(**kwargs):
     args_dict = {
