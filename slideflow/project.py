@@ -1446,6 +1446,7 @@ class Project:
         roi_method: str = 'inside',
         buffer: Optional[Path] = None,
         num_threads: Optional[int] = None,
+        img_format: str = 'auto',
         skip_completed: bool = False,
         **kwargs: Any
     ) -> None:
@@ -1519,6 +1520,7 @@ class Project:
             raise ValueError(f"Invalid resolution '{resolution}'.")
         heatmap_args.stride_div = stride_div
         heatmap_args.verbosity = self.verbosity
+        heatmap_args.img_format = img_format
 
         # Attempt to auto-detect supplied model name
         model_name = os.path.basename(model)

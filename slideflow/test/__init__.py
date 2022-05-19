@@ -684,7 +684,7 @@ class TestSuite:
             # Test multiple linear outcome
             with TaskWrapper("Training multiple linear outcomes...") as test:
                 results = self.project.train(
-                    outcomes=['linear1' 'linear2'],
+                    outcomes=['linear1', 'linear2'],
                     val_k=1,
                     params=self.setup_hp('linear'),
                     validate_on_batch=10,
