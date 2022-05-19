@@ -498,6 +498,7 @@ class Project:
 
     def _train_hp(
         self,
+        *,
         hp_name: str,
         hp: ModelParams,
         outcomes: List[str],
@@ -1007,7 +1008,7 @@ class Project:
         Returns:
             Dict: Dictionary of keras training results, nested by epoch.
         """
-
+        log.info(f'Evaluating model at {col.green(model)}')
         trainer, eval_dts = self._prepare_trainer(
             model=model,
             dataset=dataset,
@@ -1567,6 +1568,7 @@ class Project:
         use_float: bool = False,
         low_memory: bool = False,
         use_norm: bool = True,
+        umap_kwargs: Dict = {},
         **kwargs: Any
     ) -> sf.Mosaic:
         """Generates a mosaic map by overlaying images onto mapped tiles.
@@ -1691,7 +1693,8 @@ class Project:
                                              map_slide=map_slide,
                                              prediction_filter=restrict_pred,
                                              cache=umap_cache,
-                                             low_memory=low_memory)
+                                             low_memory=low_memory,
+                                             **umap_kwargs)
 
         # If displaying centroid AND predictions, show slide-level predictions
         # rather than tile-level predictions
