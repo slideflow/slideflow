@@ -125,7 +125,8 @@ class SlideMap:
         map_slide: Optional[str] = None,
         cache: Optional[Path] = None,
         low_memory: bool = False,
-        umap_dim: int = 2
+        umap_dim: int = 2,
+        **umap_kwargs: Any
     ) -> "SlideMap":
         """Initializes map from dataset features.
 
@@ -161,14 +162,16 @@ class SlideMap:
                 method=map_slide,
                 prediction_filter=prediction_filter,
                 recalculate=recalculate,
-                low_memory=low_memory
+                low_memory=low_memory,
+                **umap_kwargs
             )
         else:
             obj._calculate_from_tiles(
                 prediction_filter=prediction_filter,
                 recalculate=recalculate,
                 low_memory=low_memory,
-                dim=umap_dim
+                dim=umap_dim,
+                **umap_kwargs
             )
         return obj
 
