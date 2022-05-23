@@ -11,14 +11,9 @@ from typing import (TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple,
 
 import numpy as np
 import pretrainedmodels
-import torch
-import torchvision
-from torch import Tensor
-from torch.utils.tensorboard import SummaryWriter
-from tqdm import tqdm
-
 import slideflow as sf
 import slideflow.util.neptune_utils
+import torchvision
 from slideflow import errors
 from slideflow.model import base as _base
 from slideflow.model import torch_utils
@@ -26,10 +21,14 @@ from slideflow.model.base import log_manifest, no_scope
 from slideflow.util import NormFit, Path
 from slideflow.util import colors as col
 from slideflow.util import log
+from tqdm import tqdm
+
+import torch
+from torch import Tensor
+from torch.utils.tensorboard import SummaryWriter
 
 if TYPE_CHECKING:
     import pandas as pd
-
     from slideflow.norm import StainNormalizer
 
 
@@ -954,9 +953,13 @@ class Trainer:
     def _mid_training_validation(self) -> None:
         """Perform mid-epoch validation, if appropriate."""
 
-        cond1 = ('val' in self.dataloaders and self.validate_on_batch)
-        cond2 = (self.step % self.validate_on_batch == 0) and self.step > 0
-        if not (cond1 and cond2):
+        if not self.validate_on_batch:
+            return
+        elif not (
+            'val' in self.dataloaders
+            and self.step > 0
+            and self.step % self.validate_on_batch == 0
+        ):
             return
 
         if self.model is None or self.inference_model is None:
