@@ -2274,9 +2274,8 @@ class Project:
                 accept the epoch results dict and return a float value. If
                 a str, must be a valid metric, such as  'tile_auc',
                 'patient_auc', 'r_squared', etc.
-
-        Keyword Args:
-            All keyword arguments used in Project.train() are accepted.
+            train_kwargs (dict):  Dict of keyword arguments used for the
+                Project.train() function call.
 
         Raises:
             errors.SMACError: If training does not return the designated metric.
@@ -2324,7 +2323,8 @@ class Project:
         params: ModelParams,
         smac_configspace: "ConfigurationSpace",
         smac_metric: str = 'tile_auc',
-        **train_kwargs
+        smac_limit: int = 10,
+        **train_kwargs: Any
     ) -> None:
         """Train a model using SMAC3 bayesian hyperparameter optimization.
 
@@ -2333,6 +2333,8 @@ class Project:
             params (ModelParams): Model parameters for training.
             smac_configspace (ConfigurationSpace): ConfigurationSpace to
                 determine the SMAC optimization.
+            smac_limit (int): Max number of function evaluations to perform
+                during optimization. Defaults to 10.
             smac_metric (str, optional): Metric to monitor for optimization.
                 May either be a callable function or a str. If a callable
                 function, must accept the epoch results dict and return a
@@ -2341,7 +2343,8 @@ class Project:
                 Defaults to 'tile_auc'.
 
         Returns:
-            _type_: _description_
+            Configuration: Optimal hyperparameter configuration returned
+            by SMAC4BB.optimize()
         """
 
         from smac.facade.smac_bb_facade import SMAC4BB
@@ -2350,7 +2353,7 @@ class Project:
         # Create SMAC scenario.
         scenario = Scenario({
             'run_obj': 'quality', # Optimize quality (alternatively: runtime)
-            'runcount-limit': 3,  # Max number of function evaluations
+            'runcount-limit': smac_limit,  # Max number of function evaluations
             'cs': smac_configspace
         })
         smac = SMAC4BB(
