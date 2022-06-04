@@ -1180,6 +1180,8 @@ class Trainer:
         args = SimpleNamespace(
             labels=self._parse_tfrecord_labels,
             normalizer=self.normalizer,
+            fixed_gaussian_kernel=self.hp.gaussian_kernel,
+            fixed_gaussian_sigma=self.hp.gaussian_sigma,
             **kwargs
         )
         return vars(args)

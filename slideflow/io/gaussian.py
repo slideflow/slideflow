@@ -3,6 +3,14 @@
 import tensorflow as tf
 
 
+def opt_kernel(sigma):
+    return int((sigma * 4) + 1)
+
+
+def auto_gaussian(image, sigma):
+    return gaussian_filter2d(image, opt_kernel(sigma), sigma=sigma)
+
+
 def get_ndims(image):
     return image.get_shape().ndims or tf.rank(image)
 
@@ -226,7 +234,7 @@ def gaussian_filter2d(image, filter_shape=(3, 3), sigma=1.0, padding="REFLECT", 
         else:
             sigma = (sigma,) * 2
 
-        if any(s < 0 for s in sigma):
+        if not isinstance(sigma[0], (tf.Tensor)) and any(s < 0 for s in sigma):
             raise ValueError("sigma should be greater than or equal to 0.")
 
         image = tf.convert_to_tensor(image, name="image")

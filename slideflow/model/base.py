@@ -52,6 +52,8 @@ class _ModelParams:
         l2_dense: Optional[float] = 0,
         dropout: Optional[float] = 0,
         augment: Optional[str] = 'xyrj',
+        gaussian_kernel: Optional[int] = 0,
+        gaussian_sigma: Optional[float] = 0,
         normalizer: Optional[str] = None,
         normalizer_source: Optional[str] = None,
         include_top: bool = True,
@@ -146,6 +148,8 @@ class _ModelParams:
         self.normalizer = normalizer
         self.normalizer_source = normalizer_source
         self.augment = augment
+        self.gaussian_kernel = gaussian_kernel
+        self.gaussian_sigma = gaussian_sigma
         self.drop_images = drop_images
         self.include_top = include_top
 
@@ -279,6 +283,8 @@ class _ModelParams:
         assert isinstance(self.dropout, (int, float))
         assert isinstance(self.uq, bool)
         assert isinstance(self.augment, (bool, str))
+        assert isinstance(self.gaussian_kernel, int)
+        assert isinstance(self.gaussian_sigma, (int, float))
         assert isinstance(self.drop_images, bool)
         assert isinstance(self.include_top, bool)
 
@@ -294,6 +300,9 @@ class _ModelParams:
         if self.l2_dense is not None:
             assert isinstance(self.l2_dense, (int, float))
             assert 0 <= self.l2_dense <= 1
+
+        if self.gaussian_kernel or self.gaussian_sigma:
+            assert self.gaussian_kernel and self.gaussian_sigma
 
         # Specific considerations.
         if isinstance(self.tile_um, str):
