@@ -304,6 +304,13 @@ def _get_images_by_dir(directory: str) -> List[str]:
     return files
 
 
+def auto_gaussian(image: torch.Tensor, sigma: float) -> torch.Tensor:
+    opt_kernel = int((sigma * 4) + 1)
+    if opt_kernel % 2 == 0:
+        opt_kernel += 1
+    return torchvision.transforms.GaussianBlur(opt_kernel, sigma=sigma)(image)
+
+
 def read_and_return_record(
     record: bytes,
     parser: Callable,
@@ -388,12 +395,12 @@ def _decode_image(
                     (torch.rand(1)[0] < 0.5),  # .to(device),
                     torch.where(
                         (torch.rand(1)[0] < 0.5),  # .to(device),
-                        torchvision.transforms.GaussianBlur(7)(image),
-                        torchvision.transforms.GaussianBlur(5)(image)
+                        auto_gaussian(image, sigma=2.0),
+                        auto_gaussian(image, sigma=1.5),
                     ),
-                    torchvision.transforms.GaussianBlur(3)(image)
+                    auto_gaussian(image, sigma=1.0)
                 ),
-                torchvision.transforms.GaussianBlur(1)(image),
+                auto_gaussian(image, sigma=0.5),
             ),
             image
         )

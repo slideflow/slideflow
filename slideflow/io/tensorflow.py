@@ -9,9 +9,6 @@ from typing import (TYPE_CHECKING, Any, Callable, Dict, Iterable, List,
                     Optional, Tuple, Union)
 
 import numpy as np
-import tensorflow as tf
-from tqdm import tqdm
-
 import slideflow as sf
 from slideflow import errors
 from slideflow.io import gaussian
@@ -19,11 +16,14 @@ from slideflow.io.io_utils import detect_tfrecord_format
 from slideflow.util import Labels
 from slideflow.util import colors as col
 from slideflow.util import log
+from tqdm import tqdm
+
+import tensorflow as tf
 
 if TYPE_CHECKING:
-    from tensorflow.core.example.feature_pb2 import Example, Feature
-
     from slideflow.norm import StainNormalizer
+
+    from tensorflow.core.example.feature_pb2 import Example, Feature
 
 
 FEATURE_DESCRIPTION = {
@@ -133,12 +133,12 @@ def process_image(
                     tf.random.uniform(**uniform_kwargs) < 0.5,
                     true_fn=lambda: tf.cond(
                         tf.random.uniform(**uniform_kwargs) < 0.5,
-                        true_fn=lambda: gaussian.gaussian_filter2d(image, 8),
-                        false_fn=lambda: gaussian.gaussian_filter2d(image, 4),
+                        true_fn=lambda: gaussian.auto_gaussian(image, sigma=2.0),
+                        false_fn=lambda: gaussian.auto_gaussian(image, sigma=1.5),
                     ),
-                    false_fn=lambda: gaussian.gaussian_filter2d(image, 2),
+                    false_fn=lambda: gaussian.auto_gaussian(image, sigma=1.0),
                 ),
-                false_fn=lambda: gaussian.gaussian_filter2d(image, 1),
+                false_fn=lambda: gaussian.auto_gaussian(image, sigma=0.5),
             ),
             false_fn=lambda: image
         )
