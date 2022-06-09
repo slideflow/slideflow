@@ -9,15 +9,16 @@ from typing import (TYPE_CHECKING, Any, Callable, Dict, Iterable, List,
                     Optional, Tuple, Union)
 
 import numpy as np
-import torch
-import torchvision
-from tqdm import tqdm
-
+import pandas as pd
 import slideflow as sf
+import torchvision
 from slideflow import errors
 from slideflow.io.io_utils import detect_tfrecord_format
 from slideflow.tfrecord.torch.dataset import MultiTFRecordDataset
 from slideflow.util import Labels, log, to_onehot
+from tqdm import tqdm
+
+import torch
 
 if TYPE_CHECKING:
     from slideflow.norm import StainNormalizer
@@ -184,7 +185,7 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
 
     @property
     def label_shape(self) -> Union[int, Tuple[int, ...]]:
-        '''For use with StyleGAN2'''
+        """For use with StyleGAN2"""
         if self.use_labels and self.unique_labels is not None:
             return self.unique_labels[0].shape
         else:
@@ -282,7 +283,7 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
         raise NotImplementedError
 
     def get_label(self, idx: Any) -> Any:
-        '''Returns a random label. Used for compatibility with StyleGAN2.'''
+        """Returns a random label. Used for compatibility with StyleGAN2."""
         if self.use_labels and self.model_type == 'categorical':
             return random.choices(
                 self.unique_labels,
@@ -295,6 +296,71 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
             return np.zeros((1,))
 
 
+class LocLabelInterleaver(InterleaveIterator):
+    """Pytorch Iterable Dataset that interleaves tfrecords with the
+    as the `InterleaveIterator`, but applies tile-specific labels.
+    """
+
+    def __init__(self, loc_labels: str, *args, **kwargs) -> None:
+        """Initializes an InterleaveIterator modified to use tile-level labels.
+
+        Args:
+            loc_labels (str): Location of parquet-format pandas DataFrame
+                containing tile-level labels. Labels are indexed by the slide
+                name and X/Y location, with the format {slide}-{loc_x}-{loc_y}.
+                Labels are determined by the `label` columns.
+        """
+        super().__init__(*args, **kwargs)
+
+        self.df = pd.read_parquet(loc_labels)
+        if 'label' not in self.df.columns:
+            raise ValueError('Could not find column "label" in the '
+                             'loc_labels dataset.')
+
+        self.incl_loc = True
+        first_index, first_row  = next(self.df.iterrows())
+        self._label_shape = first_row.label.shape
+
+    @property
+    def label_shape(self) -> Union[int, Tuple[int, ...]]:
+        """For use with StyleGAN2"""
+        return self._label_shape
+
+    def _parser(
+        self,
+        image: torch.Tensor,
+        slide: str,
+        loc_x: int,
+        loc_y: int
+    ) -> List[torch.Tensor]:
+        """Parses an image. Labels determined from the tile-level DataFrame.
+
+        Args:
+            image (torch.Tensor): Image.
+            slide (str): Slide name.
+            loc_x (int): Tile X-coordinate location on the corresponding slide.
+            loc_y (int): Tile Y-coordinate location on the corresponding slide.
+
+        Returns:
+            List[torch.Tensor]: image, label, and slide
+            (slide included if if self.incl_slidenames is True)
+        """
+
+        label_key = f'{slide}-{loc_x}-{loc_y}'
+        label = torch.tensor(self.df.iloc[self.df.index.get_loc(label_key)])[0]
+
+        image = image.permute(2, 0, 1)  # HWC => CHW
+        to_return = [image, label]  # type: List[Any]
+
+        if self.incl_slidenames:
+            to_return += [slide]
+        return to_return
+
+    def get_label(self, idx: Any) -> Any:
+        """Returns a random label. Used for compatibility with StyleGAN2."""
+        return np.random.rand(*self.label_shape)
+
+
 def _get_images_by_dir(directory: str) -> List[str]:
     files = [
         f for f in listdir(directory)
@@ -305,6 +371,16 @@ def _get_images_by_dir(directory: str) -> List[str]:
 
 
 def auto_gaussian(image: torch.Tensor, sigma: float) -> torch.Tensor:
+    """Perform Gaussian blur on an image with a given sigma, automatically
+    calculating the appropriate Gaussian kernel size.
+
+    Args:
+        image (torch.Tensor): Image or batch of images.
+        sigma (float): Sigma.
+
+    Returns:
+        torch.Tensor: Image(s) with Gaussian blur applied.
+    """
     opt_kernel = int((sigma * 4) + 1)
     if opt_kernel % 2 == 0:
         opt_kernel += 1
@@ -329,8 +405,8 @@ def serialized_record(
     loc_x: int = 0,
     loc_y: int = 0
 ):
-    '''Returns a serialized example for TFRecord storage, ready to be written
-    by a TFRecordWriter.'''
+    """Returns a serialized example for TFRecord storage, ready to be written
+    by a TFRecordWriter."""
 
     example = {
         'image_raw': (image_raw, FEATURE_DESCRIPTION['image_raw']),
@@ -349,7 +425,7 @@ def _decode_image(
     augment: bool = False,
     device: Optional[torch.device] = None
 ) -> torch.Tensor:
-    '''Decodes image. Torch implementation; different than sf.io.tensorflow'''
+    """Decodes image. Torch implementation; different than sf.io.tensorflow"""
 
     np_data = torch.from_numpy(np.fromstring(img_string, dtype=np.uint8))
     image = torchvision.io.decode_image(np_data).permute(1, 2, 0)  # CWH => WHC
@@ -475,10 +551,10 @@ def get_tfrecord_parser(
         )
 
     def parser(record):
-        '''Each item in args is an array with one item, as the dareblopy reader
+        """Each item in args is an array with one item, as the dareblopy reader
         returns items in batches and we have set our batch_size = 1 for
         interleaving.
-        '''
+        """
         features = {}
         if ('slide' in features_to_return):
             slide = bytes(record['slide']).decode('utf-8')
