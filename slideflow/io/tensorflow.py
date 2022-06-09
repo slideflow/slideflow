@@ -87,8 +87,8 @@ def process_image(
         image = record['tile_image']
     else:
         image = record
-    if size:
-        image.set_shape([size, size, 3])
+    #if size:
+    #    image.set_shape([size, size, 3])
     if augment is True or (isinstance(augment, str) and 'j' in augment):
         # Augment with random compession
         image = tf.cond(tf.random.uniform(
@@ -157,7 +157,12 @@ def process_image(
 def decode_image(
     img_string: bytes,
     img_type: str,
-    size: int = None
+    crop_left: Optional[int] = None,
+    crop_width: Optional[int] = None,
+    resize_target: Optional[int] = None,
+    resize_method: str = 'lanczos3',
+    resize_aa: bool = True,
+    size: Optional[int] = None
 ) -> tf.Tensor:
     tf_decoders = {
         'png': tf.image.decode_png,
@@ -166,7 +171,14 @@ def decode_image(
     }
     decoder = tf_decoders[img_type.lower()]
     image = decoder(img_string, channels=3)
-    if size:
+    if crop_left is not None:
+        image = tf.image.crop_to_bounding_box(
+            image, crop_left, crop_left, crop_width, crop_width
+        )
+    if resize_target is not None:
+        image = tf.image.resize(image, (resize_target, resize_target), method=resize_method, antialias=resize_aa)
+        image.set_shape([resize_target, resize_target, 3])
+    elif size:
         image.set_shape([size, size, 3])
     return image
 
@@ -177,7 +189,8 @@ def get_tfrecord_parser(
     to_numpy: bool = False,
     decode_images: bool = True,
     img_size: Optional[int] = None,
-    error_if_invalid: bool = True
+    error_if_invalid: bool = True,
+    **decode_kwargs: Any
 ) -> Optional[Callable]:
 
     """Returns a tfrecord parsing function based on the specified parameters.
@@ -230,7 +243,12 @@ def get_tfrecord_parser(
             elif f not in features:
                 return None
             elif f == 'image_raw' and decode_images:
-                return decode_image(features['image_raw'], img_type, img_size)
+                return decode_image(
+                    features['image_raw'],
+                    img_type,
+                    size=img_size,
+                    **decode_kwargs
+                )
             elif to_numpy:
                 return features[f].numpy()
             else:
@@ -295,7 +313,8 @@ def interleave(
     shard_idx: Optional[int] = None,
     num_parallel_reads: int = 4,
     deterministic: bool = False,
-    drop_last: bool = False
+    drop_last: bool = False,
+    **decode_kwargs: Any
 ) -> Iterable:
 
     """Generates an interleaved dataset from a collection of tfrecord files,
@@ -382,7 +401,8 @@ def interleave(
             base_parser = get_tfrecord_parser(
                 tfrecords[i],
                 features_to_return,
-                img_size=img_size
+                img_size=img_size,
+                **decode_kwargs
             )
         datasets = []
         weights = [] if prob_weights else None  # type: Optional[List]
