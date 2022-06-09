@@ -79,7 +79,6 @@ def process_image(
     *args: Any,
     standardize: bool = False,
     augment: bool = False,
-    size: Optional[int] = None
 ) -> Tuple[Union[Dict, tf.Tensor], ...]:
     """Applies augmentations and/or standardization to an image Tensor."""
 
@@ -87,8 +86,6 @@ def process_image(
         image = record['tile_image']
     else:
         image = record
-    #if size:
-    #    image.set_shape([size, size, 3])
     if augment is True or (isinstance(augment, str) and 'j' in augment):
         # Augment with random compession
         image = tf.cond(tf.random.uniform(
@@ -164,6 +161,27 @@ def decode_image(
     resize_aa: bool = True,
     size: Optional[int] = None
 ) -> tf.Tensor:
+    """Decodes an image.
+
+    Args:
+        img_string (bytes): Image bytes (JPG/PNG).
+        img_type (str): Type of image data; 'jpg', 'jpeg', or 'png'.
+        crop_left (int, optional): Crop image starting at this top-left
+            coordinate. Defaults to None.
+        crop_width (int, optional): Crop image to this width.
+            Defaults to None.
+        resize_target (int, optional): Resize image, post-crop, to this target
+            size in pixels. Defaults to None.
+        resize_method (str, optional): Resizing method, if applicable.
+            Defaults to 'lanczos3'.
+        resize_aa (bool, optional): If resizing, use antialiasing.
+            Defaults to True.
+        size (int, optional): Set the image size/width (pixels).
+            Defaults to None.
+
+    Returns:
+        tf.Tensor: Processed image (uint8).
+    """
     tf_decoders = {
         'png': tf.image.decode_png,
         'jpeg': tf.image.decode_jpeg,
@@ -459,8 +477,7 @@ def interleave(
             partial(
                 process_image,
                 standardize=standardize,
-                augment=augment,
-                size=img_size
+                augment=augment
             ),
             num_parallel_calls=tf.data.AUTOTUNE,
             deterministic=deterministic

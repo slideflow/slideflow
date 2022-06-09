@@ -2322,8 +2322,8 @@ class Project:
         outcomes: Union[str, List[str]],
         params: ModelParams,
         smac_configspace: "ConfigurationSpace",
-        smac_metric: str = 'tile_auc',
         smac_limit: int = 10,
+        smac_metric: str = 'tile_auc',
         **train_kwargs: Any
     ) -> None:
         """Train a model using SMAC3 bayesian hyperparameter optimization.

@@ -3,15 +3,27 @@
 import tensorflow as tf
 
 
-def opt_kernel(sigma):
+def opt_kernel(sigma: float) -> int:
+    """Calculate an appropriate Gaussian kernel size for a given sigma."""
     return int((sigma * 4) + 1)
 
 
-def auto_gaussian(image, sigma):
+def auto_gaussian(image: tf.Tensor, sigma: float) -> tf.Tensor:
+    """Perform Gaussian blur on an image with a given sigma, automatically
+    calculating the appropriate Gaussian kernel size.
+
+    Args:
+        image (tf.Tensor): Image or batch of images.
+        sigma (float): Gaussian sigma.
+
+    Returns:
+        tf.Tensor: Image(s) with Gaussian blur applied.
+    """
     return gaussian_filter2d(image, opt_kernel(sigma), sigma=sigma)
 
 
 def get_ndims(image):
+    """Get dimensions from an image."""
     return image.get_shape().ndims or tf.rank(image)
 
 
