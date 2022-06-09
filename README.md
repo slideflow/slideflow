@@ -15,6 +15,7 @@ Slideflow has been used by:
 - [Dolezal et al](https://arxiv.org/abs/2204.04516) [arXiv], 2022
 - [Storozuk et al](https://www.nature.com/articles/s41379-022-01039-1.pdf), _Modern Pathology_ [abstract], 2022
 - [Partin et al](https://arxiv.org/abs/2204.11678) [arXiv], 2022
+- [Dolezal et al](https://meetings.asco.org/abstracts-presentations/212459) [ASCO abstract], 2022
 
 Full documentation with example tutorials can be found at [slideflow.dev](https://www.slideflow.dev/).
 
