@@ -153,3 +153,6 @@ class TileCorruptionError(Exception):
 class ModelParamsNotFoundError(Exception):
     def __init__(self):
         super().__init__('Model parameters file (params.json) not found.')
+
+class SMACError(Exception):
+    pass

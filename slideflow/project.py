@@ -7,8 +7,10 @@ import multiprocessing
 import os
 import pickle
 from os.path import basename, exists, join
+from statistics import mean
 from types import SimpleNamespace
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import (TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple,
+                    Union)
 
 import numpy as np
 from tqdm import tqdm
@@ -24,6 +26,7 @@ from slideflow.util import log, path_to_name
 
 if TYPE_CHECKING:
     import pandas as pd
+    from ConfigSpace import ConfigurationSpace
 
     from slideflow.model import DatasetFeatures, Trainer
 
@@ -2252,6 +2255,122 @@ class Project:
     def save(self) -> None:
         """Saves current project configuration as "settings.json"."""
         sf.util.write_json(self._settings, join(self.root, 'settings.json'))
+
+
+    def _get_smac_runner(
+        self,
+        outcomes: Union[str, List[str]],
+        params: sf.ModelParams,
+        metric: Union[str, Callable],
+        train_kwargs: Any
+    ) -> Callable:
+        """Builds a SMAC3 optimization runner.
+
+        Args:
+            outcomes (str, List[str]): Outcome label annotation header(s).
+            params (sf.ModelParams): Model parameters for training.
+            metric (str or Callable): Metric to monitor for optimization.
+                May be callable function or a str. If a callable function, must
+                accept the epoch results dict and return a float value. If
+                a str, must be a valid metric, such as  'tile_auc',
+                'patient_auc', 'r_squared', etc.
+            train_kwargs (dict):  Dict of keyword arguments used for the
+                Project.train() function call.
+
+        Raises:
+            errors.SMACError: If training does not return the designated metric.
+
+        Returns:
+            Callable: tae_runner for SMAC optimization.
+        """
+
+        def smac_runner(config):
+            """SMAC tae_runner function."""
+
+            # Load hyperparameters from SMAC configuration and train model.
+            params.load_dict(dict(config))
+            results = self.train(
+                outcomes=outcomes,
+                params=params,
+                **train_kwargs
+            )
+
+            # Interpret results.
+            model_name = list(results.keys())[0]
+            last_epoch = sorted(list(results[model_name]['epochs'].keys()))[-1]
+            if len(results[model_name]['epochs']) > 1:
+                log.warning(f"Ambiguous epoch for SMAC. Using '{last_epoch}'.")
+            epoch_results = results[model_name]['epochs'][last_epoch]
+
+            # Determine metric for optimization.
+            if callable(metric):
+                return metric(epoch_results)
+            elif metric not in epoch_results:
+                raise errors.SMACError(f"Metric '{metric}' not returned from "
+                                       "training, unable to optimize.")
+            else:
+                if outcomes not in epoch_results[metric]:
+                    raise errors.SMACError(
+                        f"Unable to interpret metric {metric} (epoch results: "
+                        f"{epoch_results})")
+                return 1 - mean(epoch_results[metric][outcomes])
+
+        return smac_runner
+
+    def smac_search(
+        self,
+        outcomes: Union[str, List[str]],
+        params: ModelParams,
+        smac_configspace: "ConfigurationSpace",
+        smac_metric: str = 'tile_auc',
+        smac_limit: int = 10,
+        **train_kwargs: Any
+    ) -> None:
+        """Train a model using SMAC3 bayesian hyperparameter optimization.
+
+        Args:
+            outcomes (str, List[str]): Outcome label annotation header(s).
+            params (ModelParams): Model parameters for training.
+            smac_configspace (ConfigurationSpace): ConfigurationSpace to
+                determine the SMAC optimization.
+            smac_limit (int): Max number of function evaluations to perform
+                during optimization. Defaults to 10.
+            smac_metric (str, optional): Metric to monitor for optimization.
+                May either be a callable function or a str. If a callable
+                function, must accept the epoch results dict and return a
+                float value. If a str, must be a valid metric, such as
+                'tile_auc', 'patient_auc', 'r_squared', etc.
+                Defaults to 'tile_auc'.
+
+        Returns:
+            Configuration: Optimal hyperparameter configuration returned
+            by SMAC4BB.optimize()
+        """
+
+        from smac.facade.smac_bb_facade import SMAC4BB
+        from smac.scenario.scenario import Scenario
+
+        # Create SMAC scenario.
+        scenario = Scenario({
+            'run_obj': 'quality', # Optimize quality (alternatively: runtime)
+            'runcount-limit': smac_limit,  # Max number of function evaluations
+            'cs': smac_configspace
+        })
+        smac = SMAC4BB(
+            scenario=scenario,
+            tae_runner=self._get_smac_runner(
+                outcomes=outcomes,
+                params=params,
+                metric=smac_metric,
+                train_kwargs=train_kwargs,
+            )
+        )
+
+        # Optimize.
+        best_config = smac.optimize()
+        log.info("Results of SMAC optimization:")
+        print(best_config)
+        return best_config
 
     def train(
         self,

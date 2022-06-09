@@ -6,7 +6,6 @@ import os
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 import numpy as np
-
 import slideflow as sf
 from slideflow import errors
 from slideflow.util import log
@@ -109,48 +108,6 @@ class _ModelParams:
             drop_images (bool, optional): Drop images, using only other slide-level features as input.
                 Defaults to False.
         """
-        assert isinstance(tile_px, int)
-        assert isinstance(tile_um, (str, int))
-        assert isinstance(toplayer_epochs, int)
-        assert isinstance(epochs, (int, list))
-        if isinstance(epochs, list):
-            assert all([isinstance(t, int) for t in epochs])
-        assert pooling in ['max', 'avg', 'none']
-        assert isinstance(learning_rate, float)
-        assert isinstance(learning_rate_decay, (int, float))
-        assert isinstance(learning_rate_decay_steps, (int))
-        assert isinstance(batch_size, int)
-        assert isinstance(hidden_layers, int)
-        assert isinstance(manual_early_stop_batch, int) or manual_early_stop_batch is None
-        assert isinstance(manual_early_stop_epoch, int) or manual_early_stop_epoch is None
-        assert isinstance(early_stop, bool)
-        assert isinstance(early_stop_patience, int)
-        assert early_stop_method in ['loss', 'accuracy', 'manual']
-        assert training_balance in ['auto', 'tile', 'category', 'patient', 'slide', 'none', None]
-        assert validation_balance in ['tile', 'category', 'patient', 'slide', 'none', None]
-        assert isinstance(hidden_layer_width, int)
-        assert isinstance(trainable_layers, int)
-        assert isinstance(l1, (int, float))
-        assert isinstance(l2, (int, float))
-        assert isinstance(dropout, (int, float))
-        assert isinstance(uq, bool)
-        assert isinstance(augment, (bool, str))
-        assert isinstance(drop_images, bool)
-        assert isinstance(include_top, bool)
-
-        assert 0 <= learning_rate_decay <= 1
-        assert 0 <= l1 <= 1
-        assert 0 <= l2 <= 1
-        assert 0 <= dropout <= 1
-
-        if l1_dense is not None:
-            assert isinstance(l1_dense, (int, float))
-            assert 0 <= l1_dense <= 1
-
-        if l2_dense is not None:
-            assert isinstance(l2_dense, (int, float))
-            assert 0 <= l2_dense <= 1
-
         if isinstance(tile_um, str):
             sf.util.assert_is_mag(tile_um)
             tile_um = tile_um.lower()
@@ -274,6 +231,7 @@ class _ModelParams:
                 setattr(self, key, value)
             except Exception:
                 log.error(f'Error setting hyperparameter {key} to {value}; unable to hyperparameters')
+        self.validate()
 
     def _detect_classes_from_labels(
         self,
@@ -293,6 +251,60 @@ class _ModelParams:
 
     def validate(self) -> bool:
         """Check that hyperparameter combinations are valid."""
+
+        # Assertions.
+        assert isinstance(self.tile_px, int)
+        assert isinstance(self.tile_um, (str, int))
+        assert isinstance(self.toplayer_epochs, int)
+        assert isinstance(self.epochs, (int, list))
+        if isinstance(self.epochs, list):
+            assert all([isinstance(t, int) for t in self.epochs])
+        assert self.pooling in ['max', 'avg', 'none']
+        assert isinstance(self.learning_rate, float)
+        assert isinstance(self.learning_rate_decay, (int, float))
+        assert isinstance(self.learning_rate_decay_steps, (int))
+        assert isinstance(self.batch_size, int)
+        assert isinstance(self.hidden_layers, int)
+        assert isinstance(self.manual_early_stop_batch, int) or self.manual_early_stop_batch is None
+        assert isinstance(self.manual_early_stop_epoch, int) or self.manual_early_stop_epoch is None
+        assert isinstance(self.early_stop, bool)
+        assert isinstance(self.early_stop_patience, int)
+        assert self.early_stop_method in ['loss', 'accuracy', 'manual']
+        assert self.training_balance in ['auto', 'tile', 'category', 'patient', 'slide', 'none', None]
+        assert self.validation_balance in ['tile', 'category', 'patient', 'slide', 'none', None]
+        assert isinstance(self.hidden_layer_width, int)
+        assert isinstance(self.trainable_layers, int)
+        assert isinstance(self.l1, (int, float))
+        assert isinstance(self.l2, (int, float))
+        assert isinstance(self.dropout, (int, float))
+        assert isinstance(self.uq, bool)
+        assert isinstance(self.augment, (bool, str))
+        assert isinstance(self.drop_images, bool)
+        assert isinstance(self.include_top, bool)
+
+        assert 0 <= self.learning_rate_decay <= 1
+        assert 0 <= self.l1 <= 1
+        assert 0 <= self.l2 <= 1
+        assert 0 <= self.dropout <= 1
+
+        if self.l1_dense is not None:
+            assert isinstance(self.l1_dense, (int, float))
+            assert 0 <= self.l1_dense <= 1
+
+        if self.l2_dense is not None:
+            assert isinstance(self.l2_dense, (int, float))
+            assert 0 <= self.l2_dense <= 1
+
+        # Specific considerations.
+        if isinstance(self.tile_um, str):
+            sf.util.assert_is_mag(self.tile_um)
+            self.tile_um = self.tile_um.lower()
+        if self.training_balance == 'auto':
+            self.training_balance = 'category' if self.model_type() == 'categorical' else 'patient'
+        if not isinstance(self.epochs, list):
+            self.epochs = [self.epochs]
+
+        # Model type validations.
         if (self.model_type() != 'categorical' and ((self.training_balance == 'category') or
                                                     (self.validation_balance == 'category'))):
             raise errors.ModelParamsError(
