@@ -9,15 +9,15 @@ from typing import (TYPE_CHECKING, Any, Callable, Dict, Iterable, List,
                     Optional, Tuple, Union)
 
 import numpy as np
-import torch
-import torchvision
-from tqdm import tqdm
-
 import slideflow as sf
+import torchvision
 from slideflow import errors
 from slideflow.io.io_utils import detect_tfrecord_format
 from slideflow.tfrecord.torch.dataset import MultiTFRecordDataset
 from slideflow.util import Labels, log, to_onehot
+from tqdm import tqdm
+
+import torch
 
 if TYPE_CHECKING:
     from slideflow.norm import StainNormalizer
@@ -294,6 +294,67 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
         else:
             return np.zeros((1,))
 
+
+class PredictionInterleaver(InterleaveIterator):
+    def __init__(self, classifier_path, classifier_layers, img_um, pca_pkl=None, *args, **kwargs):
+        import pickle
+
+        super().__init__(*args, **kwargs)
+        self.classifier = sf.model.tensorflow.Features(classifier_path, layers=classifier_layers, include_logits=False)
+        self.classifier_normalizer = sf.util.get_model_normalizer(classifier_path)
+        classifier_config = sf.util.get_model_config(classifier_path)
+        self.classifier_um = classifier_config['hp']['tile_um']
+        self.classifier_px = classifier_config['hp']['tile_px']
+        self.source_um = img_um
+        self.source_px = self.img_size
+
+        resize_factor = self.classifier_um / self.source_um
+        self.crop_width = int(resize_factor * self.source_px)
+        self.crop_upper = int(self.source_px/2 - self.crop_width/2)
+        self.crop_left = int(self.source_px/2 - self.crop_width/2)
+
+        if pca_pkl is not None:
+            with open(pca_pkl, 'rb') as f:
+                self.pca = pickle.load(f)
+        else:
+            self.pca = None
+
+    def _predict(self, image: torch.Tensor) -> np.ndarray:
+        from torchvision import transforms
+
+        import tensorflow as tf
+
+        images = transforms.functional.crop(images, self.crop_upper, self.crop_left, self.crop_width, self.crop_width)
+        image = tf.convert_to_tensor(image.numpy())
+        img = tf.image.resize(img, (self.classifier_px, self.classifier_px), method='lanczos3', antialias=True)
+        img = tf.cast(img, tf.uint8)
+        if self.classifier_normalizer is not None:
+            image = self.classifier_normalizer.rgb_to_rgb(image)
+        image = tf.image.per_image_standardization(image)
+        image = tf.expand_dims(image, axis=0)
+        pred = np.squeeze(self.classifier({'tile_image': image}).numpy())
+        if self.pca is not None:
+            return self.pca.transform([pred])[0]
+        else:
+            return pred
+
+    def _parser(
+        self,
+        image: torch.Tensor,
+        slide: str,
+        loc_x: Optional[int] = None,
+        loc_y: Optional[int] = None
+    ) -> List[torch.Tensor]:
+
+        label = self._predict(image)
+        label = 0
+        image = image.permute(2, 0, 1)  # HWC => CHW
+        to_return = [image, torch.tensor(label)]  # type: List[Any]
+        if self.incl_slidenames:
+            to_return += [slide]
+        if self.incl_loc:
+            to_return += [loc_x, loc_y]
+        return to_return
 
 def _get_images_by_dir(directory: str) -> List[str]:
     files = [

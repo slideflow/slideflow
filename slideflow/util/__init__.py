@@ -685,6 +685,24 @@ def get_model_config(model_path: Path) -> Dict:
     return config
 
 
+def get_model_normalizer(
+    model_path: Path
+) -> Optional["sf.norm.StainNormalizer"]:
+    """Loads and fits normalizer using configuration at a model path."""
+
+    config = sf.util.get_model_config(model_path)
+    if config['hp']['normalizer']:
+        normalizer = sf.norm.autoselect(
+            config['hp']['normalizer'],
+            config['hp']['normalizer_source']
+        )
+        if 'norm_fit' in config and config['norm_fit'] is not None:
+            normalizer.fit(**config['norm_fit'])
+        return normalizer
+    else:
+        return None
+
+
 def get_slide_paths(slides_dir: Path) -> List[str]:
     '''Get all slide paths from a given directory containing slides.'''
     slide_list = [
