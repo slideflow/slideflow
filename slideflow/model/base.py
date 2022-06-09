@@ -52,8 +52,6 @@ class _ModelParams:
         l2_dense: Optional[float] = 0,
         dropout: Optional[float] = 0,
         augment: Optional[str] = 'xyrj',
-        gaussian_kernel: Optional[int] = 0,
-        gaussian_sigma: Optional[float] = 0,
         normalizer: Optional[str] = None,
         normalizer_source: Optional[str] = None,
         include_top: bool = True,
@@ -148,8 +146,6 @@ class _ModelParams:
         self.normalizer = normalizer
         self.normalizer_source = normalizer_source
         self.augment = augment
-        self.gaussian_kernel = gaussian_kernel
-        self.gaussian_sigma = gaussian_sigma
         self.drop_images = drop_images
         self.include_top = include_top
 
