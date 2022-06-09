@@ -9,9 +9,6 @@ from typing import (TYPE_CHECKING, Any, Callable, Dict, Iterable, List,
                     Optional, Tuple, Union)
 
 import numpy as np
-import tensorflow as tf
-from tqdm import tqdm
-
 import slideflow as sf
 from slideflow import errors
 from slideflow.io import gaussian
@@ -19,11 +16,14 @@ from slideflow.io.io_utils import detect_tfrecord_format
 from slideflow.util import Labels
 from slideflow.util import colors as col
 from slideflow.util import log
+from tqdm import tqdm
+
+import tensorflow as tf
 
 if TYPE_CHECKING:
-    from tensorflow.core.example.feature_pb2 import Example, Feature
-
     from slideflow.norm import StainNormalizer
+
+    from tensorflow.core.example.feature_pb2 import Example, Feature
 
 
 FEATURE_DESCRIPTION = {
@@ -79,8 +79,6 @@ def process_image(
     *args: Any,
     standardize: bool = False,
     augment: bool = False,
-    fixed_gaussian_kernel: int = 0,
-    fixed_gaussian_sigma: float = 0,
     size: Optional[int] = None
 ) -> Tuple[Union[Dict, tf.Tensor], ...]:
     """Applies augmentations and/or standardization to an image Tensor."""
@@ -143,12 +141,6 @@ def process_image(
                 false_fn=lambda: gaussian.auto_gaussian(image, sigma=0.5),
             ),
             false_fn=lambda: image
-        )
-    if (fixed_gaussian_kernel > 0 and fixed_gaussian_sigma > 0):
-        image = gaussian.gaussian_filter2d(
-            image,
-            fixed_gaussian_kernel,
-            sigma=fixed_gaussian_sigma
         )
     if standardize:
         image = tf.image.per_image_standardization(image)
@@ -297,8 +289,6 @@ def interleave(
     incl_loc: Optional[str] = None,
     infinite: bool = True,
     augment: bool = False,
-    fixed_gaussian_kernel: int = 0,
-    fixed_gaussian_sigma: float = 0,
     standardize: bool = True,
     normalizer: Optional["StainNormalizer"] = None,
     num_shards: Optional[int] = None,
@@ -364,10 +354,6 @@ def interleave(
         f'Interleaving {len(tfrecords)} tfrecords: infinite={infinite}, '
         f'num_parallel_reads={num_parallel_reads}'
     )
-    if (fixed_gaussian_kernel and fixed_gaussian_sigma):
-        log.debug(f"Training with gaussian blur "
-                  f"(kernel={fixed_gaussian_kernel}) "
-                  f"(sigma={fixed_gaussian_sigma})")
     if num_shards:
         log.debug(f'num_shards={num_shards}, shard_idx={shard_idx}')
 
@@ -454,8 +440,6 @@ def interleave(
                 process_image,
                 standardize=standardize,
                 augment=augment,
-                fixed_gaussian_kernel=fixed_gaussian_kernel,
-                fixed_gaussian_sigma=fixed_gaussian_sigma,
                 size=img_size
             ),
             num_parallel_calls=tf.data.AUTOTUNE,
