@@ -2,6 +2,7 @@ import multiprocessing as mp
 import os
 import random
 import threading
+import pandas as pd
 from os import listdir
 from os.path import dirname, exists, isfile, join
 from queue import Queue
@@ -293,6 +294,43 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
             return [np.random.rand()]
         else:
             return np.zeros((1,))
+
+
+class LocLabelInterleaver(InterleaveIterator):
+    def __init__(self, loc_labels: str, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+
+        self.df = pd.read_parquet(loc_labels)
+        self.incl_loc = True
+        first_index, first_row  = next(self.df.iterrows())
+        self._label_shape = first_row.label.shape
+
+    @property
+    def label_shape(self) -> Union[int, Tuple[int, ...]]:
+        '''For use with StyleGAN2'''
+        return self._label_shape
+
+    def _parser(
+        self,
+        image: torch.Tensor,
+        slide: str,
+        loc_x: int,
+        loc_y: int
+    ) -> List[torch.Tensor]:
+
+        label_key = f'{slide}-{loc_x}-{loc_y}'
+        label = torch.tensor(self.df.iloc[self.df.index.get_loc(label_key)])[0]
+
+        image = image.permute(2, 0, 1)  # HWC => CHW
+        to_return = [image, label]  # type: List[Any]
+
+        if self.incl_slidenames:
+            to_return += [slide]
+        return to_return
+
+    def get_label(self, idx: Any) -> Any:
+        '''Returns a random label. Used for compatibility with StyleGAN2.'''
+        return np.random.rand(*self.label_shape)
 
 
 def _get_images_by_dir(directory: str) -> List[str]:
