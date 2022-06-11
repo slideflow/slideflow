@@ -835,7 +835,6 @@ def _generate_tile_roc(
 
 def _average_by_group(
     pred_arr: np.ndarray,
-    pred_label: str,
     unique_groups: np.ndarray,
     tile_to_group: np.ndarray,
     y_true_group: Dict[str, float],
@@ -849,12 +848,11 @@ def _average_by_group(
 
     """Generate group-level averages (slide- or patient-level).
 
-    For a given tile-level prediction array, calculate spercent predictions
+    For a given tile-level prediction array, calculate percent predictions
     in each outcome by group (e.g. patient, slide), saving to CSV if specified.
 
     Args:
         pred_arr (np.ndarray): Array of tile-level predictions.
-        pred_label (np.ndarray): Array of tile-level labels.
         unique_groups (np.ndarray): Array of unique groups.
         tile_to_group (np.ndarray): Array of tile-level group assignments.
     """
@@ -892,7 +890,7 @@ def _average_by_group(
         with open(save_path, 'w') as outfile:
             writer = csv.writer(outfile)
             y_true_head = [f"y_true{i}" for i in range(num_cat)]
-            y_pred_head = [f"{pred_label}{j}" for j in range(num_cat)]
+            y_pred_head = [f"y_pred_{label}{j}" for j in range(num_cat)]
             header = [label] + y_true_head + y_pred_head
             if uncertainty is not None:
                 header += [f'uncertainty{i}' for i in range(num_cat)]
@@ -918,7 +916,6 @@ def _cph_metrics(args: SimpleNamespace) -> None:
     args.c_index['tile'] = concordance_index(args.y_true, args.y_pred)
     avg_by_slide = _average_by_group(
         args.y_pred,
-        pred_label="average",
         unique_groups=args.unique_slides,
         tile_to_group=args.tile_to_slides,
         y_true_group=args.y_true_slide,
@@ -935,7 +932,6 @@ def _cph_metrics(args: SimpleNamespace) -> None:
     if not args.patient_error:
         avg_by_patient = _average_by_group(
             args.y_pred,
-            pred_label="average",
             unique_groups=args.patients,
             tile_to_group=args.tile_to_patients,
             y_true_group=args.y_true_patient,
@@ -969,7 +965,6 @@ def _linear_metrics(args: SimpleNamespace) -> None:
     # Generate and save slide-level averages of each outcome
     avg_by_slide = _average_by_group(
         args.y_pred,
-        pred_label="average",
         unique_groups=args.unique_slides,
         tile_to_group=args.tile_to_slides,
         y_true_group=args.y_true_slide,
@@ -993,7 +988,6 @@ def _linear_metrics(args: SimpleNamespace) -> None:
         # Generate and save patient-level averages of each outcome
         avg_by_patient = _average_by_group(
             args.y_pred,
-            pred_label="average",
             unique_groups=args.patients,
             tile_to_group=args.tile_to_patients,
             y_true_group=args.y_true_patient,
@@ -1095,7 +1089,6 @@ def _categorical_metrics(args: SimpleNamespace, outcome_name: str) -> None:
     # Generate slide-level percent calls
     percent_calls_by_slide = _average_by_group(
         onehot_predictions if args.cat_reduce == 'onehot' else args.y_pred,
-        pred_label="percent_tiles_positive",
         unique_groups=args.unique_slides,
         tile_to_group=args.tile_to_slides,
         y_true_group=args.y_true_slide,
@@ -1133,7 +1126,6 @@ def _categorical_metrics(args: SimpleNamespace, outcome_name: str) -> None:
         # Generate patient-level percent calls
         percent_calls_by_patient = _average_by_group(
             onehot_predictions if args.cat_reduce == 'onehot' else args.y_pred,
-            pred_label="percent_tiles_positive",
             unique_groups=args.patients,
             tile_to_group=args.tile_to_patients,
             y_true_group=args.y_true_patient,
@@ -1415,7 +1407,7 @@ def read_predictions(
     """Reads predictions from a previously saved CSV file."""
     predictions = {}  # type: Dict[str, Dict[str, List[float]]]
     if level in ('patient', 'slide'):
-        y_pred_label = 'percent_tiles_positive'
+        y_pred_label = f'y_pred_{level}'
     else:
         y_pred_label = 'y_pred'
     with open(path, 'r') as csvfile:
