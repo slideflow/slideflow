@@ -216,7 +216,8 @@ def _fill_queue(
 def split_patients_preserved_site(
     patients_dict: Dict[str, Dict],
     n: int,
-    balance: str
+    balance: str,
+    method: str = 'auto'
 ) -> List[List[str]]:
     """Splits a dictionary of patients into n groups,
     balancing according to key "balance" while preserving site.
@@ -226,12 +227,12 @@ def split_patients_preserved_site(
             dict of outcomes: labels
         n (int): Number of splits to generate.
         balance (str): Annotation header to balance splits across.
+        method (str): Solver method. 'auto', 'cplex', or 'bonmin'. If 'auto',
+            will use CPLEX if availabe, otherwise will default to pyomo/bonmin.
 
     Returns:
         List of patient splits
     """
-    if not sf.util.CPLEX_AVAILABLE:
-        raise errors.CPLEXNotFoundError
     patient_list = list(patients_dict.keys())
     shuffle(patient_list)
 
@@ -255,13 +256,7 @@ def split_patients_preserved_site(
         columns=['patient', 'outcome_label', 'site']
     )
     df = cv.generate(
-        df,
-        'outcome_label',
-        unique_labels,
-        crossfolds=n,
-        target_column='CV',
-        patient_column='patient',
-        site_column='site'
+        df, 'outcome_label', k=n, target_column='CV', method=method
     )
     log.info(col.bold("Train/val split with Preserved-Site Cross-Val"))
     log.info(col.bold(

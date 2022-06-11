@@ -4,7 +4,6 @@ import shutil
 import unittest
 
 import pandas as pd
-
 import slideflow as sf
 from slideflow.test.utils import TestConfig
 
@@ -105,27 +104,51 @@ class TestSplits(unittest.TestCase):
         # Assert that sites are not shared between splits
         self.assertTrue(sorted(flattened_sites) == sorted(self.sites))
 
-    def test_site_preserved_split_three_splits(self):
+    def test_site_preserved_cplex_three_splits(self):
         try:
             splits = sf.dataset.split_patients_preserved_site(
-                self.patients_dict, n=3, balance='outcome'
+                self.patients_dict, n=3, balance='outcome', method='cplex'
             )
-            self._test_split(splits)
-        except sf.errors.CPLEXNotFoundError:
+            self._test_site_split(splits)
+        except sf.errors.SolverNotFoundError:
             sf.util.log.error(
                 'CPLEX not installed, unable to test site-preserved'
                 'cross-validation.'
             )
 
-    def test_site_preserved_split_five_splits(self):
+    def test_site_preserved_cplex_five_splits(self):
         try:
             splits = sf.dataset.split_patients_preserved_site(
-                self.patients_dict, n=5, balance='outcome'
+                self.patients_dict, n=5, balance='outcome', method='cplex'
             )
-            self._test_split(splits)
-        except sf.errors.CPLEXNotFoundError:
+            self._test_site_split(splits)
+        except sf.errors.SolverNotFoundError:
             sf.util.log.error(
                 'CPLEX not installed, unable to test site-preserved '
+                'cross-validation.'
+            )
+
+    def test_site_preserved_bonmin_three_splits(self):
+        try:
+            splits = sf.dataset.split_patients_preserved_site(
+                self.patients_dict, n=3, balance='outcome', method='bonmin'
+            )
+            self._test_site_split(splits)
+        except sf.errors.SolverNotFoundError:
+            sf.util.log.error(
+                'Pyomo/bonmin not installed, unable to test site-preserved'
+                'cross-validation.'
+            )
+
+    def test_site_preserved_bonmin_five_splits(self):
+        try:
+            splits = sf.dataset.split_patients_preserved_site(
+                self.patients_dict, n=5, balance='outcome', method='bonmin'
+            )
+            self._test_site_split(splits)
+        except sf.errors.SolverNotFoundError:
+            sf.util.log.error(
+                'Pyomo/bonmin not installed, unable to test site-preserved '
                 'cross-validation.'
             )
 

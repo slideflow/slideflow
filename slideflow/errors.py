@@ -1,12 +1,9 @@
 '''Slideflow module errors.'''
 
 
-# --- CPLEX errors ------------------------------------------------------------
-class CPLEXNotFoundError(Exception):
-    def __init__(self):
-        msg = 'CPLEX not found; unable to perform preserved-site validation.'
-        super().__init__(msg)
-
+# --- CPLEX / bonmin errors ---------------------------------------------------
+class SolverNotFoundError(Exception):
+    pass
 
 # --- DatasetErrors -----------------------------------------------------------
 class DatasetError(Exception):
