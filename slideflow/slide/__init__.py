@@ -1360,6 +1360,49 @@ class WSI(_BaseLoader):
         base += ")"
         return base
 
+    def __getitem__(self, index):
+        if (not isinstance(index, (tuple, list, np.ndarray))
+           or not len(index) == 2):
+            raise IndexError("Index must have exactly two elements (row, col)")
+
+        # Find the corresponding coordinate given the provided indices.
+        coord_idx, = np.where((
+            (self.coord[:, 5] == index[0])
+            & (self.coord[:, 4] == index[1])
+        ))
+        if not len(coord_idx):
+            return None
+        assert len(coord_idx) == 1
+
+        # Extract the numpy image at this grid location.
+        image_dict, _ = _wsi_extraction_worker(
+            self.coord[coord_idx[0]],
+            SimpleNamespace(
+                full_extract_px=self.full_extract_px,
+                roi_scale=self.roi_scale,
+                roi_method=self.roi_method,
+                rois=self.rois,
+                annPolys=self.annPolys,
+                downsample_level=self.downsample_level,
+                path=self.path,
+                extract_px=self.extract_px,
+                tile_px=self.tile_px,
+                full_stride=self.full_stride,
+                normalizer=None,
+                normalizer_source=None,
+                whitespace_fraction=1,
+                whitespace_threshold=1,
+                grayspace_fraction=1,
+                grayspace_threshold=1,
+                include_loc=False,
+                img_format='numpy',
+                yolo=False,
+                draw_roi=False,
+                dry_run=False
+            )
+        )
+        return image_dict['image']
+
     def _build_coord(self) -> None:
         '''Set up coordinate grid.'''
 
@@ -1404,6 +1447,10 @@ class WSI(_BaseLoader):
             dtype=bool
         )
         self.grid = np.zeros((len(x_range), len(y_range)))
+
+    @property
+    def shape(self):
+        return self.grid.shape
 
     def extract_tiles(
         self,
@@ -1566,7 +1613,6 @@ class WSI(_BaseLoader):
             'roi_method': self.roi_method,
             'rois': self.rois,
             'annPolys': self.annPolys,
-            'estimated_num_tiles': self.estimated_num_tiles,
             'downsample_level': self.downsample_level,
             'filter_downsample_level': filter_lev,
             'filter_downsample_ratio': filter_downsample_ratio,
