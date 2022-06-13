@@ -882,7 +882,7 @@ def tfrecord_heatmap(
         )
 
     log.info(f'Generating TFRecord heatmap for {col.green(tfrecord)}...')
-    wsi = sf.slide.WSI(slide, tile_px, tile_um, skip_missing_roi=False)
+    wsi = sf.slide.WSI(slide, tile_px, tile_um)
 
     stats = {}
 

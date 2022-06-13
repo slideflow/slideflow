@@ -163,23 +163,22 @@ def _tile_extractor(
         # Apply quality control (blur filtering)
         if qc:
             slide.qc(method=qc, **qc_kwargs)
-        if not slide.loaded_correctly():
-            return
-        try:
-            report = slide.extract_tiles(
-                tfrecord_dir=tfrecord_dir,
-                tiles_dir=tiles_dir,
-                **generator_kwargs
-            )
-        except errors.TileCorruptionError:
-            log.error(f'{path} corrupt; skipping')
-            return
-        del slide
+        report = slide.extract_tiles(
+            tfrecord_dir=tfrecord_dir,
+            tiles_dir=tiles_dir,
+            **generator_kwargs
+        )
         reports.update({path: report})
+    except errors.MissingROIError:
+        log.debug(f'Missing ROI for slide {path}; skipping')
+    except errors.SlideLoadError:
+        log.error(f'Error loading slide {path}; skipping')
+    except errors.QCError as e:
+        log.error(e)
+    except errors.TileCorruptionError:
+        log.error(f'{path} corrupt; skipping')
     except (KeyboardInterrupt, SystemExit):
         print('Exiting...')
-        return
-
 
 def _fill_queue(
     slide_list: Sequence[str],
@@ -876,9 +875,8 @@ class Dataset:
         source: Optional[str] = None,
         stride_div: int = 1,
         enable_downsample: bool = True,
-        roi_method: str = 'inside',
+        roi_method: str = 'auto',
         skip_extracted: bool = True,
-        skip_missing_roi: bool = False,
         tma: bool = False,
         randomize_origin: bool = False,
         buffer: Optional[str] = None,
@@ -907,13 +905,17 @@ class Dataset:
             enable_downsample (bool, optional): Enable downsampling for slides.
                 This may result in corrupted image tiles if downsampled slide
                 layers are corrupted or incomplete. Defaults to True.
-            roi_method (str, optional): Either 'inside', 'outside' or 'ignore'.
-                Indicates whether tiles are extracted inside or outside ROIs,
-                or if ROIs are ignored entirely. Defaults to 'inside'.
+            roi_method (str): Either 'inside', 'outside', 'auto', or 'ignore'.
+                Determines how ROIs are used to extract tiles.
+                If 'inside' or 'outside', will extract tiles in/out of an ROI,
+                and raise errors.MissingROIError if an ROI is not available.
+                If 'auto', will extract tiles inside an ROI if available,
+                and across the whole-slide if no ROI is found.
+                If 'ignore', will extract tiles across the whole-slide
+                regardless of wheter an ROI is available.
+                Defaults to 'auto'.
             skip_extracted (bool, optional): Skip slides that have already
                 been extracted. Defaults to True.
-            skip_missing_roi (bool, optional): Skip slides missing ROIs.
-                Defaults to False.
             tma (bool, optional): Reads slides as Tumor Micro-Arrays (TMAs),
                 detecting and extracting tumor cores. Defaults to False.
                 Experimental function with limited testing.
@@ -1055,28 +1057,32 @@ class Dataset:
             for slide_path in tqdm(slide_list,
                                    leave=False,
                                    desc="Verifying slides..."):
-                if tma:
-                    slide = sf.slide.TMA(
-                        slide_path,
-                        self.tile_px,
-                        self.tile_um,
-                        stride_div,
-                    )  # type: sf.slide._BaseLoader
+                try:
+                    if tma:
+                        slide = sf.slide.TMA(
+                            slide_path,
+                            self.tile_px,
+                            self.tile_um,
+                            stride_div,
+                        )  # type: sf.slide._BaseLoader
+                    else:
+                        slide = sf.slide.WSI(
+                            slide_path,
+                            self.tile_px,
+                            self.tile_um,
+                            stride_div,
+                            roi_dir=roi_dir,
+                            roi_method=roi_method,
+                            silent=True
+                        )
+                except errors.SlideError as e:
+                    log.debug(f"Skipping {slide_path}")
+                    continue
                 else:
-                    slide = sf.slide.WSI(
-                        slide_path,
-                        self.tile_px,
-                        self.tile_um,
-                        stride_div,
-                        roi_dir=roi_dir,
-                        roi_method=roi_method,
-                        skip_missing_roi=skip_missing_roi,
-                        silent=True
-                    )
-                est = slide.estimated_num_tiles  # type: ignore
-                log.debug(f"Estimated tiles for slide {slide.name}: {est}")
-                total_tiles += est
-                del slide
+                    est = slide.estimated_num_tiles  # type: ignore
+                    log.debug(f"Estimated tiles for slide {slide.name}: {est}")
+                    total_tiles += est
+                    del slide
             log.info(f'Total estimated tiles to extract: {total_tiles}')
 
             # Use multithreading if specified, extracting tiles
@@ -1125,7 +1131,6 @@ class Dataset:
                     'roi_dir': roi_dir,
                     'roi_method': roi_method,
                     'randomize_origin': randomize_origin,
-                    'skip_missing_roi': skip_missing_roi,
                     'pb_counter': counter,
                     'counter_lock': counter_lock
                 }
@@ -1760,14 +1765,16 @@ class Dataset:
             slidename = path_to_name(tfr)
             if slidename not in slides:
                 continue
-            slide = WSI(
-                slides[slidename],
-                self.tile_px,
-                self.tile_um,
-                rois=rois,
-                skip_missing_roi=True
-            )
-            if slide.load_error:
+            try:
+                slide = WSI(
+                    slides[slidename],
+                    self.tile_px,
+                    self.tile_um,
+                    rois=rois,
+                    roi_method='inside'
+                )
+            except errors.SlideLoadError as e:
+                log.error(e)
                 continue
             parser = sf.io.get_tfrecord_parser(
                 tfr,
@@ -2141,14 +2148,16 @@ class Dataset:
         for slide_path in slide_list:
             fmt_name = col.green(path_to_name(slide_path))
             log.info(f'Working on {fmt_name}...')
-            whole_slide = WSI(slide_path,
-                              tile_px=1000,
-                              tile_um=1000,
-                              stride_div=1,
-                              enable_downsample=enable_downsample,
-                              rois=rois,
-                              roi_method='inside',
-                              skip_missing_roi=roi)
+            try:
+                whole_slide = WSI(slide_path,
+                                  tile_px=1000,
+                                  tile_um=1000,
+                                  stride_div=1,
+                                  enable_downsample=enable_downsample,
+                                  rois=rois,
+                                  roi_method='inside' if roi else 'auto')
+            except errors.MissingROIError:
+                log.info(f"Skipping {whole_slide.name}; missing ROI")
             if roi:
                 thumb = whole_slide.thumb(rois=True)
             else:

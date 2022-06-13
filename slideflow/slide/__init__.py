@@ -26,18 +26,17 @@ import pyvips as vips
 import shapely.geometry as sg
 import skimage
 import skimage.filters
+import slideflow as sf
 from PIL import Image, ImageDraw, UnidentifiedImageError
 from skimage import img_as_ubyte
 from skimage.color import rgb2gray
-from tqdm import tqdm
-
-import slideflow as sf
 from slideflow import errors
-from slideflow.slide.report import (ExtractionPDF,  # noqa F401
-                                    ExtractionReport, SlideReport)
+from slideflow.slide.report import ExtractionPDF  # noqa F401
+from slideflow.slide.report import ExtractionReport, SlideReport
 from slideflow.util import SUPPORTED_FORMATS, Path  # noqa F401
 from slideflow.util import colors as col
 from slideflow.util import log, path_to_name  # noqa F401
+from tqdm import tqdm
 
 warnings.simplefilter('ignore', Image.DecompressionBombWarning)
 Image.MAX_IMAGE_PIXELS = 100000000000
@@ -609,7 +608,6 @@ class _BaseLoader:
         counter_lock: Optional[Union[sf.util.DummyLock,
                                      "mp.synchronize.Lock"]] = None
     ) -> None:
-        self.load_error = False
 
         # if a progress bar is not directly provided, use the provided
         # multiprocess-friendly progress bar counter and lock
@@ -648,23 +646,21 @@ class _BaseLoader:
                 try:
                     self.slide = _VIPSWrapper(path)
                 except vips.error.Error as e:
-                    log.error(f"Error loading slide {self.shortname}: {e}")
-                    self.load_error = True
-                    return
+                    raise errors.SlideLoadError(
+                        f"Error loading slide {self.shortname}: {e}"
+                    )
         else:
-            log.error(f"{self.name}: unsupported filetype '{filetype}'")
-            self.load_error = True
-            return
+            raise errors.SlideLoadError(
+                f"{self.name}: unsupported filetype '{filetype}'"
+            )
 
         # Collect basic slide information
         try:
             self.mpp = float(self.slide.properties[OPS_MPP_X])
         except KeyError:
-            log.error(
+            raise errors.SlideLoadError(
                 f"Slide {col.green(self.name)} missing MPP ({OPS_MPP_X})"
             )
-            self.load_error = True
-            return
         self.full_shape = self.slide.dimensions
 
         # Calculate downsample by magnification
@@ -677,11 +673,10 @@ class _BaseLoader:
                 key=lambda x: abs(x - sf.util.to_mag(tile_um))  # type: ignore
             )
             if abs(closest_mag - sf.util.to_mag(tile_um)) > 2:
-                log.error(
+                raise errors.SlideLoadError(
                     f"{self.name}: Could not find magnification level "
-                    f"matching {tile_um} (closest: {closest_mag:.1f})")
-                self.load_error = True
-                return
+                    f"matching {tile_um} (closest: {closest_mag:.1f})"
+                )
             ds_level = mag_levels.index(closest_mag)
             if not enable_downsample and ds_level != 0:
                 raise ValueError(f"Unable to use magnification {tile_um} with "
@@ -715,7 +710,7 @@ class _BaseLoader:
 
         # Calculate shape and stride
         self.downsample_level = ds_level
-        self.shape = self.slide.level_dimensions[self.downsample_level]
+        self.downsample_shape = self.slide.level_dimensions[ds_level]
         self.stride = self.extract_px // stride_div
         self.full_stride = self.full_extract_px // stride_div
 
@@ -791,11 +786,9 @@ class _BaseLoader:
         if method in ('blur', 'both'):
             thumb = self.thumb(mpp=blur_mpp)
             if thumb is None:
-                log.error(
+                raise errors.QCError(
                     f"Thumbnail error for slide {self.shortname}, QC failed"
                 )
-                self.load_error = True
-                return None
             thumb = np.array(thumb)
             if thumb.shape[-1] == 4:
                 thumb = thumb[:, :, :3]
@@ -819,11 +812,9 @@ class _BaseLoader:
             try:
                 otsu_thumb = vips2numpy(otsu_thumb)
             except vips.error.Error:
-                log.error(
+                raise errors.QCError(
                     f"Thumbnail error for slide {self.shortname}, QC failed"
                 )
-                self.load_error = True
-                return None
             if otsu_thumb.shape[-1] == 4:
                 otsu_thumb = otsu_thumb[:, :, :3]
             hsv_img = cv2.cvtColor(otsu_thumb, cv2.COLOR_RGB2HSV)
@@ -958,9 +949,7 @@ class _BaseLoader:
         try:
             np_thumb = vips2numpy(thumbnail)
         except vips.error.Error as e:
-            log.error(f"Error loading slide thumbnail: {e}")
-            self.load_error = True
-            return None
+            raise errors.SlideLoadError(f"Error loading slide thumbnail: {e}")
         image = Image.fromarray(np_thumb).resize((width, height))
 
         if coords:
@@ -1012,20 +1001,6 @@ class _BaseLoader:
             yield None
 
         return empty_generator
-
-    def loaded_correctly(self) -> bool:
-        """Checks if slide loaded correctly.
-
-        Returns:
-            bool
-        """
-        if self.load_error:
-            return False
-        try:
-            loaded_correctly = bool(self.shape)
-        except ValueError:
-            return False
-        return loaded_correctly
 
     def extract_tiles(
         self,
@@ -1248,8 +1223,7 @@ class WSI(_BaseLoader):
         enable_downsample: bool = True,
         roi_dir: Optional[Path] = None,
         rois: Optional[List[str]] = None,
-        roi_method: str = 'inside',
-        skip_missing_roi: bool = False,
+        roi_method: str = 'auto',
         randomize_origin: bool = False,
         pb: Optional[sf.util.ProgressBar] = None,
         pb_counter: Optional["mp.sharedctypes.Synchronized"] = None,
@@ -1274,11 +1248,15 @@ class WSI(_BaseLoader):
                 files. Defaults to None.
             rois (list(str)): Alternatively, a list of ROI paths can be
                 explicitly provided. Defaults to None.
-            roi_method (str): Either 'inside', 'outside', or 'ignore'.
+            roi_method (str): Either 'inside', 'outside', 'auto', or 'ignore'.
                 Determines how ROIs are used to extract tiles.
-                Defaults to 'inside'.
-            skip_missing_roi (bool, optional): Skip tiles that are missing a
-                ROI file. Defaults to False.
+                If 'inside' or 'outside', will extract tiles in/out of an ROI,
+                and raise errors.MissingROIError if an ROI is not available.
+                If 'auto', will extract tiles inside an ROI if available,
+                and across the whole-slide if no ROI is found.
+                If 'ignore', will extract tiles across the whole-slide
+                regardless of wheter an ROI is available.
+                Defaults to 'auto'.
             randomize_origin (bool, optional): Offset the starting grid by a
                 random amount. Defaults to False.
             pb (:class:`slideflow.util.ProgressBar`, optional): Multiprocessing
@@ -1313,9 +1291,6 @@ class WSI(_BaseLoader):
         self.rois = []  # type: List
         self.roi_method = roi_method
         self.randomize_origin = randomize_origin
-
-        if not self.loaded_correctly():
-            return
 
         # Build coordinate grid
         self._build_coord()
@@ -1352,22 +1327,20 @@ class WSI(_BaseLoader):
                 log.warning(warn_msg)
             else:
                 log.debug(warn_msg)
-        if not len(self.rois) and skip_missing_roi and roi_method != 'ignore':
-            warn_msg = f"Slide {col.green(self.name)} missing ROI, skipping"
-            if not silent:
-                log.warning(warn_msg)
-            else:
-                log.debug(warn_msg)
-            self.shape = None
-            self.load_error = True
-            return None
+        if not len(self.rois) and roi_method in ('inside', 'outside'):
+            raise errors.MissingROIError(
+                f"Slide {col.green(self.name)} missing ROI."
+            )
         elif not len(self.rois):
             info_msg = f"No ROI for {self.name}, using whole slide."
-            if not silent and roi_method != 'ignore':
+            if not silent and roi_method == 'auto':
                 log.info(info_msg)
             else:
                 log.debug(info_msg)
             self.roi_method = 'ignore'
+        elif len(self.rois) and roi_method == 'auto':
+            log.debug(f"Slide {self.name}: extracting tiles from inside ROI.")
+            self.roi_method = 'inside'
 
         mpp_roi_msg = f'{self.mpp} um/px | {len(self.rois)} ROI(s)'
         size_msg = f'Size: {self.full_shape[0]} x {self.full_shape[1]}'
@@ -1375,11 +1348,6 @@ class WSI(_BaseLoader):
         grid_msg = f"{self.shortname}: Grid shape: {self.grid.shape} "
         grid_msg += f"| Tiles to extract: {self.estimated_num_tiles}"
         log.debug(grid_msg)
-
-        # Abort if errors were raised during ROI loading
-        if self.load_error:
-            log.error(f'Error with slide {col.green(self.name)}; skipping')
-            return None
 
     def __repr__(self) -> str:
         base = "WSI(\n"
@@ -1731,12 +1699,10 @@ class WSI(_BaseLoader):
                 index_x = headers.index("x_base")
                 index_y = headers.index("y_base")
             except Exception:
-                log.error(
+                raise errors.ROIError(
                     f'Unable to read CSV ROI {col.green(path)}. Please ensure '
                     'headers contain "ROI_name", "X_base and "Y_base".'
                 )
-                self.load_error = True
-                return 0
             for row in reader:
                 roi_name = row[index_name]
                 x_coord = int(float(row[index_x]))
@@ -1837,8 +1803,6 @@ class TMA(_BaseLoader):
             enable_downsample,
             pb
         )
-        if not self.loaded_correctly():
-            return
         self.object_rects = []  # type: List
         self.box_areas = []  # type: List
         self.DIM = self.slide.dimensions

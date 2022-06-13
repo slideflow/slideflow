@@ -1210,11 +1210,15 @@ class Project:
                 reading slides. Defaults to True. This may result in corrupted
                 image tiles if downsampled slide layers are corrupted or
                 incomplete. Recommend manual confirmation of tile integrity.
-            roi_method (str, optional): Either 'inside', 'outside' or 'ignore'.
-                Indicates whether tiles are extracted inside or outside ROIs,
-                or if ROIs are ignored entirely. Defaults to 'inside'.
-            skip_missing_roi (bool, optional): Skip slides that missing ROIs.
-                Defaults to False.
+            roi_method (str): Either 'inside', 'outside', 'auto', or 'ignore'.
+                Determines how ROIs are used to extract tiles.
+                If 'inside' or 'outside', will extract tiles in/out of an ROI,
+                and raise errors.MissingROIError if an ROI is not available.
+                If 'auto', will extract tiles inside an ROI if available,
+                and across the whole-slide if no ROI is found.
+                If 'ignore', will extract tiles across the whole-slide
+                regardless of wheter an ROI is available.
+                Defaults to 'auto'.
             skip_extracted (bool, optional): Skip already extracted slides.
                 Defaults to True.
             tma (bool, optional): Reads slides as Tumor Micro-Arrays (TMAs),
@@ -1474,9 +1478,15 @@ class Project:
                 "high" uses a stride equal to 1/4 tile width.
             batch_size (int, optional): Batch size during heatmap calculation.
                 Defaults to 64.
-            roi_method (str, optional): 'inside', 'outside', or 'none'.
-                Determines where heatmap should be made with respect to ROI.
-                Defaults to 'inside'.
+            roi_method (str): Either 'inside', 'outside', 'auto', or 'ignore'.
+                Determines how ROIs are used to extract tiles.
+                If 'inside' or 'outside', will extract tiles in/out of an ROI,
+                and raise errors.MissingROIError if an ROI is not available.
+                If 'auto', will extract tiles inside an ROI if available,
+                and across the whole-slide if no ROI is found.
+                If 'ignore', will extract tiles across the whole-slide
+                regardless of wheter an ROI is available.
+                Defaults to 'auto'.
             buffer (str, optional): Path to which slides are copied prior to
                 heatmap generation. Defaults to None.
             num_threads (int, optional): Number of threads for tile extraction.
@@ -2125,8 +2135,7 @@ class Project:
         min_tiles: int = 0,
         stride_div: int = 1,
         enable_downsample: bool = True,
-        roi_method: str = 'inside',
-        skip_missing_roi: bool = False,
+        roi_method: str = 'auto',
         source: Optional[str] = None,
         img_format: str = 'auto',
         randomize_origin: bool = False,
@@ -2154,11 +2163,15 @@ class Project:
             enable_downsample (bool, optional): Enable downsampling for slides.
                 This may result in corrupted image tiles if downsampled slide
                 layers are corrupted or incomplete. Defaults to True.
-            roi_method (str, optional): Either 'inside', 'outside' or 'ignore'.
-                Indicates whether tiles are extracted inside or outside ROIs or
-                if ROIs are ignored entirely. Defaults to 'inside'.
-            skip_missing_roi (bool, optional): Skip slides missing ROIs.
-                Defaults to True.
+            roi_method (str): Either 'inside', 'outside', 'auto', or 'ignore'.
+                Determines how ROIs are used to extract tiles.
+                If 'inside' or 'outside', will extract tiles in/out of an ROI,
+                and raise errors.MissingROIError if an ROI is not available.
+                If 'auto', will extract tiles inside an ROI if available,
+                and across the whole-slide if no ROI is found.
+                If 'ignore', will extract tiles across the whole-slide
+                regardless of wheter an ROI is available.
+                Defaults to 'auto'.
             source (list, optional): Name(s) of dataset sources from which to
                 get slides. If None, will use all.
             randomize_origin (bool, optional): Randomize pixel starting
@@ -2213,32 +2226,40 @@ class Project:
             log.info('Verifying slides...')
             total_tiles = 0
             for slide_path in tqdm(slide_list, leave=False):
-                slide = sf.WSI(slide_path,
-                               dataset.tile_px,
-                               dataset.tile_um,
-                               stride_div,
-                               roi_dir=roi_dir,
-                               roi_method=roi_method,
-                               skip_missing_roi=False)
-                n_est = slide.estimated_num_tiles
-                log.debug(f"Estimated tiles for slide {slide.name}: {n_est}")
-                total_tiles += n_est
-                del slide
+                try:
+                    slide = sf.WSI(slide_path,
+                                   dataset.tile_px,
+                                   dataset.tile_um,
+                                   stride_div,
+                                   roi_dir=roi_dir,
+                                   roi_method=roi_method)
+                except errors.SlideError as e:
+                    log.error(e)
+                else:
+                    n_est = slide.estimated_num_tiles
+                    log.debug(f"Estimated tiles for slide {slide.name}: {n_est}")
+                    total_tiles += n_est
+                finally:
+                    del slide
             log.info(f'Total estimated tiles: {total_tiles}')
 
             # Predict for each WSI
             for slide_path in slide_list:
                 log.info(f'Working on slide {path_to_name(slide_path)}')
-                wsi = sf.WSI(slide_path,
-                             dataset.tile_px,
-                             dataset.tile_um,
-                             stride_div,
-                             enable_downsample=enable_downsample,
-                             roi_dir=roi_dir,
-                             roi_method=roi_method,
-                             randomize_origin=randomize_origin,
-                             skip_missing_roi=skip_missing_roi)
-                if not wsi.loaded_correctly():
+                try:
+                    wsi = sf.WSI(slide_path,
+                                 dataset.tile_px,
+                                 dataset.tile_um,
+                                 stride_div,
+                                 enable_downsample=enable_downsample,
+                                 roi_dir=roi_dir,
+                                 roi_method=roi_method,
+                                 randomize_origin=randomize_origin)
+                except errors.SlideLoadError as e:
+                    log.error(e)
+                    continue
+                except errors.MissingROIError as e:
+                    log.error(e)
                     continue
                 try:
                     interface = sf.model.Features(model, include_logits=False)

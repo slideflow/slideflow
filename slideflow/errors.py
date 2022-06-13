@@ -108,7 +108,19 @@ class SlideError(Exception):
     pass
 
 
+class SlideLoadError(SlideError):
+    pass
+
+
 class SlideNotFoundError(SlideError):
+    pass
+
+
+class ROIError(SlideError):
+    pass
+
+
+class MissingROIError(ROIError):
     pass
 
 
