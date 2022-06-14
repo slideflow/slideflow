@@ -1,0 +1,65 @@
+import unittest
+
+import numpy as np
+import slideflow as sf
+from PIL import Image
+from slideflow import errors
+
+
+class TestSlide(unittest.TestCase):
+    def __init__(self, testname, path):
+        super().__init__(testname)
+        self.wsi_path = path
+        self.kw = dict(tile_px=71, tile_um=1208)
+        self.wsi = sf.WSI(self.wsi_path, roi_method='ignore', **self.kw)
+
+    def _assert_is_image(self, img: np.ndarray):
+        assert isinstance(img, np.ndarray)
+        assert img.shape == (71, 71, 3)
+        assert img.dtype == np.uint8
+
+    def _assert_is_pil(self, img: Image):
+        assert isinstance(img, Image.Image)
+
+    def test_load(self):
+        assert self.wsi.estimated_num_tiles > 0
+        assert len(self.wsi.shape) == 2
+        assert all(s > 0 for s in self.wsi.shape)
+        assert self.wsi.shape == self.wsi.grid.shape
+        assert self.wsi.grid.sum() == (self.wsi.shape[0] * self.wsi.shape[1])
+        assert len(self.wsi.dimensions) == 2
+
+    def test_qc(self):
+        qc_wsi = sf.WSI(self.wsi_path, roi_method='ignore', **self.kw)
+        qc_wsi.qc('both')
+
+    def test_index(self):
+        self._assert_is_image(self.wsi[0, 0])
+        self._assert_is_image(self.wsi[self.wsi.shape[0]-1,
+                                       self.wsi.shape[1]-1])
+        with self.assertRaises(IndexError):
+            self.wsi[self.wsi.shape[0], 0]
+        with self.assertRaises(IndexError):
+            self.wsi[0, self.wsi.shape[1]]
+
+    def test_stride(self):
+        wsi_stride2 = sf.WSI(self.wsi_path, roi_method='ignore', stride_div=2, **self.kw)
+        assert abs(wsi_stride2.shape[0] - self.wsi.shape[0] * 2) <= 1
+        assert abs(wsi_stride2.shape[1] - self.wsi.shape[1] * 2) <= 1
+
+    def test_raises_roi_error(self):
+        with self.assertRaises(errors.MissingROIError):
+            sf.WSI(self.wsi_path, roi_method='inside', **self.kw)
+        with self.assertRaises(errors.MissingROIError):
+            sf.WSI(self.wsi_path, roi_method='outside', **self.kw)
+
+    def test_thumb(self):
+        self._assert_is_pil(self.wsi.thumb(mpp=4))
+        self._assert_is_pil(self.wsi.thumb(width=100))
+        self._assert_is_pil(self.wsi.thumb(mpp=4, rois=True))
+        self._assert_is_pil(self.wsi.square_thumb(width=100))
+        with self.assertRaises(ValueError):
+            self.wsi.thumb(mpp=4, width=100)
+
+    def test_preview(self):
+        self._assert_is_pil(self.wsi.preview(show_progress=False))

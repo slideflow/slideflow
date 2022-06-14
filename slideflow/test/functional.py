@@ -1,14 +1,13 @@
 import logging
 import os
 from os.path import exists, join
-from typing import TYPE_CHECKING, Tuple
+from typing import TYPE_CHECKING, List, Tuple, Union
 
 import slideflow as sf
 from PIL import Image
 from slideflow.stats import SlideMap
 from slideflow.test.utils import (handle_errors, test_multithread_throughput,
                                   test_throughput)
-from slideflow.util import Path
 from slideflow.util import colors as col
 from tqdm import tqdm
 
@@ -20,8 +19,8 @@ if TYPE_CHECKING:
 def activations_tester(
     project: sf.Project,
     verbosity: int,
-    passed: "multiprocessing.Value",
-    model: Path,
+    passed: "multiprocessing.managers.ValueProxy",
+    model: str,
     **kwargs
 ) -> None:
     """Tests generation of intermediate layer activations.
@@ -88,8 +87,8 @@ def activations_tester(
 def clam_feature_generator_tester(
     project: sf.Project,
     verbosity: int,
-    passed: "multiprocessing.Value",
-    model: Path,
+    passed: "multiprocessing.managers.ValueProxy",
+    model: str,
 ) -> None:
     """Tests feature generation for CLAM (and related) models.
 
@@ -194,8 +193,8 @@ def reader_tester(project, verbosity, passed) -> None:
 def single_thread_normalizer_tester(
     project: sf.Project,
     verbosity: int,
-    passed: "multiprocessing.Value",
-    methods: Tuple,
+    passed: "multiprocessing.managers.ValueProxy",
+    methods: Union[List, Tuple],
 ) -> None:
     """Tests all normalization strategies and throughput.
 
@@ -203,7 +202,7 @@ def single_thread_normalizer_tester(
     """
     logging.getLogger("slideflow").setLevel(verbosity)
     if not len(methods):
-        methods = sf.norm.StainNormalizer.normalizers
+        methods = sf.norm.StainNormalizer.normalizers  # type: ignore
     dataset = project.dataset(71, 1208)
     v = '(vectorized)'
 
@@ -244,8 +243,8 @@ def single_thread_normalizer_tester(
 def multi_thread_normalizer_tester(
     project: sf.Project,
     verbosity: int,
-    passed: "multiprocessing.Value",
-    methods: Tuple,
+    passed: "multiprocessing.managers.ValueProxy",
+    methods: Union[List, Tuple],
 ) -> None:
     """Tests all normalization strategies and throughput.
 
@@ -253,7 +252,7 @@ def multi_thread_normalizer_tester(
     """
     logging.getLogger("slideflow").setLevel(verbosity)
     if not len(methods):
-        methods = sf.norm.StainNormalizer.normalizers
+        methods = sf.norm.StainNormalizer.normalizers  # type: ignore
     dataset = project.dataset(71, 1208)
     v = '(vectorized)'
 
@@ -276,8 +275,8 @@ def multi_thread_normalizer_tester(
 def wsi_prediction_tester(
     project: sf.Project,
     verbosity: int,
-    passed: "multiprocessing.Value",
-    model: Path,
+    passed: "multiprocessing.managers.ValueProxy",
+    model: str,
 ) -> None:
     """Tests predictions of whole-slide images.
 
