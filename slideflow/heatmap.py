@@ -25,7 +25,7 @@ class Heatmap:
         stride_div: int = 2,
         roi_dir: Optional[str] = None,
         rois: Optional[List[str]] = None,
-        roi_method: str = 'inside',
+        roi_method: str = 'auto',
         batch_size: int = 32,
         num_threads: Optional[int] = None,
         buffer: Optional[str] = None,
@@ -44,10 +44,15 @@ class Heatmap:
                 Defaults to None.
             rois (list, optional): List of paths to slide ROIs. Alternative to
                 providing roi_dir. Defaults to None.
-            roi_method (str, optional): 'inside', 'outside', or 'ignore'.
-                If inside, tiles will be extracted inside ROI region.
-                If outside, tiles will be extracted outside ROI region.
-                Defaults to 'inside'.
+            roi_method (str): Either 'inside', 'outside', 'auto', or 'ignore'.
+                Determines how ROIs are used to extract tiles.
+                If 'inside' or 'outside', will extract tiles in/out of an ROI,
+                and raise errors.MissingROIError if an ROI is not available.
+                If 'auto', will extract tiles inside an ROI if available,
+                and across the whole-slide if no ROI is found.
+                If 'ignore', will extract tiles across the whole-slide
+                regardless of whether an ROI is available.
+                Defaults to 'auto'.
             batch_size (int, optional): Batch size for calculating predictions.
                 Defaults to 32.
             num_threads (int, optional): Number of tile worker threads.
@@ -100,19 +105,20 @@ class Heatmap:
             buffered_slide = False
 
         # Load the slide
-        self.slide = WSI(slide,
-                         self.tile_px,
-                         self.tile_um,
-                         stride_div,
-                         enable_downsample=enable_downsample,
-                         roi_dir=roi_dir,
-                         rois=rois,
-                         roi_method=roi_method,
-                         skip_missing_roi=False)
-
-        if not self.slide.loaded_correctly():
+        try:
+            self.slide = WSI(
+                slide,
+                self.tile_px,
+                self.tile_um,
+                stride_div,
+                enable_downsample=enable_downsample,
+                roi_dir=roi_dir,
+                rois=rois,
+                roi_method=roi_method,
+            )
+        except errors.SlideLoadError:
             raise errors.HeatmapError(
-                f'Unable to load slide {self.slide.name} for heatmap'
+                f'Error loading slide {self.slide.name} for heatmap'
             )
         out = interface(
             self.slide,
@@ -152,7 +158,7 @@ class Heatmap:
         # Plot ROIs
         if show_roi:
             print('\r\033[KPlotting ROIs...', end='')
-            roi_scale = self.slide.full_shape[0] / 2048
+            roi_scale = self.slide.dimensions[0] / 2048
             annPolys = [
                 sg.Polygon(annotation.scaled_area(roi_scale))
                 for annotation in self.slide.rois

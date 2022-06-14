@@ -26,18 +26,17 @@ import pyvips as vips
 import shapely.geometry as sg
 import skimage
 import skimage.filters
+import slideflow as sf
 from PIL import Image, ImageDraw, UnidentifiedImageError
 from skimage import img_as_ubyte
 from skimage.color import rgb2gray
-from tqdm import tqdm
-
-import slideflow as sf
 from slideflow import errors
-from slideflow.slide.report import (ExtractionPDF,  # noqa F401
-                                    ExtractionReport, SlideReport)
+from slideflow.slide.report import ExtractionPDF  # noqa F401
+from slideflow.slide.report import ExtractionReport, SlideReport
 from slideflow.util import SUPPORTED_FORMATS, Path  # noqa F401
 from slideflow.util import colors as col
 from slideflow.util import log, path_to_name  # noqa F401
+from tqdm import tqdm
 
 warnings.simplefilter('ignore', Image.DecompressionBombWarning)
 Image.MAX_IMAGE_PIXELS = 100000000000
@@ -157,7 +156,7 @@ def _roi_coords_from_image(
         # Scale to full image size
         coord = ann.coordinates
         # Offset coordinates to extraction window
-        coord = np.add(coord, np.array([-1*c[0], -1*c[1]]))
+        coord = np.add(coord, np.array([-1 * c[0], -1 * c[1]]))
         # Rescale according to downsampling and resizing
         coord = np.multiply(coord, (extract_scale * resize_scale))
         return coord
@@ -200,30 +199,16 @@ def _roi_coords_from_image(
 def _wsi_extraction_worker(
     c: List[int],
     args: SimpleNamespace
-) -> Optional[Union[str, Dict, Tuple[Dict, int]]]:
+) -> Optional[Union[str, Dict]]:
     '''Multiprocessing worker for WSI. Extracts tile at given coordinates.'''
 
-    index = c[2]
-    grid_xi = c[4]
-    grid_yi = c[5]
-    x_coord = int((c[0]+args.full_extract_px/2)/args.roi_scale)
-    y_coord = int((c[1]+args.full_extract_px/2)/args.roi_scale)
+    x, y, grid_x, grid_y = c
+    x_coord = int((x + args.full_extract_px / 2) / args.roi_scale)
+    y_coord = int((y + args.full_extract_px / 2) / args.roi_scale)
 
-    # Check if the center of the current window lies
-    # within any annotation; if not, skip
-    if args.roi_method != 'ignore' and bool(args.annPolys):
-        point_in_roi = any([
-            annPoly.contains(sg.Point(x_coord, y_coord))
-            for annPoly in args.annPolys
-        ])
-        # If the extraction method is 'inside',
-        # skip the tile if it's not in an ROI
-        if (args.roi_method == 'inside') and not point_in_roi:
-            return 'skip'
-        # If the extraction method is 'outside',
-        # skip the tile if it's in an ROI
-        elif (args.roi_method == 'outside') and point_in_roi:
-            return 'skip'
+    # Skip tiles filtered out with QC or ROI
+    if not args.grid[grid_x, grid_y]:
+        return 'skip'
 
     # If downsampling is enabled, read image from highest level
     # to perform filtering; otherwise filter from our target level
@@ -232,14 +217,14 @@ def _wsi_extraction_worker(
         if args.filter_downsample_ratio > 1:
             filter_extract_px = args.extract_px // args.filter_downsample_ratio
             filter_region = slide.read_region(
-                (c[0], c[1]),
+                (x, y),
                 args.filter_downsample_level,
                 (filter_extract_px, filter_extract_px)
             )
         else:
             # Read the region and resize to target size
             filter_region = slide.read_region(
-                (c[0], c[1]),
+                (x, y),
                 args.downsample_level,
                 (args.extract_px, args.extract_px)
             )
@@ -264,7 +249,7 @@ def _wsi_extraction_worker(
 
     # If dry run, return the current coordinates only
     if args.dry_run:
-        return {'loc': [x_coord, y_coord]}, index
+        return {'loc': [x_coord, y_coord]}
 
     # Normalizer
     if not args.normalizer:
@@ -278,7 +263,7 @@ def _wsi_extraction_worker(
     # Read the target downsample region now, if we were
     # filtering at a different level
     region = slide.read_region(
-        (c[0], c[1]),
+        (x, y),
         args.downsample_level,
         (args.extract_px, args.extract_px)
     )
@@ -333,10 +318,10 @@ def _wsi_extraction_worker(
     if args.yolo:
         return_dict.update({'yolo': yolo_anns})
     if args.include_loc == 'grid':
-        return_dict.update({'loc': [grid_xi, grid_yi]})
+        return_dict.update({'loc': [grid_x, grid_y]})
     elif args.include_loc == 'coord':
         return_dict.update({'loc': [x_coord, y_coord]})
-    return return_dict, index
+    return return_dict
 
 
 def vips2numpy(vi: vips.Image) -> np.ndarray:
@@ -609,23 +594,21 @@ class _BaseLoader:
         counter_lock: Optional[Union[sf.util.DummyLock,
                                      "mp.synchronize.Lock"]] = None
     ) -> None:
-        self.load_error = False
 
         # if a progress bar is not directly provided, use the provided
         # multiprocess-friendly progress bar counter and lock
         # (for multiprocessing, as ProgressBar cannot be pickled)
         if not pb:
-            self.pb_counter = pb_counter
-            self.counter_lock = counter_lock
+            self._pb_counter = pb_counter
+            self._counter_lock = counter_lock
         # Otherwise, use the provided progress bar's counter and lock
         else:
-            self.pb_counter = pb.get_counter()
-            self.counter_lock = pb.get_lock()
+            self._pb_counter = pb.get_counter()
+            self._counter_lock = pb.get_lock()
 
         self.name = path_to_name(path)
         self.shortname = sf.util._shortname(self.name)
         self.tile_px = tile_px
-        self.tile_mask = None  # type: Optional[np.ndarray]
         self.enable_downsample = enable_downsample
         self.thumb_image = None  # type: Optional[Image.Image]
         self.stride_div = stride_div
@@ -648,24 +631,21 @@ class _BaseLoader:
                 try:
                     self.slide = _VIPSWrapper(path)
                 except vips.error.Error as e:
-                    log.error(f"Error loading slide {self.shortname}: {e}")
-                    self.load_error = True
-                    return
+                    raise errors.SlideLoadError(
+                        f"Error loading slide {self.shortname}: {e}"
+                    )
         else:
-            log.error(f"{self.name}: unsupported filetype '{filetype}'")
-            self.load_error = True
-            return
+            raise errors.SlideLoadError(
+                f"{self.name}: unsupported filetype '{filetype}'"
+            )
 
         # Collect basic slide information
         try:
             self.mpp = float(self.slide.properties[OPS_MPP_X])
         except KeyError:
-            log.error(
+            raise errors.SlideLoadError(
                 f"Slide {col.green(self.name)} missing MPP ({OPS_MPP_X})"
             )
-            self.load_error = True
-            return
-        self.full_shape = self.slide.dimensions
 
         # Calculate downsample by magnification
         if isinstance(tile_um, str):
@@ -677,11 +657,10 @@ class _BaseLoader:
                 key=lambda x: abs(x - sf.util.to_mag(tile_um))  # type: ignore
             )
             if abs(closest_mag - sf.util.to_mag(tile_um)) > 2:
-                log.error(
+                raise errors.SlideLoadError(
                     f"{self.name}: Could not find magnification level "
-                    f"matching {tile_um} (closest: {closest_mag:.1f})")
-                self.load_error = True
-                return
+                    f"matching {tile_um} (closest: {closest_mag:.1f})"
+                )
             ds_level = mag_levels.index(closest_mag)
             if not enable_downsample and ds_level != 0:
                 raise ValueError(f"Unable to use magnification {tile_um} with "
@@ -710,12 +689,12 @@ class _BaseLoader:
         # white background and performing edge detection)
         self.filter_dimensions = self.slide.level_dimensions[-1]
         self.filter_magnification = (self.filter_dimensions[0]
-                                    / self.full_shape[0])
+                                    / self.dimensions[0])
         self.filter_px = int(self.full_extract_px * self.filter_magnification)
 
         # Calculate shape and stride
         self.downsample_level = ds_level
-        self.shape = self.slide.level_dimensions[self.downsample_level]
+        self.downsample_dimensions = self.slide.level_dimensions[ds_level]
         self.stride = self.extract_px // stride_div
         self.full_stride = self.full_extract_px // stride_div
 
@@ -738,12 +717,12 @@ class _BaseLoader:
         raise NotImplementedError
 
     def mpp_to_dim(self, mpp: float) -> Tuple[int, int]:
-        width = int((self.mpp * self.full_shape[0]) / mpp)
-        height = int((self.mpp * self.full_shape[1]) / mpp)
+        width = int((self.mpp * self.dimensions[0]) / mpp)
+        height = int((self.mpp * self.dimensions[1]) / mpp)
         return (width, height)
 
     def dim_to_mpp(self, dimensions: Tuple[float, float]) -> float:
-        return (self.full_shape[0] * self.mpp) / dimensions[0]
+        return (self.dimensions[0] * self.mpp) / dimensions[0]
 
     def remove_qc(self) -> None:
         self._build_coord()
@@ -791,11 +770,9 @@ class _BaseLoader:
         if method in ('blur', 'both'):
             thumb = self.thumb(mpp=blur_mpp)
             if thumb is None:
-                log.error(
+                raise errors.QCError(
                     f"Thumbnail error for slide {self.shortname}, QC failed"
                 )
-                self.load_error = True
-                return None
             thumb = np.array(thumb)
             if thumb.shape[-1] == 4:
                 thumb = thumb[:, :, :3]
@@ -819,11 +796,9 @@ class _BaseLoader:
             try:
                 otsu_thumb = vips2numpy(otsu_thumb)
             except vips.error.Error:
-                log.error(
+                raise errors.QCError(
                     f"Thumbnail error for slide {self.shortname}, QC failed"
                 )
-                self.load_error = True
-                return None
             if otsu_thumb.shape[-1] == 4:
                 otsu_thumb = otsu_thumb[:, :, :3]
             hsv_img = cv2.cvtColor(otsu_thumb, cv2.COLOR_RGB2HSV)
@@ -854,15 +829,13 @@ class _BaseLoader:
         assert self.qc_mask is not None
         qc_width = int(self.full_extract_px * qc_ratio)
         to_delete = []
-        for i, c in enumerate(self.coord):  # type: ignore
-            qc_x = int(c[0] * qc_ratio)
-            qc_y = int(c[1] * qc_ratio)
+        for i, (x, y, xi, yi) in enumerate(self.coord):  # type: ignore
+            qc_x = int(x * qc_ratio)
+            qc_y = int(y * qc_ratio)
             submask = self.qc_mask[qc_y:(qc_y+qc_width), qc_x:(qc_x+qc_width)]
             if np.mean(submask) > filter_threshold:
-                to_delete += [i]
-        self.coord = np.delete(np.array(self.coord), to_delete, axis=0)
-        self.tile_mask = np.delete(self.tile_mask, to_delete)
-        self.estimated_num_tiles = self.coord.shape[0]
+                self.grid[xi, yi] = 0
+        self.estimated_num_tiles = int(self.grid.sum())
         img = Image.fromarray(img_as_ubyte(self.qc_mask))
         dur = f'(time: {time.time()-starttime:.2f}s)'
         log.debug(f'QC complete for slide {self.shortname} {dur}')
@@ -933,14 +906,14 @@ class _BaseLoader:
 
         # Calculate goal width/height according to specified microns-per-pixel
         if mpp:
-            width = int((self.mpp * self.full_shape[0]) / mpp)
+            width = int((self.mpp * self.dimensions[0]) / mpp)
         # Otherwise, calculate approximate mpp based on provided width
         # (to generate proportional height)
         else:
             assert width is not None
-            mpp = (self.mpp * self.full_shape[0]) / width
+            mpp = (self.mpp * self.dimensions[0]) / width
         # Calculate appropriate height
-        height = int((self.mpp * self.full_shape[1]) / mpp)
+        height = int((self.mpp * self.dimensions[1]) / mpp)
 
         # Get thumb via libvips & convert PIL Image
         if self.vendor and self.vendor == 'leica':
@@ -958,9 +931,7 @@ class _BaseLoader:
         try:
             np_thumb = vips2numpy(thumbnail)
         except vips.error.Error as e:
-            log.error(f"Error loading slide thumbnail: {e}")
-            self.load_error = True
-            return None
+            raise errors.SlideLoadError(f"Error loading slide thumbnail: {e}")
         image = Image.fromarray(np_thumb).resize((width, height))
 
         if coords:
@@ -1012,20 +983,6 @@ class _BaseLoader:
             yield None
 
         return empty_generator
-
-    def loaded_correctly(self) -> bool:
-        """Checks if slide loaded correctly.
-
-        Returns:
-            bool
-        """
-        if self.load_error:
-            return False
-        try:
-            loaded_correctly = bool(self.shape)
-        except ValueError:
-            return False
-        return loaded_correctly
 
     def extract_tiles(
         self,
@@ -1107,7 +1064,7 @@ class _BaseLoader:
             ))
 
         generator = self.build_generator(
-            show_progress=(self.counter_lock is None),
+            show_progress=(self._counter_lock is None),
             img_format=img_format,
             **kwargs
         )
@@ -1167,7 +1124,7 @@ class _BaseLoader:
             if not num_wrote_to_tfr:
                 os.remove(join(tfrecord_dir, self.name+".tfrecords"))
                 log.info(f'No tiles extracted for {col.green(self.name)}')
-        if self.counter_lock is None:
+        if self._counter_lock is None:
             generator_iterator.close()
 
         if tfrecord_dir or tiles_dir:
@@ -1224,9 +1181,9 @@ class _BaseLoader:
                 annotations (.txt) in the tile directory. Requires that
                 tiles_dir is set. Defaults to False.
         """
-
+        if 'show_progress' not in kwargs:
+            kwargs['show_progress'] = (self._counter_lock is None)
         generator = self.build_generator(
-            show_progress=(self.counter_lock is None),
             dry_run=True,
             **kwargs
         )
@@ -1248,8 +1205,7 @@ class WSI(_BaseLoader):
         enable_downsample: bool = True,
         roi_dir: Optional[Path] = None,
         rois: Optional[List[str]] = None,
-        roi_method: str = 'inside',
-        skip_missing_roi: bool = False,
+        roi_method: str = 'auto',
         randomize_origin: bool = False,
         pb: Optional[sf.util.ProgressBar] = None,
         pb_counter: Optional["mp.sharedctypes.Synchronized"] = None,
@@ -1274,11 +1230,15 @@ class WSI(_BaseLoader):
                 files. Defaults to None.
             rois (list(str)): Alternatively, a list of ROI paths can be
                 explicitly provided. Defaults to None.
-            roi_method (str): Either 'inside', 'outside', or 'ignore'.
+            roi_method (str): Either 'inside', 'outside', 'auto', or 'ignore'.
                 Determines how ROIs are used to extract tiles.
-                Defaults to 'inside'.
-            skip_missing_roi (bool, optional): Skip tiles that are missing a
-                ROI file. Defaults to False.
+                If 'inside' or 'outside', will extract tiles in/out of an ROI,
+                and raise errors.MissingROIError if an ROI is not available.
+                If 'auto', will extract tiles inside an ROI if available,
+                and across the whole-slide if no ROI is found.
+                If 'ignore', will extract tiles across the whole-slide
+                regardless of whether an ROI is available.
+                Defaults to 'auto'.
             randomize_origin (bool, optional): Offset the starting grid by a
                 random amount. Defaults to False.
             pb (:class:`slideflow.util.ProgressBar`, optional): Multiprocessing
@@ -1314,12 +1274,6 @@ class WSI(_BaseLoader):
         self.roi_method = roi_method
         self.randomize_origin = randomize_origin
 
-        if not self.loaded_correctly():
-            return
-
-        # Build coordinate grid
-        self._build_coord()
-
         # Look in ROI directory if available
         if roi_dir and exists(join(roi_dir, self.name + ".csv")):
             self.load_csv_roi(join(roi_dir, self.name + ".csv"))
@@ -1352,34 +1306,30 @@ class WSI(_BaseLoader):
                 log.warning(warn_msg)
             else:
                 log.debug(warn_msg)
-        if not len(self.rois) and skip_missing_roi and roi_method != 'ignore':
-            warn_msg = f"Slide {col.green(self.name)} missing ROI, skipping"
-            if not silent:
-                log.warning(warn_msg)
-            else:
-                log.debug(warn_msg)
-            self.shape = None
-            self.load_error = True
-            return None
+        if not len(self.rois) and roi_method in ('inside', 'outside'):
+            raise errors.MissingROIError(
+                f"Slide {col.green(self.name)} missing ROI."
+            )
         elif not len(self.rois):
             info_msg = f"No ROI for {self.name}, using whole slide."
-            if not silent and roi_method != 'ignore':
+            if not silent and roi_method == 'auto':
                 log.info(info_msg)
             else:
                 log.debug(info_msg)
             self.roi_method = 'ignore'
+        elif len(self.rois) and roi_method == 'auto':
+            log.debug(f"Slide {self.name}: extracting tiles from inside ROI.")
+            self.roi_method = 'inside'
+
+        # Build coordinate grid
+        self._build_coord()
 
         mpp_roi_msg = f'{self.mpp} um/px | {len(self.rois)} ROI(s)'
-        size_msg = f'Size: {self.full_shape[0]} x {self.full_shape[1]}'
+        size_msg = f'Size: {self.dimensions[0]} x {self.dimensions[1]}'
         log.debug(f"{self.shortname}: Slide info: {mpp_roi_msg} | {size_msg}")
         grid_msg = f"{self.shortname}: Grid shape: {self.grid.shape} "
         grid_msg += f"| Tiles to extract: {self.estimated_num_tiles}"
         log.debug(grid_msg)
-
-        # Abort if errors were raised during ROI loading
-        if self.load_error:
-            log.error(f'Error with slide {col.green(self.name)}; skipping')
-            return None
 
     def __repr__(self) -> str:
         base = "WSI(\n"
@@ -1392,12 +1342,75 @@ class WSI(_BaseLoader):
         base += ")"
         return base
 
+    def __getitem__(self, index):
+        # Verify indices are valid
+        if (not isinstance(index, (tuple, list, np.ndarray))
+           or not len(index) == 2):
+            raise IndexError("Must supply exactly two indices: (x, y)")
+        if not (index[0] < self.shape[0]):
+            raise IndexError(
+                "index {} is out of bounds for axis 0 with size {}".format(
+                    index[0],
+                    self.shape[0]
+                )
+            )
+        if not (index[1] < self.shape[1]):
+            raise IndexError(
+                "index {} is out of bounds for axis 0 with size {}".format(
+                    index[1],
+                    self.shape[1]
+                )
+            )
+
+        # Find the corresponding coordinate given the provided indices.
+        coord_idx, = np.where((
+            (self.coord[:, 2] == index[0])
+            & (self.coord[:, 3] == index[1])
+        ))
+        if not len(coord_idx):
+            return None
+        assert len(coord_idx) == 1
+        x, y, grid_x, grid_y = self.coord[coord_idx[0]]
+
+        # Check if indices correspond to a tile that is filtered out,
+        # either by ROI or QC. If so, return None.
+        if not self.grid[grid_x, grid_y]:
+            return None
+
+        # Extract the numpy image at this grid location.
+        image_dict = _wsi_extraction_worker(
+            (x, y, grid_x, grid_y),
+            SimpleNamespace(
+                full_extract_px=self.full_extract_px,
+                roi_scale=self.roi_scale,
+                rois=self.rois,
+                grid=self.grid,
+                downsample_level=self.downsample_level,
+                path=self.path,
+                extract_px=self.extract_px,
+                tile_px=self.tile_px,
+                full_stride=self.full_stride,
+                normalizer=None,
+                normalizer_source=None,
+                whitespace_fraction=1,
+                whitespace_threshold=1,
+                grayspace_fraction=1,
+                grayspace_threshold=1,
+                include_loc=False,
+                img_format='numpy',
+                yolo=False,
+                draw_roi=False,
+                dry_run=False
+            )
+        )
+        return image_dict['image']
+
     def _build_coord(self) -> None:
         '''Set up coordinate grid.'''
 
         # Calculate window sizes, strides, and coordinates for windows
-        self.extracted_x_size = self.full_shape[0] - self.full_extract_px
-        self.extracted_y_size = self.full_shape[1] - self.full_extract_px
+        self.extracted_x_size = self.dimensions[0] - self.full_extract_px
+        self.extracted_y_size = self.dimensions[1] - self.full_extract_px
 
         # Randomize origin, if desired
         if self.randomize_origin:
@@ -1409,33 +1422,44 @@ class WSI(_BaseLoader):
 
         # Coordinates must be in level 0 (full) format
         # for the read_region function
-        index = 0
         self.coord = []  # type: Union[List, np.ndarray]
         y_range = np.arange(
             start_y,
-            (self.full_shape[1]+1) - self.full_extract_px,
+            (self.dimensions[1]+1) - self.full_extract_px,
             self.full_stride
         )
         x_range = np.arange(
             start_x,
-            (self.full_shape[0]+1) - self.full_extract_px,
+            (self.dimensions[0]+1) - self.full_extract_px,
             self.full_stride
         )
+        self.grid = np.ones((len(x_range), len(y_range)), dtype=np.int32)
         for yi, y in enumerate(y_range):
             for xi, x in enumerate(x_range):
                 y = int(y)
                 x = int(x)
-                is_unique = ((y % self.full_extract_px == 0)
-                             and (x % self.full_extract_px == 0))
-                self.coord.append([x, y, index, is_unique, xi, yi])
-                index += 1
+                self.coord.append([x, y, xi, yi])
+
+                # ROI filtering
+                if self.roi_method != 'ignore' and self.annPolys is not None:
+                    roi_x = int((x + self.full_extract_px/2)/self.roi_scale)
+                    roi_y = int((y + self.full_extract_px/2)/self.roi_scale)
+                    point_in_roi = any([
+                        annPoly.contains(sg.Point(roi_x, roi_y))
+                        for annPoly in self.annPolys
+                    ])
+                    # If the extraction method is 'inside',
+                    # skip the tile if it's not in an ROI
+                    if (((self.roi_method == 'inside') and not point_in_roi)
+                       or ((self.roi_method == 'outside') and point_in_roi)):
+                        self.grid[xi, yi] = 0
+
         self.coord = np.array(self.coord)
-        self.estimated_num_tiles = self.coord.shape[0]
-        self.tile_mask = np.asarray(
-            [False for _ in range(len(self.coord))],
-            dtype=bool
-        )
-        self.grid = np.zeros((len(x_range), len(y_range)))
+        self.estimated_num_tiles = int(self.grid.sum())
+
+    @property
+    def shape(self):
+        return self.grid.shape
 
     def extract_tiles(
         self,
@@ -1595,10 +1619,8 @@ class WSI(_BaseLoader):
         w_args = SimpleNamespace(**{
             'full_extract_px': self.full_extract_px,
             'roi_scale': self.roi_scale,
-            'roi_method': self.roi_method,
             'rois': self.rois,
-            'annPolys': self.annPolys,
-            'estimated_num_tiles': self.estimated_num_tiles,
+            'grid': self.grid,
             'downsample_level': self.downsample_level,
             'filter_downsample_level': filter_lev,
             'filter_downsample_ratio': filter_downsample_ratio,
@@ -1634,27 +1656,25 @@ class WSI(_BaseLoader):
                 partial(_wsi_extraction_worker, args=w_args),
                 self.coord
             )
-            for idx, res in enumerate(i_mapped):
-                if res == 'skip':
+            for result in i_mapped:
+                if result == 'skip':
                     continue
                 if show_progress:
                     pbar.update(1)
-                elif self.counter_lock is not None:
-                    with self.counter_lock:
-                        self.pb_counter.value += 1
-                if res is None:
+                elif self._counter_lock is not None:
+                    with self._counter_lock:
+                        self._pb_counter.value += 1
+                if result is None:
                     continue
                 else:
-                    tile, _ = res
-                    self.tile_mask[idx] = True
-                    yield tile
+                    yield result
             if show_progress:
                 pbar.close()
             if should_close:
                 pool.close()
             name_msg = col.green(self.shortname)
             pos = len(self.coord)
-            num_msg = f'({np.sum(self.tile_mask)} tiles of {pos} possible)'
+            num_msg = f'({np.sum(self.grid.sum())} tiles of {pos} possible)'
             log.info(f"Finished tile extraction for {name_msg} {num_msg}")
 
         return generator
@@ -1695,10 +1715,10 @@ class WSI(_BaseLoader):
             if mpp is None and width is None:
                 width = 1024
             if mpp is not None:
-                roi_scale = (self.full_shape[0]
-                             / (int((self.mpp * self.full_shape[0]) / mpp)))
+                roi_scale = (self.dimensions[0]
+                             / (int((self.mpp * self.dimensions[0]) / mpp)))
             else:
-                roi_scale = self.full_shape[0] / width  # type: ignore
+                roi_scale = self.dimensions[0] / width  # type: ignore
 
         thumb = super().thumb(mpp=mpp, width=width, coords=coords)
 
@@ -1731,12 +1751,10 @@ class WSI(_BaseLoader):
                 index_x = headers.index("x_base")
                 index_y = headers.index("y_base")
             except Exception:
-                log.error(
+                raise errors.ROIError(
                     f'Unable to read CSV ROI {col.green(path)}. Please ensure '
                     'headers contain "ROI_name", "X_base and "Y_base".'
                 )
-                self.load_error = True
-                return 0
             for row in reader:
                 roi_name = row[index_name]
                 x_coord = int(float(row[index_x]))
@@ -1764,16 +1782,10 @@ class WSI(_BaseLoader):
             roi_area = sum([poly.area for poly in self.annPolys])
         else:
             roi_area = 1
-        total_area = ((self.full_shape[0]/self.roi_scale)
-                      * (self.full_shape[1]/self.roi_scale))
+        total_area = ((self.dimensions[0]/self.roi_scale)
+                      * (self.dimensions[1]/self.roi_scale))
         self.roi_area_fraction = 1 if not roi_area else (roi_area / total_area)
 
-        if self.roi_method == 'inside':
-            self.estimated_num_tiles = (int(self.coord.shape[0]  # type: ignore
-                                        * self.roi_area_fraction))
-        else:
-            self.estimated_num_tiles = (int(self.coord.shape[0]  # type: ignore
-                                        * (1-self.roi_area_fraction)))
         return len(self.rois)
 
     def load_json_roi(self, path: Path, scale: int = 10) -> int:
@@ -1837,8 +1849,6 @@ class TMA(_BaseLoader):
             enable_downsample,
             pb
         )
-        if not self.loaded_correctly():
-            return
         self.object_rects = []  # type: List
         self.box_areas = []  # type: List
         self.DIM = self.slide.dimensions
@@ -1853,7 +1863,7 @@ class TMA(_BaseLoader):
         self.pb = pb
         self.pb_id = pb_id
         self.estimated_num_tiles = self._detect_cores(report_dir=report_dir)  # type: int
-        size_msg = f'Size: {self.full_shape[0]} x {self.full_shape[1]}'
+        size_msg = f'Size: {self.dimensions[0]} x {self.dimensions[1]}'
         log.info(f"{self.shortname}: {self.mpp} um/px | {size_msg}")
 
     def _get_sub_image(self, rect: List[List[int]]) -> np.ndarray:

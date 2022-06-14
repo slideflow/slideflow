@@ -1,14 +1,13 @@
 import logging
 import os
 from os.path import exists, join
-from typing import TYPE_CHECKING, Tuple
+from typing import TYPE_CHECKING, List, Tuple, Union
 
 import slideflow as sf
 from PIL import Image
 from slideflow.stats import SlideMap
 from slideflow.test.utils import (handle_errors, test_multithread_throughput,
                                   test_throughput)
-from slideflow.util import Path
 from slideflow.util import colors as col
 from tqdm import tqdm
 
@@ -20,8 +19,8 @@ if TYPE_CHECKING:
 def activations_tester(
     project: sf.Project,
     verbosity: int,
-    passed: "multiprocessing.Value",
-    model: Path,
+    passed: "multiprocessing.managers.ValueProxy",
+    model: str,
     **kwargs
 ) -> None:
     """Tests generation of intermediate layer activations.
@@ -88,8 +87,8 @@ def activations_tester(
 def clam_feature_generator_tester(
     project: sf.Project,
     verbosity: int,
-    passed: "multiprocessing.Value",
-    model: Path,
+    passed: "multiprocessing.managers.ValueProxy",
+    model: str,
 ) -> None:
     """Tests feature generation for CLAM (and related) models.
 
@@ -194,8 +193,8 @@ def reader_tester(project, verbosity, passed) -> None:
 def single_thread_normalizer_tester(
     project: sf.Project,
     verbosity: int,
-    passed: "multiprocessing.Value",
-    methods: Tuple,
+    passed: "multiprocessing.managers.ValueProxy",
+    methods: Union[List, Tuple],
 ) -> None:
     """Tests all normalization strategies and throughput.
 
@@ -203,7 +202,7 @@ def single_thread_normalizer_tester(
     """
     logging.getLogger("slideflow").setLevel(verbosity)
     if not len(methods):
-        methods = sf.norm.StainNormalizer.normalizers
+        methods = sf.norm.StainNormalizer.normalizers  # type: ignore
     dataset = project.dataset(71, 1208)
     v = '(vectorized)'
 
@@ -219,7 +218,7 @@ def single_thread_normalizer_tester(
         gen_norm = sf.norm.autoselect(method, prefer_vectorized=False)
         vec_norm = sf.norm.autoselect(method, prefer_vectorized=True)
         st_msg = col.yellow('SINGLE-thread')
-        print(f"'\r\033[kTesting '{method} [{st_msg}]...", end="")
+        print(f"'\r\033[kTesting {method} [{st_msg}]...", end="")
 
         # Save example image
         img = Image.fromarray(gen_norm.rgb_to_rgb(raw_img))
@@ -227,9 +226,9 @@ def single_thread_normalizer_tester(
 
         gen_tpt = test_throughput(dts, gen_norm)
         dur = col.blue(f"[{gen_tpt:.1f} img/s]")
-        print(f"'\r\033[kTesting '{method} [{st_msg}]... DONE " + dur)
+        print(f"'\r\033[kTesting {method} [{st_msg}]... DONE " + dur)
         if type(vec_norm) != type(gen_norm):
-            print(f"'\r\033[kTesting '{method} {v} [{st_msg}]...", end="")
+            print(f"'\r\033[kTesting {method} {v} [{st_msg}]...", end="")
 
             # Save example image
             img = Image.fromarray(vec_norm.rgb_to_rgb(raw_img))
@@ -237,15 +236,15 @@ def single_thread_normalizer_tester(
 
             vec_tpt = test_throughput(dts, vec_norm)
             dur = col.blue(f"[{vec_tpt:.1f} img/s]")
-            print(f"'\r\033[kTesting '{method} {v} [{st_msg}]... DONE {dur}")
+            print(f"'\r\033[kTesting {method} {v} [{st_msg}]... DONE {dur}")
 
 
 @handle_errors
 def multi_thread_normalizer_tester(
     project: sf.Project,
     verbosity: int,
-    passed: "multiprocessing.Value",
-    methods: Tuple,
+    passed: "multiprocessing.managers.ValueProxy",
+    methods: Union[List, Tuple],
 ) -> None:
     """Tests all normalization strategies and throughput.
 
@@ -253,7 +252,7 @@ def multi_thread_normalizer_tester(
     """
     logging.getLogger("slideflow").setLevel(verbosity)
     if not len(methods):
-        methods = sf.norm.StainNormalizer.normalizers
+        methods = sf.norm.StainNormalizer.normalizers  # type: ignore
     dataset = project.dataset(71, 1208)
     v = '(vectorized)'
 
@@ -261,23 +260,23 @@ def multi_thread_normalizer_tester(
         gen_norm = sf.norm.autoselect(method, prefer_vectorized=False)
         vec_norm = sf.norm.autoselect(method, prefer_vectorized=True)
         mt_msg = col.purple('MULTI-thread')
-        print(f"'\r\033[kTesting '{method} [{mt_msg}]...", end="")
+        print(f"'\r\033[kTesting {method} [{mt_msg}]...", end="")
         gen_tpt = test_multithread_throughput(dataset, gen_norm)
         dur = col.blue(f"[{gen_tpt:.1f} img/s]")
-        print(f"'\r\033[kTesting '{method} [{mt_msg}]... DONE " + dur)
+        print(f"'\r\033[kTesting {method} [{mt_msg}]... DONE " + dur)
         if type(vec_norm) != type(gen_norm):
-            print(f"'\r\033[kTesting '{method} {v} [{mt_msg}]...", end="")
+            print(f"'\r\033[kTesting {method} {v} [{mt_msg}]...", end="")
             vec_tpt = test_multithread_throughput(dataset, vec_norm)
             dur = col.blue(f"[{vec_tpt:.1f} img/s]")
-            print(f"'\r\033[kTesting '{method} {v} [{mt_msg}]... DONE " + dur)
+            print(f"'\r\033[kTesting {method} {v} [{mt_msg}]... DONE " + dur)
 
 
 @handle_errors
 def wsi_prediction_tester(
     project: sf.Project,
     verbosity: int,
-    passed: "multiprocessing.Value",
-    model: Path,
+    passed: "multiprocessing.managers.ValueProxy",
+    model: str,
 ) -> None:
     """Tests predictions of whole-slide images.
 
