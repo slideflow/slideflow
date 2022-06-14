@@ -14,7 +14,6 @@ from os.path import exists, join
 from typing import Any, Callable, Dict, List, Optional
 
 import requests
-
 import slideflow as sf
 from slideflow.util import ProgressBar
 from slideflow.util import colors as col
@@ -45,7 +44,7 @@ def handle_errors(func):
         except Exception as e:
             log.error(traceback.format_exc())
             passed.value = False
-    
+
     return wrapper
 
 
@@ -130,6 +129,70 @@ def _assert_valid_results(results):
     assert 'epochs' in results[model]
     assert isinstance (results[model]['epochs'], dict)
     assert len(results[model]['epochs'])
+
+
+def test_throughput(
+    dts: Any,
+    normalizer: sf.norm.StainNormalizer = None,
+    s: int = 5,
+    step_size: int = 1
+) -> float:
+    """Tests throughput of image normalization with a single thread.
+
+    Returns:
+        float: images/sec.
+    """
+    start = -1  # type: float
+    count = 0
+    total_time = 0  # type: float
+    for img, slide in dts:
+        if sf.backend() == 'torch':
+            if len(img.shape) == 3:
+                img = img.permute(1, 2, 0)
+            else:
+                img = img.permute(0, 2, 3, 1)
+        img = img.numpy()
+        if normalizer is not None:
+            normalizer.rgb_to_rgb(img)
+        if start == -1:
+            start = time.time()
+        else:
+            count += step_size
+        if time.time() - start > s:
+            total_time = count / (time.time() - start)
+            break
+    return total_time
+
+
+def test_multithread_throughput(
+    dataset: Any,
+    normalizer: sf.norm.StainNormalizer,
+    s: int = 5,
+    batch_size: int = 32
+) -> float:
+    """Tests throughput of image normalization with multiple threads.
+
+    Returns:
+        float: images/sec.
+    """
+    if sf.backend() == 'tensorflow':
+        dts = dataset.tensorflow(
+            None,
+            batch_size,
+            standardize=False,
+            infinite=True,
+            normalizer=normalizer
+        )
+    elif sf.backend() == 'torch':
+        dts = dataset.torch(
+            None,
+            batch_size,
+            standardize=False,
+            infinite=True,
+            normalizer=normalizer,
+        )
+    step_size = 1 if batch_size is None else batch_size
+    return test_throughput(dts, step_size=step_size, s=s)
 
 
 class TaskWrapper:

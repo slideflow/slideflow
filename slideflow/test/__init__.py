@@ -5,380 +5,17 @@ import time
 import traceback
 import unittest
 from os.path import exists, join
-from typing import Any, Optional, Tuple, TYPE_CHECKING
+from typing import Optional
 
 import slideflow as sf
-from PIL import Image
+import slideflow.test.functional
 from slideflow import errors
-from slideflow.stats import SlideMap
 from slideflow.test import dataset_test
-from slideflow.test.utils import (
-    TaskWrapper, TestConfig, _assert_valid_results, process_isolate, 
-    handle_errors
-)
-from slideflow.util import Path
+from slideflow.test.utils import (TaskWrapper, TestConfig,
+                                  _assert_valid_results, process_isolate)
 from slideflow.util import colors as col
 from slideflow.util import log
-from tqdm import tqdm
 
-if TYPE_CHECKING:
-    import multiprocessing
-
-# --- Self-contained tests needing process isolation --------------------------
-
-@handle_errors
-def clam_feature_generator(
-    project: sf.Project,
-    verbosity: int,
-    passed: "multiprocessing.Value",
-    model: Path,
-) -> None:
-    """Tests feature generation for CLAM (and related) models.
-
-    Function must happen in an isolated process to free GPU memory when done.
-    """
-    logging.getLogger("slideflow").setLevel(verbosity)
-    outdir = join(project.root, 'clam')
-    project.generate_features_for_clam(
-        model,
-        outdir=outdir,
-        force_regenerate=True
-    )
-
-
-@handle_errors
-def evaluation_tester(project, verbosity, passed, **kwargs) -> None:
-    """Tests model evaluation.
-
-    Function must happen in an isolated process to free GPU memory when done.
-    """
-    logging.getLogger("slideflow").setLevel(verbosity)
-    project.evaluate(**kwargs)
-
-
-@handle_errors
-def prediction_tester(project, verbosity, passed, **kwargs) -> None:
-    """Tests model predictions.
-
-    Function must happen in an isolated process to free GPU memory when done.
-    """
-    logging.getLogger("slideflow").setLevel(verbosity)
-    project.predict(**kwargs)
-
-
-@handle_errors
-def reader_tester(project, verbosity, passed) -> None:
-    """Tests TFRecord reading between backends and ensures identical results.
-
-    Function must happen in an isolated process to free GPU memory when done.
-    """
-    dataset = project.dataset(71, 1208)
-    tfrecords = dataset.tfrecords()
-    batch_size = 128
-    assert len(tfrecords)
-
-    # Torch backend
-    torch_results = []
-    torch_dts = dataset.torch(
-        labels=None,
-        batch_size=batch_size,
-        infinite=False,
-        augment=False,
-        standardize=False,
-        num_workers=6,
-        pin_memory=False
-    )
-    if verbosity < logging.WARNING:
-        torch_dts = tqdm(
-            torch_dts,
-            leave=False,
-            ncols=80,
-            unit_scale=batch_size,
-            total=dataset.num_tiles // batch_size
-        )
-    for images, labels in torch_dts:
-        torch_results += [
-            hash(str(img.numpy().transpose(1, 2, 0)))  # CWH -> WHC
-            for img in images
-        ]
-    if verbosity < logging.WARNING:
-        torch_dts.close()  # type: ignore
-    torch_results = sorted(torch_results)
-
-    # Tensorflow backend
-    tf_results = []
-    tf_dts = dataset.tensorflow(
-        labels=None,
-        batch_size=batch_size,
-        infinite=False,
-        augment=False,
-        standardize=False
-    )
-    if verbosity < logging.WARNING:
-        tf_dts = tqdm(
-            tf_dts,
-            leave=False,
-            ncols=80,
-            unit_scale=batch_size,
-            total=dataset.num_tiles // batch_size
-        )
-    for images, labels in tf_dts:
-        tf_results += [hash(str(img.numpy())) for img in images]
-    if verbosity < logging.WARNING:
-        tf_dts.close()
-    tf_results = sorted(tf_results)
-
-    assert len(torch_results) == len(tf_results) == dataset.num_tiles
-    assert torch_results == tf_results
-
-# --- Complex or multi-step tests needing process isolation -------------------
-
-def activations_tester(
-    project: sf.Project,
-    verbosity: int,
-    passed: "multiprocessing.Value",
-    model: Path,
-    **kwargs
-) -> None:
-    """Tests generation of intermediate layer activations.
-
-    Function must happen in an isolated process to free GPU memory when done.
-    """
-    logging.getLogger("slideflow").setLevel(verbosity)
-    TaskWrapper.VERBOSITY = verbosity
-    with TaskWrapper("Testing activations...") as test:
-        try:
-            dataset = project.dataset(71, 1208)
-            test_slide = dataset.slides()[0]
-
-            df = project.generate_features(
-                model=model,
-                outcomes='category1',
-                **kwargs
-            )
-            act_by_cat = df.activations_by_category(0).values()
-            assert df.num_features == 1280  # mobilenet_v2
-            assert df.num_logits == 2
-            assert len(df.activations) == len(dataset.tfrecords())
-            assert len(df.locations) == len(df.activations) == len(df.logits)
-            assert all([
-                len(df.activations[s]) == len(df.logits[s]) == len(df.locations[s])
-                for s in df.activations
-            ])
-            assert len(df.activations_by_category(0)) == 2
-            assert (sum([len(a) for a in act_by_cat])
-                    == sum([len(df.activations[s]) for s in df.slides]))
-            lm = df.logits_mean()
-            l_perc = df.logits_percent()
-            l_pred = df.logits_predict()
-            assert len(lm) == len(df.activations)
-            assert len(lm[test_slide]) == df.num_logits
-            assert len(l_perc) == len(df.activations)
-            assert len(l_perc[test_slide]) == df.num_logits
-            assert len(l_pred) == len(df.activations)
-
-            umap = SlideMap.from_features(df)
-            if not exists(join(project.root, 'stats')):
-                os.makedirs(join(project.root, 'stats'))
-            umap.save(join(project.root, 'stats', '2d_umap.png'))
-            tile_stats, pt_stats, cat_stats = df.stats()
-            top_features_by_tile = sorted(
-                range(df.num_features),
-                key=lambda f: tile_stats[f]['p']
-            )
-            for feature in top_features_by_tile[:5]:
-                umap.save_3d_plot(
-                    join(project.root, 'stats', f'3d_feature{feature}.png'),
-                    feature=feature
-                )
-            df.box_plots(
-                top_features_by_tile[:5],
-                join(project.root, 'box_plots')
-            )
-        except Exception as e:
-            log.error(traceback.format_exc())
-            test.fail()
-
-    with TaskWrapper("Testing mosaic generation...") as test:
-        try:
-            mosaic = project.generate_mosaic(df)
-            mosaic.save(join(project.root, "mosaic_test.png"), resolution='low')
-        except Exception as e:
-            log.error(traceback.format_exc())
-            test.fail()
-
-
-def normalizer_tester(
-    project: sf.Project,
-    verbosity: int,
-    passed: "multiprocessing.Value",
-    args: Tuple,
-    single: bool,
-    multi: bool,
-) -> None:
-    """Tests all normalization strategies and throughput.
-
-    Function must happen in an isolated process to free GPU memory when done.
-    """
-    if verbosity is not None:
-        logging.getLogger("slideflow").setLevel(verbosity)
-    if not len(args):
-        methods = sf.norm.StainNormalizer.normalizers
-    else:
-        methods = args  # type: ignore
-    dataset = project.dataset(71, 1208)
-    prefix = '\r\033[kTesting '
-    v = '(vectorized)'
-
-    if single:
-        with TaskWrapper("Testing normalization single-thread throughput...") as test:
-            try:
-                dts_kw = {'standardize': False, 'infinite': True}
-                if sf.backend() == 'tensorflow':
-                    dts = dataset.tensorflow(None, None, **dts_kw)
-                    raw_img = next(iter(dts))[0].numpy()
-                elif sf.backend() == 'torch':
-                    dts = dataset.torch(None, None, **dts_kw)
-                    raw_img = next(iter(dts))[0].permute(1, 2, 0).numpy()
-                Image.fromarray(raw_img).save(join(project.root, 'raw_img.png'))
-                for method in methods:
-                    gen_norm = sf.norm.autoselect(method, prefer_vectorized=False)
-                    vec_norm = sf.norm.autoselect(method, prefer_vectorized=True)
-                    st_msg = col.yellow('SINGLE-thread')
-                    print(f"{prefix}{method} [{st_msg}]...", end="")
-
-                    # Save example image
-                    img = Image.fromarray(gen_norm.rgb_to_rgb(raw_img))
-                    img.save(join(project.root, f'{method}.png'))
-
-                    gen_tpt = test_throughput(dts, gen_norm)
-                    dur = col.blue(f"[{gen_tpt:.1f} img/s]")
-                    print(f"{prefix}{method} [{st_msg}]... DONE " + dur)
-                    if type(vec_norm) != type(gen_norm):
-                        print(f"{prefix}{method} {v} [{st_msg}]...", end="")
-
-                        # Save example image
-                        img = Image.fromarray(vec_norm.rgb_to_rgb(raw_img))
-                        img.save(join(project.root, f'{method}_vectorized.png'))
-
-                        vec_tpt = test_throughput(dts, vec_norm)
-                        dur = col.blue(f"[{vec_tpt:.1f} img/s]")
-                        print(f"{prefix}{method} {v} [{st_msg}]... DONE {dur}")
-            except Exception as e:
-                log.error(traceback.format_exc())
-                test.fail()
-
-    if multi:
-        with TaskWrapper("Testing normalization multi-thread throughput...") as test:
-            try:
-                for method in methods:
-                    gen_norm = sf.norm.autoselect(method, prefer_vectorized=False)
-                    vec_norm = sf.norm.autoselect(method, prefer_vectorized=True)
-                    mt_msg = col.purple('MULTI-thread')
-                    print(f"{prefix}{method} [{mt_msg}]...", end="")
-                    gen_tpt = test_multithread_throughput(dataset, gen_norm)
-                    dur = col.blue(f"[{gen_tpt:.1f} img/s]")
-                    print(f"{prefix}{method} [{mt_msg}]... DONE " + dur)
-                    if type(vec_norm) != type(gen_norm):
-                        print(f"{prefix}{method} {v} [{mt_msg}]...", end="")
-                        vec_tpt = test_multithread_throughput(dataset, vec_norm)
-                        dur = col.blue(f"[{vec_tpt:.1f} img/s]")
-                        print(f"{prefix}{method} {v} [{mt_msg}]... DONE " + dur)
-            except Exception as e:
-                log.error(traceback.format_exc())
-                test.fail()
-
-
-def test_throughput(
-    dts: Any,
-    normalizer: sf.norm.StainNormalizer = None,
-    s: int = 5,
-    step_size: int = 1
-) -> float:
-    """Tests throughput of image normalization with a single thread. 
-    
-    Returns:
-        float: images/sec.
-    """
-    start = -1  # type: float
-    count = 0
-    total_time = 0  # type: float
-    for img, slide in dts:
-        if sf.backend() == 'torch':
-            if len(img.shape) == 3:
-                img = img.permute(1, 2, 0)
-            else:
-                img = img.permute(0, 2, 3, 1)
-        img = img.numpy()
-        if normalizer is not None:
-            normalizer.rgb_to_rgb(img)
-        if start == -1:
-            start = time.time()
-        else:
-            count += step_size
-        if time.time() - start > s:
-            total_time = count / (time.time() - start)
-            break
-    return total_time
-
-
-def test_multithread_throughput(
-    dataset: Any,
-    normalizer: sf.norm.StainNormalizer,
-    s: int = 5,
-    batch_size: int = 32
-) -> float:
-    """Tests throughput of image normalization with multiple threads. 
-    
-    Returns:
-        float: images/sec.
-    """
-    if sf.backend() == 'tensorflow':
-        dts = dataset.tensorflow(
-            None,
-            batch_size,
-            standardize=False,
-            infinite=True,
-            normalizer=normalizer
-        )
-    elif sf.backend() == 'torch':
-        dts = dataset.torch(
-            None,
-            batch_size,
-            standardize=False,
-            infinite=True,
-            normalizer=normalizer,
-        )
-    step_size = 1 if batch_size is None else batch_size
-    return test_throughput(dts, step_size=step_size, s=s)
-
-
-def wsi_prediction_tester(
-    project: sf.Project,
-    verbosity: int,
-    passed: "multiprocessing.Value",
-    model: Path,
-) -> None:
-    """Tests predictions of whole-slide images.
-
-    Function must happen in an isolated process to free GPU memory when done.
-    """
-    logging.getLogger("slideflow").setLevel(verbosity)
-    with TaskWrapper("Testing WSI prediction...") as test:
-        try:
-            dataset = project.dataset()
-            slide_paths = dataset.slide_paths(source='TEST')
-            patient_name = sf.util.path_to_name(slide_paths[0])
-            project.predict_wsi(
-                model,
-                join(project.root, 'wsi'),
-                filters={'patient': [patient_name]}
-            )
-        except Exception as e:
-            log.error(traceback.format_exc())
-            test.fail()
-
-# --- TestSuite supervisor ----------------------------------------------------
 
 class TestSuite:
     """Supervises functional testing of the Slideflow pipeline."""
@@ -398,9 +35,9 @@ class TestSuite:
             slides (str, optional): Path to folder containing test slides.
             buffer (str, optional): Buffer slides to this location for faster
                 testing. Defaults to None.
-            verbosity (int, optional): Logging level. Defaults to 
+            verbosity (int, optional): Logging level. Defaults to
                 logging.WARNING.
-            reset (bool, optional): Reset the test project folder before 
+            reset (bool, optional): Reset the test project folder before
                 starting. Defaults to False.
 
         Raises:
@@ -412,49 +49,62 @@ class TestSuite:
             print(col.yellow("Path to slides not provided, unable to perform"
                              " functional tests."))
             self.project = None
+            return
         else:
-            # Set logging level
-            logging.getLogger("slideflow").setLevel(verbosity)
-            # Set the tensorflow logger
-            if logging.getLogger('slideflow').level == logging.DEBUG:
-                logging.getLogger('tensorflow').setLevel(logging.DEBUG)
-                os.environ['TF_CPP_MIN_LOG_LEVEL'] = '0'
-            else:
-                logging.getLogger('tensorflow').setLevel(logging.ERROR)
-                os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-            self.verbosity = verbosity
-            TaskWrapper.VERBOSITY = verbosity
+            detected_slides = [
+                sf.util.path_to_name(f)
+                for f in os.listdir(slides)
+                if sf.util.path_to_ext(f).lower() in sf.util.SUPPORTED_FORMATS
+            ][:10]
+            if not len(detected_slides):
+                print(col.yellow(f"No slides found at {slides}; "
+                                 "unable to perform functional tests."))
+                self.project = None
+                return
 
-            # Configure testing environment
-            self.test_root = root
-            self.project_root = join(root, 'project')
-            self.slides_root = slides
-            print(f'Setting up test project at {col.green(root)}')
-            print(f'Testing using slides from {col.green(slides)}')
-            self.config = TestConfig(root, slides=slides)
-            self.project = self.config.create_project(self.project_root,
-                                                    overwrite=reset)
+        # --- Set up project --------------------------------------------------
+        # Set logging level
+        logging.getLogger("slideflow").setLevel(verbosity)
+        # Set the tensorflow logger
+        if logging.getLogger('slideflow').level == logging.DEBUG:
+            logging.getLogger('tensorflow').setLevel(logging.DEBUG)
+            os.environ['TF_CPP_MIN_LOG_LEVEL'] = '0'
+        else:
+            logging.getLogger('tensorflow').setLevel(logging.ERROR)
+            os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+        self.verbosity = verbosity
+        TaskWrapper.VERBOSITY = verbosity
 
-            # Check if GPU available
-            if sf.backend() == 'tensorflow':
-                import tensorflow as tf
-                if not tf.config.list_physical_devices('GPU'):
-                    log.error("GPU unavailable - tests may fail.")
-            elif sf.backend() == 'torch':
-                import torch
-                if not torch.cuda.is_available():
-                    log.error("GPU unavailable - tests may fail.")
-            else:
-                raise errors.BackendError(
-                    f"Unknown backend {sf.backend()} "
-                    "Valid backends: 'tensorflow' or 'torch'"
-                )
+        # Configure testing environment
+        self.test_root = root
+        self.project_root = join(root, 'project')
+        self.slides_root = slides
+        print(f'Setting up test project at {col.green(root)}')
+        print(f'Testing using slides from {col.green(slides)}')
+        self.config = TestConfig(root, slides=slides)
+        self.project = self.config.create_project(self.project_root,
+                                                overwrite=reset)
 
-            # Configure datasets (input)
-            self.buffer = buffer
+        # Check if GPU available
+        if sf.backend() == 'tensorflow':
+            import tensorflow as tf
+            if not tf.config.list_physical_devices('GPU'):
+                log.error("GPU unavailable - tests may fail.")
+        elif sf.backend() == 'torch':
+            import torch
+            if not torch.cuda.is_available():
+                log.error("GPU unavailable - tests may fail.")
+        else:
+            raise errors.BackendError(
+                f"Unknown backend {sf.backend()} "
+                "Valid backends: 'tensorflow' or 'torch'"
+            )
 
-            # Rebuild tfrecord indices
-            self.project.dataset(71, 1208).build_index(True)
+        # Configure datasets (input)
+        self.buffer = buffer
+
+        # Rebuild tfrecord indices
+        self.project.dataset(71, 1208).build_index(True)
 
     def _get_model(self, name: str, epoch: int = 1) -> str:
         assert self.project is not None
@@ -590,19 +240,30 @@ class TestSuite:
         for each.
 
         Args:
-            single (bool, optional): Perform single-thread tests. 
+            single (bool, optional): Perform single-thread tests.
                 Defaults to True.
-            multi (bool, optional): Perform multi-thread tests. 
+            multi (bool, optional): Perform multi-thread tests.
                 Defaults to True.
         """
         assert self.project is not None
-        process_isolate(
-            normalizer_tester,
-            project=self.project,
-            args=args,
-            single=single,
-            multi=multi
-        )
+        if single:
+            with TaskWrapper("Testing normalization single-thread throughput...") as test:
+                passed = process_isolate(
+                    sf.test.functional.single_thread_normalizer_tester,
+                    project=self.project,
+                    methods=args,
+                )
+                if not passed:
+                    test.fail()
+        if multi:
+            with TaskWrapper("Testing normalization multi-thread throughput...") as test:
+                passed = process_isolate(
+                    sf.test.functional.multi_thread_normalizer_tester,
+                    project=self.project,
+                    methods=args,
+                )
+                if not passed:
+                    test.fail()
 
     def test_readers(self) -> None:
         """Test TFRecord reading between backends (Tensorflow/PyTorch), ensuring
@@ -620,7 +281,7 @@ class TestSuite:
                 test.skip()
                 return
             passed = process_isolate(
-                reader_tester,
+                sf.test.functional.reader_tester,
                 project=self.project
             )
             if not passed:
@@ -672,12 +333,12 @@ class TestSuite:
         Models are trained for one epoch for only 20 steps.
 
         Args:
-            categorical (bool, optional): Test training a single outcome, 
+            categorical (bool, optional): Test training a single outcome,
                 multi-class categorical model. Defaults to True.
             uq (bool, optional): Test training with UQ. Defaults to True.
             multi_categorical (bool, optional): Test training a multi-outcome,
                 multi-class categorical model. Defaults to True.
-            linear (bool, optional): Test training a continuous outcome. 
+            linear (bool, optional): Test training a continuous outcome.
                 Defaults to True.
             multi_linear (bool, optional): Test training with multiple
                 continuous outcomes. Defaults to True.
@@ -685,7 +346,7 @@ class TestSuite:
                 in addition to image input. Defaults to True.
             cph (bool, optional): Test training a Cox-Proportional Hazards
                 model. Defaults to True.
-            multi_cph (bool, optional): Test training a CPH model with 
+            multi_cph (bool, optional): Test training a CPH model with
                 additional slide-level input. Defaults to True.
         """
         assert self.project is not None
@@ -854,7 +515,7 @@ class TestSuite:
 
         with TaskWrapper("Testing categorical model predictions...") as test:
             passed = process_isolate(
-                prediction_tester,
+                sf.test.functional.prediction_tester,
                 project=self.project,
                 model=model,
                 **predict_kwargs
@@ -875,7 +536,7 @@ class TestSuite:
         # with sequential model loading/testing
         with TaskWrapper("Testing categorical model evaluation...") as test:
             passed = process_isolate(
-                evaluation_tester,
+                sf.test.functional.evaluation_tester,
                 project=self.project,
                 model=f_model,
                 outcomes='category1',
@@ -889,7 +550,7 @@ class TestSuite:
         with TaskWrapper("Testing categorical UQ model evaluation...") as test:
             uq_model = self._get_model('category1-UQ-HP0-kfold1')
             passed = process_isolate(
-                evaluation_tester,
+                sf.test.functional.evaluation_tester,
                 project=self.project,
                 model=uq_model,
                 outcomes='category1',
@@ -902,7 +563,7 @@ class TestSuite:
 
         with TaskWrapper("Testing multi-categorical model evaluation...") as test:
             passed = process_isolate(
-                evaluation_tester,
+                sf.test.functional.evaluation_tester,
                 project=self.project,
                 model=multi_cat_model,
                 outcomes=['category1', 'category2'],
@@ -915,7 +576,7 @@ class TestSuite:
 
         with TaskWrapper("Testing multi-linear model evaluation...") as test:
             passed = process_isolate(
-                evaluation_tester,
+                sf.test.functional.evaluation_tester,
                 project=self.project,
                 model=multi_lin_model,
                 outcomes=['linear1', 'linear2'],
@@ -928,7 +589,7 @@ class TestSuite:
 
         with TaskWrapper("Testing multi-input model evaluation...") as test:
             passed = process_isolate(
-                evaluation_tester,
+                sf.test.functional.evaluation_tester,
                 project=self.project,
                 model=multi_inp_model,
                 outcomes='category1',
@@ -942,7 +603,7 @@ class TestSuite:
             if sf.backend() == 'tensorflow':
                 cph_model = self._get_model('time-cph-HP0-kfold1')
                 passed = process_isolate(
-                    evaluation_tester,
+                    sf.test.functional.evaluation_tester,
                     project=self.project,
                     model=cph_model,
                     outcomes='time',
@@ -956,7 +617,7 @@ class TestSuite:
 
     def test_heatmap(self, slide: str = 'auto', **heatmap_kwargs) -> None:
         """Test heatmap generation using a previously trained model."""
-        
+
         assert self.project is not None
         model = self._get_model('category1-manual_hp-TEST-HPSweep0-kfold1')
         assert exists(model), "Model has not yet been trained."
@@ -984,12 +645,15 @@ class TestSuite:
         assert self.project is not None
         model = self._get_model('category1-manual_hp-TEST-HPSweep0-kfold1')
         assert exists(model), "Model has not yet been trained."
-        process_isolate(
-            activations_tester,
-            project=self.project,
-            model=model,
-            **act_kwargs
-        )
+        with TaskWrapper("Testing activations and mosaic...") as test:
+            passed = process_isolate(
+                sf.test.functional.activations_tester,
+                project=self.project,
+                model=model,
+                **act_kwargs
+            )
+            if not passed:
+                test.fail()
 
     def test_predict_wsi(self) -> None:
         """Test predictions for whole-slide images."""
@@ -997,11 +661,14 @@ class TestSuite:
         assert self.project is not None
         model = self._get_model('category1-manual_hp-TEST-HPSweep0-kfold1')
         assert exists(model), "Model has not yet been trained."
-        process_isolate(
-            wsi_prediction_tester,
-            project=self.project, 
-            model=model
-        )
+        with TaskWrapper("Testing WSI prediction...") as test:
+            passed = process_isolate(
+                sf.test.functional.wsi_prediction_tester,
+                project=self.project,
+                model=model
+            )
+            if not passed:
+                test.fail()
 
     def test_clam(self) -> None:
         """Test the CLAM submodule."""
@@ -1022,7 +689,7 @@ class TestSuite:
                 test.skip()
             else:
                 passed = process_isolate(
-                    clam_feature_generator,
+                    sf.test.functional.clam_feature_generator_tester,
                     project=self.project,
                     model=model
                 )
@@ -1092,7 +759,7 @@ class TestSuite:
 
     def unittests(self) -> None:
         """Run unit tests."""
-        
+
         print("Running unit tests...")
         runner = unittest.TextTestRunner()
         all_tests = [
