@@ -177,8 +177,9 @@ def _tile_extractor(
         log.error(e)
     except errors.TileCorruptionError:
         log.error(f'{path} corrupt; skipping')
-    except (KeyboardInterrupt, SystemExit):
+    except (KeyboardInterrupt, SystemExit) as e:
         print('Exiting...')
+        raise e
 
 def _fill_queue(
     slide_list: Sequence[str],

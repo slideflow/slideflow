@@ -158,7 +158,7 @@ class Heatmap:
         # Plot ROIs
         if show_roi:
             print('\r\033[KPlotting ROIs...', end='')
-            roi_scale = self.slide.full_shape[0] / 2048
+            roi_scale = self.slide.dimensions[0] / 2048
             annPolys = [
                 sg.Polygon(annotation.scaled_area(roi_scale))
                 for annotation in self.slide.rois

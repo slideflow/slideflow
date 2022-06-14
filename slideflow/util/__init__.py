@@ -913,7 +913,7 @@ def tfrecord_heatmap(
     log.debug(f'Min x: {min(scaled_x)}\t Max x: {max(scaled_x)}')
     log.debug(f'Min y: {min(scaled_y)}\t Max y: {max(scaled_y)}')
     log.debug('Slide properties:')
-    log.debug(f'Size (x): {wsi.full_shape[0]}\t Size (y): {wsi.full_shape[1]}')
+    log.debug(f'Size (x): {wsi.dimensions[0]}\t Size (y): {wsi.dimensions[1]}')
 
     # Slide coordinate information
     max_coord_x = max([c[0] for c in wsi.coord])
@@ -926,10 +926,10 @@ def tfrecord_heatmap(
     log.debug(f'Number of tiles (y): {num_y}\t Max coord (y): {max_coord_y}')
 
     # Calculate dead space (un-extracted tiles) in x and y axes
-    dead_x = wsi.full_shape[0] - max_coord_x
-    dead_y = wsi.full_shape[1] - max_coord_y
-    fraction_dead_x = dead_x / wsi.full_shape[0]
-    fraction_dead_y = dead_y / wsi.full_shape[1]
+    dead_x = wsi.dimensions[0] - max_coord_x
+    dead_y = wsi.dimensions[1] - max_coord_y
+    fraction_dead_x = dead_x / wsi.dimensions[0]
+    fraction_dead_y = dead_y / wsi.dimensions[1]
 
     log.debug('Slide dead space')
     log.debug(f'x: {dead_x}\t y:{dead_y}')
