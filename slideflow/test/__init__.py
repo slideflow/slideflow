@@ -10,7 +10,7 @@ from typing import Optional
 import slideflow as sf
 import slideflow.test.functional
 from slideflow import errors
-from slideflow.test import dataset_test
+from slideflow.test import dataset_test, slide_test
 from slideflow.test.utils import (TaskWrapper, TestConfig,
                                   _assert_valid_results, process_isolate)
 from slideflow.util import colors as col
@@ -731,7 +731,7 @@ class TestSuite:
         self.unittests()
         if self.project is None:
             print(col.yellow("Slides not provided; unable to perform "
-                             "functional testing."))
+                             "functional or WSI testing."))
         else:
             if extract:
                 self.test_extraction()
@@ -767,4 +767,13 @@ class TestSuite:
             for module in (dataset_test, )
         ]
         suite = unittest.TestSuite(all_tests)
+
+        # Add WSI tests if slides are provided
+        if self.project is not None:
+            test_slide = self.project.dataset().slide_paths()[0]
+            test_loader = unittest.TestLoader()
+            test_names = test_loader.getTestCaseNames(slide_test.TestSlide)
+            for test_name in test_names:
+                suite.addTest(slide_test.TestSlide(test_name, test_slide))
+
         runner.run(suite)

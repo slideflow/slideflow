@@ -1181,9 +1181,9 @@ class _BaseLoader:
                 annotations (.txt) in the tile directory. Requires that
                 tiles_dir is set. Defaults to False.
         """
-
+        if 'show_progress' not in kwargs:
+            kwargs['show_progress'] = (self._counter_lock is None)
         generator = self.build_generator(
-            show_progress=(self._counter_lock is None),
             dry_run=True,
             **kwargs
         )
