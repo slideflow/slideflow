@@ -1,12 +1,15 @@
 import csv
 import json
 import logging
+import multiprocessing
 import os
 import random
 import re
 import shutil
 import sys
 import time
+import traceback
+from functools import wraps
 from os.path import exists, join
 from typing import Any, Callable, Dict, List, Optional
 
@@ -17,6 +20,33 @@ from slideflow.util import ProgressBar
 from slideflow.util import colors as col
 from slideflow.util import log
 from slideflow.util.spinner import Spinner
+
+
+def process_isolate(func: Callable, project: sf.Project, **kwargs) -> bool:
+    ctx = multiprocessing.get_context('spawn')
+    passed = ctx.Manager().Value(bool, True)
+    verbosity = logging.getLogger('slideflow').level
+    process = ctx.Process(
+        target=func,
+        args=(project, verbosity, passed),
+        kwargs=kwargs
+    )
+    process.start()
+    process.join()
+    return passed.value
+
+
+def handle_errors(func):
+
+    @wraps(func)
+    def wrapper(project, verbosity, passed, **kwargs):
+        try:
+            func(project, verbosity, passed, **kwargs)
+        except Exception as e:
+            log.error(traceback.format_exc())
+            passed.value = False
+    
+    return wrapper
 
 
 def get_tcga_slides() -> Dict[str, str]:

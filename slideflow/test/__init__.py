@@ -1,178 +1,42 @@
-import csv
+
 import logging
-import multiprocessing
 import os
 import time
+import traceback
 import unittest
 from os.path import exists, join
-from typing import Any, Optional, Tuple
+from typing import Any, Optional, Tuple, TYPE_CHECKING
 
 import slideflow as sf
 from PIL import Image
 from slideflow import errors
 from slideflow.stats import SlideMap
 from slideflow.test import dataset_test
-from slideflow.test.utils import TaskWrapper, TestConfig, _assert_valid_results
+from slideflow.test.utils import (
+    TaskWrapper, TestConfig, _assert_valid_results, process_isolate, 
+    handle_errors
+)
 from slideflow.util import Path
 from slideflow.util import colors as col
 from slideflow.util import log
 from tqdm import tqdm
 
-# ---------------------------------------
+if TYPE_CHECKING:
+    import multiprocessing
 
-def _prediction_tester(project: sf.Project, verbosity: int, **kwargs) -> None:
-    logging.getLogger("slideflow").setLevel(verbosity)
-    project.predict(**kwargs)
+# --- Self-contained tests needing process isolation --------------------------
 
-
-def prediction_tester(project: sf.Project, **kwargs) -> None:
-    """Prediction testing must happen in an isolated to free GPU memory
-    after evaluation is done, due to the need for testing multiple models."""
-
-    ctx = multiprocessing.get_context('spawn')
-    verbosity = logging.getLogger('slideflow').level
-    process = ctx.Process(
-        target=_prediction_tester,
-        args=(project, verbosity),
-        kwargs=kwargs
-    )
-    process.start()
-    process.join()
-
-
-# ---------------------------------------
-
-def _evaluation_tester(project: sf.Project, verbosity: int, **kwargs) -> None:
-    logging.getLogger("slideflow").setLevel(verbosity)
-    project.evaluate(**kwargs)
-
-
-def evaluation_tester(project: sf.Project, **kwargs) -> None:
-    """Evaluation testing must happen in an isolated to free GPU memory
-    after evaluation is done, due to the need for testing multiple models."""
-
-    ctx = multiprocessing.get_context('spawn')
-    verbosity = logging.getLogger('slideflow').level
-    process = ctx.Process(
-        target=_evaluation_tester,
-        args=(project, verbosity),
-        kwargs=kwargs
-    )
-    process.start()
-    process.join()
-
-
-# -----------------------------------------
-
-def _activations_tester(
+@handle_errors
+def clam_feature_generator(
     project: sf.Project,
-    model: Path,
     verbosity: int,
-    **kwargs
-) -> None:
-    logging.getLogger("slideflow").setLevel(verbosity)
-    TaskWrapper.VERBOSITY = verbosity
-    with TaskWrapper("Testing activations..."):
-        dataset = project.dataset(71, 1208)
-        test_slide = dataset.slides()[0]
-
-        df = project.generate_features(
-            model=model,
-            outcomes='category1',
-            **kwargs
-        )
-        act_by_cat = df.activations_by_category(0).values()
-        assert df.num_features == 1280  # mobilenet_v2
-        assert df.num_logits == 2
-        assert len(df.activations) == len(dataset.tfrecords())
-        assert len(df.locations) == len(df.activations) == len(df.logits)
-        assert all([
-            len(df.activations[s]) == len(df.logits[s]) == len(df.locations[s])
-            for s in df.activations
-        ])
-        assert len(df.activations_by_category(0)) == 2
-        assert (sum([len(a) for a in act_by_cat])
-                == sum([len(df.activations[s]) for s in df.slides]))
-        lm = df.logits_mean()
-        l_perc = df.logits_percent()
-        l_pred = df.logits_predict()
-        assert len(lm) == len(df.activations)
-        assert len(lm[test_slide]) == df.num_logits
-        assert len(l_perc) == len(df.activations)
-        assert len(l_perc[test_slide]) == df.num_logits
-        assert len(l_pred) == len(df.activations)
-
-        umap = SlideMap.from_features(df)
-        if not exists(join(project.root, 'stats')):
-            os.makedirs(join(project.root, 'stats'))
-        umap.save(join(project.root, 'stats', '2d_umap.png'))
-        tile_stats, pt_stats, cat_stats = df.stats()
-        top_features_by_tile = sorted(
-            range(df.num_features),
-            key=lambda f: tile_stats[f]['p']
-        )
-        for feature in top_features_by_tile[:5]:
-            umap.save_3d_plot(
-                join(project.root, 'stats', f'3d_feature{feature}.png'),
-                feature=feature
-            )
-        df.box_plots(
-            top_features_by_tile[:5],
-            join(project.root, 'box_plots')
-        )
-
-    with TaskWrapper("Testing mosaic generation..."):
-        mosaic = project.generate_mosaic(df)
-        mosaic.save(join(project.root, "mosaic_test.png"), resolution='low')
-
-
-def activations_tester(project: sf.Project, model: Path, **kwargs) -> None:
-    ctx = multiprocessing.get_context('spawn')
-    verbosity = logging.getLogger('slideflow').level
-    process = ctx.Process(
-        target=_activations_tester,
-        args=(project, model, verbosity),
-        kwargs=kwargs
-    )
-    process.start()
-    process.join()
-
-
-# -----------------------------------------
-
-def _wsi_prediction_tester(
-    project: sf.Project,
+    passed: "multiprocessing.Value",
     model: Path,
-    verbosity: int
 ) -> None:
-    logging.getLogger("slideflow").setLevel(verbosity)
-    with TaskWrapper("Testing WSI prediction..."):
-        dataset = project.dataset()
-        slide_paths = dataset.slide_paths(source='TEST')
-        patient_name = sf.util.path_to_name(slide_paths[0])
-        project.predict_wsi(
-            model,
-            join(project.root, 'wsi'),
-            filters={'patient': [patient_name]}
-        )
+    """Tests feature generation for CLAM (and related) models.
 
-
-def wsi_prediction_tester(project: sf.Project, model: Path) -> None:
-    ctx = multiprocessing.get_context('spawn')
-    verbosity = logging.getLogger('slideflow').level
-    process = ctx.Process(
-        target=_wsi_prediction_tester,
-        args=(project, model, verbosity)
-    )
-    process.start()
-    process.join()
-
-
-def _clam_feature_generator(
-    project: sf.Project,
-    model: Path,
-    verbosity: int
-) -> None:
+    Function must happen in an isolated process to free GPU memory when done.
+    """
     logging.getLogger("slideflow").setLevel(verbosity)
     outdir = join(project.root, 'clam')
     project.generate_features_for_clam(
@@ -182,20 +46,32 @@ def _clam_feature_generator(
     )
 
 
-def clam_feature_generator(project: sf.Project, model: Path) -> None:
-    ctx = multiprocessing.get_context('spawn')
-    verbosity = logging.getLogger('slideflow').level
-    process = ctx.Process(
-        target=_clam_feature_generator,
-        args=(project, model, verbosity)
-    )
-    process.start()
-    process.join()
+@handle_errors
+def evaluation_tester(project, verbosity, passed, **kwargs) -> None:
+    """Tests model evaluation.
+
+    Function must happen in an isolated process to free GPU memory when done.
+    """
+    logging.getLogger("slideflow").setLevel(verbosity)
+    project.evaluate(**kwargs)
 
 
-# ----------------------------------------
+@handle_errors
+def prediction_tester(project, verbosity, passed, **kwargs) -> None:
+    """Tests model predictions.
 
-def reader_tester(project: sf.Project, verbosity: int) -> None:
+    Function must happen in an isolated process to free GPU memory when done.
+    """
+    logging.getLogger("slideflow").setLevel(verbosity)
+    project.predict(**kwargs)
+
+
+@handle_errors
+def reader_tester(project, verbosity, passed) -> None:
+    """Tests TFRecord reading between backends and ensures identical results.
+
+    Function must happen in an isolated process to free GPU memory when done.
+    """
     dataset = project.dataset(71, 1208)
     tfrecords = dataset.tfrecords()
     batch_size = 128
@@ -255,16 +131,95 @@ def reader_tester(project: sf.Project, verbosity: int) -> None:
     assert len(torch_results) == len(tf_results) == dataset.num_tiles
     assert torch_results == tf_results
 
+# --- Complex or multi-step tests needing process isolation -------------------
 
-# -----------------------------------------------
+def activations_tester(
+    project: sf.Project,
+    verbosity: int,
+    passed: "multiprocessing.Value",
+    model: Path,
+    **kwargs
+) -> None:
+    """Tests generation of intermediate layer activations.
+
+    Function must happen in an isolated process to free GPU memory when done.
+    """
+    logging.getLogger("slideflow").setLevel(verbosity)
+    TaskWrapper.VERBOSITY = verbosity
+    with TaskWrapper("Testing activations...") as test:
+        try:
+            dataset = project.dataset(71, 1208)
+            test_slide = dataset.slides()[0]
+
+            df = project.generate_features(
+                model=model,
+                outcomes='category1',
+                **kwargs
+            )
+            act_by_cat = df.activations_by_category(0).values()
+            assert df.num_features == 1280  # mobilenet_v2
+            assert df.num_logits == 2
+            assert len(df.activations) == len(dataset.tfrecords())
+            assert len(df.locations) == len(df.activations) == len(df.logits)
+            assert all([
+                len(df.activations[s]) == len(df.logits[s]) == len(df.locations[s])
+                for s in df.activations
+            ])
+            assert len(df.activations_by_category(0)) == 2
+            assert (sum([len(a) for a in act_by_cat])
+                    == sum([len(df.activations[s]) for s in df.slides]))
+            lm = df.logits_mean()
+            l_perc = df.logits_percent()
+            l_pred = df.logits_predict()
+            assert len(lm) == len(df.activations)
+            assert len(lm[test_slide]) == df.num_logits
+            assert len(l_perc) == len(df.activations)
+            assert len(l_perc[test_slide]) == df.num_logits
+            assert len(l_pred) == len(df.activations)
+
+            umap = SlideMap.from_features(df)
+            if not exists(join(project.root, 'stats')):
+                os.makedirs(join(project.root, 'stats'))
+            umap.save(join(project.root, 'stats', '2d_umap.png'))
+            tile_stats, pt_stats, cat_stats = df.stats()
+            top_features_by_tile = sorted(
+                range(df.num_features),
+                key=lambda f: tile_stats[f]['p']
+            )
+            for feature in top_features_by_tile[:5]:
+                umap.save_3d_plot(
+                    join(project.root, 'stats', f'3d_feature{feature}.png'),
+                    feature=feature
+                )
+            df.box_plots(
+                top_features_by_tile[:5],
+                join(project.root, 'box_plots')
+            )
+        except Exception as e:
+            log.error(traceback.format_exc())
+            test.fail()
+
+    with TaskWrapper("Testing mosaic generation...") as test:
+        try:
+            mosaic = project.generate_mosaic(df)
+            mosaic.save(join(project.root, "mosaic_test.png"), resolution='low')
+        except Exception as e:
+            log.error(traceback.format_exc())
+            test.fail()
+
 
 def normalizer_tester(
     project: sf.Project,
+    verbosity: int,
+    passed: "multiprocessing.Value",
     args: Tuple,
     single: bool,
     multi: bool,
-    verbosity: Optional[int] = None
 ) -> None:
+    """Tests all normalization strategies and throughput.
+
+    Function must happen in an isolated process to free GPU memory when done.
+    """
     if verbosity is not None:
         logging.getLogger("slideflow").setLevel(verbosity)
     if not len(args):
@@ -276,57 +231,63 @@ def normalizer_tester(
     v = '(vectorized)'
 
     if single:
-        with TaskWrapper("Testing normalization single-thread throughput..."):
-            dts_kw = {'standardize': False, 'infinite': True}
-            if sf.backend() == 'tensorflow':
-                dts = dataset.tensorflow(None, None, **dts_kw)
-                raw_img = next(iter(dts))[0].numpy()
-            elif sf.backend() == 'torch':
-                dts = dataset.torch(None, None, **dts_kw)
-                raw_img = next(iter(dts))[0].permute(1, 2, 0).numpy()
-            Image.fromarray(raw_img).save(join(project.root, 'raw_img.png'))
-            for method in methods:
-                gen_norm = sf.norm.autoselect(method, prefer_vectorized=False)
-                vec_norm = sf.norm.autoselect(method, prefer_vectorized=True)
-                st_msg = col.yellow('SINGLE-thread')
-                print(f"{prefix}{method} [{st_msg}]...", end="")
-
-                # Save example image
-                img = Image.fromarray(gen_norm.rgb_to_rgb(raw_img))
-                img.save(join(project.root, f'{method}.png'))
-
-                gen_tpt = test_throughput(dts, gen_norm)
-                dur = col.blue(f"[{gen_tpt:.1f} img/s]")
-                print(f"{prefix}{method} [{st_msg}]... DONE " + dur)
-                if type(vec_norm) != type(gen_norm):
-                    print(f"{prefix}{method} {v} [{st_msg}]...", end="")
+        with TaskWrapper("Testing normalization single-thread throughput...") as test:
+            try:
+                dts_kw = {'standardize': False, 'infinite': True}
+                if sf.backend() == 'tensorflow':
+                    dts = dataset.tensorflow(None, None, **dts_kw)
+                    raw_img = next(iter(dts))[0].numpy()
+                elif sf.backend() == 'torch':
+                    dts = dataset.torch(None, None, **dts_kw)
+                    raw_img = next(iter(dts))[0].permute(1, 2, 0).numpy()
+                Image.fromarray(raw_img).save(join(project.root, 'raw_img.png'))
+                for method in methods:
+                    gen_norm = sf.norm.autoselect(method, prefer_vectorized=False)
+                    vec_norm = sf.norm.autoselect(method, prefer_vectorized=True)
+                    st_msg = col.yellow('SINGLE-thread')
+                    print(f"{prefix}{method} [{st_msg}]...", end="")
 
                     # Save example image
-                    img = Image.fromarray(vec_norm.rgb_to_rgb(raw_img))
-                    img.save(join(project.root, f'{method}_vectorized.png'))
+                    img = Image.fromarray(gen_norm.rgb_to_rgb(raw_img))
+                    img.save(join(project.root, f'{method}.png'))
 
-                    vec_tpt = test_throughput(dts, vec_norm)
-                    dur = col.blue(f"[{vec_tpt:.1f} img/s]")
-                    print(f"{prefix}{method} {v} [{st_msg}]... DONE {dur}")
+                    gen_tpt = test_throughput(dts, gen_norm)
+                    dur = col.blue(f"[{gen_tpt:.1f} img/s]")
+                    print(f"{prefix}{method} [{st_msg}]... DONE " + dur)
+                    if type(vec_norm) != type(gen_norm):
+                        print(f"{prefix}{method} {v} [{st_msg}]...", end="")
+
+                        # Save example image
+                        img = Image.fromarray(vec_norm.rgb_to_rgb(raw_img))
+                        img.save(join(project.root, f'{method}_vectorized.png'))
+
+                        vec_tpt = test_throughput(dts, vec_norm)
+                        dur = col.blue(f"[{vec_tpt:.1f} img/s]")
+                        print(f"{prefix}{method} {v} [{st_msg}]... DONE {dur}")
+            except Exception as e:
+                log.error(traceback.format_exc())
+                test.fail()
 
     if multi:
-        with TaskWrapper("Testing normalization multi-thread throughput..."):
-            for method in methods:
-                gen_norm = sf.norm.autoselect(method, prefer_vectorized=False)
-                vec_norm = sf.norm.autoselect(method, prefer_vectorized=True)
-                mt_msg = col.purple('MULTI-thread')
-                print(f"{prefix}{method} [{mt_msg}]...", end="")
-                gen_tpt = test_multithread_throughput(dataset, gen_norm)
-                dur = col.blue(f"[{gen_tpt:.1f} img/s]")
-                print(f"{prefix}{method} [{mt_msg}]... DONE " + dur)
-                if type(vec_norm) != type(gen_norm):
-                    print(f"{prefix}{method} {v} [{mt_msg}]...", end="")
-                    vec_tpt = test_multithread_throughput(dataset, vec_norm)
-                    dur = col.blue(f"[{vec_tpt:.1f} img/s]")
-                    print(f"{prefix}{method} {v} [{mt_msg}]... DONE " + dur)
+        with TaskWrapper("Testing normalization multi-thread throughput...") as test:
+            try:
+                for method in methods:
+                    gen_norm = sf.norm.autoselect(method, prefer_vectorized=False)
+                    vec_norm = sf.norm.autoselect(method, prefer_vectorized=True)
+                    mt_msg = col.purple('MULTI-thread')
+                    print(f"{prefix}{method} [{mt_msg}]...", end="")
+                    gen_tpt = test_multithread_throughput(dataset, gen_norm)
+                    dur = col.blue(f"[{gen_tpt:.1f} img/s]")
+                    print(f"{prefix}{method} [{mt_msg}]... DONE " + dur)
+                    if type(vec_norm) != type(gen_norm):
+                        print(f"{prefix}{method} {v} [{mt_msg}]...", end="")
+                        vec_tpt = test_multithread_throughput(dataset, vec_norm)
+                        dur = col.blue(f"[{vec_tpt:.1f} img/s]")
+                        print(f"{prefix}{method} {v} [{mt_msg}]... DONE " + dur)
+            except Exception as e:
+                log.error(traceback.format_exc())
+                test.fail()
 
-
-# -----------------------------------------------
 
 def test_throughput(
     dts: Any,
@@ -334,7 +295,11 @@ def test_throughput(
     s: int = 5,
     step_size: int = 1
 ) -> float:
-    '''Returns images / sec'''
+    """Tests throughput of image normalization with a single thread. 
+    
+    Returns:
+        float: images/sec.
+    """
     start = -1  # type: float
     count = 0
     total_time = 0  # type: float
@@ -363,6 +328,11 @@ def test_multithread_throughput(
     s: int = 5,
     batch_size: int = 32
 ) -> float:
+    """Tests throughput of image normalization with multiple threads. 
+    
+    Returns:
+        float: images/sec.
+    """
     if sf.backend() == 'tensorflow':
         dts = dataset.tensorflow(
             None,
@@ -383,20 +353,60 @@ def test_multithread_throughput(
     return test_throughput(dts, step_size=step_size, s=s)
 
 
-# -----------------------------------------------
+def wsi_prediction_tester(
+    project: sf.Project,
+    verbosity: int,
+    passed: "multiprocessing.Value",
+    model: Path,
+) -> None:
+    """Tests predictions of whole-slide images.
 
+    Function must happen in an isolated process to free GPU memory when done.
+    """
+    logging.getLogger("slideflow").setLevel(verbosity)
+    with TaskWrapper("Testing WSI prediction...") as test:
+        try:
+            dataset = project.dataset()
+            slide_paths = dataset.slide_paths(source='TEST')
+            patient_name = sf.util.path_to_name(slide_paths[0])
+            project.predict_wsi(
+                model,
+                join(project.root, 'wsi'),
+                filters={'patient': [patient_name]}
+            )
+        except Exception as e:
+            log.error(traceback.format_exc())
+            test.fail()
+
+# --- TestSuite supervisor ----------------------------------------------------
 
 class TestSuite:
-    '''Class to supervise standardized testing of slideflow pipeline.'''
+    """Supervises functional testing of the Slideflow pipeline."""
     def __init__(
         self,
         root: str,
-        slides: Optional[str],
-        buffer: Optional[Path] = None,
+        slides: Optional[str] = None,
+        buffer: Optional[str] = None,
         verbosity: int = logging.WARNING,
         reset: bool = False
     ) -> None:
-        '''Initialize testing models.'''
+        """Prepare for functional and unit testing testing. Functional tests
+        require example slides.
+
+        Args:
+            root (str): Root directory of test project.
+            slides (str, optional): Path to folder containing test slides.
+            buffer (str, optional): Buffer slides to this location for faster
+                testing. Defaults to None.
+            verbosity (int, optional): Logging level. Defaults to 
+                logging.WARNING.
+            reset (bool, optional): Reset the test project folder before 
+                starting. Defaults to False.
+
+        Raises:
+            errors.BackendError: If the environmental variable SF_BACKEND
+                is not either "tensorflow" or "torch".
+        """
 
         if slides is None:
             print(col.yellow("Path to slides not provided, unable to perform"
@@ -468,7 +478,17 @@ class TestSuite:
         normalizer: Optional[str] = None,
         uq: bool = False
     ) -> sf.ModelParams:
-        """Set up hyperparameters."""
+        """Set up hyperparameters.
+
+        Args:
+            model_type (str): Type of model, ('categorical', 'linear, 'cph').
+            sweep (bool, optional): Set up HP sweep. Defaults to False.
+            normalizer (str, optional): Normalizer strategy. Defaults to None.
+            uq (bool, optional): Uncertainty quantification. Defaults to False.
+
+        Returns:
+            sf.ModelParams: Hyperparameter object.
+        """
 
         assert self.project is not None
         if model_type == 'categorical':
@@ -536,20 +556,29 @@ class TestSuite:
         return hp
 
     def test_extraction(self, enable_downsample: bool = True, **kwargs) -> None:
-        # Test tile extraction, default parameters, for regular slides
+        """Test tile extraction.
+
+        Args:
+            enable_downsample (bool, optional): Enable using intermediate
+                downsample layers in slides. Defaults to True.
+        """
         assert self.project is not None
-        with TaskWrapper("Testing slide extraction..."):
-            self.project.extract_tiles(
-                tile_px=71,
-                tile_um=1208,
-                buffer=self.buffer,
-                source=['TEST'],
-                roi_method='ignore',
-                skip_extracted=False,
-                img_format='png',
-                enable_downsample=enable_downsample,
-                **kwargs
-            )
+        with TaskWrapper("Testing slide extraction...") as test:
+            try:
+                self.project.extract_tiles(
+                    tile_px=71,
+                    tile_um=1208,
+                    buffer=self.buffer,
+                    source=['TEST'],
+                    roi_method='ignore',
+                    skip_extracted=False,
+                    img_format='png',
+                    enable_downsample=enable_downsample,
+                    **kwargs
+                )
+            except Exception as e:
+                log.error(traceback.format_exc())
+                test.fail()
 
     def test_normalizers(
         self,
@@ -557,18 +586,28 @@ class TestSuite:
         single: bool = True,
         multi: bool = True,
     ) -> None:
-        # Tests throughput of normalizers, save a single example image for each
+        """Test normalizer strategy and throughput, saving example image
+        for each.
+
+        Args:
+            single (bool, optional): Perform single-thread tests. 
+                Defaults to True.
+            multi (bool, optional): Perform multi-thread tests. 
+                Defaults to True.
+        """
         assert self.project is not None
-        verbosity = logging.getLogger('slideflow').level
-        ctx = multiprocessing.get_context('spawn')
-        process = ctx.Process(
-            target=normalizer_tester,
-            args=(self.project, args, single, multi, verbosity)
+        process_isolate(
+            normalizer_tester,
+            project=self.project,
+            args=args,
+            single=single,
+            multi=multi
         )
-        process.start()
-        process.join()
 
     def test_readers(self) -> None:
+        """Test TFRecord reading between backends (Tensorflow/PyTorch), ensuring
+        that both yield identical results.
+        """
         assert self.project is not None
         with TaskWrapper("Testing torch and tensorflow readers...") as test:
             try:
@@ -580,35 +619,41 @@ class TestSuite:
                 )
                 test.skip()
                 return
-
-            ctx = multiprocessing.get_context('spawn')
-            process = ctx.Process(target=reader_tester, args=(self.project,
-                                                            self.verbosity))
-            process.start()
-            process.join()
+            passed = process_isolate(
+                reader_tester,
+                project=self.project
+            )
+            if not passed:
+                test.fail()
 
     def train_perf(self, **train_kwargs) -> None:
+        """Test model training across multiple epochs."""
+
         assert self.project is not None
         msg = "Training single categorical outcome from HP sweep..."
         with TaskWrapper(msg) as test:
-            self.setup_hp(
-                'categorical',
-                sweep=True,
-                normalizer='reinhard_fast',
-                uq=False
-            )
-            results = self.project.train(
-                exp_label='manual_hp',
-                outcomes='category1',
-                val_k=1,
-                validate_on_batch=10,
-                save_predictions=True,
-                steps_per_epoch_override=20,
-                params='sweep.json',
-                pretrain=None,
-                **train_kwargs
-            )
-            _assert_valid_results(results)
+            try:
+                self.setup_hp(
+                    'categorical',
+                    sweep=True,
+                    normalizer='reinhard_fast',
+                    uq=False
+                )
+                results = self.project.train(
+                    exp_label='manual_hp',
+                    outcomes='category1',
+                    val_k=1,
+                    validate_on_batch=10,
+                    save_predictions=True,
+                    steps_per_epoch_override=20,
+                    params='sweep.json',
+                    pretrain=None,
+                    **train_kwargs
+                )
+                _assert_valid_results(results)
+            except Exception as e:
+                log.error(traceback.format_exc())
+                test.fail()
 
     def test_training(
         self,
@@ -622,6 +667,27 @@ class TestSuite:
         multi_cph: bool = True,
         **train_kwargs
     ) -> None:
+        """Test model training using a variety of strategies.
+
+        Models are trained for one epoch for only 20 steps.
+
+        Args:
+            categorical (bool, optional): Test training a single outcome, 
+                multi-class categorical model. Defaults to True.
+            uq (bool, optional): Test training with UQ. Defaults to True.
+            multi_categorical (bool, optional): Test training a multi-outcome,
+                multi-class categorical model. Defaults to True.
+            linear (bool, optional): Test training a continuous outcome. 
+                Defaults to True.
+            multi_linear (bool, optional): Test training with multiple
+                continuous outcomes. Defaults to True.
+            multi_input (bool, optional): Test training with slide-level input
+                in addition to image input. Defaults to True.
+            cph (bool, optional): Test training a Cox-Proportional Hazards
+                model. Defaults to True.
+            multi_cph (bool, optional): Test training a CPH model with 
+                additional slide-level input. Defaults to True.
+        """
         assert self.project is not None
         # Disable checkpoints for tensorflow backend, to save disk space
         if (sf.backend() == 'tensorflow'
@@ -636,90 +702,90 @@ class TestSuite:
             # Test categorical outcome with UQ
             msg = "Training single categorical outcome with UQ..."
             with TaskWrapper(msg) as test:
-                hp = self.setup_hp('categorical', sweep=False, uq=True)
-                results = self.project.train(
-                    exp_label='UQ',
-                    outcomes='category1',
-                    val_k=1,
-                    params=hp,
-                    validate_on_batch=10,
-                    steps_per_epoch_override=20,
-                    save_predictions=True,
-                    pretrain=None,
-                    **train_kwargs
-                )
-                _assert_valid_results(results)
+                try:
+                    hp = self.setup_hp('categorical', sweep=False, uq=True)
+                    results = self.project.train(
+                        exp_label='UQ',
+                        outcomes='category1',
+                        val_k=1,
+                        params=hp,
+                        validate_on_batch=10,
+                        steps_per_epoch_override=20,
+                        save_predictions=True,
+                        pretrain=None,
+                        **train_kwargs
+                    )
+                    _assert_valid_results(results)
+                except Exception as e:
+                    log.error(traceback.format_exc())
+                    test.fail()
 
         if multi_categorical:
             # Test multiple sequential categorical outcome models
             with TaskWrapper("Training to multiple outcomes...") as test:
-                results = self.project.train(
-                    outcomes=['category1', 'category2'],
-                    val_k=1,
-                    params=self.setup_hp('categorical'),
-                    validate_on_batch=10,
-                    steps_per_epoch_override=20,
-                    save_predictions=True,
-                    pretrain=None,
-                    **train_kwargs
-                )
-                _assert_valid_results(results)
+                try:
+                    results = self.project.train(
+                        outcomes=['category1', 'category2'],
+                        val_k=1,
+                        params=self.setup_hp('categorical'),
+                        validate_on_batch=10,
+                        steps_per_epoch_override=20,
+                        save_predictions=True,
+                        pretrain=None,
+                        **train_kwargs
+                    )
+                    _assert_valid_results(results)
+                except Exception as e:
+                    log.error(traceback.format_exc())
+                    test.fail()
 
         if linear:
             # Test single linear outcome
             with TaskWrapper("Training with single linear outcome...") as test:
-                results = self.project.train(
-                    outcomes=['linear1'],
-                    val_k=1,
-                    params=self.setup_hp('linear'),
-                    validate_on_batch=10,
-                    steps_per_epoch_override=20,
-                    save_predictions=True,
-                    pretrain=None,
-                    **train_kwargs
-                )
-                _assert_valid_results(results)
+                try:
+                    results = self.project.train(
+                        outcomes=['linear1'],
+                        val_k=1,
+                        params=self.setup_hp('linear'),
+                        validate_on_batch=10,
+                        steps_per_epoch_override=20,
+                        save_predictions=True,
+                        pretrain=None,
+                        **train_kwargs
+                    )
+                    _assert_valid_results(results)
+                except Exception as e:
+                    log.error(traceback.format_exc())
+                    test.fail()
 
         if multi_linear:
             # Test multiple linear outcome
             with TaskWrapper("Training multiple linear outcomes...") as test:
-                results = self.project.train(
-                    outcomes=['linear1', 'linear2'],
-                    val_k=1,
-                    params=self.setup_hp('linear'),
-                    validate_on_batch=10,
-                    steps_per_epoch_override=20,
-                    save_predictions=True,
-                    pretrain=None,
-                    **train_kwargs
-                )
-                _assert_valid_results(results)
+                try:
+                    results = self.project.train(
+                        outcomes=['linear1', 'linear2'],
+                        val_k=1,
+                        params=self.setup_hp('linear'),
+                        validate_on_batch=10,
+                        steps_per_epoch_override=20,
+                        save_predictions=True,
+                        pretrain=None,
+                        **train_kwargs
+                    )
+                    _assert_valid_results(results)
+                except Exception as e:
+                    log.error(traceback.format_exc())
+                    test.fail()
 
         if multi_input:
             msg = 'Training with multiple inputs (image + slide feature)...'
             with TaskWrapper(msg) as test:
-                results = self.project.train(
-                    exp_label='multi_input',
-                    outcomes='category1',
-                    input_header='category2',
-                    params=self.setup_hp('categorical'),
-                    val_k=1,
-                    validate_on_batch=10,
-                    steps_per_epoch_override=20,
-                    save_predictions=True,
-                    pretrain=None,
-                    **train_kwargs
-                )
-                _assert_valid_results(results)
-
-        if cph:
-            with TaskWrapper("Training a CPH model...") as test:
-                if sf.backend() == 'tensorflow':
+                try:
                     results = self.project.train(
-                        exp_label='cph',
-                        outcomes='time',
-                        input_header='event',
-                        params=self.setup_hp('cph'),
+                        exp_label='multi_input',
+                        outcomes='category1',
+                        input_header='category2',
+                        params=self.setup_hp('categorical'),
                         val_k=1,
                         validate_on_batch=10,
                         steps_per_epoch_override=20,
@@ -728,42 +794,77 @@ class TestSuite:
                         **train_kwargs
                     )
                     _assert_valid_results(results)
+                except Exception as e:
+                    log.error(traceback.format_exc())
+                    test.fail()
+
+        if cph:
+            with TaskWrapper("Training a CPH model...") as test:
+                if sf.backend() == 'tensorflow':
+                    try:
+                        results = self.project.train(
+                            exp_label='cph',
+                            outcomes='time',
+                            input_header='event',
+                            params=self.setup_hp('cph'),
+                            val_k=1,
+                            validate_on_batch=10,
+                            steps_per_epoch_override=20,
+                            save_predictions=True,
+                            pretrain=None,
+                            **train_kwargs
+                        )
+                        _assert_valid_results(results)
+                    except Exception as e:
+                        log.error(traceback.format_exc())
+                        test.fail()
                 else:
                     test.skip()
 
         if multi_cph:
             with TaskWrapper("Training a multi-input CPH model...") as test:
                 if sf.backend() == 'tensorflow':
-                    results = self.project.train(
-                        exp_label='multi_cph',
-                        outcomes='time',
-                        input_header=['event', 'category1'],
-                        params=self.setup_hp('cph'),
-                        val_k=1,
-                        validate_on_batch=10,
-                        steps_per_epoch_override=20,
-                        save_predictions=True,
-                        pretrain=None,
-                        **train_kwargs
-                    )
-                    _assert_valid_results(results)
+                    try:
+                        results = self.project.train(
+                            exp_label='multi_cph',
+                            outcomes='time',
+                            input_header=['event', 'category1'],
+                            params=self.setup_hp('cph'),
+                            val_k=1,
+                            validate_on_batch=10,
+                            steps_per_epoch_override=20,
+                            save_predictions=True,
+                            pretrain=None,
+                            **train_kwargs
+                        )
+                        _assert_valid_results(results)
+                    except Exception as e:
+                        log.error(traceback.format_exc())
+                        test.fail()
                 else:
                     test.skip()
         else:
             print("Skipping CPH model testing [current backend is Pytorch]")
 
     def test_prediction(self, **predict_kwargs) -> None:
+        """Test prediction generation using a previously trained model."""
+
         assert self.project is not None
         model = self._get_model('category1-manual_hp-TEST-HPSweep0-kfold1')
 
-        with TaskWrapper("Testing categorical model predictions..."):
-            prediction_tester(
+        with TaskWrapper("Testing categorical model predictions...") as test:
+            passed = process_isolate(
+                prediction_tester,
                 project=self.project,
                 model=model,
                 **predict_kwargs
             )
+            if not passed:
+                test.fail()
 
     def test_evaluation(self, **eval_kwargs) -> None:
+        """Test evaluation of previously trained models."""
+
         assert self.project is not None
         multi_cat_model = self._get_model('category1-category2-HP0-kfold1')
         multi_lin_model = self._get_model('linear1-linear2-HP0-kfold1')
@@ -772,8 +873,9 @@ class TestSuite:
 
         # Performs evaluation in isolated thread to avoid OOM errors
         # with sequential model loading/testing
-        with TaskWrapper("Testing categorical model evaluation..."):
-            evaluation_tester(
+        with TaskWrapper("Testing categorical model evaluation...") as test:
+            passed = process_isolate(
+                evaluation_tester,
                 project=self.project,
                 model=f_model,
                 outcomes='category1',
@@ -781,10 +883,13 @@ class TestSuite:
                 save_predictions=True,
                 **eval_kwargs
             )
+            if not passed:
+                test.fail()
 
         with TaskWrapper("Testing categorical UQ model evaluation...") as test:
             uq_model = self._get_model('category1-UQ-HP0-kfold1')
-            evaluation_tester(
+            passed = process_isolate(
+                evaluation_tester,
                 project=self.project,
                 model=uq_model,
                 outcomes='category1',
@@ -792,9 +897,12 @@ class TestSuite:
                 save_predictions=True,
                 **eval_kwargs
             )
+            if not passed:
+                test.fail()
 
-        with TaskWrapper("Testing multi-categorical model evaluation..."):
-            evaluation_tester(
+        with TaskWrapper("Testing multi-categorical model evaluation...") as test:
+            passed = process_isolate(
+                evaluation_tester,
                 project=self.project,
                 model=multi_cat_model,
                 outcomes=['category1', 'category2'],
@@ -802,9 +910,12 @@ class TestSuite:
                 save_predictions=True,
                 **eval_kwargs
             )
+            if not passed:
+                test.fail()
 
-        with TaskWrapper("Testing multi-linear model evaluation..."):
-            evaluation_tester(
+        with TaskWrapper("Testing multi-linear model evaluation...") as test:
+            passed = process_isolate(
+                evaluation_tester,
                 project=self.project,
                 model=multi_lin_model,
                 outcomes=['linear1', 'linear2'],
@@ -812,59 +923,89 @@ class TestSuite:
                 save_predictions=True,
                 **eval_kwargs
             )
+            if not passed:
+                test.fail()
 
-        with TaskWrapper("Testing multi-input model evaluation..."):
-            evaluation_tester(
+        with TaskWrapper("Testing multi-input model evaluation...") as test:
+            passed = process_isolate(
+                evaluation_tester,
                 project=self.project,
                 model=multi_inp_model,
                 outcomes='category1',
                 input_header='category2',
                 **eval_kwargs
             )
+            if not passed:
+                test.fail()
 
         with TaskWrapper("Testing CPH model evaluation...") as test:
             if sf.backend() == 'tensorflow':
                 cph_model = self._get_model('time-cph-HP0-kfold1')
-                evaluation_tester(
+                passed = process_isolate(
+                    evaluation_tester,
                     project=self.project,
                     model=cph_model,
                     outcomes='time',
                     input_header='event',
                     **eval_kwargs
                 )
+                if not passed:
+                    test.fail()
             else:
                 test.skip()
 
     def test_heatmap(self, slide: str = 'auto', **heatmap_kwargs) -> None:
+        """Test heatmap generation using a previously trained model."""
+        
         assert self.project is not None
         model = self._get_model('category1-manual_hp-TEST-HPSweep0-kfold1')
         assert exists(model), "Model has not yet been trained."
 
-        with TaskWrapper("Testing heatmap generation..."):
-            if slide.lower() == 'auto':
-                dataset = self.project.dataset()
-                slide_paths = dataset.slide_paths(source='TEST')
-                patient_name = sf.util.path_to_name(slide_paths[0])
-            self.project.generate_heatmaps(
-                model,
-                filters={'patient': [patient_name]},
-                roi_method='ignore',
-                **heatmap_kwargs
-            )
+        with TaskWrapper("Testing heatmap generation...") as test:
+            try:
+                if slide.lower() == 'auto':
+                    dataset = self.project.dataset()
+                    slide_paths = dataset.slide_paths(source='TEST')
+                    patient_name = sf.util.path_to_name(slide_paths[0])
+                self.project.generate_heatmaps(
+                    model,
+                    filters={'patient': [patient_name]},
+                    roi_method='ignore',
+                    **heatmap_kwargs
+                )
+            except Exception as e:
+                log.error(traceback.format_exc())
+                test.fail()
 
     def test_activations_and_mosaic(self, **act_kwargs) -> None:
+        """Test calculation of final-layer activations & creation
+        of a mosaic map.
+        """
         assert self.project is not None
         model = self._get_model('category1-manual_hp-TEST-HPSweep0-kfold1')
         assert exists(model), "Model has not yet been trained."
-        activations_tester(project=self.project, model=model)
+        process_isolate(
+            activations_tester,
+            project=self.project,
+            model=model,
+            **act_kwargs
+        )
 
     def test_predict_wsi(self) -> None:
+        """Test predictions for whole-slide images."""
+
         assert self.project is not None
         model = self._get_model('category1-manual_hp-TEST-HPSweep0-kfold1')
         assert exists(model), "Model has not yet been trained."
-        wsi_prediction_tester(self.project, model)
+        process_isolate(
+            wsi_prediction_tester,
+            project=self.project, 
+            model=model
+        )
 
     def test_clam(self) -> None:
+        """Test the CLAM submodule."""
+
         assert self.project is not None
         model = self._get_model('category1-manual_hp-TEST-HPSweep0-kfold1')
         assert exists(model), "Model has not yet been trained."
@@ -880,19 +1021,29 @@ class TestSuite:
             if skip_test:
                 test.skip()
             else:
-                clam_feature_generator(self.project, model)
+                passed = process_isolate(
+                    clam_feature_generator,
+                    project=self.project,
+                    model=model
+                )
+                if not passed:
+                    test.fail()
 
         with TaskWrapper("Testing CLAM training...") as test:
             if skip_test:
                 test.skip()
             else:
-                dataset = self.project.dataset(71, 1208)
-                self.project.train_clam(
-                    'TEST_CLAM',
-                    join(self.project.root, 'clam'),
-                    'category1',
-                    dataset
-                )
+                try:
+                    dataset = self.project.dataset(71, 1208)
+                    self.project.train_clam(
+                        'TEST_CLAM',
+                        join(self.project.root, 'clam'),
+                        'category1',
+                        dataset
+                    )
+                except Exception as e:
+                    log.error(traceback.format_exc())
+                    test.fail()
 
     def test(
         self,
@@ -907,7 +1058,7 @@ class TestSuite:
         predict_wsi: bool = True,
         clam: bool = True
     ) -> None:
-        '''Perform and report results of all available testing.'''
+        """Perform and report results of all available testing."""
 
         start = time.time()
         self.unittests()
@@ -940,6 +1091,8 @@ class TestSuite:
         print(f'Tests complete. Time: {int(m)} min, {s:.2f} sec')
 
     def unittests(self) -> None:
+        """Run unit tests."""
+        
         print("Running unit tests...")
         runner = unittest.TextTestRunner()
         all_tests = [

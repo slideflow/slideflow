@@ -73,6 +73,7 @@ class TestDataset(unittest.TestCase):
         self.assertFalse(dataset.is_float('category1'))
         self.assertFalse(dataset.is_float('category2'))
 
+
 class TestSplits(unittest.TestCase):
 
     @classmethod
