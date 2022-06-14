@@ -727,7 +727,8 @@ class SlideMap:
         # Plot tiles on a 3D coordinate space with 2 coordinates from UMAP
         # and 3rd from the value of the excluded feature
         fig = plt.figure()
-        ax = Axes3D(fig)
+        ax = Axes3D(fig, auto_add_to_figure=False)
+        fig.add_axes(ax)
         ax.scatter(x, y, z, c=z, cmap='viridis', linewidth=0.5, edgecolor="k")
         ax.set_title(title)
         log.info(f"Saving 3D UMAP to {col.green(filename)}...")
