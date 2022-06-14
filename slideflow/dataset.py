@@ -171,8 +171,8 @@ def _tile_extractor(
         reports.update({path: report})
     except errors.MissingROIError:
         log.debug(f'Missing ROI for slide {path}; skipping')
-    except errors.SlideLoadError:
-        log.error(f'Error loading slide {path}; skipping')
+    except errors.SlideLoadError as e:
+        log.error(f'Error loading slide {path}: {e}. Skipping')
     except errors.QCError as e:
         log.error(e)
     except errors.TileCorruptionError:
@@ -909,11 +909,11 @@ class Dataset:
             roi_method (str): Either 'inside', 'outside', 'auto', or 'ignore'.
                 Determines how ROIs are used to extract tiles.
                 If 'inside' or 'outside', will extract tiles in/out of an ROI,
-                and raise errors.MissingROIError if an ROI is not available.
+                and skip the slide if an ROI is not available.
                 If 'auto', will extract tiles inside an ROI if available,
                 and across the whole-slide if no ROI is found.
                 If 'ignore', will extract tiles across the whole-slide
-                regardless of wheter an ROI is available.
+                regardless of whether an ROI is available.
                 Defaults to 'auto'.
             skip_extracted (bool, optional): Skip slides that have already
                 been extracted. Defaults to True.

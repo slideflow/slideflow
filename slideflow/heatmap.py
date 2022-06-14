@@ -51,7 +51,7 @@ class Heatmap:
                 If 'auto', will extract tiles inside an ROI if available,
                 and across the whole-slide if no ROI is found.
                 If 'ignore', will extract tiles across the whole-slide
-                regardless of wheter an ROI is available.
+                regardless of whether an ROI is available.
                 Defaults to 'auto'.
             batch_size (int, optional): Batch size for calculating predictions.
                 Defaults to 32.

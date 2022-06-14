@@ -226,6 +226,17 @@ class TestSuite:
                     enable_downsample=enable_downsample,
                     **kwargs
                 )
+                self.project.extract_tiles(
+                    tile_px=71,
+                    tile_um="2.5x",
+                    buffer=self.buffer,
+                    source=['TEST'],
+                    roi_method='ignore',
+                    img_format='png',
+                    enable_downsample=enable_downsample,
+                    dry_run=True,
+                    **kwargs
+                )
             except Exception as e:
                 log.error(traceback.format_exc())
                 test.fail()

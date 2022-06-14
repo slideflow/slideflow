@@ -1237,7 +1237,7 @@ class WSI(_BaseLoader):
                 If 'auto', will extract tiles inside an ROI if available,
                 and across the whole-slide if no ROI is found.
                 If 'ignore', will extract tiles across the whole-slide
-                regardless of wheter an ROI is available.
+                regardless of whether an ROI is available.
                 Defaults to 'auto'.
             randomize_origin (bool, optional): Offset the starting grid by a
                 random amount. Defaults to False.
