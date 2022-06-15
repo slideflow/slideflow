@@ -37,7 +37,6 @@ if TYPE_CHECKING:
 # TODO: remove 'hidden_0' reference as this may not be present
 # if the model does not have hidden layers
 # TODO: refactor all this x /y /meta /values stuff to a pd.DataFrame
-# TODO: replace _average_by_group with pandas group-level averaging
 
 
 class SlideMap:
@@ -834,7 +833,7 @@ def _generate_tile_roc(
     return auc, ap, thresh  # ROC AUC, Average Precision, Optimal Threshold
 
 
-def _average_by_group(
+def _group_predictions(
     pred_arr: np.ndarray,
     unique_groups: np.ndarray,
     tile_to_group: np.ndarray,
@@ -871,19 +870,13 @@ def _average_by_group(
         p.map(update_group, enumerate(tile_to_group))
 
     group_uncertainty = {g: np.array(u) for g, u in group_uncertainty.items()}
-
+    group_predictions = np.array([
+        np.array(groups[g]).mean(axis=0) for g in unique_groups
+    ])
     if uncertainty is not None:
-        group_percents = {
-            g: np.average(np.array(groups[g]), axis=0) for g in unique_groups
-        }
         uncertainty_by_group = [
             np.array(group_uncertainty[g]).mean(axis=0) for g in unique_groups
-        ]
-    else:
-        group_percents = {
-            g: np.array(groups[g]).mean(axis=0) for g in unique_groups
-        }
-    avg_by_group = np.array([group_percents[g] for g in unique_groups])
+        ]  
 
     # --- Save predictions to CSV ---------------------------------------------
     if save_pred:
@@ -901,12 +894,12 @@ def _average_by_group(
                     yt_group = as_list(y_true_group[group])
                 else:
                     yt_group = y_true_group[group]  # type: ignore
-                row = [[group], yt_group, avg_by_group[i]]
+                row = [[group], yt_group, group_predictions[i]]
                 if uncertainty is not None:
                     row += [np.array(uncertainty_by_group[i])]
                 row = np.concatenate(row)
                 writer.writerow(row)
-    return avg_by_group
+    return group_predictions
 
 
 def _cph_metrics(args: SimpleNamespace) -> None:
@@ -915,7 +908,7 @@ def _cph_metrics(args: SimpleNamespace) -> None:
     """
     num_cat = args.y_pred.shape[1]
     args.c_index['tile'] = concordance_index(args.y_true, args.y_pred)
-    avg_by_slide = _average_by_group(
+    slide_preds = _group_predictions(
         args.y_pred,
         unique_groups=args.unique_slides,
         tile_to_group=args.tile_to_slides,
@@ -929,9 +922,9 @@ def _cph_metrics(args: SimpleNamespace) -> None:
     yt_by_slide = np.array([
         args.y_true_slide[slide] for slide in args.unique_slides]
     )
-    args.c_index['slide'] = concordance_index(yt_by_slide, avg_by_slide)
+    args.c_index['slide'] = concordance_index(yt_by_slide, slide_preds)
     if not args.patient_error:
-        avg_by_patient = _average_by_group(
+        patient_preds = _group_predictions(
             args.y_pred,
             unique_groups=args.patients,
             tile_to_group=args.tile_to_patients,
@@ -946,7 +939,7 @@ def _cph_metrics(args: SimpleNamespace) -> None:
             [args.y_true_patient[patient] for patient in args.patients]
         )
         args.c_index['patient'] = concordance_index(yt_by_patient,
-                                                    avg_by_patient)
+                                                    patient_preds)
 
 
 def _linear_metrics(args: SimpleNamespace) -> None:
@@ -964,7 +957,7 @@ def _linear_metrics(args: SimpleNamespace) -> None:
         neptune_run=args.neptune_run
     )
     # Generate and save slide-level averages of each outcome
-    avg_by_slide = _average_by_group(
+    slide_preds = _group_predictions(
         args.y_pred,
         unique_groups=args.unique_slides,
         tile_to_group=args.tile_to_slides,
@@ -980,14 +973,14 @@ def _linear_metrics(args: SimpleNamespace) -> None:
     )
     args.r_squared['slide'] = generate_scatter(
         yt_by_slide,
-        avg_by_slide,
+        slide_preds,
         args.data_dir,
         args.label_end+"_by_slide",
         neptune_run=args.neptune_run
     )
     if not args.patient_error:
         # Generate and save patient-level averages of each outcome
-        avg_by_patient = _average_by_group(
+        patient_preds = _group_predictions(
             args.y_pred,
             unique_groups=args.patients,
             tile_to_group=args.tile_to_patients,
@@ -1004,7 +997,7 @@ def _linear_metrics(args: SimpleNamespace) -> None:
         )
         args.r_squared['patient'] = generate_scatter(
             yt_by_patient,
-            avg_by_patient,
+            patient_preds,
             args.data_dir,
             args.label_end+"_by_patient",
             neptune_run=args.neptune_run
@@ -1088,7 +1081,7 @@ def _categorical_metrics(args: SimpleNamespace, outcome_name: str) -> None:
         except IndexError:
             log.warning(f"Error with category accuracy for cat # {ci}")
     # Generate slide-level percent calls
-    percent_calls_by_slide = _average_by_group(
+    slide_preds = _group_predictions(
         onehot_predictions if args.cat_reduce == 'onehot' else args.y_pred,
         unique_groups=args.unique_slides,
         tile_to_group=args.tile_to_slides,
@@ -1102,7 +1095,7 @@ def _categorical_metrics(args: SimpleNamespace, outcome_name: str) -> None:
     # Generate slide-level ROC
     for i in range(num_cat):
         try:
-            slide_y_pred = percent_calls_by_slide[:, i]
+            slide_y_pred = slide_preds[:, i]
             slide_y_true = np.array(
                 [args.y_true_slide[slide][i] for slide in args.unique_slides]
             )
@@ -1125,7 +1118,7 @@ def _categorical_metrics(args: SimpleNamespace, outcome_name: str) -> None:
 
     if not args.patient_error:
         # Generate patient-level percent calls
-        percent_calls_by_patient = _average_by_group(
+        patient_preds = _group_predictions(
             onehot_predictions if args.cat_reduce == 'onehot' else args.y_pred,
             unique_groups=args.patients,
             tile_to_group=args.tile_to_patients,
@@ -1140,7 +1133,7 @@ def _categorical_metrics(args: SimpleNamespace, outcome_name: str) -> None:
         # Generate patient-level ROC
         for i in range(num_cat):
             try:
-                patient_y_pred = percent_calls_by_patient[:, i]
+                patient_y_pred = patient_preds[:, i]
                 patient_y_true = np.array(
                     [args.y_true_patient[pt][i] for pt in args.patients]
                 )
