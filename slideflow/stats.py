@@ -857,6 +857,23 @@ def _group_predictions(
         tile_to_group (np.ndarray): Array of tile-level group assignments.
     """
 
+    # -------------------------------------------------------------------------
+    # Create pandas dataframe
+    series = {label: pd.Series(tile_to_group)}
+    series.update({
+        f'y_pred{i}': pd.Series(pred_arr[:, i]) for i in range(pred_arr.shape[1])
+    })
+    if uncertainty is not None:
+        series.update({
+            f'uncertainty{i}': pd.Series(uncertainty[:, i]) for i in range(uncertainty.shape[1])
+        })
+    df = pd.DataFrame(**series)
+    group_df = df.groupby(label).mean()#.copy(deep=True)
+    # The below does not create a new column for each y_true column
+    group_df['y_true'] = group_df[label].map(y_true_group)
+
+    # -------------------------------------------------------------------------
+
     groups = {g: [] for g in unique_groups}  # type: Dict[str, Any]
     group_uncertainty = {g: [] for g in unique_groups}  # type: Dict[str, Any]
 
