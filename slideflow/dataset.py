@@ -116,7 +116,6 @@ from slideflow.util import log, path_to_name, tfrecord2idx
 if TYPE_CHECKING:
     import tensorflow as tf
     from torch.utils.data import DataLoader
-
     from slideflow.norm import StainNormalizer
 
 
@@ -180,6 +179,7 @@ def _tile_extractor(
     except (KeyboardInterrupt, SystemExit) as e:
         print('Exiting...')
         raise e
+
 
 def _fill_queue(
     slide_list: Sequence[str],
@@ -445,7 +445,7 @@ class Dataset:
         self._clip = {}  # type: Dict[str, int]
         self.prob_weights = None  # type: Optional[Dict]
         self._config = config
-        self.annotations = None  # type: Optional[pd.DataFrame]
+        self._annotations = None  # type: Optional[pd.DataFrame]
         self.annotations_file = None  # type: Optional[str]
         loaded_config = sf.util.load_json(config)
         sources = sources if isinstance(sources, list) else [sources]
@@ -477,6 +477,10 @@ class Dataset:
             self.tile_px,
             self.tile_um
         )
+
+    @property
+    def annotations(self) -> Optional[pd.DataFrame]:
+        return self._annotations
 
     @property
     def num_tiles(self) -> int:
@@ -511,8 +515,30 @@ class Dataset:
     @property
     def filtered_annotations(self) -> pd.DataFrame:
         if self.annotations is not None:
-            filtered_idx = self.annotations['slide'].isin(self.slides())
-            return self.annotations[filtered_idx]
+            f_ann = self.annotations
+
+            # Only return slides with annotation values specified in "filters"
+            if self.filters:
+                for filter_key in self.filters.keys():
+                    if filter_key not in f_ann.columns:
+                        raise IndexError(
+                            f"Filter header {filter_key} not in annotations."
+                        )
+                    filter_vals = sf.util.as_list(self.filters[filter_key])
+                    f_ann = f_ann.loc[f_ann[filter_key].isin(filter_vals)]
+
+            # Filter out slides that are blank in a given annotation
+            # column ("filter_blank")
+            if self.filter_blank and self.filter_blank != [None]:
+                for fb in self.filter_blank:
+                    if fb not in f_ann.columns:
+                        raise errors.DatasetFilterError(
+                            f"Filter blank header {fb} not in annotations."
+                        )
+                    f_ann = f_ann.loc[f_ann[fb].notna()]
+                    f_ann = f_ann.loc[f_ann[fb].isin(sf.util.EMPTY_ANNOTATIONS)]
+
+            return f_ann
         else:
             return None
 
@@ -561,13 +587,13 @@ class Dataset:
             try:
                 ann_df = pd.read_csv(annotations, dtype=str)
                 ann_df.fillna('', inplace=True)
-                self.annotations = ann_df
+                self._annotations = ann_df
                 self.annotations_file = annotations
             except pd.errors.EmptyDataError:
                 log.error(f"Unable to load empty annotations {annotations}")
         elif isinstance(annotations, pd.core.frame.DataFrame):
             annotations.fillna('', inplace=True)
-            self.annotations = annotations
+            self._annotations = annotations
         else:
             raise errors.AnnotationsError(
                 'Invalid annotations format; expected path or DataFrame'
@@ -597,6 +623,15 @@ class Dataset:
             log.info("Attempting to associate patients with slides...")
             self.update_annotations_with_slidenames(annotations)
             self.load_annotations(annotations)
+
+        # Check for duplicate slides
+        ann = self.annotations.loc[self.annotations.slide.isin(self.slides())]
+        if not ann.slide.is_unique:
+            dup_slide_idx = ann.slide.duplicated()
+            dup_slides = ann.loc[dup_slide_idx].slide.to_numpy().tolist()
+            raise errors.DatasetError(
+                f"Duplicate slides found in annotations: {dup_slides}."
+            )
 
     def balance(
         self,
@@ -1671,72 +1706,17 @@ class Dataset:
     def slides(self) -> List[str]:
         """Returns a list of slide names in this dataset."""
 
-        # Begin filtering slides with annotations
-        slides = []
-        slide_patient_dict = {}
         if self.annotations is None:
             raise errors.AnnotationsError(
                 "No annotations loaded; is the annotations file empty?"
             )
-        for ann in self.annotations.to_dict(orient="records"):
-            skip_annotation = False
-            if 'slide' not in ann.keys():
-                raise errors.AnnotationsError(
-                    f"{'slide'} not found in annotations file."
-                )
-
-            # Skip missing or blank slides
-            if ann['slide'] in sf.util.SLIDE_ANNOTATIONS_TO_IGNORE:
-                continue
-
-            # Ensure slides are only assigned to a single patient
-            if ann['slide'] not in slide_patient_dict:
-                slide_patient_dict.update({ann['slide']: ann['patient']})
-            elif slide_patient_dict[ann['slide']] != ann['patient']:
-                raise errors.DatasetError(
-                    f"Multiple patients assigned to slide {ann['slide']}."
-                )
-
-            # Only return slides with annotation values specified in "filters"
-            if self.filters:
-                for filter_key in self.filters.keys():
-                    if filter_key not in ann.keys():
-                        raise IndexError(
-                            f"Filter header {filter_key} not in annotations."
-                        )
-                    ann_val = ann[filter_key]
-                    filter_vals = sf.util.as_list(self.filters[filter_key])
-
-                    # Allow filtering based on shortnames if the key
-                    # is a patient ID
-                    if filter_key == 'patient':
-                        if ((ann_val not in filter_vals)
-                            and (_shortname(ann_val) not in filter_vals)
-                            and (ann_val not in
-                                 [_shortname(fv) for fv in filter_vals])
-                            and (_shortname(ann_val) not in
-                                 [_shortname(fv) for fv in filter_vals])):
-                            skip_annotation = True
-                            break
-                    else:
-                        if ann_val not in filter_vals:
-                            skip_annotation = True
-                            break
-
-            # Filter out slides that are blank in a given annotation
-            # column ("filter_blank")
-            if self.filter_blank and self.filter_blank != [None]:
-                for fb in self.filter_blank:
-                    if fb not in ann.keys():
-                        raise errors.DatasetFilterError(
-                            f"Filter blank header {fb} not in annotations."
-                        )
-                    if ann[fb] is None or ann[fb] == '':
-                        skip_annotation = True
-                        break
-            if skip_annotation:
-                continue
-            slides += [ann['slide']]
+        if 'slide' not in self.annotations.columns:
+            raise errors.AnnotationsError(
+                f"{'slide'} not found in annotations file."
+            )
+        ann = self.filtered_annotations
+        ann = ann.loc[~ann.slide.isin(sf.util.EMPTY_ANNOTATIONS)]
+        slides = ann.slide.unique().tolist()
         return slides
 
     def split_tfrecords_by_roi(self, destination: Path) -> None:
@@ -2727,19 +2707,21 @@ class Dataset:
         """Verify that annotations are correctly loaded."""
 
         # Verify no duplicate slide names are found
-        slides_from_anns = self.slides()
-        if len(slides_from_anns) != len(list(set(slides_from_anns))):
+        ann = self.annotations.loc[self.annotations.slide.isin(self.slides())]
+        if not ann.slide.is_unique:
             raise errors.AnnotationsError(
                 "Duplicate slide names detected in the annotation file."
             )
 
         # Verify all slides in the annotation column are valid
-        if self.annotations is not None:
-            sf.util.multi_warn(
-                self.annotations.to_dict(orient="records"),
-                lambda x: x['slide'] == '',
-                lambda x: f"Patient {x['patient']} has no slide assigned."
-            )
+        n_missing = len(self.annotations.loc[
+            (self.annotations.slide.isin(['', ' '])
+            | self.annotations.slide.isna())
+        ])
+        if n_missing == 1:
+            log.warn(f"1 patient does not have a slide assigned.")
+        if n_missing > 1:
+            log.warn(f"{n_missing} patients do not have a slide assigned.")
 
     def verify_img_format(self) -> Optional[str]:
         """Verify that all tfrecords have the same image format (PNG/JPG).

@@ -36,6 +36,16 @@ class TestDataset(unittest.TestCase):
         dataset.load_annotations(ann_df)
         self.assertTrue(len(dataset.annotations) == 100)
 
+    def test_load_invalid_annotations(self):
+        dataset = self.PROJECT.dataset()
+        ann_df = pd.DataFrame({
+            'patient': pd.Series([f'pt{p}' for p in range(100)]),
+            'slide': pd.Series(['slide_test', 'slide_test'] + [f'slide{s}' for s in range(98)]),
+            'linear': pd.Series([random.random() for _ in range(100)])
+        })
+        with self.assertRaises(sf.errors.DatasetError):
+            dataset.load_annotations(ann_df)
+
     def test_load_faulty_annotations_without_patient(self):
         dataset = self.PROJECT.dataset()
         ann_df = pd.DataFrame({
