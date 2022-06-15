@@ -4,7 +4,6 @@ import shutil
 import unittest
 
 import pandas as pd
-
 import slideflow as sf
 from slideflow.test.utils import TestConfig
 
@@ -36,7 +35,7 @@ class TestDataset(unittest.TestCase):
         dataset.load_annotations(ann_df)
         self.assertTrue(len(dataset.annotations) == 100)
 
-    def test_load_invalid_annotations(self):
+    def test_load_faulty_annotations_with_duplicates(self):
         dataset = self.PROJECT.dataset()
         ann_df = pd.DataFrame({
             'patient': pd.Series([f'pt{p}' for p in range(100)]),

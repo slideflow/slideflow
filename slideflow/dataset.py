@@ -116,6 +116,7 @@ from slideflow.util import log, path_to_name, tfrecord2idx
 if TYPE_CHECKING:
     import tensorflow as tf
     from torch.utils.data import DataLoader
+
     from slideflow.norm import StainNormalizer
 
 
@@ -536,7 +537,7 @@ class Dataset:
                             f"Filter blank header {fb} not in annotations."
                         )
                     f_ann = f_ann.loc[f_ann[fb].notna()]
-                    f_ann = f_ann.loc[f_ann[fb].isin(sf.util.EMPTY_ANNOTATIONS)]
+                    f_ann = f_ann.loc[~f_ann[fb].isin(sf.util.EMPTY_ANNOTATIONS)]
 
             return f_ann
         else:
@@ -1396,6 +1397,10 @@ class Dataset:
             2) List of unique labels. For categorical outcomes, this will be a
                 list of str; indices correspond with the outcome label id.
         """
+        if not len(self.filtered_annotations):
+            raise errors.DatasetError(
+                "Cannot generate labels: dataset is empty after filtering."
+            )
         results = {}  # type: Dict
         headers = sf.util.as_list(headers)
         unique_labels = {}
@@ -2705,6 +2710,10 @@ class Dataset:
 
     def verify_annotations_slides(self) -> None:
         """Verify that annotations are correctly loaded."""
+
+        if self.annotations is None:
+            log.warn("Annotations not loaded.")
+            return
 
         # Verify no duplicate slide names are found
         ann = self.annotations.loc[self.annotations.slide.isin(self.slides())]
