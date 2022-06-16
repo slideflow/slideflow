@@ -803,14 +803,14 @@ class SlideMap:
 
 
 def _generate_tile_roc(
-    y_true: np.ndarray,
-    y_pred: np.ndarray,
+    yt_and_yp: Tuple[np.ndarray, np.ndarray],
     data_dir: str,
     label: str,
     histogram: bool = False,
     neptune_run: Optional["neptune.Run"] = None
 ) -> Tuple[float, float, float]:
     """Generate tile-level ROC. Defined separately for multiprocessing."""
+    y_true, y_pred = yt_and_yp
     auc, ap, thresh = generate_roc(
         y_true,
         y_pred,
@@ -899,24 +899,29 @@ def _categorical_metrics(args: SimpleNamespace, outcome_name: str) -> None:
     # Convert to one-hot encoding
     for i in range(num_cat):
         args.df[f'y_true_onehot{i}'] = (args.df.y_true == i).astype(int)
-        args.df[f'y_pred_onehot{i}'] = (args.df[f'y_pred{i}'] == args.df[y_pred_cols].values.max(1)).astype(int)
+        args.df[f'y_pred_onehot{i}'] = (
+            args.df[f'y_pred{i}'] == args.df[y_pred_cols].values.max(1)
+        ).astype(int)
 
     for level in ('tile', 'slide', 'patient'):
         args.auc[level][outcome_name] = []
         args.ap[level][outcome_name] = []
 
-    #ctx = mp.get_context('spawn')
-    #with ctx.Pool(processes=8) as p:
-    def _gen_roc(i):
-        return _generate_tile_roc(
-            y_true=args.df[f'y_true_onehot{i}'],
-            y_pred=args.df[f'y_pred{i}'],
-            data_dir=args.data_dir,
-            label=str(args.label_start + outcome_name) + "_tile_{}" + str(i),
-            histogram=args.histogram
-        )
+
+    par = partial(
+        _generate_tile_roc,
+        data_dir=args.data_dir,
+        label=str(args.label_start + outcome_name) + "_tile_{}" + str(i),
+        histogram=args.histogram
+    )
+    ctx = mp.get_context('spawn')
+    p = ctx.Pool(8)
     try:
-        for i, (auc, ap, thresh) in enumerate(map(_gen_roc, range(num_cat))): #p.imap
+        yt_and_yp = [
+            (args.df[f'y_true_onehot{i}'].values, args.df[f'y_pred{i}'].values)
+            for i in range(num_cat)
+        ]
+        for i, (auc, ap, thresh) in enumerate(p.imap(par, yt_and_yp)):
             args.auc['tile'][outcome_name] += [auc]
             args.ap['tile'][outcome_name] += [ap]
             log.info(
@@ -938,7 +943,7 @@ def _categorical_metrics(args: SimpleNamespace, outcome_name: str) -> None:
         try:
             yt_in_cat = args.df[f'y_true_onehot{i}']
             n_in_cat = yt_in_cat.sum()
-            correct = args.df.loc[args.df[f'y_true_onehot{i}'] > 0][f'y_pred_onehot{i}'].sum()
+            correct = args.df.loc[yt_in_cat > 0][f'y_pred_onehot{i}'].sum()
             category_accuracy = correct / n_in_cat
             perc = category_accuracy * 100
             log.info(f"Category {i} acc: {perc:.1f}% ({correct}/{n_in_cat})")
@@ -1331,7 +1336,31 @@ def concordance_index(y_true: np.ndarray, y_pred: np.ndarray) -> float:
     return c_index(y_true, y_pred, E)
 
 
-def df_from_pred(y_true, y_pred, y_std, tile_to_slides):
+def df_from_pred(
+    y_true: Optional[List[Any]],
+    y_pred: List[Any],
+    y_std: Optional[List[Any]],
+    tile_to_slides: Union[List, np.ndarray],
+) -> pd.core.frame.DataFrame:
+    """Converts arrays of model predictions to a pandas dataframe.
+
+    Args:
+        y_true (list(np.ndarray)): List of y_true numpy arrays, one array for
+            each outcome. For multiple linear outcomes, the length of the outer
+            list should be one, and the second shape dimension of the numpy
+            array should be the number of linear outcomes.
+        y_pred (np.ndarray): List of y_pred numpy arrays, one array for each
+            outcome. For multiple linear outcomes, the length of the outer
+            list should be one, and the second shape dimension of the numpy
+            array should be the number of linear outcomes.
+        y_std (np.ndarray): List of uncertainty numpy arrays, formatted in
+            the same way as y_pred.
+        tile_to_slides (np.ndarray): Array of slide names for each tile. Length
+            should match the numpy arrays in y_true, y_pred, and y_std.
+
+    Returns:
+        pd.core.frame.DataFrame: _description_
+    """
     series = {
         'slide': pd.Series(tile_to_slides)
     }
@@ -1384,7 +1413,6 @@ def metrics_from_pred(
         y_true (ndarray): True labels for the dataset.
         y_pred (ndarray): Predicted labels for the dataset.
         tile_to_slides (list(str)): List of length y_true of slide names.
-        labels (dict): Dictionary mapping slidenames to outcomes.
         patients (dict): Dictionary mapping slidenames to patients.
         model_type (str): Either 'linear', 'categorical', or 'cph'.
 
@@ -1418,23 +1446,13 @@ def metrics_from_pred(
             f"Unrecognized reduction strategy {categorical_reduce}; "
             "must be either 'raw' or 'onehot'."
         )
+    if (outcome_names is not None
+       and (not len(outcome_names) == len(set(outcome_names)))):
+        raise ValueError("Duplicate outcome names found; all must be unique.")
+
     label_end = "" if label == '' else f"_{label}"
     label_start = "" if label == '' else f"{label}_"
     df['patient'] = df['slide'].map(patients)
-
-    # Verify patient outcomes are consistent if multiples slides are present
-    # for each patient
-    #patient_error = False
-    #for slide in labels:
-    #    patient = patients[slide]
-    #    if y_true_slide[slide] != y_true_patient[patient]:
-    #        log.error(
-    #            "Data integrity failure; patient assigned to multiple "
-    #            "slides with different outcomes"
-    #        )
-    #        patient_error = True
-    # if not len(outcome_names) == len(set(outcome_names)):
-    #    raise ValueError("Duplicate outcome names found; all must be unique.")
 
     # Function to determine which predictions should be exported to CSV
     def should_save_predictions(grp):
