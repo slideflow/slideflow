@@ -1347,7 +1347,6 @@ class Trainer:
         self,
         dataset: "sf.Dataset",
         batch_size: Optional[int] = None,
-        permutation_importance: bool = False,
         histogram: bool = False,
         save_predictions: bool = False,
         norm_fit: Optional[NormFit] = None,
@@ -1364,10 +1363,6 @@ class Trainer:
                 evaluation time. Defaults to False.
             save_predictions (bool, optional): Save tile, slide, and
                 patient-level predictions to CSV. Defaults to False.
-            permutation_importance (bool, optional): Currently not supported
-                for the PyTorch backend; argument exists for compatibility.
-                Will raise a NotImplementedError if used. Planned as an update
-                for a future version.
             norm_fit (Dict[str, np.ndarray]): Normalizer fit, mapping fit
                 parameters (e.g. target_means, target_stds) to values
                 (np.ndarray). If not provided, will fit normalizer using
@@ -1382,9 +1377,6 @@ class Trainer:
             if not isinstance(uq, bool):
                 raise ValueError(f"Unrecognized value {uq} for uq")
             self.hp.uq = uq
-        if permutation_importance:
-            raise NotImplementedError("permutation_importance not yet "
-                                      "implemented for PyTorch backend.")
         if batch_size:
             self.validation_batch_size = batch_size
         if not self.model:

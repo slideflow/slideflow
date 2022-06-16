@@ -1274,7 +1274,6 @@ class Trainer:
         self,
         dataset: "sf.Dataset",
         batch_size: Optional[int] = None,
-        permutation_importance: bool = False,
         histogram: bool = False,
         save_predictions: bool = False,
         norm_fit: Optional[NormFit] = None,
@@ -1289,9 +1288,6 @@ class Trainer:
                 Defaults to None.
             batch_size (int, optional): Evaluation batch size. Defaults to the
                 same as training (per self.hp)
-            permutation_importance (bool, optional): Run permutation feature
-                importance to define relative benefit of histology and each
-                clinical slide-level feature input, if provided.
             histogram (bool, optional): Save histogram of tile predictions.
                 Poorly optimized, uses seaborn, may drastically increase
                 evaluation time. Defaults to False.
@@ -1311,9 +1307,6 @@ class Trainer:
             if not isinstance(uq, bool):
                 raise ValueError(f"Unrecognized value {uq} for uq")
             self.hp.uq = uq
-        if permutation_importance and self.feature_sizes is None:
-            raise ValueError("feature_sizes must be specified for "
-                             "permutation_importance")
 
         # Fit normalizer
         self._fit_normalizer(norm_fit)
@@ -1360,31 +1353,17 @@ class Trainer:
             num_tiles=dataset.num_tiles,
             label='eval'
         )
-        if permutation_importance:
-            if self.feature_names is None:
-                raise errors.UserError(
-                    'Permutation feature importance requires clinical inputs.'
-                )
-
-            drop_images = ((self.hp.tile_px == 0) or self.hp.drop_images)
-            metrics = sf.stats.permute_importance(
-                feature_names=self.feature_names,
-                feature_sizes=self.feature_sizes,  # type: ignore
-                drop_images=drop_images,
-                **metric_kwargs
-            )
-        else:
-            pred_args = SimpleNamespace(
-                loss=self.hp.get_loss(),
-                uq=bool(self.hp.uq)
-            )
-            metrics, acc, loss = sf.stats.metrics_from_dataset(
-                histogram=histogram,
-                save_predictions=save_predictions,
-                pred_args=pred_args,
-                **metric_kwargs
-            )
-            results_dict = {'eval': {}}  # type: Dict[str, Dict[str, float]]
+        pred_args = SimpleNamespace(
+            loss=self.hp.get_loss(),
+            uq=bool(self.hp.uq)
+        )
+        metrics, acc, loss = sf.stats.metrics_from_dataset(
+            histogram=histogram,
+            save_predictions=save_predictions,
+            pred_args=pred_args,
+            **metric_kwargs
+        )
+        results_dict = {'eval': {}}  # type: Dict[str, Dict[str, float]]
         for metric in metrics:
             if metrics[metric]:
                 log.info(f"Tile {metric}: {metrics[metric]['tile']}")
