@@ -602,7 +602,6 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
         return sf.stats.metrics_from_dataset(
             self.model,
             model_type=self.hp.model_type(),
-            labels=self.parent.labels,
             patients=self.parent.patients,
             dataset=self.cb_args.validation_data_with_slidenames,
             outcome_names=self.parent.outcome_names,
@@ -1191,7 +1190,6 @@ class Trainer:
         args = SimpleNamespace(
             model=self.model,
             model_type=self._model_type,
-            labels=self.labels,
             patients=self.patients,
             outcome_names=self.outcome_names,
             data_dir=self.outdir,
@@ -1254,19 +1252,12 @@ class Trainer:
         # Generate predictions
         log.info('Generating predictions...')
         pred_args = SimpleNamespace(uq=bool(self.hp.uq))
-        y_pred, y_std, tile_to_slides = sf.stats.predict_from_dataset(
+        df = sf.stats.predict_from_dataset(
             model=self.model,
             dataset=tf_dts_w_slidenames,
             model_type=self._model_type,
             pred_args=pred_args,
             num_tiles=dataset.num_tiles
-        )
-        df = sf.stats.pred_to_df(
-            None,
-            y_pred,
-            tile_to_slides,
-            self.outcome_names,
-            uncertainty=y_std
         )
         if format.lower() == 'csv':
             save_path = os.path.join(self.outdir, "tile_predictions.csv")

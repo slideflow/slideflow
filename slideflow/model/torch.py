@@ -723,7 +723,6 @@ class Trainer:
         metrics, acc, loss = sf.stats.metrics_from_dataset(
             self.inference_model,
             model_type=self.hp.model_type(),
-            labels=self.labels,
             patients=self.patients,
             dataset=self.dataloaders['val'],
             data_dir=self.outdir,
@@ -1328,18 +1327,11 @@ class Trainer:
             num_slide_features=self.num_slide_features,
             slide_input=self.slide_input
         )
-        y_pred, y_std, tile_to_slides = sf.stats.predict_from_dataset(
+        df = sf.stats.predict_from_dataset(
             model=self.model,
             dataset=self.dataloaders['val'],
             model_type=self._model_type,
             pred_args=pred_args
-        )
-        df = sf.stats.pred_to_df(
-            None,
-            y_pred,
-            tile_to_slides,
-            self.outcome_names,
-            uncertainty=y_std
         )
         if format.lower() == 'csv':
             save_path = os.path.join(self.outdir, "tile_predictions.csv")

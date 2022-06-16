@@ -803,220 +803,80 @@ class SlideMap:
 
 
 def _generate_tile_roc(
-    i: int, y_true: np.ndarray,
+    y_true: np.ndarray,
     y_pred: np.ndarray,
     data_dir: str,
-    label_start: str,
+    label: str,
     histogram: bool = False,
     neptune_run: Optional["neptune.Run"] = None
 ) -> Tuple[float, float, float]:
     """Generate tile-level ROC. Defined separately for multiprocessing."""
-    try:
-        auc, ap, thresh = generate_roc(
-            y_true[:, i],
-            y_pred[:, i],
-            data_dir,
-            f'{label_start}tile_ROC{i}',
-            neptune_run
+    auc, ap, thresh = generate_roc(
+        y_true,
+        y_pred,
+        data_dir,
+        label.format('ROC'),
+        neptune_run
+    )
+    if histogram:
+        save_histogram(
+            y_true,
+            y_pred,
+            outdir=data_dir,
+            name=label.format('histogram'),
+            neptune_run=neptune_run
         )
-        if histogram:
-            save_histogram(
-                y_true[:, i],
-                y_pred[:, i],
-                outdir=data_dir,
-                name=f'{label_start}tile_histogram{i}',
-                neptune_run=neptune_run
-            )
-    except IndexError:
-        log.warning(f"Unable to generate tile-level stats for outcome {i}")
-        return -1, -1, -1
     return auc, ap, thresh  # ROC AUC, Average Precision, Optimal Threshold
-
-
-def _group_predictions(
-    pred_arr: np.ndarray,
-    unique_groups: np.ndarray,
-    tile_to_group: np.ndarray,
-    y_true_group: Dict[str, float],
-    num_cat: int,
-    label_end: str,
-    uncertainty: Optional[np.ndarray] = None,
-    save_pred: bool = False,
-    data_dir: str = '',
-    label: str = 'group'
-) -> np.ndarray:
-
-    """Generate group-level averages (slide- or patient-level).
-
-    For a given tile-level prediction array, calculate percent predictions
-    in each outcome by group (e.g. patient, slide), saving to CSV if specified.
-
-    Args:
-        pred_arr (np.ndarray): Array of tile-level predictions.
-        unique_groups (np.ndarray): Array of unique groups.
-        tile_to_group (np.ndarray): Array of tile-level group assignments.
-    """
-
-    # -------------------------------------------------------------------------
-    # Create pandas dataframe
-    series = {label: pd.Series(tile_to_group)}
-    series.update({
-        f'y_pred{i}': pd.Series(pred_arr[:, i]) for i in range(pred_arr.shape[1])
-    })
-    if uncertainty is not None:
-        series.update({
-            f'uncertainty{i}': pd.Series(uncertainty[:, i]) for i in range(uncertainty.shape[1])
-        })
-    df = pd.DataFrame(**series)
-    group_df = df.groupby(label).mean()#.copy(deep=True)
-    # The below does not create a new column for each y_true column
-    group_df['y_true'] = group_df[label].map(y_true_group)
-
-    # -------------------------------------------------------------------------
-
-    groups = {g: [] for g in unique_groups}  # type: Dict[str, Any]
-    group_uncertainty = {g: [] for g in unique_groups}  # type: Dict[str, Any]
-
-    def update_group(args):
-        i, g = args
-        groups[g] += [pred_arr[i]]
-        if uncertainty is not None:
-            group_uncertainty[g] += [uncertainty[i]]
-
-    with mp.dummy.Pool(processes=16) as p:
-        p.map(update_group, enumerate(tile_to_group))
-
-    group_uncertainty = {g: np.array(u) for g, u in group_uncertainty.items()}
-    group_predictions = np.array([
-        np.array(groups[g]).mean(axis=0) for g in unique_groups
-    ])
-    if uncertainty is not None:
-        uncertainty_by_group = [
-            np.array(group_uncertainty[g]).mean(axis=0) for g in unique_groups
-        ]  
-
-    # --- Save predictions to CSV ---------------------------------------------
-    if save_pred:
-        save_path = join(data_dir, f"{label}_predictions{label_end}.csv")
-        with open(save_path, 'w') as outfile:
-            writer = csv.writer(outfile)
-            y_true_head = [f"y_true{i}" for i in range(num_cat)]
-            y_pred_head = [f"y_pred_{label}{j}" for j in range(num_cat)]
-            header = [label] + y_true_head + y_pred_head
-            if uncertainty is not None:
-                header += [f'uncertainty{i}' for i in range(num_cat)]
-            writer.writerow(header)
-            for i, group in enumerate(unique_groups):
-                if not isinstance(y_true_group[group], (list, np.ndarray)):
-                    yt_group = as_list(y_true_group[group])
-                else:
-                    yt_group = y_true_group[group]  # type: ignore
-                row = [[group], yt_group, group_predictions[i]]
-                if uncertainty is not None:
-                    row += [np.array(uncertainty_by_group[i])]
-                row = np.concatenate(row)
-                writer.writerow(row)
-    return group_predictions
 
 
 def _cph_metrics(args: SimpleNamespace) -> None:
     """Internal function to calculate tile, slide, and patient-level metrics
     for a CPH outcome.
     """
-    num_cat = args.y_pred.shape[1]
-    args.c_index['tile'] = concordance_index(args.y_true, args.y_pred)
-    slide_preds = _group_predictions(
-        args.y_pred,
-        unique_groups=args.unique_slides,
-        tile_to_group=args.tile_to_slides,
-        y_true_group=args.y_true_slide,
-        num_cat=num_cat,
-        label_end=args.label_end,
-        save_pred=args.save_slide_predictions,
-        data_dir=args.data_dir,
-        label="slide"
+    args.c_index['tile'] = concordance_index(
+        args.df['time-y_true'].values,
+        args.df[['time-y_pred', 'event-y_true']].values,
     )
-    yt_by_slide = np.array([
-        args.y_true_slide[slide] for slide in args.unique_slides]
-    )
-    args.c_index['slide'] = concordance_index(yt_by_slide, slide_preds)
-    if not args.patient_error:
-        patient_preds = _group_predictions(
-            args.y_pred,
-            unique_groups=args.patients,
-            tile_to_group=args.tile_to_patients,
-            y_true_group=args.y_true_patient,
-            num_cat=num_cat,
-            label_end=args.label_end,
-            save_pred=args.save_patient_predictions,
-            data_dir=args.data_dir,
-            label="patient"
+    for group in ('patient', 'slide'):
+        group_df = args.df.groupby(group).mean()
+        if args.should_save_predictions(group):
+            group_df.to_csv(join(
+                args.data_dir,
+                f"{group}_predictions{args.label_end}.csv",
+            ))
+        args.c_index['slide'] = concordance_index(
+            group_df['time-y_true'].values,
+            group_df[['time-y_pred', 'event-y_true']].values,
         )
-        yt_by_patient = np.array(
-            [args.y_true_patient[patient] for patient in args.patients]
-        )
-        args.c_index['patient'] = concordance_index(yt_by_patient,
-                                                    patient_preds)
 
 
 def _linear_metrics(args: SimpleNamespace) -> None:
     """Internal function to calculate tile, slide, and patient-level metrics
     for a linear outcome.
     """
+    y_pred_cols = [f'{o}-y_pred' for o in args.outcome_names]
+    y_true_cols = [f'{o}-y_true' for o in args.outcome_names]
 
-    num_cat = args.y_pred.shape[1]
     args.r_squared['tile'] = generate_scatter(
-        args.y_true,
-        args.y_pred,
+        args.df[y_true_cols].values,
+        args.df[y_pred_cols].values,
         args.data_dir,
         args.label_end,
         plot=args.plot,
         neptune_run=args.neptune_run
     )
-    # Generate and save slide-level averages of each outcome
-    slide_preds = _group_predictions(
-        args.y_pred,
-        unique_groups=args.unique_slides,
-        tile_to_group=args.tile_to_slides,
-        y_true_group=args.y_true_slide,
-        num_cat=num_cat,
-        label_end=args.label_end,
-        save_pred=args.save_slide_predictions,
-        data_dir=args.data_dir,
-        label="slide"
-    )
-    yt_by_slide = np.array(
-        [as_list(args.y_true_slide[slide]) for slide in args.unique_slides]
-    )
-    args.r_squared['slide'] = generate_scatter(
-        yt_by_slide,
-        slide_preds,
-        args.data_dir,
-        args.label_end+"_by_slide",
-        neptune_run=args.neptune_run
-    )
-    if not args.patient_error:
-        # Generate and save patient-level averages of each outcome
-        patient_preds = _group_predictions(
-            args.y_pred,
-            unique_groups=args.patients,
-            tile_to_group=args.tile_to_patients,
-            y_true_group=args.y_true_patient,
-            num_cat=num_cat,
-            label_end=args.label_end,
-            save_pred=args.save_patient_predictions,
-            data_dir=args.data_dir,
-            label="patient",
-            uncertainty=args.y_std
-        )
-        yt_by_patient = np.array(
-            [as_list(args.y_true_patient[pt]) for pt in args.patients]
-        )
-        args.r_squared['patient'] = generate_scatter(
-            yt_by_patient,
-            patient_preds,
+    for group in ('patient', 'slide'):
+        group_df = args.df.groupby(group).mean()
+        if args.should_save_predictions(group):
+            group_df.to_csv(join(
+                args.data_dir,
+                f"{group}_predictions{args.label_end}.csv"
+            ))
+        args.r_squared[group] = generate_scatter(
+            group_df[y_true_cols].values,
+            group_df[y_pred_cols].values,
             args.data_dir,
-            args.label_end+"_by_patient",
+            f"{args.label_end}_by_{group}",
             neptune_run=args.neptune_run
         )
 
@@ -1025,151 +885,88 @@ def _categorical_metrics(args: SimpleNamespace, outcome_name: str) -> None:
     """Internal function to calculate tile, slide, and patient level metrics
     for a categorical outcome.
     """
-    n_observed = np.max(args.y_true)+1
-    if n_observed != args.y_pred.shape[1]:
-        log.warning(
+    y_pred_cols = [c for c in args.df.columns if c.startswith('y_pred')]
+    original_cols = [c for c in args.df.columns if c not in ('patient', 'slide')]
+    num_cat = args.df.y_true.max()+1
+    num_pred = len(y_pred_cols)
+    if num_cat != num_pred:
+        raise errors.StatsError(
             "Model predictions have a different number of outcome "
-            f"categories ({args.y_pred.shape[1]}) "
-            f"than provided annotations ({n_observed})!"
+            f"categories ({num_pred}) "
+            f"than provided annotations ({num_cat})"
         )
-    num_cat = max(n_observed, args.y_pred.shape[1])
 
-    # For categorical models, convert to one-hot encoding
-    args.y_true = np.array([to_onehot(i, num_cat) for i in args.y_true])
-    args.y_true_slide = {
-        k: to_onehot(v, num_cat) for k, v in args.y_true_slide.items()
-    }
-    args.y_true_patient = {
-        k: to_onehot(v, num_cat) for k, v in args.y_true_patient.items()
-    }
-    # If this is from a PyTorch model, predictions may not be in softmax form.
-    # We will need to enforce softmax encoding for tile-level statistics.
-    if sf.backend() == 'torch':
-        args.y_pred = softmax(args.y_pred, axis=1)
+    # Convert to one-hot encoding
+    for i in range(num_cat):
+        args.df[f'y_true_onehot{i}'] = (args.df.y_true == i).astype(int)
+        args.df[f'y_pred_onehot{i}'] = (args.df[f'y_pred{i}'] == args.df[y_pred_cols].values.max(1)).astype(int)
 
     for level in ('tile', 'slide', 'patient'):
         args.auc[level][outcome_name] = []
         args.ap[level][outcome_name] = []
 
-    ctx = mp.get_context('spawn')
-    with ctx.Pool(processes=8) as p:
-        # TODO: optimize; this copies y_true / y_pred to each subprocess
-        # and copies all categories when only one is needed in each process
-        # Consider implementing shared memory (although this would eliminate
-        # compatibility with python 3.7)
-        par = partial(
-            _generate_tile_roc,
-            y_true=args.y_true,
-            y_pred=args.y_pred,
+    #ctx = mp.get_context('spawn')
+    #with ctx.Pool(processes=8) as p:
+    def _gen_roc(i):
+        return _generate_tile_roc(
+            y_true=args.df[f'y_true_onehot{i}'],
+            y_pred=args.df[f'y_pred{i}'],
             data_dir=args.data_dir,
-            label_start=args.label_start + outcome_name + "_",
+            label=str(args.label_start + outcome_name) + "_tile_{}" + str(i),
             histogram=args.histogram
         )
-        try:
-            for i, (auc, ap, thresh) in enumerate(p.imap(par, range(num_cat))):
-                args.auc['tile'][outcome_name] += [auc]
-                args.ap['tile'][outcome_name] += [ap]
-                log.info(
-                    f"Tile-level AUC (cat #{i:>2}): {auc:.3f} "
-                    f"AP: {ap:.3f} (opt. threshold: {thresh:.3f})"
-                )
-        except ValueError as e:
-            # Occurs when predictions contain NaN
-            log.error(f'Error encountered when generating AUC: {e}')
-            for level in ('tile', 'slide', 'patient'):
-                args.auc[level][outcome_name] = -1
-                args.ap[level][outcome_name] = -1
-            return
+    try:
+        for i, (auc, ap, thresh) in enumerate(map(_gen_roc, range(num_cat))): #p.imap
+            args.auc['tile'][outcome_name] += [auc]
+            args.ap['tile'][outcome_name] += [ap]
+            log.info(
+                f"Tile-level AUC (cat #{i:>2}): {auc:.3f} "
+                f"AP: {ap:.3f} (opt. threshold: {thresh:.3f})"
+            )
+    except ValueError as e:
+        # Occurs when predictions contain NaN
+        log.error(f'Error encountered when generating AUC: {e}')
+        for level in ('tile', 'slide', 'patient'):
+            args.auc[level][outcome_name] = -1
+            args.ap[level][outcome_name] = -1
+        return
 
-    # Convert predictions to one-hot encoding
-    onehot_predictions = np.array([
-        to_onehot(x, num_cat) for x in np.argmax(args.y_pred, axis=1)
-    ])
-    # Compare one-hot predictions to one-hot y_true for category-level accuracy
-    split_predictions = np.split(onehot_predictions, num_cat, 1)
-    for ci, cat_pred_array in enumerate(split_predictions):
-        try:
-            yt_in_cat = args.y_true[:, ci]
-            n_in_cat = np.sum(yt_in_cat)
-            correct = np.sum(cat_pred_array[np.argwhere(yt_in_cat > 0)])
-            category_accuracy = correct / n_in_cat
-            perc = category_accuracy * 100
-            log.info(f"Category {ci} acc: {perc:.1f}% ({correct}/{n_in_cat})")
-        except IndexError:
-            log.warning(f"Error with category accuracy for cat # {ci}")
-    # Generate slide-level percent calls
-    slide_preds = _group_predictions(
-        onehot_predictions if args.cat_reduce == 'onehot' else args.y_pred,
-        unique_groups=args.unique_slides,
-        tile_to_group=args.tile_to_slides,
-        y_true_group=args.y_true_slide,
-        num_cat=num_cat,
-        label_end="_" + outcome_name + args.label_end,
-        save_pred=args.save_slide_predictions,
-        data_dir=args.data_dir,
-        label="slide"
-    )
-    # Generate slide-level ROC
+    # Calculate tile-level accuracy.
+    # Category-level accuracy is determined by comparing
+    # one-hot predictions to one-hot y_true.
     for i in range(num_cat):
         try:
-            slide_y_pred = slide_preds[:, i]
-            slide_y_true = np.array(
-                [args.y_true_slide[slide][i] for slide in args.unique_slides]
-            )
-            roc_res = generate_roc(
-                slide_y_true,
-                slide_y_pred,
+            yt_in_cat = args.df[f'y_true_onehot{i}']
+            n_in_cat = yt_in_cat.sum()
+            correct = args.df.loc[args.df[f'y_true_onehot{i}'] > 0][f'y_pred_onehot{i}'].sum()
+            category_accuracy = correct / n_in_cat
+            perc = category_accuracy * 100
+            log.info(f"Category {i} acc: {perc:.1f}% ({correct}/{n_in_cat})")
+        except IndexError:
+            log.warning(f"Error with category accuracy for cat # {i}")
+
+    # Calculate patient- and slide-level metrics
+    for group in ('patient', 'slide'):
+        group_df = args.df.groupby(group).mean()
+        if args.should_save_predictions(group):
+            group_df[original_cols].to_csv(join(
                 args.data_dir,
-                f'{args.label_start}{outcome_name}_slide_ROC{i}',
+                f"{group}_predictions_{outcome_name}{args.label_end}.csv",
+            ))
+        for i in range(num_cat):
+            roc_auc, ap, thresh = generate_roc(
+                group_df[f'y_true_onehot{i}'],
+                group_df[f'y_pred_onehot{i}'],
+                args.data_dir,
+                f'{args.label_start}{outcome_name}_{group}_ROC{i}',
                 neptune_run=args.neptune_run
             )
-            roc_auc, ap, thresh = roc_res
-            args.auc['slide'][outcome_name] += [roc_auc]
-            args.ap['slide'][outcome_name] += [ap]
+            args.auc[group][outcome_name] += [roc_auc]
+            args.ap[group][outcome_name] += [ap]
             log.info(
-                f"Slide-level AUC (cat #{i:>2}): {roc_auc:.3f}"
+                f"{group}-level AUC (cat #{i:>2}): {roc_auc:.3f}"
                 f", AP: {ap:.3f} (opt. threshold: {thresh:.3f})"
             )
-        except IndexError:
-            log.warning(f"Error with slide-level stats for outcome {i}")
-
-    if not args.patient_error:
-        # Generate patient-level percent calls
-        patient_preds = _group_predictions(
-            onehot_predictions if args.cat_reduce == 'onehot' else args.y_pred,
-            unique_groups=args.patients,
-            tile_to_group=args.tile_to_patients,
-            y_true_group=args.y_true_patient,
-            num_cat=num_cat,
-            label_end="_" + outcome_name + args.label_end,
-            save_pred=args.save_patient_predictions,
-            data_dir=args.data_dir,
-            uncertainty=args.y_std,
-            label="patient"
-        )
-        # Generate patient-level ROC
-        for i in range(num_cat):
-            try:
-                patient_y_pred = patient_preds[:, i]
-                patient_y_true = np.array(
-                    [args.y_true_patient[pt][i] for pt in args.patients]
-                )
-                roc_res = generate_roc(
-                    patient_y_true,
-                    patient_y_pred,
-                    args.data_dir,
-                    f'{args.label_start}{outcome_name}_patient_ROC{i}',
-                    neptune_run=args.neptune_run
-                )
-                roc_auc, ap, thresh = roc_res
-                args.auc['patient'][outcome_name] += [roc_auc]
-                args.ap['patient'][outcome_name] += [ap]
-                log.info(
-                    f"Patient-level AUC (cat #{i:>2}): {roc_auc:.3f}"
-                    f", AP: {ap:.3f} (opt. threshold: {thresh:.3f})"
-                )
-            except IndexError:
-                log.warning(f"Error with patient-level stats for outcome {i}")
 
 
 def filtered_prediction(
@@ -1294,8 +1091,9 @@ def save_histogram(
         idx = np.random.choice(idx, subsample)
         y_pred = y_pred[idx]
         y_true = y_true[idx]
-    cat_false = [yp for i, yp in enumerate(y_pred) if y_true[i] == 0]
-    cat_true = [yp for i, yp in enumerate(y_pred) if y_true[i] == 1]
+
+    cat_false = y_pred[y_true == 0]
+    cat_true = y_pred[y_true == 1]
     plt.clf()
     plt.title('Tile-level Predictions')
     plot_kw = {
@@ -1533,109 +1331,41 @@ def concordance_index(y_true: np.ndarray, y_pred: np.ndarray) -> float:
     return c_index(y_true, y_pred, E)
 
 
-def pred_to_df(
-    y_true: Optional[Union[np.ndarray, List[np.ndarray]]],
-    y_pred: np.ndarray,
-    tile_to_slides: Union[np.ndarray, List[str]],
-    outcome_names: List[str],
-    uncertainty: Optional[Union[np.ndarray, List[np.ndarray]]] = None,
-) -> pd.DataFrame:
-    """Save tile-level predictions.
-
-    Assumes structure of y_true, y_pred, uncertainty is:
-    - List of length num_outcomes, containing numpy arrays
-    - Each np array is either shape (num_tiles) [single linear outcome]
-    or (num_tiles, num_categories) [categorical]
-
-    Args:
-        y_true (np.ndarray): Tile-level labels.
-        y_pred (np.ndarray): Tile-level predictions.
-        tile_to_slides (np.ndarray): Slides corresponding to each tile.
-        outcome_names (np.ndarray): List of outcome names.
-        uncertainty (bool, optional): Tile-level uncertainty. Defaults to None.
-
-    Raises:
-        errors.StatsError: If len(y_pred) is 1 but >1 outcome_names provided.
-
-        errors.StatsError: If num outcomes in y_true and y_pred are unequal.
-
-    Returns:
-        Pandas DataFrame
-    """
-    if isinstance(y_true, list):
-        if len(y_true) != len(y_pred):
-            raise errors.StatsError(
-                "Number of outcomes in y_true and y_pred do not match"
-            )
-        if len(y_true) != len(outcome_names):
-            raise errors.StatsError(
-                "Number of outcome names does not match y_true outcomes"
-            )
-    else:
-        # Check for multiple linear outcomes in ndarray format
-        if len(outcome_names) > 1 and len(outcome_names) == y_pred.shape[1]:
-            if y_true is not None:
-                if y_true.shape != y_pred.shape:
-                    _yt_shape = f"y_true ({y_true.shape})"
-                    _yp_shape = f"y_pred ({y_pred.shape})"
-                    raise errors.StatsError(
-                        f"Shape mismatch: {_yt_shape} != {_yp_shape}"
-                    )
-                y_true = [y_true[:, i] for i in range(y_true.shape[1])]
-            y_pred = [
-                y_pred[:, i] for i in range(y_pred.shape[1])
-            ]  # type: ignore
-        elif len(outcome_names) > 1:
-            raise errors.StatsError(
-                "When len(y_pred) is 1, length of outcome_names must be 1"
-            )
-        else:
-            y_true = [y_true]  # type: ignore
-
-    y_pred = as_list(y_pred)  # type: ignore
-    if uncertainty is not None and not isinstance(uncertainty, list):
-        uncertainty = [uncertainty]
-
-    df = {
-        'slide': pd.Series(tile_to_slides, dtype=str)
+def df_from_pred(y_true, y_pred, y_std, tile_to_slides):
+    series = {
+        'slide': pd.Series(tile_to_slides)
     }
-    for oi, outcome in enumerate(outcome_names):
-        if y_true is not None and y_true[oi] is not None:
-            # Each image has one label (eg. for single linear outcomes)
-            if len(y_true[oi].shape) == 1:
-                df[f'{outcome}_y_true0'] = pd.Series(y_true[oi])
-            # Each image has multiple labels (eg. onehot categorical outcomes)
+    for oi in range(len(y_pred)):
+        # Add y_pred columns
+        series.update({
+            f'out{oi}-y_pred{n}': y_pred[0][:, n]
+            for n in range(y_pred[0].shape[1])
+        })
+        # Add y_true columns
+        if y_true is not None:
+            if len(y_true[0].shape) == 1:
+                series.update({
+                    f'out{oi}-y_true': y_true[0]
+                })
             else:
-                for j in range(y_true[oi].shape[1]):
-                    df[f'{outcome}_y_true{j}'] = pd.Series(y_true[oi][:, j])
-        # Single output for each image (eg. for single linear outcomes)
-        if len(y_pred[oi].shape) == 1:
-            df[f'{outcome}_y_pred0'] = pd.Series(y_pred[oi])
-        # Each image has multiple outputs (eg. logits for categorical outcomes)
-        else:
-            for j in range(y_pred[oi].shape[1]):
-                df[f'{outcome}_y_pred{j}'] = pd.Series(y_pred[oi][:, j])
-        if uncertainty is not None:
-            # Each image has one uncertainty (eg. for single linear outcomes)
-            if len(uncertainty[oi].shape) == 1:
-                df[f'{outcome}_uncertainty0'] = pd.Series(uncertainty[oi])
-            # Each image has multiple uncertainties (eg variance of each logit)
-            else:
-                for j in range(uncertainty[oi].shape[1]):
-                    header = f'{outcome}_uncertainty{j}'
-                    df[header] = pd.Series(uncertainty[oi][:, j])
-    return pd.DataFrame(df)
+                series.update({
+                    f'out{oi}-y_true{n}': y_true[0][:, n]
+                    for n in range(y_true[0].shape[1])
+                })
+        # Add uncertainty columns
+        if y_std is not None:
+            series.update({
+                f'out{oi}-uncertainty{n}': y_std[0][:, n]
+                for n in range(y_std[0].shape[1])
+            })
+    return pd.DataFrame(series)
 
 
 def metrics_from_pred(
-    y_true: np.ndarray,
-    y_pred: np.ndarray,
-    tile_to_slides: Union[np.ndarray, List[str]],
-    labels: Dict[str, Any],
+    df: pd.core.frame.DataFrame,
     patients: Dict[str, str],
     model_type: str,
     categorical_reduce: str = 'raw',
-    y_std: Optional[np.ndarray] = None,
     outcome_names: Optional[List[str]] = None,
     label: str = '',
     data_dir: str = '',
@@ -1690,25 +1420,21 @@ def metrics_from_pred(
         )
     label_end = "" if label == '' else f"_{label}"
     label_start = "" if label == '' else f"{label}_"
-    tile_to_patients = np.array([patients[slide] for slide in tile_to_slides])
-    unique_patients = np.unique(tile_to_patients)
-    unique_slides = np.unique(tile_to_slides)
-
-    # Set up annotations
-    y_true_slide = labels
-    y_true_patient = {patients[s]: labels[s] for s in labels}
+    df['patient'] = df['slide'].map(patients)
 
     # Verify patient outcomes are consistent if multiples slides are present
     # for each patient
-    patient_error = False
-    for slide in labels:
-        patient = patients[slide]
-        if y_true_slide[slide] != y_true_patient[patient]:
-            log.error(
-                "Data integrity failure; patient assigned to multiple "
-                "slides with different outcomes"
-            )
-            patient_error = True
+    #patient_error = False
+    #for slide in labels:
+    #    patient = patients[slide]
+    #    if y_true_slide[slide] != y_true_patient[patient]:
+    #        log.error(
+    #            "Data integrity failure; patient assigned to multiple "
+    #            "slides with different outcomes"
+    #        )
+    #        patient_error = True
+    # if not len(outcome_names) == len(set(outcome_names)):
+    #    raise ValueError("Duplicate outcome names found; all must be unique.")
 
     # Function to determine which predictions should be exported to CSV
     def should_save_predictions(grp):
@@ -1718,20 +1444,10 @@ def metrics_from_pred(
             or (isinstance(save_predictions, list) and grp in save_predictions)
         )
     metric_args = SimpleNamespace(
-        y_true=y_true,
-        y_pred=y_pred,
-        y_std=y_std,
-        unique_slides=unique_slides,
-        tile_to_slides=tile_to_slides,
-        tile_to_patients=tile_to_patients,
         label_start=label_start,
         label_end=label_end,
-        save_slide_predictions=should_save_predictions('slide'),
-        save_patient_predictions=should_save_predictions('patient'),
-        save_tile_predictions=should_save_predictions('tile'),
+        should_save_predictions=should_save_predictions,
         data_dir=data_dir,
-        patient_error=patient_error,
-        patients=unique_patients,
         r_squared={'tile': None, 'slide': None, 'patient': None},
         c_index={'tile': None, 'slide': None, 'patient': None},
         auc={'tile': {}, 'slide': {}, 'patient': {}},
@@ -1740,66 +1456,82 @@ def metrics_from_pred(
         histogram=histogram,
         neptune_run=neptune_run
     )
+
+    # Detect the number of outcomes and confirm that the number of outcomes
+    # match the provided outcome names
+    if model_type == 'linear':
+        n_outcomes = len([c for c in df.columns if c.startswith('out0-y_pred')])
+    else:
+        n_outcomes = len([c for c in df.columns if c.endswith('-y_pred0')])
+    if not outcome_names:
+        outcome_names = [f"Outcome {i}" for i in range(n_outcomes)]
+    elif len(outcome_names) != n_outcomes:
+        raise errors.StatsError(
+            f"Number of outcome names {len(outcome_names)} does not "
+            f"match y_true {n_outcomes}"
+        )
+
     if model_type == 'categorical':
-        # Detect the number of outcomes by y_true
-        if type(y_true) == list:
-            n_outcomes_by_yt = len(y_true)
-        elif len(y_true.shape) == 1:
-            n_outcomes_by_yt = 1
-        else:
-            raise errors.StatsError(
-                "y_true expected to belist of numpy arrays for each outcome."
-            )
-        # Confirm that the number of outcomes provided by y_true
-        # match the provided outcome names
-        if not outcome_names:
-            outcome_names = [f"Outcome {i}" for i in range(n_outcomes_by_yt)]
-        elif len(outcome_names) != n_outcomes_by_yt:
-            raise errors.StatsError(
-                f"Number of outcome names {len(outcome_names)} does not "
-                f"match y_true {n_outcomes_by_yt}"
-            )
+        # Update dataframe column names with outcome names
+        outcome_cols_to_replace = {}
         for oi, outcome in enumerate(outcome_names):
-            if len(outcome_names) > 1:
-                metric_args.y_true_slide = {
-                    s: v[oi] for s, v in y_true_slide.items()
+            outcome_cols_to_replace.update({
+                c: c.replace(f'out{oi}', outcome)
+                for c in df.columns
+                if c.startswith(f'out{oi}-')
+            })
+        df = df.rename(columns=outcome_cols_to_replace)
+
+        # Perform analysis separately for each outcome column
+        for oi, outcome in enumerate(outcome_names):
+            outcome_cols = [c for c in df.columns if c.startswith(f'{outcome}-')]
+            metric_args.df = df[['slide', 'patient'] + outcome_cols].rename(
+                columns={
+                    orig_col: orig_col.replace(f'{outcome}-', '', 1)
+                    for orig_col in outcome_cols
                 }
-                metric_args.y_true_patient = {
-                    s: v[oi] for s, v in y_true_patient.items()
-                }
-                metric_args.y_pred = y_pred[oi]
-                metric_args.y_true = y_true[oi]
-            else:
-                metric_args.y_true_slide = y_true_slide
-                metric_args.y_true_patient = y_true_patient
-                metric_args.y_pred = y_pred
-                metric_args.y_true = y_true
-            log.info(f"Validation metrics for outcome {col.green(outcome)}:")
+            )
             metric_args.cat_reduce = categorical_reduce
+            log.info(f"Validation metrics for outcome {col.green(outcome)}:")
             _categorical_metrics(metric_args, outcome)
 
     elif model_type == 'linear':
-        metric_args.y_true_slide = y_true_slide
-        metric_args.y_true_patient = y_true_patient
-        if len(metric_args.y_true.shape) < 2:
-            metric_args.y_true = np.expand_dims(metric_args.y_true, axis=0)
+        outcome_cols_to_replace = {}
+        for oi, outcome in enumerate(outcome_names):
+            outcome_cols_to_replace.update({
+                c: f'{outcome}-y_pred'
+                for c in df.columns
+                if c.startswith('out0-y_pred') and c.endswith(str(oi))
+            })
+            outcome_cols_to_replace.update({
+                c: f'{outcome}-y_true'
+                for c in df.columns
+                if c.startswith('out0-y_true') and c.endswith(str(oi))
+            })
+        df = df.rename(columns=outcome_cols_to_replace)
+
+        # Calculate metrics
+        metric_args.df = df
+        metric_args.outcome_names = outcome_names
         _linear_metrics(metric_args)
 
     elif model_type == 'cph':
-        metric_args.y_true_slide = y_true_slide
-        metric_args.y_true_patient = y_true_patient
+        assert len(outcome_names) == 1
+        df = df.rename(columns={
+            'out0-y_pred0': 'time-y_pred',
+            'out0-y_pred1': 'event-y_true',
+            'out0-y_true0': 'time-y_true',
+
+        })
+        # Calculate metrics
+        metric_args.df = df
         _cph_metrics(metric_args)
 
-    assert outcome_names is not None
-    if metric_args.save_tile_predictions:
-        df = pred_to_df(
-            y_true,
-            y_pred,
-            tile_to_slides,
-            outcome_names,
-            uncertainty=metric_args.y_std
+    if should_save_predictions('tile'):
+        df[[c for c in df.columns if c != 'patient']].to_csv(
+            os.path.join(data_dir, f"tile_predictions{label_end}.csv"),
+            index=False
         )
-        df.to_csv(os.path.join(data_dir, f"tile_predictions{label_end}.csv"))
         log.debug(f"Predictions saved to {col.green(data_dir)}")
 
     combined_metrics = {
@@ -1817,7 +1549,7 @@ def predict_from_torch(
     model_type: str,
     pred_args: SimpleNamespace,
     uq_n: int = 30,
-) -> Tuple[np.ndarray, Optional[np.ndarray], np.ndarray]:
+) -> pd.core.frame.DataFrame:
     """Generates predictions (y_true, y_pred, tile_to_slide) from
     a given PyTorch model and dataset.
 
@@ -1888,12 +1620,19 @@ def predict_from_torch(
         if pred_args.uq:
             y_std = [np.concatenate(ys) for ys in zip(*y_std)]  # type: ignore
     else:
-        y_pred = np.concatenate(y_pred)
+        y_pred = [np.concatenate(y_pred)]
         if pred_args.uq:
-            y_std = np.concatenate(y_std)
-    tile_to_slides = np.array(tile_to_slides)  # type: ignore
+            y_std = [np.concatenate(y_std)]
+
+    # We will need to enforce softmax encoding for tile-level statistics.
+    if model_type == 'categorical':
+        y_pred = [softmax(yp, axis=1) for yp in y_pred]
+
+    # Create pandas DataFrame from arrays
+    df = df_from_pred(None, y_pred, y_std, tile_to_slides)
+
     log.debug("Prediction complete.")
-    return y_pred, y_std, tile_to_slides  # type: ignore
+    return df
 
 
 def eval_from_torch(
@@ -1902,12 +1641,7 @@ def eval_from_torch(
     model_type: str,
     pred_args: SimpleNamespace,
     uq_n: int = 30,
-) -> Tuple[np.ndarray,
-           np.ndarray,
-           Optional[np.ndarray],
-           np.ndarray,
-           float,
-           float]:
+) -> Tuple[pd.core.frame.DataFrame, float, float]:
     """Generates predictions (y_true, y_pred, tile_to_slide) from
     a given PyTorch model and dataset.
 
@@ -1984,25 +1718,30 @@ def eval_from_torch(
         total += img.shape[0]
         pb.update(img.shape[0])
 
-    # Concatenate predictions for each outcome
+
+    # Concatenate predictions for each outcome.
     if type(y_pred[0]) == list:
         y_pred = [np.concatenate(yp) for yp in zip(*y_pred)]
         if pred_args.uq:
             y_std = [np.concatenate(ys) for ys in zip(*y_std)]  # type: ignore
     else:
-        y_pred = np.concatenate(y_pred)
+        y_pred = [np.concatenate(y_pred)]
         if pred_args.uq:
-            y_std = np.concatenate(y_std)
+            y_std = [np.concatenate(y_std)]
 
     # Concatenate y_true for each outcome
     if type(y_true[0]) == list:
         y_true = [np.concatenate(yt) for yt in zip(*y_true)]
+
+        # Merge multiple linear outcomes into a single vector
+        if model_type == 'linear':
+            y_true = [np.stack(y_true, axis=1)]  # type: ignore
     else:
-        y_true = np.concatenate(y_true)
-    tile_to_slides = np.array(tile_to_slides)  # type: ignore
-    # Merge multiple linear outcomes into a single vector
-    if model_type == 'linear' and isinstance(y_true, list):
-        y_true = np.stack(y_true, axis=1)  # type: ignore
+        y_true = [np.concatenate(y_true)]
+
+    # We will need to enforce softmax encoding for tile-level statistics.
+    if model_type == 'categorical':
+        y_pred = [softmax(yp, axis=1) for yp in y_pred]
 
     # Calculate final accuracy and loss
     loss = losses / total
@@ -2014,8 +1753,12 @@ def eval_from_torch(
         acc = corrects.cpu().numpy() / total
     if log.getEffectiveLevel() <= 20:
         sf.util.clear_console()
+
+    # Create pandas DataFrame from arrays
+    df = df_from_pred(y_true, y_pred, y_std, tile_to_slides)
+
     log.debug("Evaluation complete.")
-    return y_true, y_pred, y_std, tile_to_slides, acc, loss  # type: ignore
+    return df, acc, loss  # type: ignore
 
 
 def predict_from_tensorflow(
@@ -2025,7 +1768,7 @@ def predict_from_tensorflow(
     pred_args: SimpleNamespace,
     num_tiles: int = 0,
     uq_n: int = 30
-) -> Tuple[np.ndarray, Optional[np.ndarray], np.ndarray]:
+) -> pd.core.frame.DataFrame:
     """Generates predictions (y_true, y_pred, tile_to_slide) from a given
     Tensorflow model and dataset.
 
@@ -2075,18 +1818,21 @@ def predict_from_tensorflow(
             y_pred += [yp]
     pb.close()
 
-    tile_to_slides = np.array(tile_to_slides)  # type: ignore
     if type(y_pred[0]) == list:
         # Concatenate predictions for each outcome
         y_pred = [np.concatenate(yp) for yp in zip(*y_pred)]
         if pred_args.uq:
             y_std = [np.concatenate(ys) for ys in zip(*y_std)]  # type: ignore
     else:
-        y_pred = np.concatenate(y_pred)
+        y_pred = [np.concatenate(y_pred)]
         if pred_args.uq:
-            y_std = np.concatenate(y_std)
+            y_std = [np.concatenate(y_std)]
+
+    # Create pandas DataFrame from arrays
+    df = df_from_pred(None, y_pred, y_std, tile_to_slides)
+
     log.debug("Prediction complete.")
-    return y_pred, y_std, tile_to_slides  # type: ignore
+    return df
 
 
 def eval_from_tensorflow(
@@ -2096,12 +1842,7 @@ def eval_from_tensorflow(
     pred_args: SimpleNamespace,
     num_tiles: int = 0,
     uq_n: int = 30
-) -> Tuple[np.ndarray,
-           np.ndarray,
-           Optional[np.ndarray],
-           np.ndarray,
-           float,
-           float]:
+) -> Tuple[pd.core.frame.DataFrame, float, float]:
     """Generates predictions (y_true, y_pred, tile_to_slide) from a given
     Tensorflow model and dataset.
 
@@ -2163,16 +1904,15 @@ def eval_from_tensorflow(
         running_loss += tf.math.reduce_sum(loss).numpy() * slide.shape[0]
     pb.close()
 
-    tile_to_slides = np.array(tile_to_slides)  # type: ignore
     if type(y_pred[0]) == list:
         # Concatenate predictions for each outcome
         y_pred = [np.concatenate(yp) for yp in zip(*y_pred)]
         if pred_args.uq:
             y_std = [np.concatenate(ys) for ys in zip(*y_std)]  # type: ignore
     else:
-        y_pred = np.concatenate(y_pred)
+        y_pred = [np.concatenate(y_pred)]
         if pred_args.uq:
-            y_std = np.concatenate(y_std)
+            y_std = [np.concatenate(y_std)]
 
     if type(y_true[0]) == list:
         # Concatenate y_true for each outcome
@@ -2183,15 +1923,18 @@ def eval_from_tensorflow(
                 for i in range(len(y_true))
             ]
     else:
-        y_true = np.concatenate(y_true)
+        y_true = [np.concatenate(y_true)]
         if is_cat:
             acc = np.sum(y_true == np.argmax(y_pred, axis=1)) / num_vals
+
+    # Create pandas DataFrame from arrays
+    df = df_from_pred(y_true, y_pred, y_std, tile_to_slides)
 
     # Note that Keras loss during training includes regularization losses,
     # so this loss will not match validation loss calculated during training
     loss = running_loss / num_vals
     log.debug("Evaluation complete.")
-    return y_true, y_pred, y_std, tile_to_slides, acc, loss  # type: ignore
+    return df, acc, loss  # type: ignore
 
 
 def predict_from_dataset(
@@ -2201,7 +1944,7 @@ def predict_from_dataset(
     pred_args: SimpleNamespace,
     num_tiles: int = 0,
     uq_n: int = 30
-) -> Tuple[np.ndarray, Optional[np.ndarray], np.ndarray]:
+) -> pd.core.frame.DataFrame:
     """Generates predictions (y_pred, tile_to_slide) from model and dataset.
 
     Args:
@@ -2244,12 +1987,7 @@ def eval_from_dataset(
     pred_args: SimpleNamespace,
     num_tiles: int = 0,
     uq_n: int = 30
-) -> Tuple[np.ndarray,
-           np.ndarray,
-           Optional[np.ndarray],
-           np.ndarray,
-           float,
-           float]:
+) -> Tuple[pd.core.frame.DataFrame, float, float]:
     """Generates predictions (y_true, y_pred, tile_to_slide) and accuracy/loss
     from a given model and dataset.
 
@@ -2339,7 +2077,6 @@ def predict_from_layer(
 def metrics_from_dataset(
     model: Union["tf.keras.Model", "torch.nn.Module"],
     model_type: str,
-    labels: Dict[str, Any],
     patients: Dict[str, str],
     dataset: Union["tf.data.Dataset", "torch.utils.data.DataLoader"],
     pred_args: SimpleNamespace,
@@ -2387,7 +2124,7 @@ def metrics_from_dataset(
         metrics [dict], accuracy [float], loss [float]
     """
 
-    yt, yp, y_std, t_s, acc, loss = eval_from_dataset(
+    df, acc, loss = eval_from_dataset(  # yt, yp, y_std, t_s
         model,
         dataset,
         model_type,
@@ -2396,11 +2133,7 @@ def metrics_from_dataset(
     )
     before_metrics = time.time()
     metrics = metrics_from_pred(
-        y_true=yt,
-        y_pred=yp,
-        y_std=y_std,
-        tile_to_slides=t_s,
-        labels=labels,
+        df=df,
         patients=patients,
         model_type=model_type,
         plot=True,
