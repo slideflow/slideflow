@@ -82,8 +82,10 @@ class TestSuite:
         print(f'Setting up test project at {col.green(root)}')
         print(f'Testing using slides from {col.green(slides)}')
         self.config = TestConfig(root, slides=slides)
-        self.project = self.config.create_project(self.project_root,
-                                                overwrite=reset)
+        self.project = self.config.create_project(
+            self.project_root,
+            overwrite=reset
+        )
 
         # Check if GPU available
         if sf.backend() == 'tensorflow':
