@@ -10,7 +10,7 @@ from typing import Optional
 import slideflow as sf
 import slideflow.test.functional
 from slideflow import errors
-from slideflow.test import dataset_test, slide_test
+from slideflow.test import dataset_test, slide_test, stats_test
 from slideflow.test.utils import (TaskWrapper, TestConfig,
                                   _assert_valid_results, process_isolate)
 from slideflow.util import colors as col
@@ -82,8 +82,10 @@ class TestSuite:
         print(f'Setting up test project at {col.green(root)}')
         print(f'Testing using slides from {col.green(slides)}')
         self.config = TestConfig(root, slides=slides)
-        self.project = self.config.create_project(self.project_root,
-                                                overwrite=reset)
+        self.project = self.config.create_project(
+            self.project_root,
+            overwrite=reset
+        )
 
         # Check if GPU available
         if sf.backend() == 'tensorflow':
@@ -775,7 +777,7 @@ class TestSuite:
         runner = unittest.TextTestRunner()
         all_tests = [
             unittest.TestLoader().loadTestsFromModule(module)
-            for module in (dataset_test, )
+            for module in (dataset_test, stats_test)
         ]
         suite = unittest.TestSuite(all_tests)
 

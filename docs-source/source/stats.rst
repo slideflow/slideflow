@@ -98,14 +98,6 @@ read_predictions
 ----------------
 .. autofunction:: read_predictions
 
-permute_importance
-------------------
-.. autofunction:: permute_importance
-
-predict_from_layer
-----------------------
-.. autofunction:: predict_from_layer
-
 predict_from_tensorflow
 ------------------------
 .. autofunction:: predict_from_tensorflow

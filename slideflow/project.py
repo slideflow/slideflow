@@ -350,9 +350,6 @@ class Project:
                 to evaluate. Defaults to 0 (include all tiles).
             input_header (str, optional): Annotation column header to use as
                 additional input. Defaults to None.
-            permutation_importance (bool, optional): Determines relative
-                importance when using multiple model inputs. Only available for
-                Tensorflow backend. Defaults to False.
             mixed_precision (bool, optional): Enable mixed precision.
                 Defaults to True.
 
@@ -1003,10 +1000,6 @@ class Project:
                 slide-level predictions. If True, will save all.
             histogram (bool, optional): Create tile-level histograms for each
                 class. Defaults to False.
-            permutation_importance (bool, optional): Calculate the permutation
-                feature importance.  Determine relative importance when using
-                multiple model inputs. Only available for Tensorflow backend.
-                Defaults to False.
 
         Returns:
             Dict: Dictionary of keras training results, nested by epoch.

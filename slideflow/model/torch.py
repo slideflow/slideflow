@@ -723,7 +723,6 @@ class Trainer:
         metrics, acc, loss = sf.stats.metrics_from_dataset(
             self.inference_model,
             model_type=self.hp.model_type(),
-            labels=self.labels,
             patients=self.patients,
             dataset=self.dataloaders['val'],
             data_dir=self.outdir,
@@ -1328,18 +1327,11 @@ class Trainer:
             num_slide_features=self.num_slide_features,
             slide_input=self.slide_input
         )
-        y_pred, y_std, tile_to_slides = sf.stats.predict_from_dataset(
+        df = sf.stats.predict_from_dataset(
             model=self.model,
             dataset=self.dataloaders['val'],
             model_type=self._model_type,
             pred_args=pred_args
-        )
-        df = sf.stats.pred_to_df(
-            None,
-            y_pred,
-            tile_to_slides,
-            self.outcome_names,
-            uncertainty=y_std
         )
         if format.lower() == 'csv':
             save_path = os.path.join(self.outdir, "tile_predictions.csv")
@@ -1355,9 +1347,9 @@ class Trainer:
         self,
         dataset: "sf.Dataset",
         batch_size: Optional[int] = None,
-        permutation_importance: bool = False,
         histogram: bool = False,
         save_predictions: bool = False,
+        reduce_method: str = 'average',
         norm_fit: Optional[NormFit] = None,
         uq: Union[bool, str] = 'auto'
     ):
@@ -1372,10 +1364,12 @@ class Trainer:
                 evaluation time. Defaults to False.
             save_predictions (bool, optional): Save tile, slide, and
                 patient-level predictions to CSV. Defaults to False.
-            permutation_importance (bool, optional): Currently not supported
-                for the PyTorch backend; argument exists for compatibility.
-                Will raise a NotImplementedError if used. Planned as an update
-                for a future version.
+            reduce_method (str, optional): Reduction method for calculating
+                slide-level and patient-level predictions for categorical outcomes.
+                Either 'average' or 'proportion'. If 'average', will reduce with
+                average of each logit across tiles. If 'proportion', will convert
+                tile predictions into onehot encoding then reduce by averaging
+                these onehot values. Defaults to 'average'.
             norm_fit (Dict[str, np.ndarray]): Normalizer fit, mapping fit
                 parameters (e.g. target_means, target_stds) to values
                 (np.ndarray). If not provided, will fit normalizer using
@@ -1390,9 +1384,6 @@ class Trainer:
             if not isinstance(uq, bool):
                 raise ValueError(f"Unrecognized value {uq} for uq")
             self.hp.uq = uq
-        if permutation_importance:
-            raise NotImplementedError("permutation_importance not yet "
-                                      "implemented for PyTorch backend.")
         if batch_size:
             self.validation_batch_size = batch_size
         if not self.model:
@@ -1407,7 +1398,11 @@ class Trainer:
 
         # Generate performance metrics
         log.info('Performing evaluation...')
-        metrics = self._val_metrics(histogram=histogram, label='eval')
+        metrics = self._val_metrics(
+            histogram=histogram,
+            label='eval',
+            reduce_method=reduce_method
+        )
         results = {'eval': {
             k: v for k, v in metrics.items() if k != 'val_metrics'
         }}
@@ -1442,6 +1437,7 @@ class Trainer:
         checkpoint: Optional[str] = None,
         multi_gpu: bool = False,
         norm_fit: Optional[NormFit] = None,
+        reduce_method: str = 'average',
         seed: int = 0
     ) -> Dict[str, Any]:
         """Builds and trains a model from hyperparameters.
@@ -1484,9 +1480,15 @@ class Trainer:
                 parameters (e.g. target_means, target_stds) to values
                 (np.ndarray). If not provided, will fit normalizer using
                 model params (if applicable). Defaults to None.
+            reduce_method (str, optional): Reduction method for calculating
+                slide-level and patient-level predictions for categorical outcomes.
+                Either 'average' or 'proportion'. If 'average', will reduce with
+                average of each logit across tiles. If 'proportion', will convert
+                tile predictions into onehot encoding then reduce by averaging
+                these onehot values. Defaults to 'average'.
 
         Returns:
-            Dict; Nested dict containing metrics for each evaluated epoch.
+            Dict:   Nested dict containing metrics for each evaluated epoch.
         """
         if resume_training is not None:
             raise NotImplementedError(
@@ -1594,7 +1596,8 @@ class Trainer:
             # predetermined epochs at which to save/eval a model
             if 'val' in self.dataloaders and self.epoch in self.hp.epochs:
                 epoch_res = self._val_metrics(
-                    save_predictions=save_predictions
+                    save_predictions=save_predictions,
+                    reduce_method=reduce_method
                 )
                 results['epochs'][f'epoch{self.epoch}'].update(epoch_res)
 

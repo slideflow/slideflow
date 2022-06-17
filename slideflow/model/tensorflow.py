@@ -602,7 +602,6 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
         return sf.stats.metrics_from_dataset(
             self.model,
             model_type=self.hp.model_type(),
-            labels=self.parent.labels,
             patients=self.parent.patients,
             dataset=self.cb_args.validation_data_with_slidenames,
             outcome_names=self.parent.outcome_names,
@@ -611,6 +610,7 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
             num_tiles=self.cb_args.num_val_tiles,
             histogram=False,
             save_predictions=self.cb_args.save_predictions,
+            reduce_method=self.cb_args.reduce_method,
             pred_args=pred_args
         )
 
@@ -1191,7 +1191,6 @@ class Trainer:
         args = SimpleNamespace(
             model=self.model,
             model_type=self._model_type,
-            labels=self.labels,
             patients=self.patients,
             outcome_names=self.outcome_names,
             data_dir=self.outdir,
@@ -1254,19 +1253,12 @@ class Trainer:
         # Generate predictions
         log.info('Generating predictions...')
         pred_args = SimpleNamespace(uq=bool(self.hp.uq))
-        y_pred, y_std, tile_to_slides = sf.stats.predict_from_dataset(
+        df = sf.stats.predict_from_dataset(
             model=self.model,
             dataset=tf_dts_w_slidenames,
             model_type=self._model_type,
             pred_args=pred_args,
             num_tiles=dataset.num_tiles
-        )
-        df = sf.stats.pred_to_df(
-            None,
-            y_pred,
-            tile_to_slides,
-            self.outcome_names,
-            uncertainty=y_std
         )
         if format.lower() == 'csv':
             save_path = os.path.join(self.outdir, "tile_predictions.csv")
@@ -1283,9 +1275,9 @@ class Trainer:
         self,
         dataset: "sf.Dataset",
         batch_size: Optional[int] = None,
-        permutation_importance: bool = False,
         histogram: bool = False,
         save_predictions: bool = False,
+        reduce_method: str = 'average',
         norm_fit: Optional[NormFit] = None,
         uq: Union[bool, str] = 'auto'
     ) -> Dict[str, float]:
@@ -1298,14 +1290,17 @@ class Trainer:
                 Defaults to None.
             batch_size (int, optional): Evaluation batch size. Defaults to the
                 same as training (per self.hp)
-            permutation_importance (bool, optional): Run permutation feature
-                importance to define relative benefit of histology and each
-                clinical slide-level feature input, if provided.
             histogram (bool, optional): Save histogram of tile predictions.
                 Poorly optimized, uses seaborn, may drastically increase
                 evaluation time. Defaults to False.
             save_predictions (bool, optional): Save tile, slide, and
                 patient-level predictions to CSV. Defaults to False.
+            reduce_method (str, optional): Reduction method for calculating
+                slide-level and patient-level predictions for categorical outcomes.
+                Either 'average' or 'proportion'. If 'average', will reduce with
+                average of each logit across tiles. If 'proportion', will convert
+                tile predictions into onehot encoding then reduce by averaging
+                these onehot values. Defaults to 'average'.
             norm_fit (Dict[str, np.ndarray]): Normalizer fit, mapping fit
                 parameters (e.g. target_means, target_stds) to values
                 (np.ndarray). If not provided, will fit normalizer using
@@ -1320,9 +1315,6 @@ class Trainer:
             if not isinstance(uq, bool):
                 raise ValueError(f"Unrecognized value {uq} for uq")
             self.hp.uq = uq
-        if permutation_importance and self.feature_sizes is None:
-            raise ValueError("feature_sizes must be specified for "
-                             "permutation_importance")
 
         # Fit normalizer
         self._fit_normalizer(norm_fit)
@@ -1369,31 +1361,18 @@ class Trainer:
             num_tiles=dataset.num_tiles,
             label='eval'
         )
-        if permutation_importance:
-            if self.feature_names is None:
-                raise errors.UserError(
-                    'Permutation feature importance requires clinical inputs.'
-                )
-
-            drop_images = ((self.hp.tile_px == 0) or self.hp.drop_images)
-            metrics = sf.stats.permute_importance(
-                feature_names=self.feature_names,
-                feature_sizes=self.feature_sizes,  # type: ignore
-                drop_images=drop_images,
-                **metric_kwargs
-            )
-        else:
-            pred_args = SimpleNamespace(
-                loss=self.hp.get_loss(),
-                uq=bool(self.hp.uq)
-            )
-            metrics, acc, loss = sf.stats.metrics_from_dataset(
-                histogram=histogram,
-                save_predictions=save_predictions,
-                pred_args=pred_args,
-                **metric_kwargs
-            )
-            results_dict = {'eval': {}}  # type: Dict[str, Dict[str, float]]
+        pred_args = SimpleNamespace(
+            loss=self.hp.get_loss(),
+            uq=bool(self.hp.uq)
+        )
+        metrics, acc, loss = sf.stats.metrics_from_dataset(
+            histogram=histogram,
+            save_predictions=save_predictions,
+            pred_args=pred_args,
+            reduce_method=reduce_method,
+            **metric_kwargs
+        )
+        results_dict = {'eval': {}}  # type: Dict[str, Dict[str, float]]
         for metric in metrics:
             if metrics[metric]:
                 log.info(f"Tile {metric}: {metrics[metric]['tile']}")
@@ -1442,6 +1421,7 @@ class Trainer:
         checkpoint: Optional[str] = None,
         save_checkpoints: bool = True,
         multi_gpu: bool = False,
+        reduce_method: str = 'average',
         norm_fit: Optional[NormFit] = None,
     ):
         """Builds and trains a model from hyperparameters.
@@ -1485,6 +1465,12 @@ class Trainer:
                 Defaults to True.
             multi_gpu(bool, optional): Enable multi-GPU training using
                 Tensorflow/Keras MirroredStrategy.
+            reduce_method (str, optional): Reduction method for calculating
+                slide-level and patient-level predictions for categorical outcomes.
+                Either 'average' or 'proportion'. If 'average', will reduce with
+                average of each logit across tiles. If 'proportion', will convert
+                tile predictions into onehot encoding then reduce by averaging
+                these onehot values. Defaults to 'average'.
             norm_fit (Dict[str, np.ndarray]): Normalizer fit, mapping fit
                 parameters (e.g. target_means, target_stds) to values
                 (np.ndarray). If not provided, will fit normalizer using
@@ -1647,6 +1633,7 @@ class Trainer:
                 save_predictions=save_predictions,
                 save_model=save_model,
                 results_log=results_log,
+                reduce_method=reduce_method
             )
 
             # Create callbacks for early stopping, checkpoint saving,
