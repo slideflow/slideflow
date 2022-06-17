@@ -14,20 +14,20 @@ class TestSlide(unittest.TestCase):
         self.wsi = sf.WSI(self.wsi_path, roi_method='ignore', **self.kw)
 
     def _assert_is_image(self, img: np.ndarray):
-        assert isinstance(img, np.ndarray)
-        assert img.shape == (71, 71, 3)
-        assert img.dtype == np.uint8
+        self.assertTrue(isinstance(img, np.ndarray))
+        self.assertTrue(img.shape == (71, 71, 3))
+        self.assertTrue(img.dtype == np.uint8)
 
     def _assert_is_pil(self, img: Image):
-        assert isinstance(img, Image.Image)
+        self.assertTrue(isinstance(img, Image.Image))
 
     def test_load(self):
-        assert self.wsi.estimated_num_tiles > 0
-        assert len(self.wsi.shape) == 2
-        assert all(s > 0 for s in self.wsi.shape)
-        assert self.wsi.shape == self.wsi.grid.shape
-        assert self.wsi.grid.sum() == (self.wsi.shape[0] * self.wsi.shape[1])
-        assert len(self.wsi.dimensions) == 2
+        self.assertTrue(self.wsi.estimated_num_tiles > 0)
+        self.assertTrue(len(self.wsi.shape) == 2)
+        self.assertTrue(all(s > 0 for s in self.wsi.shape))
+        self.assertTrue(self.wsi.shape == self.wsi.grid.shape)
+        self.assertTrue(self.wsi.grid.sum() == (self.wsi.shape[0] * self.wsi.shape[1]))
+        self.assertTrue(len(self.wsi.dimensions) == 2)
 
     def test_qc(self):
         qc_wsi = sf.WSI(self.wsi_path, roi_method='ignore', **self.kw)
@@ -44,8 +44,8 @@ class TestSlide(unittest.TestCase):
 
     def test_stride(self):
         wsi_stride2 = sf.WSI(self.wsi_path, roi_method='ignore', stride_div=2, **self.kw)
-        assert abs(wsi_stride2.shape[0] - self.wsi.shape[0] * 2) <= 1
-        assert abs(wsi_stride2.shape[1] - self.wsi.shape[1] * 2) <= 1
+        self.assertTrue(abs(wsi_stride2.shape[0] - self.wsi.shape[0] * 2) <= 1)
+        self.assertTrue(abs(wsi_stride2.shape[1] - self.wsi.shape[1] * 2) <= 1)
 
     def test_raises_roi_error(self):
         with self.assertRaises(errors.MissingROIError):
