@@ -610,6 +610,7 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
             num_tiles=self.cb_args.num_val_tiles,
             histogram=False,
             save_predictions=self.cb_args.save_predictions,
+            reduce_method=self.cb_args.reduce_method,
             pred_args=pred_args
         )
 
@@ -1276,6 +1277,7 @@ class Trainer:
         batch_size: Optional[int] = None,
         histogram: bool = False,
         save_predictions: bool = False,
+        reduce_method: str = 'average',
         norm_fit: Optional[NormFit] = None,
         uq: Union[bool, str] = 'auto'
     ) -> Dict[str, float]:
@@ -1293,6 +1295,12 @@ class Trainer:
                 evaluation time. Defaults to False.
             save_predictions (bool, optional): Save tile, slide, and
                 patient-level predictions to CSV. Defaults to False.
+            reduce_method (str, optional): Reduction method for calculating
+                slide-level and patient-level predictions for categorical outcomes.
+                Either 'average' or 'proportion'. If 'average', will reduce with
+                average of each logit across tiles. If 'proportion', will convert
+                tile predictions into onehot encoding then reduce by averaging
+                these onehot values. Defaults to 'average'.
             norm_fit (Dict[str, np.ndarray]): Normalizer fit, mapping fit
                 parameters (e.g. target_means, target_stds) to values
                 (np.ndarray). If not provided, will fit normalizer using
@@ -1361,6 +1369,7 @@ class Trainer:
             histogram=histogram,
             save_predictions=save_predictions,
             pred_args=pred_args,
+            reduce_method=reduce_method,
             **metric_kwargs
         )
         results_dict = {'eval': {}}  # type: Dict[str, Dict[str, float]]
@@ -1412,6 +1421,7 @@ class Trainer:
         checkpoint: Optional[str] = None,
         save_checkpoints: bool = True,
         multi_gpu: bool = False,
+        reduce_method: str = 'average',
         norm_fit: Optional[NormFit] = None,
     ):
         """Builds and trains a model from hyperparameters.
@@ -1455,6 +1465,12 @@ class Trainer:
                 Defaults to True.
             multi_gpu(bool, optional): Enable multi-GPU training using
                 Tensorflow/Keras MirroredStrategy.
+            reduce_method (str, optional): Reduction method for calculating
+                slide-level and patient-level predictions for categorical outcomes.
+                Either 'average' or 'proportion'. If 'average', will reduce with
+                average of each logit across tiles. If 'proportion', will convert
+                tile predictions into onehot encoding then reduce by averaging
+                these onehot values. Defaults to 'average'.
             norm_fit (Dict[str, np.ndarray]): Normalizer fit, mapping fit
                 parameters (e.g. target_means, target_stds) to values
                 (np.ndarray). If not provided, will fit normalizer using
@@ -1617,6 +1633,7 @@ class Trainer:
                 save_predictions=save_predictions,
                 save_model=save_model,
                 results_log=results_log,
+                reduce_method=reduce_method
             )
 
             # Create callbacks for early stopping, checkpoint saving,

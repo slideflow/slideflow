@@ -1349,6 +1349,7 @@ class Trainer:
         batch_size: Optional[int] = None,
         histogram: bool = False,
         save_predictions: bool = False,
+        reduce_method: str = 'average',
         norm_fit: Optional[NormFit] = None,
         uq: Union[bool, str] = 'auto'
     ):
@@ -1363,6 +1364,12 @@ class Trainer:
                 evaluation time. Defaults to False.
             save_predictions (bool, optional): Save tile, slide, and
                 patient-level predictions to CSV. Defaults to False.
+            reduce_method (str, optional): Reduction method for calculating
+                slide-level and patient-level predictions for categorical outcomes.
+                Either 'average' or 'proportion'. If 'average', will reduce with
+                average of each logit across tiles. If 'proportion', will convert
+                tile predictions into onehot encoding then reduce by averaging
+                these onehot values. Defaults to 'average'.
             norm_fit (Dict[str, np.ndarray]): Normalizer fit, mapping fit
                 parameters (e.g. target_means, target_stds) to values
                 (np.ndarray). If not provided, will fit normalizer using
@@ -1391,7 +1398,11 @@ class Trainer:
 
         # Generate performance metrics
         log.info('Performing evaluation...')
-        metrics = self._val_metrics(histogram=histogram, label='eval')
+        metrics = self._val_metrics(
+            histogram=histogram,
+            label='eval',
+            reduce_method=reduce_method
+        )
         results = {'eval': {
             k: v for k, v in metrics.items() if k != 'val_metrics'
         }}
@@ -1426,6 +1437,7 @@ class Trainer:
         checkpoint: Optional[str] = None,
         multi_gpu: bool = False,
         norm_fit: Optional[NormFit] = None,
+        reduce_method: str = 'average',
         seed: int = 0
     ) -> Dict[str, Any]:
         """Builds and trains a model from hyperparameters.
@@ -1468,9 +1480,15 @@ class Trainer:
                 parameters (e.g. target_means, target_stds) to values
                 (np.ndarray). If not provided, will fit normalizer using
                 model params (if applicable). Defaults to None.
+            reduce_method (str, optional): Reduction method for calculating
+                slide-level and patient-level predictions for categorical outcomes.
+                Either 'average' or 'proportion'. If 'average', will reduce with
+                average of each logit across tiles. If 'proportion', will convert
+                tile predictions into onehot encoding then reduce by averaging
+                these onehot values. Defaults to 'average'.
 
         Returns:
-            Dict; Nested dict containing metrics for each evaluated epoch.
+            Dict:   Nested dict containing metrics for each evaluated epoch.
         """
         if resume_training is not None:
             raise NotImplementedError(
@@ -1578,7 +1596,8 @@ class Trainer:
             # predetermined epochs at which to save/eval a model
             if 'val' in self.dataloaders and self.epoch in self.hp.epochs:
                 epoch_res = self._val_metrics(
-                    save_predictions=save_predictions
+                    save_predictions=save_predictions,
+                    reduce_method=reduce_method
                 )
                 results['epochs'][f'epoch{self.epoch}'].update(epoch_res)
 

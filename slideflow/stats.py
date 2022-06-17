@@ -980,9 +980,16 @@ def _calc_categorical_metrics(args: SimpleNamespace, outcome_name: str) -> None:
                 f"{group}_predictions_{outcome_name}{args.label_end}.csv",
             ))
         for i in range(num_cat):
+            if args.reduce_method == 'average':
+                _group_y_pred = group_df[f'y_pred{i}']
+            elif args.reduce_method == 'proportion':
+                _group_y_pred = y_pred_onehot(group_df, i)
+            else:
+                raise ValueError(f"Unknown reduce method {args.reduce_method}")
+            log.debug(f"Using reduce_method={args.reduce_method}")
             roc_auc, ap, thresh = generate_roc(
                 y_true_onehot(group_df, i),
-                y_pred_onehot(group_df, i),
+                _group_y_pred,
                 args.data_dir,
                 f'{args.label_start}{outcome_name}_{group}_ROC{i}',
                 neptune_run=args.neptune_run
@@ -1464,7 +1471,7 @@ def metrics_from_pred(
     df: pd.core.frame.DataFrame,
     patients: Dict[str, str],
     model_type: str,
-    categorical_reduce: str = 'raw',
+    reduce_method: str = 'average',
     outcome_names: Optional[List[str]] = None,
     label: str = '',
     data_dir: str = '',
@@ -1486,12 +1493,12 @@ def metrics_from_pred(
         model_type (str): Either 'linear', 'categorical', or 'cph'.
 
     Keyword args:
-        categorical_reduce (str, optional): Reduction strategy for calculating
+        reduce_method (str, optional): Reduction method for calculating
             slide-level and patient-level predictions for categorical outcomes.
-            Either 'raw' or 'onehot'. If 'raw', will reduce with average of
-            each logit across tiles. If 'onehot', will convert tile predictions
-            into onehot encoding via `np.argmax`, then reduce by averaging
-            these onehot values. Defaults to 'raw'.
+            Either 'average' or 'proportion'. If 'average', will reduce with
+            average of each logit across tiles. If 'proportion', will convert
+            tile predictions into onehot encoding then reduce by averaging
+            these onehot values. Defaults to 'average'.
         outcome_names (list, optional): List of str, names for outcomes.
             Defaults to None.
         label (str, optional): Label prefix/suffix for saving.
@@ -1510,10 +1517,15 @@ def metrics_from_pred(
     Returns:
         Dict containing metrics.
     """
-    if categorical_reduce not in ('raw', 'onehot'):
+    if reduce_method not in ('average', 'proportion'):
         raise ValueError(
-            f"Unrecognized reduction strategy {categorical_reduce}; "
-            "must be either 'raw' or 'onehot'."
+            f"Unrecognized reduction method {reduce_method}; "
+            "must be either 'average' or 'proportion'."
+        )
+    if model_type != 'categorical' and reduce_method != 'average':
+        raise ValueError(
+            f'Reduction method {reduce_method} incompatible with '
+            f'model_type {model_type}'
         )
     if (outcome_names is not None
        and (not len(outcome_names) == len(set(outcome_names)))):
@@ -1582,7 +1594,7 @@ def metrics_from_pred(
                     for orig_col in outcome_cols
                 }
             )
-            metric_args.cat_reduce = categorical_reduce
+            metric_args.reduce_method = reduce_method
             log.info(f"Validation metrics for outcome {col.green(outcome)}:")
             _calc_categorical_metrics(metric_args, outcome)
 
@@ -2162,12 +2174,12 @@ def metrics_from_dataset(
             Used for progress bar. Defaults to 0.
 
     Keyword args:
-        categorical_reduce (str, optional): Reduction strategy for calculating
+        reduce_method (str, optional): Reduction method for calculating
             slide-level and patient-level predictions for categorical outcomes.
-            Either 'raw' or 'onehot'. If 'raw', will reduce with average of
-            each logit across tiles. If 'onehot', will convert tile predictions
-            into onehot encoding via `np.argmax`, then reduce by averaging
-            these onehot values. Defaults to 'raw'.
+            Either 'average' or 'proportion'. If 'average', will reduce with
+            average of each logit across tiles. If 'proportion', will convert
+            tile predictions into onehot encoding then reduce by averaging
+            these onehot values. Defaults to 'average'.
         label (str, optional): Label prefix/suffix for saving.
             Defaults to None.
         outcome_names (list, optional): List of str, names for outcomes.
