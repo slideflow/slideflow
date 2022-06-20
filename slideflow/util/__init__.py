@@ -13,7 +13,7 @@ from functools import partial
 from glob import glob
 from os.path import dirname, exists, isdir, join
 from statistics import mean, median
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union, Iterable
 
 import matplotlib.colors as mcol
 import numpy as np
@@ -415,6 +415,13 @@ class ThreadSafeList:
         with self.lock:
             items, self.items = self.items, []
         return items
+
+
+def batch(iterable: Iterable, n: int = 1) -> Iterable:
+    """Separates an interable into batches of maximum size `n`."""
+    l = len(iterable)
+    for ndx in range(0, l, n):
+        yield iterable[ndx:min(ndx + n, l)]
 
 
 def as_list(arg1: Any) -> List[Any]:
