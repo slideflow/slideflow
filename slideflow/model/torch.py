@@ -1588,7 +1588,7 @@ class Trainer:
             results['epochs'][f'epoch{self.epoch}'].update(epoch_metrics)
             self._log_epoch('train', self.epoch, loss, acc_desc)
             self._log_to_neptune(loss, acc, 'train', 'epoch')
-            if save_model and self.epoch in self.hp.epochs:
+            if save_model and (self.epoch in self.hp.epochs or self.early_stop):
                 self._save_model()
 
             # Full evaluation -------------------------------------------------
