@@ -869,7 +869,7 @@ class Trainer:
 
                 # === Full dataset validation =========================================================================
                 # Save the model
-                if phase == 'train' and epoch in self.hp.epochs:
+                if phase == 'train' and (epoch in self.hp.epochs or early_stop):
                     model_name = self.name if self.name else 'trained_model'
                     save_path = os.path.join(self.outdir, f'{model_name}_epoch{epoch}')
                     torch.save(self.model.state_dict(), save_path)

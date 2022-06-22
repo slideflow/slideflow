@@ -376,7 +376,9 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
     def on_epoch_end(self, epoch, logs={}):
         if log.getEffectiveLevel() <= 20: print('\r\033[K', end='')
         self.epoch_count += 1
-        if self.epoch_count in [e for e in self.hp.epochs]:
+
+        if (self.epoch_count in [e for e in self.hp.epochs]
+           or self.early_stop):
             model_name = self.parent.name if self.parent.name else 'trained_model'
             model_path = os.path.join(self.parent.outdir, f'{model_name}_epoch{self.epoch_count}')
             self.model.save(model_path)
@@ -397,6 +399,7 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
                     log.warning('Unable to copy params.json/slide_manifest.csv files into model folder.')
 
             log.info(f'Trained model saved to {sf.util.green(model_path)}')
+
             if self.cb_args.using_validation:
                 self.evaluate_model(logs)
         elif self.early_stop:
