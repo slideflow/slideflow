@@ -12,6 +12,7 @@ import warnings
 warnings.filterwarnings('ignore')
 
 from os.path import dirname, exists, join
+from packaging import version
 
 import numpy as np
 import slideflow as sf
@@ -610,9 +611,13 @@ class Trainer:
         if self.normalizer: log.info(f'Using realtime {self.hp.normalizer} normalization')
 
         if self.mixed_precision:
-            log.debug('Enabling mixed precision')
-            policy = tf.keras.mixed_precision.experimental.Policy('mixed_float16')
-            tf.keras.mixed_precision.experimental.set_policy(policy)
+            _policy = 'mixed_float16'
+            log.debug(f'Enabling mixed precision ({_policy})')
+            if version.parse(tf.__version__) > version.parse("2.8"):
+                tf.keras.mixed_precision.set_global_policy(_policy)
+            else:
+                policy = tf.keras.mixed_precision.experimental.Policy(_policy)
+                tf.keras.mixed_precision.experimental.set_policy(policy)
 
         with tf.device('/cpu'):
             self.annotations_tables = []
