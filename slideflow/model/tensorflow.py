@@ -619,7 +619,8 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
         if log.getEffectiveLevel() <= 20:
             print('\r\033[K', end='')
         self.epoch_count += 1
-        if self.epoch_count in [e for e in self.hp.epochs]:
+        if (self.epoch_count in [e for e in self.hp.epochs]
+           or self.early_stop):
             if self.parent.name:
                 model_name = self.parent.name
             else:
