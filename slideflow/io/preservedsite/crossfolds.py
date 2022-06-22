@@ -43,7 +43,7 @@ def generate_brute_force(data, category, values, crossfolds=3, target_column='CV
         list_of_possible_crossfolds.remove(possible_crossfold)
     
     # split of values per site
-    data_dict = {}
+    split_of_values_per_site = {}
     for site in unique_sites:
         dict_of_values = {}
         sum = 0
@@ -51,39 +51,39 @@ def generate_brute_force(data, category, values, crossfolds=3, target_column='CV
             dict_of_values[value] = len(newData[((newData[site_column] == site) & (newData[category] == value))])
             sum += len(newData[((newData[site_column] == site) & (newData[category] == value))])
         dict_of_values['total'] = sum
-        data_dict[site] = dict_of_values
+        split_of_values_per_site[site] = dict_of_values
 
     # error associated to each possible combo
     per_fold_size_target_ratio = 1./crossfolds
     per_site_target_ratio = 1./len(values)
-    per_combo_errors = {}
-    dictionary_of_split = {}
+    per_crossfold_combo_errors = {}
+    dictionary_of_value_split_by_crossfold = {}
     for crossfold_possible in list_of_possible_crossfolds:
-        dictionary_of_split[crossfold_possible] = {}
+        dictionary_of_value_split_by_crossfold[crossfold_possible] = {}
         sum_of_squares = 0
         count = 0
         for fold in crossfold_possible:
             sum_of_total_data_per_fold = 0
-            dictionary_of_split[crossfold_possible][fold] = {value: 0 for value in values}
-            dictionary_of_split[crossfold_possible][fold]['total'] = 0
+            dictionary_of_value_split_by_crossfold[crossfold_possible][fold] = {value: 0 for value in values}
+            dictionary_of_value_split_by_crossfold[crossfold_possible][fold]['total'] = 0
             for site in fold:
-                for key in data_dict[str(site)].keys():
-                    dictionary_of_split[crossfold_possible][fold][key] += data_dict[site][key]
-            sum_of_total_data_per_fold += dictionary_of_split[crossfold_possible][fold]['total']
-            for k in dictionary_of_split[crossfold_possible][fold].keys():
-                 dictionary_of_split[crossfold_possible][fold][k] = dictionary_of_split[crossfold_possible][fold][k]/float(dictionary_of_split[crossfold_possible][fold]['total'])
-                 fold_site_value = dictionary_of_split[crossfold_possible][fold][k]
+                for key in split_of_values_per_site[str(site)].keys():
+                    dictionary_of_value_split_by_crossfold[crossfold_possible][fold][key] += split_of_values_per_site[site][key]
+            sum_of_total_data_per_fold += dictionary_of_value_split_by_crossfold[crossfold_possible][fold]['total']
+            for k in dictionary_of_value_split_by_crossfold[crossfold_possible][fold].keys():
+                 dictionary_of_value_split_by_crossfold[crossfold_possible][fold][k] = dictionary_of_value_split_by_crossfold[crossfold_possible][fold][k]/float(dictionary_of_value_split_by_crossfold[crossfold_possible][fold]['total'])
+                 fold_site_value = dictionary_of_value_split_by_crossfold[crossfold_possible][fold][k]
                  count += 1
                  sum_of_squares += (fold_site_value-per_site_target_ratio)**2
         for fold in crossfold_possible:
-            fold_total = dictionary_of_split[crossfold_possible][fold]['total']/(float(sum_of_total_data_per_fold))
+            fold_total = dictionary_of_value_split_by_crossfold[crossfold_possible][fold]['total']/(float(sum_of_total_data_per_fold))
             sum_of_squares += (fold_total - per_fold_size_target_ratio)**2
             count += 1
         mean_square_error = sum_of_squares/count
-        per_combo_errors[crossfold_possible] = mean_square_error
+        per_crossfold_combo_errors[crossfold_possible] = mean_square_error
     
     # isolate best combo by error
-    best_combo = min(per_combo_errors, key=per_combo_errors.get)
+    best_combo = min(per_crossfold_combo_errors, key=per_crossfold_combo_errors.get)
 
     # assign data by crossfold and site
     list_for_best_combo = []
