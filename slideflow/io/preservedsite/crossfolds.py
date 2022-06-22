@@ -83,14 +83,7 @@ def generate_brute_force(data, category, values, crossfolds=3, target_column='CV
         per_combo_errors[crossfold_possible] = mean_square_error
     
     # isolate best combo by error
-    min = 100000000000000000000000000000000000000000000
-    best_combo = None
-    for key, value in per_combo_errors.items():
-        if value < min:
-            best_combo = key
-            min = value
-        else:
-            pass
+    best_combo = min(per_combo_errors, key=per_combo_errors.get)
 
     # assign data by crossfold and site
     list_for_best_combo = []
