@@ -118,7 +118,7 @@ ch = TqdmLoggingHandler()
 ch.setFormatter(LogFormatter())
 ch.setLevel(log.level)
 log.addHandler(ch)
-# ------------------------------------------------------------
+log.propagate = False  # Fixes duplicate logging with TF 2.9
 
 class DummyLock:
     def __init__(self, *args): pass
