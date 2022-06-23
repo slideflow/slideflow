@@ -5,6 +5,7 @@ import numpy as np
 import saliency.core as saliency
 import tensorflow as tf
 from matplotlib import pyplot as plt
+from PIL import Image
 from slideflow.util import batch
 
 
@@ -36,17 +37,28 @@ class SaliencyMap:
 
     def _calc_vanilla_map(self, img, mask_fn, **kwargs):
         mask_3d = mask_fn(img, self.grad_fn, **kwargs)
-        return saliency.VisualizeImageGrayscale(mask_3d)
+        return grayscale(mask_3d)
 
     def _calc_ig_map(self, img, mask_fn, x_steps=25, batch_size=20, **kwargs):
-        mask_3d = mask_fn(
-            img,
-            self.grad_fn,
-            x_baseline=np.zeros(img.shape),
-            x_steps=x_steps,
-            batch_size=batch_size
-        )
-        return saliency.VisualizeImageGrayscale(mask_3d)
+
+        def _get_mask(_img):
+            return mask_fn(
+                _img,
+                self.grad_fn,
+                x_baseline=np.zeros(_img.shape),
+                x_steps=x_steps,
+                batch_size=batch_size
+            )
+
+        if isinstance(img, list):
+            # Normalize together
+            image_3d = [_get_mask(_img) for _img in img]
+            v_maxes, v_mins = zip(*[max_min(img3d) for img3d in image_3d])
+            vmax = max(v_maxes)
+            vmin = min(v_mins)
+            return [grayscale(img3d, vmax=vmax, vmin=vmin) for img3d in image_3d]
+        else:
+            return grayscale(_get_mask(img))
 
     def _calc_guided_ig_map(self, img, mask_fn, x_steps=25, max_dist=1.0, fraction=0.5):
         mask_3d = mask_fn(
@@ -57,11 +69,11 @@ class SaliencyMap:
             max_dist=max_dist,
             fraction=fraction
         )
-        return saliency.VisualizeImageGrayscale(mask_3d)
+        return grayscale(mask_3d)
 
     def _calc_blur_ig_map(self, img, mask_fn, batch_size=20):
         mask_3d = mask_fn(img, self.grad_fn, batch_size=batch_size)
-        return saliency.VisualizeImageGrayscale(mask_3d)
+        return grayscale(mask_3d)
 
     def all_maps(self, img):
         return {
@@ -109,6 +121,42 @@ class SaliencyMap:
             batch_size=batch_size,
             extra_parameters=self.fast_xrai_params,
             **kwargs)
+
+
+def inferno(img):
+    cmap = plt.get_cmap('inferno')
+    return (cmap(img) * 255).astype(np.uint8)
+
+
+def oranges(img):
+    cmap = plt.get_cmap('Oranges')
+    return (cmap(img) * 255).astype(np.uint8)
+
+
+def grayscale(image_3d, vmax=None, vmin=None, percentile=99):
+    """Returns a 3D tensor as a grayscale 2D tensor.
+    This method sums a 3D tensor across the absolute value of axis=2, and then
+    clips values at a given percentile.
+    """
+    if vmax is None and vmin is None:
+        vmax, vmin = max_min(image_3d, percentile=percentile)
+    image_2d = np.sum(np.abs(image_3d), axis=2)
+    return np.clip((image_2d - vmin) / (vmax - vmin), 0, 1)
+
+
+def overlay(image, mask):
+    base = Image.fromarray(image)
+    cmap = Image.fromarray(oranges(mask))
+    cmap.putalpha(int(0.6*255))
+    base.paste(cmap, mask=cmap)
+    return np.array(base)
+
+
+def max_min(image_3d, percentile=99):
+    image_2d = np.sum(np.abs(image_3d), axis=2)
+    vmax = np.percentile(image_2d, percentile)
+    vmin = np.min(image_2d)
+    return vmax, vmin
 
 
 def comparison_plot(original, maps, cmap=plt.cm.gray):
