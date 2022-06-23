@@ -2,8 +2,8 @@ import cvxpy as cp
 import numpy as np
 import pandas as pd
 
-import slideflow as sf
-from slideflow.util import log
+# import slideflow as sf
+# from slideflow.util import log
 from itertools import combinations
 from typing import List
 
@@ -130,7 +130,7 @@ def generate_brute_force(
             # Add error for value proportions in each crossfold split.
             # NOTE: 1./len(values) may not be the correct target.
             for value in values:
-                value_proportion = value_counts[split][fold][value] / patients_in_fold
+                value_proportion = value_counts[split][fold][value] / float(patients_in_fold)
                 sum_of_squares += (value_proportion - (1./len(values)))**2
                 count += 1
 
@@ -229,7 +229,7 @@ def generate(data, category, values, crossfolds=3, target_column='CV3',
         str1 = "Crossfold " + str(i+1) + " Sites: "
         j = 0
         str1 = str1 + str(gSites[i])
-        log.info(str1)
+        # log.info(str1)
     for i in range(crossfolds):
         data.loc[data[site_column].isin(gSites[i]), target_column] = str(i+1)
     return data

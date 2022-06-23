@@ -59,5 +59,20 @@ class TestDataset(unittest.TestCase):
         ]
         self._test_site_split(splits)
 
+    def test_cplex(self):
+        df = crossfolds.generate(
+            self.df,
+            self.category,
+            self.unique_labels,
+            self.k
+        )
+        print(df)
+        splits = [
+            df.loc[df['CV3'] == cv].patient.to_list()
+            for cv in df['CV3'].unique()
+        ]
+        self._test_site_split(splits)
+
 if __name__ == '__main__':
     unittest.main()
+    
