@@ -1,11 +1,12 @@
+from itertools import combinations
+from typing import List
+
 import cvxpy as cp
 import numpy as np
 import pandas as pd
-
 # import slideflow as sf
 # from slideflow.util import log
-from itertools import combinations
-from typing import List
+from slideflow.util import errors
 
 
 def flatten(arr):
@@ -43,13 +44,7 @@ def generate_brute_force(
             indicating the assigned crossfold"""
 
     # Create new dataframe for data.
-    submitters = data[patient_column].unique()
-    newData = pd.merge(
-        pd.DataFrame(submitters, columns=[patient_column]),
-        data[[patient_column, category, site_column]],
-        on=patient_column, how='left'
-    )
-    newData.drop_duplicates(inplace=True)
+
     unique_sites = data[site_column].unique()
 
     # Ensure that there enough sites to split across the number of crossfolds.
@@ -89,8 +84,8 @@ def generate_brute_force(
     # Count the number of outcome values in each site.
     def n_patients_with_value_at_site(site, value):
         """Returns number of patients at a site who have an outcome value."""
-        df_is_value = (newData[category] == value)
-        df_is_site = (newData[site_column] == site)
+        df_is_value = (data[category] == value)
+        df_is_site = (data[site_column] == site)
         return (df_is_site & df_is_value).sum()
 
     n_values_by_site = {
@@ -100,7 +95,7 @@ def generate_brute_force(
         } for site in unique_sites
     }
     n_patients_by_site = {
-        site: (newData[site_column] == site).sum()
+        site: (data[site_column] == site).sum()
         for site in unique_sites
     }
 

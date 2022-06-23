@@ -1,7 +1,10 @@
-import pandas as pd
 import random
 import unittest
+
+import pandas as pd
+
 import crossfolds
+
 
 class TestDataset(unittest.TestCase):
 
@@ -9,14 +12,18 @@ class TestDataset(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.k = 3
         cls.patients = [f'pt{p}' for p in range(200)]
-        cls.sites = [f'site{s}' for s in range(5)]
-        cls.outcomes = list(range(4))
+        possible_sites = [f'site{s}' for s in range(5)]
+        cls.patient_assignments = {p: {  # type: ignore
+            'outcome': random.choice(range(5)),  # type: ignore
+            'site': random.choice(possible_sites)} for p in cls.patients  # type: ignore
+        }
         cls.category = 'outcome_label'
         cls.df = pd.DataFrame({
-            'patient': pd.Series([random.choice(cls.patients) for _ in range(100)]),
-            'site': pd.Series([random.choice(cls.sites) for _ in range(100)]),
-            'outcome_label': pd.Series([random.choice(cls.outcomes) for _ in range(100)])
+            'patient': pd.Series(cls.patients),
+            'site': pd.Series([cls.patient_assignments[p]['site'] for p in cls.patients]),
+            'outcome_label': pd.Series([cls.patient_assignments[p]['outcome'] for p in cls.patients])
         })
+        cls.sites = cls.df['site'].unique()
         cls.unique_labels = cls.df['outcome_label'].unique()
 
     @classmethod
@@ -37,7 +44,7 @@ class TestDataset(unittest.TestCase):
         self._test_split(splits)
         split_sites = [
             list(set([
-                self.patients_dict[p]['site']
+                self.patient_assignments[p]['site']
                 for p in split
             ])) for split in splits
         ]
@@ -75,4 +82,3 @@ class TestDataset(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-    
