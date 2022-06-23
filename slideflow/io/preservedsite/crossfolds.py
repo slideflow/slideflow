@@ -5,13 +5,44 @@ import pandas as pd
 import slideflow as sf
 from slideflow.util import log
 from itertools import combinations
-import random
+from typing import List
 
 
-def generate_brute_force(data, category, values, crossfolds=3, target_column='CV3',
-             patient_column='patient', site_column='site',
-             timelimit=10):
-    # New dataframe for data
+def flatten(arr):
+    '''Flattens an array'''
+    return [y for x in arr for y in x]
+
+
+def generate_brute_force(
+    data: pd.core.frame.DataFrame,
+    category: str,
+    values: List[str],
+    crossfolds: int = 3,
+    target_column: str = 'CV3',
+    patient_column: str = 'patient',
+    site_column: str = 'site',
+) -> pd.core.frame.DataFrame:
+    """Generate site-preserved cross-val splits through brute-force search.
+
+    Args:
+        data (pandas.DataFrame): Dataframe with slides that must be split into
+            crossfolds.
+        category (str): The column in data to stratify by.
+        values (list(str)): A list of possible values within category to
+            include for stratification
+        crossfolds (int): Number of crossfolds for splitting. Defaults to 3.
+        target_column (str): Name for target column to contain the assigned
+            crossfolds for each patient in the output dataframe.
+        patient_column (str): Column within dataframe indicating unique
+            identifier for patient
+        site_column (str): Column within dataframe indicating designated site
+            for a patient
+
+    Returns:
+        dataframe with a new column, 'CV3' that contains values 1 - 3,
+            indicating the assigned crossfold"""
+
+    # Create new dataframe for data.
     submitters = data[patient_column].unique()
     newData = pd.merge(
         pd.DataFrame(submitters, columns=[patient_column]),
@@ -21,71 +52,100 @@ def generate_brute_force(data, category, values, crossfolds=3, target_column='CV
     newData.drop_duplicates(inplace=True)
     unique_sites = data[site_column].unique()
 
-    # list of possible combinations of sites in folds; also built in check for use case when someone chooses the wrong number of folds
+    # Ensure that there enough sites to split across the number of crossfolds.
     if crossfolds > len(unique_sites):
         raise sf.errors.DatasetSplitError(
-        "Insufficient number of sites ({}) for number of crossfolds ({})".format(
+        "Insufficient number of sites ({}) for crossfolds ({})".format(
             len(unique_sites),
             crossfolds))
 
-    most_possible_sites_in_one_fold = 1 + len(unique_sites) - crossfolds
-    all_folds = [c for i in range(most_possible_sites_in_one_fold) for c in combinations(unique_sites, i+1)]
-    list_of_possible_crossfolds = list(combinations(all_folds, crossfolds))
-    removal_list = []
-    for possible_crossfold in list_of_possible_crossfolds:
-        item_length = sum([len(i) for i in possible_crossfold])
-        sites_in_a_possible_crossfold = [site for site in possible_crossfold]
-        if item_length < len(unique_sites) or item_length > len(unique_sites):
-            removal_list.append(possible_crossfold)
-        if len(sites_in_a_possible_crossfold) != len(set(sites_in_a_possible_crossfold)):
-            removal_list.append(possible_crossfold)
-    for possible_crossfold in set(removal_list):
-        list_of_possible_crossfolds.remove(possible_crossfold)
+    # Create a list of all possible site combinations.
+    max_sites_per_fold = 1 + len(unique_sites) - crossfolds
+    all_site_combinations = [
+        c for i in range(max_sites_per_fold)
+        for c in combinations(unique_sites, i+1)
+    ]
+    # Create a list of all possible site-preserved cross-fold splits.
+    all_splits = list(combinations(all_site_combinations, crossfolds))
 
-    # split of values per site
-    split_of_values_per_site = {}
-    for site in unique_sites:
-        dict_of_values = {}
-        _sum = 0
-        for value in values:
-            dict_of_values[value] = len(newData[((newData[site_column] == site) & (newData[category] == value))])
-            _sum += len(newData[((newData[site_column] == site) & (newData[category] == value))])
-        dict_of_values['total'] = _sum
-        split_of_values_per_site[site] = dict_of_values
+    # Iterate through all possible cross-fold splits,
+    # removing splits which are invalid.
+    invalid = []
+    for split in all_splits:
+        # Ensure that all sites are used.
+        n_sites = sum([len(i) for i in split])
+        if n_sites != len(unique_sites):
+            invalid.append(split)
 
-    # error associated to each possible combo
-    per_fold_size_target_ratio = 1./crossfolds
-    per_site_target_ratio = 1./len(values)
-    per_crossfold_combo_errors = {}
-    dictionary_of_value_split_by_crossfold = {}
-    for crossfold_possible in list_of_possible_crossfolds:
-        dictionary_of_value_split_by_crossfold[crossfold_possible] = {}
+        # Ensure that each site is only used once.
+        sites_in_split = flatten(split)
+        if len(sites_in_split) != len(set(sites_in_split)):
+            invalid.append(split)
+
+    # Remove invalid sites.
+    for split in set(invalid):
+        all_splits.remove(split)
+
+    # Count the number of outcome values in each site.
+    def n_patients_with_value_at_site(site, value):
+        """Returns number of patients at a site who have an outcome value."""
+        df_is_value = (newData[category] == value)
+        df_is_site = (newData[site_column] == site)
+        return (df_is_site & df_is_value).sum()
+
+    n_values_by_site = {
+        site: {
+            value: n_patients_with_value_at_site(site, value)
+            for value in values
+        } for site in unique_sites
+    }
+    n_patients_by_site = {
+        site: (newData[site_column] == site).sum()
+        for site in unique_sites
+    }
+
+    # Calculate the error of each possible crossfold split.
+    # Error is defined as XXX.
+    crossfold_error = {}
+    value_counts = {split: {} for split in all_splits}
+    for split in all_splits:
+        patients_in_split = sum(
+            n_patients_by_site[site]
+            for fold in split
+            for site in fold
+        )
         sum_of_squares = 0
         count = 0
-        for fold in crossfold_possible:
-            sum_of_total_data_per_fold = 0
-            dictionary_of_value_split_by_crossfold[crossfold_possible][fold] = {value: 0 for value in values}
-            dictionary_of_value_split_by_crossfold[crossfold_possible][fold]['total'] = 0
+
+        # Calculate error for each crossfold in a given split.
+        for fold in split:
+            patients_in_fold = sum(n_patients_by_site[site] for site in fold)
+            value_counts[split][fold] = {value: 0 for value in values}
+
+            # Iterate through each site and outcome value in the crossfold.
             for site in fold:
-                for key in split_of_values_per_site[str(site)].keys():
-                    dictionary_of_value_split_by_crossfold[crossfold_possible][fold][key] += split_of_values_per_site[site][key]
-            sum_of_total_data_per_fold += dictionary_of_value_split_by_crossfold[crossfold_possible][fold]['total']
-            for k in dictionary_of_value_split_by_crossfold[crossfold_possible][fold].keys():
-                 dictionary_of_value_split_by_crossfold[crossfold_possible][fold][k] = dictionary_of_value_split_by_crossfold[crossfold_possible][fold][k]/float(dictionary_of_value_split_by_crossfold[crossfold_possible][fold]['total'])
-                 fold_site_value = dictionary_of_value_split_by_crossfold[crossfold_possible][fold][k]
-                 count += 1
-                 sum_of_squares += (fold_site_value-per_site_target_ratio)**2
-        for fold in crossfold_possible:
-            fold_total = dictionary_of_value_split_by_crossfold[crossfold_possible][fold]['total']/(float(sum_of_total_data_per_fold))
-            sum_of_squares += (fold_total - per_fold_size_target_ratio)**2
+                for value in values:
+                    value_counts[split][fold][value] += n_values_by_site[site][value]
+
+            # Add error for value proportions in each crossfold split.
+            # NOTE: 1./len(values) may not be the correct target.
+            for value in values:
+                value_proportion = value_counts[split][fold][value] / patients_in_fold
+                sum_of_squares += (value_proportion - (1./len(values)))**2
+                count += 1
+
+            # Add error term for proportion of patients in a split.
+            patient_proportion = patients_in_fold / patients_in_split
+            sum_of_squares += (patient_proportion - (1./crossfolds))**2
             count += 1
-        mean_square_error = sum_of_squares/count
-        per_crossfold_combo_errors[crossfold_possible] = mean_square_error
 
-    # isolate best combo by error
-    best_combo = min(per_crossfold_combo_errors, key=per_crossfold_combo_errors.get)
+        mean_square_error = sum_of_squares / count
+        crossfold_error[split] = mean_square_error
 
-    # assign data by crossfold and site
+    # Choose crossfold split with least error.
+    best_combo = min(crossfold_error, key=crossfold_error.get)
+
+    # Assign data by crossfold and site.
     list_for_best_combo = []
     for i in best_combo:
         sites_in_one_combo = []
