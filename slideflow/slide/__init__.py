@@ -22,7 +22,6 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 import cv2
 import matplotlib.colors as mcol
 import numpy as np
-import pyvips as vips
 import shapely.geometry as sg
 import skimage
 import skimage.filters
@@ -37,6 +36,12 @@ from slideflow.util import SUPPORTED_FORMATS, Path  # noqa F401
 from slideflow.util import colors as col
 from slideflow.util import log, path_to_name  # noqa F401
 from tqdm import tqdm
+
+try:
+    import pyvips as vips
+except (ModuleNotFoundError, OSError) as e:
+    log.error("Unable to load vips; slide processing will be unavailable. "
+              f"Error raised: {e}")
 
 warnings.simplefilter('ignore', Image.DecompressionBombWarning)
 Image.MAX_IMAGE_PIXELS = 100000000000
