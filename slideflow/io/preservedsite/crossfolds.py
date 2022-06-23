@@ -41,16 +41,16 @@ def generate_brute_force(data, category, values, crossfolds=3, target_column='CV
             removal_list.append(possible_crossfold)
     for possible_crossfold in set(removal_list):
         list_of_possible_crossfolds.remove(possible_crossfold)
-    
+
     # split of values per site
     split_of_values_per_site = {}
     for site in unique_sites:
         dict_of_values = {}
-        sum = 0
+        _sum = 0
         for value in values:
             dict_of_values[value] = len(newData[((newData[site_column] == site) & (newData[category] == value))])
-            sum += len(newData[((newData[site_column] == site) & (newData[category] == value))])
-        dict_of_values['total'] = sum
+            _sum += len(newData[((newData[site_column] == site) & (newData[category] == value))])
+        dict_of_values['total'] = _sum
         split_of_values_per_site[site] = dict_of_values
 
     # error associated to each possible combo
@@ -81,7 +81,7 @@ def generate_brute_force(data, category, values, crossfolds=3, target_column='CV
             count += 1
         mean_square_error = sum_of_squares/count
         per_crossfold_combo_errors[crossfold_possible] = mean_square_error
-    
+
     # isolate best combo by error
     best_combo = min(per_crossfold_combo_errors, key=per_crossfold_combo_errors.get)
 
