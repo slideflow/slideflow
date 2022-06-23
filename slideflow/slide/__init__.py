@@ -329,7 +329,7 @@ def _wsi_extraction_worker(
     return return_dict
 
 
-def vips2numpy(vi: vips.Image) -> np.ndarray:
+def vips2numpy(vi: "vips.Image") -> np.ndarray:
     '''Converts a VIPS image into a numpy array'''
     return np.ndarray(buffer=vi.write_to_memory(),
                       dtype=VIPS_FORMAT_TO_DTYPE[vi.format],
@@ -473,7 +473,7 @@ class _VIPSWrapper:
             return 0
         return max_level
 
-    def get_downsampled_image(self, level: int) -> vips.Image:
+    def get_downsampled_image(self, level: int) -> "vips.Image":
         '''Returns a VIPS image of a given downsample.'''
         if level in range(len(self.levels)):
             if level in self.loaded_downsample_levels:
@@ -497,7 +497,7 @@ class _VIPSWrapper:
         base_level_dim: Tuple[int, int],
         downsample_level: int,
         extract_size: Tuple[int, int]
-    ) -> vips.Image:
+    ) -> "vips.Image":
         '''Extracts a region from the image at the given downsample level.'''
         base_level_x, base_level_y = base_level_dim
         extract_width, extract_height = extract_size
