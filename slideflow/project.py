@@ -1341,7 +1341,7 @@ class Project:
                                 annotations=labels,
                                 **kwargs)
         if torch_export:
-            df.export_to_torch(torch_export)
+            df.to_torch(torch_export)
         return df
 
     @auto_dataset
@@ -1429,7 +1429,7 @@ class Project:
             layers=layers,
             include_logits=False,
         )
-        df.export_to_torch(outdir)
+        df.to_torch(outdir)
         return outdir
 
     @auto_dataset
