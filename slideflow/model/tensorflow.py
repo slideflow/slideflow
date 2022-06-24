@@ -8,6 +8,7 @@ import json
 import os
 import shutil
 from os.path import dirname, exists, join
+from packaging import version
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
@@ -618,7 +619,8 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
         if log.getEffectiveLevel() <= 20:
             print('\r\033[K', end='')
         self.epoch_count += 1
-        if self.epoch_count in [e for e in self.hp.epochs]:
+        if (self.epoch_count in [e for e in self.hp.epochs]
+           or self.early_stop):
             if self.parent.name:
                 model_name = self.parent.name
             else:
@@ -1040,10 +1042,13 @@ class Trainer:
             log.info(f'Using realtime {self.hp.normalizer} normalization')
 
         if self.mixed_precision:
-            policy_str = 'mixed_float16'
-            log.debug(f'Enabling mixed precision ({policy_str})')
-            policy = tf.keras.mixed_precision.experimental.Policy(policy_str)
-            tf.keras.mixed_precision.experimental.set_policy(policy)
+            _policy = 'mixed_float16'
+            log.debug(f'Enabling mixed precision ({_policy})')
+            if version.parse(tf.__version__) > version.parse("2.8"):
+                tf.keras.mixed_precision.set_global_policy(_policy)
+            else:
+                policy = tf.keras.mixed_precision.experimental.Policy(_policy)
+                tf.keras.mixed_precision.experimental.set_policy(policy)
 
         # Log parameters
         if config is None:

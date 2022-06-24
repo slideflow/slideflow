@@ -217,7 +217,8 @@ def _fill_queue(
 def split_patients_preserved_site(
     patients_dict: Dict[str, Dict],
     n: int,
-    balance: str
+    balance: str,
+    method: str = 'auto'
 ) -> List[List[str]]:
     """Splits a dictionary of patients into n groups,
     balancing according to key "balance" while preserving site.
@@ -227,12 +228,12 @@ def split_patients_preserved_site(
             dict of outcomes: labels
         n (int): Number of splits to generate.
         balance (str): Annotation header to balance splits across.
+        method (str): Solver method. 'auto', 'cplex', or 'bonmin'. If 'auto',
+            will use CPLEX if availabe, otherwise will default to pyomo/bonmin.
 
     Returns:
         List of patient splits
     """
-    if not sf.util.CPLEX_AVAILABLE:
-        raise errors.CPLEXNotFoundError
     patient_list = list(patients_dict.keys())
     shuffle(patient_list)
 
@@ -256,13 +257,7 @@ def split_patients_preserved_site(
         columns=['patient', 'outcome_label', 'site']
     )
     df = cv.generate(
-        df,
-        'outcome_label',
-        unique_labels,
-        crossfolds=n,
-        target_column='CV',
-        patient_column='patient',
-        site_column='site'
+        df, 'outcome_label', k=n, target_column='CV', method=method
     )
     log.info(col.bold("Train/val split with Preserved-Site Cross-Val"))
     log.info(col.bold(
@@ -448,6 +443,8 @@ class Dataset:
         self._config = config
         self._annotations = None  # type: Optional[pd.DataFrame]
         self.annotations_file = None  # type: Optional[str]
+
+        # Read dataset sources from the configuration file
         loaded_config = sf.util.load_json(config)
         sources = sources if isinstance(sources, list) else [sources]
         try:
@@ -458,6 +455,13 @@ class Dataset:
         except KeyError:
             sources_list = ', '.join(sources)
             raise errors.SourceNotFoundError(sources_list, config)
+        missing_sources = [s for s in sources if s not in self.sources]
+        if len(missing_sources):
+            log.warn(
+                "The following sources were not found in the dataset "
+                f"configuration file {config}: {', '.join(missing_sources)}"
+            )
+        # Create labels for each source based on tile size
         if (tile_px is not None) and (tile_um is not None):
             if isinstance(tile_um, str):
                 label = f"{tile_px}px_{tile_um.lower()}"
@@ -467,6 +471,8 @@ class Dataset:
             label = None
         for source in self.sources:
             self.sources[source]['label'] = label
+
+        # Load annotations
         if annotations is not None:
             self.load_annotations(annotations)
 
