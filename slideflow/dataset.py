@@ -83,38 +83,40 @@ overview of the structure of the Dataset class is as follows:
 '''
 
 import copy
+import csv
+import multiprocessing
+import os
+import shutil
 import threading
 import time
-import os
-import csv
-import shutil
 import types
-import multiprocessing
-import shapely.geometry as sg
-import numpy as np
-import pandas as pd
+from collections import defaultdict
+from datetime import datetime
+from glob import glob
+from multiprocessing.dummy import Pool as DPool
+from os.path import basename, dirname, exists, isdir, join
 from queue import Queue
 from random import shuffle
-from glob import glob
-from datetime import datetime
+from typing import (TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Tuple,
+                    Union)
+
+import numpy as np
+import pandas as pd
+import shapely.geometry as sg
 from tqdm import tqdm
-from os.path import isdir, join, exists, dirname, basename
-from multiprocessing.dummy import Pool as DPool
-from collections import defaultdict
-from typing import (Optional, List, Dict, Union, Any, Tuple,
-                    Sequence, TYPE_CHECKING)
 
 import slideflow as sf
 from slideflow import errors
-from slideflow.slide import WSI, ExtractionReport, SlideReport
 from slideflow.model import ModelParams
-from slideflow.util import log, Path, _shortname, path_to_name, Labels
-from slideflow.util import tfrecord2idx
+from slideflow.slide import WSI, ExtractionReport, SlideReport
+from slideflow.util import Labels, Path, _shortname
 from slideflow.util import colors as col
+from slideflow.util import log, path_to_name, tfrecord2idx
 
 if TYPE_CHECKING:
     import tensorflow as tf
     from torch.utils.data import DataLoader
+
     from slideflow.norm import StainNormalizer
 
 
@@ -598,7 +600,7 @@ class Dataset:
 
     def balance(
         self,
-        headers: Optional[List[str]] = None,
+        headers: Optional[Union[str, List[str]]] = None,
         strategy: Optional[str] = 'category',
         force: bool = False
     ) -> "Dataset":
