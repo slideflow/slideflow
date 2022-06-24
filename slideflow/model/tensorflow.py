@@ -8,7 +8,6 @@ import json
 import os
 import shutil
 from os.path import dirname, exists, join
-from packaging import version
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
@@ -16,6 +15,7 @@ import numpy as np
 import slideflow as sf
 import slideflow.model.base as _base
 import slideflow.util.neptune_utils
+from packaging import version
 from slideflow import errors
 from slideflow.model import tensorflow_utils as tf_utils
 from slideflow.model.base import log_manifest, no_scope
@@ -1377,13 +1377,13 @@ class Trainer:
             reduce_method=reduce_method,
             **metric_kwargs
         )
-        results_dict = {'eval': {}}  # type: Dict[str, Dict[str, float]]
+        results = {'eval': {}}  # type: Dict[str, Dict[str, float]]
         for metric in metrics:
             if metrics[metric]:
                 log.info(f"Tile {metric}: {metrics[metric]['tile']}")
                 log.info(f"Slide {metric}: {metrics[metric]['slide']}")
                 log.info(f"Patient {metric}: {metrics[metric]['patient']}")
-                results_dict['eval'].update({
+                results['eval'].update({
                     f'tile_{metric}': metrics[metric]['tile'],
                     f'slide_{metric}': metrics[metric]['slide'],
                     f'patient_{metric}': metrics[metric]['patient']
@@ -1396,15 +1396,15 @@ class Trainer:
         log.info('Evaluation metrics:')
         for m in val_metrics:
             log.info(f'{m}: {val_metrics[m]}')
-        results_dict['eval'].update(val_metrics)
-        sf.util.update_results_log(results_log, 'eval_model', results_dict)
+        results['eval'].update(val_metrics)
+        sf.util.update_results_log(results_log, 'eval_model', results)
 
         # Update neptune log
         if self.neptune_run:
             self.neptune_run['eval/results'] = val_metrics
             self.neptune_run.stop()
 
-        return val_metrics
+        return results
 
     def train(
         self,
