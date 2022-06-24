@@ -13,7 +13,6 @@ import time
 import io
 import numpy as np
 import csv
-import pyvips as vips
 import shapely.geometry as sg
 import cv2
 import json
@@ -37,6 +36,12 @@ from slideflow.util import log, SUPPORTED_FORMATS, path_to_name, Path  # noqa F4
 from slideflow.util import colors as col
 from slideflow.slide.report import SlideReport, ExtractionReport, ExtractionPDF  # noqa F401
 from slideflow import errors
+
+try:
+    import pyvips as vips
+except (ModuleNotFoundError, OSError) as e:
+    log.error("Unable to load vips; slide processing will be unavailable. "
+              f"Error raised: {e}")
 
 warnings.simplefilter('ignore', Image.DecompressionBombWarning)
 Image.MAX_IMAGE_PIXELS = 100000000000
@@ -338,7 +343,7 @@ def _wsi_extraction_worker(
     return return_dict, index
 
 
-def vips2numpy(vi: vips.Image) -> np.ndarray:
+def vips2numpy(vi: "vips.Image") -> np.ndarray:
     '''Converts a VIPS image into a numpy array'''
     return np.ndarray(buffer=vi.write_to_memory(),
                       dtype=VIPS_FORMAT_TO_DTYPE[vi.format],
@@ -482,7 +487,7 @@ class _VIPSWrapper:
             return 0
         return max_level
 
-    def get_downsampled_image(self, level: int) -> vips.Image:
+    def get_downsampled_image(self, level: int) -> "vips.Image":
         '''Returns a VIPS image of a given downsample.'''
         if level in range(len(self.levels)):
             if level in self.loaded_downsample_levels:
@@ -506,7 +511,7 @@ class _VIPSWrapper:
         base_level_dim: Tuple[int, int],
         downsample_level: int,
         extract_size: Tuple[int, int]
-    ) -> vips.Image:
+    ) -> "vips.Image":
         '''Extracts a region from the image at the given downsample level.'''
         base_level_x, base_level_y = base_level_dim
         extract_width, extract_height = extract_size
