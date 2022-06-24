@@ -1,28 +1,29 @@
 '''Tensorflow backend for the slideflow.model submodule.'''
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function
 
-import os
+import inspect
 import json
-import warnings
+import os
 import shutil
 import types
-import inspect
+import warnings
 
 warnings.filterwarnings('ignore')
 
+from os.path import dirname, exists, join
+
 import numpy as np
-import tensorflow as tf
 import slideflow as sf
 import slideflow.model.base as _base
 import slideflow.util.neptune_utils
-
-from os.path import join, exists, dirname
-from slideflow.util import log
-from slideflow.model.base import ModelError, FeatureError, no_scope, log_summary, log_manifest
+from slideflow.model.base import (FeatureError, ModelError, log_manifest,
+                                  log_summary, no_scope)
 from slideflow.model.tensorflow_utils import *
+from slideflow.util import log
+
+import tensorflow as tf
+
 
 class ModelParams(_base._ModelParams):
     """Build a set of hyperparameters."""
@@ -938,7 +939,8 @@ class Trainer:
             if use_tensorboard:
                 callbacks += [tensorboard_callback]
             if self.neptune_run:
-                from neptune.new.integrations.tensorflow_keras import NeptuneCallback
+                from neptune.new.integrations.tensorflow_keras import \
+                    NeptuneCallback
                 neptune_cb = NeptuneCallback(run=self.neptune_run, base_namespace='metrics')
                 callbacks += [neptune_cb]
 
@@ -1116,7 +1118,6 @@ class Features:
             include_logits (bool, optional): Include logits in output. Will be returned last. Defaults to False.
         """
 
-        if layers and not isinstance(layers, list): layers = [layers]
         self.path = path
         self.num_logits = 0
         self.num_features = 0
@@ -1236,6 +1237,8 @@ class Features:
         """Builds the interface model that outputs feature activations at the designated layers and/or logits.
             Intermediate layers are returned in the order of layers. Logits are returned last."""
 
+        if layers and not isinstance(layers, list):
+            layers = [layers]
         if layers:
             log.debug(f"Setting up interface to return activations from layers {', '.join(layers)}")
             other_layers = [l for l in layers if l != 'postconv']
