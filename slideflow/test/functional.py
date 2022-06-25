@@ -69,7 +69,7 @@ def activations_tester(
         key=lambda f: tile_stats[f]['p']
     )
     for feature in top_features_by_tile[:5]:
-        umap.save_3d_plot(
+        umap.save_3d(
             join(project.root, 'stats', f'3d_feature{feature}.png'),
             feature=feature
         )

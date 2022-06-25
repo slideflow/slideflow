@@ -31,6 +31,8 @@ if TYPE_CHECKING:
     import neptune.new as neptune
     import tensorflow as tf
     import torch
+    from matplotlib.axes import Axes
+    from matplotlib.figure import Figure
 
     from slideflow.model import DatasetFeatures
 
@@ -392,7 +394,7 @@ class SlideMap:
             self.point_meta[i]['cluster'] = label
         return np.array([p['cluster'] for p in self.point_meta])
 
-    def export_to_csv(self, filename: Path) -> None:
+    def to_csv(self, filename: Path) -> None:
         """Exports calculated UMAP coordinates in csv format.
 
         Args:
@@ -580,15 +582,8 @@ class SlideMap:
         else:
             self.labels = np.array([m[meta] for m in self.point_meta])
 
-    def save_2d_plot(self, *args: Any, **kwargs: Any) -> None:
-        """Deprecated function; please use `save`."""
-
-        log.warning("save_2d_plot() is deprecated, please use save()")
-        self.save(*args, **kwargs)
-
-    def save(
+    def plot(
         self,
-        filename: str,
         subsample: Optional[int] = None,
         title: Optional[str] = None,
         cmap: Optional[Dict] = None,
@@ -597,13 +592,12 @@ class SlideMap:
         xlabel: Optional[str] = None,
         ylabel: Optional[str] = None,
         legend: Optional[str] = None,
-        dpi: int = 300,
+        ax: Optional["Axes"] = None,
         **scatter_kwargs: Any
     ) -> None:
-        """Saves plot of data to a provided filename.
+        """Plots calculated map.
 
         Args:
-            filename (str): File path to save the image.
             subsample (int, optional): Subsample to only include this many
                 tiles on plot. Defaults to None.
             title (str, optional): Title for plot.
@@ -615,10 +609,16 @@ class SlideMap:
             xlabel (str, optional): Label for x axis. Defaults to None.
             ylabel (str, optional): Label for y axis. Defaults to None.
             legend (str, optional): Title for legend. Defaults to None.
-            dpi (int, optional): DPI for final image. Defaults to 300.
+            ax (matplotlib.axes.Axes, optional): Figure axis. If not supplied,
+                will prepare a new figure axis.
         """
         import seaborn as sns
         from matplotlib import pyplot as plt
+
+        # Make plot
+        if ax is None:
+            fig = plt.figure(figsize=(6, 4.5))
+            ax = fig.add_subplot(111)
 
         # Subsampling
         if subsample:
@@ -654,18 +654,17 @@ class SlideMap:
             labels = ['NA']
             df['category'] = 'NA'
 
-        # Make plot
-        plt.clf()
         umap_2d = sns.scatterplot(
             x=x,
             y=y,
             data=df,
             hue='category',
             palette=cmap,
+            ax=ax,
             **scatter_kwargs
         )
-        plt.gca().set_ylim(*((None, None) if not ylim else ylim))
-        plt.gca().set_xlim(*((None, None) if not xlim else xlim))
+        ax.set_ylim(*((None, None) if not ylim else ylim))
+        ax.set_xlim(*((None, None) if not xlim else xlim))
         umap_2d.legend(
             loc='center left',
             bbox_to_anchor=(1.25, 0.5),
@@ -673,39 +672,37 @@ class SlideMap:
             title=legend
         )
         umap_2d.set(xlabel=xlabel, ylabel=ylabel)
-        umap_figure = umap_2d.get_figure()
-        umap_figure.set_size_inches(6, 4.5)
         if title:
-            umap_figure.axes[0].set_title(title)
-        umap_figure.savefig(filename, bbox_inches='tight', dpi=dpi)
-        log.info(f"Saved 2D UMAP to {col.green(filename)}")
+            ax.set_title(title)
 
-    def save_3d_plot(
+    def plot_3d(
         self,
-        filename: str,
         z: Optional[np.ndarray] = None,
         feature: Optional[int] = None,
-        subsample: Optional[int] = None
+        subsample: Optional[int] = None,
+        fig: Optional["Figure"] = None,
     ) -> None:
         """Saves a plot of a 3D umap, with the 3rd dimension representing
         values provided by argument "z".
 
         Args:
-            filename (str): Filename to save image of plot.
             z (list, optional): Values for z axis. Must supply z or feature.
                 Defaults to None.
             feature (int, optional): Int, feature to plot on 3rd axis.
                 Must supply z or feature. Defaults to None.
             subsample (int, optional): Subsample to only include this many
                 tiles on plot. Defaults to None.
+            fig (matplotlib.figure.Figure, optional): Figure. If not supplied,
+                will prepare a new figure.
         """
         from matplotlib import pyplot as plt
+
+        if fig is None:
+            fig = plt.figure()
 
         title = f"UMAP with feature {feature} focus"
         if self.df is None:
             raise errors.SlideMapError("DatasetFeatures not provided.")
-        if not filename:
-            filename = "3d_plot.png"
         if (z is None) and (feature is None):
             raise errors.SlideMapError("Must supply either 'z' or 'feature'.")
         # Get feature activations for 3rd dimension
@@ -725,13 +722,10 @@ class SlideMap:
 
         # Plot tiles on a 3D coordinate space with 2 coordinates from UMAP
         # and 3rd from the value of the excluded feature
-        fig = plt.figure()
         ax = Axes3D(fig, auto_add_to_figure=False)
         fig.add_axes(ax)
         ax.scatter(x, y, z, c=z, cmap='viridis', linewidth=0.5, edgecolor="k")
         ax.set_title(title)
-        log.info(f"Saving 3D UMAP to {col.green(filename)}...")
-        plt.savefig(filename, bbox_inches='tight')
 
     def get_tiles_in_area(
         self,
@@ -771,34 +765,107 @@ class SlideMap:
         log.info(f"Selected {num_selected} tiles by filter criteria.")
         return filtered_tiles
 
-    def save_cache(self) -> None:
-        """Save cache of coordinates to PKL file."""
-        if self.cache:
+    def save(
+        self,
+        filename: str,
+        dpi: int = 300,
+        **kwargs
+    ):
+        """Save plot of slide map.
+
+        Args:
+            filename (str): File path to save the image.
+            dpi (int, optional): DPI for final image. Defaults to 300.
+
+        Keyword args:
+            subsample (int, optional): Subsample to only include this many
+                tiles on plot. Defaults to None.
+            title (str, optional): Title for plot.
+            cmap (dict, optional): Dict mapping labels to colors.
+            xlim (list, optional): List of float indicating limit for x-axis.
+                Defaults to (-0.05, 1.05).
+            ylim (list, optional): List of float indicating limit for y-axis.
+                Defaults to (-0.05, 1.05).
+            xlabel (str, optional): Label for x axis. Defaults to None.
+            ylabel (str, optional): Label for y axis. Defaults to None.
+            legend (str, optional): Title for legend. Defaults to None.
+
+        """
+        import matplotlib.pyplot as plt
+
+        self.plot(**kwargs)
+        plt.savefig(filename, bbox_inches='tight', dpi=dpi)
+        log.info(f"Saved 2D UMAP to {col.green(filename)}")
+
+    def save_3d(
+        self,
+        filename: str,
+        dpi: int = 300,
+        **kwargs
+
+    ):
+        """Save 3D plot of slide map.
+
+        Args:
+            filename (str): _description_
+            dpi (int, optional): _description_. Defaults to 300.
+
+        Keyword args:
+            z (list, optional): Values for z axis. Must supply z or feature.
+                Defaults to None.
+            feature (int, optional): Int, feature to plot on 3rd axis.
+                Must supply z or feature. Defaults to None.
+            subsample (int, optional): Subsample to only include this many
+                tiles on plot. Defaults to None.
+
+        """
+        import matplotlib.pyplot as plt
+
+        self.plot_3d(**kwargs)
+        plt.savefig(filename, bbox_inches='tight', dpi=dpi)
+        log.info(f"Saved 3D UMAP to {col.green(filename)}")
+
+    def save_cache(self, path: Optional[str] = None) -> None:
+        """Save cache of coordinates to PKL file.
+
+        Args:
+            path (str, optional): Save cache to this location. If None,
+                will use `self.cache`.
+        """
+        if path is None:
+            path = self.cache
+        if path:
             try:
-                with open(self.cache, 'wb') as cache_file:
+                with open(path, 'wb') as cache_file:
                     pickle.dump(
                         [self.x, self.y, self.point_meta, self.map_meta],
                         cache_file
                     )
-                    log.info(f"Wrote UMAP cache to {col.green(self.cache)}")
+                    log.info(f"Wrote UMAP cache to {col.green(path)}")
             except Exception:
-                log.info(f"Error writing cache to {col.green(self.cache)}")
+                log.info(f"Error writing cache to {col.green(path)}")
 
-    def load_cache(self) -> bool:
+    def load_cache(self, path: Optional[str] = None) -> bool:
         """Load coordinates from PKL cache.
+
+        Args:
+            path (str, optional): Load cache from this location. If None,
+                will use `self.cache`.
 
         Returns:
             bool: If successfully loaded from cache.
         """
-        if self.cache is None:
-            raise errors.SlideMapError("Unable to load cache; none set.")
+        if path is None:
+            path = self.cache
+        if path is None:
+            raise errors.SlideMapError("No cache set or given.")
         try:
-            with open(self.cache, 'rb') as f:
+            with open(path, 'rb') as f:
                 self.x, self.y, self.point_meta, self.map_meta = pickle.load(f)
-                log.info(f"Loaded UMAP cache from {col.green(self.cache)}")
+                log.info(f"Loaded UMAP cache from {col.green(path)}")
                 return True
         except FileNotFoundError:
-            log.info(f"No UMAP cache found at {col.green(self.cache)}")
+            log.info(f"No UMAP cache found at {col.green(path)}")
         return False
 
 
@@ -1169,6 +1236,40 @@ def save_histogram(
         )
 
 
+def plot_roc(
+    fpr: np.ndarray,
+    tpr: np.ndarray,
+    label: Optional[str] = None
+):
+    from matplotlib import pyplot as plt
+    plt.clf()
+    plt.title('ROC Curve')
+    plt.plot(fpr, tpr, 'b', label=label)
+    plt.legend(loc='lower right')
+    plt.plot([0, 1], [0, 1], 'r--')
+    plt.xlim([0, 1])
+    plt.ylim([0, 1])
+    plt.ylabel('TPR')
+    plt.xlabel('FPR')
+
+
+def plot_prc(
+    precision: np.ndarray,
+    recall: np.ndarray,
+    label: Optional[str] = None
+):
+    from matplotlib import pyplot as plt
+    plt.clf()
+    plt.title('Precision-Recall Curve')
+    plt.plot(precision, recall, 'b', label=label)
+    plt.legend(loc='lower right')
+    plt.plot([0, 1], [0, 1], 'r--')
+    plt.xlim([0, 1])
+    plt.ylim([0, 1])
+    plt.ylabel('Recall')
+    plt.xlabel('Precision')
+
+
 def generate_roc(
     y_true: np.ndarray,
     y_pred: np.ndarray,
@@ -1213,28 +1314,9 @@ def generate_roc(
         opt_thresh = -1
     if save_dir:
         from matplotlib import pyplot as plt
-
-        # ROC
-        plt.clf()
-        plt.title('ROC Curve')
-        plt.plot(fpr, tpr, 'b', label=f'AUC = {roc_auc:.2f}')
-        plt.legend(loc='lower right')
-        plt.plot([0, 1], [0, 1], 'r--')
-        plt.xlim([0, 1])
-        plt.ylim([0, 1])
-        plt.ylabel('TPR')
-        plt.xlabel('FPR')
+        plot_roc(fpr, tpr, f'AUC = {roc_auc:.2f}')
         plt.savefig(os.path.join(save_dir, f'{name}.png'))
-        # Precision recall
-        plt.clf()
-        plt.title('Precision-Recall Curve')
-        plt.plot(precision, recall, 'b', label=f'AP = {ap:.2f}')
-        plt.legend(loc='lower right')
-        plt.plot([0, 1], [0, 1], 'r--')
-        plt.xlim([0, 1])
-        plt.ylim([0, 1])
-        plt.ylabel('Recall')
-        plt.xlabel('Precision')
+        plot_prc(precision, recall, label=f'AP = {ap:.2f}')
         plt.savefig(os.path.join(save_dir, f'{name}-PRC.png'))
         if neptune_run:
             neptune_run[f'results/graphs/{name}'].upload(
