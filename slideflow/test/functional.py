@@ -80,7 +80,7 @@ def activations_tester(
 
     # Test mosaic.
     mosaic = project.generate_mosaic(df)
-    mosaic.save(join(project.root, "mosaic_test.png"), resolution='low')
+    mosaic.save(join(project.root, "mosaic_test.png"), figsize=(15, 15))
 
 
 @handle_errors

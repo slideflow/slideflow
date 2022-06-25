@@ -1622,9 +1622,8 @@ class Project:
                 a model's metadata file (params.json). Defaults to True.
 
         Keyword Args:
-            resolution (str): Mosaic map resolution, determines size of
-                exported figure. Either 'low', 'medium' or 'high'.
-                Defaults to 'high'.
+            figsize (Tuple[int, int], optional): Figure size. Defaults to
+                (200, 200).
             num_tiles_x (int): Specifies the size of the mosaic map grid.
             expanded (bool): Controls tile assignment on grid spaces.
                 If False, tile assignment is strict.
@@ -1809,7 +1808,8 @@ class Project:
             batch_size (int, optional): Batch size for model. Defaults to 64.
 
         Keyword Args:
-            resolution (str): Resolution of the mosaic. Low, medium, or high.
+            figsize (Tuple[int, int], optional): Figure size. Defaults to
+                (200, 200).
             num_tiles_x (int): Specifies the size of the mosaic map grid.
             expanded (bool): Controls tile assignment on grid spaces.
                 If False, tile assignment is strict.
