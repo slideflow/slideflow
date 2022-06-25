@@ -4,9 +4,9 @@ import os
 import tempfile
 from typing import TYPE_CHECKING, Any, Dict, List, Tuple, Union
 
-import tensorflow as tf
-
 from slideflow.util import log
+
+import tensorflow as tf
 
 if TYPE_CHECKING:
     import neptune.new as neptune
@@ -246,3 +246,30 @@ def get_uq_predictions(
         yp_mean = tf.math.reduce_mean(yp_drop, axis=0)
         yp_std = tf.math.reduce_std(yp_drop, axis=0)
     return yp_mean, yp_std, num_outcomes
+
+
+def unwrap(
+    model: tf.keras.models.Model
+):
+    """Unwraps a Tensorflow model built in Slideflow, returning the
+    input tensor, post-convolutional output tensor, and final model output
+    tensor.
+
+    Args:
+        model (tf.keras.models.Model): Model built with Slideflow.
+
+    Returns:
+        tf.Tensor:  Input tensor.
+
+        tf.Tensor:  Post-convolutional layer output tensor.
+
+        tf.Tensor:  Final model output tensor.
+    """
+    submodel = model.layers[1]
+    x = submodel.outputs[0]
+    postconv = x
+    for layer_index in range(2, len(model.layers)):
+        extracted_layer = model.layers[layer_index]
+        x = extracted_layer(x)
+
+    return submodel.inputs, postconv, x

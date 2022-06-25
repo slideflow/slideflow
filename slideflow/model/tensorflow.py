@@ -19,6 +19,7 @@ from packaging import version
 from slideflow import errors
 from slideflow.model import tensorflow_utils as tf_utils
 from slideflow.model.base import log_manifest, no_scope
+from slideflow.model.tensorflow_utils import unwrap
 from slideflow.util import NormFit, Path
 from slideflow.util import colors as col
 from slideflow.util import log
