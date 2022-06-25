@@ -1445,7 +1445,6 @@ class Project:
         resolution: str = 'low',
         batch_size: int = 32,
         roi_method: str = 'inside',
-        buffer: Optional[Path] = None,
         num_threads: Optional[int] = None,
         img_format: str = 'auto',
         skip_completed: bool = False,
@@ -1480,8 +1479,6 @@ class Project:
                 If 'ignore', will extract tiles across the whole-slide
                 regardless of whether an ROI is available.
                 Defaults to 'auto'.
-            buffer (str, optional): Path to which slides are copied prior to
-                heatmap generation. Defaults to None.
             num_threads (int, optional): Number of threads for tile extraction.
                 Defaults to CPU core count.
             skip_completed (bool, optional): Skip heatmaps for slides that
