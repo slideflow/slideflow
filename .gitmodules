@@ -1,0 +1,3 @@
+[submodule "slideflow/gan/stylegan2"]
+	path = slideflow/gan/stylegan2
+	url = https://github.com/jamesdolezal/stylegan2-slideflow.git
