@@ -58,10 +58,6 @@ concordance_index
 ----------------------
 .. autofunction:: concordance_index
 
-filtered_prediction
--------------------
-.. autofunction:: filtered_prediction
-
 generate_combined_roc
 ----------------------
 .. autofunction:: generate_combined_roc
