@@ -127,6 +127,7 @@ class SlideMap:
         cache: Optional[Path] = None,
         low_memory: bool = False,
         umap_dim: int = 2,
+        umap: Optional[Any] = None,
         **umap_kwargs: Any
     ) -> "SlideMap":
         """Initializes map from dataset features.
@@ -158,6 +159,7 @@ class SlideMap:
 
         obj = cls(slides, cache=cache)
         obj.df = df
+        obj.umap = umap
         if map_slide:
             obj._calculate_from_slides(
                 method=map_slide,
@@ -253,7 +255,7 @@ class SlideMap:
                     pm.update({'uncertainty': self.df.uncertainty[slide][i]})
                 running_pm += [pm]
         self.point_meta = np.array(running_pm)
-        coordinates = gen_umap(node_activations, **umap_kwargs)
+        coordinates = self.gen_umap(node_activations, **umap_kwargs)
 
         self.x = np.array([c[0] for c in coordinates])
         if umap_kwargs['dim'] > 1:
@@ -359,7 +361,7 @@ class SlideMap:
                     'logits': [],
                     'prediction': 0
                 }]
-            coordinates = gen_umap(np.array(umap_input), **umap_kwargs)
+            coordinates = self.gen_umap(np.array(umap_input), **umap_kwargs)
             self.x = np.array([c[0] for c in coordinates])
             self.y = np.array([c[1] for c in coordinates])
             self.point_meta = np.array(running_pm)
@@ -520,6 +522,31 @@ class SlideMap:
             pm for pm in self.point_meta
             if pm['slide'] in slides
         ])
+
+    def gen_umap(
+        self,
+        array: np.ndarray,
+        dim: int = 2,
+        n_neighbors: int = 50,
+        min_dist: float = 0.1,
+        metric: str = 'cosine',
+        **kwargs: Any
+    ) -> np.ndarray:
+        """Generates and returns a umap from a given array, using umap.UMAP"""
+        import umap  # Imported in this function due to long import time
+        if not len(array):
+            raise errors.StatsError("Unable to perform UMAP on empty array.")
+        if self.umap is None:
+            self.umap = umap.UMAP(
+                n_components=dim,
+                verbose=(log.getEffectiveLevel() <= 20),
+                n_neighbors=n_neighbors,
+                min_dist=min_dist,
+                metric=metric,
+                **kwargs
+            )
+        layout = self.umap.fit_transform(array)
+        return normalize_layout(layout)
 
     def label_by_uncertainty(self, index: int = 0) -> None:
         """Labels each point with the tile-level uncertainty, if available.
@@ -1160,28 +1187,6 @@ def normalize_layout(
     clipped -= clipped.min(axis=0)
     clipped /= clipped.max(axis=0)
     return clipped
-
-
-def gen_umap(
-    array: np.ndarray,
-    dim: int = 2,
-    n_neighbors: int = 50,
-    min_dist: float = 0.1,
-    metric: str = 'cosine',
-    **kwargs: Any
-) -> np.ndarray:
-    """Generates and returns a umap from a given array, using umap.UMAP"""
-
-    import umap  # Imported in this function due to long import time
-    if not len(array):
-        raise errors.StatsError("Unable to perform UMAP on empty array.")
-    layout = umap.UMAP(n_components=dim,
-                       verbose=(log.getEffectiveLevel() <= 20),
-                       n_neighbors=n_neighbors,
-                       min_dist=min_dist,
-                       metric=metric,
-                       **kwargs).fit_transform(array)
-    return normalize_layout(layout)
 
 
 def save_histogram(
