@@ -52,7 +52,7 @@ def comparison_plot(original, maps, cmap=plt.cm.gray):
         ax[ax_idx[i+1][0], ax_idx[i+1][1]].imshow(map_img, cmap=cmap, vmin=0, vmax=1)
         ax[ax_idx[i+1][0], ax_idx[i+1][1]].set_title(map_name)
 
-    fig.subplots_adjust(wspace=0, hspace=0)
+    fig.subplots_adjust(wspace=0, hspace=0.1)
 
 
 def multi_plot(

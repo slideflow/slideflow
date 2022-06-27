@@ -1,4 +1,4 @@
-from typing import Dict, Optional
+from typing import Dict
 
 import numpy as np
 import saliency.core as saliency
@@ -64,7 +64,7 @@ class SaliencyMap:
 
         if isinstance(img, list):
             # Normalize together
-            image_3d = [_get_mask(_img) for _img in img]
+            image_3d = map(_get_mask, img)
             v_maxes, v_mins = zip(*[max_min(img3d) for img3d in image_3d])
             vmax = max(v_maxes)
             vmin = min(v_mins)
