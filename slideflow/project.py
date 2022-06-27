@@ -1564,7 +1564,6 @@ class Project:
         outcomes: Optional[Union[str, List[str]]] = None,
         map_slide: Optional[str] = None,
         show_prediction: Optional[Union[int, str]] = None,
-        restrict_pred: Optional[List[int]] = None,
         predict_on_axes: Optional[List[int]] = None,
         max_tiles: int = 0,
         umap_cache: Optional[Path] = None,
@@ -1601,9 +1600,6 @@ class Project:
             show_prediction (int or str, optional): May be either int or str,
                 corresponding to label category. Predictions for this category
                 will be displayed on the exported UMAP plot.
-            restrict_pred (list, optional): List of int, if provided, restrict
-                predictions to these categories. Final tile-level prediction
-                is made by choosing category with highest logit.
             predict_on_axes (list, optional): (int, int). Each int corresponds
                 to an label category id. If provided, predictions are generated
                 for these two labels categories; tiles are then mapped with
@@ -1693,7 +1689,6 @@ class Project:
             # Create mosaic map from UMAP of layer activations
             umap = sf.SlideMap.from_features(df,
                                              map_slide=map_slide,
-                                             prediction_filter=restrict_pred,
                                              cache=umap_cache,
                                              low_memory=low_memory,
                                              **umap_kwargs)
@@ -1708,8 +1703,8 @@ class Project:
 
             # Get predictions
             if model_type == 'categorical':
-                s_pred = df.logits_predict(restrict_pred)
-                s_perc = df.logits_percent(restrict_pred)
+                s_pred = df.logits_predict()
+                s_perc = df.logits_percent()
             else:
                 s_pred = s_perc = df.logits_mean()  # type: ignore
 

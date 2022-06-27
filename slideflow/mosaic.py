@@ -104,19 +104,18 @@ class Mosaic:
         # First, load UMAP coordinates
         log.info('Loading coordinates and plotting points...')
         self.points = []
-        for i in range(len(slide_map.x)):
-            slide = slide_map.point_meta[i]['slide']
+        for i, row in slide_map.data.iterrows():
             if tile_meta:
-                meta = tile_meta[slide][slide_map.point_meta[i]['index']]
+                meta = tile_meta[row.slide][row.tfr_index]
             else:
                 meta = None
             self.points.append({
-                'coord': np.array((slide_map.x[i], slide_map.y[i])),
+                'coord': np.array((row.x, row.y)),
                 'global_index': i,
                 'category': 'none',
-                'slide': slide,
-                'tfrecord': self._get_tfrecords_from_slide(slide),
-                'tfrecord_index': slide_map.point_meta[i]['index'],
+                'slide': row.slide,
+                'tfrecord': self._get_tfrecords_from_slide(row.slide),
+                'tfrecord_index': row.tfr_index,
                 'paired_tile': None,
                 'meta': meta
             })
