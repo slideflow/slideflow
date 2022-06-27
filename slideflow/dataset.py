@@ -1320,6 +1320,68 @@ class Dataset:
             ret._min_tiles = kwargs['min_tiles']
         return ret
 
+    def find_slide(
+        self,
+        *,
+        slide: Optional[str] = None,
+        patient: Optional[str] = None
+    ) -> Optional[str]:
+        """Find a slide path from a given slide or patient.
+
+        Keyword args:
+            slide (str): Find a tfrecord associated with this slide name.
+            patient (str): Find a tfrecord associated with this patient.
+
+        Returns:
+            str:    Matching path to slide, if found.
+            If not found, returns None
+        """
+        if slide is None and patient is None:
+            raise ValueError("Must supply either slide or patient.")
+        if slide is not None and patient is not None:
+            raise ValueError("Must supply either slide or patient, not both.")
+
+        if slide is not None:
+            filtered = self.filter({'slide': slide})
+        if patient is not None:
+            filtered = self.filter({'slide': patient})
+        matching = filtered.slide_paths()
+        if not len(matching):
+            return None
+        else:
+            return matching[0]
+
+    def find_tfrecord(
+        self,
+        *,
+        slide: Optional[str] = None,
+        patient: Optional[str] = None
+    ) -> Optional[str]:
+        """Find a TFRecord path from a given slide or patient.
+
+        Keyword args:
+            slide (str): Find a tfrecord associated with this slide name.
+            patient (str): Find a tfrecord associated with this patient.
+
+        Returns:
+            str:    Matching path to tfrecord, if found.
+            If not found, returns None
+        """
+        if slide is None and patient is None:
+            raise ValueError("Must supply either slide or patient.")
+        if slide is not None and patient is not None:
+            raise ValueError("Must supply either slide or patient, not both.")
+
+        if slide is not None:
+            filtered = self.filter({'slide': slide})
+        if patient is not None:
+            filtered = self.filter({'slide': patient})
+        matching = filtered.tfrecords()
+        if not len(matching):
+            return None
+        else:
+            return matching[0]
+
     def harmonize_labels(
         self,
         *args: "Dataset",

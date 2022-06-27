@@ -1,11 +1,11 @@
 import csv
 import multiprocessing as mp
-from multiprocessing.sharedctypes import Value
 import os
 import pickle
 import sys
 import time
 from functools import partial
+from multiprocessing.sharedctypes import Value
 from os.path import join
 from random import sample
 from types import SimpleNamespace
@@ -224,7 +224,7 @@ class SlideMap:
             # If UMAP already calculated, update predictions
             # if prediction filter is provided
             logits = [
-                self.df.logits[row.slide][row.tfr_index] 
+                self.df.logits[row.slide][row.tfr_index]
                 for _, row in self.data.iterrows()
             ]
             predictions = np.argmax(np.array(logits), axis=1)
@@ -254,8 +254,8 @@ class SlideMap:
             for slide in self.slides
         ])
         slides = np.array([
-            slide 
-            for slide in self.slides 
+            slide
+            for slide in self.slides
             for _ in range(self.df.locations[slide].shape[0])
         ])
         data_dict = {
@@ -264,16 +264,18 @@ class SlideMap:
             'tfr_index': pd.Series(tfrecord_indices),
             'logits': pd.Series([l for l in logits]).astype(object),
             'prediction': pd.Series(np.argmax(logits, axis=1)),
-            'location': pd.Series([l for l in locations]).astype(object)            
+            'location': pd.Series([l for l in locations]).astype(object)
         }
         if self.df.hp.uq and self.df.uncertainty != {}:  # type: ignore
             uncertainty = np.concatenate([
                 self.df.uncertainty[slide] for slide in self.slides
             ])
             data_dict.update({
-                'uncertainty': pd.Series(uncertainty).astype(object)
+                'uncertainty': pd.Series(
+                    [u for u in uncertainty]
+                ).astype(object)
             })
-        if umap_kwargs['dim'] > 1:
+        if 'dim' not in umap_kwargs or umap_kwargs['dim'] > 1:
             data_dict.update({
                 'y': pd.Series(coordinates[:, 1]),
             })
@@ -281,7 +283,7 @@ class SlideMap:
         self.save_cache()
 
     def _calculate_from_slides(
-        self, 
+        self,
         method: str = 'centroid',
         recalculate: bool = False,
         **umap_kwargs: Any
@@ -331,9 +333,9 @@ class SlideMap:
         if self.data is not None and not recalculate:
             log.info("Slide map loaded from cache.")
             log.debug("Filtering to include only provided tiles")
-            
+
             def is_opt(row):
-                return ((row['slide'] in opt_idx) 
+                return ((row['slide'] in opt_idx)
                         and (row['tfr_index'] == opt_idx[row['slide']]))
 
             self.data = self.data.loc[
@@ -348,10 +350,10 @@ class SlideMap:
                 ])
             elif method == 'average':
                 umap_input = np.array([
-                    np.mean(self.df.activations[slide]) 
+                    np.mean(self.df.activations[slide])
                     for slide in self.slides
                 ])
-            
+
             # Calculate UMAP
             coordinates = self.umap_transform(
                 umap_input,
@@ -359,12 +361,34 @@ class SlideMap:
             )
 
             # Create dataframe
+            logits = np.stack([
+                self.df.logits[slide][opt_idx[slide]] for slide in self.slides
+            ])
+            locations = np.stack([
+                self.df.locations[slide][opt_idx[slide]] for slide in self.slides
+            ])
             data_dict = {
                 'slide': pd.Series(self.slides),
                 'x': pd.Series(coordinates[:, 0]),
-                'y': pd.Series(coordinates[:, 1]),
-                'tfr_index': pd.Series(opt_idx[slide] for slide in self.slides)
+                'tfr_index': pd.Series(opt_idx[slide] for slide in self.slides),
+                'logits': pd.Series([l for l in logits]).astype(object),
+                'prediction': pd.Series(np.argmax(logits, axis=1)),
+                'location': pd.Series([l for l in locations]).astype(object)
             }
+            if self.df.hp.uq and self.df.uncertainty != {}:  # type: ignore
+                uncertainty = np.stack([
+                    self.df.uncertainty[slide][opt_idx[slide]]
+                    for slide in self.slides
+                ])
+                data_dict.update({
+                    'uncertainty': pd.Series(
+                        [u for u in uncertainty]
+                    ).astype(object)
+                })
+            if 'dim' not in umap_kwargs or umap_kwargs['dim'] > 1:
+                data_dict.update({
+                    'y': pd.Series(coordinates[:, 1]),
+                })
             self.data = pd.DataFrame(data_dict)
             self.save_cache()
 
@@ -611,7 +635,7 @@ class SlideMap:
             labels = plot_df.label
 
             # Check for categorical labels
-            if (categorical is True 
+            if (categorical is True
                or not pd.to_numeric(labels, errors='coerce').notnull().all()):
                 log.debug("Interpreting labels as categorical")
                 scatter_kwargs.update(
