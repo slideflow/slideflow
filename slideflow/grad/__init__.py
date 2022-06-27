@@ -39,7 +39,7 @@ class SaliencyMap:
         self,
         img: np.ndarray,
         grads: saliency.CoreSaliency,
-        baseline: bool  =False,
+        baseline: bool = False,
         smooth: bool = False,
         **kwargs
     ) -> np.ndarray:
@@ -59,6 +59,7 @@ class SaliencyMap:
         def _get_mask(_img):
             if baseline:
                 kwargs.update({'x_baseline': np.zeros(_img.shape)})
+
             return mask_fn(_img, self._grad_fn, **kwargs)
 
         if isinstance(img, list):

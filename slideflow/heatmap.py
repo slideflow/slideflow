@@ -1,10 +1,13 @@
 import os
 import shutil
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Union
+from collections import namedtuple
+from typing import (TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple,
+                    Union)
 
 import matplotlib.colors as mcol
 import numpy as np
 import shapely.geometry as sg
+from mpl_toolkits.axes_grid1.inset_locator import mark_inset, zoomed_inset_axes
 
 import slideflow as sf
 from slideflow import errors
@@ -16,6 +19,9 @@ from slideflow.util import log
 if TYPE_CHECKING:
     import matplotlib.pyplot as plt
     from matplotlib.axes import Axes
+
+
+Inset = namedtuple("Inset", "x y zoom loc mark1 mark2 axes")
 
 
 class Heatmap:
@@ -69,6 +75,7 @@ class Heatmap:
         """
 
         self.logits = None
+        self.insets = []
         if (roi_dir is None and rois is None) and roi_method != 'ignore':
             log.info("No ROIs provided; will generate whole-slide heatmap")
             roi_method = 'ignore'
@@ -153,6 +160,7 @@ class Heatmap:
         self,
         ax: "Axes",
         show_roi: bool = True,
+        thumb_size: Optional[Tuple[int, int]] = None,
         **kwargs
     ) -> None:
         """Formats matplotlib axis in preparation for heatmap plotting.
@@ -170,7 +178,7 @@ class Heatmap:
         )
         # Plot ROIs
         if show_roi:
-            roi_scale = self.slide.dimensions[0] / 2048
+            roi_scale = self.slide.dimensions[0] / thumb_size[0]
             annPolys = [
                 sg.Polygon(annotation.scaled_area(roi_scale))
                 for annotation in self.slide.rois
@@ -179,11 +187,38 @@ class Heatmap:
                 x, y = poly.exterior.xy
                 ax.plot(x, y, zorder=20, **kwargs)
 
+    def add_inset(
+        self,
+        x: Tuple[int, int],
+        y: Tuple[int, int],
+        zoom: int = 5,
+        loc: int = 1,
+        mark1: int = 2,
+        mark2: int = 4,
+        axes: bool = True
+    ) -> Inset:
+        """Adds a zoom inset to the heatmap."""
+        self.insets += [Inset(
+                x=x,
+                y=y,
+                zoom=zoom,
+                loc=loc,
+                mark1=mark1,
+                mark2=mark2,
+                axes=axes
+        )]
+
+    def clear_insets(self) -> None:
+        """Removes zoom insets."""
+        self.insets = []
+
     def plot_thumbnail(
         self,
         show_roi: bool = False,
         roi_color: str = 'k',
         linewidth: int = 5,
+        width: Optional[int] = None,
+        mpp: Optional[float] = None,
         ax: Optional["Axes"] = None,
     ) -> "plt.image.AxesImage":
         """Plot a thumbnail of the slide, with or without ROI.
@@ -200,13 +235,37 @@ class Heatmap:
             plt.image.AxesImage: Result from ax.imshow().
         """
         self._prepare_ax(ax)
+        if width is None and mpp is None:
+            width = 2048
+        thumb = self.slide.thumb(width=width, mpp=mpp)
         self._format_ax(
             ax,
             show_roi=show_roi,
             color=roi_color,
-            linewidth=linewidth
+            linewidth=linewidth,
+            thumb_size=thumb.size
         )
-        return ax.imshow(self.slide.thumb(width=2048), zorder=0)
+        imshow_thumb = ax.imshow(thumb, zorder=0)
+
+        for inset in self.insets:
+            axins = zoomed_inset_axes(ax, inset.zoom, loc=inset.loc)
+            axins.imshow(thumb)
+            axins.set_xlim(inset.x[0], inset.x[1])
+            axins.set_ylim(inset.y[0], inset.y[1])
+            mark_inset(
+                ax,
+                axins,
+                loc1=inset.mark1,
+                loc2=inset.mark2,
+                fc='none',
+                ec='0',
+                zorder=100
+            )
+            if not inset.axes:
+                axins.get_xaxis().set_ticks([])
+                axins.get_yaxis().set_ticks([])
+
+        return imshow_thumb
 
     def plot_with_logit_cmap(
         self,
