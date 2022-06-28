@@ -1,3 +1,5 @@
+"""Tool to assist with embedding interpolation for a class-conditional GAN."""
+
 from typing import (TYPE_CHECKING, Any, Callable, Generator, List, Optional,
                     Tuple, Union)
 

@@ -1,3 +1,4 @@
+"""Various search functions for use with GAN embedding interpolation."""
 
 from typing import Iterable, List, Optional, Tuple, Union
 

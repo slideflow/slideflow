@@ -1,3 +1,5 @@
+"""Utilities for processing PyTorch GAN output into Tensorflow tensors."""
+
 from functools import partial
 from typing import TYPE_CHECKING, Callable, Optional
 

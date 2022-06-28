@@ -1,5 +1,6 @@
-#from matplotlib.widgets import MultiCursor
-from typing import Callable, Iterable, List, Optional
+"""Plotting functions for displaying saliency maps."""
+
+from typing import Any, Callable, Iterable, List, Optional
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -36,12 +37,28 @@ def remove_ticks(axis):
     axis.set_yticks([])
 
 
-def comparison_plot(original, maps, cmap=plt.cm.gray):
-    n_rows = 3
-    n_cols = 3
+def comparison_plot(
+    original: np.ndarray,
+    maps: List[np.ndarray],
+    cmap: Any = plt.cm.gray,
+    n_rows: int = 3,
+    n_cols: int = 3,
+) -> None:
+    """Plots comparison of many saliency maps for a single iamge.
+
+    Args:
+        original (np.ndarray): Original (unprocessed) image.
+        maps (list(np.ndarray)): List of saliency maps.
+        cmap (matplotlib colormap, optional): Colormap for maps.
+            Defaults to plt.cm.gray.
+    """
     scale = 5
     ax_idx = [[i, j] for i in range(n_rows) for j in range(n_cols)]
-    fig, ax = plt.subplots(n_rows, n_cols, figsize=(n_rows * scale, n_cols * scale))
+    fig, ax = plt.subplots(
+        n_rows,
+        n_cols,
+        figsize=(n_rows * scale, n_cols * scale)
+    )
 
     ax[ax_idx[0][0], ax_idx[0][1]].axis('off')
     ax[ax_idx[0][0], ax_idx[0][1]].imshow(original)
@@ -75,8 +92,10 @@ def multi_plot(
         processed_imgs (Iterable[np.ndarray]): _description_
         method (Callable): _description_
         cmap (str, optional): _description_. Defaults to 'inferno'.
-        xlabels (Optional[List[str]], optional): _description_. Defaults to None.
-        ylabels (Optional[List[str]], optional): _description_. Defaults to None.
+        xlabels (Optional[List[str]], optional): _description_.
+            Defaults to None.
+        ylabels (Optional[List[str]], optional): _description_.
+            Defaults to None.
 
     Raises:
         ValueError: If length of raw_imgs, processed_imgs are not equal.
@@ -142,7 +161,28 @@ def multi_plot(
     fig.subplots_adjust(wspace=0, hspace=0)
 
 
-def saliency_map_comparison(orig_imgs, saliency_fn, process_fn, saliency_labels=None, cmap='inferno', **kwargs):
+def saliency_map_comparison(
+    orig_imgs: Iterable[np.ndarray],
+    saliency_fn: Iterable[Callable],
+    process_fn: Callable,
+    saliency_labels: Iterable[str] = None,
+    cmap: str = 'inferno',
+    **kwargs: Any
+) -> None:
+    """Plots several saliency maps for a list of images.
+
+    Args:
+        orig_imgs (list(np.ndarray)): Original (unprocessed) images for
+            which to generate saliency maps.
+        saliency_fn (list(Callable)): List of saliency map functions.
+        process_fn (Callable): Function for processing images. This function
+            will be applied to images before images are passed to the
+            saliency map function.
+        saliency_labels (list(str), optional): Labels for provided saliency
+            maps. Defaults to None.
+        cmap (str, optional): Colormap for saliency maps.
+            Defaults to 'inferno'.
+    """
 
     def apply_cmap(_img):
         cmap_fn = plt.get_cmap(cmap)
@@ -150,8 +190,11 @@ def saliency_map_comparison(orig_imgs, saliency_fn, process_fn, saliency_labels=
 
     n_imgs = len(orig_imgs)
     n_saliency = len(saliency_fn)
-    fig, ax = plt.subplots(n_imgs, n_saliency+1, figsize=((n_saliency+1)*5, n_imgs*5))
-
+    fig, ax = plt.subplots(
+        n_imgs,
+        n_saliency+1,
+        figsize=((n_saliency+1)*5, n_imgs*5)
+    )
     if saliency_labels is None:
         saliency_labels = [f"Saliency{n}" for n in range(n_saliency)]
     assert len(saliency_labels) == len(saliency_fn)

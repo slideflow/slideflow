@@ -1,4 +1,6 @@
-from typing import Dict
+"""Submodule for calculating/displaying pixel attribution (saliency maps)."""
+
+from typing import Any, Callable, Dict
 
 import numpy as np
 import saliency.core as saliency
@@ -10,7 +12,14 @@ from slideflow.grad.plot_utils import (comparison_plot, inferno, multi_plot,
 
 class SaliencyMap:
 
-    def __init__(self, model, class_idx):
+    def __init__(self, model: Callable, class_idx: int) -> None:
+        """Class to assist with calculation and display of saliency maps.
+
+        Args:
+            model (Callable): Differentiable model from which saliency is
+                calculated.
+            class_idx (int): Index of class for backpropagating gradients.
+        """
         self.model = model
         self.class_idx = class_idx
         self.gradients = saliency.GradientSaliency()
@@ -22,7 +31,13 @@ class SaliencyMap:
         self.fast_xrai_params.algorithm = 'fast'
         self.masks = {}
 
-    def _grad_fn(self, image, call_model_args=None, expected_keys=None):
+    def _grad_fn(
+        self,
+        image: np.ndarray,
+        call_model_args: Any = None,
+        expected_keys: Dict = None
+    ) -> Any:
+        """Calculate gradient attribution."""
         image = tf.convert_to_tensor(image)
         with tf.GradientTape() as tape:
             if expected_keys == [saliency.base.INPUT_OUTPUT_GRADIENTS]:
