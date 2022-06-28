@@ -78,9 +78,13 @@ def update_manifest_at_dir(
         try:
             total = read_tfrecord_length(tfr)
         except dataloss_errors:
-            return 'delete'
+            log.error(f"Corrupt or incomplete TFRecord at {tfr}; removing")
+            os.remove(tfr)
+            return None
         if not total:
-            return 'delete'
+            log.error(f"Corrupt or incomplete TFRecord at {tfr}; removing")
+            os.remove(tfr)
+            return None
         rel_tfr_manifest[rel_tfr]['total'] = total
         return rel_tfr_manifest
 
@@ -97,10 +101,6 @@ def update_manifest_at_dir(
         if pb is not None:
             pb.update()
         if m is None:
-            continue
-        if m == 'delete':
-            log.error(f"Corrupt or incomplete TFRecord at {tfr}; removing")
-            os.remove(tfr)
             continue
         manifest.update(m)
     # Write manifest file
