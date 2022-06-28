@@ -1341,7 +1341,7 @@ class Project:
                                 annotations=labels,
                                 **kwargs)
         if torch_export:
-            df.export_to_torch(torch_export)
+            df.to_torch(torch_export)
         return df
 
     @auto_dataset
@@ -1429,7 +1429,7 @@ class Project:
             layers=layers,
             include_logits=False,
         )
-        df.export_to_torch(outdir)
+        df.to_torch(outdir)
         return outdir
 
     @auto_dataset
@@ -1445,7 +1445,6 @@ class Project:
         resolution: str = 'low',
         batch_size: int = 32,
         roi_method: str = 'inside',
-        buffer: Optional[Path] = None,
         num_threads: Optional[int] = None,
         img_format: str = 'auto',
         skip_completed: bool = False,
@@ -1480,8 +1479,6 @@ class Project:
                 If 'ignore', will extract tiles across the whole-slide
                 regardless of whether an ROI is available.
                 Defaults to 'auto'.
-            buffer (str, optional): Path to which slides are copied prior to
-                heatmap generation. Defaults to None.
             num_threads (int, optional): Number of threads for tile extraction.
                 Defaults to CPU core count.
             skip_completed (bool, optional): Skip heatmaps for slides that
@@ -1567,7 +1564,6 @@ class Project:
         outcomes: Optional[Union[str, List[str]]] = None,
         map_slide: Optional[str] = None,
         show_prediction: Optional[Union[int, str]] = None,
-        restrict_pred: Optional[List[int]] = None,
         predict_on_axes: Optional[List[int]] = None,
         max_tiles: int = 0,
         umap_cache: Optional[Path] = None,
@@ -1604,9 +1600,6 @@ class Project:
             show_prediction (int or str, optional): May be either int or str,
                 corresponding to label category. Predictions for this category
                 will be displayed on the exported UMAP plot.
-            restrict_pred (list, optional): List of int, if provided, restrict
-                predictions to these categories. Final tile-level prediction
-                is made by choosing category with highest logit.
             predict_on_axes (list, optional): (int, int). Each int corresponds
                 to an label category id. If provided, predictions are generated
                 for these two labels categories; tiles are then mapped with
@@ -1625,9 +1618,8 @@ class Project:
                 a model's metadata file (params.json). Defaults to True.
 
         Keyword Args:
-            resolution (str): Mosaic map resolution, determines size of
-                exported figure. Either 'low', 'medium' or 'high'.
-                Defaults to 'high'.
+            figsize (Tuple[int, int], optional): Figure size. Defaults to
+                (200, 200).
             num_tiles_x (int): Specifies the size of the mosaic map grid.
             expanded (bool): Controls tile assignment on grid spaces.
                 If False, tile assignment is strict.
@@ -1697,7 +1689,6 @@ class Project:
             # Create mosaic map from UMAP of layer activations
             umap = sf.SlideMap.from_features(df,
                                              map_slide=map_slide,
-                                             prediction_filter=restrict_pred,
                                              cache=umap_cache,
                                              low_memory=low_memory,
                                              **umap_kwargs)
@@ -1712,8 +1703,8 @@ class Project:
 
             # Get predictions
             if model_type == 'categorical':
-                s_pred = df.logits_predict(restrict_pred)
-                s_perc = df.logits_percent(restrict_pred)
+                s_pred = df.logits_predict()
+                s_perc = df.logits_percent()
             else:
                 s_pred = s_perc = df.logits_mean()  # type: ignore
 
@@ -1812,7 +1803,8 @@ class Project:
             batch_size (int, optional): Batch size for model. Defaults to 64.
 
         Keyword Args:
-            resolution (str): Resolution of the mosaic. Low, medium, or high.
+            figsize (Tuple[int, int], optional): Figure size. Defaults to
+                (200, 200).
             num_tiles_x (int): Specifies the size of the mosaic map grid.
             expanded (bool): Controls tile assignment on grid spaces.
                 If False, tile assignment is strict.

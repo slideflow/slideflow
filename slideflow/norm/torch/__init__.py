@@ -3,11 +3,12 @@ from os.path import join
 from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
-import torch
 import torchvision
-
 from slideflow.norm import StainNormalizer
 from slideflow.norm.torch import reinhard, reinhard_fast
+from slideflow.util import detuple
+
+import torch
 
 
 class TorchStainNormalizer(StainNormalizer):
@@ -95,9 +96,9 @@ class TorchStainNormalizer(StainNormalizer):
         if isinstance(batch, dict):
             to_return = {k: v for k, v in batch.items() if k != 'tile_image'}
             to_return['tile_image'] = self.torch_to_torch(batch['tile_image'])
-            return tuple([to_return] + list(args))
+            return detuple(to_return, args)
         else:
-            return tuple([self.torch_to_torch(batch)] + list(args))
+            return detuple(self.torch_to_torch(batch), args)
 
     def torch_to_torch(self, image: torch.Tensor) -> torch.Tensor:
         if len(image.shape) == 3:

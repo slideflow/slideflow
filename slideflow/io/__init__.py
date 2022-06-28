@@ -8,24 +8,23 @@ from os.path import exists, isdir, isfile, join
 from random import shuffle
 from typing import Any, Dict, Optional, Tuple, Union
 
-from tqdm import tqdm
-
 import slideflow as sf
 from slideflow import errors
 from slideflow.io.io_utils import detect_tfrecord_format
 from slideflow.util import colors as col
 from slideflow.util import log
+from tqdm import tqdm
 
 # --- Backend-specific imports and configuration ------------------------------
 
 if os.environ['SF_BACKEND'] == 'tensorflow':
-    import tensorflow as tf
-    from tensorflow.data import TFRecordDataset
-    from tensorflow.io import TFRecordWriter
-
     from slideflow.io.tensorflow import get_tfrecord_parser  # noqa F401
     from slideflow.io.tensorflow import read_and_return_record  # noqa F401
     from slideflow.io.tensorflow import serialized_record
+
+    import tensorflow as tf
+    from tensorflow.data import TFRecordDataset
+    from tensorflow.io import TFRecordWriter
     dataloss_errors = [tf.errors.DataLossError, errors.TFRecordsError]
 
 elif os.environ['SF_BACKEND'] == 'torch':
@@ -142,6 +141,42 @@ def get_tfrecord_by_index(
     log.error(
         f"Unable to find record: index {index} in {sf.util.green(tfrecord)}"
         " ({total} total records)"
+    )
+    return False, False
+
+
+def get_tfrecord_by_location(
+    tfrecord: str,
+    location: Tuple[int, int],
+    decode: bool = True
+) -> Any:
+    '''Reads and returns an individual record from a tfrecord by index,
+    including slide name and processed image data.
+    '''
+    if isinstance(location, list):
+        location = tuple(location)
+    if (not isinstance(location, tuple)
+       or len(location) != 2
+       or not isinstance(location[0], int)
+       or not isinstance(location[1], int)):
+        raise IndexError(f"index must be a tuple of two ints. Got: {location}")
+
+    dataset = TFRecordDataset(tfrecord)
+    parser = get_tfrecord_parser(
+        tfrecord,
+        ('slide', 'image_raw', 'loc_x', 'loc_y'),
+        decode_images=decode
+    )
+    for i, record in enumerate(dataset):
+        slide, image_raw, loc_x, loc_y = parser(record)
+        if (loc_x, loc_y) == location:
+            if decode:
+                return slide, image_raw
+            else:
+                return record
+
+    log.error(
+        f"Unable to find record with location {location} in {tfrecord}"
     )
     return False, False
 

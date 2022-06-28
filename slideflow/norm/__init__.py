@@ -6,14 +6,13 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import cv2
 import numpy as np
-from PIL import Image
-from tqdm import tqdm
-
 import slideflow as sf
+from PIL import Image
 from slideflow import errors
 from slideflow.dataset import Dataset
 from slideflow.norm.utils import BaseNormalizer
-from slideflow.util import log
+from slideflow.util import detuple, log
+from tqdm import tqdm
 
 if sf.backend() == 'tensorflow':
     import tensorflow as tf
@@ -212,7 +211,7 @@ class StainNormalizer:
             )
         else:
             image = tf.py_function(self.tf_to_rgb, [image], tf.int32)
-        return tuple([image] + list(args))
+        return detuple(image, args)
 
     def tf_to_rgb(self, image: "tf.Tensor") -> np.ndarray:
         '''Non-normalized tensorflow RGB array -> normalized RGB numpy array'''

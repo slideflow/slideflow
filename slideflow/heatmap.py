@@ -1,10 +1,13 @@
 import os
 import shutil
-from typing import Any, Callable, Dict, List, Optional, Union
+from collections import namedtuple
+from typing import (TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple,
+                    Union)
 
 import matplotlib.colors as mcol
 import numpy as np
 import shapely.geometry as sg
+from mpl_toolkits.axes_grid1.inset_locator import mark_inset, zoomed_inset_axes
 
 import slideflow as sf
 from slideflow import errors
@@ -12,6 +15,13 @@ from slideflow.slide import WSI
 from slideflow.util import Path
 from slideflow.util import colors as col
 from slideflow.util import log
+
+if TYPE_CHECKING:
+    import matplotlib.pyplot as plt
+    from matplotlib.axes import Axes
+
+
+Inset = namedtuple("Inset", "x y zoom loc mark1 mark2 axes")
 
 
 class Heatmap:
@@ -28,7 +38,6 @@ class Heatmap:
         roi_method: str = 'auto',
         batch_size: int = 32,
         num_threads: Optional[int] = None,
-        buffer: Optional[str] = None,
         enable_downsample: bool = True,
         img_format: str = 'auto'
     ) -> None:
@@ -57,8 +66,6 @@ class Heatmap:
                 Defaults to 32.
             num_threads (int, optional): Number of tile worker threads.
                 Defaults to CPU core count.
-            buffer (str, optional): Path to use for buffering slides.
-                Defaults to None.
             enable_downsample (bool, optional): Enable the use of downsampled
                 slide image layers. Defaults to True.
             img_format (str, optional): Image format (png, jpg) to use when
@@ -68,6 +75,7 @@ class Heatmap:
         """
 
         self.logits = None
+        self.insets = []
         if (roi_dir is None and rois is None) and roi_method != 'ignore':
             log.info("No ROIs provided; will generate whole-slide heatmap")
             roi_method = 'ignore'
@@ -94,15 +102,6 @@ class Heatmap:
         self.num_classes = interface.num_logits
         self.num_features = interface.num_features
         self.num_uncertainty = interface.num_uncertainty
-
-        # Create slide buffer
-        if buffer and os.path.isdir(buffer):
-            new_path = os.path.join(buffer, os.path.basename(slide))
-            shutil.copy(slide, new_path)
-            slide = new_path
-            buffered_slide = True
-        else:
-            buffered_slide = False
 
         # Load the slide
         try:
@@ -134,21 +133,43 @@ class Heatmap:
             self.logits = out
             self.uncertainty = None
         log.info(f"Heatmap complete for {col.green(self.slide.name)}")
-        if buffered_slide:
-            os.remove(new_path)
 
-    def _prepare_figure(self, show_roi: bool = True) -> None:
-        """Prepares matplotlib figure of Heatmap.
+    @staticmethod
+    def _prepare_ax(ax: Optional["Axes"] = None) -> "Axes":
+        """Creates matplotlib figure and axis if one is not supplied,
+        otherwise clears the axis contents.
 
         Args:
-            show_roi (bool, optional): Include ROI on heatmap. Defaults to True.
+            ax (matplotlib.axes.Axes): Figure axis. If not supplied,
+                will create a new figure and axis. Otherwise, clears axis
+                contents. Defaults to None.
+
+        Returns:
+            matplotlib.axes.Axes: Figure axes.
         """
         import matplotlib.pyplot as plt
-        self.fig = plt.figure(figsize=(18, 16))
-        self.ax = self.fig.add_subplot(111)
-        self.fig.subplots_adjust(bottom=0.25, top=0.95)
-        gca = plt.gca()
-        gca.tick_params(
+        if ax is None:
+            fig = plt.figure(figsize=(18, 16))
+            ax = fig.add_subplot(111)
+            fig.subplots_adjust(bottom=0.25, top=0.95)
+        else:
+            ax.clear()
+        return ax
+
+    def _format_ax(
+        self,
+        ax: "Axes",
+        show_roi: bool = True,
+        thumb_size: Optional[Tuple[int, int]] = None,
+        **kwargs
+    ) -> None:
+        """Formats matplotlib axis in preparation for heatmap plotting.
+
+        Args:
+            ax (matplotlib.axes.Axes): Figure axis.
+            show_roi (bool, optional): Include ROI on heatmap. Defaults to True.
+        """
+        ax.tick_params(
             axis='x',
             top=True,
             labeltop=True,
@@ -157,26 +178,268 @@ class Heatmap:
         )
         # Plot ROIs
         if show_roi:
-            print('\r\033[KPlotting ROIs...', end='')
-            roi_scale = self.slide.dimensions[0] / 2048
+            roi_scale = self.slide.dimensions[0] / thumb_size[0]
             annPolys = [
                 sg.Polygon(annotation.scaled_area(roi_scale))
                 for annotation in self.slide.rois
             ]
             for poly in annPolys:
                 x, y = poly.exterior.xy
-                plt.plot(x, y, zorder=20, color='k', linewidth=5)
+                ax.plot(x, y, zorder=20, **kwargs)
+
+    def add_inset(
+        self,
+        x: Tuple[int, int],
+        y: Tuple[int, int],
+        zoom: int = 5,
+        loc: int = 1,
+        mark1: int = 2,
+        mark2: int = 4,
+        axes: bool = True
+    ) -> Inset:
+        """Adds a zoom inset to the heatmap."""
+        self.insets += [Inset(
+                x=x,
+                y=y,
+                zoom=zoom,
+                loc=loc,
+                mark1=mark1,
+                mark2=mark2,
+                axes=axes
+        )]
+
+    def clear_insets(self) -> None:
+        """Removes zoom insets."""
+        self.insets = []
+
+    def plot_thumbnail(
+        self,
+        show_roi: bool = False,
+        roi_color: str = 'k',
+        linewidth: int = 5,
+        width: Optional[int] = None,
+        mpp: Optional[float] = None,
+        ax: Optional["Axes"] = None,
+    ) -> "plt.image.AxesImage":
+        """Plot a thumbnail of the slide, with or without ROI.
+
+        Args:
+            show_roi (bool, optional): Overlay ROIs onto heatmap image.
+                Defaults to True.
+            roi_color (str): ROI line color. Defaults to 'k' (black).
+            linewidth (int): Width of ROI line. Defaults to 5.
+            ax (matplotlib.axes.Axes, optional): Figure axis. If not supplied,
+                will prepare a new figure axis.
+
+        Returns:
+            plt.image.AxesImage: Result from ax.imshow().
+        """
+        self._prepare_ax(ax)
+        if width is None and mpp is None:
+            width = 2048
+        thumb = self.slide.thumb(width=width, mpp=mpp)
+        self._format_ax(
+            ax,
+            show_roi=show_roi,
+            color=roi_color,
+            linewidth=linewidth,
+            thumb_size=thumb.size
+        )
+        imshow_thumb = ax.imshow(thumb, zorder=0)
+
+        for inset in self.insets:
+            axins = zoomed_inset_axes(ax, inset.zoom, loc=inset.loc)
+            axins.imshow(thumb)
+            axins.set_xlim(inset.x[0], inset.x[1])
+            axins.set_ylim(inset.y[0], inset.y[1])
+            mark_inset(
+                ax,
+                axins,
+                loc1=inset.mark1,
+                loc2=inset.mark2,
+                fc='none',
+                ec='0',
+                zorder=100
+            )
+            if not inset.axes:
+                axins.get_xaxis().set_ticks([])
+                axins.get_yaxis().set_ticks([])
+
+        return imshow_thumb
+
+    def plot_with_logit_cmap(
+        self,
+        logit_cmap: Union[Callable, Dict],
+        interpolation: str = 'none',
+        ax: Optional["Axes"] = None,
+        **thumb_kwargs,
+    ) -> None:
+        """Plot a heatmap using a specified logit colormap.
+
+        Args:
+            logit_cmap (obj, optional): Either function or a dictionary use to
+                create heatmap colormap. Each image tile will generate a list
+                of predictions of length O, where O is the number of outcomes.
+                If logit_cmap is a function, then the logit prediction list
+                will be passed to the function, and the function is expected
+                to return [R, G, B] values for display. If logit_cmap is a
+                dictionary, it should map 'r', 'g', and 'b' to indices; the
+                prediction for these outcome indices will be mapped to the RGB
+                colors. Thus, the corresponding color will only reflect up to
+                three outcomes. Example mapping prediction for outcome 0 to the
+                red colorspace, 3 to green, etc: {'r': 0, 'g': 3, 'b': 1}
+            interpolation (str, optional): Interpolation strategy to use for
+                smoothing heatmap. Defaults to 'none'.
+            ax (matplotlib.axes.Axes, optional): Figure axis. If not supplied,
+                will prepare a new figure axis.
+
+        Keyword args:
+            show_roi (bool, optional): Overlay ROIs onto heatmap image.
+                Defaults to True.
+            roi_color (str): ROI line color. Defaults to 'k' (black).
+            linewidth (int): Width of ROI line. Defaults to 5.
+        """
+        ax = self._prepare_ax(ax)
+        implot = self.plot_thumbnail(ax=ax, **thumb_kwargs)
+        ax.set_facecolor("black")
+        if callable(logit_cmap):
+            map_logit = logit_cmap
+        else:
+            # Make heatmap with specific logit predictions mapped
+            # to r, g, and b
+            def map_logit(logit):
+                return (logit[logit_cmap['r']],
+                        logit[logit_cmap['g']],
+                        logit[logit_cmap['b']])
+        ax.imshow(
+            [[map_logit(logit) for logit in row] for row in self.logits],
+            extent=implot.get_extent(),
+            interpolation=interpolation,
+            zorder=10
+        )
+
+    def plot_uncertainty(
+        self,
+        heatmap_alpha: float = 0.6,
+        cmap: str = 'coowarm',
+        interpolation: str = 'none',
+        ax: Optional["Axes"] = None,
+        **thumb_kwargs
+    ):
+        """Plot heatmap of uncertainty.
+
+        Args:
+            heatmap_alpha (float, optional): Alpha of heatmap overlay.
+                Defaults to 0.6.
+            cmap (str, optional): Matplotlib heatmap colormap.
+                Defaults to 'coolwarm'.
+            interpolation (str, optional): Interpolation strategy to use for
+                smoothing heatmap. Defaults to 'none'.
+            ax (matplotlib.axes.Axes, optional): Figure axis. If not supplied,
+                will prepare a new figure axis.
+
+        Keyword args:
+            show_roi (bool, optional): Overlay ROIs onto heatmap image.
+                Defaults to True.
+            roi_color (str): ROI line color. Defaults to 'k' (black).
+            linewidth (int): Width of ROI line. Defaults to 5.
+        """
+        ax = self._prepare_ax(ax)
+        implot = self.plot_thumbnail(ax=ax, **thumb_kwargs)
+        if heatmap_alpha == 1:
+            implot.set_alpha(0)
+        uqnorm = mcol.TwoSlopeNorm(
+            vmin=0,
+            vcenter=self.uncertainty.max()/2,
+            vmax=self.uncertainty.max()
+        )
+        masked_uncertainty = np.ma.masked_where(
+            self.uncertainty == -1,
+            self.uncertainty
+        )
+        ax.imshow(
+            masked_uncertainty,
+            norm=uqnorm,
+            extent=implot.get_extent(),
+            cmap=cmap,
+            alpha=heatmap_alpha,
+            interpolation=interpolation,
+            zorder=10
+        )
+
+    def plot(
+        self,
+        class_idx: int,
+        heatmap_alpha: float = 0.6,
+        cmap: str = 'coolwarm',
+        interpolation: str = 'none',
+        vmin: float = 0,
+        vmax: float = 1,
+        vcenter: float = 0.5,
+        ax: Optional["Axes"] = None,
+        **thumb_kwargs
+    ) -> None:
+        """Plot a predictive heatmap.
+
+        Args:
+            class_idx (int): Class index to plot.
+            heatmap_alpha (float, optional): Alpha of heatmap overlay.
+                Defaults to 0.6.
+            show_roi (bool, optional): Overlay ROIs onto heatmap image.
+                Defaults to True.
+            cmap (str, optional): Matplotlib heatmap colormap.
+                Defaults to 'coolwarm'.
+            interpolation (str, optional): Interpolation strategy to use for
+                smoothing heatmap. Defaults to 'none'.
+            vmin (float): Minimimum value to display on heatmap.
+                Defaults to 0.
+            vcenter (float): Center value for color display on heatmap.
+                Defaults to 0.5.
+            vmax (float): Maximum value to display on heatmap.
+                Defaults to 1.
+            ax (matplotlib.axes.Axes, optional): Figure axis. If not supplied,
+                will prepare a new figure axis.
+
+        Keyword args:
+            show_roi (bool, optional): Overlay ROIs onto heatmap image.
+                Defaults to True.
+            roi_color (str): ROI line color. Defaults to 'k' (black).
+            linewidth (int): Width of ROI line. Defaults to 5.
+        """
+
+        ax = self._prepare_ax(ax)
+        implot = self.plot_thumbnail(ax=ax, **thumb_kwargs)
+        if heatmap_alpha == 1:
+            implot.set_alpha(0)
+        ax.set_facecolor("black")
+        divnorm = mcol.TwoSlopeNorm(
+            vmin=vmin,
+            vcenter=vcenter,
+            vmax=vmax
+        )
+        masked_arr = np.ma.masked_where(
+            self.logits[:, :, class_idx] == -1,
+            self.logits[:, :, class_idx]
+        )
+        ax.imshow(
+            masked_arr,
+            norm=divnorm,
+            extent=implot.get_extent(),
+            cmap=cmap,
+            alpha=heatmap_alpha,
+            interpolation=interpolation,
+            zorder=10
+        )
 
     def save(
         self,
         outdir: Path,
         show_roi: bool = True,
         interpolation: str = 'none',
-        cmap: str = 'coolwarm',
         logit_cmap: Optional[Union[Callable, Dict]] = None,
-        vmin: float = 0,
-        vmax: float = 1,
-        vcenter: float = 0.5
+        roi_color: str = 'k',
+        linewidth: int = 5,
+        **kwargs
     ) -> None:
         """Saves calculated logits as heatmap overlays.
 
@@ -197,135 +460,79 @@ class Heatmap:
                 colors. Thus, the corresponding color will only reflect up to
                 three outcomes. Example mapping prediction for outcome 0 to the
                 red colorspace, 3 to green, etc: {'r': 0, 'g': 3, 'b': 1}
+            roi_color (str): ROI line color. Defaults to 'k' (black).
+            linewidth (int): Width of ROI line. Defaults to 5.
+
+        Keyword args:
+            cmap (str, optional): Matplotlib heatmap colormap.
+                Defaults to 'coolwarm'.
             vmin (float): Minimimum value to display on heatmap.
                 Defaults to 0.
             vcenter (float): Center value for color display on heatmap.
                 Defaults to 0.5.
             vmax (float): Maximum value to display on heatmap.
                 Defaults to 1.
+
         """
         import matplotlib.pyplot as plt
 
         if self.logits is None:
             raise errors.HeatmapError("Logits not yet calculated.")
 
+        def _savefig(label, bbox_inches='tight', **kwargs):
+            plt.savefig(
+                os.path.join(outdir, f'{self.slide.name}-{label}.png'),
+                bbox_inches=bbox_inches,
+                **kwargs
+            )
+
         print('\r\033[KSaving base figures...', end='')
+
+        # Prepare matplotlib figure
+        ax = self._prepare_ax()
+
+        thumb_kwargs = dict(roi_color=roi_color, linewidth=linewidth)
+
         # Save base thumbnail as separate figure
-        self._prepare_figure(show_roi=False)
-        self.ax.imshow(self.slide.thumb(width=2048), zorder=0)
-        plt.savefig(
-            os.path.join(outdir, f'{self.slide.name}-raw.png'),
-            bbox_inches='tight'
-        )
-        plt.clf()
+        self.plot_thumbnail(show_roi=False, ax=ax, **thumb_kwargs)
+        _savefig('raw')
+
         # Save thumbnail + ROI as separate figure
-        self._prepare_figure(show_roi=False)
-        self.ax.imshow(self.slide.thumb(width=2048, rois=True), zorder=0)
-        plt.savefig(
-            os.path.join(outdir, f'{self.slide.name}-raw+roi.png'),
-            bbox_inches='tight'
-        )
-        plt.clf()
-        # Now prepare base image for the the heatmap overlay
-        self._prepare_figure(show_roi=False)
-        implot = self.ax.imshow(
-            self.slide.thumb(width=2048, rois=show_roi),
-            zorder=0
-        )
-        self.ax.set_facecolor("black")
+        self.plot_thumbnail(show_roi=True, ax=ax, **thumb_kwargs)
+        _savefig('raw+roi')
 
         if logit_cmap:
-            if callable(logit_cmap):
-                map_logit = logit_cmap
-            else:
-                # Make heatmap with specific logit predictions mapped
-                # to r, g, and b
-                def map_logit(logit):
-                    return (logit[logit_cmap['r']],
-                            logit[logit_cmap['g']],
-                            logit[logit_cmap['b']])
-
-            heatmap = self.ax.imshow(
-                [[map_logit(logit) for logit in row] for row in self.logits],
-                extent=implot.get_extent(),
-                interpolation=interpolation,
-                zorder=10
-            )
-            plt.savefig(
-                os.path.join(outdir, f'{self.slide.name}-custom.png'),
-                bbox_inches='tight'
-            )
+            self.plot_with_logit_cmap(logit_cmap, show_roi=show_roi, ax=ax)
+            _savefig('custom')
         else:
-            heatmap_kwargs = {
-                'extent': implot.get_extent(),
-                'cmap': cmap,
-                'alpha': 0.6,
-                'interpolation': interpolation,
-                'zorder': 10
-            }
-            save_kwargs = {
-                'bbox_inches': 'tight',
-                'facecolor': self.ax.get_facecolor(),
-                'edgecolor': 'none'
-            }
+            heatmap_kwargs = dict(
+                show_roi=show_roi,
+                interpolation=interpolation,
+                **kwargs
+            )
+            save_kwargs = dict(
+                bbox_inches='tight',
+                facecolor=ax.get_facecolor(),
+                edgecolor='none'
+            )
             # Make heatmap plots and sliders for each outcome category
             for i in range(self.num_classes):
                 print(f'\r\033[KMaking {i+1}/{self.num_classes}...', end='')
-                divnorm = mcol.TwoSlopeNorm(
-                    vmin=vmin,
-                    vcenter=vcenter,
-                    vmax=vmax
-                )
-                masked_arr = np.ma.masked_where(
-                    self.logits[:, :, i] == -1,
-                    self.logits[:, :, i]
-                )
-                heatmap = self.ax.imshow(
-                    masked_arr,
-                    norm=divnorm,
-                    **heatmap_kwargs
-                )
-                plt.savefig(
-                    os.path.join(outdir, f'{self.slide.name}-{i}.png'),
-                    **save_kwargs
-                )
-                heatmap.set_alpha(1)
-                implot.set_alpha(0)
-                plt.savefig(
-                    os.path.join(outdir, f'{self.slide.name}-{i}-solid.png'),
-                    **save_kwargs
-                )
-                heatmap.remove()
-                implot.set_alpha(1)
+                self.plot(i, heatmap_alpha=0.6, ax=ax, **heatmap_kwargs)
+                _savefig(str(i), **save_kwargs)
+
+                self.plot(i, heatmap_alpha=1, ax=ax, **heatmap_kwargs)
+                _savefig(f'{i}-solid', **save_kwargs)
 
             # Uncertainty map
             if self.uq:
                 print('\r\033[KMaking uncertainty heatmap...', end='')
-                uqnorm = mcol.TwoSlopeNorm(
-                    vmin=0,
-                    vcenter=self.uncertainty.max()/2,
-                    vmax=self.uncertainty.max()
-                )
-                masked_uncertainty = np.ma.masked_where(
-                    self.uncertainty == -1,
-                    self.uncertainty
-                )
-                heatmap = self.ax.imshow(
-                    masked_uncertainty,
-                    norm=uqnorm,
-                    **heatmap_kwargs
-                )
-                plt.savefig(
-                    os.path.join(outdir, f'{self.slide.name}-UQ.png'),
-                    **save_kwargs
-                )
-                heatmap.set_alpha(1)
-                implot.set_alpha(0)
-                plt.savefig(
-                    os.path.join(outdir, f'{self.slide.name}-UQ-solid.png'),
-                    **save_kwargs
-                )
-                heatmap.remove()
+                self.plot_uncertainty(heatmap_alpha=0.6, ax=ax, **heatmap_kwargs)
+                _savefig('UQ', **save_kwargs)
+
+                self.plot_uncertainty(heatmap_alpha=1, ax=ax, **heatmap_kwargs)
+                _savefig('UQ-solid', **save_kwargs)
+
         plt.close()
         print('\r\033[K', end='')
         log.info(f'Saved heatmaps for {col.green(self.slide.name)}')

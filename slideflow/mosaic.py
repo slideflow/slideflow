@@ -8,7 +8,7 @@ import time
 from functools import partial
 from multiprocessing.dummy import Pool as DPool
 from random import shuffle
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import cv2
 import numpy as np
@@ -104,19 +104,18 @@ class Mosaic:
         # First, load UMAP coordinates
         log.info('Loading coordinates and plotting points...')
         self.points = []
-        for i in range(len(slide_map.x)):
-            slide = slide_map.point_meta[i]['slide']
+        for i, row in slide_map.data.iterrows():
             if tile_meta:
-                meta = tile_meta[slide][slide_map.point_meta[i]['index']]
+                meta = tile_meta[row.slide][row.tfr_index]
             else:
                 meta = None
             self.points.append({
-                'coord': np.array((slide_map.x[i], slide_map.y[i])),
+                'coord': np.array((row.x, row.y)),
                 'global_index': i,
                 'category': 'none',
-                'slide': slide,
-                'tfrecord': self._get_tfrecords_from_slide(slide),
-                'tfrecord_index': slide_map.point_meta[i]['index'],
+                'slide': row.slide,
+                'tfrecord': self._get_tfrecords_from_slide(row.slide),
+                'tfrecord_index': row.tfr_index,
                 'paired_tile': None,
                 'meta': meta
             })
@@ -228,9 +227,9 @@ class Mosaic:
         if self.mapping_method == 'expanded':
             self.tile_point_distances.sort(key=lambda d: d['distance'])
 
-    def place_tiles(
+    def plot(
         self,
-        resolution: str = 'high',
+        figsize: Tuple[int, int] = (200, 200),
         tile_zoom: int = 15,
         relative_size: bool = False,
         focus: Optional[List[Path]] = None,
@@ -239,8 +238,8 @@ class Mosaic:
         """Initializes figures and places image tiles.
 
         Args:
-            resolution (str, optional): Resolution of exported figure; 'high',
-                'medium', or 'low'. Defaults to 'high'.
+            figsize (Tuple[int, int], optional): Figure size. Defaults to
+                (200, 200).
             tile_zoom (int, optional): Factor which determines how large
                 individual tiles appear. Defaults to 15.
             relative_size (bool, optional): Physically size grid images in
@@ -254,14 +253,8 @@ class Mosaic:
         import matplotlib.pyplot as plt
 
         # Initialize figure
-        if resolution not in ('high', 'low'):
-            raise ValueError(f"Unknown resolution option '{resolution}'")
-        elif resolution == 'high':
-            fig = plt.figure(figsize=(200, 200))
-            ax = fig.add_subplot(111, aspect='equal')
-        else:
-            fig = plt.figure(figsize=(24, 18))
-            ax = fig.add_subplot(121, aspect='equal')
+        fig = plt.figure(figsize=figsize)
+        ax = fig.add_subplot(111, aspect='equal')
         ax.set_facecolor('#dfdfdf')
         fig.tight_layout()
         plt.subplots_adjust(
@@ -454,8 +447,8 @@ class Mosaic:
             filename (str): Path at which to save the mosiac image.
 
         Keyword args:
-            resolution (str, optional): Resolution of exported figure; 'high',
-                'medium', or 'low'. Defaults to 'high'.
+            figsize (Tuple[int, int], optional): Figure size. Defaults to
+                (200, 200).
             tile_zoom (int, optional): Factor which determines how large
                 individual tiles appear. Defaults to 15.
             relative_size (bool, optional): Physically size grid images in
@@ -466,7 +459,7 @@ class Mosaic:
         """
         import matplotlib.pyplot as plt
 
-        self.place_tiles(**kwargs)
+        self.plot(**kwargs)
         log.info('Exporting figure...')
         try:
             if not os.path.exists(os.path.dirname(filename)):

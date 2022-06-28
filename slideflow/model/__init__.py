@@ -18,6 +18,7 @@ from os.path import exists, join
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
+import pandas as pd
 import scipy.stats as stats
 import slideflow as sf
 from slideflow import errors
@@ -216,19 +217,9 @@ class DatasetFeatures:
             self.categories = []
             self.used_categories = []
 
-        # Load activations
         # Load from PKL (cache) if present
         if cache and exists(cache):
-            # Load saved PKL cache
-            log.info(f'Loading from cache {col.green(cache)}...')
-            with open(cache, 'rb') as pt_pkl_file:
-                loaded_pkl = pickle.load(pt_pkl_file)
-                self.activations = loaded_pkl[0]
-                self.logits = loaded_pkl[1]
-                self.uncertainty = loaded_pkl[2]
-                self.locations = loaded_pkl[3]
-                self.num_features = self.activations[self.slides[0]].shape[-1]
-                self.num_logits = self.logits[self.slides[0]].shape[-1]
+            self.load_cache(cache)
 
         # Otherwise will need to generate new activations from a given model
         else:
@@ -429,17 +420,8 @@ class DatasetFeatures:
         log.debug(f'Calculation time: {fla_calc_time-fla_start_time:.0f} sec')
         log.debug(f'Number of activation features: {self.num_features}')
 
-        # Dump PKL dictionary to file
         if cache:
-            with open(cache, 'wb') as pt_pkl_file:
-                pickle.dump(
-                    [self.activations,
-                     self.logits,
-                     self.uncertainty,
-                     self.locations],
-                    pt_pkl_file
-                )
-            log.info(f'Data cached to {col.green(cache)}')
+            self.save_cache(cache)
 
     def activations_by_category(
         self,
@@ -517,7 +499,31 @@ class DatasetFeatures:
             plt.gcf().canvas.start_event_loop(sys.float_info.min)
             plt.savefig(boxplot_filename, bbox_inches='tight')
 
-    def export_to_csv(
+    def export_to_torch(self, *args, **kwargs):
+        """Deprecated function; please use `.to_torch()`"""
+        log.warn(
+            "Deprecation warning: DatasetFeatures.export_to_torch() will"
+            " be removed in slideflow>=1.3. Use .to_torch() instead."
+        )
+        self.to_torch(*args, **kwargs)
+
+    def save_cache(self, path: str):
+        """Cache calculated activations to file.
+
+        Args:
+            path (str): Path to pkl.
+        """
+        with open(path, 'wb') as pt_pkl_file:
+            pickle.dump(
+                [self.activations,
+                 self.logits,
+                 self.uncertainty,
+                 self.locations],
+                pt_pkl_file
+            )
+        log.info(f'Data cached to {col.green(path)}')
+
+    def to_csv(
         self,
         filename: str,
         level: str = 'tile',
@@ -573,7 +579,7 @@ class DatasetFeatures:
                         csvwriter.writerow([slide] + act)
         log.debug(f'Activations saved to {col.green(filename)}')
 
-    def export_to_torch(
+    def to_torch(
         self,
         outdir: str,
         slides: Optional[List[str]] = None
@@ -604,6 +610,66 @@ class DatasetFeatures:
         }
         sf.util.write_json(args, join(outdir, 'settings.json'))
         log.info('Activations exported in Torch format.')
+
+    def to_df(
+        self
+    ) -> pd.core.frame.DataFrame:
+        """Export activations, logits, uncertainty, and locations to
+        a pandas DataFrame.
+
+        Returns:
+            pd.core.frame.DataFrame: Dataframe with columns 'activations',
+            'logits', 'uncertainty', and 'locations'.
+        """
+
+        index = [s for s in self.slides
+                   for _ in range(len(self.locations[s]))]
+        df_dict = {}
+        df_dict.update({
+            'locations': pd.Series([
+                self.locations[s][i]
+                for s in self.slides
+                for i in range(len(self.locations[s]))], index=index)
+        })
+        if self.activations:
+            df_dict.update({
+                'activations': pd.Series([
+                    self.activations[s][i]
+                    for s in self.slides
+                    for i in range(len(self.activations[s]))], index=index)
+            })
+        if self.logits:
+            df_dict.update({
+                'logits': pd.Series([
+                    self.logits[s][i]
+                    for s in self.slides
+                    for i in range(len(self.logits[s]))], index=index)
+            })
+        if self.uncertainty:
+            df_dict.update({
+                'uncertainty': pd.Series([
+                    self.uncertainty[s][i]
+                    for s in self.slides
+                    for i in range(len(self.uncertainty[s]))], index=index)
+            })
+        return pd.DataFrame(df_dict)
+
+
+    def load_cache(self, path: str):
+        """Load cached activations from PKL.
+
+        Args:
+            path (str): Path to pkl cache.
+        """
+        log.info(f'Loading from cache {col.green(path)}...')
+        with open(path, 'rb') as pt_pkl_file:
+            loaded_pkl = pickle.load(pt_pkl_file)
+            self.activations = loaded_pkl[0]
+            self.logits = loaded_pkl[1]
+            self.uncertainty = loaded_pkl[2]
+            self.locations = loaded_pkl[3]
+            self.num_features = self.activations[self.slides[0]].shape[-1]
+            self.num_logits = self.logits[self.slides[0]].shape[-1]
 
     def stats(
         self,

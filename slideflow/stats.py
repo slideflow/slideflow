@@ -5,6 +5,7 @@ import pickle
 import sys
 import time
 from functools import partial
+from multiprocessing.sharedctypes import Value
 from os.path import join
 from random import sample
 from types import SimpleNamespace
@@ -31,12 +32,13 @@ if TYPE_CHECKING:
     import neptune.new as neptune
     import tensorflow as tf
     import torch
+    from matplotlib.axes import Axes
+    from matplotlib.figure import Figure
 
     from slideflow.model import DatasetFeatures
 
 # TODO: remove 'hidden_0' reference as this may not be present
 # if the model does not have hidden layers
-# TODO: refactor all this x /y /meta /values stuff to a pd.DataFrame
 
 
 class SlideMap:
@@ -65,10 +67,7 @@ class SlideMap:
         self.slides = slides
         self.cache = cache
         self.df = None  # type: Optional[DatasetFeatures]
-        self.x = np.array([])
-        self.y = np.array([])
-        self.point_meta = np.array([])
-        self.labels = np.array([])
+        self.data = None  # type: pd.core.frame.DataFrame
         self.map_meta = {}  # type: Dict[str, Any]
         if self.cache:
             self.load_cache()
@@ -76,11 +75,11 @@ class SlideMap:
     @classmethod
     def from_precalculated(
         cls,
-        slides: List[str],
-        x: Union[np.ndarray, List[int]],
-        y: Union[np.ndarray, List[int]],
-        meta: Union[np.ndarray, List[Dict]],
-        labels: Optional[Union[np.ndarray, List[str]]] = None,
+        x: Union[np.ndarray, List[int], str],
+        y: Union[np.ndarray, List[int], str],
+        slides: Union[np.ndarray, List[str], str],
+        tfr_index: Union[np.ndarray, List[int], str],
+        data: Optional[pd.core.frame.DataFrame] = None,
         cache: Optional[Path] = None
     ) -> "SlideMap":
         """Initializes map from precalculated coordinates.
@@ -97,20 +96,36 @@ class SlideMap:
                 Defaults to None (caching disabled).
         """
 
-        obj = cls(slides)
+        # Read and verify provided input
+        cols = {'x': x, 'y': y, 'slides': slides, 'tfr_index': tfr_index}
+        for col, col_val in cols.items():
+            if isinstance(col_val, str) and data is None:
+                raise ValueError(
+                    f"Could not interpret input {col_val} for arg {col}. "
+                    "Did you mean to supply a DataFrame via 'data'?")
+            elif data is not None:
+                if isinstance(col_val, str) and col_val not in data.columns:
+                    raise ValueError(f"Could not find column {col_val}.")
+                elif isinstance(col_val, str):
+                    cols[col] = data[col_val].values
+            else:
+                cols[col] = col_val
+
+        # Verify lengths of provided input
+        if not all(len(cols[c]) == len(cols['x']) for c in cols):
+            raise ValueError(
+                "Length of x, y, slides, and tfr_index must all be equal."
+            )
+
+        obj_data = pd.DataFrame({
+            'x': pd.Series(cols['x']),
+            'y': pd.Series(cols['y']),
+            'slide': pd.Series(cols['slides']),
+            'tfr_index': pd.Series(cols['tfr_index'])
+        })
+        obj = cls(obj_data.slide.unique())
+        obj.data = obj_data
         obj.cache = cache
-        obj.x = np.array(x) if not isinstance(x, np.ndarray) else x
-        obj.y = np.array(y) if not isinstance(y, np.ndarray) else y
-        if not isinstance(meta, np.ndarray):
-            obj.point_meta = np.array(meta)
-        else:
-            obj.point_meta = meta
-        if not isinstance(labels, np.ndarray):
-            obj.labels = np.array(labels)
-        else:
-            obj.labels = labels
-        if obj.labels == []:
-            obj.labels = np.array(['None' for i in range(len(obj.point_meta))])
         obj.save_cache()
         return obj
 
@@ -119,12 +134,12 @@ class SlideMap:
         cls,
         df: "DatasetFeatures",
         exclude_slides: Optional[List[str]] = None,
-        prediction_filter: Optional[List[int]] = None,
         recalculate: bool = False,
         map_slide: Optional[str] = None,
         cache: Optional[Path] = None,
         low_memory: bool = False,
         umap_dim: int = 2,
+        umap: Optional[Any] = None,
         **umap_kwargs: Any
     ) -> "SlideMap":
         """Initializes map from dataset features.
@@ -132,8 +147,6 @@ class SlideMap:
         Args:
             df (:class:`slideflow.DatasetFeatures`): DatasetFeatures.
             exclude_slides (list, optional): List of slides to exclude.
-            prediction_filter (list, optional) Restrict outcome predictions to
-                only these provided categories.
             recalculate (bool, optional):  Force recalculation of umap despite
                 presence of cache.
             use_centroid (bool, optional): Calculate/map centroid activations.
@@ -156,17 +169,16 @@ class SlideMap:
 
         obj = cls(slides, cache=cache)
         obj.df = df
+        obj.umap = umap
         if map_slide:
             obj._calculate_from_slides(
                 method=map_slide,
-                prediction_filter=prediction_filter,
                 recalculate=recalculate,
                 low_memory=low_memory,
                 **umap_kwargs
             )
         else:
             obj._calculate_from_tiles(
-                prediction_filter=prediction_filter,
                 recalculate=recalculate,
                 low_memory=low_memory,
                 dim=umap_dim,
@@ -174,9 +186,16 @@ class SlideMap:
             )
         return obj
 
+    @property
+    def x(self):
+        return self.data.x.values
+
+    @property
+    def y(self):
+        return self.data.y.values
+
     def _calculate_from_tiles(
         self,
-        prediction_filter: Optional[List[int]] = None,
         recalculate: bool = False,
         **umap_kwargs: Any
     ) -> None:
@@ -184,8 +203,6 @@ class SlideMap:
         features / activations, as provided by DatasetFeatures.
 
         Args:
-            prediction_filter (list, optional): Restrict predictions to this
-                list of logits. Default is None.
             recalculate (bool, optional): Recalculate of UMAP despite loading
                 from cache. Defaults to False.
 
@@ -197,76 +214,77 @@ class SlideMap:
             low_memory (bool). Operate UMAP in low memory mode.
                 Defaults to False.
         """
-
-        if prediction_filter:
-            log.info("Masking UMAP logits through a prediction filter.")
-
         assert self.df is not None
-        if self.x.size and self.y.size and not recalculate:
-            log.info("UMAP loaded from cache, will not recalculate")
+        if self.data is not None and not recalculate:
+            log.info("Data loaded from cache, will not recalculate")
 
             # First, filter out slides not included in provided activations
-            filtered_idx = np.array([
-                i for i, x in enumerate(self.point_meta)
-                if x['slide'] in self.df.slides
-            ])
-            self.x = self.x[filtered_idx]
-            self.y = self.y[filtered_idx]
-            self.point_meta = self.point_meta[filtered_idx]
+            self.data = self.data.loc[self.data.slide.isin(self.df.slides)]
 
             # If UMAP already calculated, update predictions
             # if prediction filter is provided
-            for i in range(len(self.point_meta)):
-                slide = self.point_meta[i]['slide']
-                tile_index = self.point_meta[i]['index']
-                logits = self.df.logits[slide][tile_index]
-                prediction = filtered_prediction(logits, prediction_filter)
-                self.point_meta[i]['logits'] = logits
-                self.point_meta[i]['prediction'] = prediction
+            logits = [
+                self.df.logits[row.slide][row.tfr_index]
+                for _, row in self.data.iterrows()
+            ]
+            predictions = np.argmax(np.array(logits), axis=1)
+            self.data['logits'] = pd.Series(logits)
+            self.data['predictions'] = pd.Series([p for p in predictions])
             return
 
         # Calculate UMAP
         node_activations = np.concatenate([
             self.df.activations[slide] for slide in self.slides
         ])
+
         self.map_meta['num_features'] = self.df.num_features
         log.info("Calculating UMAP...")
-        running_pm = []
-        for slide in self.slides:
-            for i in range(self.df.activations[slide].shape[0]):
-                location = self.df.locations[slide][i]
-                logits = self.df.logits[slide][i]
-                if self.df.logits[slide] != []:
-                    pred = filtered_prediction(logits, prediction_filter)
-                else:
-                    pred = None
-                pm = {
-                    'slide': slide,
-                    'index': i,
-                    'prediction': pred,
-                    'logits': logits,
-                    'loc': location
-                }
-                if self.df.hp.uq and self.df.uncertainty != {}:  # type: ignore
-                    pm.update({'uncertainty': self.df.uncertainty[slide][i]})
-                running_pm += [pm]
-        self.point_meta = np.array(running_pm)
-        coordinates = gen_umap(node_activations, **umap_kwargs)
 
-        self.x = np.array([c[0] for c in coordinates])
-        if umap_kwargs['dim'] > 1:
-            self.y = np.array([c[1] for c in coordinates])
-        else:
-            self.y = np.array([0 for i in range(len(self.x))])
+        coordinates = self.umap_transform(node_activations, **umap_kwargs)
 
-        assert self.x.shape[0] == self.y.shape[0]
-        assert self.x.shape[0] == len(self.point_meta)
-
+        # Assemble dataframe
+        logits = np.concatenate([
+            self.df.logits[slide] for slide in self.slides
+        ])
+        locations = np.concatenate([
+            self.df.locations[slide] for slide in self.slides
+        ])
+        tfrecord_indices = np.concatenate([
+            np.arange(self.df.locations[slide].shape[0])
+            for slide in self.slides
+        ])
+        slides = np.array([
+            slide
+            for slide in self.slides
+            for _ in range(self.df.locations[slide].shape[0])
+        ])
+        data_dict = {
+            'slide': pd.Series(slides),
+            'x': pd.Series(coordinates[:, 0]),
+            'tfr_index': pd.Series(tfrecord_indices),
+            'logits': pd.Series([l for l in logits]).astype(object),
+            'prediction': pd.Series(np.argmax(logits, axis=1)),
+            'location': pd.Series([l for l in locations]).astype(object)
+        }
+        if self.df.hp.uq and self.df.uncertainty != {}:  # type: ignore
+            uncertainty = np.concatenate([
+                self.df.uncertainty[slide] for slide in self.slides
+            ])
+            data_dict.update({
+                'uncertainty': pd.Series(
+                    [u for u in uncertainty]
+                ).astype(object)
+            })
+        if 'dim' not in umap_kwargs or umap_kwargs['dim'] > 1:
+            data_dict.update({
+                'y': pd.Series(coordinates[:, 1]),
+            })
+        self.data = pd.DataFrame(data_dict)
         self.save_cache()
 
     def _calculate_from_slides(
-        self, method: str = 'centroid',
-        prediction_filter: Optional[List[int]] = None,
+        self,
+        method: str = 'centroid',
         recalculate: bool = False,
         **umap_kwargs: Any
     ) -> None:
@@ -280,8 +298,6 @@ class SlideMap:
                 If average, will calculate UMAP based on average node
                 activations across all tiles within the slide, then display the
                 centroid tile for each slide.
-            prediction_filter (list, optional): List of int. If provided, will
-                restrict predictions to these categories.
             recalculate (bool, optional): Recalculate of UMAP despite loading
             from cache. Defaults to False.
             low_memory (bool, optional): Calculate UMAP in low-memory mode.
@@ -314,67 +330,86 @@ class SlideMap:
                 log.debug(f"No centroid for {col.green(slide)}; skipping")
         if num_warned:
             log.warning(f"No centroid for {num_warned} slides.")
-        if self.x.size and self.y.size and not recalculate:
-            log.info("UMAP loaded from cache.")
-            log.debug("Filtering UMAP to include only provided tiles")
-            new_x, new_y, new_meta = [], [], []
-            for i in range(len(self.point_meta)):
-                slide = self.point_meta[i]['slide']
-                idx = self.point_meta[i]['index']
-                if (slide in opt_idx and idx == opt_idx[slide]):
-                    new_x += [self.x[i]]
-                    new_y += [self.y[i]]
-                    if prediction_filter:
-                        logits = self.df.logits[slide][idx]
-                        prediction = filtered_prediction(
-                            logits, prediction_filter
-                        )
-                        meta = {
-                            'slide': slide,
-                            'index': idx,
-                            'logits': logits,
-                            'prediction': prediction,
-                        }
-                    else:
-                        meta = self.point_meta[i]
-                    new_meta += [meta]
-            self.x = np.array(new_x)
-            self.y = np.array(new_y)
-            self.point_meta = np.array(new_meta)
+        if self.data is not None and not recalculate:
+            log.info("Slide map loaded from cache.")
+            log.debug("Filtering to include only provided tiles")
+
+            def is_opt(row):
+                return ((row['slide'] in opt_idx)
+                        and (row['tfr_index'] == opt_idx[row['slide']]))
+
+            self.data = self.data.loc[
+                self.data.apply(lambda row : is_opt(row), axis=1)
+            ]
         else:
             log.info(f"Calculating UMAP from slide-level {method}...")
-            umap_input = []
-            running_pm = []
-            for slide in self.slides:
-                if method == 'centroid':
-                    umap_input += [centroid_activations[slide]]
-                elif method == 'average':
-                    activation_averages = np.mean(self.df.activations[slide])
-                    umap_input += [activation_averages]
-                running_pm += [{
-                    'slide': slide,
-                    'index': opt_idx[slide],
-                    'logits': [],
-                    'prediction': 0
-                }]
-            coordinates = gen_umap(np.array(umap_input), **umap_kwargs)
-            self.x = np.array([c[0] for c in coordinates])
-            self.y = np.array([c[1] for c in coordinates])
-            self.point_meta = np.array(running_pm)
+
+            if method == 'centroid':
+                umap_input = np.array([
+                    centroid_activations[slide] for slide in self.slides
+                ])
+            elif method == 'average':
+                umap_input = np.array([
+                    np.mean(self.df.activations[slide], axis=0)
+                    for slide in self.slides
+                ])
+
+            # Calculate UMAP
+            coordinates = self.umap_transform(
+                umap_input,
+                **umap_kwargs
+            )
+
+            # Create dataframe
+            logits = np.stack([
+                self.df.logits[slide][opt_idx[slide]] for slide in self.slides
+            ])
+            locations = np.stack([
+                self.df.locations[slide][opt_idx[slide]] for slide in self.slides
+            ])
+            data_dict = {
+                'slide': pd.Series(self.slides),
+                'x': pd.Series(coordinates[:, 0]),
+                'tfr_index': pd.Series(opt_idx[slide] for slide in self.slides),
+                'logits': pd.Series([l for l in logits]).astype(object),
+                'prediction': pd.Series(np.argmax(logits, axis=1)),
+                'location': pd.Series([l for l in locations]).astype(object)
+            }
+            if self.df.hp.uq and self.df.uncertainty != {}:  # type: ignore
+                uncertainty = np.stack([
+                    self.df.uncertainty[slide][opt_idx[slide]]
+                    for slide in self.slides
+                ])
+                data_dict.update({
+                    'uncertainty': pd.Series(
+                        [u for u in uncertainty]
+                    ).astype(object)
+                })
+            if 'dim' not in umap_kwargs or umap_kwargs['dim'] > 1:
+                data_dict.update({
+                    'y': pd.Series(coordinates[:, 1]),
+                })
+            self.data = pd.DataFrame(data_dict)
             self.save_cache()
 
-    def cluster(self, n_clusters: int) -> np.ndarray:
+    def activations(self) -> np.ndarray:
+        if self.df is None:
+            raise ValueError(
+                "No associated DatasetFeatures object for reading activations."
+            )
+        return np.array([
+            self.df.activations[row.slide][row.tfr_index]
+            for _, row in self.data.iterrows()
+        ])
+
+    def cluster(self, n_clusters: int) -> None:
         """Performs clustering on data and adds to metadata labels.
         Requires a DatasetFeatures backend.
 
-        Clusters are saved to self.point_meta[i]['cluster'].
+        Clusters are saved to self.data['cluster'].
 
         Args:
             n_clusters (int): Number of clusters for K means clustering.
-
-        Returns:
-            ndarray: Array with cluster labels corresponding to tiles
-            in self.point_meta.
         """
 
         if self.df is None:
@@ -382,40 +417,13 @@ class SlideMap:
                 "Unable to cluster; no DatasetFeatures provided"
             )
         activations = [
-            self.df.activations[pm['slide']][pm['index']]
-            for pm in self.point_meta
+            self.df.activations[row.slide][row.tfr_index]
+            for _, row in self.data.iterrows()
         ]
         log.info(f"Calculating K-means clustering (n={n_clusters})")
         kmeans = KMeans(n_clusters=n_clusters).fit(activations)
         labels = kmeans.labels_
-        for i, label in enumerate(labels):
-            self.point_meta[i]['cluster'] = label
-        return np.array([p['cluster'] for p in self.point_meta])
-
-    def export_to_csv(self, filename: Path) -> None:
-        """Exports calculated UMAP coordinates in csv format.
-
-        Args:
-            filename (str): Path to CSV file in which to save coordinates.
-        """
-        with open(filename, 'w') as outfile:
-            csvwriter = csv.writer(outfile)
-            header = ['slide', 'index', 'x', 'y']
-            csvwriter.writerow(header)
-            for index in range(len(self.point_meta)):
-                x = self.x[index]
-                y = self.y[index]
-                meta = self.point_meta[index]
-                slide = meta['slide']
-                index = meta['index']
-                row = [slide, index, x, y]
-                csvwriter.writerow(row)
-
-    def filter_index(self, idx: Union[int, List[int], np.ndarray]) -> None:
-        self.x = self.x[idx]
-        self.y = self.y[idx]
-        self.point_meta = self.point_meta[idx]
-        self.labels = self.labels[idx]
+        self.data['cluster'] = labels
 
     def neighbors(
         self,
@@ -448,19 +456,13 @@ class SlideMap:
             )
         log.info(f"Initializing neighbor search (method={method})...")
         if method == 'map':
-            X = np.stack((self.x, self.y), axis=-1)
+            X = np.stack((self.data.x.values, self.data.y.values), axis=-1)
         elif method == 'features':
-            X = np.array([
-                self.df.activations[pm['slide']][pm['index']]
-                for pm in self.point_meta
-            ])
+            X = self.activations()
         elif method == 'pca':
             log.info(f"Reducing dimensionality with PCA (dim={pca_dim})...")
             pca = PCA(n_components=pca_dim)
-            features = np.array([
-                self.df.activations[pm['slide']][pm['index']]
-                for pm in self.point_meta
-            ])
+            features = self.activations()
             pca.fit(features)
             X = pca.transform(features)
 
@@ -474,20 +476,23 @@ class SlideMap:
         log.info("Calculating nearest neighbors...")
         _, indices = nbrs.kneighbors(X)
 
-        def cat_match(i, j):
-            a1 = slide_categories[self.point_meta[i]['slide']]
-            a2 = slide_categories[self.point_meta[j]['slide']]
-            return a1 == a2
+        def num_category_matching(idx_list, idx):
+            list_cat = np.array([
+                slide_categories[self.data.loc[_i].slide] for _i in idx_list
+            ])
+            idx_cat = slide_categories[self.data.loc[idx].slide]
+            return (list_cat == idx_cat).sum()
 
         log.info('Matching neighbors...')
-        for i, ind in enumerate(indices):
-            ind_pm = [self.point_meta[_i]['slide'] for _i in ind]
-            num_unique_slides = len(list(set(ind_pm)))
-            self.point_meta[i]['num_unique_neighbors'] = num_unique_slides
-            if slide_categories:
-                matching_categories = [_i for _i in ind if cat_match(_i, i)]
-                perc = len(matching_categories)/len(ind)
-                self.point_meta[i]['percent_matching_categories'] = perc
+        self.data['num_unique_neighbors'] = [
+            len(self.data.loc[ind].slide.unique())
+            for ind in indices
+        ]
+        if slide_categories:
+            self.data['percent_matching_categories'] = [
+                num_category_matching(ind, i) / len(ind)
+                for i, ind in enumerate(indices)
+            ]
 
     def filter(self, slides: List[str]) -> None:
         """Filters map to only show tiles from the given slides.
@@ -496,28 +501,32 @@ class SlideMap:
             slides (list(str)): List of slide names.
         """
 
-        if not hasattr(self, 'full_x'):
-            # Store full coordinates
-            self.full_x = self.x
-            self.full_y = self.y
-            self.full_meta = self.point_meta
-        else:
-            # Restore full coordinates
-            self.x = self.full_x
-            self.y = self.full_y
-            self.point_meta = self.full_meta
-        self.x = np.array([
-            self.x[xi] for xi in range(len(self.x))
-            if self.point_meta[xi]['slide'] in slides
-        ])
-        self.y = np.array([
-            self.y[yi] for yi in range(len(self.y))
-            if self.point_meta[yi]['slide'] in slides
-        ])
-        self.point_meta = np.array([
-            pm for pm in self.point_meta
-            if pm['slide'] in slides
-        ])
+        self.data = self.data.loc[self.data.slide.isin(slides)]
+
+    def umap_transform(
+        self,
+        array: np.ndarray,
+        dim: int = 2,
+        n_neighbors: int = 50,
+        min_dist: float = 0.1,
+        metric: str = 'cosine',
+        **kwargs: Any
+    ) -> np.ndarray:
+        """Generates and returns a umap from a given array, using umap.UMAP"""
+        import umap  # Imported in this function due to long import time
+        if not len(array):
+            raise errors.StatsError("Unable to perform UMAP on empty array.")
+        if self.umap is None:
+            self.umap = umap.UMAP(
+                n_components=dim,
+                verbose=(log.getEffectiveLevel() <= 20),
+                n_neighbors=n_neighbors,
+                min_dist=min_dist,
+                metric=metric,
+                **kwargs
+            )
+        layout = self.umap.fit_transform(array)  # type: ignore
+        return normalize_layout(layout)
 
     def label_by_uncertainty(self, index: int = 0) -> None:
         """Labels each point with the tile-level uncertainty, if available.
@@ -525,6 +534,8 @@ class SlideMap:
         Args:
             index (int, optional): Uncertainty index. Defaults to 0.
         """
+        if 'label' in self.data.columns:
+            self.data.drop(columns='label')
         if self.df is None:
             raise errors.SlideMapError("DatasetFeatures not provided.")
         if not self.df.hp.uq or self.df.uncertainty == {}:  # type: ignore
@@ -532,9 +543,8 @@ class SlideMap:
                 'Unable to label by uncertainty; UQ estimates not available.'
             )
         else:
-            self.labels = np.array([
-                m['uncertainty'][index] for m in self.point_meta
-            ])
+            uq_labels = np.stack(self.data['uncertainty'].values)[:, index]
+            self.data['label'] = uq_labels
 
     def label_by_logits(self, index: int) -> None:
         """Displays each point with label equal to the logits (linear from 0-1)
@@ -542,7 +552,9 @@ class SlideMap:
         Args:
             index (int): Logit index.
         """
-        self.labels = np.array([m['logits'][index] for m in self.point_meta])
+        if 'label' in self.data.columns:
+            self.data.drop(columns='label')
+        self.data['label'] = np.stack(self.data['logits'].values)[:, index]
 
     def label_by_slide(self, slide_labels: Optional[Dict] = None) -> None:
         """Displays each point as the name of the corresponding slide.
@@ -552,43 +564,27 @@ class SlideMap:
             slide_labels (dict, optional): Dict mapping slide names to labels.
         """
 
+        if 'label' in self.data.columns:
+            self.data.drop(columns='label')
         if slide_labels:
-            self.labels = np.array([
-                slide_labels[m['slide']] for m in self.point_meta
-            ])
+            self.data['label'] = self.data.slide.map(slide_labels)
         else:
-            self.labels = np.array([m['slide'] for m in self.point_meta])
+            self.data['label'] = self.data.slide.values
 
-    def label_by_meta(self, meta: str, translation_dict: Dict = None) -> None:
+    def label(self, meta: str) -> None:
         """Displays each point labeled by tile metadata (e.g. 'prediction')
 
         Args:
-            meta (str): Key to metadata from which to read
+            meta (str): Data column from which to assign labels.
             translation_dict (dict, optional): If provided, will translate the
                 read metadata through this dictionary.
         """
-        if translation_dict:
-            try:
-                self.labels = np.array([
-                    translation_dict[m[meta]] for m in self.point_meta
-                ])
-            except KeyError:
-                # Try by converting metadata to string
-                self.labels = np.array([
-                    translation_dict[str(m[meta])] for m in self.point_meta
-                ])
-        else:
-            self.labels = np.array([m[meta] for m in self.point_meta])
+        if 'label' in self.data.columns:
+            self.data.drop(columns='label')
+        self.data['label'] = self.data[meta].values
 
-    def save_2d_plot(self, *args: Any, **kwargs: Any) -> None:
-        """Deprecated function; please use `save`."""
-
-        log.warning("save_2d_plot() is deprecated, please use save()")
-        self.save(*args, **kwargs)
-
-    def save(
+    def plot(
         self,
-        filename: str,
         subsample: Optional[int] = None,
         title: Optional[str] = None,
         cmap: Optional[Dict] = None,
@@ -597,13 +593,13 @@ class SlideMap:
         xlabel: Optional[str] = None,
         ylabel: Optional[str] = None,
         legend: Optional[str] = None,
-        dpi: int = 300,
+        ax: Optional["Axes"] = None,
+        categorical: Union[str, bool] = 'auto',
         **scatter_kwargs: Any
     ) -> None:
-        """Saves plot of data to a provided filename.
+        """Plots calculated map.
 
         Args:
-            filename (str): File path to save the image.
             subsample (int, optional): Subsample to only include this many
                 tiles on plot. Defaults to None.
             title (str, optional): Title for plot.
@@ -615,31 +611,37 @@ class SlideMap:
             xlabel (str, optional): Label for x axis. Defaults to None.
             ylabel (str, optional): Label for y axis. Defaults to None.
             legend (str, optional): Title for legend. Defaults to None.
-            dpi (int, optional): DPI for final image. Defaults to 300.
+            ax (matplotlib.axes.Axes, optional): Figure axis. If not supplied,
+                will prepare a new figure axis.
         """
         import seaborn as sns
         from matplotlib import pyplot as plt
 
+        # Make plot
+        if ax is None:
+            fig = plt.figure(figsize=(6, 4.5))
+            ax = fig.add_subplot(111)
+
         # Subsampling
         if subsample:
-            ri = sample(range(len(self.x)), min(len(self.x), subsample))
+            plot_df = self.data.sample(subsample)
         else:
-            ri = list(range(len(self.x)))
+            plot_df = self.data
 
-        df = pd.DataFrame()
-        x = self.x[ri]
-        y = self.y[ri]
-        df['umap_x'] = x
-        df['umap_y'] = y
+        x = plot_df.x
+        y = plot_df.y
 
-        if len(self.labels):
-            labels = self.labels[ri]
+        if 'label' in self.data.columns:
+            labels = plot_df.label
 
             # Check for categorical labels
-            if not np.issubdtype(self.labels.dtype, np.floating):
+            if (categorical is True
+               or not pd.to_numeric(labels, errors='coerce').notnull().all()):
                 log.debug("Interpreting labels as categorical")
-                df['category'] = pd.Series(labels, dtype='category')
-                unique = list(set(labels))
+                scatter_kwargs.update(
+                    dict(hue=labels.astype('category'))
+                )
+                unique = list(labels.unique())
                 unique.sort()
                 if len(unique) >= 12:
                     sns_pal = sns.color_palette("Paired", len(unique))
@@ -649,156 +651,178 @@ class SlideMap:
                     cmap = {unique[i]: sns_pal[i] for i in range(len(unique))}
             else:
                 log.debug("Interpreting labels as continuous")
-                df['category'] = labels
-        else:
-            labels = ['NA']
-            df['category'] = 'NA'
+                scatter_kwargs.update(dict(hue=labels))
 
-        # Make plot
-        plt.clf()
         umap_2d = sns.scatterplot(
             x=x,
             y=y,
-            data=df,
-            hue='category',
             palette=cmap,
+            ax=ax,
             **scatter_kwargs
         )
-        plt.gca().set_ylim(*((None, None) if not ylim else ylim))
-        plt.gca().set_xlim(*((None, None) if not xlim else xlim))
-        umap_2d.legend(
-            loc='center left',
-            bbox_to_anchor=(1.25, 0.5),
-            ncol=1,
-            title=legend
-        )
+        ax.set_ylim(*((None, None) if not ylim else ylim))
+        ax.set_xlim(*((None, None) if not xlim else xlim))
+        if 'hue' in scatter_kwargs:
+            umap_2d.legend(
+                loc='center left',
+                bbox_to_anchor=(1.25, 0.5),
+                ncol=1,
+                title=legend
+            )
         umap_2d.set(xlabel=xlabel, ylabel=ylabel)
-        umap_figure = umap_2d.get_figure()
-        umap_figure.set_size_inches(6, 4.5)
         if title:
-            umap_figure.axes[0].set_title(title)
-        umap_figure.savefig(filename, bbox_inches='tight', dpi=dpi)
-        log.info(f"Saved 2D UMAP to {col.green(filename)}")
+            ax.set_title(title)
 
-    def save_3d_plot(
+    def plot_3d(
         self,
-        filename: str,
         z: Optional[np.ndarray] = None,
         feature: Optional[int] = None,
-        subsample: Optional[int] = None
+        subsample: Optional[int] = None,
+        fig: Optional["Figure"] = None,
     ) -> None:
         """Saves a plot of a 3D umap, with the 3rd dimension representing
         values provided by argument "z".
 
         Args:
-            filename (str): Filename to save image of plot.
             z (list, optional): Values for z axis. Must supply z or feature.
                 Defaults to None.
             feature (int, optional): Int, feature to plot on 3rd axis.
                 Must supply z or feature. Defaults to None.
             subsample (int, optional): Subsample to only include this many
                 tiles on plot. Defaults to None.
+            fig (matplotlib.figure.Figure, optional): Figure. If not supplied,
+                will prepare a new figure.
         """
         from matplotlib import pyplot as plt
+
+        if fig is None:
+            fig = plt.figure()
 
         title = f"UMAP with feature {feature} focus"
         if self.df is None:
             raise errors.SlideMapError("DatasetFeatures not provided.")
-        if not filename:
-            filename = "3d_plot.png"
         if (z is None) and (feature is None):
             raise errors.SlideMapError("Must supply either 'z' or 'feature'.")
+
+        # Subsampling
+        if subsample:
+            plot_df = self.data.sample(subsample)
+        else:
+            plot_df = self.data
+
         # Get feature activations for 3rd dimension
         if z is None:
             z = np.array([
-                self.df.activations[m['slide']][m['index']][feature]
-                for m in self.point_meta
+                self.df.activations[row.slide][row.tfr_index][feature]
+                for _, row in plot_df.iterrows()
             ])
-        # Subsampling
-        if subsample:
-            ri = sample(range(len(self.x)), min(len(self.x), subsample))
-        else:
-            ri = list(range(len(self.x)))
-        x = self.x[ri]
-        y = self.y[ri]
-        z = z[ri]
 
         # Plot tiles on a 3D coordinate space with 2 coordinates from UMAP
         # and 3rd from the value of the excluded feature
-        fig = plt.figure()
         ax = Axes3D(fig, auto_add_to_figure=False)
         fig.add_axes(ax)
-        ax.scatter(x, y, z, c=z, cmap='viridis', linewidth=0.5, edgecolor="k")
+        scatter_kw = dict(c=z, cmap='viridis', linewidth=0.5, edgecolor="k")
+        ax.scatter(plot_df.x, plot_df.y, z, **scatter_kw)
         ax.set_title(title)
-        log.info(f"Saving 3D UMAP to {col.green(filename)}...")
-        plt.savefig(filename, bbox_inches='tight')
 
-    def get_tiles_in_area(
+    def save(
         self,
-        x_lower: float,
-        x_upper: float,
-        y_lower: float,
-        y_upper: float
-    ) -> Dict[str, List[int]]:
-
-        """Returns dictionary of slide names mapping to tile indices,
-            or tiles that fall within the specified location on the umap.
+        filename: str,
+        dpi: int = 300,
+        **kwargs
+    ):
+        """Save plot of slide map.
 
         Args:
-            x_lower (int): X-axis lower limit.
-            x_upper (int): X-axis upper limit.
-            y_lower (int): Y-axis lower limit.
-            y_upper (int): Y-axis upper limit.
+            filename (str): File path to save the image.
+            dpi (int, optional): DPI for final image. Defaults to 300.
 
-        Returns:
-            dict: Dict mapping slide names to matching tile indices
+        Keyword args:
+            subsample (int, optional): Subsample to only include this many
+                tiles on plot. Defaults to None.
+            title (str, optional): Title for plot.
+            cmap (dict, optional): Dict mapping labels to colors.
+            xlim (list, optional): List of float indicating limit for x-axis.
+                Defaults to (-0.05, 1.05).
+            ylim (list, optional): List of float indicating limit for y-axis.
+                Defaults to (-0.05, 1.05).
+            xlabel (str, optional): Label for x axis. Defaults to None.
+            ylabel (str, optional): Label for y axis. Defaults to None.
+            legend (str, optional): Title for legend. Defaults to None.
+
         """
+        import matplotlib.pyplot as plt
 
-        # Find tiles that meet UMAP location criteria
-        filtered_tiles = {}
-        num_selected = 0
-        for i in range(len(self.point_meta)):
-            x_in_range = (x_lower < self.x[i] < x_upper)
-            y_in_range = (y_lower < self.y[i] < y_upper)
-            if x_in_range and y_in_range:
-                slide = self.point_meta[i]['slide']
-                tile_index = self.point_meta[i]['index']
-                if slide not in filtered_tiles:
-                    filtered_tiles.update({slide: [tile_index]})
-                else:
-                    filtered_tiles[slide] += [tile_index]
-                num_selected += 1
-        log.info(f"Selected {num_selected} tiles by filter criteria.")
-        return filtered_tiles
+        self.plot(**kwargs)
+        plt.savefig(filename, bbox_inches='tight', dpi=dpi)
+        log.info(f"Saved 2D UMAP to {col.green(filename)}")
 
-    def save_cache(self) -> None:
-        """Save cache of coordinates to PKL file."""
-        if self.cache:
-            try:
-                with open(self.cache, 'wb') as cache_file:
-                    pickle.dump(
-                        [self.x, self.y, self.point_meta, self.map_meta],
-                        cache_file
-                    )
-                    log.info(f"Wrote UMAP cache to {col.green(self.cache)}")
-            except Exception:
-                log.info(f"Error writing cache to {col.green(self.cache)}")
+    def save_3d(
+        self,
+        filename: str,
+        dpi: int = 300,
+        **kwargs
 
-    def load_cache(self) -> bool:
+    ):
+        """Save 3D plot of slide map.
+
+        Args:
+            filename (str): _description_
+            dpi (int, optional): _description_. Defaults to 300.
+
+        Keyword args:
+            z (list, optional): Values for z axis. Must supply z or feature.
+                Defaults to None.
+            feature (int, optional): Int, feature to plot on 3rd axis.
+                Must supply z or feature. Defaults to None.
+            subsample (int, optional): Subsample to only include this many
+                tiles on plot. Defaults to None.
+
+        """
+        import matplotlib.pyplot as plt
+
+        self.plot_3d(**kwargs)
+        plt.savefig(filename, bbox_inches='tight', dpi=dpi)
+        log.info(f"Saved 3D UMAP to {col.green(filename)}")
+
+    def save_cache(self, path: Optional[str] = None) -> None:
+        """Save cache of coordinates to PKL file.
+
+        Args:
+            path (str, optional): Save cache to this location. If None,
+                will use `self.cache`.
+        """
+        if path is None:
+            path = self.cache
+        if path:
+            self.data.to_parquet(path)
+            log.info(f"Wrote slide map cache to {col.green(path)}")
+
+    def load_cache(self, path: Optional[str] = None) -> bool:
         """Load coordinates from PKL cache.
+
+        Args:
+            path (str, optional): Load cache from this location. If None,
+                will use `self.cache`.
 
         Returns:
             bool: If successfully loaded from cache.
         """
-        if self.cache is None:
-            raise errors.SlideMapError("Unable to load cache; none set.")
+        if path is None:
+            path = self.cache
+        if path is None:
+            raise errors.SlideMapError("No cache set or given.")
         try:
-            with open(self.cache, 'rb') as f:
-                self.x, self.y, self.point_meta, self.map_meta = pickle.load(f)
-                log.info(f"Loaded UMAP cache from {col.green(self.cache)}")
-                return True
+            self.data = pd.read_parquet(path)
+            log.info(f"Loaded UMAP cache from {col.green(path)}")
+            return True
         except FileNotFoundError:
-            log.info(f"No UMAP cache found at {col.green(self.cache)}")
+            log.info(f"No UMAP cache found at {col.green(path)}")
+        except Exception:
+            log.error(
+                f"Error loading slide map cache at {col.green(path)}, "
+                "ensure it is a valid parquet-format dataframe."
+            )
         return False
 
 
@@ -1095,28 +1119,6 @@ def normalize_layout(
     return clipped
 
 
-def gen_umap(
-    array: np.ndarray,
-    dim: int = 2,
-    n_neighbors: int = 50,
-    min_dist: float = 0.1,
-    metric: str = 'cosine',
-    **kwargs: Any
-) -> np.ndarray:
-    """Generates and returns a umap from a given array, using umap.UMAP"""
-
-    import umap  # Imported in this function due to long import time
-    if not len(array):
-        raise errors.StatsError("Unable to perform UMAP on empty array.")
-    layout = umap.UMAP(n_components=dim,
-                       verbose=(log.getEffectiveLevel() <= 20),
-                       n_neighbors=n_neighbors,
-                       min_dist=min_dist,
-                       metric=metric,
-                       **kwargs).fit_transform(array)
-    return normalize_layout(layout)
-
-
 def save_histogram(
     y_true: np.ndarray,
     y_pred: np.ndarray,
@@ -1169,6 +1171,40 @@ def save_histogram(
         )
 
 
+def plot_roc(
+    fpr: np.ndarray,
+    tpr: np.ndarray,
+    label: Optional[str] = None
+):
+    from matplotlib import pyplot as plt
+    plt.clf()
+    plt.title('ROC Curve')
+    plt.plot(fpr, tpr, 'b', label=label)
+    plt.legend(loc='lower right')
+    plt.plot([0, 1], [0, 1], 'r--')
+    plt.xlim([0, 1])
+    plt.ylim([0, 1])
+    plt.ylabel('TPR')
+    plt.xlabel('FPR')
+
+
+def plot_prc(
+    precision: np.ndarray,
+    recall: np.ndarray,
+    label: Optional[str] = None
+):
+    from matplotlib import pyplot as plt
+    plt.clf()
+    plt.title('Precision-Recall Curve')
+    plt.plot(precision, recall, 'b', label=label)
+    plt.legend(loc='lower right')
+    plt.plot([0, 1], [0, 1], 'r--')
+    plt.xlim([0, 1])
+    plt.ylim([0, 1])
+    plt.ylabel('Recall')
+    plt.xlabel('Precision')
+
+
 def generate_roc(
     y_true: np.ndarray,
     y_pred: np.ndarray,
@@ -1213,28 +1249,9 @@ def generate_roc(
         opt_thresh = -1
     if save_dir:
         from matplotlib import pyplot as plt
-
-        # ROC
-        plt.clf()
-        plt.title('ROC Curve')
-        plt.plot(fpr, tpr, 'b', label=f'AUC = {roc_auc:.2f}')
-        plt.legend(loc='lower right')
-        plt.plot([0, 1], [0, 1], 'r--')
-        plt.xlim([0, 1])
-        plt.ylim([0, 1])
-        plt.ylabel('TPR')
-        plt.xlabel('FPR')
+        plot_roc(fpr, tpr, f'AUC = {roc_auc:.2f}')
         plt.savefig(os.path.join(save_dir, f'{name}.png'))
-        # Precision recall
-        plt.clf()
-        plt.title('Precision-Recall Curve')
-        plt.plot(precision, recall, 'b', label=f'AP = {ap:.2f}')
-        plt.legend(loc='lower right')
-        plt.plot([0, 1], [0, 1], 'r--')
-        plt.xlim([0, 1])
-        plt.ylim([0, 1])
-        plt.ylabel('Recall')
-        plt.xlabel('Precision')
+        plot_prc(precision, recall, label=f'AP = {ap:.2f}')
         plt.savefig(os.path.join(save_dir, f'{name}-PRC.png'))
         if neptune_run:
             neptune_run[f'results/graphs/{name}'].upload(
