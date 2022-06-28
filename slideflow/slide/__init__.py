@@ -1648,19 +1648,28 @@ class WSI(_BaseLoader):
 
         def generator():
             nonlocal pool
+            should_close = False
             if pool is None:
-                log.debug(f"Building generator with {num_threads} threads")
-                pool = mp.Pool(processes=num_threads)
-                should_close = True
+                if num_threads > 1:
+                    log.debug(f"Building generator with {num_threads} threads")
+                    pool = mp.Pool(processes=num_threads)
+                    should_close = True
+                else:
+                    log.debug(f"Building generator without multithreading")
+                    def _generator():
+                        for c in self.coord:
+                            yield _wsi_extraction_worker(c, args=w_args)
+                    i_mapped = _generator()
             else:
                 log.debug("Building generator with a shared pool")
-                should_close = False
             if show_progress:
                 pbar = tqdm(total=self.estimated_num_tiles, ncols=80)
-            i_mapped = pool.imap(
-                partial(_wsi_extraction_worker, args=w_args),
-                self.coord
-            )
+            
+            if pool is not None:
+                i_mapped = pool.imap(
+                    partial(_wsi_extraction_worker, args=w_args),
+                    self.coord
+                )
             for result in i_mapped:
                 if result == 'skip':
                     continue

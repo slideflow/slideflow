@@ -727,6 +727,7 @@ class TestSuite:
 
     def test(
         self,
+        unit: bool = True,
         extract: bool = True,
         reader: bool = True,
         train: bool = True,
@@ -736,18 +737,20 @@ class TestSuite:
         heatmap: bool = True,
         activations: bool = True,
         predict_wsi: bool = True,
-        clam: bool = True
+        clam: bool = True,
+        slide_threads: Optional[int] = None
     ) -> None:
         """Perform and report results of all available testing."""
 
         start = time.time()
-        self.unittests()
+        if unit:
+            self.unittests()
         if self.project is None:
             print(col.yellow("Slides not provided; unable to perform "
                              "functional or WSI testing."))
         else:
             if extract:
-                self.test_extraction()
+                self.test_extraction(num_threads=slide_threads)
             if reader:
                 self.test_readers()
             if train:

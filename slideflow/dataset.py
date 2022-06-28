@@ -1134,7 +1134,7 @@ class Dataset:
                 q = Queue()  # type: Queue
                 task_finished = False
                 manager = multiprocessing.Manager()
-                ctx = multiprocessing.get_context('fork')
+                ctx = multiprocessing.get_context('spawn')
                 reports = manager.dict()  # type: dict
                 counter = manager.Value('i', 0)
                 counter_lock = manager.Lock()
@@ -1149,7 +1149,8 @@ class Dataset:
                     else:
                         num_threads = kwargs['num_threads']
                     log.info(f'Extracting tiles with {num_threads} threads')
-                    kwargs['pool'] = multiprocessing.Pool(num_threads)
+                    if num_threads != 1:
+                        kwargs['pool'] = ctx.Pool(num_threads)
 
                 # Set up the multiprocessing progress bar
                 if total_tiles:
@@ -1221,6 +1222,8 @@ class Dataset:
                     thread.join()
                 if pb:
                     pb.end()
+                if kwargs['pool'] is not None:
+                    kwargs['pool'].close()
                 if report:
                     log.info('Generating PDF (this may take some time)...', )
                     rep_vals = list(reports.values())

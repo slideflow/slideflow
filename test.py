@@ -17,6 +17,8 @@ from slideflow.util import colors as col
               required=False, metavar='DIR')
 @click.option('--all', help='Perform all tests.',
               required=False, type=bool)
+@click.option('--unit', help='Run unit tests.',
+              required=False, type=bool, default=True)
 @click.option('--extract', help='Test tile extraction.',
               required=False, type=bool)
 @click.option('--reader', help='Test TFRecord readers.',
@@ -37,6 +39,8 @@ from slideflow.util import colors as col
               required=False, type=bool)
 @click.option('--clam', help='Test CLAM.',
               required=False, type=bool)
+@click.option('--slide-threads', help='Number of threads during tile extraction.',
+              required=False, type=int, default=None)
 def main(slides, out, all, **kwargs):
     '''Test script for running both unit tests and functional tests.
 
@@ -71,8 +75,9 @@ def main(slides, out, all, **kwargs):
         verbosity = logging.getLogger('slideflow').getEffectiveLevel()
     else:
         verbosity = logging.WARNING
+    test_kw = [k for k in kwargs if k not in ('out', 'slides', 'slide_threads')]
     if all is not None:
-        kwargs = {k: all if kwargs[k] is None else kwargs[k] for k in kwargs}
+        kwargs = {k: all if kwargs[k] is None else kwargs[k] for k in test_kw}
 
     # Show active backend
     if sf.backend() == 'tensorflow':
