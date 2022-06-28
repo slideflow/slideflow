@@ -5,8 +5,8 @@ def main(P):
 
     # Configure model parameters
     # --------------------------
-    # from slideflow.model import ModelParams
-    # params = ModelParams(
+    # import slideflow as sf
+    # params = sf.ModelParams(
     #    tile_px=299,
     #    tile_um=302,
     #    learning_rate=0.0001,

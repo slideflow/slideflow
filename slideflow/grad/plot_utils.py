@@ -43,7 +43,7 @@ def comparison_plot(
     n_rows: int = 3,
     n_cols: int = 3,
 ) -> None:
-    """Plots comparison of many saliency maps for a single iamge.
+    """Plots comparison of many saliency maps for a single image in a grid.
 
     Args:
         original (np.ndarray): Original (unprocessed) image.
@@ -170,6 +170,10 @@ def saliency_map_comparison(
     **kwargs: Any
 ) -> None:
     """Plots several saliency maps for a list of images.
+
+    Each row is a unique image.
+    The first column is the original image. Each column after is a saliency
+    map generated each of the functions provided to `saliency_fn`.
 
     Args:
         orig_imgs (list(np.ndarray)): Original (unprocessed) images for

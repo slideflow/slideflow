@@ -1,8 +1,59 @@
 import logging
 import unittest
+from types import SimpleNamespace
 
 import numpy as np
 import slideflow as sf
+
+
+class TestSlideMap(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls._orig_logging_level = logging.getLogger('slideflow').getEffectiveLevel()  # type: ignore
+        logging.getLogger('slideflow').setLevel(40)
+        cls.slides = [f'slide{s}' for s in range(200)]  # type: ignore
+        cls.DummyDatasetFeatures = SimpleNamespace(
+            slides=cls.slides,
+            logits={s: np.random.rand(50, 2) for s in cls.slides},
+            activations={s: np.random.rand(50, 10) for s in cls.slides},
+            locations={s: np.random.rand(50, 2) for s in cls.slides},
+            uncertainty={s: np.random.rand(50, 2) for s in cls.slides},
+            num_features=10,
+            hp=SimpleNamespace(uq=True)
+        )
+        cls.slidemap = sf.SlideMap.from_features(cls.DummyDatasetFeatures)
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        logging.getLogger('slideflow').setLevel(cls._orig_logging_level)  # type: ignore
+        return super().tearDownClass()
+
+    def test_init_from_features(self):
+        self.assertEqual(len(self.slidemap.activations()), 50*200)
+
+    def test_init_from_features_centroid(self):
+        slidemap = sf.SlideMap.from_features(self.DummyDatasetFeatures, map_slide='centroid')
+        self.assertEqual(len(slidemap.activations()), 200)
+
+    def test_init_from_features_average(self):
+        slidemap = sf.SlideMap.from_features(self.DummyDatasetFeatures, map_slide='average')
+        self.assertEqual(len(slidemap.activations()), 200)
+
+    def test_cluster(self):
+        self.slidemap.cluster(5)
+        self.assertEqual(len(self.slidemap.data.cluster.unique()), 5)
+
+    def test_label_by_uncertainty(self):
+        self.slidemap.label_by_uncertainty(0)
+
+    def test_label_by_logits(self):
+        self.slidemap.label_by_uncertainty(0)
+
+    def test_label_by_slide(self):
+        dummy_labels = {s: np.random.choice(['test1', 'test2']) for s in self.slides}
+        self.slidemap.label_by_slide(dummy_labels)
+        self.assertTrue(sorted(list(self.slidemap.data.label.unique())) == ['test1', 'test2'])
 
 
 class TestMetrics(unittest.TestCase):

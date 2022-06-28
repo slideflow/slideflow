@@ -350,7 +350,7 @@ class SlideMap:
                 ])
             elif method == 'average':
                 umap_input = np.array([
-                    np.mean(self.df.activations[slide])
+                    np.mean(self.df.activations[slide], axis=0)
                     for slide in self.slides
                 ])
 
