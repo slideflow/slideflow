@@ -1,7 +1,6 @@
 """Tool to assist with embedding interpolation for a class-conditional GAN."""
 
-from typing import (TYPE_CHECKING, Any, Callable, Generator, List, Optional,
-                    Tuple, Union)
+from typing import Callable, Generator, List, Optional, Tuple, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -12,7 +11,6 @@ import tensorflow as tf
 import torch
 from PIL import Image
 from slideflow.gan import tf_utils
-from slideflow.gan.search import seed_search
 from slideflow.gan.stylegan2 import embedding, utils
 from tqdm import tqdm
 
@@ -25,6 +23,10 @@ class StyleGAN2Interpolator:
         start: int,
         end: int,
         device: torch.device,
+        gan_um: int,
+        gan_px: int,
+        target_um: int,
+        target_px: int,
         **gan_kwargs
     ) -> None:
         """Coordinates class and embedding interpolation for a trained
@@ -39,17 +41,34 @@ class StyleGAN2Interpolator:
         self.E_G, self.G = embedding.load_embedding_gan(gan_pkl, device)
         self.device = device
         self.gan_kwargs = gan_kwargs
-        self.decode_kwargs = dict(standardize=False, resize_px=299)
+        self.decode_kwargs = dict(standardize=False, resize_px=target_px)
         self.embed0, self.embed1 = embedding.get_class_embeddings(
             self.G,
             start=start,
             end=end,
             device=device
         )
-        self.features = None
+        self.features = None  # type: Optional[sf.model.Features]
         self.normalizer = None
+        self.target_px = target_px
+        self.size_kw = dict(
+            gan_um=gan_um,
+            gan_px=gan_px,
+            target_um=target_um,
+            target_px=target_px
+        )
 
-    def z(self, seed: int) -> torch.tensor:
+    def _normalize_batch(self, img: tf.Tensor):
+        """Normalize an image tensor."""
+        if self.normalizer:
+            if self.normalizer.vectorized:
+                return self.normalizer.batch_to_batch(img)
+            else:
+                return tf.stack([self.normalizer.tf_to_tf(_i) for _i in img])
+        else:
+            return img
+
+    def z(self, seed: int) -> torch.Tensor:
         """Returns a noise tensor for a given seed.
 
         Args:
@@ -75,7 +94,7 @@ class StyleGAN2Interpolator:
                 Defaults to 'postconv'.
         """
         self.features = sf.model.Features(path, layers=layers, include_logits=True)
-        self.normalizer = self.features.wsi_normalizer
+        self.normalizer = self.features.wsi_normalizer  # type: ignore
 
     def seed_search(
         self,
@@ -102,18 +121,100 @@ class StyleGAN2Interpolator:
 
         if self.features is None:
             raise Exception("Feature model not set; use .set_feature_model()")
-        return seed_search(
-            seeds,
-            self.embed0,
-            self.embed1,
-            self.E_G,
-            self.features,
-            self.device,
-            batch_size,
-            normalizer=self.normalizer,
-            verbose=verbose,
-            **self.gan_kwargs
+
+        predictions = {0: [], 1: []}  # type: ignore
+        features = {0: [], 1: []}  # type: ignore
+        swap_labels = []
+        img_seeds = []
+
+        # --- GAN-Classifier pipeline ---------------------------------------------
+        def gan_generator(embedding):
+            def generator():
+                for seed_batch in sf.util.batch(seeds, batch_size):
+                    z = torch.stack([
+                        utils.noise_tensor(s, z_dim=self.E_G.z_dim)[0]
+                        for s in seed_batch]
+                    ).to(self.device)
+                    img_batch = self.E_G(z, embedding.expand(z.shape[0], -1), **self.gan_kwargs)
+                    yield tf_utils.process_gan_batch(img_batch, **self.size_kw)
+            return generator
+
+        # --- Input data stream ---------------------------------------------------
+        gan_embed0_dts = tf_utils.build_gan_dataset(
+            gan_generator(self.embed0),
+            self.target_px,
+            normalizer=self.normalizer
         )
+        gan_embed1_dts = tf_utils.build_gan_dataset(
+            gan_generator(self.embed1),
+            self.target_px,
+            normalizer=self.normalizer
+        )
+        # Calculate classifier features for GAN images created from seeds.
+        # Calculation happens in batches to improve computational efficiency.
+        # noise + embedding -> GAN -> Classifier -> Predictions, Features
+        pb = tqdm(total=len(seeds), leave=False)
+        seeds_and_embeddings = zip(
+            sf.util.batch(seeds, batch_size),
+            gan_embed0_dts,
+            gan_embed1_dts
+        )
+        for (seed_batch, embed0_batch, embed1_batch) in seeds_and_embeddings:
+
+            features0, pred0 = self.features(embed0_batch)
+            features1, pred1 = self.features(embed1_batch)
+            pred0 = pred0[:, 0].numpy()
+            pred1 = pred1[:, 0].numpy()
+            features0 = tf.reshape(features0, (len(seed_batch), -1)).numpy().astype(np.float32)
+            features1 = tf.reshape(features1, (len(seed_batch), -1)).numpy().astype(np.float32)
+
+            # For each seed in the batch, determine if there ids "class-swapping",
+            # where the GAN class label matches the classifier prediction.
+            #
+            # This may not happen 100% percent of the time even with a perfect GAN
+            # and perfect classifier, since both classes have images that are
+            # not class-specific (such as empty background, background tissue, etc)
+            for i in range(len(seed_batch)):
+                img_seeds += [seed_batch[i]]
+                predictions[0] += [pred0[i]]
+                predictions[1] += [pred1[i]]
+                features[0] += [features0[i]]
+                features[1] += [features1[i]]
+
+                # NOTE: This logic assumes predictions are discretized at 0,
+                # which will not be true for categorical outcomes.
+                if (pred0[i] < 0) and (pred1[i] > 0):
+                    # Class-swapping is observed for this seed.
+                    if (pred0[i] < -0.5) and (pred1[i] > 0.5):
+                        # Strong class swapping.
+                        tail = " **"
+                        swap_labels += ['strong_swap']
+                    else:
+                        # Weak class swapping.
+                        tail = " *"
+                        swap_labels += ['weak_swap']
+                elif (pred0[i] > 0) and (pred1[i] < 0):
+                    # Predictions are oppositve of what is expected.
+                    tail = " (!)"
+                    swap_labels += ['no_swap']
+                else:
+                    tail = ""
+                    swap_labels += ['no_swap']
+                if verbose:
+                    tqdm.write(f"Seed {seed_batch[i]:<6}: {pred0[i]:.2f}\t{pred1[i]:.2f}{tail}")
+            pb.update(len(seed_batch))
+        pb.close()
+
+        # Convert to dataframe.
+        df = pd.DataFrame({
+            'seed': pd.Series(img_seeds),
+            'pred_start': pd.Series(predictions[0]),
+            'pred_end': pd.Series(predictions[1]),
+            'features_start': pd.Series(features[0]).astype(object),
+            'features_end': pd.Series(features[1]).astype(object),
+            'class_swap': pd.Series(swap_labels),
+        })
+        return df
 
     def plot_comparison(self, seeds: Union[int, List[int]]) -> None:
         """Plots side-by-side comparison of images from the starting
@@ -130,13 +231,13 @@ class StyleGAN2Interpolator:
         for s, seed in enumerate(seeds):
             # First image (starting embedding, BRAF-like)
             img0 = self.E_G(self.z(seed), self.embed0, **self.gan_kwargs)
-            img0 = tf_utils.process_gan_batch(img0)
+            img0 = tf_utils.process_gan_batch(img0, **self.size_kw)  # type: ignore
             img0 = tf_utils.decode_batch(img0, **self.decode_kwargs)
             img0 = Image.fromarray(img0['tile_image'].numpy()[0])
 
             # Second image (ending embedding, RAS-like)
             img1 = self.E_G(self.z(seed), self.embed1, **self.gan_kwargs)
-            img1 = tf_utils.process_gan_batch(img1)
+            img1 = tf_utils.process_gan_batch(img1, **self.size_kw)  # type: ignore
             img1 = tf_utils.decode_batch(img1, **self.decode_kwargs)
             img1 = Image.fromarray(img1['tile_image'].numpy()[0])
 
@@ -159,7 +260,7 @@ class StyleGAN2Interpolator:
     def generate_tf_from_embedding(
         self,
         seed: int,
-        embedding: torch.tensor
+        embedding: torch.Tensor
     ) -> Tuple[tf.Tensor, tf.Tensor]:
         """Create a processed Tensorflow image from the GAN output from a given
         seed and embedding.
@@ -175,12 +276,15 @@ class StyleGAN2Interpolator:
         """
         z = self.z(seed)
         gan_out = self.E_G(z, embedding, **self.gan_kwargs)
-        raw, processed = tf_utils.process_gan_raw(
+        gan_out = tf_utils.process_gan_batch(gan_out, **self.size_kw)  # type: ignore
+        gan_out = tf_utils.decode_batch(
             gan_out,
             normalizer=self.normalizer,
             **self.decode_kwargs
         )
-        return raw, processed
+        gan_out = gan_out['tile_image']
+        standardized = tf.image.per_image_standardization(gan_out)
+        return gan_out, standardized
 
     def generate_tf_start(self, seed: int) -> Tuple[tf.Tensor, tf.Tensor]:
         """Create a processed Tensorflow image from the GAN output of a given
@@ -292,16 +396,14 @@ class StyleGAN2Interpolator:
         for img in tqdm(self.class_interpolate(seed, steps), total=steps):
             img = torch.from_numpy(np.expand_dims(img, axis=0)).permute(0, 3, 1, 2)
             img = (img / 127.5) - 1
-            img = tf_utils.process_gan_batch(img)
+            img = tf_utils.process_gan_batch(img, **self.size_kw)  # type: ignore
             img = tf_utils.decode_batch(img, **self.decode_kwargs)
-            if self.normalizer:
-                img = self.normalizer.batch_to_batch(img['tile_image'])[0]
-            else:
-                img = img['tile_image']
+            img = self._normalize_batch(img['tile_image'])
             processed_img = tf.image.per_image_standardization(img)
             img = img.numpy()[0]
-            pred = self.features(processed_img)[-1].numpy()
-            preds += [pred[0][0]]
+            if self.features is not None:
+                pred = self.features(processed_img)[-1].numpy()
+                preds += [pred[0][0]]
             if watch is not None:
                 watch_out += [watch(processed_img)]
             imgs += [img]

@@ -3,14 +3,14 @@ from os.path import join
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
-import tensorflow as tf
-from tqdm import tqdm
-
 from slideflow import errors
 from slideflow.dataset import Dataset
 from slideflow.norm import StainNormalizer
 from slideflow.norm.tensorflow import reinhard, reinhard_fast
-from slideflow.util import log
+from slideflow.util import detuple, log
+from tqdm import tqdm
+
+import tensorflow as tf
 
 
 class TensorflowStainNormalizer(StainNormalizer):
@@ -264,7 +264,7 @@ class TensorflowStainNormalizer(StainNormalizer):
         self,
         batch: Union[Dict, tf.Tensor],
         *args: Any
-    ) -> Tuple[Union[Dict, tf.Tensor], ...]:
+    ) -> Union[Dict, tf.Tensor, Tuple[Union[Dict, tf.Tensor], ...]]:
         """Normalize a batch of tensors.
 
         Args:
@@ -282,9 +282,9 @@ class TensorflowStainNormalizer(StainNormalizer):
                     if k != 'tile_image'
                 }
                 to_return['tile_image'] = self.tf_to_tf(batch['tile_image'])
-                return tuple([to_return] + list(args))
+                return detuple(to_return, args)
             else:
-                return tuple([self.tf_to_tf(batch)] + list(args))
+                return detuple(self.tf_to_tf(batch), args)
 
     @tf.function
     def tf_to_tf(self, image: tf.Tensor) -> tf.Tensor:

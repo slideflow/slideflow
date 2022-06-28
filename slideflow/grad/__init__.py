@@ -26,10 +26,9 @@ class SaliencyMap:
         self.ig = saliency.IntegratedGradients()
         self.guided_ig = saliency.GuidedIG()
         self.blur_ig = saliency.BlurIG()
-        self.xrai = saliency.XRAI()
+        self.xrai_grads = saliency.XRAI()
         self.fast_xrai_params = saliency.XRAIParameters()
         self.fast_xrai_params.algorithm = 'fast'
-        self.masks = {}
 
     def _grad_fn(
         self,
@@ -171,7 +170,7 @@ class SaliencyMap:
         batch_size: int = 20,
         **kwargs
     ) -> np.ndarray:
-        return self.xrai.GetMask(
+        return self.xrai_grads.GetMask(
             img,
             self._grad_fn,
             batch_size=batch_size,
@@ -184,7 +183,7 @@ class SaliencyMap:
         batch_size: int = 20,
         **kwargs
     ) -> np.ndarray:
-        return self.xrai.GetMask(
+        return self.xrai_grads.GetMask(
             img,
             self._grad_fn,
             batch_size=batch_size,

@@ -1,11 +1,10 @@
 """Plotting functions for displaying saliency maps."""
 
-from typing import Any, Callable, Iterable, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 import numpy as np
 from matplotlib import pyplot as plt
 from PIL import Image
-from slideflow.util import batch
 
 
 def inferno(img):
@@ -39,7 +38,7 @@ def remove_ticks(axis):
 
 def comparison_plot(
     original: np.ndarray,
-    maps: List[np.ndarray],
+    maps: Dict[str, np.ndarray],
     cmap: Any = plt.cm.gray,
     n_rows: int = 3,
     n_cols: int = 3,
@@ -48,7 +47,8 @@ def comparison_plot(
 
     Args:
         original (np.ndarray): Original (unprocessed) image.
-        maps (list(np.ndarray)): List of saliency maps.
+        maps (dict(str, np.ndarray)): Dictionary mapping saliency map names
+            to the numpy array maps.
         cmap (matplotlib colormap, optional): Colormap for maps.
             Defaults to plt.cm.gray.
     """
@@ -73,8 +73,8 @@ def comparison_plot(
 
 
 def multi_plot(
-    raw_imgs: Iterable[np.ndarray],
-    processed_imgs: Iterable[np.ndarray],
+    raw_imgs: List[np.ndarray],
+    processed_imgs: List[np.ndarray],
     method: Callable,
     cmap: str = 'inferno',
     xlabels: Optional[List[str]] = None,
@@ -88,13 +88,13 @@ def multi_plot(
     The third row will be the saliency maps.
 
     Args:
-        raw_imgs (Iterable[np.ndarray]): Raw, unprocessed images.
-        processed_imgs (Iterable[np.ndarray]): _description_
-        method (Callable): _description_
-        cmap (str, optional): _description_. Defaults to 'inferno'.
-        xlabels (Optional[List[str]], optional): _description_.
+        raw_imgs (List[np.ndarray]): Raw, unprocessed images.
+        processed_imgs (List[np.ndarray]): Processed images.
+        method (Callable): Saliency method.
+        cmap (str, optional): Colormap. Defaults to 'inferno'.
+        xlabels (Optional[List[str]], optional): Labels for x-axis.
             Defaults to None.
-        ylabels (Optional[List[str]], optional): _description_.
+        ylabels (Optional[List[str]], optional): Labels for y-axis.
             Defaults to None.
 
     Raises:
@@ -162,10 +162,10 @@ def multi_plot(
 
 
 def saliency_map_comparison(
-    orig_imgs: Iterable[np.ndarray],
-    saliency_fn: Iterable[Callable],
+    orig_imgs: List[np.ndarray],
+    saliency_fn: List[Callable],
     process_fn: Callable,
-    saliency_labels: Iterable[str] = None,
+    saliency_labels: List[str] = None,
     cmap: str = 'inferno',
     **kwargs: Any
 ) -> None:
