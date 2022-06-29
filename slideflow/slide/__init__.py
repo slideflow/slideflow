@@ -544,14 +544,17 @@ class _JPGslideToVIPS(_VIPSWrapper):
         self.level_dimensions = [(width, height)]
 
         # MPP data
-        with Image.open(path) as img:
-            if TIF_EXIF_KEY_MPP in img.tag.keys():
-                mpp = img.tag[TIF_EXIF_KEY_MPP][0]
-                log.info(f"Using MPP {mpp} per EXIF field {TIF_EXIF_KEY_MPP}")
-                self.properties[OPS_MPP_X] = mpp
-            else:
-                log.info(f"Setting MPP to default {DEFAULT_JPG_MPP}")
-                self.properties[OPS_MPP_X] = DEFAULT_JPG_MPP
+        try:
+            with Image.open(path) as img:
+                if TIF_EXIF_KEY_MPP in img.tag.keys():
+                    mpp = img.tag[TIF_EXIF_KEY_MPP][0]
+                    log.info(f"Using MPP {mpp} per EXIF field {TIF_EXIF_KEY_MPP}")
+                    self.properties[OPS_MPP_X] = mpp
+                else:
+                    log.info(f"Setting MPP to default {DEFAULT_JPG_MPP}")
+                    self.properties[OPS_MPP_X] = DEFAULT_JPG_MPP
+        except AttributeError:
+            self.properties[OPS_MPP_X] = DEFAULT_JPG_MPP
 
 
 class ROI:
