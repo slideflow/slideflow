@@ -553,7 +553,6 @@ class TestSuite:
                 project=self.project,
                 model=f_model,
                 outcomes='category1',
-                histogram=True,
                 save_predictions=True,
                 **eval_kwargs
             )
@@ -567,7 +566,6 @@ class TestSuite:
                 project=self.project,
                 model=uq_model,
                 outcomes='category1',
-                histogram=True,
                 save_predictions=True,
                 **eval_kwargs
             )
@@ -580,7 +578,6 @@ class TestSuite:
                 project=self.project,
                 model=multi_cat_model,
                 outcomes=['category1', 'category2'],
-                histogram=True,
                 save_predictions=True,
                 **eval_kwargs
             )
@@ -593,7 +590,6 @@ class TestSuite:
                 project=self.project,
                 model=multi_lin_model,
                 outcomes=['linear1', 'linear2'],
-                histogram=True,
                 save_predictions=True,
                 **eval_kwargs
             )

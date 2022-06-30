@@ -998,8 +998,6 @@ class Project:
                 any combination of 'tile', 'patient', or 'slide', as string
                 or list of strings. Save tile-level, patient-level, and/or
                 slide-level predictions. If True, will save all.
-            histogram (bool, optional): Create tile-level histograms for each
-                class. Defaults to False.
 
         Returns:
             Dict: Dictionary of keras training results, nested by epoch.

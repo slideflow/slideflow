@@ -610,7 +610,6 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
             label=epoch_label,
             data_dir=self.parent.outdir,
             num_tiles=self.cb_args.num_val_tiles,
-            histogram=False,
             save_predictions=self.cb_args.save_predictions,
             reduce_method=self.cb_args.reduce_method,
             pred_args=pred_args
@@ -1213,7 +1212,7 @@ class Trainer:
         dataset: "sf.Dataset",
         batch_size: Optional[int] = None,
         norm_fit: Optional[NormFit] = None,
-        format: str = 'csv'
+        format: str = 'parquet'
     ) -> "pd.DataFrame":
         """Perform inference on a model, saving tile-level predictions.
 
@@ -1223,7 +1222,7 @@ class Trainer:
             batch_size (int, optional): Evaluation batch size. Defaults to the
                 same as training (per self.hp)
             format (str, optional): Format in which to save predictions. Either
-                'csv' or 'feather'. Defaults to 'csv'.
+                'csv', 'feather', or 'parquet'. Defaults to 'parquet'.
             norm_fit (Dict[str, np.ndarray]): Normalizer fit, mapping fit
                 parameters (e.g. target_means, target_stds) to values
                 (np.ndarray). If not provided, will fit normalizer using
@@ -1232,6 +1231,10 @@ class Trainer:
         Returns:
             pandas.DataFrame of tile-level predictions.
         """
+
+        if format not in ('csv', 'feather', 'parquet'):
+            raise ValueError(f"Unrecognized format {format}")
+
         # Fit normalizer
         self._fit_normalizer(norm_fit)
 
@@ -1259,21 +1262,26 @@ class Trainer:
         # Generate predictions
         log.info('Generating predictions...')
         pred_args = SimpleNamespace(uq=bool(self.hp.uq))
-        df = sf.stats.predict_from_dataset(
+        dfs = sf.stats.predict_from_dataset(
             model=self.model,
             dataset=tf_dts_w_slidenames,
             model_type=self._model_type,
             pred_args=pred_args,
-            num_tiles=dataset.num_tiles
+            num_tiles=dataset.num_tiles,
+            outcome_names=self.outcome_names
         )
-        if format.lower() == 'csv':
-            save_path = os.path.join(self.outdir, "tile_predictions.csv")
-            df.to_csv(save_path)
-        elif format.lower() == 'feather':
-            import pyarrow.feather as feather
-            save_path = os.path.join(self.outdir, 'tile_predictions.feather')
-            feather.write_feather(df, save_path)
-        log.debug(f"Predictions saved to {col.green(save_path)}")
+        for level, _df in dfs.items():
+            if format == 'csv':
+                save_path = os.path.join(self.outdir, f"{level}_predictions.csv")
+                _df.to_csv(save_path)
+            elif format == 'feather':
+                import pyarrow.feather as feather
+                save_path = os.path.join(self.outdir, f'{level}_predictions.feather')
+                feather.write_feather(_df, save_path)
+            else:
+                save_path = os.path.join(self.outdir, f'{level}_predictions.parquet.gzip')
+                _df.to_parquet(save_path, compression=gzip)
+            log.debug(f"Predictions {level}-level saved to {col.green(save_path)}")
 
         return df
 
@@ -1281,7 +1289,6 @@ class Trainer:
         self,
         dataset: "sf.Dataset",
         batch_size: Optional[int] = None,
-        histogram: bool = False,
         save_predictions: bool = False,
         reduce_method: str = 'average',
         norm_fit: Optional[NormFit] = None,
@@ -1296,9 +1303,6 @@ class Trainer:
                 Defaults to None.
             batch_size (int, optional): Evaluation batch size. Defaults to the
                 same as training (per self.hp)
-            histogram (bool, optional): Save histogram of tile predictions.
-                Poorly optimized, uses seaborn, may drastically increase
-                evaluation time. Defaults to False.
             save_predictions (bool, optional): Save tile, slide, and
                 patient-level predictions to CSV. Defaults to False.
             reduce_method (str, optional): Reduction method for calculating
@@ -1372,7 +1376,6 @@ class Trainer:
             uq=bool(self.hp.uq)
         )
         metrics, acc, loss = sf.stats.metrics_from_dataset(
-            histogram=histogram,
             save_predictions=save_predictions,
             pred_args=pred_args,
             reduce_method=reduce_method,
