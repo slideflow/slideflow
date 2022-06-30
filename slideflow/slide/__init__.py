@@ -391,45 +391,41 @@ class _VIPSWrapper:
         )
         # If Openslide MPP is not available, try reading from metadata
         if OPS_MPP_X not in self.properties.keys():
-            if not silent:
-                log.debug(
-                    "Microns-Per-Pixel (MPP) not found, Searching EXIF"
-                )
+            log.debug(
+                "Microns-Per-Pixel (MPP) not found, Searching EXIF"
+            )
             try:
                 with Image.open(path) as img:
-                    try:
-                        if TIF_EXIF_KEY_MPP in img.tag.keys():
-                            mpp = img.tag[TIF_EXIF_KEY_MPP][0]
-                            if not silent:
-                                log.debug(
-                                    f"Using MPP {mpp} per EXIF {TIF_EXIF_KEY_MPP}"
-                                )
-                            self.properties[OPS_MPP_X] = mpp
-                        elif (sf.util.path_to_ext(path).lower() in ('tif', 'tiff')
-                            and 'xres' in loaded_image.get_fields()):
-                            xres = loaded_image.get('xres')  # 4000.0
-                            if (xres == 4000.0
-                            and loaded_image.get('resolution-unit') == 'cm'):
-                                # xres = xres # though resolution from tiffinfo
-                                # says 40000 pixels/cm, for some reason the xres
-                                # val is 4000.0, so multipley by 10.
-                                # Convert from pixels/cm to cm/pixels, then convert
-                                # to microns by multiplying by 1000
-                                mpp_x = (1/xres) * 1000
-                                self.properties[OPS_MPP_X] = str(mpp_x)
-                                if not silent:
-                                    log.debug(
-                                        f"Using MPP {mpp_x} per TIFF 'xres' field"
-                                        f" {loaded_image.get('xres')} and "
-                                        f"{loaded_image.get('resolution-unit')}"
-                                    )
-                        else:
-                            name = path_to_name(path)
-                            log.warning(
-                                f"Missing Microns-Per-Pixel (MPP) for {name}"
+                    if TIF_EXIF_KEY_MPP in img.tag.keys():
+                        mpp = img.tag[TIF_EXIF_KEY_MPP][0]
+                        log.debug(
+                            f"Using MPP {mpp} per EXIF {TIF_EXIF_KEY_MPP}"
+                        )
+                        self.properties[OPS_MPP_X] = mpp
+                    elif (sf.util.path_to_ext(path).lower() in ('tif', 'tiff')
+                          and 'xres' in loaded_image.get_fields()):
+                        xres = loaded_image.get('xres')  # 4000.0
+                        if (xres == 4000.0
+                           and loaded_image.get('resolution-unit') == 'cm'):
+                            # xres = xres # though resolution from tiffinfo
+                            # says 40000 pixels/cm, for some reason the xres
+                            # val is 4000.0, so multipley by 10.
+                            # Convert from pixels/cm to cm/pixels, then convert
+                            # to microns by multiplying by 1000
+                            mpp_x = (1/xres) * 1000
+                            self.properties[OPS_MPP_X] = str(mpp_x)
+                            log.debug(
+                                f"Using MPP {mpp_x} per TIFF 'xres' field"
+                                f" {loaded_image.get('xres')} and "
+                                f"{loaded_image.get('resolution-unit')}"
                             )
-                    except AttributeError:
-                        self.properties[OPS_MPP_X] = DEFAULT_JPG_MPP
+                    else:
+                        name = path_to_name(path)
+                        log.warning(
+                            f"Missing Microns-Per-Pixel (MPP) for {name}"
+                        )
+            except AttributeError:
+                self.properties[OPS_MPP_X] = DEFAULT_JPG_MPP
             except UnidentifiedImageError:
                 log.error(
                     f"PIL error; unable to read slide {path_to_name(path)}."
@@ -1670,7 +1666,7 @@ class WSI(_BaseLoader):
                 log.debug("Building generator with a shared pool")
             if show_progress:
                 pbar = tqdm(total=self.estimated_num_tiles, ncols=80)
-            
+
             if pool is not None:
                 i_mapped = pool.imap(
                     partial(_wsi_extraction_worker, args=w_args),
