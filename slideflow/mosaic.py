@@ -21,6 +21,7 @@ from slideflow.stats import SlideMap, get_centroid_index
 from slideflow.util import Path
 from slideflow.util import colors as col
 from slideflow.util import log
+from slideflow.stats import get_centroid_index
 
 if TYPE_CHECKING:
     from slideflow.norm import StainNormalizer
