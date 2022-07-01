@@ -1243,21 +1243,23 @@ def group_reduce(
                                                == outcome_pred_cat).astype(int)
 
     for group in groups:
-        group_dfs.update({group: _df.groupby(group).mean()})
+        group_dfs.update({group: _df.groupby(group, as_index=False).mean()})
 
     return group_dfs
 
 
-def rename_columns(
+def name_columns(
     df: DataFrame,
-    outcome_names: Optional[List[str]],
-    model_type: str
+    model_type: str,
+    outcome_names: Optional[List[str]] = None
 ):
     _assert_model_type(model_type)
 
     if outcome_names is None and model_type != 'cph':
         raise ValueError("Must supply outcome names for categorical "
                          "or linear models.")
+    if not isinstance(outcome_names, (list, tuple)):
+        outcome_names = [outcome_names]
 
     if model_type == 'categorical':
         # Update dataframe column names with outcome names
@@ -1436,6 +1438,17 @@ def _assert_model_type(model_type: str) -> None:
                          "categorical, linear, or cph")
 
 
+def _merge_metrics(metrics_by_level: Dict[str, Dict]) -> Dict[str, Dict]:
+    levels = list(metrics_by_level.keys())
+    metrics = list(metrics_by_level[levels[0]].keys())
+    return {
+        metric: {
+            level: metrics_by_level[level][metric]
+            for level in levels
+        } for metric in metrics
+    }
+
+
 def categorical_metrics(
     df: DataFrame,
     label: str = '',
@@ -1473,46 +1486,50 @@ def categorical_metrics(
     # match the provided outcome names
     outcome_names = [c[:-8] for c in df.columns if c.endswith('-y_pred0')]
 
-    auc = {outcome: [] for outcome in outcome_names}
-    ap = {outcome: [] for outcome in outcome_names}
+    all_auc = {outcome: [] for outcome in outcome_names}
+    all_ap = {outcome: [] for outcome in outcome_names}
+
+    def y_true_onehot(_df, i):
+        return (_df.y_true == i).astype(int)
+
+    def y_pred_onehot(_df, i):
+        return (_df[f'y_pred{i}'] == _df.y_pred_cat).astype(int)
 
     # Perform analysis separately for each outcome column
     for oi, outcome in enumerate(outcome_names):
         outcome_cols = [c for c in df.columns if c.startswith(f'{outcome}-')]
         # Remove the outcome name from the dataframe temporarily
-        df = df[['slide', 'patient'] + outcome_cols].rename(
+        outcome_df = df[outcome_cols].rename(
             columns={
                 orig_col: orig_col.replace(f'{outcome}-', '', 1)
                 for orig_col in outcome_cols
             }
         )
         log.info(f"Validation metrics for outcome {col.green(outcome)}:")
-        y_pred_cols = [c for c in df.columns if c.startswith('y_pred')]
+        y_pred_cols = [c for c in outcome_df.columns if c.startswith('y_pred')]
         num_cat = len(y_pred_cols)
 
+        if not len(y_pred_cols):
+            print("outcome:", outcome)
+            print("y_pred cols:", y_pred_cols)
+
         # Convert to one-hot encoding
-        df['y_pred_cat'] = df[y_pred_cols].values.max(1)
-
-        def y_true_onehot(_df, i):
-            return (_df.y_true == i).astype(int)
-
-        def y_pred_onehot(_df, i):
-            return (_df[f'y_pred{i}'] == _df.y_pred_cat).astype(int)
+        outcome_df['y_pred_cat'] = outcome_df[y_pred_cols].values.max(1)
 
         log.debug(f"Calculating metrics with a multiprocessing pool")
         ctx = mp.get_context('spawn')
         p = ctx.Pool(8)
         roc_fn = partial(
             _generate_tile_roc,
-            y_true=df.y_true.values,
+            y_true=outcome_df.y_true.values,
             data_dir=data_dir,
             label=str(label_start + outcome) + "_tile_{}",
         )
         try:
-            idx_and_yp = [(i, y_pred_onehot(df, i)) for i in range(num_cat)]
+            idx_and_yp = [(i, y_pred_onehot(outcome_df, i)) for i in range(num_cat)]
             for i, (auc, ap, thresh) in enumerate(p.imap(roc_fn, idx_and_yp)):
-                auc[outcome] += [auc]
-                ap[outcome] += [ap]
+                all_auc[outcome] += [auc]
+                all_ap[outcome] += [ap]
                 log.info(
                     f"{level}-level AUC (cat #{i:>2}): {auc:.3f} "
                     f"{level}-level AP: {ap:.3f} (opt. threshold: {thresh:.3f})"
@@ -1520,8 +1537,8 @@ def categorical_metrics(
         except ValueError as e:
             # Occurs when predictions contain NaN
             log.error(f'Error encountered when generating AUC: {e}')
-            auc[outcome] = -1
-            ap[outcome] = -1
+            all_auc[outcome] = -1
+            all_ap[outcome] = -1
         p.close()
 
         # Calculate tile-level accuracy.
@@ -1529,17 +1546,17 @@ def categorical_metrics(
         # one-hot predictions to one-hot y_true.
         for i in range(num_cat):
             try:
-                yt_in_cat =  y_true_onehot(df, i)
+                yt_in_cat =  y_true_onehot(outcome_df, i)
                 n_in_cat = yt_in_cat.sum()
-                correct = y_pred_onehot(df.loc[yt_in_cat > 0], i).sum()
+                correct = y_pred_onehot(outcome_df.loc[yt_in_cat > 0], i).sum()
                 category_accuracy = correct / n_in_cat
                 perc = category_accuracy * 100
                 log.info(f"Category {i} acc: {perc:.1f}% ({correct}/{n_in_cat})")
             except IndexError:
                 log.warning(f"Error with category accuracy for cat # {i}")
     return {
-        'auc': auc,
-        'ap': ap,
+        'auc': all_auc,
+        'ap': all_ap,
     }
 
 
@@ -1583,9 +1600,14 @@ def linear_metrics(
     # Detect the outcome names
     outcome_names = [c[:-7] for c in df.columns if c.endswith('-y_pred')]
     _outcomes_by_true = [c[:-7] for c in df.columns if c.endswith('-y_true')]
-    if sorted(outcome_names) != sorted(_outcomes_by_true):
+    if ((sorted(outcome_names) != sorted(_outcomes_by_true)) 
+       or not len(outcome_names)):
         raise ValueError("Improperly formatted dataframe to linear_metrics(); "
-                         "could not detect outcome names.")
+                         "could not detect outcome names. Ensure that "
+                         "prediction columns end in '-y_pred' and ground-truth "
+                         "columns end in '-y_true'. Try setting column names "
+                         "with slideflow.stats.name_columns(). "
+                         f"DataFrame columns: {list(df.columns)}")
 
     # Calculate metrics
     y_pred_cols = [f'{o}-y_pred' for o in outcome_names]
@@ -1641,13 +1663,23 @@ def cph_metrics(
     Returns:
         Dict containing metrics.
     """
+    cph_cols = ('time-y_true', 'time-y_pred', 'event-y_true')
+    if any(c not in df.columns for c in cph_cols):
+        raise ValueError(
+            "Improperly formatted dataframe to cph_metrics(), "
+            f"must have columns {cph_cols}. Got: {list(df.columns)}"
+        )
 
     # Calculate metrics
-    c_index = concordance_index(
-        df['time-y_true'].values,
-        df[['time-y_pred', 'event-y_true']].values,
-    )
-    log.info(f"C-index ({level}-level): {c_index:.3f}")
+    try:
+        c_index = concordance_index(
+            df['time-y_true'].values,
+            df[['time-y_pred', 'event-y_true']].values,
+        )
+        log.info(f"C-index ({level}-level): {c_index:.3f}")
+    except ZeroDivisionError as e:
+        log.error(f"Error calculating concordance index: {e}")
+        c_index = -1
     return {
         'c_index': c_index
     }
@@ -1708,7 +1740,7 @@ def predict_from_dataset(
         uq_n=uq_n
     )
     if outcome_names is not None or model_type == 'cph':
-        df = rename_columns(df, outcome_names, model_type=model_type)
+        df = name_columns(df, model_type, outcome_names)
     return group_reduce(df, method=reduce_method, patients=patients)
 
 
@@ -1758,7 +1790,7 @@ def eval_from_dataset(
     else:
         from slideflow.model.torch_utils import _eval_from_model
 
-    df, acc, loss = _eval_from_tensorflow(
+    df, acc, loss = _eval_from_model(
         model,
         dataset,
         model_type,
@@ -1768,7 +1800,7 @@ def eval_from_dataset(
     )
 
     if outcome_names or model_type == 'cph':
-        df = rename_columns(df, outcome_names, model_type=model_type)
+        df = name_columns(df, model_type, outcome_names)
     return group_reduce(df, method=reduce_method, patients=patients), acc, loss
 
 
@@ -1849,16 +1881,15 @@ def metrics_from_dataset(
 
     # Calculate metrics
     def metrics_by_level(metrics_function):
-        return {
+        return _merge_metrics({
             level: metrics_function(
                 _df,
                 level=level,
                 data_dir=data_dir,
                 label=label,
                 **kwargs
-            )
-            for level, _df in dfs.items()
-        }
+            ) for level, _df in dfs.items()
+        })
 
     if model_type == 'categorical':
         metrics = metrics_by_level(categorical_metrics)

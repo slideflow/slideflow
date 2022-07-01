@@ -1283,7 +1283,7 @@ class Trainer:
                 _df.to_parquet(save_path, compression=gzip)
             log.debug(f"Predictions {level}-level saved to {col.green(save_path)}")
 
-        return df
+        return dfs
 
     def evaluate(
         self,
