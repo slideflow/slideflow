@@ -27,27 +27,24 @@ def combined_roc(
         y_pred (np.ndarray): y_pred array of shape = (n_curves, n_samples).
         save_dir (str, optional): Path in which to save ROC curves.
             Defaults to None.
+        labels (list(str)): Labels for each plotted curve.
         name (str, optional): Name for plots. Defaults to 'ROC'.
         neptune_run (neptune.Run, optional): Neptune run for saving plots.
             Defaults to None.
 
     Returns:
-        float:  AUROC
-
-        float:  AP (average precision)
-
-        float:  Optimal threshold (via Youden's J)
+        List[float]:  AUROC for each curve.
     """
     from matplotlib import pyplot as plt
 
     plt.clf()
     plt.title(name)
     colors = ('b', 'g', 'r', 'c', 'm', 'y', 'k')
-    rocs = []
+    aurocs = []
     for i, (yt, yp) in enumerate(zip(y_true, y_pred)):
         fpr, tpr, threshold = metrics.roc_curve(yt, yp)
         roc_auc = metrics.auc(fpr, tpr)
-        rocs += [roc_auc]
+        aurocs += [roc_auc]
         label = f'{labels[i]} (AUC: {roc_auc:.2f})'
         plt.plot(fpr, tpr, colors[i % len(colors)], label=label)
     plt.legend(loc='lower right')
@@ -61,7 +58,7 @@ def combined_roc(
         neptune_run[f'results/graphs/{name}'].upload(
             os.path.join(save_dir, f'{name}.png')
         )
-    return rocs
+    return aurocs
 
 
 def histogram(

@@ -1221,12 +1221,12 @@ class Trainer:
                 TFRecords to evaluate.
             batch_size (int, optional): Evaluation batch size. Defaults to the
                 same as training (per self.hp)
-            format (str, optional): Format in which to save predictions. Either
-                'csv', 'feather', or 'parquet'. Defaults to 'parquet'.
             norm_fit (Dict[str, np.ndarray]): Normalizer fit, mapping fit
                 parameters (e.g. target_means, target_stds) to values
                 (np.ndarray). If not provided, will fit normalizer using
                 model params (if applicable). Defaults to None.
+            format (str, optional): Format in which to save predictions. Either
+                'csv', 'feather', or 'parquet'. Defaults to 'parquet'.
 
         Returns:
             pandas.DataFrame of tile-level predictions.
@@ -1289,7 +1289,7 @@ class Trainer:
         self,
         dataset: "sf.Dataset",
         batch_size: Optional[int] = None,
-        save_predictions: bool = False,
+        save_predictions: Union[bool, str] = 'parquet',
         reduce_method: str = 'average',
         norm_fit: Optional[NormFit] = None,
         uq: Union[bool, str] = 'auto'
@@ -1299,12 +1299,12 @@ class Trainer:
         Args:
             dataset (:class:`slideflow.dataset.Dataset`): Dataset containing
                 TFRecords to evaluate.
-            checkpoint (list, optional): Path to cp.cpkt checkpoint to load.
-                Defaults to None.
             batch_size (int, optional): Evaluation batch size. Defaults to the
                 same as training (per self.hp)
-            save_predictions (bool, optional): Save tile, slide, and
-                patient-level predictions to CSV. Defaults to False.
+            save_predictions (bool or str, optional): Save tile, slide, and 
+                patient-level predictions at each evaluation. May be 'csv', 
+                'feather', or 'parquet'. If False, will not save predictions.
+                Defaults to 'parquet'.
             reduce_method (str, optional): Reduction method for calculating
                 slide-level and patient-level predictions for categorical outcomes.
                 Either 'average' or 'proportion'. If 'average', will reduce with
@@ -1423,7 +1423,7 @@ class Trainer:
         ema_smoothing: int = 2,
         use_tensorboard: bool = True,
         steps_per_epoch_override: int = 0,
-        save_predictions: bool = False,
+        save_predictions: Union[bool, str] = 'parquet',
         save_model: bool = True,
         resume_training: Optional[str] = None,
         pretrain: Optional[str] = 'imagenet',
@@ -1460,8 +1460,10 @@ class Trainer:
                 Defaults to False.
             steps_per_epoch_override (int, optional): Manually set the number
                 of steps per epoch. Defaults to 0 (automatic).
-            save_predictions (bool, optional): Save tile, slide, and patient-
-                level predictions at each evaluation. Defaults to False.
+            save_predictions (bool or str, optional): Save tile, slide, and 
+                patient-level predictions at each evaluation. May be 'csv', 
+                'feather', or 'parquet'. If False, will not save predictions.
+                Defaults to 'parquet'.
             save_model (bool, optional): Save models when evaluating at
                 specified epochs. Defaults to True.
             resume_training (str, optional): Path to Tensorflow model to

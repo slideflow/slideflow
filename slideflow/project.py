@@ -994,10 +994,10 @@ class Project:
                 Defaults to True.
 
         Keyword args:
-            save_predictions (bool or str, optional): Either True, False, or
-                any combination of 'tile', 'patient', or 'slide', as string
-                or list of strings. Save tile-level, patient-level, and/or
-                slide-level predictions. If True, will save all.
+            save_predictions (bool or str, optional): Save tile, slide, and 
+                patient-level predictions at each evaluation. May be 'csv', 
+                'feather', or 'parquet'. If False, will not save predictions.
+                Defaults to 'parquet'.
 
         Returns:
             Dict: Dictionary of keras training results, nested by epoch.
@@ -2461,8 +2461,10 @@ class Project:
             steps_per_epoch_override (int): If provided, will manually set the
                 number of steps in an epoch. Default epoch length is the number
                 of total tiles.
-            save_predicitons (bool): Save predictions with each validation.
-                Defaults to False.
+            save_predictions (bool or str, optional): Save tile, slide, and 
+                patient-level predictions at each evaluation. May be 'csv', 
+                'feather', or 'parquet'. If False, will not save predictions.
+                Defaults to 'parquet'.
             save_model (bool, optional): Save models when evaluating at
                 specified epochs. Defaults to True.
             validate_on_batch (int): Perform validation every N batches.

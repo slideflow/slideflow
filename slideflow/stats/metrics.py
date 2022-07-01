@@ -1,3 +1,5 @@
+"""Categorical, linear, and CPH metrics for predictions."""
+
 import multiprocessing as mp
 from functools import partial
 from os.path import join
@@ -66,6 +68,24 @@ def _generate_tile_roc(
 
 
 def _merge_metrics(metrics_by_level: Dict[str, Dict]) -> Dict[str, Dict]:
+    """Merge dictionary of levels into a dictionary by metric.
+    
+    Function accepts a dictionary organized as such:
+
+    {
+        'tile':  {'auc': [...], 'ap': [...]},
+        'slide': {'auc': [...], 'ap': [...]},
+        ...
+    }
+
+    and converts it to:
+
+    {
+        'auc': {'tile': [...], 'slide': [...]},
+        'ap':  {'tile': [...], 'slide': [...]},
+        ...
+    }    
+    """
     levels = list(metrics_by_level.keys())
     metrics = list(metrics_by_level[levels[0]].keys())
     return {
@@ -125,28 +145,22 @@ def categorical_metrics(
     data_dir: str = '',
     neptune_run: Optional["neptune.Run"] = None
 ) -> Dict[str, Dict[str, float]]:
-    """Generates metrics from a set of predictions.
-
-    For multiple outcomes, y_true and y_pred are expected to be a list of
-    numpy arrays (each array corresponding to whole-dataset predictions
-    for a single outcome)
+    """Generates categorical metrics (AUC/AP) from a set of predictions.
 
     Args:
         df (pd.DataFrame): Pandas DataFrame containing labels, predictions,
             and optionally uncertainty, as returned by sf.stats.df_from_pred()
-        patients (dict): Dictionary mapping slidenames to patients.
-        model_type (str): Either 'linear', 'categorical', or 'cph'.
 
     Keyword args:
-        outcome_names (list, optional): List of str, names for outcomes.
-            Defaults to None.
-        label (str, optional): Label prefix/suffix for saving.
-            Defaults to None.
-        data_dir (str, optional): Path to data directory for saving.
+        label (str, optional): Label prefix/suffix for ROCs. 
+            Defaults to an empty string.
+        level (str, optional): Group-level for the predictions. Used for 
+            labeling plots. Defaults to 'tile'.
+        data_dir (str, optional): Path to data directory for saving plots.
             Defaults to None.
 
     Returns:
-        Dict containing metrics.
+        Dict containing metrics, with the keys 'auc' and 'ap'.
     """
 
     label_start = "" if label == '' else f"{label}_"
@@ -248,32 +262,24 @@ def cph_metrics(
     data_dir: str = '',
     neptune_run: Optional["neptune.Run"] = None
 ) -> Dict[str, Dict[str, float]]:
-    """Generates metrics from a set of predictions.
-
-    For multiple outcomes, y_true and y_pred are expected to be a list of
-    numpy arrays (each array corresponding to whole-dataset predictions
-    for a single outcome)
+    """Generates CPH metrics (concordance index) from a set of predictions.
 
     Args:
         df (pd.DataFrame): Pandas DataFrame containing labels, predictions,
-            and optionally uncertainty, as returned by sf.stats.df_from_pred()
-        patients (dict): Dictionary mapping slidenames to patients.
-        model_type (str): Either 'linear', 'categorical', or 'cph'.
+            and optionally uncertainty, as returned by sf.stats.df_from_pred().
+            The dataframe columns should be appropriately named using
+            sf.stats.name_columns().
 
     Keyword args:
-        outcome_names (list, optional): List of str, names for outcomes.
+        label (str, optional): Label prefix/suffix for ROCs. 
+            Defaults to an empty string.
+        level (str, optional): Group-level for the predictions. Used for 
+            labeling plots. Defaults to 'tile'.
+        data_dir (str, optional): Path to data directory for saving plots.
             Defaults to None.
-        label (str, optional): Label prefix/suffix for saving.
-            Defaults to None.
-        data_dir (str, optional): Path to data directory for saving.
-            Defaults to None.
-        plot (bool, optional): Save scatterplot for linear outcomes.
-            Defaults to True.
-        neptune_run (:class:`neptune.Run`, optional): Neptune run in which to
-            log results. Defaults to None.
 
     Returns:
-        Dict containing metrics.
+        Dict containing metrics, with the key 'c_index'.
     """
     cph_cols = ('time-y_true', 'time-y_pred', 'event-y_true')
     if any(c not in df.columns for c in cph_cols):
@@ -320,7 +326,7 @@ def df_from_pred(
             should match the numpy arrays in y_true, y_pred, and y_std.
 
     Returns:
-        DataFrame: _description_
+        DataFrame: DataFrame of predictions.
     """
     len_err_msg = "{} must be a list of length equal to number of outcomes"
     if y_true is not None and not isinstance(y_true, (list, tuple)):
@@ -376,8 +382,7 @@ def eval_from_dataset(
     patients: Optional[Dict[str, str]] = None,
     outcome_names: Optional[List[str]] = None,
 ) -> Tuple[DataFrame, float, float]:
-    """Generates predictions (y_true, y_pred, tile_to_slide) and accuracy/loss
-    from a given model and dataset.
+    """Generates predictions and accuracy/loss from a given model and dataset.
 
     Args:
         model (str): Path to PyTorch model.
@@ -397,7 +402,11 @@ def eval_from_dataset(
             average of each logit across tiles. If 'proportion', will convert
             tile predictions into onehot encoding then reduce by averaging
             these onehot values. Defaults to 'average'.
-
+        patients (dict, optional): Dictionary mapping slide names to patient 
+            names. Required for generating patient-level metrics.
+        outcome_names (list, optional): List of str, names for outcomes.
+            Defaults to None (outcomes will not be named).
+        
     Returns:
         pd.DataFrame, accuracy, loss
     """
@@ -440,8 +449,8 @@ def generate_roc(
         save_dir (str, optional): Path in which to save ROC curves.
             Defaults to None.
         name (str, optional): Name for plots. Defaults to 'ROC'.
-        neptune_run (neptune.Run, optional): Neptune run for saving plots.
-            Defaults to None.
+        neptune_run (neptune.Run, optional): Neptune run. Uploads a saved
+            plot to results/graphs/. Defaults to None.
 
     Returns:
         float:  AUROC
@@ -498,6 +507,8 @@ def group_reduce(
             average of each logit across tiles. If 'proportion', will convert
             tile predictions into onehot encoding then reduce by averaging
             these onehot values. Defaults to 'average'.
+        patients (dict, optional): Dictionary mapping slide names to patient 
+            names. Required for generating patient-level metrics.
     """
     log.debug(f"Using reduce_method={method}")
 
@@ -542,32 +553,24 @@ def linear_metrics(
     data_dir: str = '',
     neptune_run: Optional["neptune.Run"] = None
 ) -> Dict[str, Dict[str, float]]:
-    """Generates metrics from a set of predictions.
-
-    For multiple outcomes, y_true and y_pred are expected to be a list of
-    numpy arrays (each array corresponding to whole-dataset predictions
-    for a single outcome)
+    """Generates metrics (R-squared) from a set of predictions.
 
     Args:
         df (pd.DataFrame): Pandas DataFrame containing labels, predictions,
             and optionally uncertainty, as returned by sf.stats.df_from_pred()
-        patients (dict): Dictionary mapping slidenames to patients.
-        model_type (str): Either 'linear', 'categorical', or 'cph'.
 
     Keyword args:
-        outcome_names (list, optional): List of str, names for outcomes.
-            Defaults to None.
-        label (str, optional): Label prefix/suffix for saving.
-            Defaults to None.
+        label (str, optional): Label prefix/suffix for ROCs. 
+            Defaults to an empty string.
+        level (str, optional): Group-level for the predictions. Used for 
+            labeling plots. Defaults to 'tile'.
         data_dir (str, optional): Path to data directory for saving.
             Defaults to None.
-        save_predictions (bool, optional): Save tile, slide, and patient-level
-            predictions to CSV. Defaults to True.
         neptune_run (:class:`neptune.Run`, optional): Neptune run in which to
             log results. Defaults to None.
 
     Returns:
-        Dict containing metrics.
+        Dict containing metrics, with the key 'r_squared'.
     """
 
     label_end = "" if label == '' else f"_{label}"
@@ -625,7 +628,6 @@ def metrics_from_dataset(
     Args:
         model (tf.keras.Model or torch.nn.Module): Keras/Torch model to eval.
         model_type (str): 'categorical', 'linear', or 'cph'.
-        labels (dict): Dictionary mapping slidenames to outcomes.
         patients (dict): Dictionary mapping slidenames to patients.
         dataset (tf.data.Dataset or torch.utils.data.DataLoader): Dataset.
         pred_args (namespace, optional): Additional arguments to tensorflow and
@@ -634,6 +636,8 @@ def metrics_from_dataset(
             Used for progress bar. Defaults to 0.
 
     Keyword args:
+        outcome_names (list, optional): List of str, names for outcomes.
+            Defaults to None.
         reduce_method (str, optional): Reduction method for calculating
             slide-level and patient-level predictions for categorical outcomes.
             Either 'average' or 'proportion'. If 'average', will reduce with
@@ -642,12 +646,10 @@ def metrics_from_dataset(
             these onehot values. Defaults to 'average'.
         label (str, optional): Label prefix/suffix for saving.
             Defaults to None.
-        outcome_names (list, optional): List of str, names for outcomes.
-            Defaults to None.
-        data_dir (str): Path to data directory for saving.
-            Defaults to empty string (current directory).
         save_predictions (bool, optional): Save tile, slide, and patient-level
             predictions to CSV. Defaults to True.
+        data_dir (str): Path to data directory for saving.
+            Defaults to empty string (current directory).
         neptune_run (:class:`neptune.Run`, optional): Neptune run in which to
             log results. Defaults to None.
 
@@ -707,6 +709,26 @@ def name_columns(
     model_type: str,
     outcome_names: Optional[List[str]] = None
 ):
+    """Renames columns in a DataFrame to correspond to the given outcome names.
+
+    Assumes the DataFrame supplied was generated by sf.stats.df_from_pred().
+
+    Args:
+        df (DataFrame): DataFrame from sf.stats.df_from_pred(), containing
+            predictions and labels.
+        model_type (str): Type of model ('categorical', 'linear', or 'cph').
+        outcome_names (list(str)), optional): Outcome names to apply to the 
+            DataFrame. If this is from a CPH model, the standard names "time"
+            and "event" will be used. 
+
+    Raises:
+        ValueError: If outcome_names are not supplied and it is not a CPH model.
+        errors.StatsError: If the length of outcome_names is incompatible 
+            with the DataFrame.
+
+    Returns:
+        DataFrame: DataFrame with renamed columns.
+    """
     _assert_model_type(model_type)
 
     if outcome_names is None and model_type != 'cph':
@@ -773,8 +795,8 @@ def predict_from_dataset(
     reduce_method: str = 'average',
     patients: Optional[Dict[str, str]] = None,
     outcome_names: Optional[List[str]] = None
-) -> DataFrame:
-    """Generates predictions (y_pred, tile_to_slide) from model and dataset.
+) -> Dict[str, DataFrame]:
+    """Generates predictions from model and dataset.
 
     Args:
         model (str): Path to PyTorch model.
@@ -794,9 +816,15 @@ def predict_from_dataset(
             average of each logit across tiles. If 'proportion', will convert
             tile predictions into onehot encoding then reduce by averaging
             these onehot values. Defaults to 'average'.
+        patients (dict, optional): Dictionary mapping slide names to patient 
+            names. Required for generating patient-level metrics.
+        outcome_names (list, optional): List of str, names for outcomes.
+            Defaults to None (outcomes will not be named).
 
     Returns:
-        pd.DataFrame
+        Dict[str, pd.DataFrame]: Dictionary with keys 'tile', 'slide', and 
+            'patient', and values containing DataFrames with tile-, slide-,
+            and patient-level predictions.
     """
     if model_type != 'categorical' and reduce_method != 'average':
         raise ValueError(
