@@ -15,7 +15,7 @@ from slideflow.util import colors as col
               required=False, metavar='DIR')
 @click.option('--out', help='Directory in which to store test project files.',
               required=False, metavar='DIR')
-@click.option('--all', help='Perform all tests.',
+@click.option('--all', 'all_tests', help='Perform all tests.',
               required=False, type=bool)
 @click.option('--unit', help='Run unit tests.',
               required=False, type=bool, default=True)
@@ -41,7 +41,7 @@ from slideflow.util import colors as col
               required=False, type=bool)
 @click.option('--slide-threads', help='Number of threads during tile extraction.',
               required=False, type=int, default=None)
-def main(slides, out, all, **kwargs):
+def main(slides, out, all_tests, slide_threads, **kwargs):
     '''Test script for running both unit tests and functional tests.
 
     Unit tests are included in `slideflow.test` and use the builtin `unittest`
@@ -75,9 +75,11 @@ def main(slides, out, all, **kwargs):
         verbosity = logging.getLogger('slideflow').getEffectiveLevel()
     else:
         verbosity = logging.WARNING
-    test_kw = [k for k in kwargs if k not in ('out', 'slides', 'slide_threads')]
-    if all is not None:
-        kwargs = {k: all if kwargs[k] is None else kwargs[k] for k in test_kw}
+
+    # Set tests to default values if --all argument is set
+    for test in kwargs:
+        if kwargs[test] is None and all_tests is not None:
+            kwargs[test] = all_tests
 
     # Show active backend
     if sf.backend() == 'tensorflow':
@@ -89,13 +91,13 @@ def main(slides, out, all, **kwargs):
 
     # Show tests to run
     print(col.bold("\nTests to run:"))
-    tests = kwargs.values()
     print(tabulate.tabulate({
         'Test': kwargs.keys(),
-        'Run': [col.green('True') if v else col.red('False') for v in tests]
+        'Run': [col.green('True') if v else col.red('False') 
+                for v in kwargs.values()]
     }))
     TS = TestSuite(out, slides, verbosity=verbosity)
-    TS.test(**kwargs)
+    TS.test(slide_threads=slide_threads, **kwargs)
 
 
 if __name__ == '__main__':
