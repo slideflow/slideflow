@@ -212,7 +212,7 @@ class TestMetrics(unittest.TestCase):
         )
         dfs = self._group_reduce(tile_df)
         for level, _df in dfs.items():
-            metrics = sf.stats.categorical_metrics(_df, level=level)
+            metrics = sf.stats.metrics.categorical_metrics(_df, level=level)
             self._assert_categorical_metrics(metrics, ['out0'], [self.n_labels1])
 
     def test_single_categorical_named(self):
@@ -222,7 +222,7 @@ class TestMetrics(unittest.TestCase):
         tile_df = sf.stats.name_columns(tile_df, 'categorical', 'Named1')
         dfs = self._group_reduce(tile_df)
         for level, _df in dfs.items():
-            metrics = sf.stats.categorical_metrics(_df, level=level)
+            metrics = sf.stats.metrics.categorical_metrics(_df, level=level)
             self._assert_categorical_metrics(metrics, ['Named1'], [self.n_labels1])
 
     def test_multi_categorical(self):
@@ -231,7 +231,7 @@ class TestMetrics(unittest.TestCase):
         )
         dfs = self._group_reduce(tile_df)
         for level, _df in dfs.items():
-            metrics = sf.stats.categorical_metrics(_df, level=level)
+            metrics = sf.stats.metrics.categorical_metrics(_df, level=level)
             self._assert_categorical_metrics(
                 metrics, 
                 ['out0', 'out1'], 
@@ -249,7 +249,7 @@ class TestMetrics(unittest.TestCase):
         )
         dfs = self._group_reduce(tile_df)
         for level, _df in dfs.items():
-            metrics = sf.stats.categorical_metrics(_df, level=level)
+            metrics = sf.stats.metrics.categorical_metrics(_df, level=level)
             self._assert_categorical_metrics(
                 metrics, 
                 ['Named1', 'Named2'], 
@@ -263,7 +263,7 @@ class TestMetrics(unittest.TestCase):
         tile_df = sf.stats.name_columns(tile_df, 'linear', ['NamedLinear1'])
         dfs = self._group_reduce(tile_df)
         for level, _df in dfs.items():
-            metrics = sf.stats.linear_metrics(_df, level=level)
+            metrics = sf.stats.metrics.linear_metrics(_df, level=level)
             self._assert_linear_metrics(metrics, 1)
 
     def test_multi_linear(self):
@@ -277,7 +277,7 @@ class TestMetrics(unittest.TestCase):
         )
         dfs = self._group_reduce(tile_df)
         for level, _df in dfs.items():
-            metrics = sf.stats.linear_metrics(_df, level=level)
+            metrics = sf.stats.metrics.linear_metrics(_df, level=level)
             self._assert_linear_metrics(metrics, 2)
 
     def test_cph(self):
@@ -287,7 +287,7 @@ class TestMetrics(unittest.TestCase):
         tile_df = sf.stats.name_columns(tile_df, 'cph')
         dfs = self._group_reduce(tile_df)
         for level, _df in dfs.items():
-            metrics = sf.stats.cph_metrics(_df, level=level)
+            metrics = sf.stats.metrics.cph_metrics(_df, level=level)
             self._assert_cph_metrics(metrics)
 
 
