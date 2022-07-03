@@ -1083,7 +1083,7 @@ class Trainer:
             empty_inp += [
                 torch.empty([self.hp.batch_size, self.num_slide_features])
             ]
-        if log.getEffectiveLevel() <= 20:
+        if sf.getLoggingLevel() <= 20:
             model_summary = torch_utils.print_module_summary(
                 self.model, empty_inp
             )
