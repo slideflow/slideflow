@@ -73,9 +73,7 @@ class Heatmap:
                 the model was trained on. If 'auto', will use the format
                 logged in the model params.json.
         """
-
-        self.logits = None
-        self.insets = []
+        self.insets = []  # type: List[Inset]
         if (roi_dir is None and rois is None) and roi_method != 'ignore':
             log.info("No ROIs provided; will generate whole-slide heatmap")
             roi_method = 'ignore'
@@ -159,8 +157,8 @@ class Heatmap:
     def _format_ax(
         self,
         ax: "Axes",
+        thumb_size: Tuple[int, int],
         show_roi: bool = True,
-        thumb_size: Optional[Tuple[int, int]] = None,
         **kwargs
     ) -> None:
         """Formats matplotlib axis in preparation for heatmap plotting.
@@ -198,7 +196,7 @@ class Heatmap:
         axes: bool = True
     ) -> Inset:
         """Adds a zoom inset to the heatmap."""
-        self.insets += [Inset(
+        _inset = Inset(
                 x=x,
                 y=y,
                 zoom=zoom,
@@ -206,7 +204,9 @@ class Heatmap:
                 mark1=mark1,
                 mark2=mark2,
                 axes=axes
-        )]
+        )
+        self.insets += [_inset]
+        return _inset
 
     def clear_insets(self) -> None:
         """Removes zoom insets."""
@@ -234,16 +234,16 @@ class Heatmap:
         Returns:
             plt.image.AxesImage: Result from ax.imshow().
         """
-        self._prepare_ax(ax)
+        ax = self._prepare_ax(ax)
         if width is None and mpp is None:
             width = 2048
         thumb = self.slide.thumb(width=width, mpp=mpp)
         self._format_ax(
             ax,
+            thumb_size=thumb.size,
             show_roi=show_roi,
             color=roi_color,
             linewidth=linewidth,
-            thumb_size=thumb.size
         )
         imshow_thumb = ax.imshow(thumb, zorder=0)
 

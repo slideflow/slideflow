@@ -335,10 +335,10 @@ class Project:
 
         Args:
             model (str): Path to model to evaluate.
-            outcomes (str): Str or list of str. Annotation column
-                header specifying the outcome label(s).
             dataset (:class:`slideflow.dataset.Dataset`): Dataset
                 from which to generate activations.
+            outcomes (str): Str or list of str. Annotation column
+                header specifying the outcome label(s).
             checkpoint (str, optional): Path to cp.ckpt file, if evaluating
                 saved checkpoint. Defaults to None.
             eval_k_fold (int, optional): K-fold iteration number to evaluate.
@@ -348,10 +348,10 @@ class Project:
                 Defaults to "splits.json".
             max_tiles (int, optional): Maximum number of tiles from each slide
                 to evaluate. Defaults to 0 (include all tiles).
-            input_header (str, optional): Annotation column header to use as
-                additional input. Defaults to None.
             mixed_precision (bool, optional): Enable mixed precision.
                 Defaults to True.
+            input_header (str, optional): Annotation column header to use as
+                additional input. Defaults to None.
 
         Returns:
             Trainer (:class:`slideflow.model.Trainer`),
@@ -517,7 +517,7 @@ class Project:
     ) -> None:
         '''Trains a model(s) using the specified hyperparameters.
 
-        Args:
+        Keyword Args:
             hp_name (str): Name of hyperparameter combination being run.
             hp (:class:`slideflow.ModelParams`): Model parameters.
             outcomes (str or list(str)): Annotation outcome headers.
@@ -846,6 +846,8 @@ class Project:
 
         Args:
             name (str): Dataset source name.
+
+        Keyword Args:
             slides (str): Path to directory containing slides.
             roi (str): Path to directory containing CSV ROIs.
             tiles (str): Path to directory for storing extracted tiles.
@@ -910,16 +912,17 @@ class Project:
         label: Optional[str] = None,
         **kwargs: Any
     ) -> None:
-        """Prepares a hyperparameter sweep, saving to a batch train TSV file.
+        """Prepares a grid-search hyperparameter sweep, saving to a config file.
 
         Args:
-            label (str, optional): Label to use when naming models in sweep.
-                Defaults to None.
             filename (str, optional): Filename for hyperparameter sweep.
                 Overwrites existing files. Saves in project root directory.
                 Defaults to "sweep.json".
+            label (str, optional): Label to use when naming models in sweep.
+                Defaults to None.
+            **kwargs: Parameters to include in the sweep. Parameters may either
+                be fixed or provided as lists.
         """
-
         non_epoch_kwargs = {k: v for k, v in kwargs.items() if k != 'epochs'}
         pdict = copy.deepcopy(non_epoch_kwargs)
         args = list(pdict.keys())
@@ -970,12 +973,18 @@ class Project:
             model (str): Path to model to evaluate.
             outcomes (str): Str or list of str. Annotation column
                 header specifying the outcome label(s).
+
+        Keyword Args:
             dataset (:class:`slideflow.dataset.Dataset`, optional): Dataset
                 to evaluate. If not supplied, will evaluate all project
                 tfrecords at the tile_px/tile_um matching the supplied model,
                 optionally using provided filters and filter_blank.
             filters (dict, optional): Filters dict to use when selecting
                 tfrecords. Defaults to None.
+            filter_blank (list, optional): Exclude slides blank in these cols.
+                Defaults to None.
+            min_tiles (int, optional): Minimum number of tiles a slide must
+                have to be included in evaluation. Defaults to 0.
             checkpoint (str, optional): Path to cp.ckpt file, if evaluating a
                 saved checkpoint. Defaults to None.
             eval_k_fold (int, optional): K-fold iteration number to evaluate.
@@ -986,18 +995,16 @@ class Project:
                 Defaults to "splits.json".
             max_tiles (int, optional): Maximum number of tiles from each slide
                 to evaluate. Defaults to 0. If zero, will include all tiles.
-            min_tiles (int, optional): Minimum number of tiles a slide must
-                have to be included in evaluation. Defaults to 0.
-            input_header (str, optional): Annotation column header to use as
-                additional input. Defaults to None.
             mixed_precision (bool, optional): Enable mixed precision.
                 Defaults to True.
-
-        Keyword args:
-            save_predictions (bool or str, optional): Save tile, slide, and 
-                patient-level predictions at each evaluation. May be 'csv', 
+            input_header (str, optional): Annotation column header to use as
+                additional input. Defaults to None.
+            save_predictions (bool or str, optional): Save tile, slide, and
+                patient-level predictions at each evaluation. May be 'csv',
                 'feather', or 'parquet'. If False, will not save predictions.
                 Defaults to 'parquet'.
+            **kwargs: Additional keyword arguments to the `Trainer.evaluate()`
+                function.
 
         Returns:
             Dict: Dictionary of keras training results, nested by epoch.
@@ -1041,6 +1048,8 @@ class Project:
             tile_px (int): Tile width in pixels.
             tile_um (int or str): Tile width in microns (int) or magnification
                 (str, e.g. "20x").
+
+        Keyword Args:
             k (int, optional): K-fold / split iteration to evaluate. Evaluates
                 the model saved as s_{k}_checkpoint.pt. Defaults to 0.
             eval_tag (str, optional): Unique identifier for this evaluation.
@@ -1187,6 +1196,8 @@ class Project:
             tile_px (int): Size of tiles to extract, in pixels.
             tile_um (int or str): Size of tiles to extract, in microns (int) or
                 magnification (str, e.g. "20x").
+
+        Keyword Args:
             save_tiles (bool, optional): Save tile images in loose format.
                 Defaults to False.
             save_tfrecords (bool, optional): Save tile images as TFRecords.
@@ -1228,8 +1239,6 @@ class Project:
                 Defaults to None.
             report (bool, optional): Save a PDF report of tile extraction.
                 Defaults to True.
-
-        Keyword Args:
             normalizer (str, optional): Normalization strategy.
                 Defaults to None.
             normalizer_source (str, optional): Path to normalizer source image.
@@ -1296,6 +1305,8 @@ class Project:
 
         Args:
             model (str): Path to model
+
+        Keyword Args:
             dataset (:class:`slideflow.dataset.Dataset`, optional): Dataset
                 from which to generate activations. If not supplied, calculate
                 activations for all tfrecords compatible with the model,
@@ -1312,8 +1323,6 @@ class Project:
                 Used for category-level comparisons. Defaults to None.
             torch_export (str, optional): Path. Export activations to
                 torch-compatible file at this location. Defaults to None.
-
-        Keyword Args:
             layers (list(str)): Layers from which to generate activations.
                 Defaults to 'postconv'.
             export (str): Path to CSV file. Save activations in CSV format.
@@ -1363,16 +1372,22 @@ class Project:
                 May provide either this or "pt_files"
             outdir (str, optional): Save exported activations in .pt format.
                 Defaults to 'auto' (project directory).
-            layers (list, optional): Which model layer(s) generate activations.
-                Defaults to 'postconv'.
-            max_tiles (int, optional): Maximum tiles to take per slide.
-                Defaults to 0.
+
+        Keyword Args:
+            dataset (:class:`slideflow.dataset.Dataset`, optional): Dataset
+                from which to generate activations. If not supplied, calculate
+                activations for all tfrecords compatible with the model,
+                optionally using provided filters and filter_blank.
             min_tiles (int, optional): Minimum tiles per slide. Skip slides
                 not meeting this threshold. Defaults to 8.
             filters (dict, optional): Filters to use when selecting tfrecords.
                 Defaults to None.
             filter_blank (list, optional): Slides blank in these columns will
                 be excluded. Defaults to None.
+            layers (list, optional): Which model layer(s) generate activations.
+                Defaults to 'postconv'.
+            max_tiles (int, optional): Maximum tiles to take per slide.
+                Defaults to 0.
             force_regenerate (bool, optional): Forcibly regenerate activations
                 for all slides even if .pt file exists. Defaults to False.
 
@@ -1452,6 +1467,8 @@ class Project:
 
         Args:
             model (str): Path to Tensorflow model.
+
+        Keyword Args:
             dataset (:class:`slideflow.dataset.Dataset`, optional): Dataset
                 from which to generate predictions. If not supplied, will
                 generate predictions for all project tfrecords at the
@@ -1461,6 +1478,8 @@ class Project:
                 Defaults to None.
             filter_blank (list, optional): Exclude slides blank in these cols.
                 Defaults to None.
+            min_tiles (int, optional): Minimum tiles per slide. Skip slides
+                not meeting this threshold. Defaults to 8.
             outdir (path, optional): Directory in which to save heatmap images.
             resolution (str, optional): Heatmap resolution. Defaults to 'low'.
                 "low" uses a stride equal to tile width.
@@ -1479,10 +1498,12 @@ class Project:
                 Defaults to 'auto'.
             num_threads (int, optional): Number of threads for tile extraction.
                 Defaults to CPU core count.
+            img_format (str, optional): Image format (png, jpg) to use when
+                extracting tiles from slide. Must match the image format
+                the model was trained on. If 'auto', will use the format
+                logged in the model params.json.
             skip_completed (bool, optional): Skip heatmaps for slides that
                 already have heatmaps in target directory.
-
-        Keyword args:
             show_roi (bool): Show ROI on heatmaps.
             interpolation (str): Interpolation strategy for predictions.
                 Defaults to None.
@@ -1564,7 +1585,7 @@ class Project:
         show_prediction: Optional[Union[int, str]] = None,
         predict_on_axes: Optional[List[int]] = None,
         max_tiles: int = 0,
-        umap_cache: Optional[Path] = None,
+        umap_cache: Optional[str] = None,
         use_float: bool = False,
         low_memory: bool = False,
         use_norm: bool = True,
@@ -1584,6 +1605,8 @@ class Project:
                 from which to generate mosaic. If not supplied, will generate
                 mosaic for all tfrecords at the tile_px/tile_um matching
                 the supplied model, optionally using filters/filter_blank.
+
+        Keyword Args:
             filters (dict, optional): Filters dict to use when selecting
                 tfrecords. Defaults to None.
             filter_blank (list, optional): Slides blank in these columns will
@@ -1598,24 +1621,19 @@ class Project:
             show_prediction (int or str, optional): May be either int or str,
                 corresponding to label category. Predictions for this category
                 will be displayed on the exported UMAP plot.
-            predict_on_axes (list, optional): (int, int). Each int corresponds
-                to an label category id. If provided, predictions are generated
-                for these two labels categories; tiles are then mapped with
-                these predictions with the pattern (x, y) and the mosaic is
-                generated from this map. This replaces the default UMAP.
             max_tiles (int, optional): Limits tiles taken from each slide.
                 Defaults to 0.
             umap_cache (str, optional): Path to PKL file in which to save/cache
                 UMAP coordinates. Defaults to None.
             use_float (bool, optional): Interpret labels as continuous instead
                 of categorical. Defaults to False.
+            umap_kwargs (dict, optional): Dictionary of keyword arguments to
+                pass to the UMAP function.
             low_memory (bool, optional): Limit memory during UMAP calculations.
                 Defaults to False.
             use_norm (bool, optional): Display image tiles using the normalizer
                 used during model training (if applicable). Detected from
                 a model's metadata file (params.json). Defaults to True.
-
-        Keyword Args:
             figsize (Tuple[int, int], optional): Figure size. Defaults to
                 (200, 200).
             num_tiles_x (int): Specifies the size of the mosaic map grid.
@@ -1673,24 +1691,14 @@ class Project:
             model_type = model_type if model_type else config['model_type']
             log.info(f'Loaded pred labels found at {col.green(df.model)}')
 
-        if predict_on_axes:
-            # Create mosaic with x- and y-axis corresponding to predictions
-            umap_x, umap_y, umap_meta = df.map_to_predictions(
-                predict_on_axes[0],
-                predict_on_axes[1]
-            )
-            umap = sf.SlideMap.from_precalculated(slides=dataset.slides(),
-                                                  x=umap_x,
-                                                  y=umap_y,
-                                                  meta=umap_meta)
-        else:
-            # Create mosaic map from UMAP of layer activations
-            umap = sf.SlideMap.from_features(df,
-                                             map_slide=map_slide,
-                                             cache=umap_cache,
-                                             low_memory=low_memory,
-                                             **umap_kwargs)
-
+        # Create mosaic map from UMAP of layer activations
+        umap = sf.SlideMap.from_features(
+            df,
+            map_slide=map_slide,
+            cache=umap_cache,
+            low_memory=low_memory,
+            **umap_kwargs
+        )
         # If displaying centroid AND predictions, show slide-level predictions
         # rather than tile-level predictions
         if (map_slide == 'centroid') and show_prediction is not None:
@@ -1745,7 +1753,7 @@ class Project:
         if labels:
             umap.label_by_slide(labels)
         if show_prediction and (map_slide != 'centroid'):
-            umap.label_by_meta('prediction', translation_dict=outcome_labels)
+            umap.label('predictions', translate=outcome_labels)
         umap.filter(dataset.slides())
 
         mosaic = sf.Mosaic(
@@ -1781,6 +1789,8 @@ class Project:
         Args:
             header_x (str): Annotations file header with X-axis coords.
             header_y (str): Annotations file header with Y-axis coords.
+
+        Keyword Args:
             dataset (:class:`slideflow.dataset.Dataset`): Dataset object.
             model (str, optional): Path to Tensorflow model to use when
                 generating layer activations.
@@ -1789,8 +1799,6 @@ class Project:
                 If provided, saved in project mosaic directory.
             outcomes (list(str)): Column name(s) in annotations file from which
                 to read category labels.
-            filters (dict, optional): Filters to use when selecting tfrecords.
-                Defaults to None.
             max_tiles (int, optional): Limits the number of tiles taken from
                 each slide. Defaults to 0.
             use_optimal_tile (bool, optional): Use model to calculate layer
@@ -1799,8 +1807,6 @@ class Project:
             cache (str, optional): Path to PKL file to cache node
                 activations. Defaults to None.
             batch_size (int, optional): Batch size for model. Defaults to 64.
-
-        Keyword Args:
             figsize (Tuple[int, int], optional): Figure size. Defaults to
                 (200, 200).
             num_tiles_x (int): Specifies the size of the mosaic map grid.
@@ -1861,18 +1867,21 @@ class Project:
                 labels[slide][1]  # type: ignore
                 for slide in success_slides
             ])
-            umap_meta = [{
-                            'slide': slide,
-                            'index': opt_ind[slide]
-                         } for slide in success_slides]
+            umap_slides = np.array(success_slides)
+            umap_tfr_idx = np.array([
+                opt_ind[slide] for slide in success_slides
+            ])
         else:
             # Take the first tile from each slide/TFRecord
-            umap_meta = [{'slide': slide, 'index': 0} for slide in slides]
+            umap_slides = slides
+            umap_tfr_idx = np.zeros(len(slides))
 
-        umap = sf.SlideMap.from_precalculated(slides=slides,
-                                              x=umap_x,
-                                              y=umap_y,
-                                              meta=umap_meta)
+        umap = sf.SlideMap.from_precalculated(
+            x=umap_x,
+            y=umap_y,
+            slides=umap_slides,
+            tfr_index=umap_tfr_idx,
+        )
         if outcomes is not None:
             slide_to_category, _ = dataset.labels(outcomes, format='name')
             umap.label_by_slide(slide_to_category)
@@ -1901,6 +1910,8 @@ class Project:
         Args:
             size (int, optional): Width/height of thumbnail in pixels.
                 Defaults to 512.
+
+        Keyword Args:
             dataset (:class:`slideflow.dataset.Dataset`, optional): Dataset
                 from which to generate activations. If not supplied, will
                 calculate activations for all tfrecords at the tile_px/tile_um
@@ -2054,8 +2065,8 @@ class Project:
 
         Args:
             model (str): Path to model to evaluate.
-            outcomes (str): Str or list of str. Annotation header specifying
-                outcome label(s).
+
+        Keyword Args:
             dataset (:class:`slideflow.dataset.Dataset`, optional): Dataset
                 from which to generate predictions. If not supplied, will
                 generate predictions for all project tfrecords at the
@@ -2063,6 +2074,10 @@ class Project:
                 filters and filter_blank.
             filters (dict, optional): Filters to use when selecting tfrecords.
                 Defaults to None.
+            filter_blank (list, optional): Exclude slides blank in these cols.
+                Defaults to None.
+            min_tiles (int, optional): Min tiles a slide must have
+                to be included. Defaults to 0.
             checkpoint (str, optional): Path to cp.ckpt file, if evaluating a
                 saved checkpoint. Defaults to None.
             eval_k_fold (int, optional): K-fold iteration number to evaluate.
@@ -2073,17 +2088,18 @@ class Project:
                 directory. Defaults to "splits.json".
             max_tiles (int, optional): Maximum number of tiles from each slide
                 to evaluate. If zero, will include all tiles. Defaults to 0.
-            min_tiles (int, optional): Min tiles a slide must have
-                to be included in evaluation. Defaults to 0.
+            batch_size (int, optional): Batch size to use during prediction.
+                Defaults to 32.
+            format (str, optional): Format in which to save predictions.
+                Either 'csv', 'feather', or 'parquet'. Defaults to 'parquet'.
             input_header (str, optional): Annotation column header to use as
                 additional input. Defaults to None.
-            format (str, optional): Format in which to save predictions.
-                Either 'csv' or 'feather'. Defaults to 'csv'.
             mixed_precision (bool, optional): Enable mixed precision.
                 Defaults to True.
 
         Returns:
-            pandas.DataFrame of tile-level predictions.
+            Dictionary of predictions dataframes, with the keys 'tile', 'slide',
+            and 'patient'.
         """
 
         # Perform evaluation
@@ -2131,6 +2147,8 @@ class Project:
         Args:
             model (str): Path to model from which to generate predictions.
             outdir (str): Directory for saving WSI predictions in .pkl format.
+
+        Keyword Args:
             dataset (:class:`slideflow.dataset.Dataset`, optional): Dataset
                 from which to generate activations. If not supplied, will
                 calculate activations for all tfrecords at the tile_px/tile_um
@@ -2139,6 +2157,8 @@ class Project:
                 Defaults to None.
             filter_blank (list, optional): Exclude slides blank in these cols.
                 Defaults to None.
+            min_tiles (int, optional): Min tiles a slide must have
+                to be included. Defaults to 0.
             stride_div (int, optional): Stride divisor for extracting tiles.
                 A stride of 1 will extract non-overlapping tiles.
                 A stride_div of 2 will extract overlapping tiles, with a stride
@@ -2157,14 +2177,12 @@ class Project:
                 Defaults to 'auto'.
             source (list, optional): Name(s) of dataset sources from which to
                 get slides. If None, will use all.
-            randomize_origin (bool, optional): Randomize pixel starting
-                position during extraction. Defaults to False.
             img_format (str, optional): Image format (png, jpg) to use when
                 extracting tiles from slide. Must match the image format
                 the model was trained on. If 'auto', will use the format
                 logged in the model params.json.
-
-        Keyword Args:
+            randomize_origin (bool, optional): Randomize pixel starting
+                position during extraction. Defaults to False.
             whitespace_fraction (float, optional): Range 0-1. Defaults to 1.
                 Discard tiles with this fraction of whitespace.
                 If 1, will not perform whitespace filtering.
@@ -2405,6 +2423,8 @@ class Project:
                 params are provided, will train models for each. If JSON file
                 is provided, will interpret as a hyperparameter sweep. See
                 examples below for use.
+
+        Keyword Args:
             exp_label (str, optional): Experiment label to add model names.
             filters (dict, optional): Filters to use when selecting tfrecords.
                 Defaults to None.
@@ -2419,14 +2439,12 @@ class Project:
             splits (str, optional): Filename of JSON file in which to log
                 train/val splits. Looks for filename in project root directory.
                 Defaults to "splits.json".
+            mixed_precision (bool, optional): Enable mixed precision.
+                Defaults to True.
             balance_headers (str or list(str)): Annotation header(s) specifying
                 labels on which to perform mini-batch balancing. If performing
                 category-level balancing and this is set to None, will default
                 to balancing on outcomes. Defaults to None.
-            mixed_precision (bool, optional): Enable mixed precision.
-                Defaults to True.
-
-        Keyword Args:
             val_strategy (str): Validation dataset selection strategy. Options
                 include bootstrap, k-fold, k-fold-manual,
                 k-fold-preserved-site, fixed, and none. Defaults to 'k-fold'.
@@ -2447,7 +2465,6 @@ class Project:
                 dataset. Defaults to None (same as training).
             val_filters (dict): Filters to use for validation dataset.
                 Defaults to None (same as training).
-
             checkpoint (str, optional): Path to cp.ckpt from which to load
                 weights. Defaults to None.
             pretrain (str, optional): Either 'imagenet' or path to Tensorflow
@@ -2461,8 +2478,8 @@ class Project:
             steps_per_epoch_override (int): If provided, will manually set the
                 number of steps in an epoch. Default epoch length is the number
                 of total tiles.
-            save_predictions (bool or str, optional): Save tile, slide, and 
-                patient-level predictions at each evaluation. May be 'csv', 
+            save_predictions (bool or str, optional): Save tile, slide, and
+                patient-level predictions at each evaluation. May be 'csv',
                 'feather', or 'parquet'. If False, will not save predictions.
                 Defaults to 'parquet'.
             save_model (bool, optional): Save models when evaluating at
