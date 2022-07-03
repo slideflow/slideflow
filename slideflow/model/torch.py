@@ -278,7 +278,8 @@ class ModelParams(_base._ModelParams):
     def get_opt(self, params_to_update: Iterable) -> torch.optim.Optimizer:
         return self.OptDict[self.optimizer](
             params_to_update,
-            lr=self.learning_rate
+            lr=self.learning_rate,
+            weight_decay=self.l2
         )
 
     def get_loss(self) -> torch.nn.modules.loss._Loss:

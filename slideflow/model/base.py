@@ -304,6 +304,18 @@ class _ModelParams:
         if not isinstance(self.epochs, list):
             self.epochs = [self.epochs]
 
+        # PyTorch checks.
+        if sf.backend() == 'torch':
+            if self.l2_dense:
+                log.warn(
+                    "'l2_dense' is not implemented in PyTorch backend. "
+                    "L2 regularization must be applied to the whole model "
+                    "by setting 'l2' instead. 'l1_dense' will be ignored.")
+            if self.l1_dense or self.l1:
+                log.warn(
+                    "L1 regularization is not implemented in PyTorch backend "
+                    "and will be ignored.")
+
         # Model type validations.
         if (self.model_type() != 'categorical' and ((self.training_balance == 'category') or
                                                     (self.validation_balance == 'category'))):

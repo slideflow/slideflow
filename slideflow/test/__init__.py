@@ -198,6 +198,7 @@ class TestSuite:
             optimizer='Adam',
             early_stop=False,
             dropout=0.1,
+            l2=1e-4,
             early_stop_patience=0,
             training_balance='patient',
             validation_balance='none',
