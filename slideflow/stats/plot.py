@@ -1,4 +1,5 @@
 import os
+import warnings
 from typing import TYPE_CHECKING, List, Optional, Union
 
 import numpy as np
@@ -169,7 +170,9 @@ def scatter(
         # y = mx + b
         m, b, r, p_val, err = stats.linregress(y_true[:, i], y_pred[:, i])
         r_squared += [r ** 2]
-        p = sns.jointplot(x=y_true[:, i], y=y_pred[:, i], kind="reg")
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", warnings.UserWarning)
+            p = sns.jointplot(x=y_true[:, i], y=y_pred[:, i], kind="reg")
         p.set_axis_labels('y_true', 'y_pred')
         plt.savefig(os.path.join(data_dir, f'Scatter{name}-{i}.png'))
         if neptune_run:
