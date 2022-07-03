@@ -1270,19 +1270,10 @@ class Trainer:
             num_tiles=dataset.num_tiles,
             outcome_names=self.outcome_names
         )
-        for level, _df in dfs.items():
-            if format == 'csv':
-                save_path = os.path.join(self.outdir, f"{level}_predictions.csv")
-                _df.to_csv(save_path)
-            elif format == 'feather':
-                import pyarrow.feather as feather
-                save_path = os.path.join(self.outdir, f'{level}_predictions.feather')
-                feather.write_feather(_df, save_path)
-            else:
-                save_path = os.path.join(self.outdir, f'{level}_predictions.parquet.gzip')
-                _df.to_parquet(save_path, compression=gzip)
-            log.debug(f"Predictions {level}-level saved to {col.green(save_path)}")
 
+        # Save predictions
+        sf.stats.metrics.save_dfs(dfs, format=format, outdir=self.outdir)
+        
         return dfs
 
     def evaluate(
