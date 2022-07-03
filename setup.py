@@ -46,6 +46,7 @@ setuptools.setup(
         'crc32c',
         'h5py',
         'numpy<1.22',
-        'tabulate'
+        'tabulate',
+        'multiprocessing_logging==0.3.1'
     ],
 )
