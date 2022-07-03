@@ -72,7 +72,7 @@ def main(slides, out, all_tests, slide_threads, **kwargs):
     if not out:
         out = 'slideflow_test'
     if 'SF_LOGGING_LEVEL' in os.environ:
-        verbosity = logging.getLogger('slideflow').getEffectiveLevel()
+        verbosity = sf.getLoggingLevel()
     else:
         verbosity = logging.WARNING
 

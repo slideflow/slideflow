@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Tuple, Union
 from types import SimpleNamespace
 import numpy as np
 import tensorflow as tf
+import slideflow as sf
 
 from tqdm import tqdm
 from pandas.core.frame import DataFrame
@@ -26,7 +27,7 @@ def log_summary(
         model (tf.keras.Model): Tensorflow/Keras model.
         neptune_run (neptune.Run, optional): Neptune run. Defaults to None.
     """
-    if log.getEffectiveLevel() <= 20:
+    if sf.getLoggingLevel() <= 20:
         print()
         model.summary()
     if neptune_run:

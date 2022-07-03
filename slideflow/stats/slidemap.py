@@ -6,6 +6,7 @@ from mpl_toolkits.mplot3d import Axes3D
 from sklearn.cluster import KMeans
 from pandas.core.frame import DataFrame
 
+import slideflow as sf
 from slideflow import errors
 from slideflow.util import Path
 from slideflow.util import colors as col
@@ -497,7 +498,7 @@ class SlideMap:
         if self.umap is None:
             self.umap = umap.UMAP(
                 n_components=dim,
-                verbose=(log.getEffectiveLevel() <= 20),
+                verbose=(sf.getLoggingLevel() <= 20),
                 n_neighbors=n_neighbors,
                 min_dist=min_dist,
                 metric=metric,

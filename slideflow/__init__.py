@@ -22,6 +22,7 @@ def backend():
     return os.environ['SF_BACKEND']
 
 
+from slideflow.util import setLoggingLevel, getLoggingLevel, log
 from slideflow import io, model, norm, stats
 from slideflow.dataset import Dataset
 from slideflow.heatmap import Heatmap

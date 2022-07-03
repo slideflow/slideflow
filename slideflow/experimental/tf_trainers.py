@@ -70,7 +70,7 @@ def _train_val_worker(
     verbosity: int
 ) -> None:
     """Internal function to execute model training in an isolated process."""
-    log.setLevel(verbosity)
+    sf.setLoggingLevel(verbosity)
     train_dts, val_dts = datasets
     trainer = CatValLinearTrainer(**model_kw)
     results = trainer.train(train_dts, val_dts, **training_kw)
@@ -359,7 +359,7 @@ class ExperimentalProject(Project):
             k_msg = ''
             if s_args.k is not None:
                 k_msg = f' ({val_settings.strategy} #{s_args.k})'
-            if log.getEffectiveLevel() <= 20:
+            if sf.getLoggingLevel() <= 20:
                 print()
             log.info(f'Training model {col.bold(s_args.model_name)}{k_msg}...')
             log.info(f'Hyperparameters: {hp}')

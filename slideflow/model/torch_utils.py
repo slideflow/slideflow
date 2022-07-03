@@ -379,7 +379,7 @@ def _eval_from_model(
         acc = corrects / total  # type: ignore
     else:
         acc = corrects.cpu().numpy() / total
-    if log.getEffectiveLevel() <= 20:
+    if sf.getLoggingLevel() <= 20:
         sf.util.clear_console()
 
     # Create pandas DataFrame from arrays

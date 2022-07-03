@@ -63,10 +63,9 @@ class TestSuite:
                 return
 
         # --- Set up project --------------------------------------------------
-        # Set logging level
-        logging.getLogger("slideflow").setLevel(verbosity)
-        # Set the tensorflow logger
-        if logging.getLogger('slideflow').level == logging.DEBUG:
+        
+        sf.setLoggingLevel(verbosity)
+        if verbosity == logging.DEBUG:
             logging.getLogger('tensorflow').setLevel(logging.DEBUG)
             os.environ['TF_CPP_MIN_LOG_LEVEL'] = '0'
         else:
