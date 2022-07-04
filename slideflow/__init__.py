@@ -21,8 +21,10 @@ if 'SF_BACKEND' not in os.environ:
 def backend():
     return os.environ['SF_BACKEND']
 
+# Import logging functions required for other submodules
+from slideflow.util import getLoggingLevel, log, setLoggingLevel
 
-from slideflow.util import setLoggingLevel, getLoggingLevel, log
+...
 from slideflow import io, model, norm, stats
 from slideflow.dataset import Dataset
 from slideflow.heatmap import Heatmap

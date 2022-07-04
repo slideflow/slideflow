@@ -1,6 +1,6 @@
+import multiprocessing as mp
 import unittest
 
-import multiprocessing as mp
 import numpy as np
 import slideflow as sf
 from PIL import Image

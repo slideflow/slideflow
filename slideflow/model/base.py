@@ -137,8 +137,8 @@ class _ModelParams:
         self.validation_balance = validation_balance
         self.hidden_layer_width = hidden_layer_width
         self.trainable_layers = trainable_layers
-        self.l1 = float(l1)
-        self.l2 = float(l2)
+        self.l1 = l1 if l1 is None else float(l1)
+        self.l2 = l2 if l2 is None else float(l2)
         self.l1_dense = self.l1 if l1_dense is None else float(l1_dense)
         self.l2_dense = self.l2 if l2_dense is None else float(l2_dense)
         self.dropout = dropout

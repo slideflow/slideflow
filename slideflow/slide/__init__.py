@@ -1664,7 +1664,7 @@ class WSI(_BaseLoader):
                 log.debug("Building generator with a shared pool")
             if show_progress:
                 pbar = tqdm(total=self.estimated_num_tiles, ncols=80)
-            
+
             if pool is not None:
                 i_mapped = pool.imap(
                     partial(_wsi_extraction_worker, args=w_args),

@@ -2,20 +2,18 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
-from mpl_toolkits.mplot3d import Axes3D
-from sklearn.cluster import KMeans
-from pandas.core.frame import DataFrame
-
 import slideflow as sf
+from mpl_toolkits.mplot3d import Axes3D
+from pandas.core.frame import DataFrame
+from sklearn.cluster import KMeans
 from slideflow import errors
+from slideflow.stats.stats_utils import calculate_centroid, normalize_layout
 from slideflow.util import colors as col
 from slideflow.util import log
-from slideflow.stats.stats_utils import calculate_centroid, normalize_layout
 
 if TYPE_CHECKING:
     from matplotlib.axes import Axes
     from matplotlib.figure import Figure
-
     from slideflow.model import DatasetFeatures
 
 

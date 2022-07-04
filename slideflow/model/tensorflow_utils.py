@@ -2,16 +2,17 @@
 
 import os
 import tempfile
-from typing import TYPE_CHECKING, Any, Dict, List, Tuple, Union
 from types import SimpleNamespace
-import numpy as np
-import tensorflow as tf
-import slideflow as sf
+from typing import TYPE_CHECKING, Any, Dict, List, Tuple, Union
 
-from tqdm import tqdm
+import numpy as np
+import slideflow as sf
 from pandas.core.frame import DataFrame
-from slideflow.util import log
 from slideflow.stats import df_from_pred
+from slideflow.util import log
+from tqdm import tqdm
+
+import tensorflow as tf
 
 if TYPE_CHECKING:
     import neptune.new as neptune

@@ -27,7 +27,7 @@ class TestSlideMap(unittest.TestCase):
         )
         cls.umap_kw = dict(n_neighbors=5)
         cls.slidemap = sf.SlideMap.from_features(
-            cls.DummyDatasetFeatures,
+            cls.DummyDatasetFeatures,  # type:ignore
             **cls.umap_kw
         )
 

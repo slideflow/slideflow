@@ -131,7 +131,7 @@ class TestSplits(unittest.TestCase):
             self._test_site_split(splits)
         except sf.errors.SolverNotFoundError:
             sf.util.log.error(
-                'CPLEX not installed, unable to test site-preserved'
+                'CPLEX not installed, unable to test site-preserved '
                 'cross-validation.'
             )
 

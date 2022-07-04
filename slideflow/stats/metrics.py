@@ -8,11 +8,10 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
-from lifelines.utils import concordance_index as c_index
-from sklearn import metrics
-from pandas.core.frame import DataFrame
-
 import slideflow as sf
+from lifelines.utils import concordance_index as c_index
+from pandas.core.frame import DataFrame
+from sklearn import metrics
 from slideflow import errors
 from slideflow.util import colors as col
 from slideflow.util import log
@@ -213,8 +212,8 @@ def categorical_metrics(
     # match the provided outcome names
     outcome_names = [c[:-8] for c in df.columns if c.endswith('-y_pred0')]
 
-    all_auc = {outcome: [] for outcome in outcome_names}
-    all_ap = {outcome: [] for outcome in outcome_names}
+    all_auc = {outcome: [] for outcome in outcome_names}  # type: Dict
+    all_ap = {outcome: [] for outcome in outcome_names}  # type: Dict
 
     def y_true_onehot(_df, i):
         return (_df.y_true == i).astype(int)
@@ -246,8 +245,8 @@ def categorical_metrics(
         log.debug(f"Calculating metrics with a thread pool")
         p = mp.dummy.Pool(8)
         roc_fn = partial(_generate_tile_roc, y_true=outcome_df.y_true.values)
+        idx_and_yp = [(i, y_pred_onehot(outcome_df, i)) for i in range(num_cat)]
         try:
-            idx_and_yp = [(i, y_pred_onehot(outcome_df, i)) for i in range(num_cat)]
             for i, fit in enumerate(p.imap(roc_fn, idx_and_yp)):
                 fit.save_roc(data_dir, f"{label_start}{outcome}_tile_ROC{i}")
                 fit.save_prc(data_dir, f"{label_start}{outcome}_tile_PRC{i}")
@@ -302,7 +301,7 @@ def cph_metrics(
     label: str = '',
     data_dir: str = '',
     neptune_run: Optional["neptune.Run"] = None
-) -> Dict[str, Dict[str, float]]:
+) -> Dict[str, float]:
     """Generates CPH metrics (concordance index) from a set of predictions.
 
     Args:
@@ -357,12 +356,12 @@ def df_from_pred(
             each outcome. For linear outcomes, the length of the outer
             list should be one, and the second shape dimension of the numpy
             array should be the number of linear outcomes.
-        y_pred (list(np.ndarray)): List of y_pred numpy arrays, one array for each
-            outcome. For linear outcomes, the length of the outer
+        y_pred (list(np.ndarray)): List of y_pred numpy arrays, one array for
+            each outcome. For linear outcomes, the length of the outer
             list should be one, and the second shape dimension of the numpy
             array should be the number of linear outcomes.
-        y_std (list(np.ndarray)): List of uncertainty numpy arrays, formatted in
-            the same way as y_pred.
+        y_std (list(np.ndarray)): List of uncertainty numpy arrays, formatted
+            in the same way as y_pred.
         tile_to_slides (np.ndarray): Array of slide names for each tile. Length
             should match the numpy arrays in y_true, y_pred, and y_std.
 
@@ -459,7 +458,7 @@ def eval_from_dataset(
     if sf.backend() == 'tensorflow':
         from slideflow.model.tensorflow_utils import _eval_from_model
     else:
-        from slideflow.model.torch_utils import _eval_from_model
+        from slideflow.model.torch_utils import _eval_from_model  # type:ignore
 
     df, acc, loss = _eval_from_model(
         model,
@@ -535,7 +534,7 @@ def linear_metrics(
     level: str = 'tile',
     data_dir: str = '',
     neptune_run: Optional["neptune.Run"] = None
-) -> Dict[str, Dict[str, float]]:
+) -> Dict[str, List[float]]:
     """Generates metrics (R-squared) from a set of predictions.
 
     Args:
@@ -600,7 +599,7 @@ def metrics_from_dataset(
     outcome_names: Optional[List[str]] = None,
     reduce_method: str = 'average',
     label: str = '',
-    save_predictions: bool = False,
+    save_predictions: Union[str, bool] = False,
     data_dir: str = '',
     **kwargs
 ) -> Tuple[Dict, float, float]:
@@ -653,7 +652,11 @@ def metrics_from_dataset(
 
     # Save predictions
     if save_predictions:
-        save_dfs(dfs, format=save_predictions, outdir=data_dir, label=label)
+        if isinstance(save_predictions, str):
+            fmt_kw = dict(format=save_predictions)
+        else:
+            fmt_kw = {}  # type: ignore
+        save_dfs(dfs, outdir=data_dir, label=label, **fmt_kw)
 
     # Calculate metrics
     def metrics_by_level(metrics_function):
@@ -708,10 +711,11 @@ def name_columns(
     if outcome_names is None and model_type != 'cph':
         raise ValueError("Must supply outcome names for categorical "
                          "or linear models.")
-    if not isinstance(outcome_names, (list, tuple)):
+    if (not isinstance(outcome_names, (list, tuple))
+       and outcome_names is not None):
         outcome_names = [outcome_names]
 
-    if model_type == 'categorical':
+    if model_type == 'categorical' and outcome_names is not None:
         # Update dataframe column names with outcome names
         outcome_cols_to_replace = {}
         for oi, outcome in enumerate(outcome_names):

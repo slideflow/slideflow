@@ -1273,7 +1273,7 @@ class Trainer:
 
         # Save predictions
         sf.stats.metrics.save_dfs(dfs, format=format, outdir=self.outdir)
-        
+
         return dfs
 
     def evaluate(
@@ -1284,7 +1284,7 @@ class Trainer:
         reduce_method: str = 'average',
         norm_fit: Optional[NormFit] = None,
         uq: Union[bool, str] = 'auto'
-    ) -> Dict[str, float]:
+    ) -> Dict[str, Any]:
         """Evaluate model, saving metrics and predictions.
 
         Args:
@@ -1292,8 +1292,8 @@ class Trainer:
                 TFRecords to evaluate.
             batch_size (int, optional): Evaluation batch size. Defaults to the
                 same as training (per self.hp)
-            save_predictions (bool or str, optional): Save tile, slide, and 
-                patient-level predictions at each evaluation. May be 'csv', 
+            save_predictions (bool or str, optional): Save tile, slide, and
+                patient-level predictions at each evaluation. May be 'csv',
                 'feather', or 'parquet'. If False, will not save predictions.
                 Defaults to 'parquet'.
             reduce_method (str, optional): Reduction method for calculating
@@ -1451,8 +1451,8 @@ class Trainer:
                 Defaults to False.
             steps_per_epoch_override (int, optional): Manually set the number
                 of steps per epoch. Defaults to 0 (automatic).
-            save_predictions (bool or str, optional): Save tile, slide, and 
-                patient-level predictions at each evaluation. May be 'csv', 
+            save_predictions (bool or str, optional): Save tile, slide, and
+                patient-level predictions at each evaluation. May be 'csv',
                 'feather', or 'parquet'. If False, will not save predictions.
                 Defaults to 'parquet'.
             save_model (bool, optional): Save models when evaluating at

@@ -1,17 +1,18 @@
 """PyTorch model utility functions."""
 
-import torch
 import types
-from typing import Dict, Generator, Iterable, List, Tuple, Union
-from slideflow.util import log
 from types import SimpleNamespace
-from tqdm import tqdm
+from typing import Dict, Generator, Iterable, List, Tuple, Union
+
 import numpy as np
 import slideflow as sf
-
 from pandas.core.frame import DataFrame
 from scipy.special import softmax
 from slideflow.stats import df_from_pred
+from slideflow.util import log
+from tqdm import tqdm
+
+import torch
 
 
 def cycle(iterable: Iterable) -> Generator:
@@ -22,7 +23,7 @@ def cycle(iterable: Iterable) -> Generator:
 
 def print_module_summary(
     module: torch.nn.Module,
-    inputs: List[torch.tensor],
+    inputs: List[torch.Tensor],
     max_nesting: int = 3,
     skip_redundant: bool = True
 ) -> str:
@@ -30,7 +31,7 @@ def print_module_summary(
 
     Args:
         module (torch.nn.Module): PyTorch module.
-        inputs (torch.tensor): Input tensors, for calculating layer sizes.
+        inputs (torch.Tensor): Input tensors, for calculating layer sizes.
         max_nesting (int, optional): Module depth. Defaults to 3.
         skip_redundant (bool, optional): Skip redundant entries.
             Defaults to True.
@@ -123,25 +124,25 @@ def enable_dropout(m: torch.nn.Module) -> None:
 
 
 def get_uq_predictions(
-    img: Union[torch.tensor, Tuple[torch.tensor, ...]],
+    img: Union[torch.Tensor, Tuple[torch.Tensor, ...]],
     model: torch.nn.Module,
     num_outcomes: int,
     uq_n: int = 30
-) -> Tuple[Union[torch.tensor, List[torch.tensor]],
-           Union[torch.tensor, List[torch.tensor]],
+) -> Tuple[Union[torch.Tensor, List[torch.Tensor]],
+           Union[torch.Tensor, List[torch.Tensor]],
            int]:
     """Performs UQ inference (mean and stdev/uncertainty), calculated
     using a set number of forward passes.
 
     Args:
-        img (torch.tensor): Batch of input images.
+        img (torch.Tensor): Batch of input images.
         model (torch.nn.Module): Model to use for inference.
         num_outcomes (int): Number of expected outcomes.
         uq_n (int, optional): Number of forward passes. Defaults to 30.
 
     Returns:
-        torch.tensor: Mean of forward passes.
-        torch.tensor: Standard deviation of forward passes.
+        torch.Tensor: Mean of forward passes.
+        torch.Tensor: Standard deviation of forward passes.
         int: Number of detected outcomes.
     """
     enable_dropout(model)
