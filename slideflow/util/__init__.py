@@ -152,7 +152,7 @@ def addLoggingFileHandler(path):
     fh.setFormatter(FileFormatter())
     log.addHandler(fh)
     handler = multiprocessing_logging.MultiProcessingHandler(
-        "mp-handler-{0}".format(len(log.handlers)), 
+        "mp-handler-{0}".format(len(log.handlers)),
         sub_handler=fh
     )
     log.removeHandler(fh)

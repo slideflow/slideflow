@@ -155,7 +155,7 @@ class TestSplits(unittest.TestCase):
             self._test_site_split(splits)
         except sf.errors.SolverNotFoundError:
             sf.util.log.error(
-                'Pyomo/bonmin not installed, unable to test site-preserved'
+                'Pyomo/bonmin not installed, unable to test site-preserved '
                 'cross-validation.'
             )
 

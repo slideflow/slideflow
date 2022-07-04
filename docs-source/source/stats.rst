@@ -62,10 +62,6 @@ generate_combined_roc
 ----------------------
 .. autofunction:: generate_combined_roc
 
-generate_roc
-----------------------
-.. autofunction:: generate_roc
-
 generate_scatter
 ----------------------
 .. autofunction:: generate_scatter

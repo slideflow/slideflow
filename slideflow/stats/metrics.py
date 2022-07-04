@@ -23,6 +23,57 @@ if TYPE_CHECKING:
     import torch
 
 
+class ClassifierMetrics:
+    def __init__(self, y_true, y_pred, neptune_run=None):
+        self.y_true = y_true
+        self.y_pred = y_pred
+        self.neptune_run = neptune_run
+
+        self.fpr = None
+        self.tpr = None
+        self.threshold = None
+        self.auroc = None
+        self.precision = None
+        self.recall = None
+        self.ap = None
+
+    def roc_fit(self):
+        self.fpr, self.tpr, self.threshold = metrics.roc_curve(
+            self.y_true,
+            self.y_pred
+        )
+        self.auroc = metrics.auc(self.fpr, self.tpr)
+        try:
+            max_youden = max(zip(self.tpr, self.fpr), key=lambda x: x[0]-x[1])
+            opt_thresh_index = list(zip(self.tpr, self.fpr)).index(max_youden)
+            self.opt_thresh = self.threshold[opt_thresh_index]
+        except Exception:
+            self.opt_thresh = None
+
+    def prc_fit(self):
+        self.precision, self.recall, _ = metrics.precision_recall_curve(
+            self.y_true,
+            self.y_pred
+        )
+        self.ap = metrics.average_precision_score(self.y_true, self.y_pred)
+
+    def save_roc(self, outdir, name):
+        from matplotlib import pyplot as plt
+        sf.stats.plot.roc(self.fpr, self.tpr, f'AUC = {self.auroc:.2f}')
+        full_path = join(outdir, f'{name}.png')
+        plt.savefig(full_path)
+        if self.neptune_run:
+            self.neptune_run[f'results/graphs/{name}'].upload(full_path)
+
+    def save_prc(self, outdir, name):
+        from matplotlib import pyplot as plt
+        sf.stats.plot.prc(self.precision, self.recall, label=f'AP = {self.ap:.2f}')
+        full_path = join(outdir, f'{name}.png')
+        plt.savefig(full_path)
+        if self.neptune_run:
+            self.neptune_run[f'results/graphs/{name}'].upload(full_path)
+
+
 def _assert_model_type(model_type: str) -> None:
     """Raises a ValueError if the model type is invalid."""
     if model_type not in ('categorical', 'linear', 'cph'):
@@ -33,10 +84,8 @@ def _assert_model_type(model_type: str) -> None:
 def _generate_tile_roc(
     idx_and_yp: Tuple[int, np.ndarray],
     y_true: np.ndarray,
-    data_dir: str,
-    label: str,
     neptune_run: Optional["neptune.Run"] = None
-) -> Tuple[float, float, float]:
+) -> ClassifierMetrics:
     """Generate tile-level ROC. Defined separately for multiprocessing.
 
     Args:
@@ -54,22 +103,17 @@ def _generate_tile_roc(
 
         float: Optimal threshold (via Youden's J)
     """
-    i, y_pred = idx_and_yp
-    y_true = (y_true == i).astype(int)
-    label = label + str(i)
-    auc, ap, thresh = generate_roc(
-        y_true,
-        y_pred,
-        data_dir,
-        label.format('ROC'),
-        neptune_run
-    )
-    return auc, ap, thresh  # ROC AUC, Average Precision, Optimal Threshold
+    y_true_idx, y_pred = idx_and_yp
+    y_true = (y_true == y_true_idx).astype(int)
+    class_metrics = ClassifierMetrics(y_true, y_pred, neptune_run=neptune_run)
+    class_metrics.roc_fit()
+    class_metrics.prc_fit()
+    return class_metrics
 
 
 def _merge_metrics(metrics_by_level: Dict[str, Dict]) -> Dict[str, Dict]:
     """Merge dictionary of levels into a dictionary by metric.
-    
+
     Function accepts a dictionary organized as such:
 
     {
@@ -84,7 +128,7 @@ def _merge_metrics(metrics_by_level: Dict[str, Dict]) -> Dict[str, Dict]:
         'auc': {'tile': [...], 'slide': [...]},
         'ap':  {'tile': [...], 'slide': [...]},
         ...
-    }    
+    }
     """
     levels = list(metrics_by_level.keys())
     metrics = list(metrics_by_level[levels[0]].keys())
@@ -152,9 +196,9 @@ def categorical_metrics(
             and optionally uncertainty, as returned by sf.stats.df_from_pred()
 
     Keyword args:
-        label (str, optional): Label prefix/suffix for ROCs. 
+        label (str, optional): Label prefix/suffix for ROCs.
             Defaults to an empty string.
-        level (str, optional): Group-level for the predictions. Used for 
+        level (str, optional): Group-level for the predictions. Used for
             labeling plots. Defaults to 'tile'.
         data_dir (str, optional): Path to data directory for saving plots.
             Defaults to None.
@@ -179,7 +223,7 @@ def categorical_metrics(
         return (_df[f'y_pred{i}'] == _df.y_pred_cat).astype(int)
 
     # Perform analysis separately for each outcome column
-    for oi, outcome in enumerate(outcome_names):
+    for outcome in outcome_names:
         outcome_cols = [c for c in df.columns if c.startswith(f'{outcome}-')]
         # Remove the outcome name from the dataframe temporarily
         outcome_df = df[outcome_cols].rename(
@@ -199,23 +243,20 @@ def categorical_metrics(
         # Convert to one-hot encoding
         outcome_df['y_pred_cat'] = outcome_df[y_pred_cols].values.max(1)
 
-        log.debug(f"Calculating metrics with a multiprocessing pool")
-        ctx = mp.get_context('spawn')
-        p = ctx.Pool(8)
-        roc_fn = partial(
-            _generate_tile_roc,
-            y_true=outcome_df.y_true.values,
-            data_dir=data_dir,
-            label=str(label_start + outcome) + "_tile_{}",
-        )
+        log.debug(f"Calculating metrics with a thread pool")
+        p = mp.dummy.Pool(8)
+        roc_fn = partial(_generate_tile_roc, y_true=outcome_df.y_true.values)
         try:
             idx_and_yp = [(i, y_pred_onehot(outcome_df, i)) for i in range(num_cat)]
-            for i, (auc, ap, thresh) in enumerate(p.imap(roc_fn, idx_and_yp)):
-                all_auc[outcome] += [auc]
-                all_ap[outcome] += [ap]
+            for i, fit in enumerate(p.imap(roc_fn, idx_and_yp)):
+                fit.save_roc(data_dir, f"{label_start}{outcome}_tile_ROC{i}")
+                fit.save_prc(data_dir, f"{label_start}{outcome}_tile_PRC{i}")
+                all_auc[outcome] += [fit.auroc]
+                all_ap[outcome] += [fit.ap]
                 log.info(
-                    f"{level}-level AUC (cat #{i:>2}): {auc:.3f} "
-                    f"{level}-level AP: {ap:.3f} (opt. threshold: {thresh:.3f})"
+                    f"{level}-level AUC (cat #{i:>2}): {fit.auroc:.3f} "
+                    f"{level}-level AP: {fit.ap:.3f} (opt. threshold: "
+                    f"{fit.opt_thresh:.3f})"
                 )
         except ValueError as e:
             # Occurs when predictions contain NaN
@@ -271,9 +312,9 @@ def cph_metrics(
             sf.stats.name_columns().
 
     Keyword args:
-        label (str, optional): Label prefix/suffix for ROCs. 
+        label (str, optional): Label prefix/suffix for ROCs.
             Defaults to an empty string.
-        level (str, optional): Group-level for the predictions. Used for 
+        level (str, optional): Group-level for the predictions. Used for
             labeling plots. Defaults to 'tile'.
         data_dir (str, optional): Path to data directory for saving plots.
             Defaults to None.
@@ -402,11 +443,11 @@ def eval_from_dataset(
             average of each logit across tiles. If 'proportion', will convert
             tile predictions into onehot encoding then reduce by averaging
             these onehot values. Defaults to 'average'.
-        patients (dict, optional): Dictionary mapping slide names to patient 
+        patients (dict, optional): Dictionary mapping slide names to patient
             names. Required for generating patient-level metrics.
         outcome_names (list, optional): List of str, names for outcomes.
             Defaults to None (outcomes will not be named).
-        
+
     Returns:
         pd.DataFrame, accuracy, loss
     """
@@ -434,64 +475,6 @@ def eval_from_dataset(
     return group_reduce(df, method=reduce_method, patients=patients), acc, loss
 
 
-def generate_roc(
-    y_true: np.ndarray,
-    y_pred: np.ndarray,
-    save_dir: Optional[str] = None,
-    name: str = 'ROC',
-    neptune_run: Optional["neptune.Run"] = None
-) -> Tuple[float, float, float]:
-    """Generates and saves an ROC with a given set of y_true, y_pred values.
-
-    Args:
-        y_true (np.ndarray): y_true array.
-        y_pred (np.ndarray): y_pred array.
-        save_dir (str, optional): Path in which to save ROC curves.
-            Defaults to None.
-        name (str, optional): Name for plots. Defaults to 'ROC'.
-        neptune_run (neptune.Run, optional): Neptune run. Uploads a saved
-            plot to results/graphs/. Defaults to None.
-
-    Returns:
-        float:  AUROC
-
-        float:  AP (average precision)
-
-        float:  Optimal threshold (via Youden's J)
-    """
-
-    # ROC
-    fpr, tpr, threshold = metrics.roc_curve(y_true, y_pred)
-    roc_auc = metrics.auc(fpr, tpr)
-
-    # Precision recall
-    precision, recall, _ = metrics.precision_recall_curve(y_true, y_pred)
-    ap = metrics.average_precision_score(y_true, y_pred)
-
-    # Calculate optimal cutoff via maximizing Youden's J statistic
-    # (sens+spec-1, or TPR - FPR)
-    try:
-        max_youden = max(zip(tpr, fpr), key=lambda x: x[0]-x[1])
-        opt_thresh_index = list(zip(tpr, fpr)).index(max_youden)
-        opt_thresh = threshold[opt_thresh_index]
-    except Exception:
-        opt_thresh = -1
-    if save_dir:
-        from matplotlib import pyplot as plt
-        sf.stats.plot.roc(fpr, tpr, f'AUC = {roc_auc:.2f}')
-        plt.savefig(join(save_dir, f'{name}.png'))
-        sf.stats.plot.prc(precision, recall, label=f'AP = {ap:.2f}')
-        plt.savefig(join(save_dir, f'{name}-PRC.png'))
-        if neptune_run:
-            neptune_run[f'results/graphs/{name}'].upload(
-                join(save_dir, f'{name}.png')
-            )
-            neptune_run[f'results/graphs/{name}-PRC'].upload(
-                join(save_dir, f'{name}-PRC.png')
-            )
-    return roc_auc, ap, opt_thresh
-
-
 def group_reduce(
     df: DataFrame,
     method: str = 'average',
@@ -507,7 +490,7 @@ def group_reduce(
             average of each logit across tiles. If 'proportion', will convert
             tile predictions into onehot encoding then reduce by averaging
             these onehot values. Defaults to 'average'.
-        patients (dict, optional): Dictionary mapping slide names to patient 
+        patients (dict, optional): Dictionary mapping slide names to patient
             names. Required for generating patient-level metrics.
     """
     log.debug(f"Using reduce_method={method}")
@@ -560,9 +543,9 @@ def linear_metrics(
             and optionally uncertainty, as returned by sf.stats.df_from_pred()
 
     Keyword args:
-        label (str, optional): Label prefix/suffix for ROCs. 
+        label (str, optional): Label prefix/suffix for ROCs.
             Defaults to an empty string.
-        level (str, optional): Group-level for the predictions. Used for 
+        level (str, optional): Group-level for the predictions. Used for
             labeling plots. Defaults to 'tile'.
         data_dir (str, optional): Path to data directory for saving.
             Defaults to None.
@@ -578,7 +561,7 @@ def linear_metrics(
     # Detect the outcome names
     outcome_names = [c[:-7] for c in df.columns if c.endswith('-y_pred')]
     _outcomes_by_true = [c[:-7] for c in df.columns if c.endswith('-y_true')]
-    if ((sorted(outcome_names) != sorted(_outcomes_by_true)) 
+    if ((sorted(outcome_names) != sorted(_outcomes_by_true))
        or not len(outcome_names)):
         raise ValueError("Improperly formatted dataframe to linear_metrics(); "
                          "could not detect outcome names. Ensure that "
@@ -708,13 +691,13 @@ def name_columns(
         df (DataFrame): DataFrame from sf.stats.df_from_pred(), containing
             predictions and labels.
         model_type (str): Type of model ('categorical', 'linear', or 'cph').
-        outcome_names (list(str)), optional): Outcome names to apply to the 
+        outcome_names (list(str)), optional): Outcome names to apply to the
             DataFrame. If this is from a CPH model, the standard names "time"
-            and "event" will be used. 
+            and "event" will be used.
 
     Raises:
         ValueError: If outcome_names are not supplied and it is not a CPH model.
-        errors.StatsError: If the length of outcome_names is incompatible 
+        errors.StatsError: If the length of outcome_names is incompatible
             with the DataFrame.
 
     Returns:
@@ -807,13 +790,13 @@ def predict_from_dataset(
             average of each logit across tiles. If 'proportion', will convert
             tile predictions into onehot encoding then reduce by averaging
             these onehot values. Defaults to 'average'.
-        patients (dict, optional): Dictionary mapping slide names to patient 
+        patients (dict, optional): Dictionary mapping slide names to patient
             names. Required for generating patient-level metrics.
         outcome_names (list, optional): List of str, names for outcomes.
             Defaults to None (outcomes will not be named).
 
     Returns:
-        Dict[str, pd.DataFrame]: Dictionary with keys 'tile', 'slide', and 
+        Dict[str, pd.DataFrame]: Dictionary with keys 'tile', 'slide', and
             'patient', and values containing DataFrames with tile-, slide-,
             and patient-level predictions.
     """
@@ -843,7 +826,7 @@ def predict_from_dataset(
 
 def save_dfs(
     dfs: Dict[str, DataFrame],
-    format: str = 'parquet', 
+    format: str = 'parquet',
     outdir: str = '',
     label: str = ''
 ) -> None:

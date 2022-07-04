@@ -63,7 +63,7 @@ class TestSuite:
                 return
 
         # --- Set up project --------------------------------------------------
-        
+
         sf.setLoggingLevel(verbosity)
         if verbosity == logging.DEBUG:
             logging.getLogger('tensorflow').setLevel(logging.DEBUG)

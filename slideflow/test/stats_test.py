@@ -73,9 +73,9 @@ class TestSlideMap(unittest.TestCase):
 
 class TestMetrics(unittest.TestCase):
 
-    n_total = 10000 #25000000
-    n_patients = 200 #10000
-    n_labels1 = 5 #30
+    n_total = 1000
+    n_patients = 20
+    n_labels1 = 3
     n_labels2 = 2
     multi_slide_chance = 0.1
 
@@ -233,17 +233,17 @@ class TestMetrics(unittest.TestCase):
         for level, _df in dfs.items():
             metrics = sf.stats.metrics.categorical_metrics(_df, level=level)
             self._assert_categorical_metrics(
-                metrics, 
-                ['out0', 'out1'], 
+                metrics,
+                ['out0', 'out1'],
                 [self.n_labels1, self.n_labels2]
             )
-    
+
     def test_multi_categorical_named(self):
         tile_df = sf.stats.df_from_pred(
             *self._get_multi_categorical_data()
         )
         tile_df = sf.stats.name_columns(
-            tile_df, 
+            tile_df,
             'categorical',
             ['Named1', 'Named2']
         )
@@ -251,8 +251,8 @@ class TestMetrics(unittest.TestCase):
         for level, _df in dfs.items():
             metrics = sf.stats.metrics.categorical_metrics(_df, level=level)
             self._assert_categorical_metrics(
-                metrics, 
-                ['Named1', 'Named2'], 
+                metrics,
+                ['Named1', 'Named2'],
                 [self.n_labels1, self.n_labels2]
             )
 
@@ -271,7 +271,7 @@ class TestMetrics(unittest.TestCase):
             *self._get_multi_linear_data()
         )
         tile_df = sf.stats.name_columns(
-            tile_df, 
+            tile_df,
             'linear',
             ['NamedLinear1', 'NamedLinear2']
         )
