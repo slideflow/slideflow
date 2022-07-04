@@ -89,7 +89,7 @@ def update_manifest_at_dir(
         return rel_tfr_manifest
 
     pool = DPool(8)
-    if log.getEffectiveLevel() <= 20:
+    if sf.getLoggingLevel() <= 20:
         pb = tqdm(
             desc='Verifying tfrecords...',
             total=len(rel_paths),

@@ -53,7 +53,7 @@ def print_module_summary(
         nesting[0] -= 1
         if nesting[0] <= max_nesting:
             outputs = list(outputs) if isinstance(outputs, (tuple, list)) else [outputs]
-            outputs = [t for t in outputs if isinstance(t, torch.tensor)]
+            outputs = [t for t in outputs if isinstance(t, torch.Tensor)]
             entries.append(types.SimpleNamespace(mod=mod, outputs=outputs))
 
     hooks = [mod.register_forward_pre_hook(pre_hook) for mod in module.modules()]
@@ -379,7 +379,7 @@ def _eval_from_model(
         acc = corrects / total  # type: ignore
     else:
         acc = corrects.cpu().numpy() / total
-    if log.getEffectiveLevel() <= 20:
+    if sf.getLoggingLevel() <= 20:
         sf.util.clear_console()
 
     # Create pandas DataFrame from arrays

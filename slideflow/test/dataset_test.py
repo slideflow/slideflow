@@ -12,14 +12,14 @@ class TestDataset(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
-        cls._orig_logging_level = logging.getLogger('slideflow').getEffectiveLevel()  # type: ignore
-        logging.getLogger('slideflow').setLevel(40)
+        cls._orig_logging_level = sf.getLoggingLevel()  # type: ignore
+        sf.setLoggingLevel(40)
         cls.PROJECT = TestConfig().create_project(overwrite=True)  # type: ignore
 
     @classmethod
     def tearDownClass(cls) -> None:
         super().tearDownClass()
-        logging.getLogger('slideflow').setLevel(cls._orig_logging_level)  # type: ignore
+        sf.setLoggingLevel(cls._orig_logging_level)  # type: ignore
         if cls.PROJECT is not None:  # type: ignore
             shutil.rmtree(cls.PROJECT.root)  # type: ignore
 
@@ -89,8 +89,8 @@ class TestSplits(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
-        cls._orig_logging_level = logging.getLogger('slideflow').getEffectiveLevel()  # type: ignore
-        logging.getLogger('slideflow').setLevel(40)
+        cls._orig_logging_level = sf.getLoggingLevel()  # type: ignore
+        sf.setLoggingLevel(40)
         cls.patients = [f'pt{p}' for p in range(200)]  # type: ignore
         cls.sites = [f'site{s}' for s in range(5)]  # type: ignore
         cls.outcomes = list(range(4))  # type: ignore
@@ -102,7 +102,7 @@ class TestSplits(unittest.TestCase):
     @classmethod
     def tearDownClass(cls) -> None:
         super().tearDownClass()
-        logging.getLogger('slideflow').setLevel(cls._orig_logging_level)  # type: ignore
+        sf.setLoggingLevel(cls._orig_logging_level)  # type: ignore
 
     def _test_split(self, splits):
         split_patients = [p for split in splits for p in split]
@@ -196,8 +196,8 @@ class TestLabels(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
-        cls._orig_logging_level = logging.getLogger('slideflow').getEffectiveLevel()  # type: ignore
-        logging.getLogger('slideflow').setLevel(40)
+        cls._orig_logging_level = sf.getLoggingLevel()  # type: ignore
+        sf.setLoggingLevel(40)
         cls.PROJECT = TestConfig().create_project(overwrite=True)  # type: ignore
         cls.dataset = cls.PROJECT.dataset()  # type: ignore
         cls.num_slides = len(cls.dataset.slides())  # type: ignore
@@ -205,7 +205,7 @@ class TestLabels(unittest.TestCase):
     @classmethod
     def tearDownClass(cls) -> None:
         super().tearDownClass()
-        logging.getLogger('slideflow').setLevel(cls._orig_logging_level)  # type: ignore
+        sf.setLoggingLevel(cls._orig_logging_level)  # type: ignore
         if cls.PROJECT is not None:  # type: ignore
             shutil.rmtree(cls.PROJECT.root)  # type: ignore
 

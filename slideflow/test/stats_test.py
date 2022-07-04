@@ -13,8 +13,8 @@ class TestSlideMap(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
-        cls._orig_logging_level = logging.getLogger('slideflow').getEffectiveLevel()  # type: ignore
-        logging.getLogger('slideflow').setLevel(40)
+        cls._orig_logging_level = sf.getLoggingLevel()  # type: ignore
+        sf.setLoggingLevel(40)
         cls.slides = [f'slide{s}' for s in range(cls.n_slides)]  # type: ignore
         cls.DummyDatasetFeatures = SimpleNamespace(
             slides=cls.slides,
@@ -33,7 +33,7 @@ class TestSlideMap(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls) -> None:
-        logging.getLogger('slideflow').setLevel(cls._orig_logging_level)  # type: ignore
+        sf.setLoggingLevel(cls._orig_logging_level)  # type: ignore
         return super().tearDownClass()
 
     def test_init_from_features(self):
@@ -81,8 +81,8 @@ class TestMetrics(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
-        cls._orig_logging_level = logging.getLogger('slideflow').getEffectiveLevel()  # type: ignore
-        logging.getLogger('slideflow').setLevel(40)
+        cls._orig_logging_level = sf.getLoggingLevel()  # type: ignore
+        sf.setLoggingLevel(40)
 
         cls.patients_arr = np.array([f'patient{p}' for p in range(cls.n_patients)])  # type: ignore
         cls.is_multi_slide = np.random.random(cls.n_patients) < cls.multi_slide_chance  # type: ignore
@@ -116,7 +116,7 @@ class TestMetrics(unittest.TestCase):
     @classmethod
     def tearDownClass(cls) -> None:
         super().tearDownClass()
-        logging.getLogger('slideflow').setLevel(cls._orig_logging_level)  # type: ignore
+        sf.setLoggingLevel(cls._orig_logging_level)  # type: ignore
 
     def _get_single_categorical_data(self):
         tile_to_slides = np.random.choice(self.slides, size=self.n_total)

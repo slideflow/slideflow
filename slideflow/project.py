@@ -108,11 +108,7 @@ class Project:
             self.create_blank_annotations()
 
         # Set up logging
-        logger = logging.getLogger('slideflow')
-        fh = logging.FileHandler(join(root, 'log.txt'))
-        fh.setFormatter(sf.util.FileFormatter())
-        fh.setLevel(logging.DEBUG)
-        logger.addHandler(fh)
+        sf.util.addLoggingFileHandler(join(root, 'log.txt'))
 
         # Neptune
         self.use_neptune = use_neptune
@@ -141,7 +137,7 @@ class Project:
 
     @property
     def verbosity(self) -> int:
-        return logging.getLogger('slideflow').getEffectiveLevel()
+        return sf.getLoggingLevel()
 
     @property
     def annotations(self) -> str:
@@ -682,7 +678,7 @@ class Project:
         k_msg = ''
         if s_args.k is not None:
             k_msg = f' ({val_settings.strategy} #{s_args.k})'
-        if log.getEffectiveLevel() <= 20:
+        if sf.getLoggingLevel() <= 20:
             print()
         log.info(f'Training model {col.bold(s_args.model_name)}{k_msg}...')
         log.info(f'Hyperparameters: {hp}')

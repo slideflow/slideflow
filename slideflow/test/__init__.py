@@ -63,10 +63,9 @@ class TestSuite:
                 return
 
         # --- Set up project --------------------------------------------------
-        # Set logging level
-        logging.getLogger("slideflow").setLevel(verbosity)
-        # Set the tensorflow logger
-        if logging.getLogger('slideflow').level == logging.DEBUG:
+        
+        sf.setLoggingLevel(verbosity)
+        if verbosity == logging.DEBUG:
             logging.getLogger('tensorflow').setLevel(logging.DEBUG)
             os.environ['TF_CPP_MIN_LOG_LEVEL'] = '0'
         else:
@@ -199,6 +198,7 @@ class TestSuite:
             optimizer='Adam',
             early_stop=False,
             dropout=0.1,
+            l2=1e-4,
             early_stop_patience=0,
             training_balance='patient',
             validation_balance='none',

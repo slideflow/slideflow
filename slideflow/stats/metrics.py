@@ -670,16 +670,7 @@ def metrics_from_dataset(
 
     # Save predictions
     if save_predictions:
-        label_end = f'_{label}' if label else ''
-        for level, _df in dfs.items():
-            path = join(data_dir, f"{level}_predictions{label_end}")
-            if save_predictions == 'csv':
-                _df.to_csv(path+'.csv')
-            elif save_predictions == 'feather':
-                import pyarrow.feather as feather
-                feather.write_feather(_df, path+'.feather')
-            else:
-                _df.to_parquet(path+'.parquet.gzip', compression='gzip')
+        save_dfs(dfs, format=save_predictions, outdir=data_dir, label=label)
 
     # Calculate metrics
     def metrics_by_level(metrics_function):
@@ -848,3 +839,27 @@ def predict_from_dataset(
     if outcome_names is not None or model_type == 'cph':
         df = name_columns(df, model_type, outcome_names)
     return group_reduce(df, method=reduce_method, patients=patients)
+
+
+def save_dfs(
+    dfs: Dict[str, DataFrame],
+    format: str = 'parquet', 
+    outdir: str = '',
+    label: str = ''
+) -> None:
+    """Save DataFrames of predictions to files."""
+    label_end = f'_{label}' if label else ''
+    for level, _df in dfs.items():
+        path = join(outdir, f"{level}_predictions{label_end}")
+
+        # Convert half-floats to float32
+        half_floats = _df.select_dtypes(include='float16')
+        _df[half_floats.columns] = half_floats.astype('float32')
+
+        if format == 'csv':
+            _df.to_csv(path+'.csv')
+        elif format == 'feather':
+            import pyarrow.feather as feather
+            feather.write_feather(_df, path+'.feather')
+        else:
+            _df.to_parquet(path+'.parquet.gzip', compression='gzip')

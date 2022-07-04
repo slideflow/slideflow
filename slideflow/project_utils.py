@@ -15,7 +15,7 @@ from slideflow.util import colors as col
 from slideflow.util import log, relative_path
 
 # Set the tensorflow logger
-if logging.getLogger('slideflow').level == logging.DEBUG:
+if sf.getLoggingLevel() == logging.DEBUG:
     logging.getLogger('tensorflow').setLevel(logging.DEBUG)
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '0'
 else:
@@ -83,7 +83,7 @@ def _heatmap_worker(
         heatmap_args (SimpleNamespace): Namespace of heatmap arguments.
         kwargs (dict): kwargs for heatmap.save()
     """
-    log.setLevel(heatmap_args.verbosity)
+    sf.setLoggingLevel(heatmap_args.verbosity)
     heatmap = sf.Heatmap(slide,
                          model=heatmap_args.model,
                          stride_div=heatmap_args.stride_div,
@@ -103,7 +103,7 @@ def _train_worker(
     verbosity: int
 ) -> None:
     """Internal function to execute model training in an isolated process."""
-    log.setLevel(verbosity)
+    sf.setLoggingLevel(verbosity)
     train_dts, val_dts = datasets
     trainer = sf.model.trainer_from_hp(**model_kw)
     results = trainer.train(train_dts, val_dts, **training_kw)
