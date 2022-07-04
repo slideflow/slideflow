@@ -282,6 +282,13 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
     def get_details(self, idx):
         raise NotImplementedError
 
+
+class StyleGAN2Interleaver(InterleaveIterator):
+    """Iterator to enable compatibility with StyleGAN2."""
+
+    def __init__(self, resolution=None, xflip=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
     def get_label(self, idx: Any) -> Any:
         """Returns a random label. Used for compatibility with StyleGAN2."""
         if self.use_labels and self.model_type == 'categorical':
@@ -296,12 +303,19 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
             return np.zeros((1,))
 
 
-class LocLabelInterleaver(InterleaveIterator):
+class LocLabelInterleaver(StyleGAN2Interleaver):
     """Pytorch Iterable Dataset that interleaves tfrecords with the
     as the `InterleaveIterator`, but applies tile-specific labels.
     """
 
-    def __init__(self, loc_labels: str, *args, **kwargs) -> None:
+    def __init__(
+        self,
+        loc_labels: str,
+        resolution: Any = None,
+        xflip: Any = None,
+        *args: Any,
+        **kwargs: Any,
+    ) -> None:
         """Initializes an InterleaveIterator modified to use tile-level labels.
 
         Args:

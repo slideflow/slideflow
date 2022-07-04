@@ -656,7 +656,6 @@ class Project:
                     )
             log.info(f'Training results saved: {col.green(results_log_path)}')
 
-
     def _train_split(
         self,
         dataset: Dataset,
@@ -1284,6 +1283,83 @@ class Project:
         dataset.extract_tiles(**kwargs)
 
     @auto_dataset
+    def gan_train(
+        self,
+        model: str = 'stylegan2',
+        *,
+        dataset: Dataset,
+        filters: Optional[Dict] = None,
+        filter_blank: Optional[Union[str, List[str]]] = None,
+        outcomes: Optional[Union[str, List[str]]] = None,
+        exp_label: Optional[str] = None,
+        mirror: bool = True,
+        augpipe: str = 'bgcfnc',
+        allow_tf32: bool = True,
+        metrics: Optional[Union[str, List[str]]] = None,
+        dry_run: bool = False,
+        **kwargs
+    ):
+
+        import slideflow.gan
+
+        # Validate the method and import the appropriate submodule
+        supported_models = ('stylegan2',)
+        if model not in supported_models:
+            raise ValueError(f"Unknown method '{model}'. Valid methods "
+                             f"include: {', '.join(supported_models)}")
+        if model == 'stylegan2':
+            from slideflow.gan import stylegan2 as network
+        if metrics is not None:
+            log.warn(
+                "StyleGAN2 metrics are not fully implemented for Slideflow."
+            )
+
+        # Setup directories
+        gan_root = join(self.root, 'gan')
+        if not exists(gan_root):
+            os.makedirs(gan_root)
+        if exp_label is None:
+            exp_label = 'gan_experiment'
+        gan_dir = sf.util.get_new_model_dir(gan_root, exp_label)
+
+        # Write GAN configuration
+        config_loc = join(gan_dir, 'slideflow_config.json')
+        sf.util.write_json(dict(
+            project_path=self.root,
+            tile_px=dataset.tile_px,
+            tile_um=dataset.tile_um,
+            model_type='categorical',
+            outcome_label_headers=outcomes,
+            filters=dataset._filters,
+            filter_blank=dataset._filter_blank,
+        ), config_loc)
+
+        # Train the GAN
+        network.train.train(
+            ctx=None,
+            outdir=gan_dir,
+            dry_run=dry_run,
+            slideflow=config_loc,
+            cond=(outcomes is not None),
+            mirror=mirror,
+            augpipe=augpipe,
+            allow_tf32=allow_tf32,
+            metrics=metrics,
+            **kwargs)
+
+    def gan_generate(
+        self,
+        network_pkl: str,
+        *,
+        target: str = 'png',
+        target_px: Optional[int] = None,
+        target_um: Optional[int] = None,
+    ):
+        if target not in ('png', 'jpg', 'tfrecords'):
+            raise ValueError("Unrecognized target {}. "
+                             "Must be either 'png', 'jpg', or 'tfrecords'.")
+
+    @auto_dataset
     def generate_features(
         self,
         model: Path,
@@ -1869,7 +1945,7 @@ class Project:
             ])
         else:
             # Take the first tile from each slide/TFRecord
-            umap_slides = slides
+            umap_slides = np.array(slides)
             umap_tfr_idx = np.zeros(len(slides))
 
         umap = sf.SlideMap.from_precalculated(

@@ -26,10 +26,11 @@ else:
 def auto_dataset(method: Callable):
     """Wrapper to convert filter arguments into a dataset."""
     @wraps(method)
-    def _impl(self, model, *args, **kwargs):
+    def _impl(self, model=None, *args, **kwargs):
         filter_keys = ['filters', 'filter_blank', 'min_tiles']
         has_filters = any([k in kwargs for k in filter_keys])
-        config = sf.util.get_model_config(model)
+        if model is not None:
+            config = sf.util.get_model_config(model)
         if has_filters and 'dataset' in kwargs:
             k_s = ', '.join(filter_keys)
             raise errors.ProjectError(
@@ -37,9 +38,14 @@ def auto_dataset(method: Callable):
                 " Instead, supply a filtered dataset (Dataset.filter(...))"
             )
         if 'dataset' in kwargs:
-            kwargs['dataset']._assert_size_matches_hp(config['hp'])
-            return method(self, model, *args, **kwargs)
+            if model is not None:
+                kwargs['dataset']._assert_size_matches_hp(config['hp'])
+                return method(self, model, *args, **kwargs)
+            else:
+                return method(self, *args, **kwargs)
         else:
+            if model is None:
+                raise errors.ProjectError("Missing argument 'model'.")
             dataset = self.dataset(
                 tile_px=config['hp']['tile_px'],
                 tile_um=config['hp']['tile_um'],
