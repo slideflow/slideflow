@@ -278,7 +278,8 @@ class ModelParams(_base._ModelParams):
     def get_opt(self, params_to_update: Iterable) -> torch.optim.Optimizer:
         return self.OptDict[self.optimizer](
             params_to_update,
-            lr=self.learning_rate
+            lr=self.learning_rate,
+            weight_decay=self.l2
         )
 
     def get_loss(self) -> torch.nn.modules.loss._Loss:
@@ -1082,7 +1083,7 @@ class Trainer:
             empty_inp += [
                 torch.empty([self.hp.batch_size, self.num_slide_features])
             ]
-        if log.getEffectiveLevel() <= 20:
+        if sf.getLoggingLevel() <= 20:
             model_summary = torch_utils.print_module_summary(
                 self.model, empty_inp
             )
@@ -1285,7 +1286,7 @@ class Trainer:
         dataset: "sf.Dataset",
         batch_size: Optional[int] = None,
         norm_fit: Optional[NormFit] = None,
-        format: str = 'csv'
+        format: str = 'parquet'
     ) -> "pd.DataFrame":
         """Perform inference on a model, saving predictions.
 
@@ -1294,16 +1295,18 @@ class Trainer:
                 TFRecords to evaluate.
             batch_size (int, optional): Evaluation batch size. Defaults to the
                 same as training (per self.hp)
-            format (str, optional): Format in which to save predictions.
-                Either 'csv' or 'feather'. Defaults to 'csv'.
             norm_fit (Dict[str, np.ndarray]): Normalizer fit, mapping fit
                 parameters (e.g. target_means, target_stds) to values
                 (np.ndarray). If not provided, will fit normalizer using
                 model params (if applicable). Defaults to None.
+            format (str, optional): Format in which to save predictions. Either
+                'csv', 'feather', or 'parquet'. Defaults to 'parquet'.
 
         Returns:
             pandas.DataFrame of tile-level predictions.
         """
+        if format not in ('csv', 'feather', 'parquet'):
+            raise ValueError(f"Unrecognized format {format}")
 
         # Fit normalizer
         self._fit_normalizer(norm_fit)
@@ -1327,28 +1330,24 @@ class Trainer:
             num_slide_features=self.num_slide_features,
             slide_input=self.slide_input
         )
-        df = sf.stats.predict_from_dataset(
+        dfs = sf.stats.predict_from_dataset(
             model=self.model,
             dataset=self.dataloaders['val'],
             model_type=self._model_type,
-            pred_args=pred_args
+            pred_args=pred_args,
+            outcome_names=self.outcome_names
         )
-        if format.lower() == 'csv':
-            save_path = os.path.join(self.outdir, "tile_predictions.csv")
-            df.to_csv(save_path)
-        elif format.lower() == 'feather':
-            import pyarrow.feather as feather
-            save_path = os.path.join(self.outdir, 'tile_predictions.feather')
-            feather.write_feather(df, save_path)
-        log.debug(f"Predictions saved to {col.green(save_path)}")
-        return df
+
+        # Save predictions
+        sf.stats.metrics.save_dfs(dfs, format=format, outdir=self.outdir)
+
+        return dfs
 
     def evaluate(
         self,
         dataset: "sf.Dataset",
         batch_size: Optional[int] = None,
-        histogram: bool = False,
-        save_predictions: bool = False,
+        save_predictions: Union[bool, str] = 'parquet',
         reduce_method: str = 'average',
         norm_fit: Optional[NormFit] = None,
         uq: Union[bool, str] = 'auto'
@@ -1359,11 +1358,10 @@ class Trainer:
             dataset (:class:`slideflow.dataset.Dataset`): Dataset to evaluate.
             batch_size (int, optional): Evaluation batch size. Defaults to the
                 same as training (per self.hp)
-            histogram (bool, optional): Save histogram of tile predictions.
-                Poorly optimized, uses seaborn, may drastically increase
-                evaluation time. Defaults to False.
-            save_predictions (bool, optional): Save tile, slide, and
-                patient-level predictions to CSV. Defaults to False.
+            save_predictions (bool or str, optional): Save tile, slide, and
+                patient-level predictions at each evaluation. May be 'csv',
+                'feather', or 'parquet'. If False, will not save predictions.
+                Defaults to 'parquet'.
             reduce_method (str, optional): Reduction method for calculating
                 slide-level and patient-level predictions for categorical outcomes.
                 Either 'average' or 'proportion'. If 'average', will reduce with
@@ -1399,7 +1397,6 @@ class Trainer:
         # Generate performance metrics
         log.info('Performing evaluation...')
         metrics = self._val_metrics(
-            histogram=histogram,
             label='eval',
             reduce_method=reduce_method
         )
@@ -1430,7 +1427,7 @@ class Trainer:
         ema_smoothing: int = 2,
         use_tensorboard: bool = True,
         steps_per_epoch_override: int = 0,
-        save_predictions: bool = False,
+        save_predictions: Union[bool, str] = 'parquet',
         save_model: bool = True,
         resume_training: Optional[str] = None,
         pretrain: Optional[str] = 'imagenet',
@@ -1464,9 +1461,10 @@ class Trainer:
                 Defaults to False.
             steps_per_epoch_override (int, optional): Manually set the number
                 of steps per epoch. Defaults to None.
-            save_predictions (bool, optional): Save tile, slide, and
-                patient-level predictions at each evaluation.
-                Defaults to False.
+            save_predictions (bool or str, optional): Save tile, slide, and
+                patient-level predictions at each evaluation. May be 'csv',
+                'feather', or 'parquet'. If False, will not save predictions.
+                Defaults to 'parquet'.
             save_model (bool, optional): Save models when evaluating at
                 specified epochs. Defaults to False.
             resume_training (str, optional): Not applicable to PyTorch backend.
@@ -1597,7 +1595,8 @@ class Trainer:
             if 'val' in self.dataloaders and self.epoch in self.hp.epochs:
                 epoch_res = self._val_metrics(
                     save_predictions=save_predictions,
-                    reduce_method=reduce_method
+                    reduce_method=reduce_method,
+                    label=f'val_epoch{self.epoch}',
                 )
                 results['epochs'][f'epoch{self.epoch}'].update(epoch_res)
 

@@ -63,10 +63,9 @@ class TestSuite:
                 return
 
         # --- Set up project --------------------------------------------------
-        # Set logging level
-        logging.getLogger("slideflow").setLevel(verbosity)
-        # Set the tensorflow logger
-        if logging.getLogger('slideflow').level == logging.DEBUG:
+
+        sf.setLoggingLevel(verbosity)
+        if verbosity == logging.DEBUG:
             logging.getLogger('tensorflow').setLevel(logging.DEBUG)
             os.environ['TF_CPP_MIN_LOG_LEVEL'] = '0'
         else:
@@ -199,6 +198,7 @@ class TestSuite:
             optimizer='Adam',
             early_stop=False,
             dropout=0.1,
+            l2=1e-4,
             early_stop_patience=0,
             training_balance='patient',
             validation_balance='none',
@@ -553,7 +553,6 @@ class TestSuite:
                 project=self.project,
                 model=f_model,
                 outcomes='category1',
-                histogram=True,
                 save_predictions=True,
                 **eval_kwargs
             )
@@ -567,7 +566,6 @@ class TestSuite:
                 project=self.project,
                 model=uq_model,
                 outcomes='category1',
-                histogram=True,
                 save_predictions=True,
                 **eval_kwargs
             )
@@ -580,7 +578,6 @@ class TestSuite:
                 project=self.project,
                 model=multi_cat_model,
                 outcomes=['category1', 'category2'],
-                histogram=True,
                 save_predictions=True,
                 **eval_kwargs
             )
@@ -593,7 +590,6 @@ class TestSuite:
                 project=self.project,
                 model=multi_lin_model,
                 outcomes=['linear1', 'linear2'],
-                histogram=True,
                 save_predictions=True,
                 **eval_kwargs
             )

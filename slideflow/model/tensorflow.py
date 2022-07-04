@@ -610,14 +610,13 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
             label=epoch_label,
             data_dir=self.parent.outdir,
             num_tiles=self.cb_args.num_val_tiles,
-            histogram=False,
             save_predictions=self.cb_args.save_predictions,
             reduce_method=self.cb_args.reduce_method,
             pred_args=pred_args
         )
 
     def on_epoch_end(self, epoch: int, logs={}) -> None:
-        if log.getEffectiveLevel() <= 20:
+        if sf.getLoggingLevel() <= 20:
             print('\r\033[K', end='')
         self.epoch_count += 1
         if (self.epoch_count in [e for e in self.hp.epochs]
@@ -723,7 +722,7 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
                     for v in logs
                     if 'accuracy' in v
                 ])
-            if log.getEffectiveLevel() <= 20:
+            if sf.getLoggingLevel() <= 20:
                 print('\r\033[K', end='')
             self.moving_average += [early_stop_value]
 
@@ -809,7 +808,7 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
         self.global_step += 1
 
     def on_train_end(self, logs={}) -> None:
-        if log.getEffectiveLevel() <= 20:
+        if sf.getLoggingLevel() <= 20:
             print('\r\033[K')
         if self.neptune_run:
             self.neptune_run['sys/tags'].add('training_complete')
@@ -1172,7 +1171,7 @@ class Trainer:
         toplayer_model = self.model.fit(
             train_data,
             epochs=epochs,
-            verbose=(log.getEffectiveLevel() <= 20),
+            verbose=(sf.getLoggingLevel() <= 20),
             steps_per_epoch=steps_per_epoch,
             validation_data=validation_data,
             validation_steps=val_steps,
@@ -1213,7 +1212,7 @@ class Trainer:
         dataset: "sf.Dataset",
         batch_size: Optional[int] = None,
         norm_fit: Optional[NormFit] = None,
-        format: str = 'csv'
+        format: str = 'parquet'
     ) -> "pd.DataFrame":
         """Perform inference on a model, saving tile-level predictions.
 
@@ -1222,16 +1221,20 @@ class Trainer:
                 TFRecords to evaluate.
             batch_size (int, optional): Evaluation batch size. Defaults to the
                 same as training (per self.hp)
-            format (str, optional): Format in which to save predictions. Either
-                'csv' or 'feather'. Defaults to 'csv'.
             norm_fit (Dict[str, np.ndarray]): Normalizer fit, mapping fit
                 parameters (e.g. target_means, target_stds) to values
                 (np.ndarray). If not provided, will fit normalizer using
                 model params (if applicable). Defaults to None.
+            format (str, optional): Format in which to save predictions. Either
+                'csv', 'feather', or 'parquet'. Defaults to 'parquet'.
 
         Returns:
             pandas.DataFrame of tile-level predictions.
         """
+
+        if format not in ('csv', 'feather', 'parquet'):
+            raise ValueError(f"Unrecognized format {format}")
+
         # Fit normalizer
         self._fit_normalizer(norm_fit)
 
@@ -1259,48 +1262,40 @@ class Trainer:
         # Generate predictions
         log.info('Generating predictions...')
         pred_args = SimpleNamespace(uq=bool(self.hp.uq))
-        df = sf.stats.predict_from_dataset(
+        dfs = sf.stats.predict_from_dataset(
             model=self.model,
             dataset=tf_dts_w_slidenames,
             model_type=self._model_type,
             pred_args=pred_args,
-            num_tiles=dataset.num_tiles
+            num_tiles=dataset.num_tiles,
+            outcome_names=self.outcome_names
         )
-        if format.lower() == 'csv':
-            save_path = os.path.join(self.outdir, "tile_predictions.csv")
-            df.to_csv(save_path)
-        elif format.lower() == 'feather':
-            import pyarrow.feather as feather
-            save_path = os.path.join(self.outdir, 'tile_predictions.feather')
-            feather.write_feather(df, save_path)
-        log.debug(f"Predictions saved to {col.green(save_path)}")
 
-        return df
+        # Save predictions
+        sf.stats.metrics.save_dfs(dfs, format=format, outdir=self.outdir)
+
+        return dfs
 
     def evaluate(
         self,
         dataset: "sf.Dataset",
         batch_size: Optional[int] = None,
-        histogram: bool = False,
-        save_predictions: bool = False,
+        save_predictions: Union[bool, str] = 'parquet',
         reduce_method: str = 'average',
         norm_fit: Optional[NormFit] = None,
         uq: Union[bool, str] = 'auto'
-    ) -> Dict[str, float]:
+    ) -> Dict[str, Any]:
         """Evaluate model, saving metrics and predictions.
 
         Args:
             dataset (:class:`slideflow.dataset.Dataset`): Dataset containing
                 TFRecords to evaluate.
-            checkpoint (list, optional): Path to cp.cpkt checkpoint to load.
-                Defaults to None.
             batch_size (int, optional): Evaluation batch size. Defaults to the
                 same as training (per self.hp)
-            histogram (bool, optional): Save histogram of tile predictions.
-                Poorly optimized, uses seaborn, may drastically increase
-                evaluation time. Defaults to False.
-            save_predictions (bool, optional): Save tile, slide, and
-                patient-level predictions to CSV. Defaults to False.
+            save_predictions (bool or str, optional): Save tile, slide, and
+                patient-level predictions at each evaluation. May be 'csv',
+                'feather', or 'parquet'. If False, will not save predictions.
+                Defaults to 'parquet'.
             reduce_method (str, optional): Reduction method for calculating
                 slide-level and patient-level predictions for categorical outcomes.
                 Either 'average' or 'proportion'. If 'average', will reduce with
@@ -1372,7 +1367,6 @@ class Trainer:
             uq=bool(self.hp.uq)
         )
         metrics, acc, loss = sf.stats.metrics_from_dataset(
-            histogram=histogram,
             save_predictions=save_predictions,
             pred_args=pred_args,
             reduce_method=reduce_method,
@@ -1420,7 +1414,7 @@ class Trainer:
         ema_smoothing: int = 2,
         use_tensorboard: bool = True,
         steps_per_epoch_override: int = 0,
-        save_predictions: bool = False,
+        save_predictions: Union[bool, str] = 'parquet',
         save_model: bool = True,
         resume_training: Optional[str] = None,
         pretrain: Optional[str] = 'imagenet',
@@ -1457,8 +1451,10 @@ class Trainer:
                 Defaults to False.
             steps_per_epoch_override (int, optional): Manually set the number
                 of steps per epoch. Defaults to 0 (automatic).
-            save_predictions (bool, optional): Save tile, slide, and patient-
-                level predictions at each evaluation. Defaults to False.
+            save_predictions (bool or str, optional): Save tile, slide, and
+                patient-level predictions at each evaluation. May be 'csv',
+                'feather', or 'parquet'. If False, will not save predictions.
+                Defaults to 'parquet'.
             save_model (bool, optional): Save models when evaluating at
                 specified epochs. Defaults to True.
             resume_training (str, optional): Path to Tensorflow model to
@@ -1598,7 +1594,7 @@ class Trainer:
                     validation_data_for_training = val_data.repeat()
                     num_samples = validation_steps * self.hp.batch_size
                     log.debug(f'Using {validation_steps} batches ({num_samples}'
-                              'samples) each validation check')
+                              ' samples) each validation check')
                 else:
                     validation_data_for_training = val_data
                     log.debug('Using entire validation set each val check')
@@ -1650,7 +1646,7 @@ class Trainer:
                 cp_callback = tf.keras.callbacks.ModelCheckpoint(
                     os.path.join(self.outdir, 'cp.ckpt'),
                     save_weights_only=True,
-                    verbose=(log.getEffectiveLevel() <= 20)
+                    verbose=(sf.getLoggingLevel() <= 20)
                 )
                 callbacks += [cp_callback]
             if use_tensorboard:
@@ -1682,7 +1678,7 @@ class Trainer:
                     train_data,
                     steps_per_epoch=steps_per_epoch,
                     epochs=total_epochs,
-                    verbose=(log.getEffectiveLevel() <= 20),
+                    verbose=(sf.getLoggingLevel() <= 20),
                     initial_epoch=self.hp.toplayer_epochs,
                     validation_data=validation_data_for_training,
                     validation_steps=validation_steps,

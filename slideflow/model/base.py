@@ -137,8 +137,8 @@ class _ModelParams:
         self.validation_balance = validation_balance
         self.hidden_layer_width = hidden_layer_width
         self.trainable_layers = trainable_layers
-        self.l1 = float(l1)
-        self.l2 = float(l2)
+        self.l1 = l1 if l1 is None else float(l1)
+        self.l2 = l2 if l2 is None else float(l2)
         self.l1_dense = self.l1 if l1_dense is None else float(l1_dense)
         self.l2_dense = self.l2 if l2_dense is None else float(l2_dense)
         self.dropout = dropout
@@ -303,6 +303,18 @@ class _ModelParams:
             self.training_balance = 'category' if self.model_type() == 'categorical' else 'patient'
         if not isinstance(self.epochs, list):
             self.epochs = [self.epochs]
+
+        # PyTorch checks.
+        if sf.backend() == 'torch':
+            if self.l2_dense:
+                log.warn(
+                    "'l2_dense' is not implemented in PyTorch backend. "
+                    "L2 regularization must be applied to the whole model "
+                    "by setting 'l2' instead. 'l1_dense' will be ignored.")
+            if self.l1_dense or self.l1:
+                log.warn(
+                    "L1 regularization is not implemented in PyTorch backend "
+                    "and will be ignored.")
 
         # Model type validations.
         if (self.model_type() != 'categorical' and ((self.training_balance == 'category') or

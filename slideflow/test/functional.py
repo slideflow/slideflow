@@ -27,7 +27,7 @@ def activations_tester(
 
     Function must happen in an isolated process to free GPU memory when done.
     """
-    logging.getLogger("slideflow").setLevel(verbosity)
+    sf.setLoggingLevel(verbosity)
 
     # Test activations generation.
     dataset = project.dataset(71, 1208)
@@ -94,7 +94,7 @@ def clam_feature_generator_tester(
 
     Function must happen in an isolated process to free GPU memory when done.
     """
-    logging.getLogger("slideflow").setLevel(verbosity)
+    sf.setLoggingLevel(verbosity)
     outdir = join(project.root, 'clam')
     project.generate_features_for_clam(
         model,
@@ -109,7 +109,7 @@ def evaluation_tester(project, verbosity, passed, **kwargs) -> None:
 
     Function must happen in an isolated process to free GPU memory when done.
     """
-    logging.getLogger("slideflow").setLevel(verbosity)
+    sf.setLoggingLevel(verbosity)
     project.evaluate(**kwargs)
 
 
@@ -119,7 +119,7 @@ def prediction_tester(project, verbosity, passed, **kwargs) -> None:
 
     Function must happen in an isolated process to free GPU memory when done.
     """
-    logging.getLogger("slideflow").setLevel(verbosity)
+    sf.setLoggingLevel(verbosity)
     project.predict(**kwargs)
 
 
@@ -200,7 +200,7 @@ def single_thread_normalizer_tester(
 
     Function must happen in an isolated process to free GPU memory when done.
     """
-    logging.getLogger("slideflow").setLevel(verbosity)
+    sf.setLoggingLevel(verbosity)
     if not len(methods):
         methods = sf.norm.StainNormalizer.normalizers  # type: ignore
     dataset = project.dataset(71, 1208)
@@ -250,7 +250,7 @@ def multi_thread_normalizer_tester(
 
     Function must happen in an isolated process to free GPU memory when done.
     """
-    logging.getLogger("slideflow").setLevel(verbosity)
+    sf.setLoggingLevel(verbosity)
     if not len(methods):
         methods = sf.norm.StainNormalizer.normalizers  # type: ignore
     dataset = project.dataset(71, 1208)
@@ -282,7 +282,7 @@ def wsi_prediction_tester(
 
     Function must happen in an isolated process to free GPU memory when done.
     """
-    logging.getLogger("slideflow").setLevel(verbosity)
+    sf.setLoggingLevel(verbosity)
     dataset = project.dataset()
     slide_paths = dataset.slide_paths(source='TEST')
     patient_name = sf.util.path_to_name(slide_paths[0])

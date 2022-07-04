@@ -2,9 +2,15 @@
 
 import os
 import tempfile
+from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any, Dict, List, Tuple, Union
 
+import numpy as np
+import slideflow as sf
+from pandas.core.frame import DataFrame
+from slideflow.stats import df_from_pred
 from slideflow.util import log
+from tqdm import tqdm
 
 import tensorflow as tf
 
@@ -22,7 +28,7 @@ def log_summary(
         model (tf.keras.Model): Tensorflow/Keras model.
         neptune_run (neptune.Run, optional): Neptune run. Defaults to None.
     """
-    if log.getEffectiveLevel() <= 20:
+    if sf.getLoggingLevel() <= 20:
         print()
         model.summary()
     if neptune_run:
@@ -273,3 +279,168 @@ def unwrap(
         x = extracted_layer(x)
 
     return submodel.inputs, postconv, x
+
+
+def _eval_from_model(
+    model: "tf.keras.Model",
+    dataset: "tf.data.Dataset",
+    model_type: str,
+    pred_args: SimpleNamespace,
+    num_tiles: int = 0,
+    uq_n: int = 30
+) -> Tuple[DataFrame, float, float]:
+    """Generates predictions (y_true, y_pred, tile_to_slide) from a given
+    Tensorflow model and dataset.
+
+    Args:
+        model (str): Path to Tensorflow model.
+        dataset (tf.data.Dataset): Tensorflow dataset.
+        model_type (str, optional): 'categorical', 'linear', or 'cph'.
+            Will not attempt to calculate accuracy for non-categorical models.
+            Defaults to 'categorical'.
+        pred_args (namespace): Namespace containing the property `loss`, loss
+            function used to calculate loss.
+        num_tiles (int, optional): Used for progress bar. Defaults to 0.
+        uq_n (int, optional): Number of per-tile inferences to perform is
+            calculating uncertainty via dropout.
+
+    Returns:
+        pd.DataFrame, accuracy, loss
+    """
+
+    @tf.function
+    def get_predictions(img, training=False):
+        return model(img, training=training)
+
+    y_true, y_pred, tile_to_slides = [], [], []
+    y_std = [] if pred_args.uq else None  # type: ignore
+    num_vals, num_batches, num_outcomes, running_loss = 0, 0, 0, 0
+    is_cat = (model_type == 'categorical')
+    if not is_cat:
+        acc = None
+
+    pb = tqdm(total=num_tiles, desc='Evaluating...', ncols=80, leave=False)
+    for img, yt, slide in dataset:
+        pb.update(slide.shape[0])
+        tile_to_slides += [_byte.decode('utf-8') for _byte in slide.numpy()]
+        num_vals += slide.shape[0]
+        num_batches += 1
+
+        if pred_args.uq:
+            yp, yp_std, num_outcomes = get_uq_predictions(
+                img, get_predictions, num_outcomes, uq_n
+            )
+            y_pred += [yp]
+            y_std += [yp_std]  # type: ignore
+        else:
+            yp = get_predictions(img, training=False)
+            y_pred += [yp]
+        if type(yt) == dict:
+            y_true += [[yt[f'out-{o}'].numpy() for o in range(len(yt))]]
+            yt = [yt[f'out-{o}'] for o in range(len(yt))]
+        else:
+            y_true += [yt.numpy()]
+        loss = pred_args.loss(yt, yp)
+        running_loss += tf.math.reduce_sum(loss).numpy() * slide.shape[0]
+    pb.close()
+
+    if type(y_pred[0]) == list:
+        # Concatenate predictions for each outcome
+        y_pred = [np.concatenate(yp) for yp in zip(*y_pred)]
+        if pred_args.uq:
+            y_std = [np.concatenate(ys) for ys in zip(*y_std)]  # type: ignore
+    else:
+        y_pred = [np.concatenate(y_pred)]
+        if pred_args.uq:
+            y_std = [np.concatenate(y_std)]
+
+    if type(y_true[0]) == list:
+        # Concatenate y_true for each outcome
+        y_true = [np.concatenate(yt) for yt in zip(*y_true)]
+        if is_cat:
+            acc = [
+                np.sum(y_true[i] == np.argmax(y_pred[i], axis=1)) / num_vals
+                for i in range(len(y_true))
+            ]
+    else:
+        y_true = [np.concatenate(y_true)]
+        if is_cat:
+            acc = np.sum(y_true[0] == np.argmax(y_pred[0], axis=1)) / num_vals
+
+    # Create pandas DataFrame from arrays
+    df = df_from_pred(y_true, y_pred, y_std, tile_to_slides)
+
+    # Note that Keras loss during training includes regularization losses,
+    # so this loss will not match validation loss calculated during training
+    loss = running_loss / num_vals
+    log.debug("Evaluation complete.")
+    return df, acc, loss  # type: ignore
+
+
+def _predict_from_model(
+    model: "tf.keras.Model",
+    dataset: "tf.data.Dataset",
+    model_type: str,
+    pred_args: SimpleNamespace,
+    num_tiles: int = 0,
+    uq_n: int = 30
+) -> DataFrame:
+    """Generates predictions (y_true, y_pred, tile_to_slide) from a given
+    Tensorflow model and dataset.
+
+    Args:
+        model (str): Path to Tensorflow model.
+        dataset (tf.data.Dataset): Tensorflow dataset.
+        model_type (str, optional): 'categorical', 'linear', or 'cph'.
+            Will not attempt to calculate accuracy for non-categorical models.
+            Defaults to 'categorical'.
+        pred_args (namespace): Namespace containing the property `loss`, loss
+            function used to calculate loss.
+        num_tiles (int, optional): Used for progress bar. Defaults to 0.
+        uq_n (int, optional): Number of per-tile inferences to perform is
+            calculating uncertainty via dropout.
+
+    Returns:
+        pd.DataFrame, accuracy, loss
+    """
+
+    @tf.function
+    def get_predictions(img, training=False):
+        return model(img, training=training)
+
+    y_pred, tile_to_slides = [], []
+    y_std = [] if pred_args.uq else None  # type: ignore
+    num_vals, num_batches, num_outcomes = 0, 0, 0
+
+    pb = tqdm(total=num_tiles, desc='Predicting...', ncols=80, leave=False)
+    for img, yt, slide in dataset:  # TODO: support not needing to supply yt
+        pb.update(slide.shape[0])
+        tile_to_slides += [_bytes.decode('utf-8') for _bytes in slide.numpy()]
+        num_vals += slide.shape[0]
+        num_batches += 1
+        if pred_args.uq:
+            yp_mean, yp_std, num_outcomes = get_uq_predictions(
+                img, get_predictions, num_outcomes, uq_n
+            )
+            y_pred += [yp_mean]
+            y_std += [yp_std]  # type: ignore
+        else:
+            yp = get_predictions(img, training=False)
+            y_pred += [yp]
+    pb.close()
+
+    if type(y_pred[0]) == list:
+        # Concatenate predictions for each outcome
+        y_pred = [np.concatenate(yp) for yp in zip(*y_pred)]
+        if pred_args.uq:
+            y_std = [np.concatenate(ys) for ys in zip(*y_std)]  # type: ignore
+    else:
+        y_pred = [np.concatenate(y_pred)]
+        if pred_args.uq:
+            y_std = [np.concatenate(y_std)]
+
+    # Create pandas DataFrame from arrays
+    df = df_from_pred(None, y_pred, y_std, tile_to_slides)
+
+    log.debug("Prediction complete.")
+    return df

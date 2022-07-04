@@ -24,7 +24,7 @@ from slideflow.util.spinner import Spinner
 def process_isolate(func: Callable, project: sf.Project, **kwargs) -> bool:
     ctx = multiprocessing.get_context('spawn')
     passed = ctx.Manager().Value(bool, True)
-    verbosity = logging.getLogger('slideflow').level
+    verbosity = sf.getLoggingLevel()
     process = ctx.Process(
         target=func,
         args=(project, verbosity, passed),

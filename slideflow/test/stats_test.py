@@ -8,37 +8,52 @@ import slideflow as sf
 
 class TestSlideMap(unittest.TestCase):
 
+    n_tiles = 10
+    n_slides = 20
+
     @classmethod
     def setUpClass(cls) -> None:
-        cls._orig_logging_level = logging.getLogger('slideflow').getEffectiveLevel()  # type: ignore
-        logging.getLogger('slideflow').setLevel(40)
-        cls.slides = [f'slide{s}' for s in range(200)]  # type: ignore
+        cls._orig_logging_level = sf.getLoggingLevel()  # type: ignore
+        sf.setLoggingLevel(40)
+        cls.slides = [f'slide{s}' for s in range(cls.n_slides)]  # type: ignore
         cls.DummyDatasetFeatures = SimpleNamespace(
             slides=cls.slides,
-            logits={s: np.random.rand(50, 2) for s in cls.slides},
-            activations={s: np.random.rand(50, 10) for s in cls.slides},
-            locations={s: np.random.rand(50, 2) for s in cls.slides},
-            uncertainty={s: np.random.rand(50, 2) for s in cls.slides},
+            logits={s: np.random.rand(cls.n_tiles, 2) for s in cls.slides},
+            activations={s: np.random.rand(cls.n_tiles, 10) for s in cls.slides},
+            locations={s: np.random.rand(cls.n_tiles, 2) for s in cls.slides},
+            uncertainty={s: np.random.rand(cls.n_tiles, 2) for s in cls.slides},
             num_features=10,
             hp=SimpleNamespace(uq=True)
         )
-        cls.slidemap = sf.SlideMap.from_features(cls.DummyDatasetFeatures)
+        cls.umap_kw = dict(n_neighbors=5)
+        cls.slidemap = sf.SlideMap.from_features(
+            cls.DummyDatasetFeatures,  # type:ignore
+            **cls.umap_kw
+        )
 
     @classmethod
     def tearDownClass(cls) -> None:
-        logging.getLogger('slideflow').setLevel(cls._orig_logging_level)  # type: ignore
+        sf.setLoggingLevel(cls._orig_logging_level)  # type: ignore
         return super().tearDownClass()
 
     def test_init_from_features(self):
-        self.assertEqual(len(self.slidemap.activations()), 50*200)
+        self.assertEqual(len(self.slidemap.activations()), self.n_tiles * self.n_slides)
 
     def test_init_from_features_centroid(self):
-        slidemap = sf.SlideMap.from_features(self.DummyDatasetFeatures, map_slide='centroid')
-        self.assertEqual(len(slidemap.activations()), 200)
+        slidemap = sf.SlideMap.from_features(
+            self.DummyDatasetFeatures,
+            map_slide='centroid',
+            **self.umap_kw
+        )
+        self.assertEqual(len(slidemap.activations()), self.n_slides)
 
     def test_init_from_features_average(self):
-        slidemap = sf.SlideMap.from_features(self.DummyDatasetFeatures, map_slide='average')
-        self.assertEqual(len(slidemap.activations()), 200)
+        slidemap = sf.SlideMap.from_features(
+            self.DummyDatasetFeatures,
+            map_slide='average',
+            **self.umap_kw
+        )
+        self.assertEqual(len(slidemap.activations()), self.n_slides)
 
     def test_cluster(self):
         self.slidemap.cluster(5)
@@ -58,16 +73,16 @@ class TestSlideMap(unittest.TestCase):
 
 class TestMetrics(unittest.TestCase):
 
-    n_total = 10000 #25000000
-    n_patients = 200 #10000
-    n_labels1 = 5 #30
+    n_total = 1000
+    n_patients = 20
+    n_labels1 = 3
     n_labels2 = 2
     multi_slide_chance = 0.1
 
     @classmethod
     def setUpClass(cls) -> None:
-        cls._orig_logging_level = logging.getLogger('slideflow').getEffectiveLevel()  # type: ignore
-        logging.getLogger('slideflow').setLevel(40)
+        cls._orig_logging_level = sf.getLoggingLevel()  # type: ignore
+        sf.setLoggingLevel(40)
 
         cls.patients_arr = np.array([f'patient{p}' for p in range(cls.n_patients)])  # type: ignore
         cls.is_multi_slide = np.random.random(cls.n_patients) < cls.multi_slide_chance  # type: ignore
@@ -96,20 +111,12 @@ class TestMetrics(unittest.TestCase):
             add_labels(cls.labels1, np.random.choice(cls.labels1_arr), p, i)  # type: ignore
             add_labels(cls.labels2, np.random.choice(cls.labels2_arr), p, i)  # type: ignore
         cls.slides = np.array(list(cls.patients.keys()))  # type: ignore
+        cls.n_slides = len(list(set(cls.slides)))
 
     @classmethod
     def tearDownClass(cls) -> None:
         super().tearDownClass()
-        logging.getLogger('slideflow').setLevel(cls._orig_logging_level)  # type: ignore
-
-    def _calc_metrics(self, func, model_type):
-        return sf.stats.metrics_from_pred(
-            sf.stats.df_from_pred(*func()),
-            self.patients,
-            model_type=model_type,
-            save_predictions=False,
-            plot=False
-        )
+        sf.setLoggingLevel(cls._orig_logging_level)  # type: ignore
 
     def _get_single_categorical_data(self):
         tile_to_slides = np.random.choice(self.slides, size=self.n_total)
@@ -163,40 +170,126 @@ class TestMetrics(unittest.TestCase):
         y_std = [np.random.random((self.n_total, 2))]
         return y_true, y_pred, y_std, tile_to_slides
 
+    def _group_reduce(self, df):
+        dfs = sf.stats.group_reduce(df, patients=self.patients)
+        self.assertIn('tile', dfs)
+        self.assertIn('slide', dfs)
+        self.assertIn('patient', dfs)
+        self.assertEqual(len(dfs['tile']), self.n_total)
+        self.assertEqual(len(dfs['slide']), self.n_slides)
+        self.assertEqual(len(dfs['patient']), self.n_patients)
+        self.assertIn('slide', dfs['tile'].columns)
+        self.assertIn('patient', dfs['tile'].columns)
+        self.assertIn('slide', dfs['slide'].columns)
+        self.assertIn('patient', dfs['patient'].columns)
+        return dfs
+
+    def _assert_categorical_metrics(self, metrics, outcomes, lengths):
+        for outcome, length in zip(outcomes, lengths):
+            self.assertTrue(metrics is not None)
+            self.assertIsInstance(metrics, dict)
+            self.assertIn('auc', metrics)
+            self.assertIn('ap', metrics)
+            self.assertIn(outcome, metrics['auc'])
+            self.assertEqual(len(metrics['auc'][outcome]), length)
+            self.assertEqual(len(metrics['ap'][outcome]), length)
+
+    def _assert_linear_metrics(self, metrics, n_outcomes):
+        self.assertTrue(metrics is not None)
+        self.assertIsInstance(metrics, dict)
+        self.assertIn('r_squared', metrics)
+        self.assertEqual(n_outcomes, len(metrics['r_squared']))
+
+    def _assert_cph_metrics(self, metrics):
+        self.assertTrue(metrics is not None)
+        self.assertIsInstance(metrics, dict)
+        self.assertIn('c_index', metrics)
+        self.assertIsInstance(metrics['c_index'], float)
+
     def test_single_categorical(self):
-        results = self._calc_metrics(
-            self._get_single_categorical_data,
-            'categorical'
+        tile_df = sf.stats.df_from_pred(
+            *self._get_single_categorical_data()
         )
-        self.assertTrue(results is not None)
+        dfs = self._group_reduce(tile_df)
+        for level, _df in dfs.items():
+            metrics = sf.stats.metrics.categorical_metrics(_df, level=level)
+            self._assert_categorical_metrics(metrics, ['out0'], [self.n_labels1])
+
+    def test_single_categorical_named(self):
+        tile_df = sf.stats.df_from_pred(
+            *self._get_single_categorical_data()
+        )
+        tile_df = sf.stats.name_columns(tile_df, 'categorical', 'Named1')
+        dfs = self._group_reduce(tile_df)
+        for level, _df in dfs.items():
+            metrics = sf.stats.metrics.categorical_metrics(_df, level=level)
+            self._assert_categorical_metrics(metrics, ['Named1'], [self.n_labels1])
 
     def test_multi_categorical(self):
-        results = self._calc_metrics(
-            self._get_multi_categorical_data,
-            'categorical'
+        tile_df = sf.stats.df_from_pred(
+            *self._get_multi_categorical_data()
         )
-        self.assertTrue(results is not None)
+        dfs = self._group_reduce(tile_df)
+        for level, _df in dfs.items():
+            metrics = sf.stats.metrics.categorical_metrics(_df, level=level)
+            self._assert_categorical_metrics(
+                metrics,
+                ['out0', 'out1'],
+                [self.n_labels1, self.n_labels2]
+            )
+
+    def test_multi_categorical_named(self):
+        tile_df = sf.stats.df_from_pred(
+            *self._get_multi_categorical_data()
+        )
+        tile_df = sf.stats.name_columns(
+            tile_df,
+            'categorical',
+            ['Named1', 'Named2']
+        )
+        dfs = self._group_reduce(tile_df)
+        for level, _df in dfs.items():
+            metrics = sf.stats.metrics.categorical_metrics(_df, level=level)
+            self._assert_categorical_metrics(
+                metrics,
+                ['Named1', 'Named2'],
+                [self.n_labels1, self.n_labels2]
+            )
 
     def test_single_linear(self):
-        results = self._calc_metrics(
-            self._get_single_linear_data,
-            'linear'
+        tile_df = sf.stats.df_from_pred(
+            *self._get_single_linear_data()
         )
-        self.assertTrue(results is not None)
+        tile_df = sf.stats.name_columns(tile_df, 'linear', ['NamedLinear1'])
+        dfs = self._group_reduce(tile_df)
+        for level, _df in dfs.items():
+            metrics = sf.stats.metrics.linear_metrics(_df, level=level)
+            self._assert_linear_metrics(metrics, 1)
 
     def test_multi_linear(self):
-        results = self._calc_metrics(
-            self._get_multi_linear_data,
-            'linear'
+        tile_df = sf.stats.df_from_pred(
+            *self._get_multi_linear_data()
         )
-        self.assertTrue(results is not None)
+        tile_df = sf.stats.name_columns(
+            tile_df,
+            'linear',
+            ['NamedLinear1', 'NamedLinear2']
+        )
+        dfs = self._group_reduce(tile_df)
+        for level, _df in dfs.items():
+            metrics = sf.stats.metrics.linear_metrics(_df, level=level)
+            self._assert_linear_metrics(metrics, 2)
 
     def test_cph(self):
-        results = self._calc_metrics(
-            self._get_cph_data,
-            'cph'
+        tile_df = sf.stats.df_from_pred(
+            *self._get_cph_data()
         )
-        self.assertTrue(results is not None)
+        tile_df = sf.stats.name_columns(tile_df, 'cph')
+        dfs = self._group_reduce(tile_df)
+        for level, _df in dfs.items():
+            metrics = sf.stats.metrics.cph_metrics(_df, level=level)
+            self._assert_cph_metrics(metrics)
+
 
 if __name__ == '__main__':
     unittest.main()

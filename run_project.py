@@ -70,7 +70,7 @@ if __name__=='__main__':
         os.environ['HDF5_USE_FILE_LOCKING'] = 'FALSE'
         print("Set environmental variable 'HDF5_USE_FILE_LOCKING'='FALSE'")
     if args.debug:
-        logging.getLogger('slideflow').setLevel(logging.DEBUG)
+        sf.setLoggingLevel(logging.DEBUG)
 
     print()
     print(f'+-------------------------------+')

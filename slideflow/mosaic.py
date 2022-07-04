@@ -21,6 +21,7 @@ from slideflow.stats import SlideMap, get_centroid_index
 from slideflow.util import Path
 from slideflow.util import colors as col
 from slideflow.util import log
+from slideflow.stats import get_centroid_index
 
 if TYPE_CHECKING:
     from slideflow.norm import StainNormalizer
@@ -216,12 +217,12 @@ class Mosaic:
                          total=len(self.GRID),
                          ncols=80,
                          leave=False):
-            if log.getEffectiveLevel() <= 20:
+            if sf.getLoggingLevel() <= 20:
                 sys.stderr.write(f'\rCompleted {i/len(self.GRID):.2%}')
         pool.close()
         pool.join()
         end = time.time()
-        if log.getEffectiveLevel() <= 20:
+        if sf.getLoggingLevel() <= 20:
             sys.stdout.write('\r\033[K')
         log.debug(f'Calculations complete ({end - start:.0f} sec)')
         if self.mapping_method == 'expanded':

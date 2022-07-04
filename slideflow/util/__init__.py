@@ -3,6 +3,7 @@ import importlib.util
 import json
 import logging
 import multiprocessing as mp
+import multiprocessing_logging
 import os
 import re
 import shutil
@@ -62,17 +63,9 @@ NormFit = Union[Dict[str, np.ndarray], Dict[str, List]]
 
 # --- Configure logging--------------------------------------------------------
 log = logging.getLogger('slideflow')
-if 'SF_LOGGING_LEVEL' in os.environ:
-    try:
-        intLevel = int(os.environ['SF_LOGGING_LEVEL'])
-        log.setLevel(intLevel)
-    except ValueError:
-        pass
-else:
-    log.setLevel(logging.INFO)
+log.setLevel(logging.DEBUG)
 
 
-# --- Logging classes ---------------------------------------------------------
 class LogFormatter(logging.Formatter):
     MSG_FORMAT = "%(asctime)s [%(levelname)s] - %(message)s"
     LEVEL_FORMATS = {
@@ -125,12 +118,45 @@ class TqdmLoggingHandler(logging.StreamHandler):
             self.handleError(record)
 
 
-# Initializer loggers
 ch = TqdmLoggingHandler()
 ch.setFormatter(LogFormatter())
-ch.setLevel(log.level)
+if 'SF_LOGGING_LEVEL' in os.environ:
+    try:
+        intLevel = int(os.environ['SF_LOGGING_LEVEL'])
+        ch.setLevel(intLevel)
+    except ValueError:
+        pass
+else:
+    ch.setLevel(logging.INFO)
 log.addHandler(ch)
+
+# Add file handler
+fileHandler = logging.FileHandler("slideflow.log")
+fileHandler.setFormatter(FileFormatter())
+log.addHandler(fileHandler)
+
+multiprocessing_logging.install_mp_handler(log)
 log.propagate = False  # Fixes duplicate logging with TF 2.9
+
+
+def setLoggingLevel(level):
+    log.handlers[0].setLevel(level)
+
+
+def getLoggingLevel():
+    return log.handlers[0].level
+
+
+def addLoggingFileHandler(path):
+    fh = logging.FileHandler(path)
+    fh.setFormatter(FileFormatter())
+    log.addHandler(fh)
+    handler = multiprocessing_logging.MultiProcessingHandler(
+        "mp-handler-{0}".format(len(log.handlers)),
+        sub_handler=fh
+    )
+    log.removeHandler(fh)
+    log.addHandler(handler)
 
 
 # --- Multiprocessing-compatible progress bars --------------------------------

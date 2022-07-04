@@ -10,7 +10,7 @@
 
 __author__ = 'James Dolezal'
 __license__ = 'GNU General Public License v3.0'
-__version__ = "1.2.0-dev2"
+__version__ = "1.2.0-dev3"
 
 import os
 
@@ -21,8 +21,11 @@ if 'SF_BACKEND' not in os.environ:
 def backend():
     return os.environ['SF_BACKEND']
 
+# Import logging functions required for other submodules
+from slideflow.util import getLoggingLevel, log, setLoggingLevel
 
-from slideflow import io, model, norm
+...
+from slideflow import io, model, norm, stats
 from slideflow.dataset import Dataset
 from slideflow.heatmap import Heatmap
 from slideflow.model import DatasetFeatures, ModelParams

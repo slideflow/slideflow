@@ -1,7 +1,16 @@
 """PyTorch model utility functions."""
 
 import types
+from types import SimpleNamespace
 from typing import Dict, Generator, Iterable, List, Tuple, Union
+
+import numpy as np
+import slideflow as sf
+from pandas.core.frame import DataFrame
+from scipy.special import softmax
+from slideflow.stats import df_from_pred
+from slideflow.util import log
+from tqdm import tqdm
 
 import torch
 
@@ -160,3 +169,222 @@ def get_uq_predictions(
         yp_mean = torch.mean(stacked, dim=0)  # type: ignore
         yp_std = torch.std(stacked, dim=0)  # type: ignore
     return yp_mean, yp_std, num_outcomes
+
+
+
+def _predict_from_model(
+    model: "torch.nn.Module",
+    dataset: "torch.utils.data.DataLoader",
+    model_type: str,
+    pred_args: SimpleNamespace,
+    uq_n: int = 30,
+    num_tiles: int = 0
+) -> DataFrame:
+    """Generates predictions (y_true, y_pred, tile_to_slide) from
+    a given PyTorch model and dataset.
+
+    Args:
+        model (torch.nn.Module): PyTorch model.
+        dataset (torch.utils.data.DatatLoader): PyTorch dataloader.
+        pred_args (namespace): Namespace containing slide_input,
+            update_corrects, and update_loss functions.
+        model_type (str, optional): 'categorical', 'linear', or 'cph'.
+            If multiple linear outcomes are present, y_true is stacked into
+            a single vector for each image. Defaults to 'categorical'.
+        uq_n (int, optional): Number of forward passes to perform
+            when calculating MC Dropout uncertainty. Defaults to 30.
+
+    Returns:
+        pd.DataFrame
+    """
+
+    # Get predictions and performance metrics
+    log.debug("Generating predictions from torch model")
+    y_pred, tile_to_slides = [], []
+    y_std = [] if pred_args.uq else None  # type: ignore
+    num_outcomes = 0
+    model.eval()
+    device = torch.device('cuda:0')
+    pb = tqdm(
+        desc='Predicting...',
+        total=dataset.num_tiles,  # type: ignore
+        ncols=80,
+        unit='img',
+        leave=False
+    )
+    for img, yt, slide in dataset:  # TODO: support not needing to supply yt
+        img = img.to(device, non_blocking=True)
+        with torch.cuda.amp.autocast():
+            with torch.no_grad():
+                # Slide-level features
+                if pred_args.num_slide_features:
+                    slide_inp = torch.tensor([
+                        pred_args.slide_input[s] for s in slide
+                    ])
+                    inp = (img, slide_inp.to(device))
+                else:
+                    inp = (img,)  # type: ignore
+                if pred_args.uq:
+                    res, yp_std, num_outcomes = get_uq_predictions(
+                        inp, model, num_outcomes, uq_n
+                    )
+                    if isinstance(yp_std, list):
+                        yp_std = [y.cpu().numpy().copy() for y in yp_std]
+                    else:
+                        yp_std = yp_std.cpu().numpy().copy()
+                    y_std += [yp_std]  # type: ignore
+                else:
+                    res = model(*inp)
+                if isinstance(res, list):
+                    res = [r.cpu().numpy().copy() for r in res]
+                else:
+                    res = res.cpu().numpy().copy()
+                y_pred += [res]
+        tile_to_slides += slide
+        pb.update(img.shape[0])
+
+    # Concatenate predictions for each outcome
+    if type(y_pred[0]) == list:
+        y_pred = [np.concatenate(yp) for yp in zip(*y_pred)]
+        if pred_args.uq:
+            y_std = [np.concatenate(ys) for ys in zip(*y_std)]  # type: ignore
+    else:
+        y_pred = [np.concatenate(y_pred)]
+        if pred_args.uq:
+            y_std = [np.concatenate(y_std)]
+
+    # We will need to enforce softmax encoding for tile-level statistics.
+    if model_type == 'categorical':
+        y_pred = [softmax(yp, axis=1) for yp in y_pred]
+
+    # Create pandas DataFrame from arrays
+    df = df_from_pred(None, y_pred, y_std, tile_to_slides)
+
+    log.debug("Prediction complete.")
+    return df
+
+
+def _eval_from_model(
+    model: "torch.nn.Module",
+    dataset: "torch.utils.data.DataLoader",
+    model_type: str,
+    pred_args: SimpleNamespace,
+    uq_n: int = 30,
+    num_tiles: int = 0,
+) -> Tuple[DataFrame, float, float]:
+    """Generates predictions (y_true, y_pred, tile_to_slide) from
+    a given PyTorch model and dataset.
+
+    Args:
+        model (str): Path to PyTorch model.
+        dataset (tf.data.Dataset): PyTorch dataloader.
+        pred_args (namespace): Namespace containing slide_input,
+            update_corrects, and update_loss functions.
+        model_type (str, optional): 'categorical', 'linear', or 'cph'. If
+            multiple linear outcomes are present, y_true is stacked into a
+            single vector for each image. Defaults to 'categorical'.
+        uq_n (int, optional): Number of forward passes to perform
+            when calculating MC Dropout uncertainty. Defaults to 30.
+
+    Returns:
+        pd.DataFrame, accuracy, loss
+    """
+
+    y_true, y_pred, tile_to_slides = [], [], []
+    y_std = [] if pred_args.uq else None  # type: ignore
+    corrects = pred_args.running_corrects
+    losses = 0
+    total = 0
+    num_outcomes = 0
+
+    log.debug("Evaluating torch model")
+
+    model.eval()
+    device = torch.device('cuda:0')
+    pb = tqdm(
+        desc='Evaluating...',
+        total=dataset.num_tiles,  # type: ignore
+        ncols=80,
+        unit='img',
+        leave=False
+    )
+    for img, yt, slide in dataset:
+        img = img.to(device, non_blocking=True)
+        with torch.cuda.amp.autocast():
+            with torch.no_grad():
+                # Slide-level features
+                if pred_args.num_slide_features:
+                    slide_inp = torch.tensor([
+                        pred_args.slide_input[s] for s in slide
+                    ])
+                    inp = (img, slide_inp.to(device))
+                else:
+                    inp = (img,)  # type: ignore
+                if pred_args.uq:
+                    res, yp_std, num_outcomes = get_uq_predictions(
+                        inp, model, num_outcomes, uq_n
+                    )
+                    if isinstance(yp_std, list):
+                        yp_std = [y.cpu().numpy().copy() for y in yp_std]
+                    else:
+                        yp_std = yp_std.cpu().numpy().copy()
+                    y_std += [yp_std]  # type: ignore
+                else:
+                    res = model(*inp)
+                corrects = pred_args.update_corrects(res, yt, corrects)
+                losses = pred_args.update_loss(res, yt, losses, img.size(0))
+                if isinstance(res, list):
+                    res = [r.cpu().numpy().copy() for r in res]
+                else:
+                    res = res.cpu().numpy().copy()
+                y_pred += [res]
+        if type(yt) == dict:
+            y_true += [[yt[f'out-{o}'] for o in range(len(yt))]]
+        else:
+            yt = yt.detach().numpy().copy()
+            y_true += [yt]
+        tile_to_slides += slide
+        total += img.shape[0]
+        pb.update(img.shape[0])
+
+
+    # Concatenate predictions for each outcome.
+    if type(y_pred[0]) == list:
+        y_pred = [np.concatenate(yp) for yp in zip(*y_pred)]
+        if pred_args.uq:
+            y_std = [np.concatenate(ys) for ys in zip(*y_std)]  # type: ignore
+    else:
+        y_pred = [np.concatenate(y_pred)]
+        if pred_args.uq:
+            y_std = [np.concatenate(y_std)]
+
+    # Concatenate y_true for each outcome
+    if type(y_true[0]) == list:
+        y_true = [np.concatenate(yt) for yt in zip(*y_true)]
+
+        # Merge multiple linear outcomes into a single vector
+        if model_type == 'linear':
+            y_true = [np.stack(y_true, axis=1)]  # type: ignore
+    else:
+        y_true = [np.concatenate(y_true)]
+
+    # We will need to enforce softmax encoding for tile-level statistics.
+    if model_type == 'categorical':
+        y_pred = [softmax(yp, axis=1) for yp in y_pred]
+
+    # Calculate final accuracy and loss
+    loss = losses / total
+    if isinstance(corrects, dict):
+        acc = {k: v.cpu().numpy()/total for k, v in corrects.items()}
+    elif isinstance(corrects, (int, float)):
+        acc = corrects / total  # type: ignore
+    else:
+        acc = corrects.cpu().numpy() / total
+    if sf.getLoggingLevel() <= 20:
+        sf.util.clear_console()
+
+    # Create pandas DataFrame from arrays
+    df = df_from_pred(y_true, y_pred, y_std, tile_to_slides)
+
+    log.debug("Evaluation complete.")
+    return df, acc, loss  # type: ignore

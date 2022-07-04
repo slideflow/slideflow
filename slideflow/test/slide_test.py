@@ -1,3 +1,4 @@
+import multiprocessing as mp
 import unittest
 
 import numpy as np
@@ -62,4 +63,6 @@ class TestSlide(unittest.TestCase):
             self.wsi.thumb(mpp=4, width=100)
 
     def test_preview(self):
-        self._assert_is_pil(self.wsi.preview(show_progress=False))
+        pool = mp.dummy.Pool(8)
+        self._assert_is_pil(self.wsi.preview(show_progress=False, pool=pool))
+        pool.close()

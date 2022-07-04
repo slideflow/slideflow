@@ -1,6 +1,6 @@
 numpy<1.22
 gast>=0.3.3
-tensorflow>=2.7
+tensorflow>=2.7,<2.10
 scipy
 sklearn
 matplotlib>=3.2
@@ -10,13 +10,13 @@ shapely
 umap-learn
 seaborn
 pandas
-pyvips==2.1.11
+pyvips>=2.1.11
 fpdf
 spams
 cplex
 cvxpy>=1.1.15
 lifelines
-torch>=1.9.1
+torch>=1.9.1,<1.12
 torchvision
 pretrainedmodels
 gitpython
@@ -29,3 +29,4 @@ crc32c
 h5py
 tabulate
 saliency
+multiprocessing_logging==0.3.1
