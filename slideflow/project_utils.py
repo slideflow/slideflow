@@ -24,6 +24,7 @@ else:
 
 
 def auto_dataset(method: Callable):
+    """Wrapper to convert filter arguments into a dataset."""
     @wraps(method)
     def _impl(self, model, *args, **kwargs):
         filter_keys = ['filters', 'filter_blank', 'min_tiles']

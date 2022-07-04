@@ -8,7 +8,6 @@ from pandas.core.frame import DataFrame
 
 import slideflow as sf
 from slideflow import errors
-from slideflow.util import Path
 from slideflow.util import colors as col
 from slideflow.util import log
 from slideflow.stats.stats_utils import calculate_centroid, normalize_layout
@@ -31,7 +30,7 @@ class SlideMap:
     def __init__(
         self,
         slides: List[str],
-        cache: Optional[Path] = None
+        cache: Optional[str] = None
     ) -> None:
         """Backend for mapping slides into two dimensional space. Can use a
         DatasetFeatures object to map slides according to UMAP of features, or
@@ -59,22 +58,29 @@ class SlideMap:
         slides: Union[np.ndarray, List[str], str],
         tfr_index: Union[np.ndarray, List[int], str],
         data: Optional[DataFrame] = None,
-        cache: Optional[Path] = None
+        cache: Optional[str] = None
     ) -> "SlideMap":
         """Initializes map from precalculated coordinates.
 
         Args:
             slides (list(str)): List of slide names.
-            x (list(int)): List of X coordinates for tfrecords.
-            y (list(int)): List of Y coordinates for tfrecords.
-            meta (list(dict)): List of dicts containing metadata for each point
-                 on the map (representing a single tfrecord).
-            labels (list(str)): Labels assigned to each tfrecord, used for
-                coloring TFRecords according to labels.
+            x (list(int)): X coordinates for each point on the map. Can either
+                be a list of int, or the name of a column in the DataFrame
+                provided to the argument 'data'.
+            y (list(int)): Y coordinates for tfrecords. Can either
+                be a list of int, or the name of a column in the DataFrame
+                provided to the argument 'data'.
+            slides (list(str)): Slide names for each point on the map. Can
+                either be a list of str, or the name of a column in the
+                DataFrame provided to the argument 'data'.
+            tfr_index (list(int)): TFRecord indicies for each point on
+                the map. Can either be a list of int, or the name of a column
+                in the DataFrame provided to the argument 'data'.
+            data (DataFrame, optional): Optional DataFrame which can be used
+                to supply the 'x', 'y', 'slides', and 'tfr_index' data.
             cache (str, optional): Path to PKL file to cache coordinates.
                 Defaults to None (caching disabled).
         """
-
         # Read and verify provided input
         cols = {'x': x, 'y': y, 'slides': slides, 'tfr_index': tfr_index}
         for col, col_val in cols.items():
@@ -115,8 +121,7 @@ class SlideMap:
         exclude_slides: Optional[List[str]] = None,
         recalculate: bool = False,
         map_slide: Optional[str] = None,
-        cache: Optional[Path] = None,
-        low_memory: bool = False,
+        cache: Optional[str] = None,
         umap_dim: int = 2,
         umap: Optional[Any] = None,
         **umap_kwargs: Any
@@ -128,13 +133,15 @@ class SlideMap:
             exclude_slides (list, optional): List of slides to exclude.
             recalculate (bool, optional):  Force recalculation of umap despite
                 presence of cache.
-            use_centroid (bool, optional): Calculate/map centroid activations.
             map_slide (str, optional): Either None, 'centroid', or 'average'.
                 If None, will map all tiles from each slide. Defaults to None.
             cache (str, optional): Path to PKL file to cache coordinates.
                 Defaults to None (caching disabled).
+            umap_dim (int, optional): Number of dimensions for UMAP. Defaults
+                to 2.
+            umap (umap.UMAP, optional): Fit UMAP, to be used instead of fitting
+                a new UMAP.
         """
-
         if map_slide is not None and map_slide not in ('centroid', 'average'):
             raise errors.SlideMapError(
                 "map_slide must be None, 'centroid' or 'average', (got "
@@ -148,18 +155,16 @@ class SlideMap:
 
         obj = cls(slides, cache=cache)
         obj.df = df
-        obj.umap = umap
+        obj.umap = umap  # type: ignore
         if map_slide:
             obj._calculate_from_slides(
                 method=map_slide,
                 recalculate=recalculate,
-                low_memory=low_memory,
                 **umap_kwargs
             )
         else:
             obj._calculate_from_tiles(
                 recalculate=recalculate,
-                low_memory=low_memory,
                 dim=umap_dim,
                 **umap_kwargs
             )
@@ -167,10 +172,12 @@ class SlideMap:
 
     @property
     def x(self):
+        """X coordinates of map."""
         return self.data.x.values
 
     @property
     def y(self):
+        """Y coordinates of map."""
         return self.data.y.values
 
     def _calculate_from_tiles(
@@ -190,8 +197,8 @@ class SlideMap:
             n_neighbors (int): Number of neighbors for UMAP. Defaults to 50.
             min_dist (float): Minimum distance for UMAP. Defaults to 0.1.
             metric (str): UMAP metric. Defaults to 'cosine'.
-            low_memory (bool). Operate UMAP in low memory mode.
-                Defaults to False.
+            **umap_kwargs (optional): Additional keyword arguments for the
+                UMAP function.
         """
         assert self.df is not None
         if self.data is not None and not recalculate:
@@ -278,19 +285,16 @@ class SlideMap:
                 activations across all tiles within the slide, then display the
                 centroid tile for each slide.
             recalculate (bool, optional): Recalculate of UMAP despite loading
-            from cache. Defaults to False.
-            low_memory (bool, optional): Calculate UMAP in low-memory mode.
-                Defaults to False.
+                from cache. Defaults to False.
 
         Keyword Args:
             dim (int): Number of dimensions for UMAP. Defaults to 2.
             n_neighbors (int): Number of neighbors for UMAP. Defaults to 50.
             min_dist (float): Minimum distance for UMAP. Defaults to 0.1.
             metric (str): UMAP metric. Defaults to 'cosine'.
-            low_memory (bool). Operate UMAP in low memory mode.
-                Defaults to False.
+            **umap_kwargs (optional): Additional keyword arguments for the
+                UMAP function.
         """
-
         if method not in ('centroid', 'average'):
             _m = f'Method must be either "centroid" or "average", not {method}'
             raise errors.SlideMapError(_m)
@@ -372,6 +376,8 @@ class SlideMap:
             self.save_cache()
 
     def activations(self) -> np.ndarray:
+        """Return associated DatasetFeatures activations as a numpy array
+        corresponding to the points on this SlideMap."""
         if self.df is None:
             raise ValueError(
                 "No associated DatasetFeatures object for reading activations."
@@ -382,10 +388,10 @@ class SlideMap:
         ])
 
     def cluster(self, n_clusters: int) -> None:
-        """Performs clustering on data and adds to metadata labels.
-        Requires a DatasetFeatures backend.
+        """Performs K-means clustering on data and adds to metadata labels.
 
-        Clusters are saved to self.data['cluster'].
+        Clusters are saved to self.data['cluster']. Requires a DatasetFeatures
+        backend.
 
         Args:
             n_clusters (int): Number of clusters for K means clustering.
@@ -485,17 +491,34 @@ class SlideMap:
     def umap_transform(
         self,
         array: np.ndarray,
+        *,
         dim: int = 2,
         n_neighbors: int = 50,
         min_dist: float = 0.1,
         metric: str = 'cosine',
         **kwargs: Any
     ) -> np.ndarray:
-        """Generates and returns a umap from a given array, using umap.UMAP"""
+        """Generates and returns a umap from a given array, using umap.UMAP
+
+        Args:
+            array (np.ndarray): Array to transform with UMAP dimensionality
+                reduction.
+
+        Keyword Args:
+            dim (int, optional): Number of dimensions for UMAP. Defaults to 2.
+            n_neighbors (int, optional): Number of neighbors for UMAP
+                algorithm. Defaults to 50.
+            min_dist (float, optional): Minimum distance argument for UMAP
+                algorithm. Defaults to 0.1.
+            metric (str, optional): Metric for UMAP algorithm. Defaults to
+                'cosine'.
+            **kwargs (optional): Additional keyword arguments for the
+                UMAP function.
+        """
         import umap  # Imported in this function due to long import time
         if not len(array):
             raise errors.StatsError("Unable to perform UMAP on empty array.")
-        if self.umap is None:
+        if self.umap is None:  # type: ignore
             self.umap = umap.UMAP(
                 n_components=dim,
                 verbose=(sf.getLoggingLevel() <= 20),
@@ -542,7 +565,6 @@ class SlideMap:
         Args:
             slide_labels (dict, optional): Dict mapping slide names to labels.
         """
-
         if 'label' in self.data.columns:
             self.data.drop(columns='label')
         if slide_labels:
@@ -550,17 +572,19 @@ class SlideMap:
         else:
             self.data['label'] = self.data.slide.values
 
-    def label(self, meta: str) -> None:
+    def label(self, meta: str, translate: Optional[Dict] = None) -> None:
         """Displays each point labeled by tile metadata (e.g. 'prediction')
 
         Args:
             meta (str): Data column from which to assign labels.
-            translation_dict (dict, optional): If provided, will translate the
+            translate (dict, optional): If provided, will translate the
                 read metadata through this dictionary.
         """
         if 'label' in self.data.columns:
             self.data.drop(columns='label')
         self.data['label'] = self.data[meta].values
+        if translate:
+            self.data['label'] = self.data['label'].map(translate)
 
     def plot(
         self,
@@ -592,6 +616,11 @@ class SlideMap:
             legend (str, optional): Title for legend. Defaults to None.
             ax (matplotlib.axes.Axes, optional): Figure axis. If not supplied,
                 will prepare a new figure axis.
+            categorical (str, optional): Specify whether labels are categorical.
+                Determines the colormap.  Defaults to 'auto' (will attempt to
+                automatically determine from the labels).
+            **scatter_kwargs (optional): Additional keyword arguments to the
+                seaborn scatterplot function.
         """
         import seaborn as sns
         from matplotlib import pyplot as plt
@@ -728,6 +757,8 @@ class SlideMap:
             xlabel (str, optional): Label for x axis. Defaults to None.
             ylabel (str, optional): Label for y axis. Defaults to None.
             legend (str, optional): Title for legend. Defaults to None.
+            **scatter_kwargs (optional): Additional keyword arguments to the
+                seaborn scatterplot function.
 
         """
         import matplotlib.pyplot as plt
