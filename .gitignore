@@ -6,3 +6,6 @@ docs-source/build/*
 build/*
 dist/*
 slideflow_test/*
+torch_test/*
+warn_report*.txt
+*.pdf

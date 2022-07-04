@@ -365,7 +365,7 @@ def _eval_from_model(
     else:
         y_true = [np.concatenate(y_true)]
         if is_cat:
-            acc = np.sum(y_true == np.argmax(y_pred, axis=1)) / num_vals
+            acc = np.sum(y_true[0] == np.argmax(y_pred[0], axis=1)) / num_vals
 
     # Create pandas DataFrame from arrays
     df = df_from_pred(y_true, y_pred, y_std, tile_to_slides)
