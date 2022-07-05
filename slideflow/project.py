@@ -1300,8 +1300,6 @@ class Project:
         **kwargs
     ):
 
-        import slideflow.gan
-
         # Validate the method and import the appropriate submodule
         supported_models = ('stylegan2',)
         if model not in supported_models:
@@ -1347,17 +1345,20 @@ class Project:
             metrics=metrics,
             **kwargs)
 
-    def gan_generate(
-        self,
-        network_pkl: str,
-        *,
-        target: str = 'png',
-        target_px: Optional[int] = None,
-        target_um: Optional[int] = None,
-    ):
-        if target not in ('png', 'jpg', 'tfrecords'):
-            raise ValueError("Unrecognized target {}. "
-                             "Must be either 'png', 'jpg', or 'tfrecords'.")
+    def gan_generate(self, network_pkl: str, out: str, **kwargs):
+        """Generate images from a trained GAN network.
+
+        Args:
+            network_pkl (str): _description_
+            out (str): _description_
+        """
+        from slideflow.gan import stylegan2
+
+        stylegan2.generate.generate_images(
+            network_pkl,
+            outdir=out,
+            **kwargs
+        )
 
     @auto_dataset
     def generate_features(
