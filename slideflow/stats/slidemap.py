@@ -250,7 +250,7 @@ class SlideMap:
             'prediction': pd.Series(np.argmax(logits, axis=1)),
             'location': pd.Series([l for l in locations]).astype(object)
         }
-        if self.df.hp.uq and self.df.uncertainty != {}:  # type: ignore
+        if self.df.uq and self.df.uncertainty != {}:  # type: ignore
             uncertainty = np.concatenate([
                 self.df.uncertainty[slide] for slide in self.slides
             ])
@@ -356,7 +356,7 @@ class SlideMap:
                 'prediction': pd.Series(np.argmax(logits, axis=1)),
                 'location': pd.Series([l for l in locations]).astype(object)
             }
-            if self.df.hp.uq and self.df.uncertainty != {}:  # type: ignore
+            if self.df.uq and self.df.uncertainty != {}:  # type: ignore
                 uncertainty = np.stack([
                     self.df.uncertainty[slide][opt_idx[slide]]
                     for slide in self.slides
@@ -538,7 +538,7 @@ class SlideMap:
             self.data.drop(columns='label')
         if self.df is None:
             raise errors.SlideMapError("DatasetFeatures not provided.")
-        if not self.df.hp.uq or self.df.uncertainty == {}:  # type: ignore
+        if not self.df.uq or self.df.uncertainty == {}:  # type: ignore
             raise errors.DatasetError(
                 'Unable to label by uncertainty; UQ estimates not available.'
             )

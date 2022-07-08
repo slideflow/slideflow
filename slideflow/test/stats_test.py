@@ -23,7 +23,7 @@ class TestSlideMap(unittest.TestCase):
             locations={s: np.random.rand(cls.n_tiles, 2) for s in cls.slides},
             uncertainty={s: np.random.rand(cls.n_tiles, 2) for s in cls.slides},
             num_features=10,
-            hp=SimpleNamespace(uq=True)
+            uq=True
         )
         cls.umap_kw = dict(n_neighbors=5)
         cls.slidemap = sf.SlideMap.from_features(

@@ -1424,19 +1424,14 @@ class Project:
             df.to_torch(torch_export)
         return df
 
-    @auto_dataset
     def generate_features_for_clam(
         self,
-        model: Path,
+        model: str,
         outdir: str = 'auto',
-        *,
-        dataset: Dataset,
-        min_tiles: int = 16,
-        filters: Optional[Dict] = None,
-        filter_blank: Optional[Union[str, List[str]]] = None,
+        dataset: Optional[Dataset] = None,
         layers: Union[str, List[str]] = 'postconv',
-        max_tiles: int = 0,
-        force_regenerate: bool = False
+        force_regenerate: bool = False,
+        min_tiles: int = 16
     ) -> str:
         """Generate tile-level features for slides for use with CLAM.
 
@@ -1468,22 +1463,65 @@ class Project:
             Path to directory containing exported .pt files
         """
 
-        if min_tiles < 8:
-            raise ValueError('Slides must have at >=8 tiles to train CLAM.')
-        if min_tiles != dataset.min_tiles:
-            dataset = dataset.filter(min_tiles=min_tiles)
-        dataset = dataset.clip(max_tiles)
+        # Check if the model exists and has a valid parameters file
+        if exists(model):
+            config = sf.util.get_model_config(model)
 
-        # First, ensure the model is valid with a hyperparameters file
-        config = sf.util.get_model_config(model)
+            if dataset is None:
+                log.debug(f"Auto-building dataset from provided model {model}")
+                dataset = self.dataset(
+                    tile_px=config['tile_px'],
+                    tile_um=config['tile_um'],
+                    min_tiles=min_tiles
+                )
 
-        # Set up the pt_files directory for storing model activations
-        if outdir.lower() == 'auto':
-            if 'k_fold_i' in config:
-                _end = f"_kfold{config['k_fold_i']}"
-            else:
-                _end = ''
-            outdir = join(self.root, 'pt_files', config['model_name'] + _end)
+            # Set up the pt_files directory for storing model activations
+            if outdir.lower() == 'auto':
+                if 'k_fold_i' in config:
+                    _end = f"_kfold{config['k_fold_i']}"
+                else:
+                    _end = ''
+                outdir = join(self.root, 'pt_files', config['model_name'] + _end)
+        elif dataset is None:
+            raise ValueError(
+                "Must supply 'dataset' if generating features from an "
+                "Imagenet-pretrained model."
+            )
+
+        # Verify the dataset min tiles is at least 8
+        if dataset.min_tiles < 8:
+            raise ValueError(
+                "Slides must have at >=8 tiles to train CLAM (provided "
+                f"dataset has min_tiles={dataset.min_tiles})"
+            )
+
+        # If the model does not exist, check if it is an architecture name
+        # (for using an Imagenet pretrained model)
+        if model in sf.ModelParams.ModelDict:
+            log.info(f"Generating features from Imagenet-pretrained {model}.")
+            _hp = sf.ModelParams(
+                tile_px=dataset.tile_px,
+                tile_um=dataset.tile_um,
+                model=model,
+                include_top=False,
+                hidden_layers=0
+            )
+
+            # Set the pt_files directory if not provided
+            if outdir.lower() == 'auto':
+                outdir = join(self.root, 'pt_files', model)
+
+            # Now, overwrite the model name with the built model
+            model = _hp.build_model(
+                num_classes=1,
+                pretrain='imagenet'
+            )  # type: ignore
+        elif not exists(model):
+            raise ValueError(
+                f"'{model}' is neither a path to a saved model nor the name "
+                "of a valid model architecture.")
+
+        # Create the pt_files directory
         if not exists(outdir):
             os.makedirs(outdir)
 

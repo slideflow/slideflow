@@ -203,6 +203,26 @@ class ModelWrapper(torch.nn.Module):
 class ModelParams(_base._ModelParams):
     """Build a set of hyperparameters."""
 
+    ModelDict = {
+        'resnet18': torchvision.models.resnet18,
+        'resnet50': torchvision.models.resnet50,
+        'alexnet': torchvision.models.alexnet,
+        'squeezenet': torchvision.models.squeezenet.squeezenet1_1,
+        'densenet': torchvision.models.densenet161,
+        'inception': torchvision.models.inception_v3,
+        'googlenet': torchvision.models.googlenet,
+        'shufflenet': torchvision.models.shufflenet_v2_x1_0,
+        'resnext50_32x4d': torchvision.models.resnext50_32x4d,
+        'vgg16': torchvision.models.vgg16,  # needs support added
+        'mobilenet_v2': torchvision.models.mobilenet_v2,
+        'mobilenet_v3_small': torchvision.models.mobilenet_v3_small,
+        'mobilenet_v3_large': torchvision.models.mobilenet_v3_large,
+        'wide_resnet50_2': torchvision.models.wide_resnet50_2,
+        'mnasnet': torchvision.models.mnasnet1_0,
+        'xception': pretrainedmodels.xception,
+        'nasnet_large': pretrainedmodels.nasnetalarge
+    }
+
     def __init__(self, loss: str = 'CrossEntropy', **kwargs) -> None:
         self.OptDict = {
             'Adadelta': torch.optim.Adadelta,
@@ -216,25 +236,6 @@ class ModelParams(_base._ModelParams):
             'RMSprop': torch.optim.RMSprop,
             'Rprop': torch.optim.Rprop,
             'SGD': torch.optim.SGD
-        }
-        self.ModelDict = {
-            'resnet18': torchvision.models.resnet18,
-            'resnet50': torchvision.models.resnet50,
-            'alexnet': torchvision.models.alexnet,
-            'squeezenet': torchvision.models.squeezenet.squeezenet1_1,
-            'densenet': torchvision.models.densenet161,
-            'inception': torchvision.models.inception_v3,
-            'googlenet': torchvision.models.googlenet,
-            'shufflenet': torchvision.models.shufflenet_v2_x1_0,
-            'resnext50_32x4d': torchvision.models.resnext50_32x4d,
-            'vgg16': torchvision.models.vgg16,  # needs support added
-            'mobilenet_v2': torchvision.models.mobilenet_v2,
-            'mobilenet_v3_small': torchvision.models.mobilenet_v3_small,
-            'mobilenet_v3_large': torchvision.models.mobilenet_v3_large,
-            'wide_resnet50_2': torchvision.models.wide_resnet50_2,
-            'mnasnet': torchvision.models.mnasnet1_0,
-            'xception': pretrainedmodels.xception,
-            'nasnet_large': pretrainedmodels.nasnetalarge
         }
         self.LinearLossDict = {
             'L1': torch.nn.L1Loss,

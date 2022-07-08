@@ -15,7 +15,7 @@ import warnings
 from collections import defaultdict
 from math import isnan
 from os.path import exists, join
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -26,6 +26,10 @@ from slideflow.util import Labels, Path
 from slideflow.util import colors as col
 from slideflow.util import log
 from tqdm import tqdm
+
+if TYPE_CHECKING:
+    import tensorflow as tf
+    import torch
 
 # --- Backend-specific imports ------------------------------------------------
 
@@ -149,7 +153,7 @@ class DatasetFeatures:
 
     def __init__(
         self,
-        model: Path,
+        model: Union[str, "tf.keras.models.Model", "torch.nn.Module"],
         dataset: "sf.Dataset",
         annotations: Optional[Labels] = None,
         cache: Optional[str] = None,
@@ -187,16 +191,23 @@ class DatasetFeatures:
         self.annotations = annotations
         self.model = model
         self.dataset = dataset
+        self.tile_px = dataset.tile_px
         self.tfrecords = np.array(dataset.tfrecords())
         self.slides = sorted([sf.util.path_to_name(t) for t in self.tfrecords])
-        model_config = sf.util.get_model_config(model)
-        self.tile_px = model_config['tile_px']
-        self.hp = ModelParams.from_dict(model_config['hp'])
-        self.normalizer = self.hp.get_normalizer()
-        if self.normalizer:
-            log.info(f'Using realtime {self.normalizer.method} normalization')
-            if 'norm_fit' in model_config:
-                self.normalizer.fit(**model_config['norm_fit'])
+
+        # Load configuration if model is path to a saved model
+        if isinstance(model, str):
+            model_config = sf.util.get_model_config(model)
+            hp = ModelParams.from_dict(model_config['hp'])
+            self.uq = hp.uq
+            self.normalizer = hp.get_normalizer()
+            if self.normalizer:
+                log.info(f'Using realtime {self.normalizer.method} normalization')
+                if 'norm_fit' in model_config:
+                    self.normalizer.fit(**model_config['norm_fit'])
+        else:
+            self.normalizer = None
+            self.uq = False
 
         if self.annotations:
             self.categories = list(set(self.annotations.values()))
@@ -269,7 +280,7 @@ class DatasetFeatures:
 
     def _generate_from_model(
         self,
-        model: Path,
+        model: Union[str, "tf.keras.models.Model", "torch.nn.Module"],
         layers: Union[str, List[str]] = 'postconv',
         include_logits: bool = True,
         include_uncertainty: bool = True,
@@ -300,17 +311,28 @@ class DatasetFeatures:
         layers = sf.util.as_list(layers)
 
         # Load model
-        if self.hp.uq and include_uncertainty:
+        feat_kw = dict(
+            layers=layers,
+            include_logits=include_logits
+        )
+        if self.uq and include_uncertainty:
             combined_model = sf.model.UncertaintyInterface(
                 model,
                 layers=layers
             )
-        else:
-            combined_model = sf.model.Features(  # type: ignore
+        elif isinstance(model, str):
+            combined_model = sf.model.Features(model, **feat_kw)
+        elif sf.backend() == 'tensorflow':
+            combined_model = sf.model.Features.from_model(model, **feat_kw)
+        elif sf.backend() == 'torch':
+            combined_model = sf.model.Features.from_model(
                 model,
-                layers=layers,
-                include_logits=include_logits
+                tile_px=self.tile_px,
+                **feat_kw
             )
+        else:
+            raise ValueError(f'Unrecognized model {model}')
+
         self.num_features = combined_model.num_features
         self.num_logits = 0 if not include_logits else combined_model.num_logits
 
@@ -375,7 +397,7 @@ class DatasetFeatures:
                     batch_loc = np.stack([batch_loc[0], batch_loc[1]], axis=1)
 
                 # Process model outputs
-                if self.hp.uq and include_uncertainty:
+                if self.uq and include_uncertainty:
                     uncertainty = model_out[-1]
                     model_out = model_out[:-1]
                 else:
@@ -395,7 +417,7 @@ class DatasetFeatures:
                         self.activations[slide].append(batch_act[d])
                     if include_logits:
                         self.logits[slide].append(logits[d])
-                    if self.hp.uq and include_uncertainty:
+                    if self.uq and include_uncertainty:
                         self.uncertainty[slide].append(uncertainty[d])
                     self.locations[slide].append(batch_loc[d])
 
@@ -605,11 +627,11 @@ class DatasetFeatures:
             )
             torch.save(slide_activations, join(outdir, f'{slide}.pt'))
         args = {
-            'model': self.model,
+            'model': self.model if isinstance(self.model, str) else '<NA>',
             'num_features': self.num_features
         }
         sf.util.write_json(args, join(outdir, 'settings.json'))
-        log.info('Activations exported in Torch format.')
+        log.info(f'Activations exported in Torch format to {outdir}')
 
     def to_df(
         self

@@ -43,6 +43,27 @@ class StaticDropout(tf.keras.layers.Dropout):
 class ModelParams(_base._ModelParams):
     """Build a set of hyperparameters."""
 
+    ModelDict = {
+        'xception': kapps.Xception,
+        'vgg16': kapps.VGG16,
+        'vgg19': kapps.VGG19,
+        'resnet50': kapps.ResNet50,
+        'resnet101': kapps.ResNet101,
+        'resnet152': kapps.ResNet152,
+        'resnet50_v2': kapps.ResNet50V2,
+        'resnet101_v2': kapps.ResNet101V2,
+        'resnet152_v2': kapps.ResNet152V2,
+        'inception': kapps.InceptionV3,
+        'nasnet_large': kapps.NASNetLarge,
+        'inception_resnet_v2': kapps.InceptionResNetV2,
+        'mobilenet': kapps.MobileNet,
+        'mobilenet_v2': kapps.MobileNetV2,
+        # 'ResNeXt50': kapps.ResNeXt50,
+        # 'ResNeXt101': kapps.ResNeXt101,
+        # 'DenseNet': kapps.DenseNet,
+        # 'NASNet': kapps.NASNet
+    }
+
     def __init__(self, *args, **kwargs):
         self.OptDict = {
             'Adam': tf.keras.optimizers.Adam,
@@ -52,26 +73,6 @@ class ModelParams(_base._ModelParams):
             'Adadelta': tf.keras.optimizers.Adadelta,
             'Adamax': tf.keras.optimizers.Adamax,
             'Nadam': tf.keras.optimizers.Nadam
-        }
-        self.ModelDict = {
-            'xception': kapps.Xception,
-            'vgg16': kapps.VGG16,
-            'vgg19': kapps.VGG19,
-            'resnet50': kapps.ResNet50,
-            'resnet101': kapps.ResNet101,
-            'resnet152': kapps.ResNet152,
-            'resnet50_v2': kapps.ResNet50V2,
-            'resnet101_v2': kapps.ResNet101V2,
-            'resnet152_v2': kapps.ResNet152V2,
-            'inception': kapps.InceptionV3,
-            'nasnet_large': kapps.NASNetLarge,
-            'inception_resnet_v2': kapps.InceptionResNetV2,
-            'mobilenet': kapps.MobileNet,
-            'mobilenet_v2': kapps.MobileNetV2,
-            # 'ResNeXt50': kapps.ResNeXt50,
-            # 'ResNeXt101': kapps.ResNeXt101,
-            # 'DenseNet': kapps.DenseNet,
-            # 'NASNet': kapps.NASNet
         }
         if hasattr(kapps, 'EfficientNetV2B0'):
             self.ModelDict.update({'efficientnet_v2b0': kapps.EfficientNetV2B0})
