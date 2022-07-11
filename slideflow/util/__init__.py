@@ -3,13 +3,13 @@ import importlib.util
 import json
 import logging
 import multiprocessing as mp
-import multiprocessing_logging
 import os
 import re
 import shutil
 import sys
 import threading
 import time
+from queue import Empty
 from functools import partial
 from glob import glob
 from os.path import dirname, exists, isdir, join
@@ -21,6 +21,7 @@ import matplotlib.colors as mcol
 import numpy as np
 import slideflow as sf
 import slideflow.util.colors as col
+from slideflow.util import log_utils
 from slideflow import errors
 from slideflow.util import example_pb2
 from slideflow.util.colors import *  # noqa F403,F401 - Here for compatibility
@@ -66,79 +67,6 @@ log = logging.getLogger('slideflow')
 log.setLevel(logging.DEBUG)
 
 
-class LogFormatter(logging.Formatter):
-    MSG_FORMAT = "%(asctime)s [%(levelname)s] - %(message)s"
-    LEVEL_FORMATS = {
-        logging.DEBUG: col.dim(MSG_FORMAT),
-        logging.INFO: MSG_FORMAT,
-        logging.WARNING: col.yellow(MSG_FORMAT),
-        logging.ERROR: col.red(MSG_FORMAT),
-        logging.CRITICAL: col.bold(col.red(MSG_FORMAT))
-    }
-
-    def format(self, record):
-        log_fmt = self.LEVEL_FORMATS[record.levelno]
-        formatter = logging.Formatter(log_fmt, '%Y-%m-%d %H:%M:%S')
-        return formatter.format(record)
-
-
-class FileFormatter(logging.Formatter):
-    MSG_FORMAT = "%(asctime)s [%(levelname)s] - %(message)s"
-    FORMAT_CHARS = ['\033[1m', '\033[2m', '\033[4m', '\033[91m', '\033[92m',
-                    '\033[93m', '\033[94m', '\033[38;5;5m', '\033[0m']
-
-    def format(self, record):
-        formatter = logging.Formatter(
-            fmt=self.MSG_FORMAT,
-            datefmt='%Y-%m-%d %H:%M:%S'
-        )
-        formatted = formatter.format(record)
-        for char in self.FORMAT_CHARS:
-            formatted = formatted.replace(char, '')
-        return formatted
-
-
-class TqdmLoggingHandler(logging.StreamHandler):
-    """Avoid tqdm progress bar interruption by logger's output to console"""
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.flush_line = False
-
-    def emit(self, record):
-        try:
-            msg = self.format(record)
-            if self.flush_line:
-                msg = '\r\033[K' + msg
-            tqdm.write(msg, end=self.terminator)
-        except RecursionError:
-            raise
-        except Exception:
-            print(f"problems with msg {record}")
-            self.handleError(record)
-
-
-ch = TqdmLoggingHandler()
-ch.setFormatter(LogFormatter())
-if 'SF_LOGGING_LEVEL' in os.environ:
-    try:
-        intLevel = int(os.environ['SF_LOGGING_LEVEL'])
-        ch.setLevel(intLevel)
-    except ValueError:
-        pass
-else:
-    ch.setLevel(logging.INFO)
-log.addHandler(ch)
-
-# Add file handler
-fileHandler = logging.FileHandler("slideflow.log")
-fileHandler.setFormatter(FileFormatter())
-log.addHandler(fileHandler)
-
-multiprocessing_logging.install_mp_handler(log)
-log.propagate = False  # Fixes duplicate logging with TF 2.9
-
-
 def setLoggingLevel(level):
     log.handlers[0].setLevel(level)
 
@@ -149,14 +77,32 @@ def getLoggingLevel():
 
 def addLoggingFileHandler(path):
     fh = logging.FileHandler(path)
-    fh.setFormatter(FileFormatter())
-    log.addHandler(fh)
-    handler = multiprocessing_logging.MultiProcessingHandler(
-        "mp-handler-{0}".format(len(log.handlers)),
+    fh.setFormatter(log_utils.FileFormatter())
+    handler = log_utils.MultiProcessingHandler(
+        "mp-file-handler-{0}".format(len(log.handlers)),
         sub_handler=fh
     )
-    log.removeHandler(fh)
     log.addHandler(handler)
+
+
+# Add tqdm-friendly stream handler
+ch = log_utils.TqdmLoggingHandler()
+ch.setFormatter(log_utils.LogFormatter())
+if 'SF_LOGGING_LEVEL' in os.environ:
+    try:
+        intLevel = int(os.environ['SF_LOGGING_LEVEL'])
+        ch.setLevel(intLevel)
+    except ValueError:
+        pass
+else:
+    ch.setLevel(logging.INFO)
+log.addHandler(ch)
+
+# Add multiprocessing-friendly file handler
+addLoggingFileHandler("slideflow.log")
+
+# Workaround for duplicate logging with TF 2.9
+log.propagate = False
 
 
 # --- Multiprocessing-compatible progress bars --------------------------------

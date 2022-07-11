@@ -47,6 +47,5 @@ setuptools.setup(
         'h5py',
         'numpy<1.22',
         'tabulate',
-        'multiprocessing_logging==0.3.1'
     ],
 )

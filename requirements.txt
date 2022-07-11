@@ -29,4 +29,3 @@ crc32c
 h5py
 tabulate
 saliency
-multiprocessing_logging==0.3.1
