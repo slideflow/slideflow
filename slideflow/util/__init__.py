@@ -376,21 +376,6 @@ class ProgressBar:
 
 # --- Utility functions and classes -------------------------------------------
 
-class ThreadSafeList:
-    def __init__(self):
-        self.lock = threading.Lock()
-        self.items = []
-
-    def add(self, item: Any) -> None:
-        with self.lock:
-            self.items.append(item)
-
-    def getAll(self) -> Any:
-        with self.lock:
-            items, self.items = self.items, []
-        return items
-
-
 def detuple(arg1: Any, args: tuple) -> Any:
     if len(args):
         return tuple([arg1] + list(args))
