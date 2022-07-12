@@ -972,7 +972,7 @@ class _BaseLoader:
         draw_roi: bool = False,
         pool: Optional["mp.pool.Pool"] = None,
         dry_run: bool = False
-    ) -> Callable:
+    ) -> Optional[Callable]:
         lead_msg = f'Extracting {self.tile_um}um tiles'
         if self.extract_px != self.tile_px:
             resize_msg = f'(resizing {self.extract_px}px -> {self.tile_px}px)'
@@ -985,11 +985,7 @@ class _BaseLoader:
             ups_amnt = f'({self.extract_px}px -> {self.tile_px}px)'
             warn = f"[{col.red('!WARN!')}]"
             log.warn(f"{self.shortname}: {warn} {ups_msg} {ups_amnt}")
-
-        def empty_generator():
-            yield None
-
-        return empty_generator
+        return None
 
     def extract_tiles(
         self,
@@ -1075,10 +1071,7 @@ class _BaseLoader:
             img_format=img_format,
             **kwargs
         )
-        slidename_bytes = bytes(self.name, 'utf-8')
-
         if not generator:
-            log.error(f"No tiles extracted from slide {col.green(self.name)}")
             return
 
         sample_tiles = []  # type: List
@@ -1086,6 +1079,7 @@ class _BaseLoader:
         locations = []
         num_wrote_to_tfr = 0
         dry_run = kwargs['dry_run'] if 'dry_run' in kwargs else False
+        slidename_bytes = bytes(self.name, 'utf-8')
 
         for index, tile_dict in enumerate(generator_iterator):
             location = tile_dict['loc']
@@ -1544,7 +1538,7 @@ class WSI(_BaseLoader):
         draw_roi: bool = False,
         pool: Optional["mp.pool.Pool"] = None,
         dry_run: bool = False
-    ) -> Callable:
+    ) -> Optional[Callable]:
         """Builds tile generator to extract tiles from this slide.
 
         Args:
@@ -1587,10 +1581,10 @@ class WSI(_BaseLoader):
 
         """
 
-        empty_generator = super().build_generator()
+        super().build_generator()
         if self.estimated_num_tiles == 0:
             log.warning(f"No tiles extracted for slide {col.green(self.name)}")
-            return empty_generator
+            return None
 
         # Detect CPU cores if num_threads not specified
         if num_threads is None:
@@ -2109,7 +2103,7 @@ class TMA(_BaseLoader):
         draw_roi: bool = False,
         pool: Optional["mp.pool.Pool"] = None,
         dry_run: bool = False
-    ) -> Callable:
+    ) -> Optional[Callable]:
         """Builds tile generator to extract of tiles across the slide.
 
         Args:
