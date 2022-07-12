@@ -1080,7 +1080,7 @@ class Dataset:
                 unfinished = glob(join((_dir), '*.unfinished'))
                 interrupted = [path_to_name(marker) for marker in unfinished]
                 if len(interrupted):
-                    log.info(f'Re-extracting {len(interrupted)} interrupted')
+                    log.info(f'Re-extracting {len(interrupted)} interrupted:')
                     for interrupted_slide in interrupted:
                         log.info(interrupted_slide)
                         if interrupted_slide in done:
@@ -2095,10 +2095,11 @@ class Dataset:
         if self.min_tiles:
             return [
                 f for f in filtered
-                if manifest[f]['total'] >= self.min_tiles
+                if f in manifest and manifest[f]['total'] >= self.min_tiles
             ]
         else:
-            return [f for f in filtered if manifest[f]['total'] > 0]
+            return [f for f in filtered
+                    if f in manifest and manifest[f]['total'] > 0]
 
     def tfrecords_by_subfolder(self, subfolder: Path) -> List[str]:
         """Returns a list of all tfrecords in a specific subfolder,
