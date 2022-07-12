@@ -743,7 +743,7 @@ class _BaseLoader:
         blur_threshold: float = 0.02,
         filter_threshold: float = 0.6,
         blur_mpp: float = 4
-    ) -> Image:
+    ) -> Image.Image:
         """Applies quality control to a slide, performing filtering based on
         a whole-slide image thumbnail.
 
@@ -835,7 +835,6 @@ class _BaseLoader:
         # Filter coordinates
         assert self.qc_mask is not None
         qc_width = int(self.full_extract_px * qc_ratio)
-        to_delete = []
         for i, (x, y, xi, yi) in enumerate(self.coord):  # type: ignore
             qc_x = int(x * qc_ratio)
             qc_y = int(y * qc_ratio)
@@ -845,10 +844,10 @@ class _BaseLoader:
         self.estimated_num_tiles = int(self.grid.sum())
         img = Image.fromarray(img_as_ubyte(self.qc_mask))
         dur = f'(time: {time.time()-starttime:.2f}s)'
-        log.debug(f'QC complete for slide {self.shortname} {dur}')
+        log.debug(f'QC ({method}) complete for slide {self.shortname} {dur}')
         return img
 
-    def square_thumb(self, width: int = 512) -> Image:
+    def square_thumb(self, width: int = 512) -> Image.Image:
         '''Returns a square thumbnail of the slide, with black bar borders.
 
         Args:
@@ -886,7 +885,7 @@ class _BaseLoader:
         rois: bool = False,
         linewidth: int = 2,
         color: str = 'black'
-    ) -> Image:
+    ) -> Image.Image:
         '''Returns PIL thumbnail of the slide.
 
         Args:
@@ -1153,7 +1152,7 @@ class _BaseLoader:
         else:
             return None
 
-    def preview(self, rois: bool = True, **kwargs) -> Image:
+    def preview(self, rois: bool = True, **kwargs) -> Optional[Image.Image]:
         """Performs a dry run of tile extraction without saving any images,
         returning a PIL image of the slide thumbnail annotated with a grid of
         tiles that were marked for extraction.
@@ -1188,6 +1187,8 @@ class _BaseLoader:
             dry_run=True,
             **kwargs
         )
+        if generator is None:
+            return None
         locations = []
         for tile_dict in generator():
             locations += [tile_dict['loc']]
@@ -1648,7 +1649,8 @@ class WSI(_BaseLoader):
             if pool is None:
                 if num_threads > 1:
                     log.debug(f"Building generator with {num_threads} threads")
-                    pool = mp.Pool(processes=num_threads)
+                    ctx = mp.get_context('spawn')
+                    pool = ctx.Pool(processes=num_threads)
                     should_close = True
                 else:
                     log.debug(f"Building generator without multithreading")
@@ -1697,7 +1699,7 @@ class WSI(_BaseLoader):
         rois: bool = False,
         linewidth: int = 2,
         color: str = 'black'
-    ) -> Image:
+    ) -> Image.Image:
         """Returns PIL Image of thumbnail with ROI overlay.
 
         Args:
@@ -2199,7 +2201,8 @@ class TMA(_BaseLoader):
         def generator():
             if show_progress:
                 pbar = tqdm(total=self.estimated_num_tiles, ncols=80)
-            extraction_pool = mp.Pool(
+            ctx = mp.get_context('spawn')
+            extraction_pool = ctx.Pool(
                 num_threads,
                 section_extraction_worker,
                 (rectangle_queue, extraction_queue,)
