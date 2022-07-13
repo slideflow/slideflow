@@ -47,5 +47,6 @@ setuptools.setup(
         'h5py',
         'numpy<1.22',
         'tabulate',
+		'rasterio'
     ],
 )

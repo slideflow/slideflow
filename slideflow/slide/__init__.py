@@ -22,7 +22,9 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 import cv2
 import matplotlib.colors as mcol
 import numpy as np
+import rasterio.features
 import shapely.geometry as sg
+import shapely.affinity as sa
 import skimage
 import skimage.filters
 import slideflow as sf
@@ -806,15 +808,33 @@ class _BaseLoader:
                 raise errors.QCError(
                     f"Thumbnail error for slide {self.shortname}, QC failed"
                 )
+            lev = self.slide.level_count-1
+            qc_ratio = 1 / self.slide.level_downsamples[lev]
             if otsu_thumb.shape[-1] == 4:
                 otsu_thumb = otsu_thumb[:, :, :3]
+
+            # Only apply Otsu thresholding within ROI, if present
+            if len(self.annPolys):
+                ofact = self.roi_scale / self.slide.level_downsamples[lev]
+                roi_mask = np.zeros((otsu_thumb.shape[0], otsu_thumb.shape[1]))
+                polys = [
+                    sa.scale(poly, xfact=ofact, yfact=ofact, origin=(0, 0))
+                    for poly in self.annPolys
+                ]
+                roi_mask = rasterio.features.rasterize(
+                    polys,
+                    out_shape=otsu_thumb.shape[:2]
+                )
+                otsu_thumb = cv2.bitwise_or(
+                    otsu_thumb,
+                    otsu_thumb,
+                    mask=roi_mask.astype(np.uint8)
+                )
             hsv_img = cv2.cvtColor(otsu_thumb, cv2.COLOR_RGB2HSV)
             img_med = cv2.medianBlur(hsv_img[:, :, 1], 7)
             flags = cv2.THRESH_OTSU+cv2.THRESH_BINARY_INV
             _, otsu_mask = cv2.threshold(img_med, 0, 255, flags)
             otsu_mask = otsu_mask.astype(bool)
-            lev = self.slide.level_count-1
-            qc_ratio = 1 / self.slide.level_downsamples[lev]
             self.qc_mask = otsu_mask
 
         # If performing both, ensure the mask sizes are equivalent (shrinks to
@@ -1188,7 +1208,7 @@ class _BaseLoader:
             **kwargs
         )
         if generator is None:
-            return None
+            return self.thumb(rois=rois)
         locations = []
         for tile_dict in generator():
             locations += [tile_dict['loc']]
