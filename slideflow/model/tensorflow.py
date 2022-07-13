@@ -787,7 +787,7 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
                          or (self.hp.early_stop_method == 'loss'
                              and self.last_ema >= self.ema_two_checks_prior))):
 
-                    log.info(f'Early stop: epoch {self.epoch_count+1}, batch'
+                    log.info(f'Early stop: epoch {self.epoch_count+1}, batch '
                              f'{batch}')
                     self.model.stop_training = True
                     self.early_stop = True
