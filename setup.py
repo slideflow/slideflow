@@ -20,7 +20,16 @@ setuptools.setup(
         "Operating System :: OS Independent",
     ],
     package_data = {
-        'slideflow': ['norm/norm_tile.jpg', 'slide/slideflow-logo-name-small.jpg'],
+        'slideflow': [
+            'norm/norm_tile.jpg',
+            'slide/slideflow-logo-name-small.jpg',
+            'gan/stylegan2/torch_utils/ops/bias_act.cpp',
+            'gan/stylegan2/torch_utils/ops/bias_act.cu',
+            'gan/stylegan2/torch_utils/ops/bias_act.h',
+            'gan/stylegan2/torch_utils/ops/upfirdn2d.cpp',
+            'gan/stylegan2/torch_utils/ops/upfirdn2d.cu',
+            'gan/stylegan2/torch_utils/ops/upfirdn2d.h',
+        ],
     },
     python_requires='>=3.7',
     install_requires=[

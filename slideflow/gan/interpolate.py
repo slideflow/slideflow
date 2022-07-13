@@ -216,7 +216,11 @@ class StyleGAN2Interpolator:
         })
         return df
 
-    def plot_comparison(self, seeds: Union[int, List[int]]) -> None:
+    def plot_comparison(
+        self,
+        seeds: Union[int, List[int]],
+        titles: Optional[List[str]] = None
+    ) -> None:
         """Plots side-by-side comparison of images from the starting
         and ending interpolation classes.
 
@@ -225,18 +229,21 @@ class StyleGAN2Interpolator:
         """
         if not isinstance(seeds, list):
             seeds = [seeds]
+        if titles is None:
+            titles = ['Start', 'End']
+        assert len(titles) == 2
 
         scale = 5
         fig, ax = plt.subplots(len(seeds), 2, figsize=(2 * scale, len(seeds) * scale))
         for s, seed in enumerate(seeds):
-            # First image (starting embedding, BRAF-like)
-            img0 = self.E_G(self.z(seed), self.embed0, **self.gan_kwargs)
+            # First image (starting embedding)
+            img0 = self.generate_start()
             img0 = tf_utils.process_gan_batch(img0, **self.size_kw)  # type: ignore
             img0 = tf_utils.decode_batch(img0, **self.decode_kwargs)
             img0 = Image.fromarray(img0['tile_image'].numpy()[0])
 
-            # Second image (ending embedding, RAS-like)
-            img1 = self.E_G(self.z(seed), self.embed1, **self.gan_kwargs)
+            # Second image (ending embedding)
+            img1 = self.generate_end()
             img1 = tf_utils.process_gan_batch(img1, **self.size_kw)  # type: ignore
             img1 = tf_utils.decode_batch(img1, **self.decode_kwargs)
             img1 = Image.fromarray(img1['tile_image'].numpy()[0])
@@ -248,14 +255,89 @@ class StyleGAN2Interpolator:
                 _ax0 = ax[s, 0]
                 _ax1 = ax[s, 1]
             if s == 0:
-                _ax0.set_title('BRAF-like')
-                _ax1.set_title('RAS-like')
+                _ax0.set_title(titles[0])
+                _ax1.set_title(titles[1])
             _ax0.imshow(img0)
             _ax1.imshow(img1)
             _ax0.axis('off')
             _ax1.axis('off')
 
         fig.subplots_adjust(wspace=0.05, hspace=0)
+
+    def generate(self, seed: int, embedding: torch.Tensor) -> torch.Tensor:
+        """Generate an image from a given embedding.
+
+        Args:
+            seed (int): Seed for noise vector.
+            embedding (torch.Tensor): Class embedding.
+
+        Returns:
+            torch.Tensor: Image (float32, shape=(1, 3, height, width))
+        """
+        return self.E_G(self.z(seed), embedding, **self.gan_kwargs)
+
+    def generate_start(self, seed: int) -> torch.Tensor:
+        """Generate an image from the starting class.
+
+        Args:
+            seed (int): Seed for noise vector.
+
+        Returns:
+            torch.Tensor: Image (float32, shape=(1, 3, height, width))
+        """
+        return self.generate(seed, self.embed0)
+
+    def generate_end(self, seed: int) -> torch.Tensor:
+        """Generate an image from the ending class.
+
+        Args:
+            seed (int): Seed for noise vector.
+
+        Returns:
+            torch.Tensor: Image (float32, shape=(1, 3, height, width))
+        """
+        return self.generate(seed, self.embed1)
+
+    def generate_np_from_embedding(
+        self,
+        seed: int,
+        embedding: torch.Tensor
+    ) -> np.ndarray:
+        """Generate a numpy image from a given embedding.
+
+        Args:
+            seed (int): Seed for noise vector.
+            embedding (torch.Tensor): Class embedding.
+
+        Returns:
+            np.ndarray: Image (uint8, shape=(height, width, 3))
+        """
+        img = self.generate(seed, embedding)
+        img = img.permute(0, 2, 3, 1) * 127.5 + 128
+        img = img.clamp(0, 255).to(torch.uint8).cpu().numpy()[0]
+        return img
+
+    def generate_np_start(self, seed: int) -> np.ndarray:
+        """Generate a numpy image from the starting class.
+
+        Args:
+            seed (int): Seed for noise vector.
+
+        Returns:
+            np.ndarray: Image (uint8, shape=(height, width, 3))
+        """
+        return self.generate_np_from_embedding(seed, self.embed0)
+
+    def generate_np_end(self, seed: int) -> np.ndarray:
+        """Generate a numpy image from the ending class.
+
+        Args:
+            seed (int): Seed for noise vector.
+
+        Returns:
+            np.ndarray: Image (uint8, shape=(height, width, 3))
+        """
+        return self.generate_np_from_embedding(seed, self.embed1)
 
     def generate_tf_from_embedding(
         self,
@@ -270,12 +352,11 @@ class StyleGAN2Interpolator:
             embedding (torch.tensor): Class embedding.
 
         Returns:
-            tf.Tensor: Unprocessed image (tf.Tensor), uint8.
+            tf.Tensor: Unprocessed resized image, uint8.
 
-            tf.Tensor: Processed image (tf.Tensor), standardized and normalized.
+            tf.Tensor: Processed resized image, standardized and normalized.
         """
-        z = self.z(seed)
-        gan_out = self.E_G(z, embedding, **self.gan_kwargs)
+        gan_out = self.generate(seed, embedding)
         gan_out = tf_utils.process_gan_batch(gan_out, **self.size_kw)  # type: ignore
         gan_out = tf_utils.decode_batch(
             gan_out,
@@ -284,7 +365,7 @@ class StyleGAN2Interpolator:
         )
         gan_out = gan_out['tile_image']
         standardized = tf.image.per_image_standardization(gan_out)
-        return gan_out, standardized
+        return gan_out[0], standardized[0]
 
     def generate_tf_start(self, seed: int) -> Tuple[tf.Tensor, tf.Tensor]:
         """Create a processed Tensorflow image from the GAN output of a given
@@ -308,9 +389,9 @@ class StyleGAN2Interpolator:
             seed (int): Seed for noise vector.
 
         Returns:
-            tf.Tensor: Unprocessed image (tf.Tensor), uint8.
+            tf.Tensor: Unprocessed resized image, uint8.
 
-            tf.Tensor: Processed image (tf.Tensor), standardized and normalized.
+            tf.Tensor: Processed resized image, standardized and normalized.
         """
         return self.generate_tf_from_embedding(seed, self.embed1)
 
@@ -412,7 +493,7 @@ class StyleGAN2Interpolator:
         sns.lineplot(x=range(len(preds)), y=preds, label="Prediction")
         plt.axhline(y=0, color='black', linestyle='--')
         plt.title("Prediction during interpolation")
-        plt.xlabel("Interpolation Step (BRAF -> RAS)")
+        plt.xlabel("Interpolation Step (Start -> End)")
         plt.ylabel("Prediction")
 
         if watch is not None:
