@@ -6,7 +6,7 @@ Once a model has been fully trained and evaluated, you may use the model to gene
 Working with Layer Features
 ***************************
 
-To work with features / intermediate layer activations calculated from a model, the :class:`slideflow.model.Features` class will generate features on a tile or slide level, and the :class:`slideflow.DatasetFeatures` class will generate features for an entire dataset.
+The :class:`slideflow.model.Features` class generates features on a tile or slide level, and the :class:`slideflow.DatasetFeatures` class generates features for an entire dataset.
 
 DatasetFeatures
 ---------------

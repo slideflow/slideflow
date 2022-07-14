@@ -5,7 +5,7 @@
 
 Slideflow provides a unified API for building and testing deep learning models for digital pathology, supporting both Tensorflow/Keras and PyTorch.
 
-Slideflow includes tools for **whole-slide image processing** and segmentation, **customizable deep learning model training** with dozens of supported architectures, **explainability tools** including heatmaps and mosaic maps, **analysis of activations** from model layers, **uncertainty quantification**, and more. A variety of fast, optimized whole-slide image processing tools are included, including background filtering, blur/artifact detection, stain normalization, and efficient storage in `*.tfrecords` format. Model training is easy and highly configurable, with an easy drop-in API for training custom architectures. For external training loops, Slideflow can be used as an image processing backend, serving an optimized `tf.data.Dataset` or `torch.utils.data.DataLoader` to read and process slide images and perform real-time stain normalization.
+Slideflow includes tools for **whole-slide image processing** and tile extraction, **customizable deep learning model training** with dozens of supported architectures, **explainability tools** including heatmaps, mosaic maps, GANs, and saliency maps, **analysis of activations** from model layers, **uncertainty quantification**, and more. A variety of fast, optimized whole-slide image processing tools are included, including background filtering, blur/artifact detection, stain normalization, and efficient storage in `*.tfrecords` format. Model training is easy and highly configurable, with an easy drop-in API for training custom architectures. For external training loops, Slideflow can be used as an image processing backend, serving an optimized `tf.data.Dataset` or `torch.utils.data.DataLoader` to read and process slide images and perform real-time stain normalization.
 
 Slideflow has been used by:
 
@@ -15,7 +15,7 @@ Slideflow has been used by:
 - [Dolezal et al](https://arxiv.org/abs/2204.04516) [arXiv], 2022
 - [Storozuk et al](https://www.nature.com/articles/s41379-022-01039-1.pdf), _Modern Pathology_ [abstract], 2022
 - [Partin et al](https://arxiv.org/abs/2204.11678) [arXiv], 2022
-- [Dolezal et al](https://meetings.asco.org/abstracts-presentations/212459) [ASCO abstract], 2022
+- [Dolezal et al](https://ascopubs.org/doi/abs/10.1200/JCO.2022.40.16_suppl.8549) [abstract], 2022
 
 Full documentation with example tutorials can be found at [slideflow.dev](https://www.slideflow.dev/).
 
@@ -23,7 +23,7 @@ Full documentation with example tutorials can be found at [slideflow.dev](https:
 - Python >= 3.7
 - [Libvips](https://libvips.github.io/libvips/) >= 8.9.
 - [OpenSlide](https://openslide.org/download/)
-- [Tensorflow](https://www.tensorflow.org/) 2.5-2.8 _or_ [PyTorch](https://pytorch.org/) 1.9-1.11
+- [Tensorflow](https://www.tensorflow.org/) 2.5-2.9 _or_ [PyTorch](https://pytorch.org/) 1.9-1.11
 - [QuPath](https://qupath.github.io/) [_optional_] - Used for pathologist ROIs
 - [CPLEX](https://www.ibm.com/docs/en/icos/12.10.0?topic=v12100-installing-cplex-optimization-studio) 20.1.0 with [Python API](https://www.ibm.com/docs/en/icos/12.10.0?topic=cplex-setting-up-python-api) [_optional_] - Used for preserved-site cross-validation
 

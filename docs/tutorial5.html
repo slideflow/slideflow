@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Tutorial 5: Creating a mosaic map &mdash; slideflow 1.1.1 documentation</title>
+  <title>Tutorial 5: Creating a mosaic map &mdash; slideflow 1.2.0 documentation</title>
   
 
   
@@ -118,7 +118,7 @@
               
               
                 <div class="version">
-                  1.1
+                  1.2
                 </div>
               
             
@@ -167,10 +167,14 @@
 <li class="toctree-l1"><a class="reference internal" href="project.html">slideflow.Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="dataset.html">slideflow.dataset</a></li>
 <li class="toctree-l1"><a class="reference internal" href="heatmap.html">slideflow.heatmap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="io.html">slideflow.io</a></li>
 <li class="toctree-l1"><a class="reference internal" href="io_tensorflow.html">slideflow.io.tensorflow</a></li>
 <li class="toctree-l1"><a class="reference internal" href="io_torch.html">slideflow.io.torch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="gan.html">slideflow.gan</a></li>
+<li class="toctree-l1"><a class="reference internal" href="grad.html">slideflow.grad</a></li>
 <li class="toctree-l1"><a class="reference internal" href="model.html">slideflow.model</a></li>
 <li class="toctree-l1"><a class="reference internal" href="mosaic.html">slideflow.mosaic</a></li>
+<li class="toctree-l1"><a class="reference internal" href="norm.html">slideflow.norm</a></li>
 <li class="toctree-l1"><a class="reference internal" href="slide.html">slideflow.slide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="stats.html">slideflow.stats</a></li>
 <li class="toctree-l1"><a class="reference internal" href="util.html">slideflow.util</a></li>
@@ -350,7 +354,7 @@
 <span class="p">)</span>
 </pre></div>
 </div>
-<p>This function will return an instance of <a class="reference internal" href="model.html#slideflow.model.DatasetFeatures" title="slideflow.model.DatasetFeatures"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.model.DatasetFeatures</span></code></a>, which contains tile-level predictions (in <code class="docutils literal notranslate"><span class="pre">DatasetFeatures.logits</span></code>), tile X,Y locations from their respective slides (in <code class="docutils literal notranslate"><span class="pre">DatasetFeatures.locations</span></code>), layer activations (in <code class="docutils literal notranslate"><span class="pre">DatasetFeatures.activations</span></code>), and uncertainty (if applicable, in <code class="docutils literal notranslate"><span class="pre">DatasetFeatures.uncertainty</span></code>).</p>
+<p>This function will return an instance of <code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.DatasetFeatures</span></code>, which contains tile-level predictions (in <code class="docutils literal notranslate"><span class="pre">DatasetFeatures.logits</span></code>), tile X,Y locations from their respective slides (in <code class="docutils literal notranslate"><span class="pre">DatasetFeatures.locations</span></code>), layer activations (in <code class="docutils literal notranslate"><span class="pre">DatasetFeatures.activations</span></code>), and uncertainty (if applicable, in <code class="docutils literal notranslate"><span class="pre">DatasetFeatures.uncertainty</span></code>).</p>
 </div>
 <div class="section" id="create-the-mosaic-map">
 <h2>Create the mosaic map<a class="headerlink" href="#create-the-mosaic-map" title="Permalink to this headline">¶</a></h2>
@@ -381,7 +385,7 @@
 </pre></div>
 </div>
 <img alt="https://i.imgur.com/FT7nH90.png" src="https://i.imgur.com/FT7nH90.png" />
-<p>Next, we will discretize the predictions, showing the final prediction as a categorical label. The <code class="docutils literal notranslate"><span class="pre">SlideMap</span></code> object contains a dictionary of metadata for each image tile, and the final categorical prediction is assigned to the <code class="docutils literal notranslate"><span class="pre">prediction</span></code> key. We will use the <a class="reference internal" href="stats.html#slideflow.SlideMap.label_by_meta" title="slideflow.SlideMap.label_by_meta"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.SlideMap.label_by_meta()</span></code></a> function to label the umap with these categorical predictions.</p>
+<p>Next, we will discretize the predictions, showing the final prediction as a categorical label. The <code class="docutils literal notranslate"><span class="pre">SlideMap</span></code> object contains a dictionary of metadata for each image tile, and the final categorical prediction is assigned to the <code class="docutils literal notranslate"><span class="pre">prediction</span></code> key. We will use the <code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.SlideMap.label_by_meta()</span></code> function to label the umap with these categorical predictions.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Label by raw logits</span>
 <span class="n">umap</span><span class="o">.</span><span class="n">label_by_meta</span><span class="p">(</span><span class="s1">&#39;prediction&#39;</span><span class="p">)</span>
 <span class="n">umap</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s1">&#39;umap_predictions.png&#39;</span><span class="p">)</span>
@@ -441,7 +445,7 @@
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2021, James M Dolezal.
+        &copy; Copyright 2022, James M Dolezal.
 
     </p>
   </div>

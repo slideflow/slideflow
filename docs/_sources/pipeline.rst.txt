@@ -7,15 +7,15 @@ Pipeline Overview
 
 The overall pipeline for a deep learning experiment is separated into three phases.
 
-1) **Tile extraction** - involves annotating slides with regions of interest (ROIs) (*optional*), setting up a project, and extracting image tiles from whole-slide images.
+1) **Tile extraction** - annotate slides with regions of interest (ROIs) [*optional*] and extract image tiles from whole-slide images.
 
-2) **Model training** - includes performing a hyperparameter sweep [*optional*], training a model, and evaluating the trained model on a held-out test set.
+2) **Model training** - perform a hyperparameter sweep [*optional*], train a model, and evaluate the model on a held-out test set.
 
-3) **Explainability** - involves generating predictive heatmaps and analyzing learned image features.
+3) **Explainability** - generate predictive heatmaps and analyze learned image features.
 
 |
 
-A high-level overview of each of these phases is provided below. We will examine execution of each step in more detail in the following sections.
+A high-level overview of each of these phases is provided below. We will examine each step in more detail in the following sections.
 
 Step 1: ROI Annotation
 **********************
@@ -37,7 +37,7 @@ Step 2: Dataset preparation
 Step 3: Model training
 **********************
 
-5) **Choose hyperparameters**. Before training can begin, you must choose both a model architecture (e.g. InceptionV3, VGG16, ResNet, etc.) and a set of hyperparameters (e.g. batch size, learning rate, etc.). This can be done explicitly one at a time, or an automatic hyperparameter sweep can be configured.
+5) **Choose hyperparameters**. Before training can begin, you must choose both a model architecture (e.g. InceptionV3, VGG16, ResNet, etc.) and a set of hyperparameters (e.g. batch size, learning rate, etc.). This can be done explicitly one at a time, or an automatic hyperparameter sweep (grid search via :meth:`slideflow.Project.create_hp_sweep` or Bayesian search via :meth:`slideflow.Project.smac_search`) can be configured.
 
 6) **Initiate training**. Train your model across all desired hyperparameters and select the best-performing hyperparameter combination for final evaluation testing.
 

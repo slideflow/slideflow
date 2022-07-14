@@ -49,6 +49,16 @@ SUPPORTED_FORMATS = ['svs', 'tif', 'ndpi', 'vms', 'vmu', 'scn', 'mrxs',
                      'tiff', 'svslide', 'bif', 'jpg']
 EMPTY_ANNOTATIONS = ['', ' ']
 CPLEX_AVAILABLE = (importlib.util.find_spec('cplex') is not None)
+try:
+    import pyomo.environ as pyo
+    from pyomo.opt import SolverFactory
+    opt = SolverFactory('bonmin', validate=False)
+    if not opt.available():
+        raise errors.SolverNotFoundError
+except Exception:
+    BONMIN_AVAILABLE = False
+else:
+    BONMIN_AVAILABLE = True
 
 
 # --- Commonly used types -----------------------------------------------------

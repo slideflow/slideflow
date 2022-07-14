@@ -3,11 +3,8 @@ Installation
 
 Slideflow has been tested and is supported on the following systems:
 
-- Ubuntu 18.04
-- Ubuntu 20.04
-- Centos 7
-- Centos 8
-- Centos 8 Stream
+- Ubuntu 18.04, 20.04, and 22.04
+- Centos 7, 8, and 8 Stream
 
 Software Requirements
 *********************
@@ -15,9 +12,12 @@ Software Requirements
 - Python 3.7 - 3.10
 - `OpenSlide <https://openslide.org/download/>`_
 - `Libvips 8.9+ <https://libvips.github.io/libvips/>`_
-- `CPLEX 20.1.0 <https://www.ibm.com/docs/en/icos/12.10.0?topic=v12100-installing-cplex-optimization-studio>`_ with `Python API <https://www.ibm.com/docs/en/icos/12.10.0?topic=cplex-setting-up-python-api>`_ [*optional*] - used for preserved-site cross-validation
+- `Tensorflow 2.5-2.9 <https://www.tensorflow.org/install>`_ or `PyTorch 1.9-1.11 <https://pytorch.org/get-started/locally/>`_
 - `QuPath <https://qupath.github.io>`_ [*optional*] - used for ROI annotations
-- `Tensorflow 2.5-2.8 <https://www.tensorflow.org/install>`_ or `PyTorch 1.9-1.11 <https://pytorch.org/get-started/locally/>`_
+- Linear solver for site-preserved cross-validation [*optional*]:
+
+  - `CPLEX 20.1.0 <https://www.ibm.com/docs/en/icos/12.10.0?topic=v12100-installing-cplex-optimization-studio>`_ with `Python API <https://www.ibm.com/docs/en/icos/12.10.0?topic=cplex-setting-up-python-api>`_
+  - *or* `Pyomo <http://www.pyomo.org/installation>`_ with `Bonmin <https://anaconda.org/conda-forge/coinbonmin>`_ solver
 
 Download with pip
 *****************

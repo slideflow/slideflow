@@ -53,11 +53,8 @@ def _generate_bonmin(
     .. _Preserved-site cross-validation:
         https://doi.org/10.1038/s41467-021-24698-1
     """
-    try:
-        import pyomo.environ as pyo
-        from pyomo.opt import SolverFactory
-    except:
-        raise errors.SolverNotFoundError("Unable to import pyomo solver.")
+    if not sf.util.BONMIN_AVAILABLE:
+        raise errors.SolverNotFoundError("Unable to find pyomo/bonmin solver.")
 
     unique_sites = df['site'].unique()
     unique_labels = df[category].unique()
@@ -115,16 +112,8 @@ def _generate_bonmin(
     for si in range(1, n_sites+1):
         setattr(model, f'const{si}', pyo.Constraint(rule=get_constraint(si)))
 
-    # Get the bonmin solver.
-    try:
-        opt = SolverFactory('bonmin', validate=False)
-    except (ValueError, RuntimeError) as e:
-        raise errors.SolverNotFoundError("Unable to find bonmin solver.")
-
-    if not opt.available():
-        raise errors.SolverNotFoundError("Unable to find bonmin solver.")
-
-    # Solve the equation.
+    # Solve the equation with bonmin.
+    opt = SolverFactory('bonmin', validate=False)
     results = opt.solve(model)
     model.solutions.store_to(results)
 

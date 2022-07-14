@@ -107,12 +107,11 @@ At this point, we can also add categorical balancing to our dataset (see :ref:`b
 Training
 ********
 
-Now that our dataset is prepared, we can begin setting up our model and trainer. Our model training parameters are configured with :class:`slideflow.model.ModelParams`.
+Now that our dataset is prepared, we can begin setting up our model and trainer. Our model training parameters are configured with :class:`slideflow.ModelParams`.
 
 .. code-block:: python
 
-    >>> from slideflow.model import ModelParams, Trainer
-    >>> hp = ModelParams(
+    >>> hp = sf.ModelParams(
     ...   tile_px=256,
     ...   tile_um=128,
     ...   model='xception',
@@ -124,14 +123,14 @@ In addition to the above model parameters, our trainer will need the outcome lab
 
 .. code-block:: python
 
-    >>> trainer = Trainer(
+    >>> trainer = sf.model.trainer_from_hp(
     ...   hp=hp,
     ...   outdir='/some/directory',
     ...   labels=labels,
     ...   patients=dataset.patients()
     ... )
 
-Finally, we can start training. Pass the training and validation datasets to the :meth:`slideflow.model.Trainer.train` method of our trainer, assinging the output to a new variable ``results``
+Now we can start training. Pass the training and validation datasets to the :meth:`slideflow.model.Trainer.train` method of our trainer, assinging the output to a new variable ``results``
 
 .. code-block:: python
 

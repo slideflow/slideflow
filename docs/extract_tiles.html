@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Tile extraction &mdash; slideflow 1.1.1 documentation</title>
+  <title>Tile extraction &mdash; slideflow 1.2.0 documentation</title>
   
 
   
@@ -119,7 +119,7 @@
               
               
                 <div class="version">
-                  1.1
+                  1.2
                 </div>
               
             
@@ -168,10 +168,14 @@
 <li class="toctree-l1"><a class="reference internal" href="project.html">slideflow.Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="dataset.html">slideflow.dataset</a></li>
 <li class="toctree-l1"><a class="reference internal" href="heatmap.html">slideflow.heatmap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="io.html">slideflow.io</a></li>
 <li class="toctree-l1"><a class="reference internal" href="io_tensorflow.html">slideflow.io.tensorflow</a></li>
 <li class="toctree-l1"><a class="reference internal" href="io_torch.html">slideflow.io.torch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="gan.html">slideflow.gan</a></li>
+<li class="toctree-l1"><a class="reference internal" href="grad.html">slideflow.grad</a></li>
 <li class="toctree-l1"><a class="reference internal" href="model.html">slideflow.model</a></li>
 <li class="toctree-l1"><a class="reference internal" href="mosaic.html">slideflow.mosaic</a></li>
+<li class="toctree-l1"><a class="reference internal" href="norm.html">slideflow.norm</a></li>
 <li class="toctree-l1"><a class="reference internal" href="slide.html">slideflow.slide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="stats.html">slideflow.stats</a></li>
 <li class="toctree-l1"><a class="reference internal" href="util.html">slideflow.util</a></li>
@@ -257,11 +261,15 @@
               
   <div class="section" id="tile-extraction">
 <span id="filtering"></span><h1>Tile extraction<a class="headerlink" href="#tile-extraction" title="Permalink to this headline">¶</a></h1>
-<p>The next step is tile extraction, which is accomplished using the <code class="docutils literal notranslate"><span class="pre">extract_tiles()</span></code> function. The only arguments required are <code class="docutils literal notranslate"><span class="pre">tile_px</span></code> and <code class="docutils literal notranslate"><span class="pre">tile_um</span></code>, which determine the size of the extracted tiles in pixels and microns, respectively:</p>
+<p>The next step is tile extraction using the <code class="docutils literal notranslate"><span class="pre">extract_tiles()</span></code> function. The only arguments required are <code class="docutils literal notranslate"><span class="pre">tile_px</span></code> and <code class="docutils literal notranslate"><span class="pre">tile_um</span></code>, which determine the size of the extracted image tiles in pixels and microns, respectively:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">P</span><span class="o">.</span><span class="n">extract_tiles</span><span class="p">(</span><span class="n">tile_px</span><span class="o">=</span><span class="mi">299</span><span class="p">,</span> <span class="n">tile_um</span><span class="o">=</span><span class="mi">302</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>To filter according to a columns in your annotations file, pass a dictionary to <code class="docutils literal notranslate"><span class="pre">filters</span></code>, with keys equal to column names and values equal to a list of all acceptable values you want to include. If this argument is not supplied, all valid slides will be extracted.</p>
+<p>Slide scanners may have differing microns-per-pixel (MPP) resolutions, so “10X” magnification from one scanner may be slightly different than “10X” on another scanner. Specifying a fixed <code class="docutils literal notranslate"><span class="pre">tile_um</span></code> ensures all image tiles have both the same pixel size and micron size. This MPP-harmonization step uses the <a class="reference external" href="https://www.libvips.org/API/current/libvips-resample.html#vips-resize">Libvips resize</a> function on extracted images. To disable this step and instead extract tiles at a given <a class="reference external" href="https://dicom.nema.org/dicom/dicomwsi/">downsample layer</a>, set <code class="docutils literal notranslate"><span class="pre">tile_um</span></code> equal to a magnification level rather than micron size:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">P</span><span class="o">.</span><span class="n">extract_tiles</span><span class="p">(</span><span class="n">tile_px</span><span class="o">=</span><span class="mi">299</span><span class="p">,</span> <span class="n">tile_um</span><span class="o">=</span><span class="s2">&quot;10x&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>You can also choose to only extract tiles from a subset or your data. Use a column in the project annotations file to designate which slides should have tiles extracted by passing a dictionary to the <code class="docutils literal notranslate"><span class="pre">filters</span></code> argument. This dictionary should have keys equal to column names and values equal to a list of all acceptable values you want to include. If this argument is not supplied, all valid slides will be extracted.</p>
 <p>For example, to extract tiles only for slides that are labeled as “train” in the “dataset” column header in your annotations file, do:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">P</span><span class="o">.</span><span class="n">extract_tiles</span><span class="p">(</span>
   <span class="n">tile_px</span><span class="o">=</span><span class="mi">299</span><span class="p">,</span>
@@ -289,13 +297,20 @@
 <p>The full documentation for the <code class="docutils literal notranslate"><span class="pre">extract_tiles</span></code> function is given below:</p>
 <dl class="py function">
 <dt class="sig sig-object py">
-<span class="sig-prename descclassname"><span class="pre">slideflow.Project.</span></span><span class="sig-name descname"><span class="pre">extract_tiles</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tile_px</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tile_um</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filters</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter_blank</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span></dt>
+<span class="sig-prename descclassname"><span class="pre">slideflow.Project.</span></span><span class="sig-name descname"><span class="pre">extract_tiles</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tile_px</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">tile_um</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.10)"><span class="pre">Union</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><span class="pre">int</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filters</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.10)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.10)"><span class="pre">Dict</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter_blank</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.10)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.10)"><span class="pre">Union</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.10)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.10)"><span class="pre">Any</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.10)"><span class="pre">None</span></a></span></span></dt>
 <dd><p>Extracts tiles from slides. Preferred use is calling
 <code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.dataset.Dataset.extract_tiles()</span></code> on a
 <a class="reference internal" href="dataset.html#slideflow.Dataset" title="slideflow.dataset.Dataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.dataset.Dataset</span></code></a> directly.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
+<li><p><strong>tile_px</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a>) – Size of tiles to extract, in pixels.</p></li>
+<li><p><strong>tile_um</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Size of tiles to extract, in microns (int) or
+magnification (str, e.g. “20x”).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Keyword Arguments</dt>
+<dd class="field-even"><ul class="simple">
 <li><p><strong>save_tiles</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Save tile images in loose format.
 Defaults to False.</p></li>
 <li><p><strong>save_tfrecords</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Save tile images as TFRecords.
@@ -310,11 +325,15 @@ equal to 50% of the tile width.</p></li>
 reading slides. Defaults to True. This may result in corrupted
 image tiles if downsampled slide layers are corrupted or
 incomplete. Recommend manual confirmation of tile integrity.</p></li>
-<li><p><strong>roi_method</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Either ‘inside’, ‘outside’ or ‘ignore’.
-Indicates whether tiles are extracted inside or outside ROIs,
-or if ROIs are ignored entirely. Defaults to ‘inside’.</p></li>
-<li><p><strong>skip_missing_roi</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Skip slides that missing ROIs.
-Defaults to False.</p></li>
+<li><p><strong>roi_method</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Either ‘inside’, ‘outside’, ‘auto’, or ‘ignore’.
+Determines how ROIs are used to extract tiles.
+If ‘inside’ or ‘outside’, will extract tiles in/out of an ROI,
+and skip the slide if an ROI is not available.
+If ‘auto’, will extract tiles inside an ROI if available,
+and across the whole-slide if no ROI is found.
+If ‘ignore’, will extract tiles across the whole-slide
+regardless of whether an ROI is available.
+Defaults to ‘auto’.</p></li>
 <li><p><strong>skip_extracted</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Skip already extracted slides.
 Defaults to True.</p></li>
 <li><p><strong>tma</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Reads slides as Tumor Micro-Arrays (TMAs),
@@ -333,10 +352,6 @@ out-of-focus regions or artifact - and/or otsu’s method.
 Defaults to None.</p></li>
 <li><p><strong>report</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Save a PDF report of tile extraction.
 Defaults to True.</p></li>
-</ul>
-</dd>
-<dt class="field-even">Keyword Arguments</dt>
-<dd class="field-even"><ul class="simple">
 <li><p><strong>normalizer</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Normalization strategy.
 Defaults to None.</p></li>
 <li><p><strong>normalizer_source</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Path to normalizer source image.
@@ -382,19 +397,19 @@ but do not export any images. Defaults to None.</p></li>
 
 <div class="section" id="rois">
 <h2>ROIs<a class="headerlink" href="#rois" title="Permalink to this headline">¶</a></h2>
-<p>By default, slides with valid ROIs will only have tiles extracted from within ROIs, and slides without ROIs will have tiles extracted across the whole-slide image. To skip slides that are missing ROIs, use <code class="docutils literal notranslate"><span class="pre">skip_missing_roi=True</span></code>. To ignore ROIs entirely and extract tiles from whole-slide images, pass <code class="docutils literal notranslate"><span class="pre">roi_method='ignore'</span></code>. You can alternatively extract <em>outside</em> the annotated ROIs by passing <code class="docutils literal notranslate"><span class="pre">roi_method='outside'</span></code>.</p>
+<p>By default, slides with valid ROIs will only have tiles extracted from within ROIs, and slides without ROIs will have tiles extracted across the whole-slide image. To skip slides that are missing ROIs, set <code class="docutils literal notranslate"><span class="pre">roi_method='inside'</span></code>. To ignore ROIs entirely and extract tiles from whole-slide images, set <code class="docutils literal notranslate"><span class="pre">roi_method='ignore'</span></code>. You can alternatively extract <em>outside</em> the annotated ROIs with <code class="docutils literal notranslate"><span class="pre">roi_method='outside'</span></code>.</p>
 </div>
 <div class="section" id="stain-normalization">
 <h2>Stain Normalization<a class="headerlink" href="#stain-normalization" title="Permalink to this headline">¶</a></h2>
-<p>Tiles can be normalized to account for differing strengths of H&amp;E staining, which has been shown to improve machine learning accuracy on some datasets. Several normalization algorithms exist, and none have shown clear superiority over the other. However, while tile normalization may improve training performance, some tiles and slides may be prone to artifacts as a result of normalization algorithms.</p>
-<p>If you choose to use normalization, you may either normalize images to an internal H&amp;E-stained control image contained within the pipeline, or you may explicitly provide a reference image for normalization.</p>
-<p>Normalization can be performed at the time of tile extraction or in real-time during training. Real-time normalization adds CPU overhead and may increase training or inference times for some models, although it allows greater flexibility, as normalization strategies can be changed without re-extracting tiles from your entire dataset.</p>
+<p>Tiles can be normalized to account for differing strengths of H&amp;E staining, which has been shown to improve machine learning accuracy on some datasets. Images can be normalized to an internal H&amp;E-stained control image <code class="docutils literal notranslate"><span class="pre">slideflow.norm.norm_tile.jpg</span></code>, or you may explicitly provide a reference image for normalization.</p>
+<p>Normalization can be performed either at the time of tile extraction or in real-time during training. Real-time normalization adds CPU overhead and may increase training or inference times for some models, although it allows greater flexibility, as normalization strategies can be changed without re-extracting tiles from your entire dataset.</p>
 <p>To normalize tiles during tile extraction, use the <code class="docutils literal notranslate"><span class="pre">normalizer</span></code> and <code class="docutils literal notranslate"><span class="pre">normalizer_source</span></code> arguments; <code class="docutils literal notranslate"><span class="pre">normalizer</span></code> is the name of the algorithm to use. A path to a normalization reference image may optionally be provided through <code class="docutils literal notranslate"><span class="pre">normalizer_source</span></code>. Available stain normalization algorithms include:</p>
 <ul class="simple">
 <li><p><strong>macenko</strong>: M. Macenko et al., ‘A method for normalizing histology slides for quantitative analysis’, <em>IEEE International Symposium on Biomedical Imaging: From Nano to Macro</em>, 2009, pp. 1107–1110.</p></li>
 <li><p><strong>vahadane</strong>: A. Vahadane et al., ‘Structure-Preserving Color Normalization and Sparse Stain Separation for Histological Images’, <em>IEEE Transactions on Medical Imaging</em>, vol. 35, no. 8, pp. 1962–1971, Aug. 2016.</p></li>
 <li><p><strong>reinhard</strong>: E. Reinhard, M. Adhikhmin, B. Gooch, and P. Shirley, ‘Color transfer between images’, <em>IEEE Computer Graphics and Applications</em>, vol. 21, no. 5, pp. 34–41, Sep. 2001.</p></li>
 <li><p><strong>reinhard_fast</strong>: A modification of the Reinhard algorithm with the brightness standardization step removed for computational efficiency.</p></li>
+<li><p><strong>augment</strong>: HSV colorspace augmentation.</p></li>
 </ul>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">P</span><span class="o">.</span><span class="n">extract_tiles</span><span class="p">(</span>
   <span class="n">tile_px</span><span class="o">=</span><span class="mi">299</span><span class="p">,</span>
@@ -412,25 +427,24 @@ but do not export any images. Defaults to None.</p></li>
 </div>
 <div class="section" id="background-filtering">
 <h2>Background filtering<a class="headerlink" href="#background-filtering" title="Permalink to this headline">¶</a></h2>
-<p>Slide background can be detected and filtered by two types of methods - tile-based methods and slide-based methods.</p>
-<p>Whitespace and grayspace filtering are two tile-based methods that detect the amount of whitespace or grayspace in a given tile, discarding the tile if the content exceeds a set threshold. Whitespace is calculated using overall brightness for each pixel, then counting the fraction of pixels with a brightness above some threshold. Grayspace is calculated by converting RGB images to the HSV spectrum, then counting the fraction of pixels with a saturation below some threshold. This filtering is performed separately for each tile as it is being extracted. Grayspace filtering is the default background filtering behavior. The arguments <code class="docutils literal notranslate"><span class="pre">whitespace_fraction</span></code>, <code class="docutils literal notranslate"><span class="pre">whitespace_threshold</span></code>, <code class="docutils literal notranslate"><span class="pre">grayspace_fraction</span></code>, and <code class="docutils literal notranslate"><span class="pre">grayspace_threshold</span></code> are used for these methods, as described in the documentation for the tile extraction function (<a class="reference internal" href="dataset.html#slideflow.Dataset.extract_tiles" title="slideflow.Dataset.extract_tiles"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.Dataset.extract_tiles()</span></code></a>).</p>
-<p>Alternatively, Otsu’s thresholding can be performed on the lowest downsample level for a whole slide. This method generates a mask that identifies areas of foreground and marks areas of background to be discarded. Otsu’s thresholding is performed in the HSV colorspace, and generally yields identical results to grayspace filtering. Otsu’s thresholding is ~30% faster than grayspace filtering for slides with accessible downsample layers, but if downsample layers are not stored in a given slide or are inaccessible (e.g. <code class="docutils literal notranslate"><span class="pre">enable_downsample=False</span></code>, which should be set for any system that does not have a patched pixman library), grayspace filtering will be significantly faster. To use Otsu’s thresholding, set the argument <code class="docutils literal notranslate"><span class="pre">qc='otsu'</span></code> (and disable grayspace filtering by setting <code class="docutils literal notranslate"><span class="pre">grayspace_threshold=1</span></code>)</p>
-<p>If you have pixman&gt;0.38 and use slides with accessible downsample layers, Otsu’s thresholding should be used. Otherwise, grayspace filtering will be faster.</p>
+<p>Slide background can be detected and filtered by two types of methods - <strong>tile-based methods</strong> and <strong>slide-based methods</strong>.</p>
+<p>Whitespace and grayspace filtering are two <strong>tile-based methods</strong> that detect the amount of whitespace or grayspace in a given image tile, discarding the tile if the content exceeds a set threshold. Whitespace is calculated using overall brightness for each pixel, then counting the fraction of pixels with a brightness above some threshold. Grayspace is calculated by converting RGB images to the HSV spectrum, then counting the fraction of pixels with a saturation below some threshold. This filtering is performed separately for each tile as it is being extracted. Grayspace filtering is the default background filtering behavior. The arguments <code class="docutils literal notranslate"><span class="pre">whitespace_fraction</span></code>, <code class="docutils literal notranslate"><span class="pre">whitespace_threshold</span></code>, <code class="docutils literal notranslate"><span class="pre">grayspace_fraction</span></code>, and <code class="docutils literal notranslate"><span class="pre">grayspace_threshold</span></code> are used for these methods, as described in the documentation for the tile extraction function (<a class="reference internal" href="dataset.html#slideflow.Dataset.extract_tiles" title="slideflow.Dataset.extract_tiles"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.Dataset.extract_tiles()</span></code></a>).</p>
+<p>Alternatively, Otsu’s thresholding is a <strong>slide-based method</strong> that distinguishes foreground (tissue) from background (empty slide). Otsu’s thresholding is performed in the HSV colorspace and yields similar results to grayspace filtering. Otsu’s thresholding is ~30% faster than grayspace filtering for slides with accessible downsample layers, but if downsample layers are not stored in a given slide or are inaccessible (e.g. <code class="docutils literal notranslate"><span class="pre">enable_downsample=False</span></code>), grayspace filtering may be faster. To use Otsu’s thresholding, set the argument <code class="docutils literal notranslate"><span class="pre">qc='otsu'</span></code> (and disable grayspace filtering by setting <code class="docutils literal notranslate"><span class="pre">grayspace_threshold=1</span></code>)</p>
 </div>
 <div class="section" id="quality-control">
 <h2>Quality control<a class="headerlink" href="#quality-control" title="Permalink to this headline">¶</a></h2>
-<p>In addition to background filtering, additional blur-detection quality control can be used to identify out-of-focus areas, or areas with artifact. If annotated Regions of Interest (ROIs) are not available for your dataset, blur detection quality control should be enabled in order to ensure that high quality image tiles are extracted. If ROIs <em>are</em> available, it may be unnecessary. Blur detection may increase tile extraction time by 50% or more.</p>
+<p>In addition to background filtering, additional blur-detection quality control can be used to identify artifact (pen marks) or out-of-focus areas. If annotated Regions of Interest (ROIs) are not available for your dataset, blur detection should be enabled in order to ensure that high quality image tiles are extracted. If ROIs <em>are</em> available, it may be unnecessary. Blur detection may increase tile extraction time by 50% or more.</p>
 <p>To use blur detection QC, set <code class="docutils literal notranslate"><span class="pre">qc='blur'</span></code> (or <code class="docutils literal notranslate"><span class="pre">qc='both'</span></code> if also using Otsu’s thresholding).</p>
 <p>If both Otsu’s thresholding and blur detection are being used, Slideflow will automatically calculate Blur Burden, a metric used to assess the degree to which non-background tiles are either out-of-focus or contain artifact. In the tile extraction PDF report that is generated, the distribution of blur burden for slides in the dataset will be plotted on the first page. The report will contain the number of slides meeting criteria for warning, when the blur burden exceeds 5% for a given slide. A text file containing names of slides with high blur burden will be saved in the exported TFRecords directory. These slides should be manually reviewed to ensure they are of high enough quality to include in the dataset.</p>
 </div>
 <div class="section" id="performance-optimization">
 <h2>Performance optimization<a class="headerlink" href="#performance-optimization" title="Permalink to this headline">¶</a></h2>
 <p>The <code class="docutils literal notranslate"><span class="pre">libvips</span></code> library is used for all slide reading and tile extraction. As tile extraction is heavily reliant on random access reading, significant performance gains can be experienced by either 1) moving all slides to an SSD, or 2) utilizing an SSD or ramdisk buffer (to which slides will be copied prior to extraction). The use of a ramdisk buffer can improve tile extraction speed by 10-fold or greater! To maximize performance, pass the buffer path to the argument <code class="docutils literal notranslate"><span class="pre">buffer</span></code>.</p>
-<p>Multiprocessing and multithreading is used during tile extraction to maximize performance efficiency. The number of process workers and threads per worker can be manually specified with <code class="docutils literal notranslate"><span class="pre">num_workers</span></code> and <code class="docutils literal notranslate"><span class="pre">num_threads</span></code>, respectively. Optimal results are generally seen by setting <code class="docutils literal notranslate"><span class="pre">num_workers=2</span></code> and <code class="docutils literal notranslate"><span class="pre">num_threads</span></code> equal to the number of CPU cores available. Tile extraction speed scales linearly with CPU core availability.</p>
 </div>
 <div class="section" id="extraction-reports">
 <h2>Extraction reports<a class="headerlink" href="#extraction-reports" title="Permalink to this headline">¶</a></h2>
-<p>Once tiles have been extracted, a PDF report will be generated with a summary and sample of tiles extracted from their corresponding slides. An example of such a report is given below. It is generally good practice to review this report, as you may catch slides with data corruption, artifacts with stain normalization, or suboptimal whitespace/grayspace filtering. The report is saved in the project root directory.</p>
+<p>Once tiles have been extracted, a PDF report will be generated with a summary and sample of tiles extracted from their corresponding slides. An example of such a report is given below. Reviewing this report may enable you to identify data corruption, artifacts with stain normalization, or suboptimal background filtering. The report is saved in the TFRecords directory.</p>
+<img alt="_images/example_report_small.jpg" src="_images/example_report_small.jpg" />
 <p>In addition to viewing reports after tile extraction, you may generate new reports on existing tfrecords with <a class="reference internal" href="dataset.html#slideflow.Dataset.tfrecord_report" title="slideflow.Dataset.tfrecord_report"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.Dataset.tfrecord_report()</span></code></a>, by calling this function on a given dataset (see <a class="reference internal" href="dataset.html#dataset"><span class="std std-ref">slideflow.dataset</span></a> for more information on datasets). For example:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">dataset</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">dataset</span><span class="p">(</span><span class="n">tile_px</span><span class="o">=</span><span class="mi">299</span><span class="p">,</span> <span class="n">tile_um</span><span class="o">=</span><span class="mi">302</span><span class="p">)</span>
 <span class="n">dataset</span><span class="o">.</span><span class="n">tfrecord_report</span><span class="p">(</span><span class="s2">&quot;/path/to/dest&quot;</span><span class="p">)</span>
@@ -464,7 +478,7 @@ but do not export any images. Defaults to None.</p></li>
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2021, James M Dolezal.
+        &copy; Copyright 2022, James M Dolezal.
 
     </p>
   </div>

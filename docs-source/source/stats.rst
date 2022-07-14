@@ -46,80 +46,20 @@ SlideMap
 .. autoclass:: slideflow.SlideMap
     :inherited-members:
 
-basic_metrics
-----------------------
-.. autofunction:: basic_metrics
+Other functions
+---------------
+.. autofunction:: df_from_pred
 
-calculate_centroid
-------------------
-.. autofunction:: calculate_centroid
+.. autofunction:: eval_from_dataset
 
-concordance_index
-----------------------
-.. autofunction:: concordance_index
+.. autofunction:: group_reduce
 
-generate_combined_roc
-----------------------
-.. autofunction:: generate_combined_roc
-
-generate_scatter
-----------------------
-.. autofunction:: generate_scatter
-
-gen_umap
---------
-.. autofunction:: gen_umap
-
-get_centroid_index
-------------------
-.. autofunction:: get_centroid_index
-
-metrics_from_dataset
----------------------
 .. autofunction:: metrics_from_dataset
 
-metrics_from_pred
------------------
-.. autofunction:: metrics_from_pred
+.. autofunction:: name_columns
 
-normalize_layout
-----------------
-.. autofunction:: normalize_layout
+.. autofunction:: predict_from_dataset
 
-read_predictions
-----------------
-.. autofunction:: read_predictions
+.. autofunction:: calculate_centroid
 
-predict_from_tensorflow
-------------------------
-.. autofunction:: predict_from_tensorflow
-
-predict_from_torch
-----------------------
-.. autofunction:: predict_from_torch
-
-save_histogram
-----------------------
-.. autofunction:: save_histogram
-
-pred_to_df
--------------------------
-.. autofunction:: pred_to_df
-
-to_onehot
-----------------------
-.. autofunction:: to_onehot
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+.. autofunction:: get_centroid_index

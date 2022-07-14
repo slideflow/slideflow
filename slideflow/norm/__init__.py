@@ -1,3 +1,6 @@
+"""Stain normalization methods, including both OpenCV (individual image)
+and Tensorflow/PyTorch (vectorized) implementations."""
+
 import multiprocessing as mp
 import os
 from io import BytesIO
@@ -191,6 +194,7 @@ class StainNormalizer:
         )
 
     def get_fit(self) -> Dict[str, Optional[List[float]]]:
+        '''Return normalizer fit as a dictionary.'''
         return {
             'target_means': self.n.target_means.tolist(),
             'target_stds': self.n.target_stds.tolist(),
@@ -203,6 +207,7 @@ class StainNormalizer:
         image: Union[Dict, "tf.Tensor"],
         *args: Any
     ) -> Tuple[Union[Dict, "tf.Tensor"], ...]:
+        '''Tensorflow RGB image -> normalized Tensorflow RGB image'''
         if isinstance(image, dict):
             image['tile_image'] = tf.py_function(
                 self.tf_to_rgb,

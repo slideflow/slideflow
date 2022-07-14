@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Pipeline Overview &mdash; slideflow 1.1.1 documentation</title>
+  <title>Pipeline Overview &mdash; slideflow 1.2.0 documentation</title>
   
 
   
@@ -119,7 +119,7 @@
               
               
                 <div class="version">
-                  1.1
+                  1.2
                 </div>
               
             
@@ -168,10 +168,14 @@
 <li class="toctree-l1"><a class="reference internal" href="project.html">slideflow.Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="dataset.html">slideflow.dataset</a></li>
 <li class="toctree-l1"><a class="reference internal" href="heatmap.html">slideflow.heatmap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="io.html">slideflow.io</a></li>
 <li class="toctree-l1"><a class="reference internal" href="io_tensorflow.html">slideflow.io.tensorflow</a></li>
 <li class="toctree-l1"><a class="reference internal" href="io_torch.html">slideflow.io.torch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="gan.html">slideflow.gan</a></li>
+<li class="toctree-l1"><a class="reference internal" href="grad.html">slideflow.grad</a></li>
 <li class="toctree-l1"><a class="reference internal" href="model.html">slideflow.model</a></li>
 <li class="toctree-l1"><a class="reference internal" href="mosaic.html">slideflow.mosaic</a></li>
+<li class="toctree-l1"><a class="reference internal" href="norm.html">slideflow.norm</a></li>
 <li class="toctree-l1"><a class="reference internal" href="slide.html">slideflow.slide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="stats.html">slideflow.stats</a></li>
 <li class="toctree-l1"><a class="reference internal" href="util.html">slideflow.util</a></li>
@@ -263,14 +267,14 @@
 </div>
 <p>The overall pipeline for a deep learning experiment is separated into three phases.</p>
 <ol class="arabic simple">
-<li><p><strong>Tile extraction</strong> - involves annotating slides with regions of interest (ROIs) (<em>optional</em>), setting up a project, and extracting image tiles from whole-slide images.</p></li>
-<li><p><strong>Model training</strong> - includes performing a hyperparameter sweep [<em>optional</em>], training a model, and evaluating the trained model on a held-out test set.</p></li>
-<li><p><strong>Explainability</strong> - involves generating predictive heatmaps and analyzing learned image features.</p></li>
+<li><p><strong>Tile extraction</strong> - annotate slides with regions of interest (ROIs) [<em>optional</em>] and extract image tiles from whole-slide images.</p></li>
+<li><p><strong>Model training</strong> - perform a hyperparameter sweep [<em>optional</em>], train a model, and evaluate the model on a held-out test set.</p></li>
+<li><p><strong>Explainability</strong> - generate predictive heatmaps and analyze learned image features.</p></li>
 </ol>
 <div class="line-block">
 <div class="line"><br /></div>
 </div>
-<p>A high-level overview of each of these phases is provided below. We will examine execution of each step in more detail in the following sections.</p>
+<p>A high-level overview of each of these phases is provided below. We will examine each step in more detail in the following sections.</p>
 <div class="section" id="step-1-roi-annotation">
 <h2>Step 1: ROI Annotation<a class="headerlink" href="#step-1-roi-annotation" title="Permalink to this headline">¶</a></h2>
 <ol class="arabic simple">
@@ -292,7 +296,7 @@
 <div class="section" id="step-3-model-training">
 <h2>Step 3: Model training<a class="headerlink" href="#step-3-model-training" title="Permalink to this headline">¶</a></h2>
 <ol class="arabic simple" start="5">
-<li><p><strong>Choose hyperparameters</strong>. Before training can begin, you must choose both a model architecture (e.g. InceptionV3, VGG16, ResNet, etc.) and a set of hyperparameters (e.g. batch size, learning rate, etc.). This can be done explicitly one at a time, or an automatic hyperparameter sweep can be configured.</p></li>
+<li><p><strong>Choose hyperparameters</strong>. Before training can begin, you must choose both a model architecture (e.g. InceptionV3, VGG16, ResNet, etc.) and a set of hyperparameters (e.g. batch size, learning rate, etc.). This can be done explicitly one at a time, or an automatic hyperparameter sweep (grid search via <a class="reference internal" href="project.html#slideflow.Project.create_hp_sweep" title="slideflow.Project.create_hp_sweep"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Project.create_hp_sweep()</span></code></a> or Bayesian search via <a class="reference internal" href="project.html#slideflow.Project.smac_search" title="slideflow.Project.smac_search"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Project.smac_search()</span></code></a>) can be configured.</p></li>
 <li><p><strong>Initiate training</strong>. Train your model across all desired hyperparameters and select the best-performing hyperparameter combination for final evaluation testing.</p></li>
 </ol>
 </div>
@@ -344,7 +348,7 @@
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2021, James M Dolezal.
+        &copy; Copyright 2022, James M Dolezal.
 
     </p>
   </div>

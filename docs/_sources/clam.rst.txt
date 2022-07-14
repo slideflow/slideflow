@@ -6,7 +6,17 @@ In addition to standard Tensorflow/Keras model applications, slideflow supports 
 Creating slide activations
 **************************
 
-The first step in the CLAM pipeline is generating tile-level activations across whole-slide images. While the original `CLAM paper <https://arxiv.org/abs/2004.09666>`_ used features generated from an imagenet-trained model, we have found it useful to generate feature activations from models pretrained with histology images. To this end, the project function :func:`slideflow.Project.generate_features_for_clam` accepts any model as input and will generate feature vectors from the specified intermediate layers. For example:
+The first step in the CLAM pipeline is generating tile-level activations across whole-slide images. Set ``model`` equal to an imagenet-pretrained model architecture name:
+
+.. code-block:: python
+
+    P.generate_features_for_clam(
+        model='resnet50',
+        outdir='/clam/path',
+        layers=['postconv']
+    )
+
+While the original `CLAM paper <https://arxiv.org/abs/2004.09666>`_ used features generated from an imagenet-trained model (as shown above), we have found it useful to generate feature activations from models pretrained with histology images. To this end, the project function :func:`slideflow.Project.generate_features_for_clam` also accepts any saved Slideflow model and will generate feature vectors from the specified intermediate layers. For example:
 
 .. code-block:: python
 
@@ -19,7 +29,7 @@ The first step in the CLAM pipeline is generating tile-level activations across 
 Training
 ********
 
-To train a CLAM model, use the project function :func:`slideflow.Project.train_clam`. Clam arguments are configured with :func:`slideflow.clam.get_args`:
+To train a CLAM model from the saved activations, use :func:`slideflow.Project.train_clam`. Clam arguments are configured with :func:`slideflow.clam.get_args`:
 
 .. code-block:: python
 
