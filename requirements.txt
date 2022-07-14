@@ -32,3 +32,4 @@ saliency
 rasterio
 smac
 ConfigSpace
+pyarrow

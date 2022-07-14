@@ -58,6 +58,7 @@ setuptools.setup(
         'tabulate',
 		'rasterio',
         'smac',
-        'ConfigSpace'
+        'ConfigSpace',
+        'pyarrow'
     ],
 )
