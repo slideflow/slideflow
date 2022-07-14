@@ -123,53 +123,33 @@ class TestSplits(unittest.TestCase):
         # Assert that sites are not shared between splits
         self.assertTrue(sorted(flattened_sites) == sorted(self.sites))
 
+    @unittest.skipIf(not sf.util.CPLEX_AVAILABLE, "CPLEX not installed")
     def test_site_preserved_cplex_three_splits(self):
-        try:
-            splits = sf.dataset.split_patients_preserved_site(
-                self.patients_dict, n=3, balance='outcome', method='cplex'
-            )
-            self._test_site_split(splits)
-        except sf.errors.SolverNotFoundError:
-            sf.util.log.error(
-                'CPLEX not installed, unable to test site-preserved '
-                'cross-validation.'
-            )
+        splits = sf.dataset.split_patients_preserved_site(
+            self.patients_dict, n=3, balance='outcome', method='cplex'
+        )
+        self._test_site_split(splits)
 
+    @unittest.skipIf(not sf.util.CPLEX_AVAILABLE, "CPLEX not installed")
     def test_site_preserved_cplex_five_splits(self):
-        try:
-            splits = sf.dataset.split_patients_preserved_site(
-                self.patients_dict, n=5, balance='outcome', method='cplex'
-            )
-            self._test_site_split(splits)
-        except sf.errors.SolverNotFoundError:
-            sf.util.log.error(
-                'CPLEX not installed, unable to test site-preserved '
-                'cross-validation.'
-            )
+        splits = sf.dataset.split_patients_preserved_site(
+            self.patients_dict, n=5, balance='outcome', method='cplex'
+        )
+        self._test_site_split(splits)
 
+    @unittest.skipIf(not sf.util.BONMIN_AVAILABLE, "Pyomo/Bonmin not installed")
     def test_site_preserved_bonmin_three_splits(self):
-        try:
-            splits = sf.dataset.split_patients_preserved_site(
-                self.patients_dict, n=3, balance='outcome', method='bonmin'
-            )
-            self._test_site_split(splits)
-        except sf.errors.SolverNotFoundError:
-            sf.util.log.error(
-                'Pyomo/bonmin not installed, unable to test site-preserved '
-                'cross-validation.'
-            )
+        splits = sf.dataset.split_patients_preserved_site(
+            self.patients_dict, n=3, balance='outcome', method='bonmin'
+        )
+        self._test_site_split(splits)
 
+    @unittest.skipIf(not sf.util.BONMIN_AVAILABLE, "Pyomo/Bonmin not installed")
     def test_site_preserved_bonmin_five_splits(self):
-        try:
-            splits = sf.dataset.split_patients_preserved_site(
-                self.patients_dict, n=5, balance='outcome', method='bonmin'
-            )
-            self._test_site_split(splits)
-        except sf.errors.SolverNotFoundError:
-            sf.util.log.error(
-                'Pyomo/bonmin not installed, unable to test site-preserved '
-                'cross-validation.'
-            )
+        splits = sf.dataset.split_patients_preserved_site(
+            self.patients_dict, n=5, balance='outcome', method='bonmin'
+        )
+        self._test_site_split(splits)
 
     def test_balanced_split_three_splits(self):
         splits = sf.dataset.split_patients_balanced(
