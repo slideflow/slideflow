@@ -55,24 +55,35 @@ def trainer_from_hp(hp: "ModelParams", **kwargs) -> Trainer:
         hp (:class:`slideflow.model.ModelParams`): ModelParams object.
 
     Keyword Args:
-        outdir (str): Target location for event logs and checkpoints.
-        annotations (dict): Nested dict, mapping slide names to a dict with
-            patient name (key 'patient'), outcome labels (key 'outcome_label'),
-            and any additional slide-level inputs (key 'input').
+        outdir (str): Path for event logs and checkpoints.
+        labels (dict): Dict mapping slide names to outcome labels (int or
+            float format).
+        patients (dict): Dict mapping slide names to patient ID, as some
+            patients may have multiple slides. If not provided, assumes 1:1
+            mapping between slide names and patients.
+        slide_input (dict): Dict mapping slide names to additional
+            slide-level input, concatenated after post-conv.
         name (str, optional): Optional name describing the model, used for
-            model saving. Defaults to None.
+            model saving. Defaults to 'Trainer'.
         manifest (dict, optional): Manifest dictionary mapping TFRecords to
             number of tiles. Defaults to None.
-        model_type (str, optional): Type of model outcome, 'categorical' or
-            'linear'. Defaults to 'categorical'.
         feature_sizes (list, optional): List of sizes of input features.
-            Required if providing additional input features as model input.
+            Required if providing additional input features as input to
+            the model.
         feature_names (list, optional): List of names for input features.
             Used when permuting feature importance.
         outcome_names (list, optional): Name of each outcome. Defaults to
             "Outcome {X}" for each outcome.
-        mixed_precision (bool, optional): Use FP16 mixed precision
-            (rather than FP32). Defaults to True.
+        mixed_precision (bool, optional): Use FP16 mixed precision (rather
+            than FP32). Defaults to True.
+        config (dict, optional): Training configuration dictionary, used
+            for logging. Defaults to None.
+        use_neptune (bool, optional): Use Neptune API logging.
+            Defaults to False
+        neptune_api (str, optional): Neptune API token, used for logging.
+            Defaults to None.
+        neptune_workspace (str, optional): Neptune workspace.
+            Defaults to None.
     """
     if hp.model_type() == 'categorical':
         return Trainer(hp=hp, **kwargs)

@@ -4,7 +4,7 @@ Training
 Prepare hyperparameters
 ***********************
 
-The first step of model training is configuring a set of model parameters / training hyperparameters. There are two methods for configuring model parameters. If you intend to train a model using a single combination of hyperparameters, use the ``ModelParams`` class:
+The first step of model training is configuring a set of model parameters and hyperparameters. There are two methods for configuring model parameters. If you intend to train a model with a single set of parameters, use the ``ModelParams`` class:
 
 .. code-block:: python
 
@@ -18,11 +18,12 @@ The first step of model training is configuring a set of model parameters / trai
       ...
     )
 
-Alternatively, if you intend to perform a sweep across multiple hyperparameter combinations, use the ``Project.create_hp_sweep()`` function to automatically save a sweep to a JSON file. For example, the following would set up a batch_train file with two combinations; the first with a learning rate of 0.01, and the second with a learning rate of 0.001:
+Use ``slideflow.Project.create_hp_sweep()`` to prepare a grid-search sweep, saving the configuration to a JSON file. For example, the following would configure a sweep with only two combinations; the first with a learning rate of 0.01, and the second with a learning rate of 0.001:
 
 .. code-block:: python
 
     P.create_hp_sweep(
+      filename='sweep.json',
       epochs=[5],
       toplayer_epochs=0,
       model=['xception'],
@@ -35,47 +36,39 @@ Alternatively, if you intend to perform a sweep across multiple hyperparameter c
       augment='xyrj'
     )
 
-Available hyperparameters include:
+The sweep is then executed by passing the JSON path to the ``params`` argument of ``Project.train()``:
 
-- **augment** - Image augmentations to perform, including flipping/rotating and random JPEG compression. Please see :class:`slideflow.model.ModelParams` for more details.
-- **batch_size** - Batch size for training.
-- **dropout** - Adds dropout layers after each fully-connected layer.
-- **early_stop** - Stop training early if validation loss/accuracy is not decreasing.
-- **early_stop_patience** - Number of epochs to wait before allowing early stopping.
-- **early_stop_method** - mMtric to use for early stopping. Includes 'loss', 'accuracy', or 'manual'.
-- **epochs** - Number of epochs to spend training the full model.
-- **include_top** - Include the default, preconfigured, fully connected top layers of the specified model.
-- **hidden_layers** - Number of fully-connected final hidden layers before softmax prediction.
-- **hidden_layer_width** - Width of hidden layers.
-- **l1** - Adds L1 regularization to all convolutional layers with this weight.
-- **l1_dense** - Adds L1 regularization to all fully-conected Dense layers with this weight.
-- **l2** - Adds L2 regularization to all convolutional layers with this weight.
-- **l2_dense** - Adds L2 regularization to all fully-conected Dense layers with this weight.
-- **learning_rate** - Learning rate for training.
-- **learning_rate_decay** - lLarning rate decay during training.
-- **learning_rate_decay_steps** - Number of steps after which to decay learning rate
-- **loss** - loss function; please see `Keras loss documentation <https://www.tensorflow.org/api_docs/python/tf/keras/losses>`_ for all options.
-- **manual_early_stop_epoch** - Manually trigger early stopping at this epoch/batch.
-- **manual_early_stop_batch** - Manually trigger early stopping at this epoch/batch.
-- **model** - Model architecture; please see `Keras application documentation <https://keras.io/applications/>`_ for all options.
-- **normalizer** - Normalization method to use on images.
-- **normalizer_source** - Optional path to normalization image to use as the source.
-- **optimizer** - Training optimizer; please see `Keras opt documentation <https://www.tensorflow.org/api_docs/python/tf/keras/optimizers>`_ for all options.
-- **pooling** - Pooling strategy to use before final fully-connected layers; either 'max', 'avg', or 'none'.
-- **tile_px** - Size of extracted tiles in pixels.
-- **tile_um** - Size of extracted tiles in microns.
-- **toplayer_epochs** - Number of epochs to spend training just the final layer, with all convolutional layers "locked" (sometimes used for transfer learning).
-- **trainable_layers** - Number of layers available for training, other layers will be frozen. If 0, all layers are trained.
-- **training_balance** - Training input balancing strategy; please see :ref:`balancing` for more details.
-- **uq** - Enable uncertainty quantification (UQ) during inference. Requires dropout to be non-zero.
-- **validation_balance** - Validation input balancing strategy; please see :ref:`balancing` for more details.
+.. code-block:: python
 
-If you are using a continuous variable as an outcome measure, be sure to use a linear loss function. Linear loss functions can be viewed in ``slideflow.model.ModelParams.LinearLossDict``, and all available loss functions are in ``slideflow.model.ModelParams.AllLossDict``.
+    P.train(params='sweep.json', ...)
+
+In addition to grid-search sweeps, you can also perform Bayesian hyperparameter optimization using `SMAC3 <https://automl.github.io/SMAC3/master/>`_. Start by setting the `configuration space <https://automl.github.io/ConfigSpace/master/>`_:
+
+.. code-block:: python
+
+    import ConfigSpace.hyperparameters as cs_hp
+    from ConfigSpace import ConfigurationSpace
+
+    cs = ConfigurationSpace()
+    cs.add_hyperparameter(cs_hp.UniformIntegerHyperparameter("epochs", 1, 2))
+    cs.add_hyperparameter(cs_hp.UniformFloatHyperparameter("dropout", 0, 0.5))
+
+Then, simply replace ``Project.train()`` with :meth:`slideflow.Project.smac_search()`, providing the configuration space to the argument ``smac_configspace``:
+
+.. code-block:: python
+
+    P.train(..., smac_configspace=cs)
+
+Available hyperparameters are listed in the :class:`slideflow.ModelParams` documentation.
+
+.. note::
+
+    If you are using a continuous variable as an outcome measure, be sure to use a linear loss function. Linear loss functions can be viewed in ``slideflow.model.ModelParams.LinearLossDict``, and all available loss functions are in ``slideflow.model.ModelParams.AllLossDict``.
 
 Begin training
 **************
 
-Once your hyperparameter settings have been chosen you may begin training using the ``train`` function. Documentation of the function is given below:
+Once your hyperparameter settings have been chosen, you may begin training using the ``Project.train()`` function:
 
 .. autofunction:: slideflow.Project.train
    :noindex:
@@ -96,14 +89,17 @@ For example, to train using only slides labeled as "train" in the "dataset" colu
 
 If you would like to use a different validation plan than the default, pass the relevant keyword arguments to the training function.
 
-Once training has finished, performance metrics - including accuracy, loss, etc. - can be found in the ``results_log.csv`` file in the project directory. Additional data, including ROCs and scatter plots, are saved in the model directories.
+Finding results
+***************
+
+Performance metrics - including accuracy, loss, etc. - are returned from the ``Project.train()`` function as a dictionary and saved in ``results_log.csv`` files in both the project directory and model directory. Additional data, including ROCs and scatter plots, are saved in the model directories. Pandas DataFrames containing tile-, slide-, and patient-level predictions are also saved in the model directory.
 
 At each designated epoch, models are saved in their own folders. Each model directory will include a copy of its hyperparameters in a ``params.json`` file, and a copy of its training/validation slide manifest in ``slide.log``.
 
 Multiple outcomes
 *****************
 
-Slideflow supports both categorical and continuous outcomes, as well as training to single or multiple outcomes at once. To use multiple outcomes simultaneously, simply pass multiple annotation headers to the ``outcomes`` argument.
+Slideflow supports both categorical and continuous outcomes, as well as training to single or multiple outcomes at once. To train with multiple outcomes simultaneously, simply pass multiple annotation headers to the ``outcomes`` argument.
 
 Multiple input variables
 ************************

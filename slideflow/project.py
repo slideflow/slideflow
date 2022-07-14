@@ -909,6 +909,11 @@ class Project:
     ) -> None:
         """Prepares a grid-search hyperparameter sweep, saving to a config file.
 
+        To initiate a grid-search sweep using the created JSON file, pass
+        this file to the ``params`` argument of ``Project.train()``:
+
+            >>> P.train('outcome', params='sweep.json', ...)
+
         Args:
             filename (str, optional): Filename for hyperparameter sweep.
                 Overwrites existing files. Saves in project root directory.
@@ -1755,7 +1760,7 @@ class Project:
             leniency (float): UMAP leniency. Defaults to 1.5.
 
         Returns:
-            :class:`slideflow.mosaic.Mosaic`: Mosaic object.
+            :class:`slideflow.Mosaic`: Mosaic object.
         """
 
         # Set up paths
@@ -2461,6 +2466,25 @@ class Project:
     ) -> None:
         """Train a model using SMAC3 bayesian hyperparameter optimization.
 
+        The hyperparameter optimization is performed with
+        `SMAC3 <https://automl.github.io/SMAC3/master/>`_. Start by setting the
+        `configuration space <https://automl.github.io/ConfigSpace/master/>`_:
+
+        .. code-block:: python
+
+            from ConfigSpace.hyperparameters import UniformFloatHyperparameter
+            from ConfigSpace import ConfigurationSpace
+
+            cs = ConfigurationSpace()
+            cs.add_hyperparameter(UniformIntegerHyperparameter("l1", 0, .2))
+            cs.add_hyperparameter(UniformFloatHyperparameter("dropout", 0, 0.5))
+
+        Then, use this ``smac_search()`` function as you would use
+        ``Project.train()``, passing the configuration space to the
+        ``smac_configspace`` argument:
+
+            >>> P.train(..., smac_configspace=cs)
+
         Args:
             outcomes (str, List[str]): Outcome label annotation header(s).
             params (ModelParams): Model parameters for training.
@@ -2610,25 +2634,21 @@ class Project:
         Examples
             Method 1 (hyperparameter sweep from a configuration file):
 
-                >>> import slideflow.model
                 >>> P.train('outcome', params='sweep.json', ...)
 
             Method 2 (manually specified hyperparameters):
 
-                >>> from slideflow.model import ModelParams
-                >>> hp = ModelParams(...)
+                >>> hp = sf.ModelParams(...)
                 >>> P.train('outcome', params=hp, ...)
 
             Method 3 (list of hyperparameters):
 
-                >>> from slideflow.model import ModelParams
-                >>> hp = [ModelParams(...), ModelParams(...)]
+                >>> hp = [sf.ModelParams(...), sf.ModelParams(...)]
                 >>> P.train('outcome', params=hp, ...)
 
             Method 4 (dict of hyperparameters):
 
-                >>> from slideflow.model import ModelParams
-                >>> hp = {'HP0': ModelParams(...), 'HP1': ModelParams(...)}
+                >>> hp = {'HP0': sf.ModelParams(...), ...}
                 >>> P.train('outcome', params=hp, ...)
 
         """

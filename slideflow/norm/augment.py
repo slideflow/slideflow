@@ -1,16 +1,4 @@
-"""
-From https://github.com/wanghao14/Stain_Normalization
-Stain normalization based on the method of:
-
-M. Macenko et al., ‘A method for normalizing histology slides for quantitative analysis’,
-in 2009 IEEE International Symposium on Biomedical Imaging: From Nano to Macro, 2009, pp. 1107–1110.
-
-Uses the spams package:
-
-http://spams-devel.gforge.inria.fr/index.html
-
-Use with python via e.g https://anaconda.org/conda-forge/python-spams
-"""
+"""HSV augmentation normalizer."""
 
 from __future__ import division
 

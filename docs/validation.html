@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Validation Planning &mdash; slideflow 1.1.1 documentation</title>
+  <title>Validation Planning &mdash; slideflow 1.2.0-rc0 documentation</title>
   
 
   
@@ -119,7 +119,7 @@
               
               
                 <div class="version">
-                  1.1
+                  1.2
                 </div>
               
             
@@ -168,10 +168,14 @@
 <li class="toctree-l1"><a class="reference internal" href="project.html">slideflow.Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="dataset.html">slideflow.dataset</a></li>
 <li class="toctree-l1"><a class="reference internal" href="heatmap.html">slideflow.heatmap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="io.html">slideflow.io</a></li>
 <li class="toctree-l1"><a class="reference internal" href="io_tensorflow.html">slideflow.io.tensorflow</a></li>
 <li class="toctree-l1"><a class="reference internal" href="io_torch.html">slideflow.io.torch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="gan.html">slideflow.gan</a></li>
+<li class="toctree-l1"><a class="reference internal" href="grad.html">slideflow.grad</a></li>
 <li class="toctree-l1"><a class="reference internal" href="model.html">slideflow.model</a></li>
 <li class="toctree-l1"><a class="reference internal" href="mosaic.html">slideflow.mosaic</a></li>
+<li class="toctree-l1"><a class="reference internal" href="norm.html">slideflow.norm</a></li>
 <li class="toctree-l1"><a class="reference internal" href="slide.html">slideflow.slide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="stats.html">slideflow.stats</a></li>
 <li class="toctree-l1"><a class="reference internal" href="util.html">slideflow.util</a></li>
@@ -268,11 +272,11 @@
 <h2>Configuring a validation plan<a class="headerlink" href="#configuring-a-validation-plan" title="Permalink to this headline">¶</a></h2>
 <p>There are several ways you can plan to validate your data. The validation settings available include:</p>
 <ul class="simple">
-<li><p><strong>strategy</strong>:  <em>‘bootstrap’</em>, <em>‘k-fold’</em>, <em>k-fold-manual’</em>, <em>‘k-fold-preserved-site’</em>, <em>‘fixed’</em>, <em>‘none’</em></p></li>
+<li><p><strong>strategy</strong>:  <code class="docutils literal notranslate"><span class="pre">'bootstrap'</span></code>, <code class="docutils literal notranslate"><span class="pre">'k-fold'</span></code>, <code class="docutils literal notranslate"><span class="pre">'k-fold-manual'</span></code>, <code class="docutils literal notranslate"><span class="pre">'k-fold-preserved-site'</span></code>, <code class="docutils literal notranslate"><span class="pre">'fixed'</span></code>, and <code class="docutils literal notranslate"><span class="pre">'none'</span></code></p></li>
 <li><p><strong>fraction</strong>:  (float between 0-1) [not used for k-fold validation]</p></li>
 <li><p><strong>k_fold</strong>:  int</p></li>
 </ul>
-<p>The default strategy is ‘k-fold’, with k=3.</p>
+<p>The default strategy is <code class="docutils literal notranslate"><span class="pre">'k-fold'</span></code>, with k=3.</p>
 <div class="section" id="validation-strategy">
 <h3>Validation strategy<a class="headerlink" href="#validation-strategy" title="Permalink to this headline">¶</a></h3>
 <p>The <code class="docutils literal notranslate"><span class="pre">strategy</span></code> option determines how the validation data is selected.</p>
@@ -283,7 +287,7 @@
 <p>The <strong>k-fold-preserved-site</strong> strategy is a cross-validation strategy that ensures site is preserved across the training/validation sets, in order to reduce bias from batch effect as described by <a class="reference external" href="https://www.nature.com/articles/s41467-021-24698-1">Howard, et al</a>. This strategy is recommended when using data from The Cancer Genome Atlas (<a class="reference external" href="https://portal.gdc.cancer.gov/">TCGA</a>).</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>Preserved-site cross-validation requires <a class="reference external" href="https://www.ibm.com/analytics/cplex-optimizer">CPLEX</a>. The original implementation of the preserved-site cross-validation algorithm described by Howard et al can be found <a class="reference external" href="https://github.com/fmhoward/PreservedSiteCV">on GitHub</a>.</p>
+<p>Preserved-site cross-validation requires either <a class="reference external" href="https://www.ibm.com/analytics/cplex-optimizer">CPLEX</a> or <a class="reference external" href="https://anaconda.org/conda-forge/coinbonmin">Pyomo/Bonmin</a>. The original implementation of the preserved-site cross-validation algorithm described by Howard et al can be found <a class="reference external" href="https://github.com/fmhoward/PreservedSiteCV">on GitHub</a>.</p>
 </div>
 <p>If <strong>none</strong>, no validation testing will be performed.</p>
 </div>
@@ -319,7 +323,7 @@ The training and evaluation functions include a <code class="docutils literal no
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2021, James M Dolezal.
+        &copy; Copyright 2022, James M Dolezal.
 
     </p>
   </div>

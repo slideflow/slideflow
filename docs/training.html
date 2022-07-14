@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Training &mdash; slideflow 1.1.1 documentation</title>
+  <title>Training &mdash; slideflow 1.2.0-rc0 documentation</title>
   
 
   
@@ -119,7 +119,7 @@
               
               
                 <div class="version">
-                  1.1
+                  1.2
                 </div>
               
             
@@ -168,10 +168,14 @@
 <li class="toctree-l1"><a class="reference internal" href="project.html">slideflow.Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="dataset.html">slideflow.dataset</a></li>
 <li class="toctree-l1"><a class="reference internal" href="heatmap.html">slideflow.heatmap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="io.html">slideflow.io</a></li>
 <li class="toctree-l1"><a class="reference internal" href="io_tensorflow.html">slideflow.io.tensorflow</a></li>
 <li class="toctree-l1"><a class="reference internal" href="io_torch.html">slideflow.io.torch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="gan.html">slideflow.gan</a></li>
+<li class="toctree-l1"><a class="reference internal" href="grad.html">slideflow.grad</a></li>
 <li class="toctree-l1"><a class="reference internal" href="model.html">slideflow.model</a></li>
 <li class="toctree-l1"><a class="reference internal" href="mosaic.html">slideflow.mosaic</a></li>
+<li class="toctree-l1"><a class="reference internal" href="norm.html">slideflow.norm</a></li>
 <li class="toctree-l1"><a class="reference internal" href="slide.html">slideflow.slide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="stats.html">slideflow.stats</a></li>
 <li class="toctree-l1"><a class="reference internal" href="util.html">slideflow.util</a></li>
@@ -259,7 +263,7 @@
 <h1>Training<a class="headerlink" href="#training" title="Permalink to this headline">¶</a></h1>
 <div class="section" id="prepare-hyperparameters">
 <h2>Prepare hyperparameters<a class="headerlink" href="#prepare-hyperparameters" title="Permalink to this headline">¶</a></h2>
-<p>The first step of model training is configuring a set of model parameters / training hyperparameters. There are two methods for configuring model parameters. If you intend to train a model using a single combination of hyperparameters, use the <code class="docutils literal notranslate"><span class="pre">ModelParams</span></code> class:</p>
+<p>The first step of model training is configuring a set of model parameters and hyperparameters. There are two methods for configuring model parameters. If you intend to train a model with a single set of parameters, use the <code class="docutils literal notranslate"><span class="pre">ModelParams</span></code> class:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
 
 <span class="n">hp</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">ModelParams</span><span class="p">(</span>
@@ -271,8 +275,9 @@
 <span class="p">)</span>
 </pre></div>
 </div>
-<p>Alternatively, if you intend to perform a sweep across multiple hyperparameter combinations, use the <code class="docutils literal notranslate"><span class="pre">Project.create_hp_sweep()</span></code> function to automatically save a sweep to a JSON file. For example, the following would set up a batch_train file with two combinations; the first with a learning rate of 0.01, and the second with a learning rate of 0.001:</p>
+<p>Use <code class="docutils literal notranslate"><span class="pre">slideflow.Project.create_hp_sweep()</span></code> to prepare a grid-search sweep, saving the configuration to a JSON file. For example, the following would configure a sweep with only two combinations; the first with a learning rate of 0.01, and the second with a learning rate of 0.001:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">P</span><span class="o">.</span><span class="n">create_hp_sweep</span><span class="p">(</span>
+  <span class="n">filename</span><span class="o">=</span><span class="s1">&#39;sweep.json&#39;</span><span class="p">,</span>
   <span class="n">epochs</span><span class="o">=</span><span class="p">[</span><span class="mi">5</span><span class="p">],</span>
   <span class="n">toplayer_epochs</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
   <span class="n">model</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;xception&#39;</span><span class="p">],</span>
@@ -286,49 +291,35 @@
 <span class="p">)</span>
 </pre></div>
 </div>
-<p>Available hyperparameters include:</p>
-<ul class="simple">
-<li><p><strong>augment</strong> - Image augmentations to perform, including flipping/rotating and random JPEG compression. Please see <a class="reference internal" href="model.html#slideflow.model.ModelParams" title="slideflow.model.ModelParams"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.model.ModelParams</span></code></a> for more details.</p></li>
-<li><p><strong>batch_size</strong> - Batch size for training.</p></li>
-<li><p><strong>dropout</strong> - Adds dropout layers after each fully-connected layer.</p></li>
-<li><p><strong>early_stop</strong> - Stop training early if validation loss/accuracy is not decreasing.</p></li>
-<li><p><strong>early_stop_patience</strong> - Number of epochs to wait before allowing early stopping.</p></li>
-<li><p><strong>early_stop_method</strong> - mMtric to use for early stopping. Includes ‘loss’, ‘accuracy’, or ‘manual’.</p></li>
-<li><p><strong>epochs</strong> - Number of epochs to spend training the full model.</p></li>
-<li><p><strong>include_top</strong> - Include the default, preconfigured, fully connected top layers of the specified model.</p></li>
-<li><p><strong>hidden_layers</strong> - Number of fully-connected final hidden layers before softmax prediction.</p></li>
-<li><p><strong>hidden_layer_width</strong> - Width of hidden layers.</p></li>
-<li><p><strong>l1</strong> - Adds L1 regularization to all convolutional layers with this weight.</p></li>
-<li><p><strong>l1_dense</strong> - Adds L1 regularization to all fully-conected Dense layers with this weight.</p></li>
-<li><p><strong>l2</strong> - Adds L2 regularization to all convolutional layers with this weight.</p></li>
-<li><p><strong>l2_dense</strong> - Adds L2 regularization to all fully-conected Dense layers with this weight.</p></li>
-<li><p><strong>learning_rate</strong> - Learning rate for training.</p></li>
-<li><p><strong>learning_rate_decay</strong> - lLarning rate decay during training.</p></li>
-<li><p><strong>learning_rate_decay_steps</strong> - Number of steps after which to decay learning rate</p></li>
-<li><p><strong>loss</strong> - loss function; please see <a class="reference external" href="https://www.tensorflow.org/api_docs/python/tf/keras/losses">Keras loss documentation</a> for all options.</p></li>
-<li><p><strong>manual_early_stop_epoch</strong> - Manually trigger early stopping at this epoch/batch.</p></li>
-<li><p><strong>manual_early_stop_batch</strong> - Manually trigger early stopping at this epoch/batch.</p></li>
-<li><p><strong>model</strong> - Model architecture; please see <a class="reference external" href="https://keras.io/applications/">Keras application documentation</a> for all options.</p></li>
-<li><p><strong>normalizer</strong> - Normalization method to use on images.</p></li>
-<li><p><strong>normalizer_source</strong> - Optional path to normalization image to use as the source.</p></li>
-<li><p><strong>optimizer</strong> - Training optimizer; please see <a class="reference external" href="https://www.tensorflow.org/api_docs/python/tf/keras/optimizers">Keras opt documentation</a> for all options.</p></li>
-<li><p><strong>pooling</strong> - Pooling strategy to use before final fully-connected layers; either ‘max’, ‘avg’, or ‘none’.</p></li>
-<li><p><strong>tile_px</strong> - Size of extracted tiles in pixels.</p></li>
-<li><p><strong>tile_um</strong> - Size of extracted tiles in microns.</p></li>
-<li><p><strong>toplayer_epochs</strong> - Number of epochs to spend training just the final layer, with all convolutional layers “locked” (sometimes used for transfer learning).</p></li>
-<li><p><strong>trainable_layers</strong> - Number of layers available for training, other layers will be frozen. If 0, all layers are trained.</p></li>
-<li><p><strong>training_balance</strong> - Training input balancing strategy; please see <a class="reference internal" href="appendix.html#balancing"><span class="std std-ref">A Note on Input Balancing</span></a> for more details.</p></li>
-<li><p><strong>uq</strong> - Enable uncertainty quantification (UQ) during inference. Requires dropout to be non-zero.</p></li>
-<li><p><strong>validation_balance</strong> - Validation input balancing strategy; please see <a class="reference internal" href="appendix.html#balancing"><span class="std std-ref">A Note on Input Balancing</span></a> for more details.</p></li>
-</ul>
+<p>The sweep is then executed by passing the JSON path to the <code class="docutils literal notranslate"><span class="pre">params</span></code> argument of <code class="docutils literal notranslate"><span class="pre">Project.train()</span></code>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">P</span><span class="o">.</span><span class="n">train</span><span class="p">(</span><span class="n">params</span><span class="o">=</span><span class="s1">&#39;sweep.json&#39;</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>In addition to grid-search sweeps, you can also perform Bayesian hyperparameter optimization using <a class="reference external" href="https://automl.github.io/SMAC3/master/">SMAC3</a>. Start by setting the <a class="reference external" href="https://automl.github.io/ConfigSpace/master/">configuration space</a>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">ConfigSpace.hyperparameters</span> <span class="k">as</span> <span class="nn">cs_hp</span>
+<span class="kn">from</span> <span class="nn">ConfigSpace</span> <span class="kn">import</span> <span class="n">ConfigurationSpace</span>
+
+<span class="n">cs</span> <span class="o">=</span> <span class="n">ConfigurationSpace</span><span class="p">()</span>
+<span class="n">cs</span><span class="o">.</span><span class="n">add_hyperparameter</span><span class="p">(</span><span class="n">cs_hp</span><span class="o">.</span><span class="n">UniformIntegerHyperparameter</span><span class="p">(</span><span class="s2">&quot;epochs&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+<span class="n">cs</span><span class="o">.</span><span class="n">add_hyperparameter</span><span class="p">(</span><span class="n">cs_hp</span><span class="o">.</span><span class="n">UniformFloatHyperparameter</span><span class="p">(</span><span class="s2">&quot;dropout&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">))</span>
+</pre></div>
+</div>
+<p>Then, simply replace <code class="docutils literal notranslate"><span class="pre">Project.train()</span></code> with <a class="reference internal" href="project.html#slideflow.Project.smac_search" title="slideflow.Project.smac_search"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Project.smac_search()</span></code></a>, providing the configuration space to the argument <code class="docutils literal notranslate"><span class="pre">smac_configspace</span></code>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">P</span><span class="o">.</span><span class="n">train</span><span class="p">(</span><span class="o">...</span><span class="p">,</span> <span class="n">smac_configspace</span><span class="o">=</span><span class="n">cs</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Available hyperparameters are listed in the <code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.ModelParams</span></code> documentation.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
 <p>If you are using a continuous variable as an outcome measure, be sure to use a linear loss function. Linear loss functions can be viewed in <code class="docutils literal notranslate"><span class="pre">slideflow.model.ModelParams.LinearLossDict</span></code>, and all available loss functions are in <code class="docutils literal notranslate"><span class="pre">slideflow.model.ModelParams.AllLossDict</span></code>.</p>
+</div>
 </div>
 <div class="section" id="begin-training">
 <h2>Begin training<a class="headerlink" href="#begin-training" title="Permalink to this headline">¶</a></h2>
-<p>Once your hyperparameter settings have been chosen you may begin training using the <code class="docutils literal notranslate"><span class="pre">train</span></code> function. Documentation of the function is given below:</p>
+<p>Once your hyperparameter settings have been chosen, you may begin training using the <code class="docutils literal notranslate"><span class="pre">Project.train()</span></code> function:</p>
 <dl class="py function">
 <dt class="sig sig-object py">
-<span class="sig-prename descclassname"><span class="pre">slideflow.Project.</span></span><span class="sig-name descname"><span class="pre">train</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outcomes</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">params</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">exp_label</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filters</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter_blank</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input_header</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_tiles</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_tiles</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">splits</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'splits.json'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">balance_headers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mixed_precision</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">training_kwargs</span></span></em><span class="sig-paren">)</span></dt>
+<span class="sig-prename descclassname"><span class="pre">slideflow.Project.</span></span><span class="sig-name descname"><span class="pre">train</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outcomes</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.10)"><span class="pre">Union</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.10)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">params</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.10)"><span class="pre">Union</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="model.html#slideflow.model.ModelParams" title="slideflow.model.tensorflow.ModelParams"><span class="pre">slideflow.model.tensorflow.ModelParams</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.10)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference internal" href="model.html#slideflow.model.ModelParams" title="slideflow.model.tensorflow.ModelParams"><span class="pre">slideflow.model.tensorflow.ModelParams</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.10)"><span class="pre">Dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="model.html#slideflow.model.ModelParams" title="slideflow.model.tensorflow.ModelParams"><span class="pre">slideflow.model.tensorflow.ModelParams</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">exp_label</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.10)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filters</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.10)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.10)"><span class="pre">Dict</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter_blank</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.10)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.10)"><span class="pre">Union</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.10)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input_header</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.10)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.10)"><span class="pre">Union</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.10)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_tiles</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_tiles</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">splits</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'splits.json'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mixed_precision</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">balance_headers</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.10)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.10)"><span class="pre">Union</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.10)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">training_kwargs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.10)"><span class="pre">Any</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.10)"><span class="pre">Dict</span></a></span></span></dt>
 <dd><p>Train model(s) using a given set of parameters, outcomes, and inputs.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -339,6 +330,10 @@ a list, or dict mapping model names to params. If multiple
 params are provided, will train models for each. If JSON file
 is provided, will interpret as a hyperparameter sweep. See
 examples below for use.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Keyword Arguments</dt>
+<dd class="field-even"><ul class="simple">
 <li><p><strong>exp_label</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Experiment label to add model names.</p></li>
 <li><p><strong>filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.10)"><em>dict</em></a><em>, </em><em>optional</em>) – Filters to use when selecting tfrecords.
 Defaults to None.</p></li>
@@ -353,16 +348,12 @@ training. Defaults to 0 (include all tiles).</p></li>
 <li><p><strong>splits</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Filename of JSON file in which to log
 train/val splits. Looks for filename in project root directory.
 Defaults to “splits.json”.</p></li>
+<li><p><strong>mixed_precision</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Enable mixed precision.
+Defaults to True.</p></li>
 <li><p><strong>balance_headers</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.10)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>)</em>) – Annotation header(s) specifying
 labels on which to perform mini-batch balancing. If performing
 category-level balancing and this is set to None, will default
 to balancing on outcomes. Defaults to None.</p></li>
-<li><p><strong>mixed_precision</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Enable mixed precision.
-Defaults to True.</p></li>
-</ul>
-</dd>
-<dt class="field-even">Keyword Arguments</dt>
-<dd class="field-even"><ul class="simple">
 <li><p><strong>val_strategy</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Validation dataset selection strategy. Options
 include bootstrap, k-fold, k-fold-manual,
 k-fold-preserved-site, fixed, and none. Defaults to ‘k-fold’.</p></li>
@@ -396,8 +387,10 @@ Defaults to 0.</p></li>
 <li><p><strong>steps_per_epoch_override</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a>) – If provided, will manually set the
 number of steps in an epoch. Default epoch length is the number
 of total tiles.</p></li>
-<li><p><strong>save_predicitons</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a>) – Save predictions with each validation.
-Defaults to False.</p></li>
+<li><p><strong>save_predictions</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Save tile, slide, and
+patient-level predictions at each evaluation. May be ‘csv’,
+‘feather’, or ‘parquet’. If False, will not save predictions.
+Defaults to ‘parquet’.</p></li>
 <li><p><strong>save_model</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Save models when evaluating at
 specified epochs. Defaults to True.</p></li>
 <li><p><strong>validate_on_batch</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a>) – Perform validation every N batches.
@@ -416,25 +409,21 @@ each time doing a mid-epoch validation check. Defaults to 200.</p></li>
 </dl>
 <dl>
 <dt>Examples</dt><dd><p>Method 1 (hyperparameter sweep from a configuration file):</p>
-<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">slideflow.model</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">P</span><span class="o">.</span><span class="n">train</span><span class="p">(</span><span class="s1">&#39;outcome&#39;</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="s1">&#39;sweep.json&#39;</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">P</span><span class="o">.</span><span class="n">train</span><span class="p">(</span><span class="s1">&#39;outcome&#39;</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="s1">&#39;sweep.json&#39;</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>Method 2 (manually specified hyperparameters):</p>
-<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">slideflow.model</span> <span class="kn">import</span> <span class="n">ModelParams</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">hp</span> <span class="o">=</span> <span class="n">ModelParams</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">hp</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">ModelParams</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">P</span><span class="o">.</span><span class="n">train</span><span class="p">(</span><span class="s1">&#39;outcome&#39;</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="n">hp</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>Method 3 (list of hyperparameters):</p>
-<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">slideflow.model</span> <span class="kn">import</span> <span class="n">ModelParams</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">hp</span> <span class="o">=</span> <span class="p">[</span><span class="n">ModelParams</span><span class="p">(</span><span class="o">...</span><span class="p">),</span> <span class="n">ModelParams</span><span class="p">(</span><span class="o">...</span><span class="p">)]</span>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">hp</span> <span class="o">=</span> <span class="p">[</span><span class="n">sf</span><span class="o">.</span><span class="n">ModelParams</span><span class="p">(</span><span class="o">...</span><span class="p">),</span> <span class="n">sf</span><span class="o">.</span><span class="n">ModelParams</span><span class="p">(</span><span class="o">...</span><span class="p">)]</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">P</span><span class="o">.</span><span class="n">train</span><span class="p">(</span><span class="s1">&#39;outcome&#39;</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="n">hp</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>Method 4 (dict of hyperparameters):</p>
-<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">slideflow.model</span> <span class="kn">import</span> <span class="n">ModelParams</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">hp</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;HP0&#39;</span><span class="p">:</span> <span class="n">ModelParams</span><span class="p">(</span><span class="o">...</span><span class="p">),</span> <span class="s1">&#39;HP1&#39;</span><span class="p">:</span> <span class="n">ModelParams</span><span class="p">(</span><span class="o">...</span><span class="p">)}</span>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">hp</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;HP0&#39;</span><span class="p">:</span> <span class="n">sf</span><span class="o">.</span><span class="n">ModelParams</span><span class="p">(</span><span class="o">...</span><span class="p">),</span> <span class="o">...</span><span class="p">}</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">P</span><span class="o">.</span><span class="n">train</span><span class="p">(</span><span class="s1">&#39;outcome&#39;</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="n">hp</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
 </pre></div>
 </div>
@@ -453,12 +442,15 @@ each time doing a mid-epoch validation check. Defaults to 200.</p></li>
 </pre></div>
 </div>
 <p>If you would like to use a different validation plan than the default, pass the relevant keyword arguments to the training function.</p>
-<p>Once training has finished, performance metrics - including accuracy, loss, etc. - can be found in the <code class="docutils literal notranslate"><span class="pre">results_log.csv</span></code> file in the project directory. Additional data, including ROCs and scatter plots, are saved in the model directories.</p>
+</div>
+<div class="section" id="finding-results">
+<h2>Finding results<a class="headerlink" href="#finding-results" title="Permalink to this headline">¶</a></h2>
+<p>Performance metrics - including accuracy, loss, etc. - are returned from the <code class="docutils literal notranslate"><span class="pre">Project.train()</span></code> function as a dictionary and saved in <code class="docutils literal notranslate"><span class="pre">results_log.csv</span></code> files in both the project directory and model directory. Additional data, including ROCs and scatter plots, are saved in the model directories. Pandas DataFrames containing tile-, slide-, and patient-level predictions are also saved in the model directory.</p>
 <p>At each designated epoch, models are saved in their own folders. Each model directory will include a copy of its hyperparameters in a <code class="docutils literal notranslate"><span class="pre">params.json</span></code> file, and a copy of its training/validation slide manifest in <code class="docutils literal notranslate"><span class="pre">slide.log</span></code>.</p>
 </div>
 <div class="section" id="multiple-outcomes">
 <h2>Multiple outcomes<a class="headerlink" href="#multiple-outcomes" title="Permalink to this headline">¶</a></h2>
-<p>Slideflow supports both categorical and continuous outcomes, as well as training to single or multiple outcomes at once. To use multiple outcomes simultaneously, simply pass multiple annotation headers to the <code class="docutils literal notranslate"><span class="pre">outcomes</span></code> argument.</p>
+<p>Slideflow supports both categorical and continuous outcomes, as well as training to single or multiple outcomes at once. To train with multiple outcomes simultaneously, simply pass multiple annotation headers to the <code class="docutils literal notranslate"><span class="pre">outcomes</span></code> argument.</p>
 </div>
 <div class="section" id="multiple-input-variables">
 <h2>Multiple input variables<a class="headerlink" href="#multiple-input-variables" title="Permalink to this headline">¶</a></h2>
@@ -511,7 +503,7 @@ each time doing a mid-epoch validation check. Defaults to 200.</p></li>
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2021, James M Dolezal.
+        &copy; Copyright 2022, James M Dolezal.
 
     </p>
   </div>
@@ -533,6 +525,7 @@ each time doing a mid-epoch validation check. Defaults to 200.</p></li>
 <li><a class="reference internal" href="#">Training</a><ul>
 <li><a class="reference internal" href="#prepare-hyperparameters">Prepare hyperparameters</a></li>
 <li><a class="reference internal" href="#begin-training">Begin training</a></li>
+<li><a class="reference internal" href="#finding-results">Finding results</a></li>
 <li><a class="reference internal" href="#multiple-outcomes">Multiple outcomes</a></li>
 <li><a class="reference internal" href="#multiple-input-variables">Multiple input variables</a></li>
 <li><a class="reference internal" href="#cox-proportional-hazards-cph-models">Cox Proportional Hazards (CPH) models</a></li>

@@ -30,3 +30,5 @@ h5py
 tabulate
 saliency
 rasterio
+smac
+ConfigSpace

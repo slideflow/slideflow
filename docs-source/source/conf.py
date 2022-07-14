@@ -19,8 +19,8 @@
 #
 import os
 import sys
+sys.path.insert(0, os.path.abspath('../../'))
 import slideflow as sf
-sys.path.insert(0, os.path.abspath('../../source/'))
 
 
 # -- General configuration ------------------------------------------------
@@ -52,7 +52,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'slideflow'
-copyright = '2021, James M Dolezal'
+copyright = '2022, James M Dolezal'
 author = 'James M Dolezal'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -60,7 +60,7 @@ author = 'James M Dolezal'
 # built documents.
 #
 # The short X.Y version.
-version = '1.1'
+version = '1.2'
 # The full version, including alpha/beta/rc tags.
 release = sf.__version__
 

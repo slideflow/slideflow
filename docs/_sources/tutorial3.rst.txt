@@ -141,8 +141,8 @@ First, define the model in a file that can be imported. In this example, we will
                     dim, depth, heads, mlp_dim):
             super().__init__()
             if not image_size % patch_size == 0:
-                msg = 'image dimensions must be divisible by the patch size'
-                raise ValueError(msg)
+                raise ValueError('image dimensions must be divisible by the '
+                                 'patch size')
             num_patches = (image_size // patch_size) ** 2
             self.patch_size = patch_size
             self.dim = dim

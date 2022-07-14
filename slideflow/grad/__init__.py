@@ -87,6 +87,14 @@ class SaliencyMap:
             return grayscale(_get_mask(img))
 
     def all(self, img: np.ndarray) -> Dict:
+        """Calculate all saliency map methods.
+
+        Args:
+            img (np.ndarray): Input image
+
+        Returns:
+            Dict: Dictionary mapping name of saliency method to saliency map.
+        """
         return {
             'Vanilla': self.vanilla(img),
             'Vanilla (Smoothed)': self.vanilla(img, smooth=True),
@@ -104,6 +112,15 @@ class SaliencyMap:
         smooth: bool = False,
         **kwargs
     ) -> np.ndarray:
+        """Calculate gradient-based saliency map.
+
+        Args:
+            img (np.ndarray): Input image
+            smooth (bool, optional): Smooth gradients. Defaults to False.
+
+        Returns:
+            np.ndarray: Saliency map.
+        """
         return self._apply_mask_fn(
             img,
             self.gradients,
@@ -119,6 +136,19 @@ class SaliencyMap:
         smooth: bool = False,
         **kwargs
     ) -> np.ndarray:
+        """Calculate saliency map using integrated gradients.
+
+        Args:
+            img (np.ndarray): Input image
+            x_steps (int, optional): Steps for gradient calculation.
+                Defaults to 25.
+            max_dist (float, optional): Maximum distance for gradient
+                calculation. Defaults to 1.0.
+            smooth (bool, optional): Smooth gradients. Defaults to False.
+
+        Returns:
+            np.ndarray: Saliency map.
+        """
         return self._apply_mask_fn(
             img,
             self.ig,
@@ -138,6 +168,21 @@ class SaliencyMap:
         smooth: bool = False,
         **kwargs
     ) -> np.ndarray:
+        """Calculate saliency map using guided integrated gradients.
+
+        Args:
+            img (np.ndarray): Input image
+            x_steps (int, optional): Steps for gradient calculation.
+                Defaults to 25.
+            max_dist (float, optional): Maximum distance for gradient
+                calculation. Defaults to 1.0.
+            fraction (float, optional): Fraction for gradient calculation.
+                Defaults to 0.5.
+            smooth (bool, optional): Smooth gradients. Defaults to False.
+
+        Returns:
+            np.ndarray: Saliency map.
+        """
         return self._apply_mask_fn(
             img,
             self.guided_ig,
@@ -156,6 +201,16 @@ class SaliencyMap:
         smooth: bool = False,
         **kwargs
     ) -> np.ndarray:
+        """Calculate saliency map using blur integrated gradients.
+
+        Args:
+            img (np.ndarray): Input image.
+            batch_size (int, optional): Batch size. Defaults to 20.
+            smooth (bool, optional): Smooth gradients. Defaults to False.
+
+        Returns:
+            np.ndarray: Saliency map.
+        """
         return self._apply_mask_fn(
             img,
             self.blur_ig,
@@ -170,6 +225,15 @@ class SaliencyMap:
         batch_size: int = 20,
         **kwargs
     ) -> np.ndarray:
+        """Calculate saliency map using XRAI.
+
+        Args:
+            img (np.ndarray): Input image.
+            batch_size (int, optional): Batch size. Defaults to 20.
+
+        Returns:
+            np.ndarray: Saliency map.
+        """
         return self.xrai_grads.GetMask(
             img,
             self._grad_fn,
@@ -183,6 +247,15 @@ class SaliencyMap:
         batch_size: int = 20,
         **kwargs
     ) -> np.ndarray:
+        """Calculate saliency map using XRAI (fast implementation).
+
+        Args:
+            img (np.ndarray): Input image.
+            batch_size (int, optional): Batch size. Defaults to 20.
+
+        Returns:
+            np.ndarray: Saliency map.
+        """
         return self.xrai_grads.GetMask(
             img,
             self._grad_fn,

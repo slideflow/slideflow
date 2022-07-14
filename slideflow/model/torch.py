@@ -397,8 +397,6 @@ class Trainer:
                 model saving. Defaults to None.
             manifest (dict, optional): Manifest dictionary mapping TFRecords to
                 number of tiles. Defaults to None.
-            model_type (str, optional): Type of model outcome, 'categorical' or
-                'linear'. Defaults to 'categorical'.
             feature_sizes (list, optional): List of sizes of input features.
                 Required if providing additional input features as model input.
             feature_names (list, optional): List of names for input features.
