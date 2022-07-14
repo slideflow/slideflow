@@ -261,6 +261,46 @@
               
   <div class="section" id="slideflow-grad">
 <h1>slideflow.grad<a class="headerlink" href="#slideflow-grad" title="Permalink to this headline">¶</a></h1>
+<p>This submodule contains tools for calculating and display pixel attribution, or
+saliency, maps.</p>
+<p>Saliency maps are calculated on preprocessed images, returning a grayscale
+image. Below is an example of how to generate a single saliency map for one image.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">tensorflow</span> <span class="k">as</span> <span class="nn">tf</span>
+<span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
+<span class="kn">import</span> <span class="nn">slideflow.grad</span>
+<span class="kn">from</span> <span class="nn">PIL</span> <span class="kn">import</span> <span class="n">Image</span>
+
+<span class="c1"># Get an example image</span>
+<span class="n">P</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">Project</span><span class="p">(</span><span class="s1">&#39;/path/to/project&#39;</span><span class="p">)</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">dataset</span><span class="p">(</span><span class="mi">299</span><span class="p">,</span> <span class="mi">302</span><span class="p">)</span>
+<span class="n">tf_dts</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">tensorflow</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">standardize</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="n">raw_image</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="nb">iter</span><span class="p">(</span><span class="n">tf_dts</span><span class="p">))[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+
+<span class="c1"># Load a model</span>
+<span class="n">model_path</span> <span class="o">=</span> <span class="s1">&#39;/path/to/model&#39;</span>
+<span class="n">model</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">load_model</span><span class="p">(</span><span class="n">model_path</span><span class="p">)</span>
+<span class="n">normalizer</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">get_model_normalizer</span><span class="p">(</span><span class="n">model_path</span><span class="p">)</span>
+
+<span class="c1"># Process the image</span>
+<span class="k">if</span> <span class="n">normalizer</span><span class="p">:</span>
+    <span class="n">raw_image</span> <span class="o">=</span> <span class="n">normalizer</span><span class="o">.</span><span class="n">tf_to_tf</span><span class="p">(</span><span class="n">raw_image</span><span class="p">)</span>
+<span class="n">processed_image</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">per_image_standardization</span><span class="p">(</span><span class="n">raw_image</span><span class="p">)</span>
+<span class="n">processed_image</span> <span class="o">=</span> <span class="n">processed_image</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+
+<span class="c1"># Prepare the saliency map</span>
+<span class="n">smap</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">grad</span><span class="o">.</span><span class="n">SaliencyMap</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">class_idx</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+<span class="c1"># Calculate gradients</span>
+<span class="n">ig_map</span> <span class="o">=</span> <span class="n">smap</span><span class="o">.</span><span class="n">integrated_gradients</span><span class="p">(</span><span class="n">processed_image</span><span class="p">)</span>
+
+<span class="c1"># Display the gradients as an inferno heatmap</span>
+<span class="n">ig_map</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">grad</span><span class="o">.</span><span class="n">inferno</span><span class="p">(</span><span class="n">ig_map</span><span class="p">)</span>
+<span class="n">Image</span><span class="o">.</span><span class="n">fromarray</span><span class="p">(</span><span class="n">ig_map</span><span class="p">)</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>There are also several utility functions that can be used to compare saliency maps
+across multiple images, or compare multiple saliency map methods for a single image.
+Documentation for these functions is given below.</p>
 <dl class="py class">
 <dt class="sig sig-object py" id="slideflow.grad.SaliencyMap">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">slideflow.grad.</span></span><span class="sig-name descname"><span class="pre">SaliencyMap</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.10)"><span class="pre">Callable</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">class_idx</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><span class="pre">int</span></a></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.grad.SaliencyMap" title="Permalink to this definition">¶</a></dt>
