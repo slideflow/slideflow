@@ -81,29 +81,19 @@ def _assert_model_type(model_type: str) -> None:
 
 
 def _generate_tile_roc(
-    idx_and_yp: Tuple[int, np.ndarray],
-    y_true: np.ndarray,
+    yt_and_yp: Tuple[np.ndarray, np.ndarray],
     neptune_run: Optional["neptune.Run"] = None
 ) -> ClassifierMetrics:
     """Generate tile-level ROC. Defined separately for multiprocessing.
 
     Args:
-        idx_and_yp (Tuple[int, np.ndarray]): Category index and y_pred.
-        y_true (np.ndarray): Array of y_true (category label). Will compare
-            against idx.
-        data_dir (str): Out directory in which to save ROC curves / histograms.
-        label (str): Label for the plots.
+        yt_and_yp (Tuple[np.ndarray, np.ndarray]): y_true and y_pred.
         neptune_run (neptune.Run, optional): Neptune run. Defaults to None.
 
     Returns:
-        float: AUROC
-
-        float: AP (average precision)
-
-        float: Optimal threshold (via Youden's J)
+        ClassifierMetrics: Contains metrics (AUROC, AP).
     """
-    y_true_idx, y_pred = idx_and_yp
-    y_true = (y_true == y_true_idx).astype(int)
+    y_true, y_pred = yt_and_yp
     class_metrics = ClassifierMetrics(y_true, y_pred, neptune_run=neptune_run)
     class_metrics.roc_fit()
     class_metrics.prc_fit()
@@ -212,6 +202,9 @@ def categorical_metrics(
     # match the provided outcome names
     outcome_names = [c[:-8] for c in df.columns if c.endswith('-y_pred0')]
 
+    if not len(outcome_names):
+        raise errors.StatsError("No outcomes detected from dataframe.")
+
     all_auc = {outcome: [] for outcome in outcome_names}  # type: Dict
     all_ap = {outcome: [] for outcome in outcome_names}  # type: Dict
 
@@ -219,11 +212,12 @@ def categorical_metrics(
         return (_df.y_true == i).astype(int)
 
     def y_pred_onehot(_df, i):
-        return (_df[f'y_pred{i}'] == _df.y_pred_cat).astype(int)
+        return (_df.y_pred_cat == i).astype(int)
 
     # Perform analysis separately for each outcome column
     for outcome in outcome_names:
         outcome_cols = [c for c in df.columns if c.startswith(f'{outcome}-')]
+
         # Remove the outcome name from the dataframe temporarily
         outcome_df = df[outcome_cols].rename(
             columns={
@@ -234,20 +228,31 @@ def categorical_metrics(
         log.info(f"Validation metrics for outcome {col.green(outcome)}:")
         y_pred_cols = [c for c in outcome_df.columns if c.startswith('y_pred')]
         num_cat = len(y_pred_cols)
+        if not num_cat:
+            raise errors.StatsError(
+                f"Could not find predictions column for outcome {outcome}"
+            )
 
-        if not len(y_pred_cols):
-            print("outcome:", outcome)
-            print("y_pred cols:", y_pred_cols)
+        # Sort the prediction columns so that argmax will work as expected
+        y_pred_cols = [f'y_pred{i}' for i in range(num_cat)]
+        if len(y_pred_cols) != num_cat:
+            raise errors.StatsError(
+                "Malformed dataframe, unable to find all prediction columns"
+            )
+        if not all(col in outcome_df.columns for col in y_pred_cols):
+            raise errors.StatsError("Malformed dataframe, invalid column names")
 
         # Convert to one-hot encoding
-        outcome_df['y_pred_cat'] = outcome_df[y_pred_cols].values.max(1)
+        outcome_df['y_pred_cat'] = outcome_df[y_pred_cols].values.argmax(1)
 
         log.debug(f"Calculating metrics with a thread pool")
         p = mp.dummy.Pool(8)
-        roc_fn = partial(_generate_tile_roc, y_true=outcome_df.y_true.values)
-        idx_and_yp = [(i, y_pred_onehot(outcome_df, i)) for i in range(num_cat)]
+        yt_and_yp = [
+            ((outcome_df.y_true == i).astype(int), outcome_df[f'y_pred{i}'])
+            for i in range(num_cat)
+        ]
         try:
-            for i, fit in enumerate(p.imap(roc_fn, idx_and_yp)):
+            for i, fit in enumerate(p.imap(_generate_tile_roc, yt_and_yp)):
                 fit.save_roc(data_dir, f"{label_start}{outcome}_tile_ROC{i}")
                 fit.save_prc(data_dir, f"{label_start}{outcome}_tile_PRC{i}")
                 all_auc[outcome] += [fit.auroc]
@@ -271,7 +276,7 @@ def categorical_metrics(
             try:
                 yt_in_cat =  y_true_onehot(outcome_df, i)
                 n_in_cat = yt_in_cat.sum()
-                correct = y_pred_onehot(outcome_df.loc[yt_in_cat > 0], i).sum()
+                correct = y_pred_onehot(outcome_df.loc[yt_in_cat == 1], i).sum()
                 category_accuracy = correct / n_in_cat
                 perc = category_accuracy * 100
                 log.info(f"Category {i} acc: {perc:.1f}% ({correct}/{n_in_cat})")
@@ -492,6 +497,8 @@ def group_reduce(
         patients (dict, optional): Dictionary mapping slide names to patient
             names. Required for generating patient-level metrics.
     """
+    if method not in ('proportion', 'average'):
+        raise ValueError(f"Unknown method {method}")
     log.debug(f"Using reduce_method={method}")
 
     if patients is not None:
@@ -503,24 +510,38 @@ def group_reduce(
     group_dfs = {
         'tile': df
     }
-    _df = df
+    _df = df.copy()
     if method == 'proportion':
         outcome_names = [c[:-8] for c in df.columns if c.endswith('-y_pred0')]
+        if not len(outcome_names):
+            raise errors.StatsError("No outcomes detected from dataframe.")
         for outcome in outcome_names:
             y_pred_cols = [c for c in df.columns
                            if c.startswith(f"{outcome}-y_pred")]
             num_cat = len(y_pred_cols)
-            if num_cat != df.y_true.max()+1:
+            if not num_cat:
+                raise errors.StatsError(
+                    f"Could not find predictions column for outcome {outcome}"
+                )
+            if num_cat != df[f'{outcome}-y_true'].max()+1:
                 raise errors.StatsError(
                     "Model predictions have a different number of outcome "
-                    f"categories ({df.y_true.max()+1}) "
+                    f"categories ({df[f'{outcome}-y_true'].max()+1}) "
                     f"than provided annotations ({num_cat})"
                 )
+            y_pred_cols = [f'{outcome}-y_pred{i}' for i in range(num_cat)]
+            if len(y_pred_cols) != num_cat:
+                raise errors.StatsError(
+                    "Malformed dataframe, unable to find all prediction columns"
+                )
+            if not all(col in df.columns for col in y_pred_cols):
+                raise errors.StatsError(
+                    "Malformed dataframe, invalid column names"
+                )
 
-            outcome_pred_cat = df[y_pred_cols].values.max(1)
+            outcome_pred_cat = df[y_pred_cols].values.argmax(1)
             for i in range(num_cat):
-                _df[f'{outcome}-y_pred{i}'] = (_df[f'{outcome}-y_pred{i}']
-                                               == outcome_pred_cat).astype(int)
+                _df[f'{outcome}-y_pred{i}'] = (outcome_pred_cat == i).astype(int)
 
     for group in groups:
         group_dfs.update({group: _df.groupby(group, as_index=False).mean()})
