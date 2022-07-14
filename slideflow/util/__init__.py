@@ -1,3 +1,4 @@
+import atexit
 import csv
 import importlib.util
 import json
@@ -93,6 +94,7 @@ def addLoggingFileHandler(path):
         sub_handler=fh
     )
     log.addHandler(handler)
+    atexit.register(handler.close)
 
 
 # Add tqdm-friendly stream handler

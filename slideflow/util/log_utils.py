@@ -1,7 +1,7 @@
 import logging
-import multiprocessing as mp
+import queue
 import threading
-from queue import Empty
+import multiprocessing as mp
 from tqdm import tqdm
 
 import slideflow.util.colors as col
@@ -56,7 +56,7 @@ class MultiProcessingHandler(logging.Handler):
         self.setFormatter(self.sub_handler.formatter)
         self.filters = self.sub_handler.filters
 
-        self.queue = mp.Queue(-1)
+        self.queue = queue.Queue(-1)
         self._is_closed = False
         # The thread handles receiving records asynchronously.
         self._receive_thread = threading.Thread(target=self._receive, name=name)
@@ -79,7 +79,7 @@ class MultiProcessingHandler(logging.Handler):
                 raise
             except (BrokenPipeError, EOFError):
                 break  # The queue was closed by child?
-            except Empty:
+            except queue.Empty:
                 pass  # This periodically checks if the logger is closed.
             except:
                 from sys import stderr
@@ -87,9 +87,8 @@ class MultiProcessingHandler(logging.Handler):
 
                 print_exc(file=stderr)
                 raise
-
-        self.queue.close()
-        self.queue.join_thread()
+        #self.queue.close()
+        #self.queue.join_thread()
 
     def _send(self, s):
         self.queue.put_nowait(s)
@@ -120,10 +119,9 @@ class MultiProcessingHandler(logging.Handler):
     def close(self):
         if not self._is_closed:
             self._is_closed = True
-            self._receive_thread.join(5.0)  # Waits for receive queue to empty.
-
+            self._receive_thread.join(5.0)
             self.sub_handler.close()
-            super(MultiProcessingHandler, self).close()
+            super().close()
 
 
 class TqdmLoggingHandler(logging.StreamHandler):

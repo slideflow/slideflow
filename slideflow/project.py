@@ -107,9 +107,6 @@ class Project:
         if not exists(self.annotations) and exists(self.dataset_config):
             self.create_blank_annotations()
 
-        # Set up logging
-        sf.util.addLoggingFileHandler(join(root, 'log.txt'))
-
         # Neptune
         self.use_neptune = use_neptune
 
