@@ -20,6 +20,8 @@ class SaliencyMap:
                 calculated.
             class_idx (int): Index of class for backpropagating gradients.
         """
+        if not isinstance(model, Callable):
+            raise ValueError("'model' must be a differentiable model.")
         self.model = model
         self.class_idx = class_idx
         self.gradients = saliency.GradientSaliency()

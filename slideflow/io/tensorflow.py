@@ -78,7 +78,7 @@ def process_image(
     record: Union[tf.Tensor, Dict[str, tf.Tensor]],
     *args: Any,
     standardize: bool = False,
-    augment: bool = False,
+    augment: Union[bool, str] = False,
 ) -> Tuple[Union[Dict, tf.Tensor], ...]:
     """Applies augmentations and/or standardization to an image Tensor."""
 
@@ -139,6 +139,8 @@ def process_image(
             ),
             false_fn=lambda: image
         )
+    if augment is True or (isinstance(augment, str) and 'i' in augment):
+        ...
     if standardize:
         image = tf.image.per_image_standardization(image)
 
