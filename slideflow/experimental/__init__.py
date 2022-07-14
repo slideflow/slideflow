@@ -1,3 +1,3 @@
 """Submodule for experimental functionality."""
 
-from slideflow.experimental.tf_trainers import ExperimentalProject
+from slideflow.experimental.embedding_search import EmbeddingSearch
