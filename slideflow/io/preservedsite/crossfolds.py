@@ -56,6 +56,9 @@ def _generate_bonmin(
     if not sf.util.BONMIN_AVAILABLE:
         raise errors.SolverNotFoundError("Unable to find pyomo/bonmin solver.")
 
+    import pyomo.environ as pyo
+    from pyomo.opt import SolverFactory
+
     unique_sites = df['site'].unique()
     unique_labels = df[category].unique()
     n_sites = len(unique_sites)
