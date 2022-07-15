@@ -1521,6 +1521,19 @@ class Trainer:
         if self.normalizer and self.hp.normalizer_source == 'dataset':
             self.normalizer.fit(train_dts)
 
+        if self.normalizer:
+            config_path = join(self.outdir, 'params.json')
+            if not os.path.exists(config_path):
+                config = {
+                    'slideflow_version': sf.__version__,
+                    'hp': self.hp.get_dict(),
+                    'backend': sf.backend()
+                }
+            else:
+                config = sf.util.load_json(config_path)
+            config['norm_fit'] = self.normalizer.get_fit()
+            sf.util.write_json(config, config_path)
+
         # Training preparation
         if steps_per_epoch_override:
             self.steps_per_epoch = steps_per_epoch_override
@@ -1990,3 +2003,22 @@ class UncertaintyInterface(Features):
 
     def __init__(self, *args, **kwargs):
         raise NotImplementedError
+
+
+def load(path):
+    """Load PyTorch model from location.
+
+    Args:
+        path (str): Path to saved PyTorch model.
+
+    Returns:
+        torch.nn.Module: Loaded model.
+    """
+    config = sf.util.get_model_config(path)
+    hp = ModelParams.from_dict(config['hp'])
+    model = hp.build_model(
+        num_classes=len(list(config['outcome_labels'].keys())),
+        num_slide_features=0 if not config['input_feature_sizes'] else sum(config['input_feature_sizes'])
+    )
+    model.load_state_dict(torch.load(path))
+    return model

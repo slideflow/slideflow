@@ -246,10 +246,16 @@ class TensorflowStainNormalizer(StainNormalizer):
             )
         else:
             raise errors.NormalizerError(f'Unrecognized args for fit: {args}')
-        log.info(
-            f"Fit normalizer to mean {self.target_means}, "
-            f"stddev {self.target_stds}"
-        )
+        msg = "Fit normalizer to "
+        if self.target_means is not None:
+            msg += f"target_means={self.target_means.flatten()} "
+        if self.target_stds is not None:
+            msg += f"target_means={self.target_stds.flatten()} "
+        if self.stain_matrix_target is not None:
+            msg += f"target_means={self.stain_matrix_target.flatten()} "
+        if self.target_concentrations is not None:
+            msg += f"target_means={self.target_concentrations.flatten()} "
+        log.info(msg)
 
     def get_fit(self) -> Dict[str, Optional[List[float]]]:
         return {

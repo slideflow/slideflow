@@ -126,7 +126,7 @@ class TestSuite:
         self,
         model_type: str,
         sweep: bool = False,
-        normalizer: Optional[str] = None,
+        normalizer: Optional[str] = 'reinhard_fast',
         uq: bool = False
     ) -> sf.ModelParams:
         """Set up hyperparameters.

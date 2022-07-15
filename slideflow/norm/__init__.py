@@ -188,18 +188,24 @@ class StainNormalizer:
 
         else:
             raise errors.NormalizerError(f'Unrecognized args for fit: {args}')
-        log.info(
-            f"Fit normalizer to mean {self.target_means}"
-            f", stddev {self.target_stds}"
-        )
+        msg = "Fit normalizer to "
+        if self.n.target_means is not None:
+            msg += f"target_means={self.n.target_means.flatten()} "
+        if self.n.target_stds is not None:
+            msg += f"target_means={self.n.target_stds.flatten()} "
+        if self.n.stain_matrix_target is not None:
+            msg += f"target_means={self.n.stain_matrix_target.flatten()} "
+        if self.n.target_concentrations is not None:
+            msg += f"target_means={self.n.target_concentrations.flatten()} "
+        log.info(msg)
 
     def get_fit(self) -> Dict[str, Optional[List[float]]]:
         '''Return normalizer fit as a dictionary.'''
         return {
-            'target_means': self.n.target_means.tolist(),
-            'target_stds': self.n.target_stds.tolist(),
-            'stain_matrix_target': self.n.stain_matrix_target.tolist(),
-            'target_concentrations': self.n.target_concentrations.tolist()
+            'target_means': None if self.n.target_means is None else self.n.target_means.tolist(),
+            'target_stds': None if self.n.target_stds is None else self.n.target_stds.tolist(),
+            'stain_matrix_target': None if self.n.stain_matrix_target is None else self.n.stain_matrix_target.tolist(),
+            'target_concentrations': None if self.n.target_concentrations is None else self.n.target_concentrations.tolist()
         }
 
     def tf_to_tf(
