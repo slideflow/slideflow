@@ -20,13 +20,13 @@ ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib
 
 # Repair pixman
 WORKDIR "/scripts"
-RUN wget https://github.com/jamesdolezal/slideflow/blob/1.2.0/pixman_repair.sh && \
+RUN wget https://github.com/jamesdolezal/slideflow/blob/1.2.1/pixman_repair.sh && \
     chmod +x pixman_repair.sh
 
 # Install slideflow & download scripts
-RUN pip3 install slideflow==1.2.0 && \
-    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/1.2.0/test.py && \
-    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/1.2.0/run_project.py && \
-    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/1.2.0/qupath_roi.groovy && \
-    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/1.2.0/qupath_roi_legacy.groovy && \
+RUN pip3 install slideflow==1.2.1 && \
+    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/1.2.1/test.py && \
+    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/1.2.1/run_project.py && \
+    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/1.2.1/qupath_roi.groovy && \
+    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/1.2.1/qupath_roi_legacy.groovy && \
     pip3 install spams --no-cache --force-reinstall --no-deps
