@@ -1741,12 +1741,12 @@ class Features:
             )
             self._model.load_state_dict(torch.load(path))
             self._model.to(self.device)
+            self._model.eval()
             if self._model.__class__.__name__ == 'ModelWrapper':
                 self.model_type = self._model.model.__class__.__name__
             else:
                 self.model_type = self._model.__class__.__name__
             self._build()
-            self._model.eval()
 
     @classmethod
     def from_model(
