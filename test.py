@@ -81,19 +81,22 @@ def main(slides, out, all_tests, slide_threads, **kwargs):
         if kwargs[test] is None and all_tests is not None:
             kwargs[test] = all_tests
 
+    # Print version
+    print(col.bold("\nVersion: ") + str(sf.__version__))
+
     # Show active backend
     if sf.backend() == 'tensorflow':
-        print(col.bold("\nActive backend:"), col.yellow('tensorflow'))
+        print(col.bold("Active backend:"), col.yellow('tensorflow'))
     elif sf.backend() == 'torch':
-        print(col.bold("\nActive backend:"), col.purple('torch'))
+        print(col.bold("Active backend:"), col.purple('torch'))
     else:
-        print(col.bold("\nActive backend: <Unknown>"))
+        print(col.bold("Active backend: <Unknown>"))
 
     # Show tests to run
     print(col.bold("\nTests to run:"))
     print(tabulate.tabulate({
         'Test': kwargs.keys(),
-        'Run': [col.green('True') if v else col.red('False') 
+        'Run': [col.green('True') if v else col.red('False')
                 for v in kwargs.values()]
     }))
     TS = TestSuite(out, slides, verbosity=verbosity)

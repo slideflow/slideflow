@@ -22,6 +22,7 @@ from slideflow.util import NormFit, Path
 from slideflow.util import colors as col
 from slideflow.util import log
 from tqdm import tqdm
+from packaging import version
 
 import torch
 from torch import Tensor
@@ -308,18 +309,22 @@ class ModelParams(_base._ModelParams):
                 pretrained=pretrain
             )
         else:
+            # Compatibility logic for prior versions of PyTorch
             model_fn = self.ModelDict[self.model]
-            # Only pass kwargs accepted by model function
             model_fn_sig = inspect.signature(model_fn)
             model_kw = [
                 param.name
                 for param in model_fn_sig.parameters.values()
                 if param.kind == param.POSITIONAL_OR_KEYWORD
             ]
+            call_kw = {}
             if 'image_size' in model_kw:
-                _model = model_fn(pretrained=pretrain, image_size=self.tile_px)
+                call_kw.update(dict(image_size=self.tile_px))
+            if version.parse(torchvision.__version__) >= version.parse("0.13"):
+                call_kw.update(dict(weights=pretrain))
             else:
-                _model = model_fn(pretrained=pretrain)
+                call_kw.update(dict(pretrained=pretrain))
+            _model = model_fn(**call_kw)
 
         # Add final layers to models
         hidden_layers = [

@@ -16,7 +16,7 @@ spams
 cplex
 cvxpy>=1.1.15
 lifelines
-torch>=1.9.1,<1.12
+torch>=1.9.1,<1.13
 torchvision
 pretrainedmodels
 gitpython

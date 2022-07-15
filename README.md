@@ -23,7 +23,7 @@ Full documentation with example tutorials can be found at [slideflow.dev](https:
 - Python >= 3.7
 - [Libvips](https://libvips.github.io/libvips/) >= 8.9.
 - [OpenSlide](https://openslide.org/download/)
-- [Tensorflow](https://www.tensorflow.org/) 2.5-2.9 _or_ [PyTorch](https://pytorch.org/) 1.9-1.11
+- [Tensorflow](https://www.tensorflow.org/) 2.5-2.9 _or_ [PyTorch](https://pytorch.org/) 1.9-1.12
 - [QuPath](https://qupath.github.io/) [_optional_] - Used for pathologist ROIs
 - Linear solver [_optional_] - Used for preserved-site cross-validation
   - [CPLEX](https://www.ibm.com/docs/en/icos/12.10.0?topic=v12100-installing-cplex-optimization-studio) 20.1.0 with [Python API](https://www.ibm.com/docs/en/icos/12.10.0?topic=cplex-setting-up-python-api)
