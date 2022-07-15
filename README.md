@@ -3,7 +3,7 @@
 [![Python application](https://github.com/jamesdolezal/slideflow/actions/workflows/python-app.yml/badge.svg?branch=master)](https://github.com/jamesdolezal/slideflow/actions/workflows/python-app.yml)
 [![PyPI version](https://badge.fury.io/py/slideflow.svg)](https://badge.fury.io/py/slideflow)
 
-Slideflow provides a unified API for building and testing deep learning models for digital pathology, supporting both Tensorflow/Keras and PyTorch.
+Slideflow provides a unified API for building and testing deep learning models for digital pathology, supporting both Tensorflow and PyTorch.
 
 Slideflow includes tools for **whole-slide image processing** and tile extraction, **customizable deep learning model training** with dozens of supported architectures, **explainability tools** including heatmaps, mosaic maps, GANs, and saliency maps, **analysis of activations** from model layers, **uncertainty quantification**, and more. A variety of fast, optimized whole-slide image processing tools are included, including background filtering, blur/artifact detection, stain normalization, and efficient storage in `*.tfrecords` format. Model training is easy and highly configurable, with an easy drop-in API for training custom architectures. For external training loops, Slideflow can be used as an image processing backend, serving an optimized `tf.data.Dataset` or `torch.utils.data.DataLoader` to read and process slide images and perform real-time stain normalization.
 
@@ -25,7 +25,12 @@ Full documentation with example tutorials can be found at [slideflow.dev](https:
 - [OpenSlide](https://openslide.org/download/)
 - [Tensorflow](https://www.tensorflow.org/) 2.5-2.9 _or_ [PyTorch](https://pytorch.org/) 1.9-1.11
 - [QuPath](https://qupath.github.io/) [_optional_] - Used for pathologist ROIs
-- [CPLEX](https://www.ibm.com/docs/en/icos/12.10.0?topic=v12100-installing-cplex-optimization-studio) 20.1.0 with [Python API](https://www.ibm.com/docs/en/icos/12.10.0?topic=cplex-setting-up-python-api) [_optional_] - Used for preserved-site cross-validation
+- Linear solver [_optional_] - Used for preserved-site cross-validation
+  - [CPLEX](https://www.ibm.com/docs/en/icos/12.10.0?topic=v12100-installing-cplex-optimization-studio) 20.1.0 with [Python API](https://www.ibm.com/docs/en/icos/12.10.0?topic=cplex-setting-up-python-api)
+  - _or_ [Pyomo](http://www.pyomo.org/installation) with [Bonmin](https://anaconda.org/conda-forge/coinbonmin) solver
+
+## Updates (1.2.0)
+Please see the [Version 1.2.0 Release Notes](https://github.com/jamesdolezal/slideflow/releases/tag/1.2.0) for a summary of the latest updates and fixes.
 
 ## Installation
 Slideflow can be installed either with PyPI or as a Docker container. To install via pip:
