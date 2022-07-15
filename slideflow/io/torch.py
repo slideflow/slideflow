@@ -24,6 +24,7 @@ import torch
 
 if TYPE_CHECKING:
     from slideflow.norm import StainNormalizer
+    from torchvision.transforms import InterpolationMode
 
 FEATURE_DESCRIPTION = {
     'image_raw': 'byte',
@@ -460,7 +461,7 @@ def preprocess_uint8(
     normalizer: Optional["StainNormalizer"] = None,
     standardize: bool = True,
     resize_px: Optional[int] = None,
-    resize_method: str = 'lanczos3',
+    resize_method: Optional["InterpolationMode"] = None,
     resize_aa: bool = True,
 ) -> torch.Tensor:
     """Process batch of tensorflow images, resizing, normalizing,
@@ -472,7 +473,9 @@ def preprocess_uint8(
             Defaults to None.
         standardize (bool, optional): Standardize images. Defaults to True.
         resize_px (Optional[int], optional): Resize images. Defaults to None.
-        resize_method (str, optional): Resize method. Defaults to 'lanczos3'.
+        resize_method (str, optional): Interpolation mode for resizing. Must
+            be a valid torchvision.transforms.InterpolationMode. Defaults to
+            BICUBIC.
         resize_aa (bool, optional): Apply antialiasing during resizing.
             Defaults to True.
 
@@ -480,9 +483,11 @@ def preprocess_uint8(
         Dict[str, tf.Tensor]: Processed image.
     """
     if resize_px is not None:
+        if resize_method is None:
+            resize_method = torchvision.transforms.InterpolationMode.BICUBIC
         img = transforms.functional.resize(
             img,
-            (resize_px, resize_px),
+            size=resize_px,
             interpolation=resize_method,
             antialias=resize_aa
         )

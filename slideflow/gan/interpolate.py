@@ -158,7 +158,7 @@ class StyleGAN2Interpolator:
             return map(
                 partial(
                     sf.io.torch.preprocess_uint8,
-                    normalizer=self.normlaizer,
+                    normalizer=self.normalizer,
                     resize_px=self.target_px),
                 generator())
         else:
