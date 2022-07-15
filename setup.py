@@ -59,6 +59,7 @@ setuptools.setup(
 		'rasterio',
         'smac',
         'ConfigSpace',
-        'pyarrow'
+        'pyarrow',
+        'ninja'
     ],
 )

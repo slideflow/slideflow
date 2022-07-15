@@ -33,3 +33,4 @@ rasterio
 smac
 ConfigSpace
 pyarrow
+ninja
