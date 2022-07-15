@@ -20,6 +20,12 @@ jobs:
         python -m
         pip install -r requirements.txt
         --user
+    - name: Initialize submodule
+      run: >-
+        git submodule init
+    - name: Update submodule
+      run: >-
+        git submodule update --remote --recursive
     - name: Build a binary wheel
       run: >-
         python
