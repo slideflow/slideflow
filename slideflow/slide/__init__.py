@@ -338,6 +338,33 @@ def vips2numpy(vi: "vips.Image") -> np.ndarray:
                       shape=[vi.height, vi.width, vi.bands])
 
 
+def vips_resize(
+    img: np.ndarray,
+    crop_width: int,
+    target_px: int
+) -> np.ndarray:
+    """Resizes and crops an image using libvips.resize()
+
+    Args:
+        img (np.ndarray): Image.
+        crop_width (int): Height/width of image crop (before resize).
+        target_px (int): Target size of final image after resizing.
+
+    Returns:
+        np.ndarray: Resized image.
+    """
+    img_data = np.ascontiguousarray(img).data
+    vips_image = vips.Image.new_from_memory(
+        img_data,
+        crop_width,
+        crop_width,
+        bands=3,
+        format="uchar"
+    )
+    vips_image = vips_image.resize(target_px/crop_width)
+    return vips2numpy(vips_image)
+
+
 def log_extraction_params(**kwargs) -> None:
     '''Logs tile extraction parameters.'''
 

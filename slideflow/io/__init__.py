@@ -10,7 +10,7 @@ from typing import Any, Dict, Optional, Tuple, Union
 
 import slideflow as sf
 from slideflow import errors
-from slideflow.io.io_utils import detect_tfrecord_format
+from slideflow.io.io_utils import detect_tfrecord_format, convert_dtype
 from slideflow.util import colors as col
 from slideflow.util import log
 from tqdm import tqdm

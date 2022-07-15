@@ -8,9 +8,10 @@ import seaborn as sns
 import slideflow as sf
 import tensorflow as tf
 import torch
+from functools import partial
 from sklearn.decomposition import PCA
-from slideflow.gan import tf_utils
-from slideflow.gan.stylegan2 import utils
+from slideflow.gan.stylegan2.utils import noise_tensor
+from slideflow.gan.utils import crop
 from slideflow.util import colors as col
 from slideflow.util import log
 from tqdm.auto import tqdm
@@ -50,8 +51,6 @@ class EmbeddingSearch:
             embed_end (torch.Tensor): Ending class embedding vector,
                 shape=(z_dim,)
             gan_kwargs (dict, optional): Keyword arguments for GAN.
-            process_kwargs (dict, optional): Keyword arguments for
-                tf_utils.process_gan_batch().
         """
         if pca_method not in ('raw', 'delta'):
             raise ValueError("Invalid pca_method {pca_method}")
@@ -66,11 +65,10 @@ class EmbeddingSearch:
         self.normalizer = normalizer
         self.gan_kwargs = gan_kwargs if gan_kwargs is not None else {}
         self.target_px = target_px
-        self.size_kw = dict(
+        self.crop_kw = dict(
             gan_um=gan_um,
             gan_px=gan_px,
             target_um=target_um,
-            target_px=target_px
         )
 
     @staticmethod
@@ -163,8 +161,9 @@ class EmbeddingSearch:
             embedding = torch.unsqueeze(embedding, dim=0)
 
         start_img_batch = self.E_G(z, embedding, **self.gan_kwargs)
-        start_img_batch = tf_utils.process_gan_batch(start_img_batch, **self.size_kw)  # type: ignore
-        start_img_batch = tf_utils.decode_batch(
+        start_img_batch = crop(start_img_batch, **self.crop_kw)  # type: ignore
+        start_img_batch = sf.io.convert_dtype(start_img_batch, tf.uint8)
+        start_img_batch = sf.io.tensorflow.preprocess_uint8(
             start_img_batch,
             normalizer=self.normalizer,
             resize_px=self.target_px
@@ -229,6 +228,28 @@ class EmbeddingSearch:
 
         return features0, no_interp_pc, delta_pc_full
 
+    def _build_gan_dataset(self, generator):
+        """_summary_
+
+        Args:
+            generator (Generator): Python generator which yields cropped
+                (but not resized) uint8 tensors.
+
+        Returns:
+            Iterable: _description_
+        """
+
+        sig = tf.TensorSpec(shape=(None, None, None, 3), dtype=tf.uint8)
+        dts = tf.data.Dataset.from_generator(generator, output_signature=sig)
+        return dts.map(
+            partial(
+                sf.io.tensorflow.preprocess_uint8,
+                normalizer=self.normalizer,
+                resize_px=self.target_px),
+            num_parallel_calls=tf.data.AUTOTUNE,
+            deterministic=True
+        )
+
     def _find_best_embedding_dim(
         self,
         z: torch.Tensor,
@@ -277,10 +298,11 @@ class EmbeddingSearch:
             for mask_batch in sf.util.batch(masks, batch_size):
                 embed_batch = self._embedding_from_mask(np.stack(mask_batch))
                 img_batch = self.E_G(z.expand(len(mask_batch), -1), embed_batch, **self.gan_kwargs)
-                yield tf_utils.process_gan_batch(img_batch, **self.size_kw)
+                cropped = crop(img_batch, **self.crop_kw)
+                yield sf.io.convert_dtype(cropped, tf.uint8)
 
         # Input data stream.
-        gan_end_dts = tf_utils.build_gan_dataset(gan_generator, self.target_px, normalizer=self.normalizer)
+        gan_end_dts = self._build_gan_dataset(gan_generator)
 
         # Calculate differences while interpolating across each dimension.
         pb = tqdm(total=len(masks), leave=False, position=1, desc="Inner search")
@@ -322,7 +344,7 @@ class EmbeddingSearch:
             pc (int, optional): Principal component index. Defaults to 0.
         """
         print("Performing ordered search.")
-        z = utils.noise_tensor(seed, self.E_G.z_dim)[0].to(self.device)
+        z = noise_tensor(seed, self.E_G.z_dim)[0].to(self.device)  # type: ignore
 
         # Full interpolation, for reference.
         features0, no_interp_pc, delta_pc_full = self._full_interpolation(z)
@@ -343,14 +365,11 @@ class EmbeddingSearch:
                     embed_batch,
                     **self.gan_kwargs
                 )
-                yield tf_utils.process_gan_batch(img_batch, **self.size_kw)
+                cropped = crop(img_batch, **self.crop_kw)
+                yield sf.io.convert_dtype(cropped, tf.uint8)
 
         # Input data stream.
-        gan_end_dts = tf_utils.build_gan_dataset(
-            gan_generator,
-            self.target_px,
-            normalizer=self.normalizer
-        )
+        gan_end_dts = self._build_gan_dataset(gan_generator)
 
         pb = tqdm(total = len(masks), leave=False)
         for img_batch in gan_end_dts:
@@ -397,7 +416,7 @@ class EmbeddingSearch:
 
         print(col.bold(f"\nSearching: PC={pc} on seed={seed} with depth={depth}"))
 
-        z = utils.noise_tensor(seed, z_dim=self.E_G.z_dim)[0].to(self.device)
+        z = noise_tensor(seed, z_dim=self.E_G.z_dim)[0].to(self.device)  # type: ignore
         self.selected_dims = []  # type: ignore
         self.pc_change = []
         self.other_pc_change = []

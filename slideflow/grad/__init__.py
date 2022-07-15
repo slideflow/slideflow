@@ -80,7 +80,7 @@ class SaliencyMap:
 
         if isinstance(img, list):
             # Normalize together
-            image_3d = map(_get_mask, img)
+            image_3d = list(map(_get_mask, img))
             v_maxes, v_mins = zip(*[max_min(img3d) for img3d in image_3d])
             vmax = max(v_maxes)
             vmin = min(v_mins)

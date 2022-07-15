@@ -74,6 +74,46 @@ def _print_record(filename: str) -> None:
 
 
 @tf.function
+def preprocess_uint8(
+    img: tf.Tensor,
+    normalizer: Optional["StainNormalizer"] = None,
+    standardize: bool = True,
+    resize_px: Optional[int] = None,
+    resize_method: str = 'lanczos3',
+    resize_aa: bool = True,
+) -> Dict[str, tf.Tensor]:
+    """Process batch of tensorflow images, resizing, normalizing,
+    and standardizing.
+
+    Args:
+        img (tf.Tensor): Batch of tensorflow images (uint8).
+        normalizer (sf.norm.StainNormalizer, optional): Normalizer.
+            Defaults to None.
+        standardize (bool, optional): Standardize images. Defaults to True.
+        resize_px (Optional[int], optional): Resize images. Defaults to None.
+        resize_method (str, optional): Resize method. Defaults to 'lanczos3'.
+        resize_aa (bool, optional): Apply antialiasing during resizing.
+            Defaults to True.
+
+    Returns:
+        Dict[str, tf.Tensor]: Processed image.
+    """
+    if resize_px is not None:
+        img = tf.image.resize(
+            img,
+            (resize_px, resize_px),
+            method=resize_method,
+            antialias=resize_aa
+        )
+        img = tf.cast(img, tf.uint8)
+    if normalizer is not None:
+        img = normalizer.tf_to_tf(img)  # type: ignore
+    if standardize:
+        img = tf.image.per_image_standardization(img)
+    return {'tile_image': img}
+
+
+@tf.function
 def process_image(
     record: Union[tf.Tensor, Dict[str, tf.Tensor]],
     *args: Any,
@@ -457,23 +497,21 @@ def interleave(
             deterministic=deterministic
         )
         # ------- Apply normalization -----------------------------------------
-        if normalizer and normalizer.vectorized:
-            log.info("Using fast, vectorized normalization")
-            norm_batch_size = 32 if not batch_size else batch_size
-            dataset = dataset.batch(norm_batch_size, drop_remainder=drop_last)
-            dataset = dataset.map(
-                normalizer.batch_to_batch,  # type: ignore
-                num_parallel_calls=tf.data.AUTOTUNE,
-                deterministic=deterministic
-            )
-            dataset = dataset.unbatch()
-        elif normalizer:
-            log.info("Using slow, per-image normalization")
+        if normalizer:
+            if normalizer.vectorized:
+                log.info("Using fast, vectorized normalization")
+                norm_batch_size = 32 if not batch_size else batch_size
+                dataset = dataset.batch(norm_batch_size, drop_remainder=drop_last)
+            else:
+                log.info("Using slow, per-image normalization")
             dataset = dataset.map(
                 normalizer.tf_to_tf,
                 num_parallel_calls=tf.data.AUTOTUNE,
                 deterministic=deterministic
             )
+            if normalizer.vectorized:
+                dataset = dataset.unbatch()
+
         # ------- Standardize and augment images ------------------------------
         dataset = dataset.map(
             partial(

@@ -88,7 +88,7 @@ class TorchStainNormalizer(StainNormalizer):
             'target_concentrations': None if self.target_concentrations is None else self.target_concentrations.tolist()
         }
 
-    def batch_to_batch(
+    def torch_to_torch(
         self,
         batch: Union[dict, torch.Tensor],
         *args
@@ -97,14 +97,18 @@ class TorchStainNormalizer(StainNormalizer):
             to_return = {k: v for k, v in batch.items() if k != 'tile_image'}
             to_return['tile_image'] = self.torch_to_torch(batch['tile_image'])
             return detuple(to_return, args)
-        else:
+        elif len(batch.shape) == 3:
+            batch = torch.unsqueeze(batch, dim=0)
             return detuple(self.torch_to_torch(batch), args)
-
-    def torch_to_torch(self, image: torch.Tensor) -> torch.Tensor:
-        if len(image.shape) == 3:
-            return self.n.transform(torch.unsqueeze(image, dim=0), self.target_means, self.target_stds).squeeze()
         else:
-            return self.n.transform(image, self.target_means, self.target_stds)
+            return detuple(
+                self.n.transform(
+                    batch,
+                    self.target_means,
+                    self.target_stds), args)
+
+    def batch_to_batch(self, image: torch.Tensor) -> torch.Tensor:
+        return self.torch_to_torch(image)
 
     def torch_to_rgb(self, image: torch.Tensor) -> np.ndarray:
         return self.torch_to_torch(image).numpy()

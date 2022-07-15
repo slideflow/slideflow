@@ -260,7 +260,7 @@ class TensorflowStainNormalizer(StainNormalizer):
         }
 
     @tf.function
-    def batch_to_batch(
+    def tf_to_tf(
         self,
         batch: Union[Dict, tf.Tensor],
         *args: Any
@@ -283,16 +283,19 @@ class TensorflowStainNormalizer(StainNormalizer):
                 }
                 to_return['tile_image'] = self.tf_to_tf(batch['tile_image'])
                 return detuple(to_return, args)
+            elif len(batch.shape) == 3:
+                batch = tf.expand_dims(batch, axis=0)
+                return detuple(self.tf_to_tf(batch)[0], args)
             else:
-                return detuple(self.tf_to_tf(batch), args)
+                return detuple(
+                    self.n.transform(
+                        batch,
+                        self.target_means_tensor,
+                        self.target_stds_tensor), args)
 
     @tf.function
-    def tf_to_tf(self, image: tf.Tensor) -> tf.Tensor:
-        if len(image.shape) == 3:
-            image = tf.expand_dims(image, axis=0)
-            return self.n.transform(image, self.target_means_tensor, self.target_stds_tensor)[0]
-        else:
-            return self.n.transform(image, self.target_means_tensor, self.target_stds_tensor)
+    def batch_to_batch(self, image: tf.Tensor) -> tf.Tensor:
+        return self.tf_to_tf(image)
 
     def tf_to_rgb(self, image: tf.Tensor) -> np.ndarray:
         return self.tf_to_tf(image).numpy()

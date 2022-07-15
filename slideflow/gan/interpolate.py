@@ -1,19 +1,22 @@
 """Tool to assist with embedding interpolation for a class-conditional GAN."""
 
-from typing import Callable, Generator, List, Optional, Tuple, Union
+from typing import (Generator, List, Optional, Tuple, Union,
+                    TYPE_CHECKING, Any)
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
 import slideflow as sf
-import tensorflow as tf
 import torch
 from PIL import Image
-from slideflow.gan import tf_utils
 from slideflow.gan.stylegan2 import embedding, utils
+from slideflow.gan.utils import crop
 from tqdm import tqdm
+from functools import partial
 
+if TYPE_CHECKING:
+    import tensorflow as tf
 
 class StyleGAN2Interpolator:
 
@@ -41,7 +44,6 @@ class StyleGAN2Interpolator:
         self.E_G, self.G = embedding.load_embedding_gan(gan_pkl, device)
         self.device = device
         self.gan_kwargs = gan_kwargs
-        self.decode_kwargs = dict(standardize=False, resize_px=target_px)
         self.embed0, self.embed1 = embedding.get_class_embeddings(
             self.G,
             start=start,
@@ -51,22 +53,116 @@ class StyleGAN2Interpolator:
         self.features = None  # type: Optional[sf.model.Features]
         self.normalizer = None
         self.target_px = target_px
-        self.size_kw = dict(
+        self.crop_kw = dict(
             gan_um=gan_um,
             gan_px=gan_px,
             target_um=target_um,
-            target_px=target_px
         )
 
-    def _normalize_batch(self, img: tf.Tensor):
-        """Normalize an image tensor."""
-        if self.normalizer:
-            if self.normalizer.vectorized:
-                return self.normalizer.batch_to_batch(img)
-            else:
-                return tf.stack([self.normalizer.tf_to_tf(_i) for _i in img])
+    def _crop_and_convert_to_uint8(self, img: torch.Tensor) -> Any:
+        """Convert a batch of GAN images to a resized/cropped uint8 tensor.
+
+        Args:
+            img (torch.Tensor): Raw GAN output images (torch.float32)
+
+        Returns:
+            Any: GAN images (torch.uint8)
+        """
+        if sf.backend() == 'tensorflow':
+            import tensorflow as tf
+            dtype = tf.uint8
+        elif sf.backend() == 'torch':
+            import torch
+            dtype = torch.uint8
         else:
-            return img
+            raise ValueError(f"Unrecognized backend {sf.backend()}")
+        img = crop(img, **self.crop_kw)  # type: ignore
+        return sf.io.convert_dtype(img, dtype)
+
+    def _preprocess_from_uint8(
+        self,
+        img: Any,
+        normalize: bool,
+        standardize: bool,
+    ) -> Any:
+        """Convert and resize a batch of uint8 tensors to
+        standardized/normalized tensors ready for input to the
+        classifier/feature model.
+
+        Args:
+            img (Any): GAN images (uint8)
+            normalize (bool): Normalize the images.
+            standardize (bool): Standardize the images.
+
+        Returns:
+            Any: Resized GAN images (uint8 or float32 if standardize=True)
+        """
+        normalizer = self.normalizer if normalize else None
+        if sf.backend() == 'tensorflow':
+            return sf.io.tensorflow.preprocess_uint8(
+                img,
+                normalizer=normalizer,
+                standardize=standardize,
+                resize_px=self.target_px)['tile_image']
+        elif sf.backend() == 'torch':
+            return sf.io.torch.preprocess_uint8(
+                img,
+                normalizer=normalizer,
+                standardize=standardize,
+                resize_px=self.target_px)
+        else:
+            raise ValueError(f"Unrecognized backend {sf.backend()}")
+
+    def _standardize(self, img: Any) -> Any:
+        """Standardize image from uint8 to float.
+
+        Args:
+            img (Any): uint8 image tensor.
+
+        Returns:
+            Any: Standardized float image tensor.
+        """
+        if sf.backend() == 'tensorflow':
+            import tensorflow as tf
+            return sf.io.convert_dtype(img, tf.float32)
+        elif sf.backend() == 'torch':
+            import torch
+            return sf.io.convert_dtype(img, torch.float32)
+        else:
+            raise ValueError(f"Unrecognized backend {sf.backend()}")
+
+    def _build_gan_dataset(self, generator):
+        """_summary_
+
+        Args:
+            generator (Generator): Python generator which yields cropped
+                (but not resized) uint8 tensors.
+
+        Returns:
+            Iterable: _description_
+        """
+        if sf.backend() == 'tensorflow':
+            import tensorflow as tf
+
+            sig = tf.TensorSpec(shape=(None, None, None, 3), dtype=tf.uint8)
+            dts = tf.data.Dataset.from_generator(generator, output_signature=sig)
+            return dts.map(
+                partial(
+                    sf.io.tensorflow.preprocess_uint8,
+                    normalizer=self.normalizer,
+                    resize_px=self.target_px),
+                num_parallel_calls=tf.data.AUTOTUNE,
+                deterministic=True
+            )
+        elif sf.backend() == 'torch':
+            return map(
+                partial(
+                    sf.io.torch.preprocess_uint8,
+                    normalizer=self.normlaizer,
+                    resize_px=self.target_px),
+                generator())
+        else:
+            raise ValueError(f"Unrecognized backend {sf.backend()}")
 
     def z(self, seed: int) -> torch.Tensor:
         """Returns a noise tensor for a given seed.
@@ -77,7 +173,7 @@ class StyleGAN2Interpolator:
         Returns:
             torch.tensor: Noise tensor for the corresponding seed.
         """
-        return utils.noise_tensor(seed, self.E_G.z_dim).to(self.device)
+        return utils.noise_tensor(seed, self.E_G.z_dim).to(self.device)  # type: ignore
 
     def set_feature_model(
         self,
@@ -136,20 +232,13 @@ class StyleGAN2Interpolator:
                         for s in seed_batch]
                     ).to(self.device)
                     img_batch = self.E_G(z, embedding.expand(z.shape[0], -1), **self.gan_kwargs)
-                    yield tf_utils.process_gan_batch(img_batch, **self.size_kw)
+                    yield self._crop_and_convert_to_uint8(img_batch)
             return generator
 
         # --- Input data stream ---------------------------------------------------
-        gan_embed0_dts = tf_utils.build_gan_dataset(
-            gan_generator(self.embed0),
-            self.target_px,
-            normalizer=self.normalizer
-        )
-        gan_embed1_dts = tf_utils.build_gan_dataset(
-            gan_generator(self.embed1),
-            self.target_px,
-            normalizer=self.normalizer
-        )
+        gan_embed0_dts = self._build_gan_dataset(gan_generator(self.embed0))
+        gan_embed1_dts = self._build_gan_dataset(gan_generator(self.embed1))
+
         # Calculate classifier features for GAN images created from seeds.
         # Calculation happens in batches to improve computational efficiency.
         # noise + embedding -> GAN -> Classifier -> Predictions, Features
@@ -165,8 +254,8 @@ class StyleGAN2Interpolator:
             features1, pred1 = self.features(embed1_batch)
             pred0 = pred0[:, 0].numpy()
             pred1 = pred1[:, 0].numpy()
-            features0 = tf.reshape(features0, (len(seed_batch), -1)).numpy().astype(np.float32)
-            features1 = tf.reshape(features1, (len(seed_batch), -1)).numpy().astype(np.float32)
+            features0 = np.reshape(features0.numpy(), (len(seed_batch), -1)).astype(np.float32)
+            features1 = np.reshape(features1.numpy(), (len(seed_batch), -1)).astype(np.float32)
 
             # For each seed in the batch, determine if there ids "class-swapping",
             # where the GAN class label matches the classifier prediction.
@@ -237,16 +326,16 @@ class StyleGAN2Interpolator:
         fig, ax = plt.subplots(len(seeds), 2, figsize=(2 * scale, len(seeds) * scale))
         for s, seed in enumerate(seeds):
             # First image (starting embedding)
-            img0 = self.generate_start()
-            img0 = tf_utils.process_gan_batch(img0, **self.size_kw)  # type: ignore
-            img0 = tf_utils.decode_batch(img0, **self.decode_kwargs)
-            img0 = Image.fromarray(img0['tile_image'].numpy()[0])
+            img0 = self.generate_start(seed)
+            img0 = self._crop_and_convert_to_uint8(img0)
+            img0 = self._preprocess_from_uint8(img0, standardize=False, normalize=False)
+            img0 = Image.fromarray(img0.numpy()[0])
 
             # Second image (ending embedding)
-            img1 = self.generate_end()
-            img1 = tf_utils.process_gan_batch(img1, **self.size_kw)  # type: ignore
-            img1 = tf_utils.decode_batch(img1, **self.decode_kwargs)
-            img1 = Image.fromarray(img1['tile_image'].numpy()[0])
+            img1 = self.generate_end(seed)
+            img1 = self._crop_and_convert_to_uint8(img1)
+            img1 = self._preprocess_from_uint8(img1, standardize=False, normalize=False)
+            img1 = Image.fromarray(img1.numpy()[0])
 
             if len(seeds) == 1:
                 _ax0 = ax[0]
@@ -315,7 +404,7 @@ class StyleGAN2Interpolator:
         img = self.generate(seed, embedding)
         img = img.permute(0, 2, 3, 1) * 127.5 + 128
         img = img.clamp(0, 255).to(torch.uint8).cpu().numpy()[0]
-        return img
+        return img  # type: ignore
 
     def generate_np_start(self, seed: int) -> np.ndarray:
         """Generate a numpy image from the starting class.
@@ -343,7 +432,7 @@ class StyleGAN2Interpolator:
         self,
         seed: int,
         embedding: torch.Tensor
-    ) -> Tuple[tf.Tensor, tf.Tensor]:
+    ) -> Tuple["tf.Tensor", "tf.Tensor"]:
         """Create a processed Tensorflow image from the GAN output from a given
         seed and embedding.
 
@@ -356,18 +445,15 @@ class StyleGAN2Interpolator:
 
             tf.Tensor: Processed resized image, standardized and normalized.
         """
+        import tensorflow as tf
+
         gan_out = self.generate(seed, embedding)
-        gan_out = tf_utils.process_gan_batch(gan_out, **self.size_kw)  # type: ignore
-        gan_out = tf_utils.decode_batch(
-            gan_out,
-            normalizer=self.normalizer,
-            **self.decode_kwargs
-        )
-        gan_out = gan_out['tile_image']
-        standardized = tf.image.per_image_standardization(gan_out)
+        gan_out = self._crop_and_convert_to_uint8(gan_out)
+        gan_out = self._preprocess_from_uint8(gan_out, standardize=False, normalize=True)
+        standardized = self._standardize(gan_out)
         return gan_out[0], standardized[0]
 
-    def generate_tf_start(self, seed: int) -> Tuple[tf.Tensor, tf.Tensor]:
+    def generate_tf_start(self, seed: int) -> Tuple["tf.Tensor", "tf.Tensor"]:
         """Create a processed Tensorflow image from the GAN output of a given
         seed and the starting class embedding.
 
@@ -381,7 +467,7 @@ class StyleGAN2Interpolator:
         """
         return self.generate_tf_from_embedding(seed, self.embed0)
 
-    def generate_tf_end(self, seed: int) -> Tuple[tf.Tensor, tf.Tensor]:
+    def generate_tf_end(self, seed: int) -> Tuple["tf.Tensor", "tf.Tensor"]:
         """Create a processed Tensorflow image from the GAN output of a given
         seed and the ending class embedding.
 
@@ -445,48 +531,36 @@ class StyleGAN2Interpolator:
             **self.gan_kwargs
         )
 
-    def interpolate(
+    def interpolate_and_predict(
         self,
         seed: int,
         steps: int = 100,
-        watch: Callable = None
     ) -> Tuple[List, ...]:
         """Interpolates between starting and ending classes for a seed,
-        recording raw images, processed images, predictions, and optionally
-        calling a function on each image during interpolation and recording
-        results.
+        recording raw images, processed images, and predictions.
 
         Args:
             seed (int): Seed for random noise vector.
             steps (int, optional): Number of steps during interpolation.
                 Defaults to 100.
-            watch (Callable, optional): Function to call on every processed
-                image during interpolation. If provided, will provide list of
-                results as last returned item. Defaults to None.
 
         Returns:
-            Tuple[List, ...]: List of raw images, processed images, predictions,
-                and optionally a list of results from the watch function called
-                on each processed image.
+            Tuple[List, ...]: Raw images, processed images, and predictions.
         """
         imgs = []
         proc_imgs = []
         preds = []
-        watch_out = []
 
         for img in tqdm(self.class_interpolate(seed, steps), total=steps):
             img = torch.from_numpy(np.expand_dims(img, axis=0)).permute(0, 3, 1, 2)
             img = (img / 127.5) - 1
-            img = tf_utils.process_gan_batch(img, **self.size_kw)  # type: ignore
-            img = tf_utils.decode_batch(img, **self.decode_kwargs)
-            img = self._normalize_batch(img['tile_image'])
-            processed_img = tf.image.per_image_standardization(img)
+            img = self._crop_and_convert_to_uint8(img)
+            img = self._preprocess_from_uint8(img, standardize=False, normalize=True)
+            processed_img = self._standardize(img)
             img = img.numpy()[0]
             if self.features is not None:
                 pred = self.features(processed_img)[-1].numpy()
                 preds += [pred[0][0]]
-            if watch is not None:
-                watch_out += [watch(processed_img)]
             imgs += [img]
             proc_imgs += [processed_img[0]]
 
@@ -496,7 +570,4 @@ class StyleGAN2Interpolator:
         plt.xlabel("Interpolation Step (Start -> End)")
         plt.ylabel("Prediction")
 
-        if watch is not None:
-            return imgs, proc_imgs, preds, watch_out
-        else:
-            return imgs, proc_imgs, preds
+        return imgs, proc_imgs, preds

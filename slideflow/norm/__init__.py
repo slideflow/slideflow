@@ -207,13 +207,16 @@ class StainNormalizer:
         image: Union[Dict, "tf.Tensor"],
         *args: Any
     ) -> Tuple[Union[Dict, "tf.Tensor"], ...]:
-        '''Tensorflow RGB image -> normalized Tensorflow RGB image'''
+        '''Tensorflow RGB image (or batch)
+            -> normalized Tensorflow RGB image (or batch)'''
         if isinstance(image, dict):
             image['tile_image'] = tf.py_function(
                 self.tf_to_rgb,
                 [image['tile_image']],
                 tf.int32
             )
+        elif len(image.shape) == 4:
+            image = tf.stack([self.tf_to_tf(_i) for _i in image])
         else:
             image = tf.py_function(self.tf_to_rgb, [image], tf.int32)
         return detuple(image, args)

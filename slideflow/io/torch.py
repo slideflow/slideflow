@@ -12,7 +12,9 @@ import numpy as np
 import pandas as pd
 import slideflow as sf
 import torchvision
+from torchvision import transforms
 from slideflow import errors
+from slideflow.io import convert_dtype
 from slideflow.io.io_utils import detect_tfrecord_format
 from slideflow.tfrecord.torch.dataset import MultiTFRecordDataset
 from slideflow.util import Labels, log, to_onehot
@@ -216,7 +218,7 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
         else:
             label = 0
 
-        image = image.permute(2, 0, 1)  # HWC => CHW
+        image = whc_to_cwh(image)
         to_return = [image]  # type: List[Any]
 
         # Support for multiple outcome labels
@@ -363,7 +365,7 @@ class LocLabelInterleaver(StyleGAN2Interleaver):
         label_key = f'{slide}-{loc_x}-{loc_y}'
         label = torch.tensor(self.df.iloc[self.df.index.get_loc(label_key)])[0]
 
-        image = image.permute(2, 0, 1)  # HWC => CHW
+        image = whc_to_cwh(image)
         to_return = [image, label]  # type: List[Any]
 
         if self.incl_slidenames:
@@ -382,6 +384,28 @@ def _get_images_by_dir(directory: str) -> List[str]:
             and (sf.util.path_to_ext(f) in ("jpg", "jpeg", "png")))
     ]
     return files
+
+
+def cwh_to_whc(img):
+    if len(img.shape) == 3:
+        return img.permute(1, 2, 0)  # CWH -> WHC
+    elif len(img.shape) == 4:
+        return img.permute(0, 2, 3, 1)  # BCWH -> BWHC
+    else:
+        raise ValueError(
+            "Invalid shape for channel conversion. Expected 3 or 4 dims, "
+            f"got {len(img.shape)} (shape={img.shape})")
+
+
+def whc_to_cwh(img):
+    if len(img.shape) == 3:
+        return img.permute(2, 0, 1)  # WHC => CWH
+    elif len(img.shape) == 4:
+        return img.permute(0, 3, 1, 2)  # BWHC -> BCWH
+    else:
+        raise ValueError(
+            "Invalid shape for channel conversion. Expected 3 or 4 dims, "
+            f"got {len(img.shape)} (shape={img.shape})")
 
 
 def auto_gaussian(image: torch.Tensor, sigma: float) -> torch.Tensor:
@@ -431,6 +455,44 @@ def serialized_record(
     return example
 
 
+def preprocess_uint8(
+    img: torch.Tensor,
+    normalizer: Optional["StainNormalizer"] = None,
+    standardize: bool = True,
+    resize_px: Optional[int] = None,
+    resize_method: str = 'lanczos3',
+    resize_aa: bool = True,
+) -> torch.Tensor:
+    """Process batch of tensorflow images, resizing, normalizing,
+    and standardizing.
+
+    Args:
+        img (tf.Tensor): Batch of tensorflow images (uint8).
+        normalizer (sf.norm.StainNormalizer, optional): Normalizer.
+            Defaults to None.
+        standardize (bool, optional): Standardize images. Defaults to True.
+        resize_px (Optional[int], optional): Resize images. Defaults to None.
+        resize_method (str, optional): Resize method. Defaults to 'lanczos3'.
+        resize_aa (bool, optional): Apply antialiasing during resizing.
+            Defaults to True.
+
+    Returns:
+        Dict[str, tf.Tensor]: Processed image.
+    """
+    if resize_px is not None:
+        img = transforms.functional.resize(
+            img,
+            (resize_px, resize_px),
+            interpolation=resize_method,
+            antialias=resize_aa
+        )
+    if normalizer is not None:
+        img = normalizer.torch_to_torch(img)  # type: ignore
+    if standardize:
+        img = convert_dtype(img, torch.uint8)
+    return img
+
+
 def _decode_image(
     img_string: Union[bytes, str],
     img_type: str,
@@ -442,16 +504,16 @@ def _decode_image(
     """Decodes image. Torch implementation; different than sf.io.tensorflow"""
 
     np_data = torch.from_numpy(np.fromstring(img_string, dtype=np.uint8))
-    image = torchvision.io.decode_image(np_data).permute(1, 2, 0)  # CWH => WHC
+    image = cwh_to_whc(torchvision.io.decode_image(np_data))
     # Alternative method using PIL decoding:
     # image = np.array(Image.open(BytesIO(img_string)))
 
     def random_jpeg_compression(img):
         img = torchvision.io.encode_jpeg(
-            img.permute(2, 0, 1),  # WHC => CWH
+            whc_to_cwh(img),
             quality=(torch.rand(1)[0]*50 + 50)
         )
-        return torchvision.io.decode_image(img).permute(1, 2, 0)  # CWH => WHC
+        return cwh_to_whc(torchvision.io.decode_image(img))
 
     if augment is True or (isinstance(augment, str) and 'j' in augment):
         image = torch.where(
@@ -476,7 +538,7 @@ def _decode_image(
         )
     if augment is True or (isinstance(augment, str) and 'b' in augment):
         # image = image.to(device)
-        image = image.permute(2, 0, 1)  # WHC => CWH
+        image = whc_to_cwh(image)
         image = torch.where(
             (torch.rand(1)[0] < 0.1),  # .to(device),
             torch.where(
@@ -494,13 +556,10 @@ def _decode_image(
             ),
             image
         )
-        image = image.permute(1, 2, 0)  # CWH => WHC
+        image = cwh_to_whc(image)
         # image = image.cpu()
     if normalizer:
-        if normalizer.vectorized:
-            image = normalizer.torch_to_torch(image)  # type: ignore
-        else:
-            image = torch.from_numpy(normalizer.rgb_to_rgb(image.numpy()))
+        image = normalizer.torch_to_torch(image)  # type: ignore
     if standardize:
         # Note: not the same as tensorflow's per_image_standardization
         # Convert back: image = (image + 1) * (255/2)
