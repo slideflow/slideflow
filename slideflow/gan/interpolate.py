@@ -252,6 +252,11 @@ class StyleGAN2Interpolator:
 
             features0, pred0 = self.features(embed0_batch)
             features1, pred1 = self.features(embed1_batch)
+
+            if sf.backend() == 'torch':
+                pred0, pred1 = pred0.cpu(), pred1.cpu()
+                features0, features1 = features0.cpu(), features1.cpu()
+
             pred0 = pred0[:, 0].numpy()
             pred1 = pred1[:, 0].numpy()
             features0 = np.reshape(features0.numpy(), (len(seed_batch), -1)).astype(np.float32)
@@ -322,20 +327,18 @@ class StyleGAN2Interpolator:
             titles = ['Start', 'End']
         assert len(titles) == 2
 
+        def _process_to_pil(_img):
+            _img = self._crop_and_convert_to_uint8(_img)
+            _img = self._preprocess_from_uint8(_img, standardize=False, normalize=False)
+            if sf.backend() == 'torch':
+                _img = sf.io.torch.cwh_to_whc(_img)
+            return Image.fromarray(sf.io.convert_dtype(_img[0], np.uint8))
+
         scale = 5
         fig, ax = plt.subplots(len(seeds), 2, figsize=(2 * scale, len(seeds) * scale))
         for s, seed in enumerate(seeds):
-            # First image (starting embedding)
-            img0 = self.generate_start(seed)
-            img0 = self._crop_and_convert_to_uint8(img0)
-            img0 = self._preprocess_from_uint8(img0, standardize=False, normalize=False)
-            img0 = Image.fromarray(img0.numpy()[0])
-
-            # Second image (ending embedding)
-            img1 = self.generate_end(seed)
-            img1 = self._crop_and_convert_to_uint8(img1)
-            img1 = self._preprocess_from_uint8(img1, standardize=False, normalize=False)
-            img1 = Image.fromarray(img1.numpy()[0])
+            img0 = _process_to_pil(self.generate_start(seed))
+            img1 = _process_to_pil(self.generate_end(seed))
 
             if len(seeds) == 1:
                 _ax0 = ax[0]
@@ -402,9 +405,7 @@ class StyleGAN2Interpolator:
             np.ndarray: Image (uint8, shape=(height, width, 3))
         """
         img = self.generate(seed, embedding)
-        img = img.permute(0, 2, 3, 1) * 127.5 + 128
-        img = img.clamp(0, 255).to(torch.uint8).cpu().numpy()[0]
-        return img  # type: ignore
+        return sf.io.convert_dtype(img, np.uint8)[0]
 
     def generate_np_start(self, seed: int) -> np.ndarray:
         """Generate a numpy image from the starting class.
@@ -557,9 +558,13 @@ class StyleGAN2Interpolator:
             img = self._crop_and_convert_to_uint8(img)
             img = self._preprocess_from_uint8(img, standardize=False, normalize=True)
             processed_img = self._standardize(img)
-            img = img.numpy()[0]
+            img = sf.io.convert_dtype(img, np.float32)[0]
+
             if self.features is not None:
-                pred = self.features(processed_img)[-1].numpy()
+                pred = self.features(processed_img)[-1]
+                if sf.backend() == 'torch':
+                    pred = pred.cpu()
+                pred = pred.numpy()
                 preds += [pred[0][0]]
             imgs += [img]
             proc_imgs += [processed_img[0]]

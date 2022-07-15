@@ -1,6 +1,8 @@
 """Stain normalization methods, including both OpenCV (individual image)
 and Tensorflow/PyTorch (vectorized) implementations."""
 
+from __future__ import absolute_import
+
 import multiprocessing as mp
 import os
 from io import BytesIO
@@ -21,6 +23,7 @@ if sf.backend() == 'tensorflow':
     import tensorflow as tf
 elif TYPE_CHECKING:
     import tensorflow as tf
+    import torch
 
 from slideflow.norm import (augment, macenko, reinhard, reinhard_fast,
                             reinhard_mask, vahadane)
@@ -226,6 +229,18 @@ class StainNormalizer:
         else:
             image = tf.py_function(self.tf_to_rgb, [image], tf.int32)
         return detuple(image, args)
+
+    def torch_to_torch(self, image: "torch.Tensor") -> "torch.Tensor":
+        '''Non-normalized PyTorch image -> normalized RGB PyTorch image'''
+        import torch
+        from slideflow.io.torch import cwh_to_whc, whc_to_cwh
+
+        if len(image.shape) == 4:
+            return torch.stack([self.torch_to_torch(img) for img in image])
+        elif image.shape[0] == 3:
+            return whc_to_cwh(self.torch_to_torch(cwh_to_whc(image)))
+        else:
+            return torch.from_numpy(self.rgb_to_rgb(image.cpu().numpy()))
 
     def tf_to_rgb(self, image: "tf.Tensor") -> np.ndarray:
         '''Non-normalized tensorflow RGB array -> normalized RGB numpy array'''

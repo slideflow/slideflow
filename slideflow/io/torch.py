@@ -214,6 +214,8 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
         loc_x: Optional[int] = None,
         loc_y: Optional[int] = None
     ) -> List[torch.Tensor]:
+        """Parse a standardize PyTorch image (WHC) and slide/location
+        information, to a CWH image formatted for model input."""
         if self.labels is not None:
             label = self.labels[slide]
         else:
@@ -343,7 +345,7 @@ class LocLabelInterleaver(StyleGAN2Interleaver):
         """For use with StyleGAN2"""
         return self._label_shape
 
-    def _parser(
+    def _parser(  # type: ignore
         self,
         image: torch.Tensor,
         slide: str,
@@ -494,7 +496,7 @@ def preprocess_uint8(
     if normalizer is not None:
         img = normalizer.torch_to_torch(img)  # type: ignore
     if standardize:
-        img = convert_dtype(img, torch.uint8)
+        img = convert_dtype(img, torch.float32)
     return img
 
 
@@ -564,7 +566,7 @@ def _decode_image(
         image = cwh_to_whc(image)
         # image = image.cpu()
     if normalizer:
-        image = normalizer.torch_to_torch(image)  # type: ignore
+        image = normalizer.torch_to_torch(image)
     if standardize:
         # Note: not the same as tensorflow's per_image_standardization
         # Convert back: image = (image + 1) * (255/2)

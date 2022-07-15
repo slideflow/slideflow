@@ -2,9 +2,9 @@
 
 from typing import Any, Callable, Dict
 
+import slideflow as sf
 import numpy as np
 import saliency.core as saliency
-import tensorflow as tf
 from slideflow.grad.plot_utils import (comparison_plot, inferno, multi_plot,
                                        oranges, overlay,
                                        saliency_map_comparison)
@@ -20,7 +20,7 @@ class SaliencyMap:
                 calculated.
             class_idx (int): Index of class for backpropagating gradients.
         """
-        if not isinstance(model, Callable):
+        if not callable(model):
             raise ValueError("'model' must be a differentiable model.")
         self.model = model
         self.class_idx = class_idx
@@ -32,13 +32,35 @@ class SaliencyMap:
         self.fast_xrai_params = saliency.XRAIParameters()
         self.fast_xrai_params.algorithm = 'fast'
 
-    def _grad_fn(
+    def _grad_fn_torch(
         self,
         image: np.ndarray,
         call_model_args: Any = None,
         expected_keys: Dict = None
     ) -> Any:
-        """Calculate gradient attribution."""
+        """Calculate gradient attribution with PyTorch backend."""
+        import torch
+
+        image = torch.tensor(image, requires_grad=True).to(torch.float32)  # type: ignore
+        output = self.model(image)
+        if saliency.base.INPUT_OUTPUT_GRADIENTS in expected_keys:  # type: ignore
+            outputs = output[:, self.class_idx]
+            grads = torch.autograd.grad(outputs, image, grad_outputs=torch.ones_like(outputs))  # type: ignore
+            gradients = grads[0].detach().numpy()
+            return {saliency.base.INPUT_OUTPUT_GRADIENTS: gradients}
+        else:
+            # For Grad-CAM
+            raise NotImplementedError
+
+    def _grad_fn_tf(
+        self,
+        image: np.ndarray,
+        call_model_args: Any = None,
+        expected_keys: Dict = None
+    ) -> Any:
+        """Calculate gradient attribution with Tensorflow backend."""
+        import tensorflow as tf
+
         image = tf.convert_to_tensor(image)
         with tf.GradientTape() as tape:
             if expected_keys == [saliency.base.INPUT_OUTPUT_GRADIENTS]:
@@ -49,7 +71,21 @@ class SaliencyMap:
                 return {saliency.base.INPUT_OUTPUT_GRADIENTS: gradients}
             else:
                 # For Grad-CAM
-                raise ValueError
+                raise NotImplementedError
+
+    def _grad_fn(
+        self,
+        image: np.ndarray,
+        call_model_args: Any = None,
+        expected_keys: Dict = None
+    ) -> Any:
+        """Calculate gradient attribution."""
+        if sf.backend() == 'tensorflow':
+            return self._grad_fn_tf(image, call_model_args, expected_keys)
+        elif sf.backend() == 'torch':
+            return self._grad_fn_torch(image, call_model_args, expected_keys)
+        else:
+            raise ValueError(f"Unrecognized backend {sf.backend()}")
 
     def _apply_mask_fn(
         self,
