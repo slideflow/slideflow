@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 
 
 class ClassifierMetrics:
-    def __init__(self, y_true, y_pred, neptune_run=None):
+    def __init__(self, y_true, y_pred, neptune_run=None, autofit=True):
         self.y_true = y_true
         self.y_pred = y_pred
         self.neptune_run = neptune_run
@@ -35,6 +35,10 @@ class ClassifierMetrics:
         self.precision = None
         self.recall = None
         self.ap = None
+
+        if autofit:
+            self.roc_fit()
+            self.prc_fit()
 
     def roc_fit(self):
         self.fpr, self.tpr, self.threshold = metrics.roc_curve(
@@ -95,8 +99,6 @@ def _generate_tile_roc(
     """
     y_true, y_pred = yt_and_yp
     class_metrics = ClassifierMetrics(y_true, y_pred, neptune_run=neptune_run)
-    class_metrics.roc_fit()
-    class_metrics.prc_fit()
     return class_metrics
 
 
