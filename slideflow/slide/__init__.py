@@ -655,6 +655,7 @@ class _BaseLoader:
         self.blur_burden = None  # type: Optional[float]
         self.roi_scale = 1  # type: float
         self.roi_method = None  # type: Optional[str]
+        self.annPolys = []  # type: ignore
         filetype = sf.util.path_to_ext(path)
 
         # Initiate supported slide reader
@@ -1118,7 +1119,7 @@ class _BaseLoader:
             **kwargs
         )
         if not generator:
-            return
+            return None
 
         sample_tiles = []  # type: List
         generator_iterator = generator()

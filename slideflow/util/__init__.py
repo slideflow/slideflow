@@ -192,7 +192,7 @@ class Bar:
 
         timediff = int(time.time())-self.starttime
 
-        # Checkpoint every 5 seconds
+        # Checkpoint every {update_interval} seconds
         assert self.checkpoint_time is not None
         if (current_time - self.checkpoint_time) > self.update_interval:
 

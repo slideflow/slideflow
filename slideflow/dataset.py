@@ -1668,11 +1668,12 @@ class Dataset:
         for slide, patient in pairs:
             if slide in result and result[slide] != patient:
                 raise errors.AnnotationsError(
-                    f"Slide {slide} assigned to multiple patients: "
+                    f'Slide "{slide}" assigned to multiple patients: '
                     f"({patient}, {result[slide]})"
                 )
             else:
-                result[slide] = patient
+                if slide not in sf.util.EMPTY_ANNOTATIONS:
+                    result[slide] = patient
         return result
 
     def remove_filter(self, **kwargs: Any) -> "Dataset":

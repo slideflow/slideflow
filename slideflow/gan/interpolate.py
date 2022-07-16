@@ -1,7 +1,7 @@
 """Tool to assist with embedding interpolation for a class-conditional GAN."""
 
 from typing import (Generator, List, Optional, Tuple, Union,
-                    TYPE_CHECKING, Any)
+                    TYPE_CHECKING, Any, Iterable)
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -131,15 +131,16 @@ class StyleGAN2Interpolator:
         else:
             raise ValueError(f"Unrecognized backend {sf.backend()}")
 
-    def _build_gan_dataset(self, generator):
-        """_summary_
+    def _build_gan_dataset(self, generator) -> Iterable:
+        """Build a dataset from a given GAN generator.
 
         Args:
             generator (Generator): Python generator which yields cropped
                 (but not resized) uint8 tensors.
 
         Returns:
-            Iterable: _description_
+            Iterable: Iterable dataset which yields processed (resized and
+                normalized) images.
         """
         if sf.backend() == 'tensorflow':
             import tensorflow as tf
