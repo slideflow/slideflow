@@ -112,7 +112,10 @@ class SaliencyMap:
             if baseline:
                 kwargs.update({'x_baseline': np.zeros(_img.shape)})
 
-            return mask_fn(_img, self._grad_fn, **kwargs)
+            out = mask_fn(_img, self._grad_fn, **kwargs)
+            if sf.backend() == 'torch':
+                out = np.transpose(out, (1, 2, 0))  # CWH -> WHC
+            return out
 
         if isinstance(img, list):
             # Normalize together
