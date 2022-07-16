@@ -1558,6 +1558,8 @@ class Dataset:
 
             # Assemble results dictionary
             for slide, lbl in zip(filtered_slides, filtered_labels):
+                if slide in sf.util.EMPTY_ANNOTATIONS:
+                    continue
                 if not header_is_float:
                     lbl = _process_cat_label(lbl)
                 if slide in results:
