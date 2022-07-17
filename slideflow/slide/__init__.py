@@ -1143,9 +1143,9 @@ class _BaseLoader:
             location = tile_dict['loc']
             locations += [location]
             if 'ws_fraction' in tile_dict:
-                ws_fractions += tile_dict['ws_fraction']
+                ws_fractions += [tile_dict['ws_fraction']]
             if 'gs_fraction' in tile_dict:
-                gs_fractions += tile_dict['gs_fraction']
+                gs_fractions += [tile_dict['gs_fraction']]
 
             if dry_run:
                 continue
@@ -1214,7 +1214,7 @@ class _BaseLoader:
                 blur_burden=self.blur_burden,
                 num_tiles=len(locations),
                 qc_mask=self.qc_mask,
-                locations=df_dict
+                locations=df
             )
             slide_report = SlideReport(
                 sample_tiles,
