@@ -393,7 +393,7 @@ class Dataset:
 
     def __init__(
         self,
-        config: Path,
+        config: Union[str, Dict[str, Dict[str, str]]],
         sources: Union[str, List[str]],
         tile_px: Optional[int],
         tile_um: Optional[Union[str, int]],
@@ -440,12 +440,16 @@ class Dataset:
         self._min_tiles = min_tiles
         self._clip = {}  # type: Dict[str, int]
         self.prob_weights = None  # type: Optional[Dict]
-        self._config = config
         self._annotations = None  # type: Optional[pd.DataFrame]
         self.annotations_file = None  # type: Optional[str]
+        if isinstance(config, str):
+            self._config = config
+            loaded_config = sf.util.load_json(config)
+        else:
+            self._config = "<dict>"
+            loaded_config = config
 
-        # Read dataset sources from the configuration file
-        loaded_config = sf.util.load_json(config)
+        # Read dataset sources from the configuration
         sources = sources if isinstance(sources, list) else [sources]
         try:
             self.sources = {
@@ -459,7 +463,7 @@ class Dataset:
         if len(missing_sources):
             log.warn(
                 "The following sources were not found in the dataset "
-                f"configuration file {config}: {', '.join(missing_sources)}"
+                f"configuration: {', '.join(missing_sources)}"
             )
         # Create labels for each source based on tile size
         if (tile_px is not None) and (tile_um is not None):
