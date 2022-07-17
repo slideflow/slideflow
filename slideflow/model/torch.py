@@ -1847,7 +1847,6 @@ class Features:
         features_grid = np.zeros(zeros_shape, dtype=dtype)
         generator = slide.build_generator(
             shuffle=False,
-            include_loc='grid',
             show_progress=True,
             img_format=img_format,
             **kwargs)
@@ -1872,7 +1871,7 @@ class Features:
                             self.parent.wsi_normalizer.rgb_to_rgb(img.numpy())
                         )
                         img = img.permute(2, 0, 1)  # WHC => CWH
-                    loc = np.array(image_dict['loc'])
+                    loc = np.array(image_dict['grid'])
                     img = img / 127.5 - 1
                     yield img, loc
 

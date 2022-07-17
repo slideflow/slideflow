@@ -2010,7 +2010,6 @@ class Features:
         features_grid *= -1
         generator = slide.build_generator(
             shuffle=False,
-            include_loc='grid',
             show_progress=True,
             img_format=img_format,
             **kwargs
@@ -2026,7 +2025,7 @@ class Features:
                 image = tf.image.decode_jpeg(image, channels=3)
             elif img_format.lower() in ('png',):
                 image = tf.image.decode_png(image, channels=3)
-            loc = record['loc']
+            loc = record['grid']
             if self.wsi_normalizer:
                 image = self.wsi_normalizer.tf_to_tf(image)
             parsed_image = tf.image.per_image_standardization(image)
@@ -2037,7 +2036,7 @@ class Features:
         with tf.name_scope('dataset_input'):
             output_signature = {
                 'image': tf.TensorSpec(shape=(), dtype=tf.string),
-                'loc': tf.TensorSpec(shape=(2), dtype=tf.uint32)
+                'grid': tf.TensorSpec(shape=(2), dtype=tf.uint32)
             }
             tile_dataset = tf.data.Dataset.from_generator(
                 generator,

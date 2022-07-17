@@ -81,6 +81,15 @@ class SlideReport:
         else:
             return None
 
+    @property
+    def qc_mask(self) -> np.ndarray:
+        if self.data is None:
+            return None
+        if 'qc_mask' in self.data:
+            return self.data['qc_mask']
+        else:
+            return None
+
     def _compress(self, img: bytes) -> bytes:
         with io.BytesIO() as output:
             Image.open(io.BytesIO(img)).save(output, format="JPEG", quality=75)
