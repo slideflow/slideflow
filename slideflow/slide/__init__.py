@@ -1513,6 +1513,20 @@ class WSI(_BaseLoader):
             self.full_stride
         )
         self.grid = np.ones((len(x_range), len(y_range)), dtype=np.int32)
+
+        # ROI filtering
+        if self.roi_method != 'ignore' and self.annPolys is not None:
+            xfact = self.grid.shape[0] / (self.dimensions[0] / self.roi_scale)
+            yfact = self.grid.shape[1] / (self.dimensions[1] / self.roi_scale)
+            scaled = [
+                sa.scale(poly, xfact=xfact, yfact=yfact, origin=(0, 0))
+                for poly in self.annPolys]
+            self.roi_mask = rasterio.features.rasterize(
+                scaled,
+                out_shape=(self.grid.shape[1], self.grid.shape[0])).astype(bool)
+        else:
+            self.roi_mask = None
+
         for yi, y in enumerate(y_range):
             for xi, x in enumerate(x_range):
                 y = int(y)
@@ -1521,12 +1535,7 @@ class WSI(_BaseLoader):
 
                 # ROI filtering
                 if self.roi_method != 'ignore' and self.annPolys is not None:
-                    roi_x = int((x + self.full_extract_px/2)/self.roi_scale)
-                    roi_y = int((y + self.full_extract_px/2)/self.roi_scale)
-                    point_in_roi = any([
-                        annPoly.contains(sg.Point(roi_x, roi_y))
-                        for annPoly in self.annPolys
-                    ])
+                    point_in_roi = self.roi_mask[yi, xi]
                     # If the extraction method is 'inside',
                     # skip the tile if it's not in an ROI
                     if (((self.roi_method == 'inside') and not point_in_roi)
