@@ -932,7 +932,7 @@ class Dataset:
         qc: Optional[str] = None,
         report: bool = True,
         **kwargs: Any
-    ) -> Optional[ExtractionReport]:
+    ) -> Dict[str, SlideReport]:
         """Extract tiles from a group of slides, saving extracted tiles to
         either loose image or in TFRecord binary format.
 
@@ -1040,7 +1040,7 @@ class Dataset:
             sources = sf.util.as_list(source)
         else:
             sources = list(self.sources.keys())
-        pdf_report = None
+        all_reports = []
         self.verify_annotations_slides()
 
         # Set up kwargs for tile extraction generator and quality control
@@ -1231,6 +1231,7 @@ class Dataset:
                 if report:
                     log.info('Generating PDF (this may take some time)...', )
                     rep_vals = list(reports.values())
+                    all_reports += rep_vals
                     num_slides = len(slide_list)
                     img_kwargs = defaultdict(lambda: None)  # type: Dict
                     img_kwargs.update(kwargs)
@@ -1266,7 +1267,7 @@ class Dataset:
         # Update manifest & rebuild indices
         self.update_manifest(force_update=True)
         self.build_index(True)
-        return pdf_report
+        return {report.path: report for report in all_reports}
 
     def extract_tiles_from_tfrecords(self, dest: str) -> None:
         """Extracts tiles from a set of TFRecords.
