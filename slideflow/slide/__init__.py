@@ -22,6 +22,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 import cv2
 import matplotlib.colors as mcol
 import numpy as np
+import pandas as pd
 import rasterio.features
 import shapely.geometry as sg
 import shapely.affinity as sa
@@ -237,26 +238,34 @@ def _wsi_extraction_worker(
             )
         # Perform whitespace filtering [Libvips]
         if args.whitespace_fraction < 1:
-            fraction = filter_region.bandmean().relational_const(
+            ws_fraction = filter_region.bandmean().relational_const(
                 'more',
                 args.whitespace_threshold
             ).avg() / 255
-            if fraction > args.whitespace_fraction:
+            if ws_fraction > args.whitespace_fraction:
                 return None
 
         # Perform grayspace filtering [Libvips]
         if args.grayspace_fraction < 1:
             hsv_region = filter_region.sRGB2HSV()
-            fraction = hsv_region[1].relational_const(
+            gs_fraction = hsv_region[1].relational_const(
                 'less',
                 args.grayspace_threshold*255
             ).avg() / 255
-            if fraction > args.grayspace_fraction:
+            if gs_fraction > args.grayspace_fraction:
                 return None
 
-    # If dry run, return the current coordinates only
+    # Prepare return dict with WS/GS fraction
+    return_dict = {}
+    if args.grayspace_fraction < 1:
+        return_dict.update({'gs_fraction': gs_fraction})
+    if args.whitespace_fraction < 1:
+        return_dict.update({'ws_fraction': ws_fraction})
+
+    # If dry run, return without the image
     if args.dry_run:
-        return {'loc': [x_coord, y_coord]}
+        return_dict.update({'loc': [x_coord, y_coord]})
+        return return_dict
 
     # Normalizer
     if not args.normalizer:
@@ -321,7 +330,7 @@ def _wsi_extraction_worker(
     if args.draw_roi:
         image = _draw_roi(image, coords)
 
-    return_dict = {'image': image}
+    return_dict.update({'image': image})
     if args.yolo:
         return_dict.update({'yolo': yolo_anns})
     if args.include_loc == 'grid':
@@ -1124,6 +1133,8 @@ class _BaseLoader:
         sample_tiles = []  # type: List
         generator_iterator = generator()
         locations = []
+        ws_fractions = []
+        gs_fractions = []
         num_wrote_to_tfr = 0
         dry_run = kwargs['dry_run'] if 'dry_run' in kwargs else False
         slidename_bytes = bytes(self.name, 'utf-8')
@@ -1131,6 +1142,10 @@ class _BaseLoader:
         for index, tile_dict in enumerate(generator_iterator):
             location = tile_dict['loc']
             locations += [location]
+            if 'ws_fraction' in tile_dict:
+                ws_fractions += tile_dict['ws_fraction']
+            if 'gs_fraction' in tile_dict:
+                gs_fractions += tile_dict['gs_fraction']
 
             if dry_run:
                 continue
@@ -1181,12 +1196,26 @@ class _BaseLoader:
             except OSError:
                 log.error(f"Unable to mark slide {self.name} as complete")
 
+        # Assemble report DataFrame
+        loc_np = np.array(locations)
+        df_dict = {
+            'loc_x': loc_np[:, 0],
+            'loc_y': loc_np[:, 1]
+        }
+        if ws_fractions:
+            df_dict.update({'ws_fraction': ws_fractions})
+        if gs_fractions:
+            df_dict.update({'gs_fraction': gs_fractions})
+        df = pd.DataFrame(df_dict)
+
         # Generate extraction report
         if report:
-            report_data = {
-                'blur_burden': self.blur_burden,
-                'num_tiles': len(locations),
-            }
+            report_data = dict(
+                blur_burden=self.blur_burden,
+                num_tiles=len(locations),
+                qc_mask=self.qc_mask,
+                locations=df_dict
+            )
             slide_report = SlideReport(
                 sample_tiles,
                 self.slide.path,

@@ -8,7 +8,7 @@ import tempfile
 from datetime import datetime
 from os.path import join
 from types import SimpleNamespace
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
 import numpy as np
 from fpdf import FPDF
@@ -17,6 +17,8 @@ from PIL import Image
 import slideflow as sf
 from slideflow.util import log, path_to_name  # noqa F401
 
+if TYPE_CHECKING:
+    import pandas as pd
 
 class SlideReport:
     '''Report to summarize tile extraction from a slide, including
@@ -67,6 +69,15 @@ class SlideReport:
             return None
         if 'num_tiles' in self.data:
             return self.data['num_tiles']
+        else:
+            return None
+
+    @property
+    def locations(self) -> "pd.DataFrame":
+        if self.data is None:
+            return None
+        if 'locations' in self.data:
+            return self.data['locations']
         else:
             return None
 
@@ -159,6 +170,7 @@ class ExtractionReport:
         import matplotlib.pyplot as plt
 
         self.bb_threshold = bb_threshold
+        self.reports = reports
         pdf = ExtractionPDF(title=title)
         pdf.alias_nb_pages()
         pdf.add_page()
