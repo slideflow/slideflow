@@ -2018,6 +2018,13 @@ class Features:
             log.error(f"No tiles extracted from slide {col.green(slide.name)}")
             return
 
+        def tile_generator():
+            for image_dict in generator():
+                yield {
+                    'grid': image_dict['grid'],
+                    'image': image_dict['image']
+                }
+
         @tf.function
         def _parse_function(record):
             image = record['image']
@@ -2039,7 +2046,7 @@ class Features:
                 'grid': tf.TensorSpec(shape=(2), dtype=tf.uint32)
             }
             tile_dataset = tf.data.Dataset.from_generator(
-                generator,
+                tile_generator,
                 output_signature=output_signature
             )
             tile_dataset = tile_dataset.map(
