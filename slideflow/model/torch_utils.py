@@ -178,7 +178,8 @@ def _predict_from_model(
     model_type: str,
     pred_args: SimpleNamespace,
     uq_n: int = 30,
-    num_tiles: int = 0
+    num_tiles: int = 0,
+    incl_loc: bool = False
 ) -> DataFrame:
     """Generates predictions (y_true, y_pred, tile_to_slide) from
     a given PyTorch model and dataset.
@@ -201,6 +202,7 @@ def _predict_from_model(
     # Get predictions and performance metrics
     log.debug("Generating predictions from torch model")
     y_pred, tile_to_slides = [], []
+    locations = [] if incl_loc else None
     y_std = [] if pred_args.uq else None  # type: ignore
     num_outcomes = 0
     model.eval()
@@ -212,7 +214,15 @@ def _predict_from_model(
         unit='img',
         leave=False
     )
-    for img, yt, slide in dataset:  # TODO: support not needing to supply yt
+    for batch in dataset:  # TODO: support not needing to supply yt
+
+        # Parse batch
+        if incl_loc:
+            img, yt, slide, loc_x, loc_y = batch
+            locations += [torch.stack([loc_x, loc_y], dim=-1).cpu().numpy()]
+        else:
+            img, yt, slide = batch
+
         img = img.to(device, non_blocking=True)
         with torch.cuda.amp.autocast():
             with torch.no_grad():
@@ -257,8 +267,11 @@ def _predict_from_model(
     if model_type == 'categorical':
         y_pred = [softmax(yp, axis=1) for yp in y_pred]
 
+    if incl_loc:
+        locations = np.concatenate(locations)
+
     # Create pandas DataFrame from arrays
-    df = df_from_pred(None, y_pred, y_std, tile_to_slides)
+    df = df_from_pred(None, y_pred, y_std, tile_to_slides, locations)
 
     log.debug("Prediction complete.")
     return df
@@ -271,6 +284,7 @@ def _eval_from_model(
     pred_args: SimpleNamespace,
     uq_n: int = 30,
     num_tiles: int = 0,
+    incl_loc: bool = False
 ) -> Tuple[DataFrame, float, float]:
     """Generates predictions (y_true, y_pred, tile_to_slide) from
     a given PyTorch model and dataset.
@@ -291,6 +305,7 @@ def _eval_from_model(
     """
 
     y_true, y_pred, tile_to_slides = [], [], []
+    locations = [] if incl_loc else None
     y_std = [] if pred_args.uq else None  # type: ignore
     corrects = pred_args.running_corrects
     losses = 0
@@ -308,7 +323,15 @@ def _eval_from_model(
         unit='img',
         leave=False
     )
-    for img, yt, slide in dataset:
+    for batch in dataset:
+
+        # Parse batch
+        if incl_loc:
+            img, yt, slide, loc_x, loc_y = batch
+            locations += [torch.stack([loc_x, loc_y], dim=-1).cpu().numpy()]
+        else:
+            img, yt, slide = batch
+
         img = img.to(device, non_blocking=True)
         with torch.cuda.amp.autocast():
             with torch.no_grad():
@@ -347,7 +370,6 @@ def _eval_from_model(
         total += img.shape[0]
         pb.update(img.shape[0])
 
-
     # Concatenate predictions for each outcome.
     if type(y_pred[0]) == list:
         y_pred = [np.concatenate(yp) for yp in zip(*y_pred)]
@@ -383,8 +405,11 @@ def _eval_from_model(
     if sf.getLoggingLevel() <= 20:
         sf.util.clear_console()
 
+    if incl_loc:
+        locations = np.concatenate(locations)
+
     # Create pandas DataFrame from arrays
-    df = df_from_pred(y_true, y_pred, y_std, tile_to_slides)
+    df = df_from_pred(y_true, y_pred, y_std, tile_to_slides, locations)
 
     log.debug("Evaluation complete.")
     return df, acc, loss  # type: ignore
