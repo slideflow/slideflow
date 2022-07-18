@@ -613,7 +613,8 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
             num_tiles=self.cb_args.num_val_tiles,
             save_predictions=self.cb_args.save_predictions,
             reduce_method=self.cb_args.reduce_method,
-            pred_args=pred_args
+            pred_args=pred_args,
+            incl_loc=True,
         )
 
     def on_epoch_end(self, epoch: int, logs={}) -> None:
@@ -1256,6 +1257,7 @@ class Trainer:
             )
             tf_dts_w_slidenames = dataset.tensorflow(
                 incl_slidenames=True,
+                incl_loc=True,
                 **interleave_kwargs
             )
         # Generate predictions
@@ -1267,7 +1269,8 @@ class Trainer:
             model_type=self._model_type,
             pred_args=pred_args,
             num_tiles=dataset.num_tiles,
-            outcome_names=self.outcome_names
+            outcome_names=self.outcome_names,
+            incl_loc=True
         )
 
         # Save predictions
@@ -1352,6 +1355,7 @@ class Trainer:
             )
             tf_dts_w_slidenames = dataset.tensorflow(
                 incl_slidenames=True,
+                incl_loc=True,
                 **interleave_kwargs
             )
         # Generate performance metrics
@@ -1369,6 +1373,7 @@ class Trainer:
             save_predictions=save_predictions,
             pred_args=pred_args,
             reduce_method=reduce_method,
+            incl_loc=True,
             **metric_kwargs
         )
         results = {'eval': {}}  # type: Dict[str, Dict[str, float]]
@@ -1581,6 +1586,7 @@ class Trainer:
                     val_data = val_dts.tensorflow(**v_kwargs)
                     val_data_w_slidenames = val_dts.tensorflow(
                         incl_slidenames=True,
+                        incl_loc=True,
                         drop_last=True,
                         **v_kwargs
                     )
@@ -2010,7 +2016,6 @@ class Features:
         features_grid *= -1
         generator = slide.build_generator(
             shuffle=False,
-            include_loc='grid',
             show_progress=True,
             img_format=img_format,
             **kwargs
@@ -2019,6 +2024,13 @@ class Features:
             log.error(f"No tiles extracted from slide {col.green(slide.name)}")
             return
 
+        def tile_generator():
+            for image_dict in generator():
+                yield {
+                    'grid': image_dict['grid'],
+                    'image': image_dict['image']
+                }
+
         @tf.function
         def _parse_function(record):
             image = record['image']
@@ -2026,7 +2038,7 @@ class Features:
                 image = tf.image.decode_jpeg(image, channels=3)
             elif img_format.lower() in ('png',):
                 image = tf.image.decode_png(image, channels=3)
-            loc = record['loc']
+            loc = record['grid']
             if self.wsi_normalizer:
                 image = self.wsi_normalizer.tf_to_tf(image)
             parsed_image = tf.image.per_image_standardization(image)
@@ -2037,10 +2049,10 @@ class Features:
         with tf.name_scope('dataset_input'):
             output_signature = {
                 'image': tf.TensorSpec(shape=(), dtype=tf.string),
-                'loc': tf.TensorSpec(shape=(2), dtype=tf.uint32)
+                'grid': tf.TensorSpec(shape=(2), dtype=tf.uint32)
             }
             tile_dataset = tf.data.Dataset.from_generator(
-                generator,
+                tile_generator,
                 output_signature=output_signature
             )
             tile_dataset = tile_dataset.map(

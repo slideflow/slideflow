@@ -22,6 +22,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 import cv2
 import matplotlib.colors as mcol
 import numpy as np
+import pandas as pd
 import rasterio.features
 import shapely.geometry as sg
 import shapely.affinity as sa
@@ -237,26 +238,35 @@ def _wsi_extraction_worker(
             )
         # Perform whitespace filtering [Libvips]
         if args.whitespace_fraction < 1:
-            fraction = filter_region.bandmean().relational_const(
+            ws_fraction = filter_region.bandmean().relational_const(
                 'more',
                 args.whitespace_threshold
             ).avg() / 255
-            if fraction > args.whitespace_fraction:
+            if ws_fraction > args.whitespace_fraction:
                 return None
 
         # Perform grayspace filtering [Libvips]
         if args.grayspace_fraction < 1:
             hsv_region = filter_region.sRGB2HSV()
-            fraction = hsv_region[1].relational_const(
+            gs_fraction = hsv_region[1].relational_const(
                 'less',
                 args.grayspace_threshold*255
             ).avg() / 255
-            if fraction > args.grayspace_fraction:
+            if gs_fraction > args.grayspace_fraction:
                 return None
 
-    # If dry run, return the current coordinates only
+    # Prepare return dict with WS/GS fraction
+    return_dict = {'loc': [x_coord, y_coord]}
+    return_dict.update({'grid': [grid_x, grid_y]})
+    if args.grayspace_fraction < 1:
+        return_dict.update({'gs_fraction': gs_fraction})
+    if args.whitespace_fraction < 1:
+        return_dict.update({'ws_fraction': ws_fraction})
+
+    # If dry run, return without the image
     if args.dry_run:
-        return {'loc': [x_coord, y_coord]}
+        return_dict.update({'loc': [x_coord, y_coord]})
+        return return_dict
 
     # Normalizer
     if not args.normalizer:
@@ -321,13 +331,9 @@ def _wsi_extraction_worker(
     if args.draw_roi:
         image = _draw_roi(image, coords)
 
-    return_dict = {'image': image}
+    return_dict.update({'image': image})
     if args.yolo:
         return_dict.update({'yolo': yolo_anns})
-    if args.include_loc == 'grid':
-        return_dict.update({'loc': [grid_x, grid_y]})
-    elif args.include_loc == 'coord':
-        return_dict.update({'loc': [x_coord, y_coord]})
     return return_dict
 
 
@@ -1010,7 +1016,6 @@ class _BaseLoader:
         grayspace_threshold: float = None,
         normalizer: str = None,
         normalizer_source: str = None,
-        include_loc: Optional[str] = 'coord',
         num_threads: Optional[int] = None,
         show_progress: bool = False,
         img_format: str = 'numpy',
@@ -1124,6 +1129,9 @@ class _BaseLoader:
         sample_tiles = []  # type: List
         generator_iterator = generator()
         locations = []
+        grid_locations = []
+        ws_fractions = []
+        gs_fractions = []
         num_wrote_to_tfr = 0
         dry_run = kwargs['dry_run'] if 'dry_run' in kwargs else False
         slidename_bytes = bytes(self.name, 'utf-8')
@@ -1131,6 +1139,11 @@ class _BaseLoader:
         for index, tile_dict in enumerate(generator_iterator):
             location = tile_dict['loc']
             locations += [location]
+            grid_locations += [tile_dict['grid']]
+            if 'ws_fraction' in tile_dict:
+                ws_fractions += [tile_dict['ws_fraction']]
+            if 'gs_fraction' in tile_dict:
+                gs_fractions += [tile_dict['gs_fraction']]
 
             if dry_run:
                 continue
@@ -1181,12 +1194,29 @@ class _BaseLoader:
             except OSError:
                 log.error(f"Unable to mark slide {self.name} as complete")
 
+        # Assemble report DataFrame
+        loc_np = np.array(locations)
+        grid_np = np.array(grid_locations)
+        df_dict = {
+            'loc_x': loc_np[:, 0],
+            'loc_y': loc_np[:, 1],
+            'grid_x': grid_np[:, 0],
+            'grid_y': grid_np[:, 1]
+        }
+        if ws_fractions:
+            df_dict.update({'ws_fraction': ws_fractions})
+        if gs_fractions:
+            df_dict.update({'gs_fraction': gs_fractions})
+        df = pd.DataFrame(df_dict)
+
         # Generate extraction report
         if report:
-            report_data = {
-                'blur_burden': self.blur_burden,
-                'num_tiles': len(locations),
-            }
+            report_data = dict(
+                blur_burden=self.blur_burden,
+                num_tiles=len(locations),
+                qc_mask=self.qc_mask,
+                locations=df
+            )
             slide_report = SlideReport(
                 sample_tiles,
                 self.slide.path,
@@ -1446,7 +1476,6 @@ class WSI(_BaseLoader):
                 whitespace_threshold=1,
                 grayspace_fraction=1,
                 grayspace_threshold=1,
-                include_loc=False,
                 img_format='numpy',
                 yolo=False,
                 draw_roi=False,
@@ -1484,6 +1513,20 @@ class WSI(_BaseLoader):
             self.full_stride
         )
         self.grid = np.ones((len(x_range), len(y_range)), dtype=np.int32)
+
+        # ROI filtering
+        if self.roi_method != 'ignore' and self.annPolys is not None:
+            xfact = self.grid.shape[0] / (self.dimensions[0] / self.roi_scale)
+            yfact = self.grid.shape[1] / (self.dimensions[1] / self.roi_scale)
+            scaled = [
+                sa.scale(poly, xfact=xfact, yfact=yfact, origin=(0, 0))
+                for poly in self.annPolys]
+            self.roi_mask = rasterio.features.rasterize(
+                scaled,
+                out_shape=(self.grid.shape[1], self.grid.shape[0])).astype(bool)
+        else:
+            self.roi_mask = None
+
         for yi, y in enumerate(y_range):
             for xi, x in enumerate(x_range):
                 y = int(y)
@@ -1492,12 +1535,7 @@ class WSI(_BaseLoader):
 
                 # ROI filtering
                 if self.roi_method != 'ignore' and self.annPolys is not None:
-                    roi_x = int((x + self.full_extract_px/2)/self.roi_scale)
-                    roi_y = int((y + self.full_extract_px/2)/self.roi_scale)
-                    point_in_roi = any([
-                        annPoly.contains(sg.Point(roi_x, roi_y))
-                        for annPoly in self.annPolys
-                    ])
+                    point_in_roi = self.roi_mask[yi, xi]
                     # If the extraction method is 'inside',
                     # skip the tile if it's not in an ROI
                     if (((self.roi_method == 'inside') and not point_in_roi)
@@ -1578,7 +1616,6 @@ class WSI(_BaseLoader):
         grayspace_threshold: float = None,
         normalizer: str = None,
         normalizer_source: str = None,
-        include_loc: Optional[str] = 'coord',
         num_threads: Optional[int] = None,
         show_progress: bool = False,
         img_format: str = 'numpy',
@@ -1608,10 +1645,6 @@ class WSI(_BaseLoader):
             normalizer_source (str, optional): Path to normalizer source image.
                 If None, will use slideflow.slide.norm_tile.jpg.
                 Defaults to None.
-            include_loc (str, optional): 'coord', 'grid', or None. Return (x,y)
-                origin coordinates ('coord') for each tile along with tile
-                images, or the (x,y) grid coordinates for each tile.
-                Defaults to 'coord'.
             show_progress (bool, optional): Show a progress bar.
             img_format (str, optional): Image format. Either 'numpy', 'jpg',
                 or 'png'. Defaults to 'numpy'.
@@ -1684,7 +1717,6 @@ class WSI(_BaseLoader):
             'whitespace_threshold': whitespace_threshold,
             'grayspace_fraction': grayspace_fraction,
             'grayspace_threshold': grayspace_threshold,
-            'include_loc': include_loc,
             'img_format': img_format,
             'yolo': yolo,
             'draw_roi': draw_roi,
@@ -2144,7 +2176,6 @@ class TMA(_BaseLoader):
         grayspace_threshold: float = None,
         normalizer: str = None,
         normalizer_source: str = None,
-        include_loc: Optional[str] = 'coord',
         num_threads: Optional[int] = None,
         show_progress: bool = False,
         img_format: str = 'numpy',
@@ -2174,10 +2205,6 @@ class TMA(_BaseLoader):
             normalizer_source (str, optional): Path to normalizer source image.
                 If None, will use slideflow.slide.norm_tile.jpg
                 Defaults to None.
-            include_loc (str, optional): 'coord', 'grid', or None. Return (x,y)
-                origin coordinates ('coord') for each tile along with tile
-                images, or the (x,y) grid coordinates for each tile.
-                Defaults to 'coord'.
             num_threads (int, optional): Number of threads for pool. Unused if
                 `pool` is specified.
             pool (:obj:`multiprocessing.Pool`, optional): Multiprocessing pool
@@ -2193,8 +2220,6 @@ class TMA(_BaseLoader):
         """
 
         super().build_generator()
-        if include_loc:
-            log.warning("Tile location logging for TMAs is not implemented")
         if yolo:
             raise NotImplementedError(
                 "Yolo annotation export not implemented for TMA slides"
@@ -2285,10 +2310,7 @@ class TMA(_BaseLoader):
                                 img_format
                             )
 
-                        if include_loc:
-                            yield {'image': resized, 'loc': [0, 0]}
-                        else:
-                            yield {'image': resized}
+                        yield {'image': resized, 'loc': [0, 0]}
                     else:
                         subtiles = self._split_core(resized_core)
                         for subtile in subtiles:
@@ -2325,10 +2347,7 @@ class TMA(_BaseLoader):
                                     subtile,
                                     img_format
                                 )
-                            if include_loc:
-                                yield {'image': subtile, 'loc': [0, 0]}
-                            else:
-                                yield {'image': subtile}
+                            yield {'image': subtile, 'loc': [0, 0]}
 
             extraction_pool.close()
             if show_progress:

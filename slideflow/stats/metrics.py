@@ -355,6 +355,7 @@ def df_from_pred(
     y_pred: List[Any],
     y_std: Optional[List[Any]],
     tile_to_slides: Union[List, np.ndarray],
+    locations: Optional[Union[List, np.ndarray]] = None
 ) -> DataFrame:
     """Converts arrays of model predictions to a pandas dataframe.
 
@@ -386,11 +387,22 @@ def df_from_pred(
         raise ValueError(len_err_msg.format('y_std'))
     if y_std is not None and len(y_std) != len(y_pred):
         raise ValueError('If y_std is provided, length must equal y_pred')
+    if locations is not None and len(locations) != len(tile_to_slides):
+        raise ValueError(
+            'If locations is provided, length must equal tile_to_slides '
+            f'(got: {len(locations)} and {len(tile_to_slides)})')
 
     n_outcomes = len(y_pred)
     series = {
         'slide': pd.Series(tile_to_slides)
     }
+    if locations is not None:
+        if not isinstance(locations, np.ndarray):
+            locations = np.array(locations)
+        series.update({
+            'loc_x': locations[:, 0],
+            'loc_y': locations[:, 1]
+        })
     # Iterate through each outcome in y_pred
     for oi in range(n_outcomes):
         # Add y_pred columns
@@ -428,6 +440,7 @@ def eval_from_dataset(
     reduce_method: str = 'average',
     patients: Optional[Dict[str, str]] = None,
     outcome_names: Optional[List[str]] = None,
+    incl_loc: bool = False,
 ) -> Tuple[DataFrame, float, float]:
     """Generates predictions and accuracy/loss from a given model and dataset.
 
@@ -473,7 +486,8 @@ def eval_from_dataset(
         model_type,
         pred_args,
         num_tiles=num_tiles,
-        uq_n=uq_n
+        uq_n=uq_n,
+        incl_loc=incl_loc
     )
 
     if outcome_names or model_type == 'cph':
@@ -512,7 +526,7 @@ def group_reduce(
     group_dfs = {
         'tile': df
     }
-    _df = df.copy()
+    _df = df[[c for c in df.columns if c not in ('loc_x', 'loc_y')]].copy()
     if method == 'proportion':
         outcome_names = [c[:-8] for c in df.columns if c.endswith('-y_pred0')]
         if not len(outcome_names):
@@ -624,6 +638,7 @@ def metrics_from_dataset(
     label: str = '',
     save_predictions: Union[str, bool] = False,
     data_dir: str = '',
+    incl_loc: bool = False,
     **kwargs
 ) -> Tuple[Dict, float, float]:
 
@@ -670,7 +685,8 @@ def metrics_from_dataset(
         num_tiles=num_tiles,
         patients=patients,
         outcome_names=outcome_names,
-        reduce_method=reduce_method
+        reduce_method=reduce_method,
+        incl_loc=incl_loc
     )
 
     # Save predictions
@@ -795,7 +811,8 @@ def predict_from_dataset(
     uq_n: int = 30,
     reduce_method: str = 'average',
     patients: Optional[Dict[str, str]] = None,
-    outcome_names: Optional[List[str]] = None
+    outcome_names: Optional[List[str]] = None,
+    incl_loc: bool = False,
 ) -> Dict[str, DataFrame]:
     """Generates predictions from model and dataset.
 
@@ -844,7 +861,8 @@ def predict_from_dataset(
         model_type,
         pred_args,
         num_tiles=num_tiles,
-        uq_n=uq_n
+        uq_n=uq_n,
+        incl_loc=incl_loc
     )
     if outcome_names is not None or model_type == 'cph':
         df = name_columns(df, model_type, outcome_names)

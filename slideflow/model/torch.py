@@ -734,6 +734,7 @@ class Trainer:
             outcome_names=self.outcome_names,
             neptune_run=self.neptune_run,
             pred_args=pred_args,
+            incl_loc=True,
             **kwargs
         )
         loss_and_acc = {'loss': loss}
@@ -974,9 +975,7 @@ class Trainer:
         running_val_correct = self._empty_corrects()
 
         for _ in range(self.validation_steps):
-            (val_img,
-             val_label,
-             slides) = next(self.mid_train_val_dts)  # type: ignore
+            val_img, val_label, slides, *_ = next(self.mid_train_val_dts)
             val_img = val_img.to(self.device)
 
             with torch.no_grad():
@@ -1140,6 +1139,7 @@ class Trainer:
                 infinite=False,
                 batch_size=validation_batch_size,
                 augment=False,
+                incl_loc=True,
                 **vars(interleave_args)
             )
             # Mid-training validation dataset
@@ -1339,7 +1339,8 @@ class Trainer:
             dataset=self.dataloaders['val'],
             model_type=self._model_type,
             pred_args=pred_args,
-            outcome_names=self.outcome_names
+            outcome_names=self.outcome_names,
+            incl_loc=True
         )
 
         # Save predictions
@@ -1847,7 +1848,6 @@ class Features:
         features_grid = np.zeros(zeros_shape, dtype=dtype)
         generator = slide.build_generator(
             shuffle=False,
-            include_loc='grid',
             show_progress=True,
             img_format=img_format,
             **kwargs)
@@ -1872,7 +1872,7 @@ class Features:
                             self.parent.wsi_normalizer.rgb_to_rgb(img.numpy())
                         )
                         img = img.permute(2, 0, 1)  # WHC => CWH
-                    loc = np.array(image_dict['loc'])
+                    loc = np.array(image_dict['grid'])
                     img = img / 127.5 - 1
                     yield img, loc
 
