@@ -613,7 +613,8 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
             num_tiles=self.cb_args.num_val_tiles,
             save_predictions=self.cb_args.save_predictions,
             reduce_method=self.cb_args.reduce_method,
-            pred_args=pred_args
+            pred_args=pred_args,
+            incl_loc=True,
         )
 
     def on_epoch_end(self, epoch: int, logs={}) -> None:
@@ -1256,6 +1257,7 @@ class Trainer:
             )
             tf_dts_w_slidenames = dataset.tensorflow(
                 incl_slidenames=True,
+                incl_loc=True,
                 **interleave_kwargs
             )
         # Generate predictions
@@ -1267,7 +1269,8 @@ class Trainer:
             model_type=self._model_type,
             pred_args=pred_args,
             num_tiles=dataset.num_tiles,
-            outcome_names=self.outcome_names
+            outcome_names=self.outcome_names,
+            incl_loc=True
         )
 
         # Save predictions
@@ -1352,6 +1355,7 @@ class Trainer:
             )
             tf_dts_w_slidenames = dataset.tensorflow(
                 incl_slidenames=True,
+                incl_loc=True,
                 **interleave_kwargs
             )
         # Generate performance metrics
@@ -1369,6 +1373,7 @@ class Trainer:
             save_predictions=save_predictions,
             pred_args=pred_args,
             reduce_method=reduce_method,
+            incl_loc=True,
             **metric_kwargs
         )
         results = {'eval': {}}  # type: Dict[str, Dict[str, float]]
@@ -1581,6 +1586,7 @@ class Trainer:
                     val_data = val_dts.tensorflow(**v_kwargs)
                     val_data_w_slidenames = val_dts.tensorflow(
                         incl_slidenames=True,
+                        incl_loc=True,
                         drop_last=True,
                         **v_kwargs
                     )

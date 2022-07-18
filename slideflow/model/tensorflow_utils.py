@@ -287,7 +287,8 @@ def _eval_from_model(
     model_type: str,
     pred_args: SimpleNamespace,
     num_tiles: int = 0,
-    uq_n: int = 30
+    uq_n: int = 30,
+    incl_loc: bool = False,
 ) -> Tuple[DataFrame, float, float]:
     """Generates predictions (y_true, y_pred, tile_to_slide) from a given
     Tensorflow model and dataset.
@@ -298,8 +299,8 @@ def _eval_from_model(
         model_type (str, optional): 'categorical', 'linear', or 'cph'.
             Will not attempt to calculate accuracy for non-categorical models.
             Defaults to 'categorical'.
-        pred_args (namespace): Namespace containing the property `loss`, loss
-            function used to calculate loss.
+        pred_args (namespace): Namespace containing the property `loss` (loss
+            function used to calculate loss) and `uq` (bool, whether to use uq).
         num_tiles (int, optional): Used for progress bar. Defaults to 0.
         uq_n (int, optional): Number of per-tile inferences to perform is
             calculating uncertainty via dropout.
@@ -313,6 +314,7 @@ def _eval_from_model(
         return model(img, training=training)
 
     y_true, y_pred, tile_to_slides = [], [], []
+    locations = [] if incl_loc else None
     y_std = [] if pred_args.uq else None  # type: ignore
     num_vals, num_batches, num_outcomes, running_loss = 0, 0, 0, 0
     is_cat = (model_type == 'categorical')
@@ -320,7 +322,15 @@ def _eval_from_model(
         acc = None
 
     pb = tqdm(total=num_tiles, desc='Evaluating...', ncols=80, leave=False)
-    for img, yt, slide in dataset:
+    for batch in dataset:
+
+        # Parse dataset batch
+        if incl_loc:
+            img, yt, slide, loc_x, loc_y = batch
+            locations += [tf.stack([loc_x, loc_y], axis=-1).numpy()]
+        else:
+            img, yt, slide = batch
+
         pb.update(slide.shape[0])
         tile_to_slides += [_byte.decode('utf-8') for _byte in slide.numpy()]
         num_vals += slide.shape[0]
@@ -367,8 +377,11 @@ def _eval_from_model(
         if is_cat:
             acc = np.sum(y_true[0] == np.argmax(y_pred[0], axis=1)) / num_vals
 
+    if incl_loc:
+        locations = np.concatenate(locations)
+
     # Create pandas DataFrame from arrays
-    df = df_from_pred(y_true, y_pred, y_std, tile_to_slides)
+    df = df_from_pred(y_true, y_pred, y_std, tile_to_slides, locations)
 
     # Note that Keras loss during training includes regularization losses,
     # so this loss will not match validation loss calculated during training
@@ -383,7 +396,8 @@ def _predict_from_model(
     model_type: str,
     pred_args: SimpleNamespace,
     num_tiles: int = 0,
-    uq_n: int = 30
+    uq_n: int = 30,
+    incl_loc: bool = False,
 ) -> DataFrame:
     """Generates predictions (y_true, y_pred, tile_to_slide) from a given
     Tensorflow model and dataset.
@@ -409,11 +423,17 @@ def _predict_from_model(
         return model(img, training=training)
 
     y_pred, tile_to_slides = [], []
+    locations = [] if incl_loc else None
     y_std = [] if pred_args.uq else None  # type: ignore
     num_vals, num_batches, num_outcomes = 0, 0, 0
 
     pb = tqdm(total=num_tiles, desc='Predicting...', ncols=80, leave=False)
-    for img, yt, slide in dataset:  # TODO: support not needing to supply yt
+    for batch in dataset:  # TODO: support not needing to supply yt
+        if incl_loc:
+            img, yt, slide, loc_x, loc_y = batch
+            locations += [tf.stack([loc_x, loc_y], axis=-1).numpy()]
+        else:
+            img, yt, slide = batch
         pb.update(slide.shape[0])
         tile_to_slides += [_bytes.decode('utf-8') for _bytes in slide.numpy()]
         num_vals += slide.shape[0]
@@ -439,8 +459,11 @@ def _predict_from_model(
         if pred_args.uq:
             y_std = [np.concatenate(y_std)]
 
+    if incl_loc:
+        locations = np.concatenate(locations)
+
     # Create pandas DataFrame from arrays
-    df = df_from_pred(None, y_pred, y_std, tile_to_slides)
+    df = df_from_pred(None, y_pred, y_std, tile_to_slides, locations)
 
     log.debug("Prediction complete.")
     return df
