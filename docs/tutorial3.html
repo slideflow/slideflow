@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Tutorial 3: Using a custom architecture &mdash; slideflow 1.2.0 documentation</title>
+  <title>Tutorial 3: Using a custom architecture &mdash; slideflow 1.2.2 documentation</title>
   
 
   
@@ -161,7 +161,6 @@
 <li class="toctree-l1"><a class="reference internal" href="uq.html">Uncertainty quantification</a></li>
 <li class="toctree-l1"><a class="reference internal" href="clam.html">CLAM</a></li>
 <li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
-<li class="toctree-l1"><a class="reference internal" href="appendix.html">Appendix</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Source</span></p>
 <ul>
@@ -260,10 +259,10 @@
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
               
   <div class="section" id="tutorial-3-using-a-custom-architecture">
-<h1>Tutorial 3: Using a custom architecture<a class="headerlink" href="#tutorial-3-using-a-custom-architecture" title="Permalink to this headline">¶</a></h1>
+<h1>Tutorial 3: Using a custom architecture<a class="headerlink" href="#tutorial-3-using-a-custom-architecture" title="Permalink to this heading">¶</a></h1>
 <p>Out of the box, Slideflow includes support for 21 model architectures in the Tensorflow backend and 17 with the PyTorch backend. In this tutorial, we will demonstrate how to train a custom model architecture (ViT) in either backend.</p>
 <div class="section" id="custom-tensorflow-model">
-<h2>Custom Tensorflow model<a class="headerlink" href="#custom-tensorflow-model" title="Permalink to this headline">¶</a></h2>
+<h2>Custom Tensorflow model<a class="headerlink" href="#custom-tensorflow-model" title="Permalink to this heading">¶</a></h2>
 <p>Any Tensorflow/Keras model (<code class="xref py py-class docutils literal notranslate"><span class="pre">tf.keras.Model</span></code>) can be trained in Slideflow by setting the <code class="docutils literal notranslate"><span class="pre">model</span></code> parameter of a <code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.ModelParams</span></code> object to a function which initalizes the model.</p>
 <p>First, define the model in a file that can be imported. In this example, we will define a vision transformer (ViT) model in a file <code class="docutils literal notranslate"><span class="pre">vit_tensorflow.py</span></code>:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># From:</span>
@@ -472,7 +471,7 @@
 <p>You can now train the model as described in <a class="reference internal" href="tutorial1.html#tutorial1"><span class="std std-ref">Tutorial 1: Model training (simple)</span></a>.</p>
 </div>
 <div class="section" id="custom-pytorch-model">
-<h2>Custom PyTorch model<a class="headerlink" href="#custom-pytorch-model" title="Permalink to this headline">¶</a></h2>
+<h2>Custom PyTorch model<a class="headerlink" href="#custom-pytorch-model" title="Permalink to this heading">¶</a></h2>
 <p>The process is very similar when using PyTorch. In this example, instead of defining the architecture in a separate file, we will use an implementation of ViT available via PyPI:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">pip3</span> <span class="n">install</span> <span class="n">vit</span><span class="o">-</span><span class="n">pytorch</span>
 </pre></div>
@@ -583,6 +582,7 @@
          <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
          <script src="_static/jquery.js"></script>
          <script src="_static/underscore.js"></script>
+         <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
          <script src="_static/doctools.js"></script>
      
 

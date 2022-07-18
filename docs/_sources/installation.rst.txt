@@ -12,7 +12,7 @@ Software Requirements
 - Python 3.7 - 3.10
 - `OpenSlide <https://openslide.org/download/>`_
 - `Libvips 8.9+ <https://libvips.github.io/libvips/>`_
-- `Tensorflow 2.5-2.9 <https://www.tensorflow.org/install>`_ or `PyTorch 1.9-1.11 <https://pytorch.org/get-started/locally/>`_
+- `Tensorflow 2.5-2.9 <https://www.tensorflow.org/install>`_ or `PyTorch 1.9-1.12 <https://pytorch.org/get-started/locally/>`_
 - `QuPath <https://qupath.github.io>`_ [*optional*] - used for ROI annotations
 - Linear solver for site-preserved cross-validation [*optional*]:
 

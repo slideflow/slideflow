@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Pipeline Overview &mdash; slideflow 1.2.0 documentation</title>
+  <title>Pipeline Overview &mdash; slideflow 1.2.2 documentation</title>
   
 
   
@@ -161,7 +161,6 @@
 <li class="toctree-l1"><a class="reference internal" href="uq.html">Uncertainty quantification</a></li>
 <li class="toctree-l1"><a class="reference internal" href="clam.html">CLAM</a></li>
 <li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
-<li class="toctree-l1"><a class="reference internal" href="appendix.html">Appendix</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Source</span></p>
 <ul>
@@ -260,7 +259,7 @@
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
               
   <div class="section" id="pipeline-overview">
-<h1>Pipeline Overview<a class="headerlink" href="#pipeline-overview" title="Permalink to this headline">¶</a></h1>
+<h1>Pipeline Overview<a class="headerlink" href="#pipeline-overview" title="Permalink to this heading">¶</a></h1>
 <div class="figure align-default" id="id1">
 <img alt="_images/overview.png" src="_images/overview.png" />
 <p class="caption"><span class="caption-text"><em>High-level overview of main functions.</em></span><a class="headerlink" href="#id1" title="Permalink to this image">¶</a></p>
@@ -276,7 +275,7 @@
 </div>
 <p>A high-level overview of each of these phases is provided below. We will examine each step in more detail in the following sections.</p>
 <div class="section" id="step-1-roi-annotation">
-<h2>Step 1: ROI Annotation<a class="headerlink" href="#step-1-roi-annotation" title="Permalink to this headline">¶</a></h2>
+<h2>Step 1: ROI Annotation<a class="headerlink" href="#step-1-roi-annotation" title="Permalink to this heading">¶</a></h2>
 <ol class="arabic simple">
 <li><p><strong>Label ROIs</strong> (optional). Using <a class="reference external" href="https://qupath.github.io/">QuPath</a>, annotate whole-slide images with the Polygon tool. Then, click <strong>Automate</strong> -&gt; <strong>Show script editor</strong>. In the box that comes up, click <strong>File</strong> -&gt; <strong>Open</strong> and load the <code class="docutils literal notranslate"><span class="pre">qupath_roi.groovy</span></code> script (QuPath 0.2 or greater) or <code class="docutils literal notranslate"><span class="pre">qupath_roi_legacy.groovy</span></code> (QuPath 0.1.x). Click <strong>Run</strong> -&gt; <strong>Run</strong> if using QuPath 0.2 or greater, or <strong>Run</strong> -&gt; <strong>Run for Project</strong> if using QuPath 0.1.x. ROIs will be exported in CSV format in the QuPath project directory, in the subdirectory “ROI”.</p></li>
 </ol>
@@ -286,7 +285,7 @@
 </div>
 </div>
 <div class="section" id="step-2-dataset-preparation">
-<h2>Step 2: Dataset preparation<a class="headerlink" href="#step-2-dataset-preparation" title="Permalink to this headline">¶</a></h2>
+<h2>Step 2: Dataset preparation<a class="headerlink" href="#step-2-dataset-preparation" title="Permalink to this heading">¶</a></h2>
 <ol class="arabic simple" start="2">
 <li><p><strong>Extract tiles</strong>. Once ROIs have been created, tiles will need to be extracted from the ROIs across all of your slides. Tiles will be extracted at a given magnification size in microns, and saved at a given resolution in pixels. The optimal extraction size in both microns and pixels will depend on your dataset and model architecture. Poor quality tiles - including background tiles or tiles with high whitespace content - will be automatically discarded. Tiles will be stored as TFRecords, a binary file format used to improve dataset reading performance during training. Each slide will have its own TFRecord file containing its extracted tiles.</p></li>
 <li><p><strong>Set aside final evaluation set</strong>. Using the project annotations CSV file, designate which slides should be saved for final evaluation.</p></li>
@@ -294,14 +293,14 @@
 </ol>
 </div>
 <div class="section" id="step-3-model-training">
-<h2>Step 3: Model training<a class="headerlink" href="#step-3-model-training" title="Permalink to this headline">¶</a></h2>
+<h2>Step 3: Model training<a class="headerlink" href="#step-3-model-training" title="Permalink to this heading">¶</a></h2>
 <ol class="arabic simple" start="5">
 <li><p><strong>Choose hyperparameters</strong>. Before training can begin, you must choose both a model architecture (e.g. InceptionV3, VGG16, ResNet, etc.) and a set of hyperparameters (e.g. batch size, learning rate, etc.). This can be done explicitly one at a time, or an automatic hyperparameter sweep (grid search via <a class="reference internal" href="project.html#slideflow.Project.create_hp_sweep" title="slideflow.Project.create_hp_sweep"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Project.create_hp_sweep()</span></code></a> or Bayesian search via <a class="reference internal" href="project.html#slideflow.Project.smac_search" title="slideflow.Project.smac_search"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Project.smac_search()</span></code></a>) can be configured.</p></li>
 <li><p><strong>Initiate training</strong>. Train your model across all desired hyperparameters and select the best-performing hyperparameter combination for final evaluation testing.</p></li>
 </ol>
 </div>
 <div class="section" id="step-4-model-evaluation">
-<h2>Step 4: Model evaluation<a class="headerlink" href="#step-4-model-evaluation" title="Permalink to this headline">¶</a></h2>
+<h2>Step 4: Model evaluation<a class="headerlink" href="#step-4-model-evaluation" title="Permalink to this heading">¶</a></h2>
 <p>Validation testing is performed both during training - at specified epochs - and after training has completed. Various metrics are recorded in the project directory at these intervals to assist with model performance assessment, including:</p>
 <ul class="simple">
 <li><p><strong>Training and validation loss</strong></p></li>
@@ -313,12 +312,12 @@
 </ul>
 </div>
 <div class="section" id="step-5-heatmaps">
-<h2>Step 5: Heatmaps<a class="headerlink" href="#step-5-heatmaps" title="Permalink to this headline">¶</a></h2>
+<h2>Step 5: Heatmaps<a class="headerlink" href="#step-5-heatmaps" title="Permalink to this heading">¶</a></h2>
 <p>In addition to the above metrics, performance of a trained model can be assessed by visualizing predictions for a set slides as heatmaps.</p>
 <img alt="_images/heatmap_example.png" src="_images/heatmap_example.png" />
 </div>
 <div class="section" id="step-6-mosaic-maps">
-<h2>Step 6: Mosaic maps<a class="headerlink" href="#step-6-mosaic-maps" title="Permalink to this headline">¶</a></h2>
+<h2>Step 6: Mosaic maps<a class="headerlink" href="#step-6-mosaic-maps" title="Permalink to this heading">¶</a></h2>
 <p>Finally, learned image features can be visualized using dimensionality reduction on model layer activations. A set of image tiles is first provided to your trained model, which calculates activations at a specified intermediate layer. Tile-level activations are then plotted with dimensionality reduction (UMAP), and points on the plot are replaced with image tiles, generating a mosaic map.</p>
 <img alt="_images/mosaic_example.png" src="_images/mosaic_example.png" />
 </div>
@@ -394,6 +393,7 @@
          <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
          <script src="_static/jquery.js"></script>
          <script src="_static/underscore.js"></script>
+         <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
          <script src="_static/doctools.js"></script>
      
 

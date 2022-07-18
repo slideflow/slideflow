@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Index &mdash; slideflow 1.2.0 documentation</title>
+  <title>Index &mdash; slideflow 1.2.2 documentation</title>
   
 
   
@@ -159,7 +159,6 @@
 <li class="toctree-l1"><a class="reference internal" href="uq.html">Uncertainty quantification</a></li>
 <li class="toctree-l1"><a class="reference internal" href="clam.html">CLAM</a></li>
 <li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
-<li class="toctree-l1"><a class="reference internal" href="appendix.html">Appendix</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Source</span></p>
 <ul>
@@ -323,6 +322,8 @@
 </li>
         <li><a href="project.html#slideflow.Project.__init__">(slideflow.Project method)</a>
 </li>
+        <li><a href="slide.html#slideflow.slide.report.SlideReport.__init__">(slideflow.slide.report.SlideReport method)</a>
+</li>
         <li><a href="slide.html#slideflow.slide.TMA.__init__">(slideflow.slide.TMA method)</a>
 </li>
         <li><a href="slide.html#slideflow.slide.WSI.__init__">(slideflow.slide.WSI method)</a>
@@ -372,13 +373,13 @@
 </li>
       <li><a href="util.html#slideflow.util.batch">batch() (in module slideflow.util)</a>
 </li>
-      <li><a href="grad.html#slideflow.grad.SaliencyMap.blur_integrated_gradients">blur_integrated_gradients() (slideflow.grad.SaliencyMap method)</a>
+      <li><a href="slide.html#slideflow.slide.report.SlideReport.blur_burden">blur_burden (slideflow.slide.report.SlideReport property)</a>
 </li>
-      <li><a href="model.html#slideflow.model.DatasetFeatures.box_plots">box_plots() (slideflow.model.DatasetFeatures method)</a>
+      <li><a href="grad.html#slideflow.grad.SaliencyMap.blur_integrated_gradients">blur_integrated_gradients() (slideflow.grad.SaliencyMap method)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="gan.html#slideflow.gan.tf_utils.build_gan_dataset">build_gan_dataset() (in module slideflow.gan.tf_utils)</a>
+      <li><a href="model.html#slideflow.model.DatasetFeatures.box_plots">box_plots() (slideflow.model.DatasetFeatures method)</a>
 </li>
       <li><a href="slide.html#slideflow.slide.TMA.build_generator">build_generator() (slideflow.slide.TMA method)</a>
 
@@ -422,6 +423,8 @@
 </li>
       <li><a href="project.html#slideflow.Project.create_hp_sweep">create_hp_sweep() (slideflow.Project method)</a>
 </li>
+      <li><a href="gan.html#slideflow.gan.utils.crop">crop() (in module slideflow.gan.utils)</a>
+</li>
   </ul></td>
 </tr></table>
 
@@ -434,11 +437,9 @@
 </li>
       <li><a href="project.html#slideflow.Project.dataset_config">dataset_config (slideflow.Project property)</a>
 </li>
-      <li><a href="model.html#slideflow.model.DatasetFeatures">DatasetFeatures (class in slideflow.model)</a>
-</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="gan.html#slideflow.gan.tf_utils.decode_batch">decode_batch() (in module slideflow.gan.tf_utils)</a>
+      <li><a href="model.html#slideflow.model.DatasetFeatures">DatasetFeatures (class in slideflow.model)</a>
 </li>
       <li><a href="io_tensorflow.html#slideflow.io.tensorflow.decode_image">decode_image() (in module slideflow.io.tensorflow)</a>
 </li>
@@ -624,6 +625,8 @@
 <h2 id="I">I</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="slide.html#slideflow.slide.report.SlideReport.image_row">image_row() (slideflow.slide.report.SlideReport method)</a>
+</li>
       <li><a href="dataset.html#slideflow.Dataset.img_format">img_format (slideflow.Dataset property)</a>
 </li>
       <li><a href="util.html#slideflow.util.ProgressBar.increase_bar_value">increase_bar_value() (slideflow.util.ProgressBar method)</a>
@@ -632,19 +635,19 @@
 </li>
       <li><a href="grad.html#slideflow.grad.SaliencyMap.integrated_gradients">integrated_gradients() (slideflow.grad.SaliencyMap method)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="io_tensorflow.html#slideflow.io.tensorflow.interleave">interleave() (in module slideflow.io.tensorflow)</a>
 
       <ul>
         <li><a href="io_torch.html#slideflow.io.torch.interleave">(in module slideflow.io.torch)</a>
 </li>
       </ul></li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="io_torch.html#slideflow.io.torch.interleave_dataloader">interleave_dataloader() (in module slideflow.io.torch)</a>
 </li>
       <li><a href="io_torch.html#slideflow.io.torch.InterleaveIterator">InterleaveIterator (class in slideflow.io.torch)</a>
 </li>
-      <li><a href="gan.html#slideflow.gan.StyleGAN2Interpolator.interpolate">interpolate() (slideflow.gan.StyleGAN2Interpolator method)</a>
+      <li><a href="gan.html#slideflow.gan.StyleGAN2Interpolator.interpolate_and_predict">interpolate_and_predict() (slideflow.gan.StyleGAN2Interpolator method)</a>
 </li>
       <li><a href="dataset.html#slideflow.Dataset.is_float">is_float() (slideflow.Dataset method)</a>
 </li>
@@ -690,14 +693,14 @@
 </li>
       <li><a href="dataset.html#slideflow.Dataset.load_annotations">load_annotations() (slideflow.Dataset method)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="model.html#slideflow.model.DatasetFeatures.load_cache">load_cache() (slideflow.model.DatasetFeatures method)</a>
 
       <ul>
         <li><a href="stats.html#slideflow.SlideMap.load_cache">(slideflow.SlideMap method)</a>
 </li>
       </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="slide.html#slideflow.slide.WSI.load_csv_roi">load_csv_roi() (slideflow.slide.WSI method)</a>
 </li>
       <li><a href="dataset.html#slideflow.Dataset.load_indices">load_indices() (slideflow.Dataset method)</a>
@@ -707,6 +710,8 @@
       <li><a href="slide.html#slideflow.slide.WSI.load_json_roi">load_json_roi() (slideflow.slide.WSI method)</a>
 </li>
       <li><a href="project.html#slideflow.Project.load_project">load_project() (slideflow.Project method)</a>
+</li>
+      <li><a href="slide.html#slideflow.slide.report.SlideReport.locations">locations (slideflow.slide.report.SlideReport property)</a>
 </li>
       <li><a href="io_torch.html#slideflow.io.torch.LocLabelInterleaver">LocLabelInterleaver (class in slideflow.io.torch)</a>
 </li>
@@ -746,7 +751,7 @@
       <ul>
         <li><a href="gan.html#module-slideflow.gan">slideflow.gan</a>
 </li>
-        <li><a href="gan.html#module-slideflow.gan.tf_utils">slideflow.gan.tf_utils</a>
+        <li><a href="gan.html#module-slideflow.gan.utils">slideflow.gan.utils</a>
 </li>
         <li><a href="grad.html#module-slideflow.grad">slideflow.grad</a>
 </li>
@@ -790,7 +795,11 @@
       <li><a href="project.html#slideflow.Project.neptune_workspace">neptune_workspace (slideflow.Project property)</a>
 </li>
       <li><a href="dataset.html#slideflow.Dataset.num_tiles">num_tiles (slideflow.Dataset property)</a>
+
+      <ul>
+        <li><a href="slide.html#slideflow.slide.report.SlideReport.num_tiles">(slideflow.slide.report.SlideReport property)</a>
 </li>
+      </ul></li>
   </ul></td>
 </tr></table>
 
@@ -857,6 +866,12 @@
 </li>
       <li><a href="project.html#slideflow.Project.predict_wsi">predict_wsi() (slideflow.Project method)</a>
 </li>
+      <li><a href="io_tensorflow.html#slideflow.io.tensorflow.preprocess_uint8">preprocess_uint8() (in module slideflow.io.tensorflow)</a>
+
+      <ul>
+        <li><a href="io_torch.html#slideflow.io.torch.preprocess_uint8">(in module slideflow.io.torch)</a>
+</li>
+      </ul></li>
       <li><a href="slide.html#slideflow.slide.TMA.preview">preview() (slideflow.slide.TMA method)</a>
 
       <ul>
@@ -864,8 +879,6 @@
 </li>
       </ul></li>
       <li><a href="io_tensorflow.html#slideflow.io.tensorflow.print_tfrecord">print_tfrecord() (in module slideflow.io.tensorflow)</a>
-</li>
-      <li><a href="gan.html#slideflow.gan.tf_utils.process_gan_batch">process_gan_batch() (in module slideflow.gan.tf_utils)</a>
 </li>
       <li><a href="io_tensorflow.html#slideflow.io.tensorflow.process_image">process_image() (in module slideflow.io.tensorflow)</a>
 </li>
@@ -885,6 +898,10 @@
         <li><a href="slide.html#slideflow.slide.WSI.qc">(slideflow.slide.WSI method)</a>
 </li>
       </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="slide.html#slideflow.slide.report.SlideReport.qc_mask">qc_mask (slideflow.slide.report.SlideReport property)</a>
+</li>
   </ul></td>
 </tr></table>
 
@@ -969,14 +986,12 @@
 </li>
       </ul></li>
       <li>
-    slideflow.gan.tf_utils
+    slideflow.gan.utils
 
       <ul>
-        <li><a href="gan.html#module-slideflow.gan.tf_utils">module</a>
+        <li><a href="gan.html#module-slideflow.gan.utils">module</a>
 </li>
       </ul></li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li>
     slideflow.grad
 
@@ -984,6 +999,8 @@
         <li><a href="grad.html#module-slideflow.grad">module</a>
 </li>
       </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li>
     slideflow.io
 
@@ -1020,6 +1037,8 @@
 </li>
       </ul></li>
       <li><a href="stats.html#slideflow.SlideMap">SlideMap (class in slideflow)</a>
+</li>
+      <li><a href="slide.html#slideflow.slide.report.SlideReport">SlideReport (class in slideflow.slide.report)</a>
 </li>
       <li><a href="dataset.html#slideflow.Dataset.slides">slides() (slideflow.Dataset method)</a>
 </li>
@@ -1085,10 +1104,10 @@
       </ul></li>
       <li><a href="dataset.html#slideflow.Dataset.thumbnails">thumbnails() (slideflow.Dataset method)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="slide.html#slideflow.slide.TMA">TMA (class in slideflow.slide)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="model.html#slideflow.model.DatasetFeatures.to_csv">to_csv() (slideflow.model.DatasetFeatures method)</a>
 </li>
       <li><a href="model.html#slideflow.model.DatasetFeatures.to_df">to_df() (slideflow.model.DatasetFeatures method)</a>
@@ -1098,6 +1117,8 @@
       <li><a href="model.html#slideflow.model.DatasetFeatures.to_torch">to_torch() (slideflow.model.DatasetFeatures method)</a>
 </li>
       <li><a href="dataset.html#slideflow.Dataset.torch">torch() (slideflow.Dataset method)</a>
+</li>
+      <li><a href="norm.html#slideflow.norm.StainNormalizer.torch_to_torch">torch_to_torch() (slideflow.norm.StainNormalizer method)</a>
 </li>
       <li><a href="model.html#slideflow.model.CPHTrainer.train">train() (slideflow.model.CPHTrainer method)</a>
 
@@ -1158,8 +1179,6 @@
       <li><a href="dataset.html#slideflow.Dataset.verify_annotations_slides">verify_annotations_slides() (slideflow.Dataset method)</a>
 </li>
       <li><a href="dataset.html#slideflow.Dataset.verify_img_format">verify_img_format() (slideflow.Dataset method)</a>
-</li>
-      <li><a href="gan.html#slideflow.gan.tf_utils.vips_resize">vips_resize() (in module slideflow.gan.tf_utils)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -1267,6 +1286,7 @@
          <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
          <script src="_static/jquery.js"></script>
          <script src="_static/underscore.js"></script>
+         <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
          <script src="_static/doctools.js"></script>
      
 

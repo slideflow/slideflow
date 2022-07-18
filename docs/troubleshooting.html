@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Troubleshooting &mdash; slideflow 1.2.0 documentation</title>
+  <title>Troubleshooting &mdash; slideflow 1.2.2 documentation</title>
   
 
   
@@ -31,7 +31,7 @@
   <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Appendix" href="appendix.html" />
+    <link rel="next" title="slideflow.Project" href="project.html" />
     <link rel="prev" title="CLAM" href="clam.html" />
   <!-- Google Analytics -->
   
@@ -161,7 +161,6 @@
 <li class="toctree-l1"><a class="reference internal" href="uq.html">Uncertainty quantification</a></li>
 <li class="toctree-l1"><a class="reference internal" href="clam.html">CLAM</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Troubleshooting</a></li>
-<li class="toctree-l1"><a class="reference internal" href="appendix.html">Appendix</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Source</span></p>
 <ul>
@@ -260,11 +259,11 @@
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
               
   <div class="section" id="troubleshooting">
-<h1>Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permalink to this headline">¶</a></h1>
+<h1>Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permalink to this heading">¶</a></h1>
 <p>If you’re running into problems, look for more information by including debug logging. To enable debug logging, set the environmental variable <code class="docutils literal notranslate"><span class="pre">SF_LOGGING_LEVEL=10</span></code>.</p>
 <p>To check for errors in your environment or installation, you can also use the test script <code class="docutils literal notranslate"><span class="pre">test.py</span></code>, which uses the testing suite <code class="docutils literal notranslate"><span class="pre">slideflow.test.TestSuite</span></code> to execute all pipeline functions on a set of provided slides.</p>
 <div class="section" id="testing">
-<h2>Testing<a class="headerlink" href="#testing" title="Permalink to this headline">¶</a></h2>
+<h2>Testing<a class="headerlink" href="#testing" title="Permalink to this heading">¶</a></h2>
 <p>To test all pipeline functions, use the <code class="docutils literal notranslate"><span class="pre">test.py</span></code> script, providing a path to a directory containing slides to use for testing:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ python3 test.py --slides<span class="o">=</span>/path/to/slides --all<span class="o">=</span>True
 </pre></div>
@@ -276,7 +275,7 @@
 <p>To view a list of all tests that will be run (and thus can be skipped), pass the argument <code class="docutils literal notranslate"><span class="pre">--help</span></code>.</p>
 </div>
 <div class="section" id="issue-reporting">
-<h2>Issue Reporting<a class="headerlink" href="#issue-reporting" title="Permalink to this headline">¶</a></h2>
+<h2>Issue Reporting<a class="headerlink" href="#issue-reporting" title="Permalink to this heading">¶</a></h2>
 <p>If the issue is still unclear, please submit an Issue on the <a class="reference external" href="https://github.com/jamesdolezal/slideflow">project Github page</a>.</p>
 </div>
 </div>
@@ -289,7 +288,7 @@
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="appendix.html" class="btn btn-neutral float-right" title="Appendix" accesskey="n" rel="next">Next <img src="_static/images/chevron-right-orange.svg" class="next-page"></a>
+        <a href="project.html" class="btn btn-neutral float-right" title="slideflow.Project" accesskey="n" rel="next">Next <img src="_static/images/chevron-right-orange.svg" class="next-page"></a>
       
       
         <a href="clam.html" class="btn btn-neutral" title="CLAM" accesskey="p" rel="prev"><img src="_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
@@ -347,6 +346,7 @@
          <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
          <script src="_static/jquery.js"></script>
          <script src="_static/underscore.js"></script>
+         <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
          <script src="_static/doctools.js"></script>
      
 

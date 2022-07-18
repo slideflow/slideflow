@@ -1274,6 +1274,10 @@ class Project:
                 Defaults to mpp=4 (effective magnification 2.5 X)
             dry_run (bool, optional): Determine tiles that would be extracted,
                 but do not export any images. Defaults to None.
+
+        Returns:
+            Dictionary mapping slide paths to each slide's SlideReport
+            (:class:`slideflow.slide.report.SlideReport`)
         """
         dataset = self.dataset(
             tile_px,
@@ -1769,7 +1773,14 @@ class Project:
             os.makedirs(mosaic_root)
 
         # Prepare dataset & model
-        config = sf.util.get_model_config(df.model)
+        if isinstance(df.model, str):
+            config = sf.util.get_model_config(df.model)
+        else:
+            raise ValueError(
+                "Unable to auto-create Mosaic from DatasetFeatures created "
+                "from a loaded Tensorflow/PyTorch model. Please use a "
+                "DatasetFeatures object created from a saved Slideflow model, "
+                "or manually create a mosaic with `sf.Mosaic`.")
         if dataset is None:
             tile_px, tile_um = config['hp']['tile_px'], config['hp']['tile_um']
             dataset = self.dataset(tile_px=tile_px, tile_um=tile_um)

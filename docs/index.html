@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Slideflow Documentation &mdash; slideflow 1.2.0 documentation</title>
+  <title>Slideflow Documentation &mdash; slideflow 1.2.2 documentation</title>
   
 
   
@@ -160,7 +160,6 @@
 <li class="toctree-l1"><a class="reference internal" href="uq.html">Uncertainty quantification</a></li>
 <li class="toctree-l1"><a class="reference internal" href="clam.html">CLAM</a></li>
 <li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
-<li class="toctree-l1"><a class="reference internal" href="appendix.html">Appendix</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Source</span></p>
 <ul>
@@ -262,26 +261,93 @@
 <img alt="https://i.imgur.com/YrsKN4I.jpeg" src="https://i.imgur.com/YrsKN4I.jpeg" />
 </div>
 <div class="section" id="slideflow-documentation">
-<h1>Slideflow Documentation<a class="headerlink" href="#slideflow-documentation" title="Permalink to this headline">¶</a></h1>
+<h1>Slideflow Documentation<a class="headerlink" href="#slideflow-documentation" title="Permalink to this heading">¶</a></h1>
 <p><code class="docutils literal notranslate"><span class="pre">slideflow</span></code> is a Python package that provides a unified API for building and testing deep learning models for histopathology, supporting both Tensorflow/Keras and PyTorch.</p>
 <p>Slideflow includes tools for efficient whole-slide image processing, easy and highly customizable model training with uncertainty quantification (UQ), and a number of functional tools to assist with analysis and interpretability, including predictive heatmaps, mosaic maps, GANs, saliency maps, and more. It is built with both <a class="reference external" href="https://www.tensorflow.org/">Tensorflow/Keras</a> and <a class="reference external" href="https://pytorch.org">PyTorch</a> backends, with fully cross-compatible TFRecord data storage.</p>
 <p>The <code class="docutils literal notranslate"><span class="pre">slideflow</span></code> package includes a <code class="docutils literal notranslate"><span class="pre">Project</span></code> class to help coordinate project organization and supervise execution of the pipeline.  This documentation starts with a high-level overview of the pipeline, and will include examples of how to execute functions using the <code class="docutils literal notranslate"><span class="pre">Project</span></code> class. We also provide several tutorials with examples of how Slideflow can be used on your own data.</p>
 <div class="toctree-wrapper compound">
 <p class="caption" role="heading"><span class="caption-text">Overview</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="pipeline.html">Pipeline Overview</a></li>
-<li class="toctree-l1"><a class="reference internal" href="project_setup.html">Setting up a Project</a></li>
-<li class="toctree-l1"><a class="reference internal" href="validation.html">Validation Planning</a></li>
-<li class="toctree-l1"><a class="reference internal" href="extract_tiles.html">Tile extraction</a></li>
-<li class="toctree-l1"><a class="reference internal" href="training.html">Training</a></li>
-<li class="toctree-l1"><a class="reference internal" href="evaluation.html">Evaluation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="layer_activations.html">Features / layer activations</a></li>
-<li class="toctree-l1"><a class="reference internal" href="custom_loops.html">Custom training loops</a></li>
-<li class="toctree-l1"><a class="reference internal" href="uq.html">Uncertainty quantification</a></li>
-<li class="toctree-l1"><a class="reference internal" href="clam.html">CLAM</a></li>
-<li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
-<li class="toctree-l1"><a class="reference internal" href="appendix.html">Appendix</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="installation.html#software-requirements">Software Requirements</a></li>
+<li class="toctree-l2"><a class="reference internal" href="installation.html#download-with-pip">Download with pip</a></li>
+<li class="toctree-l2"><a class="reference internal" href="installation.html#run-a-docker-container">Run a Docker container</a></li>
+<li class="toctree-l2"><a class="reference internal" href="installation.html#build-from-source">Build from source</a></li>
+<li class="toctree-l2"><a class="reference internal" href="installation.html#changing-backends">Changing backends</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="pipeline.html">Pipeline Overview</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="pipeline.html#step-1-roi-annotation">Step 1: ROI Annotation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pipeline.html#step-2-dataset-preparation">Step 2: Dataset preparation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pipeline.html#step-3-model-training">Step 3: Model training</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pipeline.html#step-4-model-evaluation">Step 4: Model evaluation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pipeline.html#step-5-heatmaps">Step 5: Heatmaps</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pipeline.html#step-6-mosaic-maps">Step 6: Mosaic maps</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="project_setup.html">Setting up a Project</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="project_setup.html#configuring-datasets">Configuring Datasets</a></li>
+<li class="toctree-l2"><a class="reference internal" href="project_setup.html#setting-up-annotations">Setting up annotations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="project_setup.html#executing-commands">Executing commands</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="validation.html">Validation Planning</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="validation.html#configuring-a-validation-plan">Configuring a validation plan</a></li>
+<li class="toctree-l2"><a class="reference internal" href="validation.html#selecting-an-evaluation-cohort">Selecting an evaluation cohort</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="extract_tiles.html">Tile extraction</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="extract_tiles.html#rois">ROIs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="extract_tiles.html#stain-normalization">Stain Normalization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="extract_tiles.html#background-filtering">Background filtering</a></li>
+<li class="toctree-l2"><a class="reference internal" href="extract_tiles.html#quality-control">Quality control</a></li>
+<li class="toctree-l2"><a class="reference internal" href="extract_tiles.html#performance-optimization">Performance optimization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="extract_tiles.html#extraction-reports">Extraction reports</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="training.html">Training</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="training.html#prepare-hyperparameters">Prepare hyperparameters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="training.html#begin-training">Begin training</a></li>
+<li class="toctree-l2"><a class="reference internal" href="training.html#finding-results">Finding results</a></li>
+<li class="toctree-l2"><a class="reference internal" href="training.html#multiple-outcomes">Multiple outcomes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="training.html#multiple-input-variables">Multiple input variables</a></li>
+<li class="toctree-l2"><a class="reference internal" href="training.html#cox-proportional-hazards-cph-models">Cox Proportional Hazards (CPH) models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="training.html#distributed-training-across-gpus">Distributed training across GPUs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="training.html#monitoring-performance">Monitoring performance</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="evaluation.html">Evaluation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="evaluation.html#model-evaluation">Model evaluation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="evaluation.html#heatmaps">Heatmaps</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="layer_activations.html">Features / layer activations</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="layer_activations.html#working-with-layer-features">Working with Layer Features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="layer_activations.html#mosaic-maps">Mosaic maps</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="custom_loops.html">Custom training loops</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="custom_loops.html#tfrecord-dataloader">TFRecord DataLoader</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="uq.html">Uncertainty quantification</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="uq.html#training-with-uq">Training with UQ</a></li>
+<li class="toctree-l2"><a class="reference internal" href="uq.html#evaluating-with-uq">Evaluating with UQ</a></li>
+<li class="toctree-l2"><a class="reference internal" href="uq.html#uncertainty-heatmaps">Uncertainty heatmaps</a></li>
+<li class="toctree-l2"><a class="reference internal" href="uq.html#slide-level-confidence-uncertainty-thresholding">Slide-level confidence &amp; uncertainty thresholding</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="clam.html">CLAM</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="clam.html#creating-slide-activations">Creating slide activations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="clam.html#training">Training</a></li>
+<li class="toctree-l2"><a class="reference internal" href="clam.html#evaluation">Evaluation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="troubleshooting.html#testing">Testing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="troubleshooting.html#issue-reporting">Issue Reporting</a></li>
+</ul>
+</li>
 </ul>
 </div>
 <div class="toctree-wrapper compound">
@@ -377,6 +443,7 @@
          <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
          <script src="_static/jquery.js"></script>
          <script src="_static/underscore.js"></script>
+         <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
          <script src="_static/doctools.js"></script>
      
 

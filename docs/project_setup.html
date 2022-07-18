@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Setting up a Project &mdash; slideflow 1.2.0 documentation</title>
+  <title>Setting up a Project &mdash; slideflow 1.2.2 documentation</title>
   
 
   
@@ -161,7 +161,6 @@
 <li class="toctree-l1"><a class="reference internal" href="uq.html">Uncertainty quantification</a></li>
 <li class="toctree-l1"><a class="reference internal" href="clam.html">CLAM</a></li>
 <li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
-<li class="toctree-l1"><a class="reference internal" href="appendix.html">Appendix</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Source</span></p>
 <ul>
@@ -260,7 +259,7 @@
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
               
   <div class="section" id="setting-up-a-project">
-<h1>Setting up a Project<a class="headerlink" href="#setting-up-a-project" title="Permalink to this headline">¶</a></h1>
+<h1>Setting up a Project<a class="headerlink" href="#setting-up-a-project" title="Permalink to this heading">¶</a></h1>
 <p>The easiest way to use <code class="docutils literal notranslate"><span class="pre">slideflow</span></code> is through the bundled project management class, <a class="reference internal" href="project.html#slideflow.Project" title="slideflow.Project"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.Project</span></code></a>, which supports unified datasets, annotations, and project directory structure for all pipeline functions.</p>
 <p>To initialize a new project, pass keyword arguments to <a class="reference internal" href="project.html#slideflow.Project" title="slideflow.Project"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.Project</span></code></a> with project settings:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
@@ -320,7 +319,7 @@ Defaults to “./eval”</p></td>
 </div>
 <p>where the -p flag is used to designate the path to your project directory. Other available flags can be seen by running <code class="docutils literal notranslate"><span class="pre">python3</span> <span class="pre">run_project.py</span> <span class="pre">--help</span></code>.</p>
 <div class="section" id="configuring-datasets">
-<h2>Configuring Datasets<a class="headerlink" href="#configuring-datasets" title="Permalink to this headline">¶</a></h2>
+<h2>Configuring Datasets<a class="headerlink" href="#configuring-datasets" title="Permalink to this heading">¶</a></h2>
 <p>Once initial project settings are established, you will need to either create or load a dataset configuration, which will specify directory locations for slides, ROIs, tiles, and TFRecords for each group of slides.</p>
 <p>Dataset configurations are saved in a JSON file with the below syntax. Dataset configuration files can be shared and used across multiple projects, or saved locally within a project directory.</p>
 <div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
@@ -346,7 +345,7 @@ Defaults to “./eval”</p></td>
 </div>
 </div>
 <div class="section" id="setting-up-annotations">
-<h2>Setting up annotations<a class="headerlink" href="#setting-up-annotations" title="Permalink to this headline">¶</a></h2>
+<h2>Setting up annotations<a class="headerlink" href="#setting-up-annotations" title="Permalink to this heading">¶</a></h2>
 <p>Your annotations file is used to label patients and slides with clinical data and/or other outcome variables that will be used for training. Each line in the annotations file should correspond to a unique slide. Patients may have more than one slide.</p>
 <p>The annotations file may contain any number of columns, but it must contain the following headers at minimum:</p>
 <ul class="simple">
@@ -396,7 +395,7 @@ Defaults to “./eval”</p></td>
 <p>The <code class="docutils literal notranslate"><span class="pre">slide</span></code> column may not need to be explicitly set in the annotations file by the user. Rather, once a dataset has been set up, slideflow will search through the linked slide directories and attempt to match slides to entries in the annotations file using <strong>patient</strong>. Entries that are blank in the <strong>slide</strong> column will be auto-populated with any detected and matching slides, if available.</p>
 </div>
 <div class="section" id="executing-commands">
-<span id="execute"></span><h2>Executing commands<a class="headerlink" href="#executing-commands" title="Permalink to this headline">¶</a></h2>
+<span id="execute"></span><h2>Executing commands<a class="headerlink" href="#executing-commands" title="Permalink to this heading">¶</a></h2>
 <p>If you plan to use the <code class="docutils literal notranslate"><span class="pre">run_project.py</span></code> script for your projects, open the <code class="docutils literal notranslate"><span class="pre">actions.py</span></code> file located in the project directory. It should look something like this:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">main</span><span class="p">(</span><span class="n">P</span><span class="p">):</span>
     <span class="c1">#P.extract_tiles(tile_px=299, tile_um=302)</span>
@@ -490,6 +489,7 @@ Defaults to “./eval”</p></td>
          <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
          <script src="_static/jquery.js"></script>
          <script src="_static/underscore.js"></script>
+         <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
          <script src="_static/doctools.js"></script>
      
 

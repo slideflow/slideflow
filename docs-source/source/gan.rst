@@ -100,5 +100,5 @@ StyleGAN2 Interpolator
 Utility functions
 -----------------
 
-.. automodule:: slideflow.gan.tf_utils
+.. automodule:: slideflow.gan.utils
    :members:

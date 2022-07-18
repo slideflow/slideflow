@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Tutorial 2: Model training (advanced) &mdash; slideflow 1.2.0 documentation</title>
+  <title>Tutorial 2: Model training (advanced) &mdash; slideflow 1.2.2 documentation</title>
   
 
   
@@ -161,7 +161,6 @@
 <li class="toctree-l1"><a class="reference internal" href="uq.html">Uncertainty quantification</a></li>
 <li class="toctree-l1"><a class="reference internal" href="clam.html">CLAM</a></li>
 <li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
-<li class="toctree-l1"><a class="reference internal" href="appendix.html">Appendix</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Source</span></p>
 <ul>
@@ -260,7 +259,7 @@
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
               
   <div class="section" id="tutorial-2-model-training-advanced">
-<h1>Tutorial 2: Model training (advanced)<a class="headerlink" href="#tutorial-2-model-training-advanced" title="Permalink to this headline">¶</a></h1>
+<h1>Tutorial 2: Model training (advanced)<a class="headerlink" href="#tutorial-2-model-training-advanced" title="Permalink to this heading">¶</a></h1>
 <p>In the first tutorial, we used <a class="reference internal" href="project.html#slideflow.Project.train" title="slideflow.Project.train"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Project.train()</span></code></a> to execute training. This project function is useful in that it:</p>
 <ol class="arabic simple">
 <li><p>Configures outcome labels in a manner supporting multiple outcomes</p></li>
@@ -275,7 +274,7 @@
 </div>
 <p>In this tutorial, we will walk through training a model using the <code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.Datset</span></code> and <a class="reference internal" href="model.html#slideflow.model.Trainer" title="slideflow.model.Trainer"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.model.Trainer</span></code></a> classes directly in an interactive python session, rather than using the built-in <a class="reference internal" href="project.html#slideflow.Project.train" title="slideflow.Project.train"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Project.train()</span></code></a> function. This tutorial will demonstrate how model training happens under the hood, in case you would like to customize any part of the model training pipeline.</p>
 <div class="section" id="project-setup">
-<h2>Project Setup<a class="headerlink" href="#project-setup" title="Permalink to this headline">¶</a></h2>
+<h2>Project Setup<a class="headerlink" href="#project-setup" title="Permalink to this heading">¶</a></h2>
 <p>Using the same project configuration as the first tutorial, we will set up a new project:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">P</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">Project</span><span class="p">(</span><span class="s1">&#39;/home/er_project&#39;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;Breast_ER&quot;</span><span class="p">,</span> <span class="n">annotations</span><span class="o">=...</span><span class="p">)</span>
@@ -294,7 +293,7 @@
 <p>As before, set up your annotations file, including columns “patient”, “er_status_by_ihc”, “dataset”, and “slide”.</p>
 </div>
 <div class="section" id="creating-a-dataset">
-<h2>Creating a Dataset<a class="headerlink" href="#creating-a-dataset" title="Permalink to this headline">¶</a></h2>
+<h2>Creating a Dataset<a class="headerlink" href="#creating-a-dataset" title="Permalink to this heading">¶</a></h2>
 <p>Next, create a <a class="reference internal" href="dataset.html#slideflow.Dataset" title="slideflow.Dataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.Dataset</span></code></a> instance to indicate which slides we will be working with (again, we are working with 256 px tiles at 128 um). We only want to use our training set for now, and only include slides with an ER status annotation. For this, we will use the filters arguments.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">dataset</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">dataset</span><span class="p">(</span>
 <span class="gp">... </span>  <span class="n">tile_px</span><span class="o">=</span><span class="mi">256</span><span class="p">,</span>
@@ -339,13 +338,13 @@
 </div>
 <p>The first informational log tells us that no validation log was provided. We could have optionally provided a JSON file path to the argument <code class="docutils literal notranslate"><span class="pre">splits</span></code>; this method can record splits to the provided file for automatic re-use later (helpful for hyperparameter sweeps). However, for the purposes of this tutorial, we have opted not to save our validation plan.</p>
 <p>The rest of the log output shows us the distribution of our outcome categories among the k-folds, as well as the total number of slides for training and validation.</p>
-<p>At this point, we can also add categorical balancing to our dataset (see <a class="reference internal" href="appendix.html#balancing"><span class="std std-ref">A Note on Input Balancing</span></a>). Since we have nearly 4 times as many ER-positive samples as ER-negative, it may be helpful to balance each batch to have an equal proportion of positives and negatives. We can accomplish this with the <a class="reference internal" href="dataset.html#slideflow.Dataset.balance" title="slideflow.Dataset.balance"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Dataset.balance()</span></code></a> method:</p>
+<p>At this point, we can also add categorical balancing to our dataset (see <a class="reference internal" href="model.html#balancing"><span class="std std-ref">A Note on Input Balancing</span></a>). Since we have nearly 4 times as many ER-positive samples as ER-negative, it may be helpful to balance each batch to have an equal proportion of positives and negatives. We can accomplish this with the <a class="reference internal" href="dataset.html#slideflow.Dataset.balance" title="slideflow.Dataset.balance"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Dataset.balance()</span></code></a> method:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">train_dts</span> <span class="o">=</span> <span class="n">train_dts</span><span class="o">.</span><span class="n">balance</span><span class="p">(</span><span class="s1">&#39;er_status_by_ihc&#39;</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
 <div class="section" id="training">
-<h2>Training<a class="headerlink" href="#training" title="Permalink to this headline">¶</a></h2>
+<h2>Training<a class="headerlink" href="#training" title="Permalink to this heading">¶</a></h2>
 <p>Now that our dataset is prepared, we can begin setting up our model and trainer. Our model training parameters are configured with <code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.ModelParams</span></code>.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">hp</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">ModelParams</span><span class="p">(</span>
 <span class="gp">... </span>  <span class="n">tile_px</span><span class="o">=</span><span class="mi">256</span><span class="p">,</span>
@@ -477,6 +476,7 @@
          <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
          <script src="_static/jquery.js"></script>
          <script src="_static/underscore.js"></script>
+         <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
          <script src="_static/doctools.js"></script>
      
 

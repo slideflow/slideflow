@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Validation Planning &mdash; slideflow 1.2.0 documentation</title>
+  <title>Validation Planning &mdash; slideflow 1.2.2 documentation</title>
   
 
   
@@ -161,7 +161,6 @@
 <li class="toctree-l1"><a class="reference internal" href="uq.html">Uncertainty quantification</a></li>
 <li class="toctree-l1"><a class="reference internal" href="clam.html">CLAM</a></li>
 <li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
-<li class="toctree-l1"><a class="reference internal" href="appendix.html">Appendix</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Source</span></p>
 <ul>
@@ -260,7 +259,7 @@
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
               
   <div class="section" id="validation-planning">
-<span id="id1"></span><h1>Validation Planning<a class="headerlink" href="#validation-planning" title="Permalink to this headline">¶</a></h1>
+<span id="id1"></span><h1>Validation Planning<a class="headerlink" href="#validation-planning" title="Permalink to this heading">¶</a></h1>
 <p>An important first step in creating a new project is to determine the validation plan. Three groups of data are required:</p>
 <ol class="arabic simple">
 <li><p><strong>Training data</strong> - data used for learning during training</p></li>
@@ -269,7 +268,7 @@
 </ol>
 <p>Validation data is used to assess model performance and generalizability during training. Once the model and parameters have been tuned with training/validation, the final model’s performance is assessed on the held-out evaluation set.</p>
 <div class="section" id="configuring-a-validation-plan">
-<h2>Configuring a validation plan<a class="headerlink" href="#configuring-a-validation-plan" title="Permalink to this headline">¶</a></h2>
+<h2>Configuring a validation plan<a class="headerlink" href="#configuring-a-validation-plan" title="Permalink to this heading">¶</a></h2>
 <p>There are several ways you can plan to validate your data. The validation settings available include:</p>
 <ul class="simple">
 <li><p><strong>strategy</strong>:  <code class="docutils literal notranslate"><span class="pre">'bootstrap'</span></code>, <code class="docutils literal notranslate"><span class="pre">'k-fold'</span></code>, <code class="docutils literal notranslate"><span class="pre">'k-fold-manual'</span></code>, <code class="docutils literal notranslate"><span class="pre">'k-fold-preserved-site'</span></code>, <code class="docutils literal notranslate"><span class="pre">'fixed'</span></code>, and <code class="docutils literal notranslate"><span class="pre">'none'</span></code></p></li>
@@ -278,7 +277,7 @@
 </ul>
 <p>The default strategy is <code class="docutils literal notranslate"><span class="pre">'k-fold'</span></code>, with k=3.</p>
 <div class="section" id="validation-strategy">
-<h3>Validation strategy<a class="headerlink" href="#validation-strategy" title="Permalink to this headline">¶</a></h3>
+<h3>Validation strategy<a class="headerlink" href="#validation-strategy" title="Permalink to this heading">¶</a></h3>
 <p>The <code class="docutils literal notranslate"><span class="pre">strategy</span></code> option determines how the validation data is selected.</p>
 <p>If <strong>fixed</strong>, a certain percentage of your training data is set aside for testing (determined by <code class="docutils literal notranslate"><span class="pre">fraction</span></code>). The chosen validation subset is saved to a log file and will be re-used for all training iterations.</p>
 <p>If <strong>bootstrap</strong>, validation data will be selected at random (percentage determined by <code class="docutils literal notranslate"><span class="pre">fraction</span></code>), and all training iterations will be repeated a number of times equal to <code class="docutils literal notranslate"><span class="pre">k_fold</span></code>. The saved and reported model training metrics will be an average of all bootstrap iterations.</p>
@@ -293,7 +292,7 @@
 </div>
 </div>
 <div class="section" id="selecting-an-evaluation-cohort">
-<h2>Selecting an evaluation cohort<a class="headerlink" href="#selecting-an-evaluation-cohort" title="Permalink to this headline">¶</a></h2>
+<h2>Selecting an evaluation cohort<a class="headerlink" href="#selecting-an-evaluation-cohort" title="Permalink to this heading">¶</a></h2>
 <p>Designating an evaluation cohort is done using the project annotations file, with a column indicating whether a slide is set aside for evaluation.
 The training and evaluation functions include a <code class="docutils literal notranslate"><span class="pre">filter</span></code> argument which will allow you to restrict your training or evaluation according to these annotations. This will be discussed in greater detail in subsequent sections.</p>
 </div>
@@ -368,6 +367,7 @@ The training and evaluation functions include a <code class="docutils literal no
          <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
          <script src="_static/jquery.js"></script>
          <script src="_static/underscore.js"></script>
+         <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
          <script src="_static/doctools.js"></script>
      
 

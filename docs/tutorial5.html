@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Tutorial 5: Creating a mosaic map &mdash; slideflow 1.2.0 documentation</title>
+  <title>Tutorial 5: Creating a mosaic map &mdash; slideflow 1.2.2 documentation</title>
   
 
   
@@ -160,7 +160,6 @@
 <li class="toctree-l1"><a class="reference internal" href="uq.html">Uncertainty quantification</a></li>
 <li class="toctree-l1"><a class="reference internal" href="clam.html">CLAM</a></li>
 <li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
-<li class="toctree-l1"><a class="reference internal" href="appendix.html">Appendix</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Source</span></p>
 <ul>
@@ -259,10 +258,10 @@
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
               
   <div class="section" id="tutorial-5-creating-a-mosaic-map">
-<h1>Tutorial 5: Creating a mosaic map<a class="headerlink" href="#tutorial-5-creating-a-mosaic-map" title="Permalink to this headline">¶</a></h1>
+<h1>Tutorial 5: Creating a mosaic map<a class="headerlink" href="#tutorial-5-creating-a-mosaic-map" title="Permalink to this heading">¶</a></h1>
 <p>Mosaic maps are useful explainability tools used to describe the landscape of image features a model learned during training. In this tutorial, we will walk through the process of creating a mosaic map, reproducing results similar to what is shown in Figure 5 of <a class="reference external" href="https://arxiv.org/abs/2204.04516">this article by Dolezal et al</a>.</p>
 <div class="section" id="train-a-model">
-<h2>Train a model<a class="headerlink" href="#train-a-model" title="Permalink to this headline">¶</a></h2>
+<h2>Train a model<a class="headerlink" href="#train-a-model" title="Permalink to this heading">¶</a></h2>
 <p>The first step is to train a model, as described in <a class="reference internal" href="tutorial1.html#tutorial1"><span class="std std-ref">Tutorial 1: Model training (simple)</span></a>. For the purposes of this tutorial, we will assume data has been collected and annotated as described in the referenced manuscript, with models trained to predict lung adenocarcinoma vs. squamous cell carcinoma. We will assume that a project has been initialized at <code class="docutils literal notranslate"><span class="pre">/mnt/data/projects/TCGA_LUNG</span></code> and configured to use whole-slide images from <a class="reference external" href="https://portal.gdc.cancer.gov/">TCGA</a>, with the annotations header <code class="docutils literal notranslate"><span class="pre">'cohort'</span></code> indicating whether a tumor is adenocarcinoma (<code class="docutils literal notranslate"><span class="pre">'LUAD'</span></code>) or squamous (<code class="docutils literal notranslate"><span class="pre">'LUSC'</span></code>). Training models for such a project would look like:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
 
@@ -298,7 +297,7 @@
 </div>
 </div>
 <div class="section" id="locate-a-saved-model">
-<h2>Locate a saved model<a class="headerlink" href="#locate-a-saved-model" title="Permalink to this headline">¶</a></h2>
+<h2>Locate a saved model<a class="headerlink" href="#locate-a-saved-model" title="Permalink to this heading">¶</a></h2>
 <p>Once training is finished, locate the model from the first k-fold split in your project’s model directory. For the Tensorflow backend, the saved model would look like:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>models/
 ├── 00001-cohort-HP0-kfold1 /
@@ -317,7 +316,7 @@
 </div>
 </div>
 <div class="section" id="generate-layer-activations">
-<h2>Generate layer activations<a class="headerlink" href="#generate-layer-activations" title="Permalink to this headline">¶</a></h2>
+<h2>Generate layer activations<a class="headerlink" href="#generate-layer-activations" title="Permalink to this heading">¶</a></h2>
 <p>The next step is to calculate layer activations for images in the model’s validation dataset. First, let’s find the slides belonging to our model’s validation dataset:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">slideflow.util</span> <span class="kn">import</span> <span class="n">get_slides_from_model_manifest</span>
 
@@ -357,7 +356,7 @@
 <p>This function will return an instance of <code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.DatasetFeatures</span></code>, which contains tile-level predictions (in <code class="docutils literal notranslate"><span class="pre">DatasetFeatures.logits</span></code>), tile X,Y locations from their respective slides (in <code class="docutils literal notranslate"><span class="pre">DatasetFeatures.locations</span></code>), layer activations (in <code class="docutils literal notranslate"><span class="pre">DatasetFeatures.activations</span></code>), and uncertainty (if applicable, in <code class="docutils literal notranslate"><span class="pre">DatasetFeatures.uncertainty</span></code>).</p>
 </div>
 <div class="section" id="create-the-mosaic-map">
-<h2>Create the mosaic map<a class="headerlink" href="#create-the-mosaic-map" title="Permalink to this headline">¶</a></h2>
+<h2>Create the mosaic map<a class="headerlink" href="#create-the-mosaic-map" title="Permalink to this heading">¶</a></h2>
 <p>From this collection of layer activations, we can generate a mosaic map from this <code class="docutils literal notranslate"><span class="pre">DatasetFeatures</span></code> object. Use <a class="reference internal" href="project.html#slideflow.Project.generate_mosaic" title="slideflow.Project.generate_mosaic"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Project.generate_mosaic()</span></code></a> to create the mosaic. We will use the <code class="docutils literal notranslate"><span class="pre">umap_cache</span></code> argument to cache the UMAP created during mosaic map generation, so it can be reused if necessary.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Generate a mosaic map</span>
 <span class="n">mosaic</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">generate_mosaic</span><span class="p">(</span>
@@ -375,7 +374,7 @@
 <img alt="https://i.imgur.com/kt8O85l.png" src="https://i.imgur.com/kt8O85l.png" />
 </div>
 <div class="section" id="save-corresponding-umaps">
-<h2>Save corresponding UMAPs<a class="headerlink" href="#save-corresponding-umaps" title="Permalink to this headline">¶</a></h2>
+<h2>Save corresponding UMAPs<a class="headerlink" href="#save-corresponding-umaps" title="Permalink to this heading">¶</a></h2>
 <p>Now that we have the mosaic generated, we need to create corresponding labeled UMAP plots to aid in interpretability. UMAP plots are stored in <a class="reference internal" href="stats.html#slideflow.SlideMap" title="slideflow.SlideMap"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.SlideMap</span></code></a> objects. A mosaic’s underlying <code class="docutils literal notranslate"><span class="pre">SlideMap</span></code> can be accessed via <code class="docutils literal notranslate"><span class="pre">mosaic.slide_map</span></code>.</p>
 <p>The <a class="reference internal" href="stats.html#slideflow.SlideMap" title="slideflow.SlideMap"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.SlideMap</span></code></a> class provides several functions useful for labeling. To start, we will label the umap according to the raw logits for each tile image. As this is a binary categorical outcome, there will be two logits. We will label the UMAP according to the second logit (id=1), and then save the image to disc.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Label by raw logits</span>
@@ -490,6 +489,7 @@
          <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
          <script src="_static/jquery.js"></script>
          <script src="_static/underscore.js"></script>
+         <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
          <script src="_static/doctools.js"></script>
      
 

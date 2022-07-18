@@ -22,7 +22,8 @@ if TYPE_CHECKING:
 
 class SlideReport:
     '''Report to summarize tile extraction from a slide, including
-    example images of extracted tiles.'''
+    example images of extracted tiles.
+    '''
 
     def __init__(
         self,
@@ -32,13 +33,15 @@ class SlideReport:
         data: Dict[str, Any] = None,
         compress: bool = True
     ) -> None:
-        """Initializer.
+        """Creates a slide report summarizing tile extraction, withsome example
+        extracted images.
 
         Args:
             images (list(str)): List of JPEG image strings (example tiles).
             path (str): Path to slide.
             data (dict, optional): Dictionary of slide extraction report
-                metadata. Defaults to None.
+                metadata. Expected keys may include 'blur_burden', 'num_tiles',
+                'locations', and 'qc_mask'. Defaults to None.
             compress (bool, optional): Compresses images to reduce image sizes.
                 Defaults to True.
         """
@@ -56,6 +59,12 @@ class SlideReport:
 
     @property
     def blur_burden(self) -> Optional[float]:
+        """Metric defined as the proportion of non-background slide
+        with high blur. Only calculated if both Otsu and Blur QC is used.
+
+        Returns:
+            float
+        """
         if self.data is None:
             return None
         if 'blur_burden' in self.data:
@@ -65,6 +74,11 @@ class SlideReport:
 
     @property
     def num_tiles(self) -> Optional[int]:
+        """Number of tiles extracted.
+
+        Returns:
+            int
+        """
         if self.data is None:
             return None
         if 'num_tiles' in self.data:
@@ -73,7 +87,30 @@ class SlideReport:
             return None
 
     @property
-    def locations(self) -> "pd.DataFrame":
+    def locations(self) -> Optional["pd.DataFrame"]:
+        """DataFrame with locations of extracted tiles, with the following
+        columns:
+
+        ``loc_x``: Extracted tile x coordinates (as saved in TFRecords).
+        Calculated as the full coordinate value / 10.
+
+        ``loc_y``: Extracted tile y coordinates (as saved in TFRecords).
+        Calculated as the full coordinate value / 10.
+
+        ``grid_x``: First dimension index of the tile extraction grid.
+
+        ``grid_y``: Second dimension index of the tile extraction grid.
+
+        ``gs_fraction``: Grayspace fraction. Only included if grayspace
+        filtering is used.
+
+        ``ws_fraction``: Whitespace fraction. Only included if whitespace
+        filtering is used.
+
+        Returns:
+            pandas.DataFrame
+
+        """
         if self.data is None:
             return None
         if 'locations' in self.data:
@@ -82,7 +119,13 @@ class SlideReport:
             return None
 
     @property
-    def qc_mask(self) -> np.ndarray:
+    def qc_mask(self) -> Optional[np.ndarray]:
+        """Numpy array with the QC mask, of shape WSI.grid and type bool
+        (True = include tile, False = discard tile)
+
+        Returns:
+            np.ndarray
+        """
         if self.data is None:
             return None
         if 'qc_mask' in self.data:

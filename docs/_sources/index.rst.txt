@@ -14,7 +14,7 @@ Slideflow includes tools for efficient whole-slide image processing, easy and hi
 The ``slideflow`` package includes a ``Project`` class to help coordinate project organization and supervise execution of the pipeline.  This documentation starts with a high-level overview of the pipeline, and will include examples of how to execute functions using the ``Project`` class. We also provide several tutorials with examples of how Slideflow can be used on your own data.
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
    :caption: Overview
 
    installation
@@ -29,7 +29,6 @@ The ``slideflow`` package includes a ``Project`` class to help coordinate projec
    uq
    clam
    troubleshooting
-   appendix
 
 .. toctree::
    :maxdepth: 1

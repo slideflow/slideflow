@@ -17,3 +17,8 @@ TMA
 ***
 .. autoclass:: TMA
     :inherited-members:
+
+SlideReport
+***********
+.. autoclass:: slideflow.slide.report.SlideReport
+    :inherited-members:

@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Tutorial 1: Model training (simple) &mdash; slideflow 1.2.0 documentation</title>
+  <title>Tutorial 1: Model training (simple) &mdash; slideflow 1.2.2 documentation</title>
   
 
   
@@ -161,7 +161,6 @@
 <li class="toctree-l1"><a class="reference internal" href="uq.html">Uncertainty quantification</a></li>
 <li class="toctree-l1"><a class="reference internal" href="clam.html">CLAM</a></li>
 <li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
-<li class="toctree-l1"><a class="reference internal" href="appendix.html">Appendix</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Source</span></p>
 <ul>
@@ -260,7 +259,7 @@
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
               
   <div class="section" id="tutorial-1-model-training-simple">
-<span id="tutorial1"></span><h1>Tutorial 1: Model training (simple)<a class="headerlink" href="#tutorial-1-model-training-simple" title="Permalink to this headline">¶</a></h1>
+<span id="tutorial1"></span><h1>Tutorial 1: Model training (simple)<a class="headerlink" href="#tutorial-1-model-training-simple" title="Permalink to this heading">¶</a></h1>
 <p>In this first tutorial, we will walk through the steps needed to take an example project from start to finish, using
 the bundled <code class="docutils literal notranslate"><span class="pre">run_project.py</span></code> script to execute pipeline functions. As with all of these tutorials, we will use
 publicly available data from <a class="reference external" href="https://portal.gdc.cancer.gov">The Cancer Genome Atlas (TCGA)</a>. In this first tutorial,
@@ -268,7 +267,7 @@ we will train a model to predict ER status from breast cancer slides.</p>
 <p>Examples will be given assuming project files are in the directory <code class="docutils literal notranslate"><span class="pre">/home/er_project</span></code> and slides are in
 <code class="docutils literal notranslate"><span class="pre">/home/brca_slides</span></code>, although you will need to customize these paths according to your needs.</p>
 <div class="section" id="project-planning">
-<h2>Project Planning<a class="headerlink" href="#project-planning" title="Permalink to this headline">¶</a></h2>
+<h2>Project Planning<a class="headerlink" href="#project-planning" title="Permalink to this heading">¶</a></h2>
 <p>First, download slides and annotations for the TCGA-BRCA project using the <a class="reference external" href="https://portal.gdc.cancer.gov/legacy-archive/search/f">legacy GDC portal</a>. We should have a total of 1133 diagnostic slides across 1062
 patients. Our outcome of interest is “er_status_by_ihc”, of which 1011 have a documented result (either “Positive”
 or “Negative”), giving us our final patient count of 1011.</p>
@@ -332,7 +331,7 @@ configuration for the added dataset source:</p>
 <p>For simplicity, we will not be using annotated tumor regions of interest (ROI), instead training on whole-slide images.</p>
 </div>
 <div class="section" id="setting-up-annotations">
-<h2>Setting up annotations<a class="headerlink" href="#setting-up-annotations" title="Permalink to this headline">¶</a></h2>
+<h2>Setting up annotations<a class="headerlink" href="#setting-up-annotations" title="Permalink to this heading">¶</a></h2>
 <p>With our project initialized, we can set up our annotations file. Use the downloaded annotations file to create a new
 CSV file, with a column “patient” indicating patient name (in the case of TCGA, these are in the format
 TCGA-SS-XXXX, where SS indicates site of origin and XXXX is the patient identifier), and a column “er_status_by_ihc”
@@ -388,7 +387,7 @@ slideflow will auto-associate slides to patients.</p>
 </table>
 </div>
 <div class="section" id="tile-extraction">
-<h2>Tile extraction<a class="headerlink" href="#tile-extraction" title="Permalink to this headline">¶</a></h2>
+<h2>Tile extraction<a class="headerlink" href="#tile-extraction" title="Permalink to this heading">¶</a></h2>
 <p>The next step is to extract tiles from our slides. Find the sample <code class="docutils literal notranslate"><span class="pre">actions.py</span></code> file in the project folder, which we
 will modify and use to execute our pipeline functions. Delete the commented-out examples in this file.</p>
 <p>For this example, we will use a 256px x 256px tile size, at 0.5 µm/pixel (128 um). Add the following
@@ -408,7 +407,7 @@ buffered to an SSD or ramdisk directory by passing a directory to the argument <
 </div>
 </div>
 <div class="section" id="training">
-<h2>Training<a class="headerlink" href="#training" title="Permalink to this headline">¶</a></h2>
+<h2>Training<a class="headerlink" href="#training" title="Permalink to this heading">¶</a></h2>
 <p>After tiles are extracted, the dataset will be ready for training. We will train with a single set of manually defined
 hyperparameters, which we can configure with <a class="reference internal" href="model.html#slideflow.model.ModelParams" title="slideflow.model.ModelParams"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.model.ModelParams</span></code></a>. We will use the
 <a class="reference external" href="https://arxiv.org/abs/1610.02357">Xception</a> model with a batch size of 32, otherwise keeping defaults.</p>
@@ -519,7 +518,7 @@ and patient-level receiver operator curves are saved in the model folder, along 
 </table>
 </div>
 <div class="section" id="monitoring-with-tensorboard">
-<h2>Monitoring with Tensorboard<a class="headerlink" href="#monitoring-with-tensorboard" title="Permalink to this headline">¶</a></h2>
+<h2>Monitoring with Tensorboard<a class="headerlink" href="#monitoring-with-tensorboard" title="Permalink to this heading">¶</a></h2>
 <p>Tensorboard-formatted training and validation logs are saved the model directory. To monitor training with Tensorboard:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ tensorboard --logdir<span class="o">=</span>/project_path/models/00001-outcome-HP0
 </pre></div>
@@ -527,7 +526,7 @@ and patient-level receiver operator curves are saved in the model folder, along 
 <p>Tensorboard can then be accessed by navigating to <code class="docutils literal notranslate"><span class="pre">https://localhost:6006</span></code> in a browser.</p>
 </div>
 <div class="section" id="monitoring-with-neptune">
-<h2>Monitoring with Neptune<a class="headerlink" href="#monitoring-with-neptune" title="Permalink to this headline">¶</a></h2>
+<h2>Monitoring with Neptune<a class="headerlink" href="#monitoring-with-neptune" title="Permalink to this heading">¶</a></h2>
 <p>Experiments can be automatically logged with <a class="reference external" href="https://app.neptune.ai">Neptune.ai</a>. To enable logging, first locate your Neptune API token and workspace ID, and configure the environmental variables <code class="docutils literal notranslate"><span class="pre">NEPTUNE_API_TOKEN</span></code> and <code class="docutils literal notranslate"><span class="pre">NEPTUNE_WORKSPACE</span></code>.</p>
 <p>With the environmental variables set, Neptune logs are enabled either by passing a <code class="docutils literal notranslate"><span class="pre">-n</span></code> flag to the <code class="docutils literal notranslate"><span class="pre">run_project.py</span></code> script:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ python3 run_project.py -n -p /project_path/
@@ -610,6 +609,7 @@ and patient-level receiver operator curves are saved in the model folder, along 
          <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
          <script src="_static/jquery.js"></script>
          <script src="_static/underscore.js"></script>
+         <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
          <script src="_static/doctools.js"></script>
      
 
