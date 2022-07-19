@@ -6,7 +6,7 @@ import numpy as np
 from slideflow import errors
 from slideflow.dataset import Dataset
 from slideflow.norm import StainNormalizer
-from slideflow.norm.tensorflow import reinhard, reinhard_fast
+from slideflow.norm.tensorflow import reinhard, reinhard_fast, macenko
 from slideflow.util import detuple, log
 from tqdm import tqdm
 
@@ -18,7 +18,8 @@ class TensorflowStainNormalizer(StainNormalizer):
     backend = 'tensorflow'
     normalizers = {
         'reinhard': reinhard,
-        'reinhard_fast': reinhard_fast
+        'reinhard_fast': reinhard_fast,
+        'macenko': macenko
     }
 
     def __init__(
@@ -39,7 +40,7 @@ class TensorflowStainNormalizer(StainNormalizer):
         if not source:
             package_directory = os.path.dirname(os.path.abspath(__file__))
             source = join(package_directory, '../norm_tile.jpg')
-        if source != 'dataset':
+        if source == 'internal':
             self.src_img = tf.image.decode_jpeg(tf.io.read_file(source))
             means, stds = self.n.fit(tf.expand_dims(self.src_img, axis=0))
             self.target_means = tf.concat(means, 0)
@@ -250,11 +251,11 @@ class TensorflowStainNormalizer(StainNormalizer):
         if self.target_means is not None:
             msg += f"target_means={self.target_means.flatten()} "
         if self.target_stds is not None:
-            msg += f"target_means={self.target_stds.flatten()} "
+            msg += f"target_stds={self.target_stds.flatten()} "
         if self.stain_matrix_target is not None:
-            msg += f"target_means={self.stain_matrix_target.flatten()} "
+            msg += f"stain_matrix_target={self.stain_matrix_target.flatten()} "
         if self.target_concentrations is not None:
-            msg += f"target_means={self.target_concentrations.flatten()} "
+            msg += f"target_concentrations={self.target_concentrations.flatten()} "
         log.info(msg)
 
     def get_fit(self) -> Dict[str, Optional[List[float]]]:
@@ -296,8 +297,8 @@ class TensorflowStainNormalizer(StainNormalizer):
                 return detuple(
                     self.n.transform(
                         batch,
-                        self.target_means_tensor,
-                        self.target_stds_tensor), args)
+                        self.stain_matrix_target,
+                        self.target_concentrations), args)
 
     @tf.function
     def batch_to_batch(self, image: tf.Tensor) -> tf.Tensor:

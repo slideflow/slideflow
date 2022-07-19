@@ -64,7 +64,7 @@ class StainNormalizer:
         if not source:
             package_directory = os.path.dirname(os.path.abspath(__file__))
             source = join(package_directory, 'norm_tile.jpg')
-        if source != 'dataset':
+        if source != 'dataset' and self.n.autofit:
             self.src_img = cv2.cvtColor(cv2.imread(source), cv2.COLOR_BGR2RGB)
             self.n.fit(self.src_img)
 
@@ -195,11 +195,11 @@ class StainNormalizer:
         if self.n.target_means is not None:
             msg += f"target_means={self.n.target_means.flatten()} "
         if self.n.target_stds is not None:
-            msg += f"target_means={self.n.target_stds.flatten()} "
+            msg += f"target_stds={self.n.target_stds.flatten()} "
         if self.n.stain_matrix_target is not None:
-            msg += f"target_means={self.n.stain_matrix_target.flatten()} "
+            msg += f"stain_matrix_target={self.n.stain_matrix_target.flatten()} "
         if self.n.target_concentrations is not None:
-            msg += f"target_means={self.n.target_concentrations.flatten()} "
+            msg += f"target_concentrations={self.n.target_concentrations.flatten()} "
         log.info(msg)
 
     def get_fit(self) -> Dict[str, Optional[List[float]]]:

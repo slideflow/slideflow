@@ -10,7 +10,7 @@ from typing import Tuple
 
 import tensorflow as tf
 
-from slideflow.norm.tensorflow.probability import percentile
+import tensorflow_probability as tfp
 from slideflow.norm.tensorflow.reinhard_fast import fit as fit_fast
 from slideflow.norm.tensorflow.reinhard_fast import transform as transform_fast
 
@@ -22,7 +22,7 @@ def standardize_brightness(I: tf.Tensor) -> tf.Tensor:
     :param I:
     :return:
     """
-    p = percentile(I, 90)  # p = np.percentile(I, 90)
+    p = tfp.stats.percentile(I, 90)  # p = np.percentile(I, 90)
     p = tf.cast(p, tf.float32)
     scaled = tf.cast(I, tf.float32) * tf.constant(255.0, dtype=tf.float32) / p
     scaled = tf.experimental.numpy.clip(scaled, 0, 255)

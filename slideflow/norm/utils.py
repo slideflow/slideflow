@@ -116,6 +116,7 @@ class BaseNormalizer:
         self.target_stds = None
         self.stain_matrix_target = None
         self.target_concentrations = None
+        self.autofit = True
 
     def fit(self, target: np.ndarray) -> Optional[Tuple[np.ndarray, np.ndarray]]:
         pass
