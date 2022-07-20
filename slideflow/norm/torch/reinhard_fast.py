@@ -168,7 +168,7 @@ class ReinhardFastNormalizer:
 
         Args:
             img (torch.Tensor): Target image (RGB uint8) with dimensions
-                C, W, H.
+                W, H, C.
             reduce (bool, optional): Reduce fit parameters across a batch of
                 images by average. Defaults to False.
 
@@ -220,7 +220,7 @@ class ReinhardFastNormalizer:
         """Normalize an H&E image.
 
         Args:
-            img (torch.Tensor): Image, RGB uint8 with dimensions C, W, H.
+            img (torch.Tensor): Image, RGB uint8 with dimensions W, H, C.
 
         Returns:
             torch.Tensor: Normalized image (uint8)

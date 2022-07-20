@@ -36,7 +36,7 @@ def transform(
     """Normalize an H&E image.
 
     Args:
-        img (torch.Tensor): Image, uint8 with dimensions C, W, H.
+        img (torch.Tensor): Image, uint8 with dimensions W, H, C.
         tgt_mean (torch.Tensor): Target channel means.
         tgt_std (torch.Tensor): Target channel standard deviations.
 
@@ -69,7 +69,7 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
 
         Args:
             img (torch.Tensor): Target image (RGB uint8) with dimensions
-                C, W, H.
+                W, H, C.
             reduce (bool, optional): Reduce fit parameters across a batch of
                 images by average. Defaults to False.
 
@@ -90,7 +90,7 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
         """Normalize an H&E image.
 
         Args:
-            img (torch.Tensor): Image, uint8 with dimensions C, W, H.
+            img (torch.Tensor): Image, uint8 with dimensions W, H, C.
 
         Returns:
             torch.Tensor: Normalized image.

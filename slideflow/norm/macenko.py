@@ -92,7 +92,7 @@ class MacenkoNormalizer:
         target_concentrations = ut._as_numpy(target_concentrations)
 
         if stain_matrix_target.shape != (3, 2):
-            raise ValueError("stain_matrix_target must have shape (3,2) - "
+            raise ValueError("stain_matrix_target must have shape (3, 2) - "
                              f"got {stain_matrix_target.shape}")
         if target_concentrations.shape != (2,):
             raise ValueError("target_concentrations must have shape (2,) - "

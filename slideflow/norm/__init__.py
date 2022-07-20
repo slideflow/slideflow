@@ -110,10 +110,12 @@ class StainNormalizer:
         conversion to WHC.
 
         Args:
-            inp (torch.Tensor): Image, uint8, C x W x H.
+            inp (torch.Tensor): Image, uint8. Images are normalized in
+                W x H x C space. Images provided as C x W x H will be
+                auto-converted and permuted back after normalization.
 
         Returns:
-            torch.Tensor:   Image, uint8, C x W x H.
+            torch.Tensor:   Image, uint8.
 
         """
         import torch
@@ -122,7 +124,8 @@ class StainNormalizer:
         if len(inp.shape) == 4:
             return torch.stack([self._torch_transform(img) for img in inp])
         elif inp.shape[0] == 3:
-            return whc_to_cwh(self._torch_transform(cwh_to_whc(inp)))
+            # Convert from CWH -> WHC (normalize) -> CWH
+            return whc_to_cwh(torch.from_numpy(self.rgb_to_rgb(cwh_to_whc(inp).cpu().numpy())))
         else:
             return torch.from_numpy(self.rgb_to_rgb(inp.cpu().numpy()))
 
