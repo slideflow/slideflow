@@ -4,16 +4,23 @@ from __future__ import division
 
 import cv2 as cv
 import numpy as np
+from typing import Dict
 
 import slideflow.norm.utils as ut
 
 
-class Normalizer(ut.BaseNormalizer):
+class AugmentNormalizer:
     """
     A stain normalization object
     """
 
     def __init__(self):
+        return
+
+    def get_fit(self) -> Dict[str, np.ndarray]:
+        return {}
+
+    def set_fit(self) -> None:
         return
 
     def fit(self, target: np.ndarray) -> None:

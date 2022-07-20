@@ -7,14 +7,14 @@ E. Reinhard, M. Adhikhmin, B. Gooch, and P. Shirley, ‘Color transfer between i
 
 from __future__ import division
 
-from typing import Tuple
+import os
+import cv2
+from typing import Tuple, Dict
 
 import cv2 as cv
 import numpy as np
 
 import slideflow.norm.utils as ut
-
-### Some functions ###
 
 
 def lab_split(I: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -62,21 +62,35 @@ def get_mean_std(I: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     return means, stds
 
 
-### Main class ###
-
-class Normalizer(ut.BaseNormalizer):
+class ReinhardMaskNormalizer:
     """
     A stain normalization object
     """
 
     def __init__(self) -> None:
-        super().__init__()
+        package_directory = os.path.dirname(os.path.abspath(__file__))
+        img_path = os.path.join(package_directory, 'norm_tile.jpg')
+        self.fit(cv2.cvtColor(cv2.imread(img_path), cv2.COLOR_BGR2RGB))
 
     def fit(self, target: np.ndarray) -> None:
         target = ut.standardize_brightness(target)
         means, stds = get_mean_std(target)
         self.target_means = means
         self.target_stds = stds
+
+    def get_fit(self) -> Dict[str, np.ndarray]:
+        return {
+            'target_means': self.target_means,
+            'target_stds': self.target_stds
+        }
+
+    def set_fit(
+        self,
+        target_means: np.ndarray,
+        target_stds: np.ndarray
+    ) -> None:
+        self.target_means = ut._as_numpy(target_means)
+        self.target_stds = ut._as_numpy(target_stds)
 
     def transform(self, I: np.ndarray) -> np.ndarray:
 

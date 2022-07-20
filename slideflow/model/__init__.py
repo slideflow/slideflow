@@ -215,7 +215,7 @@ class DatasetFeatures:
             if self.normalizer:
                 log.info(f'Using realtime {self.normalizer.method} normalization')
                 if 'norm_fit' in model_config:
-                    self.normalizer.fit(**model_config['norm_fit'])
+                    self.normalizer.set_fit(**model_config['norm_fit'])
         else:
             self.normalizer = None
             self.uq = False

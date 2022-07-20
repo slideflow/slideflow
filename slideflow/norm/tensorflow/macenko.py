@@ -1,6 +1,7 @@
+import numpy as np
 import tensorflow as tf
-
-from typing import Tuple
+from functools import partial
+from typing import Tuple, Dict, Optional, Union
 
 from tensorflow.experimental.numpy import dot
 import tensorflow_probability as tfp
@@ -93,8 +94,7 @@ def transform(
     Returns:
         tf.Tensor: Transformed image.
     """
-    if len(img.shape) == 4:
-        img = img[0]
+
     h, w, c = img.shape
 
     Io = tf.cast(Io, tf.float32)
@@ -144,4 +144,71 @@ def fit(
         tf.Tensor: Fit target concentrations
     """
     HE, maxC, _ = matrix_and_concentrations(img, Io, alpha, beta)
+
+    if reduce:
+        HE = tf.math.reduce_mean(HE, axis=0)
+        maxC = tf.math.reduce_mean(maxC, axis=0)
+
     return HE, maxC
+
+
+class MacenkoNormalizer:
+
+    vectorized = False
+    preferred_device = 'cpu'
+
+    def __init__(
+        self,
+        Io: int = 255,
+        alpha: float = 1,
+        beta: float = 0.15
+    ) -> None:
+
+        self.Io = Io
+        self.alpha = alpha
+        self.beta = beta
+
+        HERef = tf.constant([[0.5626, 0.2159],
+                          [0.7201, 0.8012],
+                          [0.4062, 0.5581]])
+        maxCRef = tf.constant([1.9705, 1.0308])
+        self.stain_matrix_target = HERef
+        self.target_concentrations = maxCRef
+
+    def fit(
+        self,
+        target: tf.Tensor,
+        reduce: bool = True
+    ) -> Tuple[tf.Tensor, tf.Tensor]:
+        if len(target.shape) == 3:
+            target = tf.expand_dims(target, axis=0)
+        HE, maxC = fit(target, self.Io, self.alpha, self.beta, reduce=reduce)
+        self.stain_matrix_target = HE
+        self.target_concentrations = maxC
+        return HE, maxC
+
+    def get_fit(self) -> Dict[str, Optional[np.ndarray]]:
+        return {
+            'stain_matrix_target': None if self.stain_matrix_target is None else self.stain_matrix_target.numpy(),  # type: ignore
+            'target_concentrations': None if self.target_concentrations is None else self.target_concentrations.numpy()  # type: ignore
+        }
+
+    def set_fit(
+        self,
+        stain_matrix_target: Union[np.ndarray, tf.Tensor],
+        target_concentrations: Union[np.ndarray, tf.Tensor]
+    ) -> None:
+        if not isinstance(stain_matrix_target, tf.Tensor):
+            stain_matrix_target = tf.convert_to_tensor(stain_matrix_target)
+        if not isinstance(target_concentrations, tf.Tensor):
+            target_concentrations = tf.convert_to_tensor(target_concentrations)
+        self.stain_matrix_target = stain_matrix_target
+        self.target_concentrations = target_concentrations
+
+    @tf.function
+    def transform(self, I: tf.Tensor) -> tf.Tensor:
+        if len(I.shape) != 3:
+            raise ValueError(
+                f"Invalid shape for transform(): expected 3, got {I.shape}"
+            )
+        return transform(I, self.stain_matrix_target, self.target_concentrations)

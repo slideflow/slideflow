@@ -15,13 +15,10 @@ import slideflow as sf
 from PIL import Image
 from slideflow import errors
 from slideflow.dataset import Dataset
-from slideflow.norm.utils import BaseNormalizer
 from slideflow.util import detuple, log
 from tqdm import tqdm
 
-if sf.backend() == 'tensorflow':
-    import tensorflow as tf
-elif TYPE_CHECKING:
+if TYPE_CHECKING:
     import tensorflow as tf
     import torch
 
@@ -30,85 +27,66 @@ from slideflow.norm import (augment, macenko, reinhard, reinhard_fast,
 
 
 class StainNormalizer:
-    """Supervises stain normalization for images and efficiently
-    convert between common image types."""
+    """Supervises stain normalization of images."""
 
     vectorized = False
-    backend = 'cv'
     normalizers = {
-        'macenko':  macenko.Normalizer,
-        'reinhard': reinhard.Normalizer,
-        'reinhard_fast': reinhard_fast.Normalizer,
-        'reinhard_mask': reinhard_mask.Normalizer,
-        'vahadane': vahadane.Normalizer,
-        'augment': augment.Normalizer
+        'macenko':  macenko.MacenkoNormalizer,
+        'reinhard': reinhard.ReinhardNormalizer,
+        'reinhard_fast': reinhard_fast.ReinhardFastNormalizer,
+        'reinhard_mask': reinhard_mask.ReinhardMaskNormalizer,
+        'vahadane': vahadane.VahadaneNormalizer,
+        'augment': augment.AugmentNormalizer
     }  # type: Dict[str, Any]
 
-    def __init__(
-        self,
-        method: str = 'reinhard',
-        source: Optional[str] = None
-    ) -> None:
-        """Initializer. Establishes normalization method.
-
-        Args:
-            method (str): Either 'macenko', 'reinhard', or 'vahadane'.
-                Defaults to 'reinhard'.
-            source (str): Path to source image for normalizer. If not provided,
-                defaults to slideflow.norm.norm_tile.jpg
-        """
-
+    def __init__(self, method: str, **kwargs) -> None:
+        if method not in self.normalizers:
+            raise ValueError(f"Unrecognized normalizer method {method}")
         self.method = method
-        self._source = source
         self.n = self.normalizers[method]()
-        if not source:
-            package_directory = os.path.dirname(os.path.abspath(__file__))
-            source = join(package_directory, 'norm_tile.jpg')
-        if source != 'dataset' and self.n.autofit:
-            self.src_img = cv2.cvtColor(cv2.imread(source), cv2.COLOR_BGR2RGB)
-            self.n.fit(self.src_img)
+        if kwargs:
+            self.n.fit(**kwargs)
 
     def __repr__(self):
-        src = "" if not self._source else ", source={!r}".format(self._source)
-        return "StainNormalizer(method={!r}{})".format(self.method, src)
+        base = "{}(\n".format(self.__class__.__name__)
+        base += "  method = {!r},\n".format(self.method)
+        for fit_param, fit_val in self.get_fit().items():
+            base += "  {} = {!r},\n".format(fit_param, fit_val)
+        base += ")"
+        return base
 
-    @property
-    def target_means(self) -> Optional[np.ndarray]:
-        return self.n.target_means
+    def _torch_transform(self, inp):
+        import torch
+        from slideflow.io.torch import cwh_to_whc, whc_to_cwh
 
-    @property
-    def target_stds(self) -> Optional[np.ndarray]:
-        return self.n.target_stds
+        if len(inp.shape) == 4:
+            return torch.stack([self._torch_transform(img) for img in inp])
+        elif inp.shape[0] == 3:
+            return whc_to_cwh(self._torch_transform(cwh_to_whc(inp)))
+        else:
+            return torch.from_numpy(self.rgb_to_rgb(inp.cpu().numpy()))
 
-    @property
-    def stain_matrix_target(self) -> Optional[np.ndarray]:
-        return self.n.stain_matrix_target
+    def get_fit(self, as_list: bool = False):
+        _fit = self.n.get_fit()
+        if as_list:
+            return {k: v.tolist() for k, v in _fit.items()}
+        else:
+            return _fit
 
-    @property
-    def target_concentrations(self) -> Optional[np.ndarray]:
-        return self.n.target_concentrations
+    def set_fit(self, **kwargs) -> None:
+        self.n.set_fit(**kwargs)
 
     def fit(
         self,
-        *args: Optional[Union[Dataset, np.ndarray, str]],
-        target_means: Optional[Union[List[float], np.ndarray]] = None,
-        target_stds: Optional[Union[List[float], np.ndarray]] = None,
-        stain_matrix_target: Optional[Union[List[float], np.ndarray]] = None,
-        target_concentrations: Optional[Union[List[float], np.ndarray]] = None,
+        arg1: Optional[Union[Dataset, np.ndarray, str]],
         batch_size: int = 64,
-        num_threads: Union[str, int] = 'auto'
+        num_threads: Union[str, int] = 'auto',
+        **kwargs,
     ) -> None:
         """Fit the normalizer.
 
         Args:
-            target_means (Optional[np.ndarray], optional): Target means.
-                Defaults to None.
-            target_stds (Optional[np.ndarray], optional): Target stds.
-                Defaults to None.
-            stain_matrix_target (Optional[np.ndarray], optional): Target stain
-                matrix. Defaults to None.
-            target_concentrations (Optional[np.ndarray], optional): Target
-                concentrations. Defaults to None.
+            arg1: (Dataset, np.ndarray, str): Target to fit.
             batch_size (int, optional): Batch size during fitting, if fitting
                 to dataset. Defaults to 64.
             num_threads (Union[str, int], optional): Number of threads to use
@@ -120,9 +98,9 @@ class StainNormalizer:
 
             errors.NormalizerError: If unrecognized arguments are provided.
         """
-        if (len(args)
-           and isinstance(args[0], Dataset)
-           and self.method in ('reinhard', 'reinhard_fast')):
+
+        # Fit to a dataset
+        if isinstance(arg1, Dataset):
             # Set up thread pool
             if num_threads == 'auto':
                 num_threads = os.cpu_count()  # type: ignore
@@ -130,7 +108,7 @@ class StainNormalizer:
             log.debug(f"Using normalizer batch size of {batch_size}")
             pool = mp.dummy.Pool(num_threads)  # type: ignore
 
-            dataset = args[0]
+            dataset = arg1
             if sf.backend() == 'tensorflow':
                 dts = dataset.tensorflow(
                     None,
@@ -146,7 +124,7 @@ class StainNormalizer:
                     infinite=False,
                     num_workers=8
                 )
-            means, stds = [], []
+            all_fit_vals = []  # type: ignore
             pb = tqdm(
                 desc='Fitting normalizer...',
                 ncols=80,
@@ -157,59 +135,34 @@ class StainNormalizer:
                     img_batch = img_batch.permute(0, 2, 3, 1)  # BCWH -> BWHC
 
                 mapped = pool.imap(lambda x: self.n.fit(x.numpy()), img_batch)
-                for _m, _s in mapped:
-                    means += [np.squeeze(_m)]
-                    stds += [np.squeeze(_s)]
+                for fit_vals in mapped:
+                    if all_fit_vals == []:
+                        all_fit_vals = [[] for _ in range(len(fit_vals))]
+                    for v, val in enumerate(fit_vals):
+                        all_fit_vals[v] += [np.squeeze(val)]
                 pb.update(batch_size)
-            self.n.target_means = np.array(means).mean(axis=0)
-            self.n.target_stds = np.array(stds).mean(axis=0)
+            self.n.set_fit(*[np.array(v).mean(axis=0) for v in all_fit_vals])
             pool.close()
 
-        elif len(args) and isinstance(args[0], Dataset):
-            raise NotImplementedError(
-                f"Dataset fitting not supported for method '{self.method}'."
-            )
+        # Fit to numpy image
+        elif isinstance(arg1, np.ndarray):
+            self.n.fit(arg1)
 
-        elif len(args) and isinstance(args[0], np.ndarray) and len(args) == 1:
-            self.n.fit(args[0])
-
-        elif len(args) and isinstance(args[0], str):
-            self.src_img = cv2.cvtColor(cv2.imread(args[0]), cv2.COLOR_BGR2RGB)
+        # Fit to a path to an image
+        elif isinstance(arg1, str):
+            self.src_img = cv2.cvtColor(cv2.imread(arg1), cv2.COLOR_BGR2RGB)
             self.n.fit(self.src_img)
 
-        elif target_means is not None:
-            self.n.target_means = np.array(target_means)
-            self.n.target_stds = np.array(target_stds)
-
-        elif (stain_matrix_target is not None
-              and target_concentrations is not None):
-            self.n.stain_matrix_target = np.array(stain_matrix_target)
-            self.n.target_concentrations = np.array(target_concentrations)
-
-        elif stain_matrix_target is not None:
-            self.n.stain_matrix_target = np.array(stain_matrix_target)
+        elif arg1 is None and kwargs:
+            self.set_fit(**kwargs)
 
         else:
-            raise errors.NormalizerError(f'Unrecognized args for fit: {args}')
-        msg = "Fit normalizer to "
-        if self.n.target_means is not None:
-            msg += f"target_means={self.n.target_means.flatten()} "
-        if self.n.target_stds is not None:
-            msg += f"target_stds={self.n.target_stds.flatten()} "
-        if self.n.stain_matrix_target is not None:
-            msg += f"stain_matrix_target={self.n.stain_matrix_target.flatten()} "
-        if self.n.target_concentrations is not None:
-            msg += f"target_concentrations={self.n.target_concentrations.flatten()} "
-        log.info(msg)
+            raise errors.NormalizerError(f'Unrecognized args for fit: {arg1}')
 
-    def get_fit(self) -> Dict[str, Optional[List[float]]]:
-        '''Return normalizer fit as a dictionary.'''
-        return {
-            'target_means': None if self.n.target_means is None else self.n.target_means.tolist(),
-            'target_stds': None if self.n.target_stds is None else self.n.target_stds.tolist(),
-            'stain_matrix_target': None if self.n.stain_matrix_target is None else self.n.stain_matrix_target.tolist(),
-            'target_concentrations': None if self.n.target_concentrations is None else self.n.target_concentrations.tolist()
-        }
+        log.debug('Fit normalizer: {}'.format(
+            ', '.join([f"{fit_key} = {fit_val}"
+            for fit_key, fit_val in self.get_fit().items()])
+        ))
 
     def tf_to_tf(
         self,
@@ -218,6 +171,8 @@ class StainNormalizer:
     ) -> Tuple[Union[Dict, "tf.Tensor"], ...]:
         '''Tensorflow RGB image (or batch)
             -> normalized Tensorflow RGB image (or batch)'''
+        import tensorflow as tf
+
         if isinstance(image, dict):
             image['tile_image'] = tf.py_function(
                 self.tf_to_rgb,
@@ -230,17 +185,21 @@ class StainNormalizer:
             image = tf.py_function(self.tf_to_rgb, [image], tf.int32)
         return detuple(image, args)
 
-    def torch_to_torch(self, image: "torch.Tensor") -> "torch.Tensor":
+    def torch_to_torch(
+        self,
+        image: Union[Dict, "torch.Tensor"],
+        *args
+    ) -> Tuple[Union[Dict, "torch.Tensor"], ...]:
         '''Non-normalized PyTorch image -> normalized RGB PyTorch image'''
-        import torch
-        from slideflow.io.torch import cwh_to_whc, whc_to_cwh
-
-        if len(image.shape) == 4:
-            return torch.stack([self.torch_to_torch(img) for img in image])
-        elif image.shape[0] == 3:
-            return whc_to_cwh(self.torch_to_torch(cwh_to_whc(image)))
+        if isinstance(image, dict):
+            to_return = {
+                k: v for k, v in image.items()
+                if k != 'tile_image'
+            }
+            to_return['tile_image'] = self._torch_transform(image['tile_image'])
+            return detuple(to_return, args)
         else:
-            return torch.from_numpy(self.rgb_to_rgb(image.cpu().numpy()))
+            return detuple(self._torch_transform(image), args)
 
     def tf_to_rgb(self, image: "tf.Tensor") -> np.ndarray:
         '''Non-normalized tensorflow RGB array -> normalized RGB numpy array'''
@@ -248,8 +207,7 @@ class StainNormalizer:
 
     def rgb_to_rgb(self, image: np.ndarray) -> np.ndarray:
         '''Non-normalized RGB numpy array -> normalized RGB numpy array'''
-        cv_image = self.n.transform(image)
-        return cv_image
+        return self.n.transform(image)
 
     def jpeg_to_rgb(self, jpeg_string: Union[str, bytes]) -> np.ndarray:
         '''Non-normalized compressed JPG data -> normalized RGB numpy array'''
@@ -291,18 +249,24 @@ class StainNormalizer:
 
 def autoselect(
     method: str,
-    source: Optional[str] = None,
-    prefer_vectorized: bool = True
+    source: Optional[str] = None
 ) -> StainNormalizer:
-    '''Auto-selects best normalizer based on method,
-    choosing backend-appropriate vectorized normalizer if available.
-    '''
-    if sf.backend() == 'tensorflow' and prefer_vectorized:
-        from slideflow.norm.tensorflow import TensorflowStainNormalizer
-        if method in TensorflowStainNormalizer.normalizers:
-            return TensorflowStainNormalizer(method, source)
-    elif sf.backend() == 'torch' and prefer_vectorized:
-        from slideflow.norm.torch import TorchStainNormalizer
-        if method in TorchStainNormalizer.normalizers:
-            return TorchStainNormalizer(method, source)
-    return StainNormalizer(method, source)
+
+    if sf.backend() == 'tensorflow':
+        import slideflow.norm.tensorflow
+        BackendNormalizer = sf.norm.tensorflow.TensorflowStainNormalizer
+    elif sf.backend() == 'torch':
+        import slideflow.norm.torch
+        BackendNormalizer = sf.norm.torch.TorchStainNormalizer  # type: ignore
+    else:
+        raise Exception(f"Unrecognized backend: {sf.backend()}")
+
+    if method in BackendNormalizer.normalizers:
+        normalizer = BackendNormalizer(method)
+    else:
+        normalizer = StainNormalizer(method)  # type: ignore
+
+    if source is not None and source != 'dataset':
+        normalizer.fit(source)
+
+    return normalizer

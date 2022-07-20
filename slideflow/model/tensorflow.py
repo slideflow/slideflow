@@ -1110,12 +1110,12 @@ class Trainer:
             raise ValueError("norm_fit supplied, but model params do not"
                              "specify a normalizer.")
         if self.normalizer and norm_fit is not None:
-            self.normalizer.fit(**norm_fit)  # type: ignore
+            self.normalizer.set_fit(**norm_fit)  # type: ignore
         elif (self.normalizer
               and 'norm_fit' in self.config
               and self.config['norm_fit'] is not None):
             log.debug("Detecting normalizer fit from model config")
-            self.normalizer.fit(**self.config['norm_fit'])
+            self.normalizer.set_fit(**self.config['norm_fit'])
 
     def _parse_tfrecord_labels(
         self,
@@ -1511,7 +1511,7 @@ class Trainer:
                 }
             else:
                 config = sf.util.load_json(config_path)
-            config['norm_fit'] = self.normalizer.get_fit()
+            config['norm_fit'] = self.normalizer.get_fit(as_list=True)
             sf.util.write_json(config, config_path)
 
         # Save training / validation manifest
@@ -1932,7 +1932,7 @@ class Features:
                     log.warn('norm_fit found in model config file, but model '
                              'params does not use a normalizer. Ignoring.')
                 else:
-                    self.wsi_normalizer.fit(**config['norm_fit'])
+                    self.wsi_normalizer.set_fit(**config['norm_fit'])
             self._build(
                 layers=layers, include_logits=include_logits  # type: ignore
             )
@@ -1977,7 +1977,7 @@ class Features:
         self,
         inp: Union[tf.Tensor, "sf.WSI"],
         **kwargs
-    ) -> tf.Tensor:
+    ) -> Optional[Union[np.ndarray, tf.Tensor]]:
         """Process a given input and return features and/or logits.
         Expects either a batch of images or a :class:`slideflow.WSI`."""
 
@@ -1994,7 +1994,7 @@ class Features:
         batch_size: int = 32,
         dtype: type = np.float16,
         **kwargs
-    ) -> np.ndarray:
+    ) -> Optional[np.ndarray]:
         """Generate activations from slide => activation grid array."""
 
         log.debug(f"Slide prediction (batch_size={batch_size}, "
@@ -2022,7 +2022,7 @@ class Features:
         )
         if not generator:
             log.error(f"No tiles extracted from slide {col.green(slide.name)}")
-            return
+            return None
 
         def tile_generator():
             for image_dict in generator():

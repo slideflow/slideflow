@@ -499,11 +499,11 @@ def interleave(
         # ------- Apply normalization -----------------------------------------
         if normalizer:
             if normalizer.vectorized:
-                log.info("Using fast, vectorized normalization")
+                log.info("Using vectorized normalization")
                 norm_batch_size = 32 if not batch_size else batch_size
                 dataset = dataset.batch(norm_batch_size, drop_remainder=drop_last)
             else:
-                log.info("Using slow, per-image normalization")
+                log.info("Using per-image normalization")
             dataset = dataset.map(
                 normalizer.tf_to_tf,
                 num_parallel_calls=tf.data.AUTOTUNE,

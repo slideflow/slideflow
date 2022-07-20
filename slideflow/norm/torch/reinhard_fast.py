@@ -1,8 +1,13 @@
-from typing import Tuple
+from typing import Tuple, Dict, Optional, Union
 
+import os
 import torch
+import torchvision
+import numpy as np
 
+import slideflow.norm.utils as ut
 from slideflow.norm.torch import color
+from slideflow.io.torch import cwh_to_whc
 
 
 def lab_split(
@@ -44,8 +49,8 @@ def get_mean_std(
         m2, sd2 = torch.mean(m2), torch.mean(sd2)
         m3, sd3 = torch.mean(m3), torch.mean(sd3)
 
-    means = torch.Tensor([m1, m2, m3])
-    stds = torch.Tensor([sd1, sd2, sd3])
+    means = torch.stack([m1, m2, m3])
+    stds = torch.stack([sd1, sd2, sd3])
     return means, stds
 
 def transform(
@@ -58,9 +63,18 @@ def transform(
     I1, I2, I3 = lab_split(I)
     (I1_mean, I2_mean, I3_mean), (I1_std, I2_std, I3_std) = get_mean_std(I1, I2, I3)
 
-    norm1 = ((I1 - I1_mean) * (tgt_std[0] / I1_std)) + tgt_mean[0]
-    norm2 = ((I2 - I2_mean) * (tgt_std[1] / I2_std)) + tgt_mean[1]
-    norm3 = ((I3 - I3_mean) * (tgt_std[2] / I3_std)) + tgt_mean[2]
+    def norm(_I, _I_mean, _I_std, _tgt_std, _tgt_mean):
+        # Equivalent to:
+        #   norm1 = ((I1 - I1_mean) * (tgt_std[0] / I1_std)) + tgt_mean[0]
+        # But supports batches of images
+        part1 = _I - _I_mean[:, None, None].expand(_I.shape)
+        part2 = _tgt_std[0] / _I_std
+        part3 = part1 * part2[:, None, None].expand(part1.shape)
+        return part3 + _tgt_mean[0]
+
+    norm1 = norm(I1, I1_mean, I1_std, tgt_std[0], tgt_mean[0])
+    norm2 = norm(I2, I2_mean, I2_std, tgt_std[1], tgt_mean[1])
+    norm3 = norm(I3, I3_mean, I3_std, tgt_std[2], tgt_mean[2])
 
     merged = merge_back(norm1, norm2, norm3).int()
     clipped = torch.clip(merged, min=0, max=255).to(torch.uint8)
@@ -84,3 +98,49 @@ def fit(
     """
     means, stds = get_mean_std(*lab_split(target), reduce=reduce)
     return means, stds
+
+
+class ReinhardFastNormalizer:
+
+    vectorized = True
+
+    def __init__(self) -> None:
+        package_directory = os.path.dirname(os.path.abspath(__file__))
+        img_path = os.path.join(package_directory, '../norm_tile.jpg')
+        self.fit(cwh_to_whc(torchvision.io.read_image(img_path)))
+
+    def fit(
+        self,
+        target: torch.Tensor,
+        reduce: bool = False
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        if len(target.shape) == 3:
+            target = torch.unsqueeze(target, dim=0)
+        means, stds = fit(target, reduce=reduce)
+        self.target_means = means
+        self.target_stds = stds
+        return means, stds
+
+    def get_fit(self) -> Dict[str, Optional[np.ndarray]]:
+        return {
+            'target_means': None if self.target_means is None else self.target_means.numpy(),
+            'target_stds': None if self.target_stds is None else self.target_stds.numpy()
+        }
+
+    def set_fit(
+        self,
+        target_means: Union[np.ndarray, torch.Tensor],
+        target_stds: Union[np.ndarray, torch.Tensor]
+    ) -> None:
+        if not isinstance(target_means, torch.Tensor):
+            target_means = torch.from_numpy(ut._as_numpy(target_means))
+        if not isinstance(target_stds, torch.Tensor):
+            target_stds = torch.from_numpy(ut._as_numpy(target_stds))
+        self.target_means = target_means
+        self.target_stds = target_stds
+
+    def transform(self, I: torch.Tensor) -> torch.Tensor:
+        if len(I.shape) == 3:
+            return transform(torch.unsqueeze(I, dim=0), self.target_means, self.target_stds)[0]
+        else:
+            return transform(I, self.target_means, self.target_stds)

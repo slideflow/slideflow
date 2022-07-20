@@ -682,7 +682,7 @@ def get_model_normalizer(
             config['hp']['normalizer_source']
         )
         if 'norm_fit' in config and config['norm_fit'] is not None:
-            normalizer.fit(**config['norm_fit'])
+            normalizer.set_fit(**config['norm_fit'])
         return normalizer
     else:
         return None

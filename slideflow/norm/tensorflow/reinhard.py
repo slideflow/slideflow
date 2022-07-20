@@ -13,6 +13,7 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 from slideflow.norm.tensorflow.reinhard_fast import fit as fit_fast
 from slideflow.norm.tensorflow.reinhard_fast import transform as transform_fast
+from slideflow.norm.tensorflow.reinhard_fast import ReinhardFastNormalizer
 
 
 @tf.function
@@ -66,3 +67,29 @@ def fit(target: tf.Tensor, reduce: bool = False) -> Tuple[tf.Tensor, tf.Tensor]:
     """
     target = standardize_brightness(target)
     return fit_fast(target, reduce=reduce)
+
+class ReinhardNormalizer(ReinhardFastNormalizer):
+    """
+    A stain normalization object
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+
+    def fit(
+        self,
+        target: tf.Tensor,
+        reduce: bool = False
+    ) -> Tuple[tf.Tensor, tf.Tensor]:
+        if len(target.shape) == 3:
+            target = tf.expand_dims(target, axis=0)
+        means, stds = fit(target, reduce=reduce)
+        self.target_means = means
+        self.target_stds = stds
+        return means, stds
+
+    def transform(self, I: tf.Tensor) -> tf.Tensor:
+        if len(I.shape) == 3:
+            return transform(tf.expand_dims(I, axis=0), self.target_means, self.target_stds)[0]
+        else:
+            return transform(I, self.target_means, self.target_stds)

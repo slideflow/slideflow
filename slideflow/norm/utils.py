@@ -9,11 +9,10 @@ Use with python via e.g https://anaconda.org/conda-forge/python-spams
 
 from __future__ import division
 
-from typing import Optional, Tuple
+from typing import Union, List
 
 import cv2 as cv
 import numpy as np
-import spams
 
 ######################################
 
@@ -99,27 +98,20 @@ def get_concentrations(I, stain_matrix, lamda=0.01):
     :param stain_matrix: a 2x3 stain matrix
     :return:
     """
+
     OD = RGB_to_OD(I).reshape((-1, 3))
-    result = spams.lasso(
-        np.asfortranarray(OD.T),
-        D=stain_matrix.T,
-        mode=2,
-        lambda1=lamda,
-        pos=True
-    ).toarray().T
-    return result
 
+    # rows correspond to channels (RGB), columns to OD values
+    Y = np.reshape(OD, (-1, 3)).T
 
-class BaseNormalizer:
-    def __init__(self):
-        self.target_means = None
-        self.target_stds = None
-        self.stain_matrix_target = None
-        self.target_concentrations = None
-        self.autofit = True
+    # determine concentrations of the individual stains
+    C = np.linalg.lstsq(stain_matrix.T, Y, rcond=None)[0]
+    return C.T
 
-    def fit(self, target: np.ndarray) -> Optional[Tuple[np.ndarray, np.ndarray]]:
-        pass
-
-    def transform(self, I: np.ndarray) -> np.ndarray:
-        pass
+def _as_numpy(arg1: Union[List, np.ndarray]) -> np.ndarray:
+    if isinstance(arg1, list):
+        return np.array(arg1)
+    elif isinstance(arg1, np.ndarray):
+        return arg1
+    else:
+        raise ValueError(f'Expected numpy array; got {type(arg1)}')

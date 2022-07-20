@@ -1,125 +1,120 @@
-import os
-from os.path import join
-from typing import Dict, List, Optional, Tuple, Union
-
-import numpy as np
-import torchvision
-from slideflow.norm import StainNormalizer
-from slideflow.norm.torch import reinhard, reinhard_fast
-from slideflow.util import detuple
+from typing import Dict, Optional, Tuple, Union
 
 import torch
+import numpy as np
+import torchvision
+from tqdm import tqdm
+
+from slideflow.dataset import Dataset
+from slideflow.norm import StainNormalizer
+from slideflow.norm.torch import reinhard, reinhard_fast
+from slideflow.util import detuple, log
+from slideflow import errors
 
 
 class TorchStainNormalizer(StainNormalizer):
-    vectorized = True
-    backend = 'torch'
+
     # Torch-specific vectorized normalizers disabled
     # as they are slower than the CV implementation
-    normalizers = {}  # type: Dict
+    normalizers = {
+        #'reinhard': reinhard.ReinhardNormalizer,
+        #'reinhard_fast': reinhard_fast.ReinhardFastNormalizer,
+    }  # type: Dict
 
     def __init__(
         self,
-        method: str = 'reinhard',
-        source: Optional[str] = None
+        method: str,
+        device: Optional[torch.device] = None,
+        **kwargs
     ) -> None:
 
-        self.method = method
-        self.n = self.normalizers[method]
-        self._source = source
-        if not source:
-            package_directory = os.path.dirname(os.path.abspath(__file__))
-            source = join(package_directory, '../norm_tile.jpg')
-        if source != 'dataset':
-            self.src_img = torchvision.io.read_image(source).permute(1, 2, 0)  # CWH => WHC
-            means, stds = self.n.fit(torch.unsqueeze(self.src_img, dim=0))
-            self.target_means = torch.cat(means, 0).numpy()
-            self.target_stds = torch.cat(stds, 0).numpy()
+        super().__init__(method, **kwargs)
+        self._device = device
+
+    @property
+    def vectorized(self) -> bool:  # type: ignore
+        return self.n.vectorized
+
+    def fit(
+        self,
+        arg1: Optional[Union[Dataset, np.ndarray, str]],
+        batch_size: int = 64,
+        num_threads: Union[str, int] = 'auto',
+        **kwargs
+    ):
+        if isinstance(arg1, Dataset):
+            # Prime the normalizer
+            dataset = arg1
+            dts = dataset.tensorflow(
+                None,
+                batch_size,
+                standardize=False,
+                infinite=False
+            )
+            all_fit_vals = []  # type: ignore
+            pb = tqdm(
+                desc='Fitting normalizer...',
+                ncols=80,
+                total=dataset.num_tiles
+            )
+            for i, slide in dts:
+                fit_vals = self.n.fit(i, reduce=True)
+                if all_fit_vals == []:
+                    all_fit_vals = [[] for _ in range(len(fit_vals))]
+                for v, val in enumerate(fit_vals):
+                    all_fit_vals[v] += [val]
+                pb.update(batch_size)
+            self.n.set_fit(*[torch.mean(torch.stack(v), dim=0) for v in all_fit_vals])
+
+        elif isinstance(arg1, np.ndarray):
+            self.n.fit(torch.from_numpy(arg1))
+
+        elif isinstance(arg1, str):
+            self.src_img = torchvision.io.read_image(arg1)
+            self.n.fit(self.src_img)
+
+        elif arg1 is None and kwargs:
+            self.set_fit(**kwargs)
+
         else:
-            self.target_means = None
-            self.target_stds = None
-        self.stain_matrix_target = None
-        self.target_concentrations = None
+            raise errors.NormalizerError(f'Unrecognized args for fit: {arg1}')
 
-    def __repr__(self) -> str:
-        src = "" if not self._source else ", source={!r}".format(self._source)
-        return "TorchStainNormalizer(method={!r}{})".format(self.method, src)
+        log.debug('Fit normalizer: {}'.format(
+            ', '.join([f"{fit_key} = {fit_val}"
+            for fit_key, fit_val in self.get_fit().items()])
+        ))
 
-    @property
-    def target_means(self) -> Optional[np.ndarray]:
-        return self._target_means
+    def get_fit(self, as_list: bool = False):
+        _fit = self.n.get_fit()
+        if as_list:
+            return {k: v.tolist() for k, v in _fit.items()}
+        else:
+            return _fit
 
-    @target_means.setter
-    def target_means(self, val: Optional[np.ndarray]):
-        self._target_means = val
-
-    @property
-    def target_stds(self) -> Optional[np.ndarray]:
-        return self._target_stds
-
-    @target_stds.setter
-    def target_stds(self, val: Optional[np.ndarray]):
-        self._target_stds = val
-
-    @property
-    def stain_matrix_target(self) -> Optional[np.ndarray]:
-        return self._stain_matrix_target
-
-    @stain_matrix_target.setter
-    def stain_matrix_target(self, val: Optional[np.ndarray]):
-        self._stain_matrix_target = val
-
-    @property
-    def target_concentrations(self) -> Optional[np.ndarray]:
-        return self._target_concentrations
-
-    @target_concentrations.setter
-    def target_concentrations(self, val: Optional[np.ndarray]):
-        self._target_concentrations = val
-
-    def fit(self, *args):
-        return NotImplementedError()
-
-    def get_fit(self) -> Dict[str, Optional[List[float]]]:
-        return {
-            'target_means': None if self.target_means is None else self.target_means.tolist(),
-            'target_stds': None if self.target_stds is None else self.target_stds.tolist(),
-            'stain_matrix_target': None if self.stain_matrix_target is None else self.stain_matrix_target.tolist(),
-            'target_concentrations': None if self.target_concentrations is None else self.target_concentrations.tolist()
-        }
+    def set_fit(self, **kwargs) -> None:
+        self.n.set_fit(**kwargs)
 
     def torch_to_torch(
         self,
-        batch: Union[dict, torch.Tensor],
+        image: Union[Dict, torch.Tensor],
         *args
-    ) -> Tuple[Union[dict, torch.Tensor], ...]:
-        if isinstance(batch, dict):
-            to_return = {k: v for k, v in batch.items() if k != 'tile_image'}
-            to_return['tile_image'] = self.torch_to_torch(batch['tile_image'])
+    ) -> Tuple[Union[Dict, torch.Tensor], ...]:
+        if isinstance(image, dict):
+            to_return = {
+                k: v for k, v in image.items()
+                if k != 'tile_image'
+            }
+            to_return['tile_image'] = self.n.transform(image['tile_image'])
             return detuple(to_return, args)
-        elif len(batch.shape) == 3:
-            batch = torch.unsqueeze(batch, dim=0)
-            return detuple(self.torch_to_torch(batch), args)
         else:
-            return detuple(
-                self.n.transform(
-                    batch,
-                    self.target_means,
-                    self.target_stds), args)
-
-    def batch_to_batch(self, image: torch.Tensor) -> torch.Tensor:
-        return self.torch_to_torch(image)
+            return detuple(self.n.transform(image), args)
 
     def torch_to_rgb(self, image: torch.Tensor) -> np.ndarray:
-        return self.torch_to_torch(image).numpy()
+        return self.torch_to_torch(image).numpy()  # type: ignore
 
     def rgb_to_rgb(self, image: np.ndarray) -> np.ndarray:
         '''Non-normalized RGB numpy array -> normalized RGB numpy array'''
-        return self.n.transform(
-            torch.unsqueeze(torch.from_numpy(image), dim=0),
-            self.target_means,
-            self.target_stds
-        ).squeeze().numpy()
+        return self.n.transform(torch.from_numpy(image)).numpy()
 
     def jpeg_to_rgb(self, jpeg_string: Union[str, bytes]) -> np.ndarray:
         '''Non-normalized compressed JPG string data -> normalized RGB numpy array'''

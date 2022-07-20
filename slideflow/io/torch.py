@@ -5,6 +5,7 @@ import threading
 from os import listdir
 from os.path import dirname, exists, isfile, join
 from queue import Queue
+from functools import partial
 from typing import (TYPE_CHECKING, Any, Callable, Dict, Iterable, List,
                     Optional, Tuple, Union)
 

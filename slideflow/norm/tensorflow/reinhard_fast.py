@@ -8,7 +8,9 @@ This implementation ("fast" implementation) skips the brightness standardization
 
 from __future__ import division
 
-from typing import Tuple
+import os
+import numpy as np
+from typing import Tuple, Dict, Union, Optional
 
 import tensorflow as tf
 
@@ -22,10 +24,10 @@ def lab_split(I: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor]:
     :param I: uint8
     :return:
     """
-    I = tf.cast(I, tf.float32)  # I = I.astype(np.float32)
+    I = tf.cast(I, tf.float32)
     I /= 255
-    I = color.rgb_to_lab(I)  # I = cv.cvtColor(I, cv.COLOR_RGB2LAB)
-    I1, I2, I3 = tf.unstack(I, axis=-1)  # I1, I2, I3 = cv.split(I)
+    I = color.rgb_to_lab(I)
+    I1, I2, I3 = tf.unstack(I, axis=-1)
     return I1, I2, I3
 
 
@@ -43,10 +45,9 @@ def merge_back(
     :return:
     """
 
-    I = tf.stack((I1, I2, I3), axis=-1)  # I = np.clip(cv.merge((I1, I2, I3)), 0, 255).astype(np.uint8)
-    I = color.lab_to_rgb(I) * 255  # cv.cvtColor(I, cv.COLOR_LAB2RGB)
-    # I = tf.experimental.numpy.clip(I, 0, 255)
-    return I  # tf.cast(I, tf.uint8)
+    I = tf.stack((I1, I2, I3), axis=-1)
+    I = color.lab_to_rgb(I) * 255
+    return I
 
 
 @tf.function
@@ -62,17 +63,17 @@ def get_mean_std(
     :param I: uint8
     :return:
     """
-    m1, sd1 = tf.math.reduce_mean(I1, axis=(1,2)), tf.math.reduce_std(I1, axis=(1,2)) #m1, sd1 = cv.meanStdDev(I1)
-    m2, sd2 = tf.math.reduce_mean(I2, axis=(1,2)), tf.math.reduce_std(I2, axis=(1,2)) #m2, sd2 = cv.meanStdDev(I2)
-    m3, sd3 = tf.math.reduce_mean(I3, axis=(1,2)), tf.math.reduce_std(I3, axis=(1,2)) #m3, sd3 = cv.meanStdDev(I3)
+    m1, sd1 = tf.math.reduce_mean(I1, axis=(1,2)), tf.math.reduce_std(I1, axis=(1,2))
+    m2, sd2 = tf.math.reduce_mean(I2, axis=(1,2)), tf.math.reduce_std(I2, axis=(1,2))
+    m3, sd3 = tf.math.reduce_mean(I3, axis=(1,2)), tf.math.reduce_std(I3, axis=(1,2))
 
     if reduce:
         m1, sd1 = tf.math.reduce_mean(m1), tf.math.reduce_mean(sd1)
         m2, sd2 = tf.math.reduce_mean(m2), tf.math.reduce_mean(sd2)
         m3, sd3 = tf.math.reduce_mean(m3), tf.math.reduce_mean(sd3)
 
-    means = m1, m2, m3
-    stds = sd1, sd2, sd3
+    means = tf.stack([m1, m2, m3])
+    stds = tf.stack([sd1, sd2, sd3])
     return means, stds
 
 
@@ -100,8 +101,6 @@ def transform(
 
     I1, I2, I3 = lab_split(I)
     means, stds = get_mean_std(I1, I2, I3)
-
-    # norm1 = ((I1 - means[0]) * (tgt_std[0] / stds[0])) + tgt_mean[0]
 
     I1a = tf.subtract(I1, tf.expand_dims(tf.expand_dims(means[0], axis=-1), axis=-1))
     I1b = tf.divide(tgt_std[0], stds[0])
@@ -136,3 +135,51 @@ def fit(target: tf.Tensor, reduce: bool = False) -> Tuple[tf.Tensor, tf.Tensor]:
     """
     means, stds = get_mean_std(*lab_split(target), reduce=reduce)
     return means, stds
+
+
+class ReinhardFastNormalizer:
+
+    vectorized = True
+    preferred_device = 'gpu'
+
+    def __init__(self) -> None:
+        package_directory = os.path.dirname(os.path.abspath(__file__))
+        img_path = os.path.join(package_directory, '../norm_tile.jpg')
+        src_img = tf.image.decode_jpeg(tf.io.read_file(img_path))
+        self.fit(tf.expand_dims(src_img, axis=0))
+
+    def fit(
+        self,
+        target: tf.Tensor,
+        reduce: bool = False
+    ) -> Tuple[tf.Tensor, tf.Tensor]:
+        if len(target.shape) == 3:
+            target = tf.expand_dims(target, axis=0)
+        means, stds = fit(target, reduce=reduce)
+        self.target_means = means
+        self.target_stds = stds
+        return means, stds
+
+    def get_fit(self) -> Dict[str, Optional[np.ndarray]]:
+        return {
+            'target_means': None if self.target_means is None else self.target_means.numpy(),  # type: ignore
+            'target_stds': None if self.target_stds is None else self.target_stds.numpy()  # type: ignore
+        }
+
+    def set_fit(
+        self,
+        target_means: Union[np.ndarray, tf.Tensor],
+        target_stds: Union[np.ndarray, tf.Tensor]
+    ) -> None:
+        if not isinstance(target_means, tf.Tensor):
+            target_means = tf.convert_to_tensor(target_means)
+        if not isinstance(target_stds, tf.Tensor):
+            target_stds = tf.convert_to_tensor(target_stds)
+        self.target_means = target_means
+        self.target_stds = target_stds
+
+    def transform(self, I: tf.Tensor) -> tf.Tensor:
+        if len(I.shape) == 3:
+            return transform(tf.expand_dims(I, axis=0), self.target_means, self.target_stds)[0]
+        else:
+            return transform(I, self.target_means, self.target_stds)

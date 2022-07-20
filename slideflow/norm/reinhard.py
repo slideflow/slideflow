@@ -10,10 +10,10 @@ from typing import Tuple
 import numpy as np
 
 import slideflow.norm.utils as ut
-from slideflow.norm.reinhard_fast import Normalizer as FastNormalizer
+from slideflow.norm.reinhard_fast import ReinhardFastNormalizer
 
 
-class Normalizer(FastNormalizer):
+class ReinhardNormalizer(ReinhardFastNormalizer):
     """
     A stain normalization object
     """

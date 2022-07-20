@@ -12,7 +12,6 @@ seaborn
 pandas
 pyvips>=2.1.11
 fpdf
-spams
 cplex
 cvxpy>=1.1.15
 lifelines
@@ -34,3 +33,4 @@ smac
 ConfigSpace
 pyarrow
 ninja
+tensorflow_probability

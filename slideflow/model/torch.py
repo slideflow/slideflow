@@ -773,12 +773,12 @@ class Trainer:
             raise ValueError("norm_fit supplied, but model params do not"
                              "specify a normalizer.")
         if self.normalizer and norm_fit is not None:
-            self.normalizer.fit(**norm_fit)  # type: ignore
+            self.normalizer.set_fit(**norm_fit)  # type: ignore
         elif (self.normalizer
               and 'norm_fit' in self.config
               and self.config['norm_fit'] is not None):
             log.debug("Detecting normalizer fit from model config")
-            self.normalizer.fit(**self.config['norm_fit'])
+            self.normalizer.set_fit(**self.config['norm_fit'])
 
     def _labels_to_device(
         self,
@@ -1532,7 +1532,7 @@ class Trainer:
                 }
             else:
                 config = sf.util.load_json(config_path)
-            config['norm_fit'] = self.normalizer.get_fit()
+            config['norm_fit'] = self.normalizer.get_fit(as_list=True)
             sf.util.write_json(config, config_path)
 
         # Training preparation
@@ -1748,7 +1748,7 @@ class Features:
             self.hp.load_dict(config['hp'])
             self.wsi_normalizer = self.hp.get_normalizer()
             if 'norm_fit' in config and config['norm_fit'] is not None:
-                self.wsi_normalizer.fit(**config['norm_fit'])  # type: ignore
+                self.wsi_normalizer.set_fit(**config['norm_fit'])  # type: ignore
             self.tile_px = self.hp.tile_px
             self._model = self.hp.build_model(
                 num_classes=len(config['outcome_labels'])
@@ -1813,7 +1813,7 @@ class Features:
         self,
         inp: Union[Tensor, "sf.WSI"],
         **kwargs
-    ) -> Union[List[Tensor], np.ndarray]:
+    ) -> Optional[Union[List[Tensor], np.ndarray]]:
         """Process a given input and return activations and/or logits. Expects
         either a batch of images or a :class:`slideflow.slide.WSI` object."""
 
@@ -1830,7 +1830,7 @@ class Features:
         batch_size: int = 32,
         dtype: type = np.float16,
         **kwargs
-    ) -> np.ndarray:
+    ) -> Optional[np.ndarray]:
         """Generate activations from slide => activation grid array."""
 
         log.debug(f"Slide prediction (batch_size={batch_size}, "
@@ -1853,7 +1853,7 @@ class Features:
             **kwargs)
         if not generator:
             log.error(f"No tiles extracted from slide {col.green(slide.name)}")
-            return
+            return None
 
         class SlideIterator(torch.utils.data.IterableDataset):
             def __init__(self, parent, *args, **kwargs):

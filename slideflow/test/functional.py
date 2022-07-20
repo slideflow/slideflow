@@ -204,7 +204,7 @@ def single_thread_normalizer_tester(
     if not len(methods):
         methods = sf.norm.StainNormalizer.normalizers  # type: ignore
     dataset = project.dataset(71, 1208)
-    v = '(vectorized)'
+    v = col.bold(f'({sf.backend()}-native)')
 
     dts_kw = {'standardize': False, 'infinite': True}
     if sf.backend() == 'tensorflow':
@@ -215,8 +215,8 @@ def single_thread_normalizer_tester(
         raw_img = next(iter(dts))[0].permute(1, 2, 0).numpy()
     Image.fromarray(raw_img).save(join(project.root, 'raw_img.png'))
     for method in methods:
-        gen_norm = sf.norm.autoselect(method, prefer_vectorized=False)
-        vec_norm = sf.norm.autoselect(method, prefer_vectorized=True)
+        gen_norm = sf.norm.StainNormalizer(method)
+        vec_norm = sf.norm.autoselect(method)
         st_msg = col.yellow('SINGLE-thread')
         print(f"'\r\033[kTesting {method} [{st_msg}]...", end="")
 
@@ -254,11 +254,11 @@ def multi_thread_normalizer_tester(
     if not len(methods):
         methods = sf.norm.StainNormalizer.normalizers  # type: ignore
     dataset = project.dataset(71, 1208)
-    v = '(vectorized)'
+    v = col.bold(f'({sf.backend()}-native)')
 
     for method in methods:
-        gen_norm = sf.norm.autoselect(method, prefer_vectorized=False)
-        vec_norm = sf.norm.autoselect(method, prefer_vectorized=True)
+        gen_norm = sf.norm.StainNormalizer(method)
+        vec_norm = sf.norm.autoselect(method)
         mt_msg = col.purple('MULTI-thread')
         print(f"'\r\033[kTesting {method} [{mt_msg}]...", end="")
         gen_tpt = test_multithread_throughput(dataset, gen_norm)
