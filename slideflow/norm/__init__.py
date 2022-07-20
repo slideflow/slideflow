@@ -1,5 +1,5 @@
-"""Stain normalization methods, including both OpenCV (individual image)
-and Tensorflow/PyTorch (vectorized) implementations."""
+"""H&E stain normalization, with both numpy and native PyTorch/Tensorflow
+implementations."""
 
 from __future__ import absolute_import
 
@@ -49,13 +49,6 @@ class StainNormalizer:
         Alternatively, you can manually specify the image conversion type
         by using the appropriate function. For example, to convert a Tensor
         to a normalized numpy RGB image, use `.tf_to_rgb()`.
-
-        Attributes:
-            vectorized (bool): Normalization is vectorized (a batch of images,
-                rather than only a single image, can be normalized).
-                If False, only single images may be normalized at a time.
-            normalizers (Dict): Dict mapping method names (e.g. 'reinhard',
-                'macenko' to their respective normalizers.)
 
         Args:
             method (str): Normalization method to use.
@@ -374,18 +367,18 @@ class StainNormalizer:
         image: Union[Dict, "tf.Tensor"],
         *args: Any
     ) -> Tuple[Union[Dict, "tf.Tensor"], ...]:
-        """Normalize a tf.Tensor (uint8), returning a numpy array (uint8).
+        r"""Normalize a tf.Tensor (uint8), returning a numpy array (uint8).
 
         Args:
             image (tf.Tensor, Dict): Image (uint8) either as a raw Tensor,
                 or a Dictionary with the image under the key 'tile_image'.
-            *args (Any): Any additional arguments, which will be passed
+            args (Any, optional): Any additional arguments, which will be passed
                 and returned unmodified.
 
         Returns:
             np.ndarray: Normalized tf.Tensor image, uint8, W x H x C.
 
-            *args (Any): Any additional arguments provided, unmodified.
+            args (Any, optional): Any additional arguments provided, unmodified.
         """
         import tensorflow as tf
 
@@ -406,18 +399,18 @@ class StainNormalizer:
         image: Union[Dict, "torch.Tensor"],
         *args
     ) -> Tuple[Union[Dict, "torch.Tensor"], ...]:
-        """Normalize a torch.Tensor (uint8), returning a numpy array (uint8).
+        r"""Normalize a torch.Tensor (uint8), returning a numpy array (uint8).
 
         Args:
             image (torch.Tensor, Dict): Image (uint8) either as a raw Tensor,
                 or a Dictionary with the image under the key 'tile_image'.
-            *args (Any): Any additional arguments, which will be passed
+            args (Any, optional): Any additional arguments, which will be passed
                 and returned unmodified.
 
         Returns:
             np.ndarray: Normalized tf.Tensor image, uint8, C x W x H.
 
-            *args (Any): Any additional arguments provided, unmodified.
+            args (Any, optional): Any additional arguments provided, unmodified.
         """
         if isinstance(image, dict):
             to_return = {

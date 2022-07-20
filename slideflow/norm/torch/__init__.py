@@ -40,13 +40,6 @@ class TorchStainNormalizer(StainNormalizer):
         by using the appropriate function. For example, to convert a JPEG
         image to a normalized numpy RGB image, use `.jpeg_to_rgb()`.
 
-        Attributes:
-            vectorized (bool): Normalization is vectorized (a batch of images,
-                rather than only a single image, can be normalized).
-                If False, only single images may be normalized at a time.
-            normalizers (Dict): Dict mapping method names (e.g. 'reinhard',
-                'reinhard_fast' to their respective normalizers.)
-
         Args:
             method (str): Normalization method to use.
 
@@ -183,18 +176,18 @@ class TorchStainNormalizer(StainNormalizer):
         image: Union[Dict, torch.Tensor],
         *args
     ) -> Tuple[Union[Dict, torch.Tensor], ...]:
-        """Normalize a torch.Tensor (uint8), returning a numpy array (uint8).
+        r"""Normalize a torch.Tensor (uint8), returning a numpy array (uint8).
 
         Args:
             image (torch.Tensor, Dict): Image (uint8) either as a raw Tensor,
                 or a Dictionary with the image under the key 'tile_image'.
-            *args (Any): Any additional arguments, which will be passed
+            args (Any, optional): Any additional arguments, which will be passed
                 and returned unmodified.
 
         Returns:
             np.ndarray: Normalized tf.Tensor image, uint8, C x W x H.
 
-            *args (Any): Any additional arguments provided, unmodified.
+            args (Any, optional): Any additional arguments provided, unmodified.
         """
         if isinstance(image, dict):
             to_return = {

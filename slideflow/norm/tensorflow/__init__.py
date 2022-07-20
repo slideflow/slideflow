@@ -36,13 +36,6 @@ class TensorflowStainNormalizer(StainNormalizer):
         by using the appropriate function. For example, to convert a JPEG
         image to a normalized numpy RGB image, use `.jpeg_to_rgb()`.
 
-        Attributes:
-            vectorized (bool): Normalization is vectorized (a batch of images,
-                rather than only a single image, can be normalized).
-                If False, only single images may be normalized at a time.
-            normalizers (Dict): Dict mapping method names (e.g. 'reinhard',
-                'reinhard_fast' to their respective normalizers.)
-
         Args:
             method (str): Normalization method to use.
             device (str, optional): Device on which to perform normalization

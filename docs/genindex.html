@@ -318,6 +318,8 @@
 </li>
         <li><a href="mosaic.html#slideflow.Mosaic.__init__">(slideflow.Mosaic method)</a>
 </li>
+        <li><a href="norm.html#slideflow.norm.StainNormalizer.__init__">(slideflow.norm.StainNormalizer method)</a>
+</li>
         <li><a href="project.html#slideflow.Project.__init__">(slideflow.Project method)</a>
 </li>
         <li><a href="slide.html#slideflow.slide.report.SlideReport.__init__">(slideflow.slide.report.SlideReport method)</a>
@@ -509,6 +511,8 @@
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="dataset.html#slideflow.Dataset.find_tfrecord">find_tfrecord() (slideflow.Dataset method)</a>
 </li>
+      <li><a href="norm.html#slideflow.norm.StainNormalizer.fit">fit() (slideflow.norm.StainNormalizer method)</a>
+</li>
       <li><a href="mosaic.html#slideflow.Mosaic.focus">focus() (slideflow.Mosaic method)</a>
 </li>
       <li><a href="stats.html#slideflow.SlideMap.from_features">from_features() (slideflow.SlideMap class method)</a>
@@ -559,9 +563,11 @@
 </li>
       <li><a href="project.html#slideflow.Project.generate_thumbnails">generate_thumbnails() (slideflow.Project method)</a>
 </li>
+      <li><a href="stats.html#slideflow.stats.get_centroid_index">get_centroid_index() (in module slideflow.stats)</a>
+</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="stats.html#slideflow.stats.get_centroid_index">get_centroid_index() (in module slideflow.stats)</a>
+      <li><a href="norm.html#slideflow.norm.StainNormalizer.get_fit">get_fit() (slideflow.norm.StainNormalizer method)</a>
 </li>
       <li><a href="io_torch.html#slideflow.io.torch.LocLabelInterleaver.get_label">get_label() (slideflow.io.torch.LocLabelInterleaver method)</a>
 
@@ -652,6 +658,12 @@
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="io_tensorflow.html#slideflow.io.tensorflow.join_tfrecord">join_tfrecord() (in module slideflow.io.tensorflow)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="norm.html#slideflow.norm.StainNormalizer.jpeg_to_jpeg">jpeg_to_jpeg() (slideflow.norm.StainNormalizer method)</a>
+</li>
+      <li><a href="norm.html#slideflow.norm.StainNormalizer.jpeg_to_rgb">jpeg_to_rgb() (slideflow.norm.StainNormalizer method)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -834,8 +846,12 @@
 </li>
       <li><a href="heatmap.html#slideflow.Heatmap.plot_with_logit_cmap">plot_with_logit_cmap() (slideflow.Heatmap method)</a>
 </li>
+      <li><a href="norm.html#slideflow.norm.StainNormalizer.png_to_png">png_to_png() (slideflow.norm.StainNormalizer method)</a>
+</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="norm.html#slideflow.norm.StainNormalizer.png_to_rgb">png_to_rgb() (slideflow.norm.StainNormalizer method)</a>
+</li>
       <li><a href="model.html#slideflow.model.CPHTrainer.predict">predict() (slideflow.model.CPHTrainer method)</a>
 
       <ul>
@@ -898,13 +914,15 @@
 </li>
       <li><a href="util.html#slideflow.util.relative_path">relative_path() (in module slideflow.util)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="dataset.html#slideflow.Dataset.remove_filter">remove_filter() (slideflow.Dataset method)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="model.html#slideflow.model.DatasetFeatures.remove_slide">remove_slide() (slideflow.model.DatasetFeatures method)</a>
 </li>
       <li><a href="dataset.html#slideflow.Dataset.resize_tfrecords">resize_tfrecords() (slideflow.Dataset method)</a>
+</li>
+      <li><a href="norm.html#slideflow.norm.StainNormalizer.rgb_to_rgb">rgb_to_rgb() (slideflow.norm.StainNormalizer method)</a>
 </li>
       <li><a href="dataset.html#slideflow.Dataset.rois">rois() (slideflow.Dataset method)</a>
 </li>
@@ -953,6 +971,8 @@
       <li><a href="util.html#slideflow.util.ProgressBar.set_bar_value">set_bar_value() (slideflow.util.ProgressBar method)</a>
 </li>
       <li><a href="gan.html#slideflow.gan.StyleGAN2Interpolator.set_feature_model">set_feature_model() (slideflow.gan.StyleGAN2Interpolator method)</a>
+</li>
+      <li><a href="norm.html#slideflow.norm.StainNormalizer.set_fit">set_fit() (slideflow.norm.StainNormalizer method)</a>
 </li>
       <li><a href="io_tensorflow.html#slideflow.io.tensorflow.shuffle_tfrecord">shuffle_tfrecord() (in module slideflow.io.tensorflow)</a>
 </li>
@@ -1040,6 +1060,8 @@
         <li><a href="slide.html#slideflow.slide.WSI.square_thumb">(slideflow.slide.WSI method)</a>
 </li>
       </ul></li>
+      <li><a href="norm.html#slideflow.norm.StainNormalizer">StainNormalizer (class in slideflow.norm)</a>
+</li>
       <li><a href="model.html#slideflow.model.DatasetFeatures.stats">stats() (slideflow.model.DatasetFeatures method)</a>
 </li>
       <li><a href="io_torch.html#slideflow.io.torch.StyleGAN2Interleaver">StyleGAN2Interleaver (class in slideflow.io.torch)</a>
@@ -1053,6 +1075,10 @@
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="dataset.html#slideflow.Dataset.tensorflow">tensorflow() (slideflow.Dataset method)</a>
+</li>
+      <li><a href="norm.html#slideflow.norm.StainNormalizer.tf_to_rgb">tf_to_rgb() (slideflow.norm.StainNormalizer method)</a>
+</li>
+      <li><a href="norm.html#slideflow.norm.StainNormalizer.tf_to_tf">tf_to_tf() (slideflow.norm.StainNormalizer method)</a>
 </li>
       <li><a href="io_tensorflow.html#slideflow.io.tensorflow.tfrecord_example">tfrecord_example() (in module slideflow.io.tensorflow)</a>
 </li>
@@ -1094,6 +1120,8 @@
 </li>
       <li><a href="dataset.html#slideflow.Dataset.torch">torch() (slideflow.Dataset method)</a>
 </li>
+      <li><a href="norm.html#slideflow.norm.StainNormalizer.torch_to_torch">torch_to_torch() (slideflow.norm.StainNormalizer method)</a>
+</li>
       <li><a href="model.html#slideflow.model.CPHTrainer.train">train() (slideflow.model.CPHTrainer method)</a>
 
       <ul>
@@ -1111,6 +1139,8 @@
       <li><a href="model.html#slideflow.model.Trainer">Trainer (class in slideflow.model)</a>
 </li>
       <li><a href="model.html#slideflow.model.trainer_from_hp">trainer_from_hp() (in module slideflow.model)</a>
+</li>
+      <li><a href="norm.html#slideflow.norm.StainNormalizer.transform">transform() (slideflow.norm.StainNormalizer method)</a>
 </li>
       <li><a href="io_tensorflow.html#slideflow.io.tensorflow.transform_tfrecord">transform_tfrecord() (in module slideflow.io.tensorflow)</a>
 </li>
