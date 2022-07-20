@@ -109,6 +109,8 @@ def get_concentrations(I, stain_matrix, lamda=0.01):
     return C.T
 
 def _as_numpy(arg1: Union[List, np.ndarray]) -> np.ndarray:
+    """Ensures array is a numpy array."""
+
     if isinstance(arg1, list):
         return np.array(arg1)
     elif isinstance(arg1, np.ndarray):

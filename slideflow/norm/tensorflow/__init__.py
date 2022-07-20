@@ -25,22 +25,70 @@ class TensorflowStainNormalizer(StainNormalizer):
         device: Optional[str] = None,
         **kwargs
     ) -> None:
-        """Initializes the Tensorflow stain normalizer
+        """Tensorflow-native H&E Stain normalizer.
+
+        The stain normalizer supports numpy images, PNG or JPG strings,
+        Tensorflow tensors, and PyTorch tensors. The default `.transform()`
+        method will attempt to preserve the original image type while minimizing
+        conversions to and from Tensors.
+
+        Alternatively, you can manually specify the image conversion type
+        by using the appropriate function. For example, to convert a JPEG
+        image to a normalized numpy RGB image, use `.jpeg_to_rgb()`.
+
+        Attributes:
+            vectorized (bool): Normalization is vectorized (a batch of images,
+                rather than only a single image, can be normalized).
+                If False, only single images may be normalized at a time.
+            normalizers (Dict): Dict mapping method names (e.g. 'reinhard',
+                'reinhard_fast' to their respective normalizers.)
 
         Args:
-            method (str, optional): Normalizer method. Defaults to 'reinhard'.
-            source (Optional[str], optional): Normalizer source image,
-                'dataset', or None. Defaults to None.
+            method (str): Normalization method to use.
+            device (str, optional): Device on which to perform normalization
+                (e.g. 'cpu', 'gpu:0', 'gpu'). If None, will default to using
+                the preferred device for the corresponding normalizer
+                ('cpu' for Macenko, 'gpu' for Reinhard).
+
+        Keyword args:
+            stain_matrix_target (np.ndarray, optional): Set the stain matrix
+                target for the normalizer. May raise an error if the normalizer
+                does not have a stain_matrix_target fit attribute.
+            target_concentrations (np.ndarray, optional): Set the target
+                concentrations for the normalizer. May raise an error if the
+                normalizer does not have a target_concentrations fit attribute.
+            target_means (np.ndarray, optional): Set the target means for the
+                normalizer. May raise an error if the normalizer does not have
+                a target_means fit attribute.
+            target_stds (np.ndarray, optional): Set the target standard
+                deviations for the normalizer. May raise an error if the
+                normalizer does not have a target_stds fit attribute.
+
+        Raises:
+            ValueError: If the specified normalizer method is not available.
+
+        Examples:
+            Please see :class:`slideflow.norm.StainNormalizer` for examples.
         """
         super().__init__(method, **kwargs)
         self._device = device
 
     @property
     def vectorized(self) -> bool:  # type: ignore
+        """Returns whether the associated normalizer is vectorized.
+
+        Returns:
+            bool: Normalizer is vectorized.
+        """
         return self.n.vectorized
 
     @property
     def device(self) -> str:
+        """Device (e.g. cpu, gpu) on which normalization should be performed.
+
+        Returns:
+            str: Device that will be used.
+        """
         if self._device is not None:
             return self._device
         elif hasattr(self.n, 'preferred_device'):
@@ -49,6 +97,16 @@ class TensorflowStainNormalizer(StainNormalizer):
             return 'cpu'
 
     def get_fit(self, as_list: bool = False):
+        """Get the current normalizer fit.
+
+        Args:
+            as_list (bool). Convert the fit values (numpy arrays) to list
+                format. Defaults to False.
+
+        Returns:
+            Dict[str, np.ndarray]: Dictionary mapping fit parameters (e.g.
+                'target_concentrations') to their respective fit values.
+        """
         _fit = self.n.get_fit()
         if as_list:
             return {k: v.tolist() for k, v in _fit.items()}
@@ -56,6 +114,22 @@ class TensorflowStainNormalizer(StainNormalizer):
             return _fit
 
     def set_fit(self, **kwargs) -> None:
+        """Set the normalizer fit to teh given values.
+
+        Keyword args:
+            stain_matrix_target (np.ndarray, optional): Set the stain matrix
+                target for the normalizer. May raise an error if the normalizer
+                does not have a stain_matrix_target fit attribute.
+            target_concentrations (np.ndarray, optional): Set the target
+                concentrations for the normalizer. May raise an error if the
+                normalizer does not have a target_concentrations fit attribute.
+            target_means (np.ndarray, optional): Set the target means for the
+                normalizer. May raise an error if the normalizer does not have
+                a target_means fit attribute.
+            target_stds (np.ndarray, optional): Set the target standard
+                deviations for the normalizer. May raise an error if the
+                normalizer does not have a target_stds fit attribute.
+        """
         self.n.set_fit(**kwargs)
 
     def fit(
@@ -65,20 +139,15 @@ class TensorflowStainNormalizer(StainNormalizer):
         num_threads: Union[str, int] = 'auto',
         **kwargs
     ) -> None:
-        """Fit the normalizer.
+        """Fit the normalizer to a target image or dataset of images.
 
         Args:
-            target_means (_type_, optional): Target means. Defaults to None.
-            target_stds (_type_, optional): Target stds. Defaults to None.
-            stain_matrix_target (_type_, optional): Stain matrix target.
-                Defaults to None.
-            target_concentrations (_type_, optional): Target concentrations.
-                Defaults to None.
-            batch_size (int, optional): Batch size during dataset fitting.
-                Defaults to 64.
-
-        Raises:
-            errors.NormalizerError: If unrecognized arguments are provided.
+            arg1: (Dataset, np.ndarray, str): Target to fit. May be a numpy
+                image array (uint8), path to an image, or a Slideflow Dataset.
+                If a Dataset is provided, will average fit values across
+                all images in the dataset.
+            batch_size (int, optional): Batch size during fitting, if fitting
+                to dataset. Defaults to 64.
         """
         if isinstance(arg1, Dataset):
             # Prime the normalizer
@@ -138,29 +207,58 @@ class TensorflowStainNormalizer(StainNormalizer):
             Tuple[Union[Dict, tf.Tensor], ...]: Normalized images in the same
             format as the input.
         """
-        #with tf.device(self.device):
-        if isinstance(batch, dict):
-            to_return = {
-                k: v for k, v in batch.items()
-                if k != 'tile_image'
-            }
-            to_return['tile_image'] = self.n.transform(batch['tile_image'])
-            return detuple(to_return, args)
-        else:
-            return detuple(self.n.transform(batch), args)
+        with tf.device(self.device):
+            if isinstance(batch, dict):
+                to_return = {
+                    k: v for k, v in batch.items()
+                    if k != 'tile_image'
+                }
+                to_return['tile_image'] = self.n.transform(batch['tile_image'])
+                return detuple(to_return, args)
+            else:
+                return detuple(self.n.transform(batch), args)
 
     def tf_to_rgb(self, image: tf.Tensor) -> np.ndarray:
+        """Normalize a tf.Tensor (uint8), returning a numpy array (uint8).
+
+        Args:
+            image (tf.Tensor): Image (uint8).
+
+        Returns:
+            np.ndarray: Normalized image, uint8, W x H x C.
+        """
         return self.tf_to_tf(image).numpy()
 
     def rgb_to_rgb(self, image: np.ndarray) -> np.ndarray:
-        '''Non-normalized RGB numpy array -> normalized RGB numpy array'''
+        """Normalize a numpy array (uint8), returning a numpy array (uint8).
+
+        Args:
+            image (np.ndarray): Image (uint8).
+
+        Returns:
+            np.ndarray: Normalized image, uint8, W x H x C.
+        """
         image = tf.convert_to_tensor(image)
         return self.n.transform(image).numpy()
 
     def jpeg_to_rgb(self, jpeg_string: Union[str, bytes]) -> np.ndarray:
-        '''Non-normalized compressed JPG data -> normalized RGB numpy array'''
+        """Normalize a JPEG image, returning a numpy uint8 array.
+
+        Args:
+            jpeg_string (str, bytes): JPEG image data.
+
+        Returns:
+            np.ndarray: Normalized image, uint8, W x H x C.
+        """
         return self.tf_to_rgb(tf.image.decode_jpeg(jpeg_string))
 
     def png_to_rgb(self, png_string: Union[str, bytes]) -> np.ndarray:
-        '''Non-normalized compressed PNG data -> normalized RGB numpy array'''
+        """Normalize a PNG image, returning a numpy uint8 array.
+
+        Args:
+            png_string (str, bytes): PNG image data.
+
+        Returns:
+            np.ndarray: Normalized image, uint8, W x H x C.
+        """
         return self.tf_to_rgb(tf.image.decode_png(png_string, channels=3))

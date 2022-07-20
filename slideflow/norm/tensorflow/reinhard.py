@@ -18,10 +18,13 @@ from slideflow.norm.tensorflow.reinhard_fast import ReinhardFastNormalizer
 
 @tf.function
 def standardize_brightness(I: tf.Tensor) -> tf.Tensor:
-    """
+    """Standardize image brightness to the 90th percentile.
 
-    :param I:
-    :return:
+    Args:
+        I (tf.Tensor): Image, uint8.
+
+    Returns:
+        tf.Tensor: Brightness-standardized image (uint8)
     """
     p = tfp.stats.percentile(I, 90)  # p = np.percentile(I, 90)
     p = tf.cast(p, tf.float32)
@@ -69,11 +72,16 @@ def fit(target: tf.Tensor, reduce: bool = False) -> Tuple[tf.Tensor, tf.Tensor]:
     return fit_fast(target, reduce=reduce)
 
 class ReinhardNormalizer(ReinhardFastNormalizer):
-    """
-    A stain normalization object
-    """
 
     def __init__(self) -> None:
+        """Reinhard H&E stain normalizer (Tensorflow implementation).
+
+        Normalizes an image as defined by:
+
+        Reinhard, Erik, et al. "Color transfer between images." IEEE
+        Computer graphics and applications 21.5 (2001): 34-41.
+
+        """
         super().__init__()
 
     def fit(
@@ -81,6 +89,19 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
         target: tf.Tensor,
         reduce: bool = False
     ) -> Tuple[tf.Tensor, tf.Tensor]:
+        """Fit normalizer to a target image.
+
+        Args:
+            img (tf.Tensor): Target image (RGB uint8) with dimensions
+                W, H, c.
+            reduce (bool, optional): Reduce fit parameters across a batch of
+                images by average. Defaults to False.
+
+        Returns:
+            target_means (np.ndarray):  Channel means.
+
+            target_stds (np.ndarray):   Channel standard deviations.
+        """
         if len(target.shape) == 3:
             target = tf.expand_dims(target, axis=0)
         means, stds = fit(target, reduce=reduce)
@@ -89,6 +110,14 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
         return means, stds
 
     def transform(self, I: tf.Tensor) -> tf.Tensor:
+        """Normalize an H&E image.
+
+        Args:
+            img (tf.Tensor): Image, RGB uint8 with dimensions W, H, C.
+
+        Returns:
+            tf.Tensor: Normalized image (uint8)
+        """
         if len(I.shape) == 3:
             return transform(tf.expand_dims(I, axis=0), self.target_means, self.target_stds)[0]
         else:

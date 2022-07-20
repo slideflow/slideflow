@@ -29,7 +29,6 @@ class TorchStainNormalizer(StainNormalizer):
         device: Optional[torch.device] = None,
         **kwargs
     ) -> None:
-
         """PyTorch-native H&E Stain normalizer.
 
         The stain normalizer supports numpy images, PNG or JPG strings,

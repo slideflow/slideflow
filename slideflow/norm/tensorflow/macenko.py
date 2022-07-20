@@ -9,10 +9,13 @@ import tensorflow_probability as tfp
 
 @tf.function
 def standardize_brightness(I: tf.Tensor) -> tf.Tensor:
-    """
+    """Standardize image brightness to the 90th percentile.
 
-    :param I:
-    :return:
+    Args:
+        I (tf.Tensor): Image, uint8.
+
+    Returns:
+        tf.Tensor: Brightness-standardized image (uint8)
     """
     p = tfp.stats.percentile(I, 90)  # p = np.percentile(I, 90)
     p = tf.cast(p, tf.float32)
@@ -27,6 +30,23 @@ def matrix_and_concentrations(
     alpha: float = 1,
     beta: float = 0.15
 ) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor]:
+    """Gets the H&E stain matrix and concentrations for a given image.
+
+    Args:
+        img (tf.Tensor): Image (RGB uint8) with dimensions W, H, C.
+        Io (int, optional). Light transmission. Defaults to 255.
+        alpha (float): Percentile of angular coordinates to be selected
+            with respect to orthogonal eigenvectors. Defaults to 1.
+        beta (float): Luminosity threshold. Pixels with luminance above
+            this threshold will be ignored. Defaults to 0.15.
+
+    Returns:
+        tf.Tensor: H&E stain matrix, shape = (3, 2)
+
+        tf.Tensor: Concentrations, shape = (2,)
+
+        tf.Tensor: Concentrations of individual stains
+    """
 
     # reshape image
     img = tf.reshape(img, (-1, 3))
@@ -81,15 +101,17 @@ def transform(
     alpha: float = 1,
     beta: float = 0.15
 ) -> tf.Tensor:
-    """Transform an image using a given target means & stds.
+    """Normalize an image.
 
     Args:
-        I (tf.Tensor): Image to transform
-        tgt_mean (tf.Tensor): Target means.
-        tgt_std (tf.Tensor): Target means.
-
-    Raises:
-        ValueError: If tgt_mean or tgt_std is None.
+        img (tf.Tensor): Image to transform.
+        stain_matrix_target (tf.Tensor): Target stain matrix.
+        target_concentrations (tf.Tensor): Target concentrations.
+        Io (int, optional). Light transmission. Defaults to 255.
+        alpha (float): Percentile of angular coordinates to be selected
+            with respect to orthogonal eigenvectors. Defaults to 1.
+        beta (float): Luminosity threshold. Pixels with luminance above
+            this threshold will be ignored. Defaults to 0.15.
 
     Returns:
         tf.Tensor: Transformed image.
@@ -134,7 +156,12 @@ def fit(
     """Fit a target image.
 
     Args:
-        target (torch.Tensor): Batch of images to fit.
+        img (torch.Tensor): Batch of images to fit.
+        Io (int, optional). Light transmission. Defaults to 255.
+        alpha (float): Percentile of angular coordinates to be selected
+            with respect to orthogonal eigenvectors. Defaults to 1.
+        beta (float): Luminosity threshold. Pixels with luminance above
+            this threshold will be ignored. Defaults to 0.15.
         reduce (bool, optional): Reduce the fit means/stds across the batch
             of images to a single mean/std array, reduced by average.
             Defaults to False (provides fit for each image in the batch).
@@ -163,7 +190,24 @@ class MacenkoNormalizer:
         alpha: float = 1,
         beta: float = 0.15
     ) -> None:
+        """Macenko H&E stain normalizer (Tensorflow implementation).
 
+        Normalizes an image as defined by:
+
+        Macenko, Marc, et al. "A method for normalizing histology
+        slides for quantitative analysis." 2009 IEEE International
+        Symposium on Biomedical Imaging: From Nano to Macro. IEEE, 2009.
+
+        Args:
+            Io (int, optional). Light transmission. Defaults to 255.
+            alpha (float): Percentile of angular coordinates to be selected
+                with respect to orthogonal eigenvectors. Defaults to 1.
+            beta (float): Luminosity threshold. Pixels with luminance above
+                this threshold will be ignored. Defaults to 0.15.
+
+        Examples:
+            See :class:`slideflow.norm.StainNormalizer`
+        """
         self.Io = Io
         self.alpha = alpha
         self.beta = beta
@@ -180,6 +224,19 @@ class MacenkoNormalizer:
         target: tf.Tensor,
         reduce: bool = True
     ) -> Tuple[tf.Tensor, tf.Tensor]:
+        """Fit normalizer to a target image.
+
+        Calculates the stain matrix and concentrations for the given image,
+        and sets these values as the normalizer target.
+
+        Args:
+            img (tf.Tensor): Target image (RGB uint8) with dimensions W, H, C.
+
+        Returns:
+            tf.Tensor:     Stain matrix target.
+
+            tf.Tensor:     Target concentrations.
+        """
         if len(target.shape) == 3:
             target = tf.expand_dims(target, axis=0)
         HE, maxC = fit(target, self.Io, self.alpha, self.beta, reduce=reduce)
@@ -188,6 +245,12 @@ class MacenkoNormalizer:
         return HE, maxC
 
     def get_fit(self) -> Dict[str, Optional[np.ndarray]]:
+        """Get the current normalizer fit.
+
+        Returns:
+            Dict[str, np.ndarray]: Dictionary mapping 'stain_matrix_target'
+                and 'target_concentrations' to their respective fit values.
+        """
         return {
             'stain_matrix_target': None if self.stain_matrix_target is None else self.stain_matrix_target.numpy(),  # type: ignore
             'target_concentrations': None if self.target_concentrations is None else self.target_concentrations.numpy()  # type: ignore
@@ -198,6 +261,14 @@ class MacenkoNormalizer:
         stain_matrix_target: Union[np.ndarray, tf.Tensor],
         target_concentrations: Union[np.ndarray, tf.Tensor]
     ) -> None:
+        """Set the normalizer fit to the given values.
+
+        Args:
+            stain_matrix_target (np.ndarray, tf.Tensor): Stain matrix target.
+                Must have the shape (3, 2).
+            target_concentrations (np.ndarray, tf.Tensor): Target
+                concentrations. Must have the shape (2,).
+        """
         if not isinstance(stain_matrix_target, tf.Tensor):
             stain_matrix_target = tf.convert_to_tensor(stain_matrix_target)
         if not isinstance(target_concentrations, tf.Tensor):
@@ -207,6 +278,14 @@ class MacenkoNormalizer:
 
     @tf.function
     def transform(self, I: tf.Tensor) -> tf.Tensor:
+        """Normalize an H&E image.
+
+        Args:
+            img (tf.Tensor): Image, RGB uint8 with dimensions W, H, C.
+
+        Returns:
+            tf.Tensor: Normalized image.
+        """
         if len(I.shape) != 3:
             raise ValueError(
                 f"Invalid shape for transform(): expected 3, got {I.shape}"

@@ -217,6 +217,14 @@ class ReinhardFastNormalizer:
         self.target_stds = target_stds
 
     def transform(self, I: torch.Tensor) -> torch.Tensor:
+        """Normalize an H&E image.
+
+        Args:
+            img (torch.Tensor): Image, RGB uint8 with dimensions C, W, H.
+
+        Returns:
+            torch.Tensor: Normalized image (uint8)
+        """
         if len(I.shape) == 3:
             return transform(torch.unsqueeze(I, dim=0), self.target_means, self.target_stds)[0]
         else:
