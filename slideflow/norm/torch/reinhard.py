@@ -16,12 +16,15 @@ from slideflow.norm.torch.reinhard_fast import ReinhardFastNormalizer
 
 
 def standardize_brightness(I: torch.Tensor) -> torch.Tensor:
-    """
+    """Standardize image brightness to 90th percentile.
 
-    :param I:
-    :return:
+    Args:
+        I (torch.Tensor): Image to standardize.
+
+    Returns:
+        torch.Tensor: Brightness-standardized image (uint8)
     """
-    p = torch.quantile(I.float(), 0.9)  # p = np.percentile(I, 90)
+    p = torch.quantile(I.float(), 0.9)
     return torch.clip(I * 255.0 / p, 0, 255).to(torch.uint8)
 
 
@@ -30,24 +33,30 @@ def transform(
     tgt_mean: torch.Tensor,
     tgt_std: torch.Tensor
 ) -> torch.Tensor:
+    """Normalize an H&E image.
+
+    Args:
+        img (torch.Tensor): Image, uint8 with dimensions C, W, H.
+        tgt_mean (torch.Tensor): Target channel means.
+        tgt_std (torch.Tensor): Target channel standard deviations.
+
+    Returns:
+        torch.Tensor: Normalized image.
+    """
     I = standardize_brightness(I)
     return transform_fast(I, tgt_mean, tgt_std)
 
-
-def fit(
-    target: torch.Tensor,
-    reduce: bool = True
-) -> Tuple[torch.Tensor, torch.Tensor]:
-    target = standardize_brightness(target)
-    return fit_fast(target, reduce=reduce)
-
-
 class ReinhardNormalizer(ReinhardFastNormalizer):
-    """
-    A stain normalization object
-    """
 
     def __init__(self) -> None:
+        """Reinhard H&E stain normalizer (PyTorch implementation).
+
+        Normalizes an image as defined by:
+
+        Reinhard, Erik, et al. "Color transfer between images." IEEE
+        Computer graphics and applications 21.5 (2001): 34-41.
+
+        """
         super().__init__()
         self.device = torch.device('cuda')
 
@@ -56,14 +65,36 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
         target: torch.Tensor,
         reduce: bool = False
     ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Fit normalizer to a target image.
+
+        Args:
+            img (torch.Tensor): Target image (RGB uint8) with dimensions
+                C, W, H.
+            reduce (bool, optional): Reduce fit parameters across a batch of
+                images by average. Defaults to False.
+
+        Returns:
+            target_means (np.ndarray):  Channel means.
+
+            target_stds (np.ndarray):   Channel standard deviations.
+        """
         if len(target.shape) == 3:
             target = torch.unsqueeze(target, dim=0)
-        means, stds = fit(target, reduce=reduce)
+        target = standardize_brightness(target)
+        means, stds = fit_fast(target, reduce=reduce)
         self.target_means = means
         self.target_stds = stds
         return means, stds
 
     def transform(self, I: torch.Tensor) -> torch.Tensor:
+        """Normalize an H&E image.
+
+        Args:
+            img (torch.Tensor): Image, uint8 with dimensions C, W, H.
+
+        Returns:
+            torch.Tensor: Normalized image.
+        """
         if len(I.shape) == 3:
             return transform(torch.unsqueeze(I, dim=0), self.target_means, self.target_stds)[0]
         else:

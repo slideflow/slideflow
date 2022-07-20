@@ -154,7 +154,6 @@ class ReinhardFastNormalizer:
         Returns:
             np.ndarray: Normalized image.
         """
-
         if self.target_means is None or self.target_stds is None:
             raise ValueError("Normalizer has not been fit: call normalizer.fit()")
 

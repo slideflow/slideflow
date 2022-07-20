@@ -13,7 +13,18 @@ from slideflow.io.torch import cwh_to_whc
 def lab_split(
     I: torch.Tensor
 ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    '''Convert from RGB uint8 to LAB and split into channels'''
+    """Convert from RGB uint8 to LAB and split into channels
+
+    Args:
+        I (torch.Tensor): RGB uint8 image.
+
+    Returns:
+        torch.Tensor: I1, first channel (uint8).
+
+        torch.Tensor: I2, first channel (uint8).
+
+        torch.Tensor: I3, first channel (uint8).
+    """
 
     I = I.float()
     I /= 255
@@ -26,8 +37,16 @@ def merge_back(
     I2: torch.Tensor,
     I3: torch.Tensor
 ) -> torch.Tensor:
-    '''Take separate LAB channels and merge back to RGB uint8'''
+    """Take seperate LAB channels and merge back to give RGB uint8
 
+    Args:
+        I1 (torch.Tensor): First channel (uint8).
+        I2 (torch.Tensor): Second channel (uint8).
+        I3 (torch.Tensor): Third channel (uint8).
+
+    Returns:
+        torch.Tensor: RGB uint8 image.
+    """
     I = torch.stack((I1, I2, I3), dim=-1)
     I = color.lab_to_rgb(I.permute(0, 3, 1, 2), clip=False).permute(0, 2, 3, 1) * 255  # BWHC -> BCWH -> BWHC
     return I
@@ -38,7 +57,18 @@ def get_mean_std(
     I3: torch.Tensor,
     reduce: bool = False
 ) -> Tuple[torch.Tensor, torch.Tensor]:
-    '''Get mean and standard deviation of each channel.'''
+    """Get mean and standard deviation of each channel.
+
+    Args:
+        I1 (torch.Tensor): First channel (uint8).
+        I2 (torch.Tensor): Second channel (uint8).
+        I3 (torch.Tensor): Third channel (uint8).
+        reduce (bool): Reduce batch to mean across images in the batch.
+
+    Returns:
+        torch.Tensor:     Channel means, shape = (3,)
+        torch.Tensor:     Channel standard deviations, shape = (3,)
+    """
 
     m1, sd1 = torch.mean(I1, dim=(1, 2)), torch.std(I1, dim=(1, 2))
     m2, sd2 = torch.mean(I2, dim=(1, 2)), torch.std(I2, dim=(1, 2))
@@ -58,8 +88,17 @@ def transform(
     tgt_mean: torch.Tensor,
     tgt_std: torch.Tensor
 ) -> torch.Tensor:
-    '''Where I = batch of images (WHC)'''
+    """Normalize an H&E image.
 
+    Args:
+        img (torch.Tensor): Batch of uint8 images (W x H x C).
+        tgt_mean (torch.Tensor): Target channel means.
+        tgt_std (torch.Tensor): Target channel standard deviations.
+
+    Returns:
+        torch.Tensor:   Stain normalized image.
+
+    """
     I1, I2, I3 = lab_split(I)
     (I1_mean, I2_mean, I3_mean), (I1_std, I2_std, I3_std) = get_mean_std(I1, I2, I3)
 
@@ -94,6 +133,7 @@ def fit(
 
     Returns:
         torch.Tensor: Fit means
+
         torch.Tensor: Fit stds
     """
     means, stds = get_mean_std(*lab_split(target), reduce=reduce)
@@ -105,6 +145,16 @@ class ReinhardFastNormalizer:
     vectorized = True
 
     def __init__(self) -> None:
+        """Modified Reinhard H&E stain normalizer without brightness
+        standardization (PyTorch implementation).
+
+        Normalizes an image as defined by:
+
+        Reinhard, Erik, et al. "Color transfer between images." IEEE
+        Computer graphics and applications 21.5 (2001): 34-41.
+
+        This implementation does not include the brightness normalization step.
+        """
         package_directory = os.path.dirname(os.path.abspath(__file__))
         img_path = os.path.join(package_directory, '../norm_tile.jpg')
         self.fit(cwh_to_whc(torchvision.io.read_image(img_path)))
@@ -114,6 +164,19 @@ class ReinhardFastNormalizer:
         target: torch.Tensor,
         reduce: bool = False
     ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Fit normalizer to a target image.
+
+        Args:
+            img (torch.Tensor): Target image (RGB uint8) with dimensions
+                C, W, H.
+            reduce (bool, optional): Reduce fit parameters across a batch of
+                images by average. Defaults to False.
+
+        Returns:
+            target_means (np.ndarray):  Channel means.
+
+            target_stds (np.ndarray):   Channel standard deviations.
+        """
         if len(target.shape) == 3:
             target = torch.unsqueeze(target, dim=0)
         means, stds = fit(target, reduce=reduce)
@@ -122,6 +185,12 @@ class ReinhardFastNormalizer:
         return means, stds
 
     def get_fit(self) -> Dict[str, Optional[np.ndarray]]:
+        """Get the current normalizer fit.
+
+        Returns:
+            Dict[str, np.ndarray]: Dictionary mapping 'target_means'
+                and 'target_stds' to their respective fit values.
+        """
         return {
             'target_means': None if self.target_means is None else self.target_means.numpy(),
             'target_stds': None if self.target_stds is None else self.target_stds.numpy()
@@ -132,6 +201,14 @@ class ReinhardFastNormalizer:
         target_means: Union[np.ndarray, torch.Tensor],
         target_stds: Union[np.ndarray, torch.Tensor]
     ) -> None:
+        """Set the normalizer fit to the given values.
+
+        Args:
+            target_means (np.ndarray, torch.Tensor): Channel means. Must
+                have the shape (3,).
+            target_stds (np.ndarray, torch.Tensor): Channel standard deviations.
+                Must have the shape (3,).
+        """
         if not isinstance(target_means, torch.Tensor):
             target_means = torch.from_numpy(ut._as_numpy(target_means))
         if not isinstance(target_stds, torch.Tensor):

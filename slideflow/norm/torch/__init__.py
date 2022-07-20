@@ -6,6 +6,7 @@ import torchvision
 from tqdm import tqdm
 
 from slideflow.dataset import Dataset
+from slideflow.io.torch import cwh_to_whc, whc_to_cwh
 from slideflow.norm import StainNormalizer
 from slideflow.norm.torch import reinhard, reinhard_fast
 from slideflow.util import detuple, log
@@ -16,9 +17,10 @@ class TorchStainNormalizer(StainNormalizer):
 
     # Torch-specific vectorized normalizers disabled
     # as they are slower than the CV implementation
+
     normalizers = {
-        #'reinhard': reinhard.ReinhardNormalizer,
-        #'reinhard_fast': reinhard_fast.ReinhardFastNormalizer,
+        'reinhard': reinhard.ReinhardNormalizer,
+        'reinhard_fast': reinhard_fast.ReinhardFastNormalizer,
     }  # type: Dict
 
     def __init__(
@@ -28,11 +30,58 @@ class TorchStainNormalizer(StainNormalizer):
         **kwargs
     ) -> None:
 
+        """PyTorch-native H&E Stain normalizer.
+
+        The stain normalizer supports numpy images, PNG or JPG strings,
+        Tensorflow tensors, and PyTorch tensors. The default `.transform()`
+        method will attempt to preserve the original image type while minimizing
+        conversions to and from Tensors.
+
+        Alternatively, you can manually specify the image conversion type
+        by using the appropriate function. For example, to convert a JPEG
+        image to a normalized numpy RGB image, use `.jpeg_to_rgb()`.
+
+        Attributes:
+            vectorized (bool): Normalization is vectorized (a batch of images,
+                rather than only a single image, can be normalized).
+                If False, only single images may be normalized at a time.
+            normalizers (Dict): Dict mapping method names (e.g. 'reinhard',
+                'reinhard_fast' to their respective normalizers.)
+
+        Args:
+            method (str): Normalization method to use.
+
+        Keyword args:
+            stain_matrix_target (np.ndarray, optional): Set the stain matrix
+                target for the normalizer. May raise an error if the normalizer
+                does not have a stain_matrix_target fit attribute.
+            target_concentrations (np.ndarray, optional): Set the target
+                concentrations for the normalizer. May raise an error if the
+                normalizer does not have a target_concentrations fit attribute.
+            target_means (np.ndarray, optional): Set the target means for the
+                normalizer. May raise an error if the normalizer does not have
+                a target_means fit attribute.
+            target_stds (np.ndarray, optional): Set the target standard
+                deviations for the normalizer. May raise an error if the
+                normalizer does not have a target_stds fit attribute.
+
+        Raises:
+            ValueError: If the specified normalizer method is not available.
+
+        Examples:
+            Please see :class:`slideflow.norm.StainNormalizer` for examples.
+        """
+
         super().__init__(method, **kwargs)
         self._device = device
 
     @property
     def vectorized(self) -> bool:  # type: ignore
+        """Returns whether the associated normalizer is vectorized.
+
+        Returns:
+            bool: Normalizer is vectorized.
+        """
         return self.n.vectorized
 
     def fit(
@@ -42,6 +91,16 @@ class TorchStainNormalizer(StainNormalizer):
         num_threads: Union[str, int] = 'auto',
         **kwargs
     ):
+        """Fit the normalizer to a target image or dataset of images.
+
+        Args:
+            arg1: (Dataset, np.ndarray, str): Target to fit. May be a numpy
+                image array (uint8), path to an image, or a Slideflow Dataset.
+                If a Dataset is provided, will average fit values across
+                all images in the dataset.
+            batch_size (int, optional): Batch size during fitting, if fitting
+                to dataset. Defaults to 64.
+        """
         if isinstance(arg1, Dataset):
             # Prime the normalizer
             dataset = arg1
@@ -85,6 +144,16 @@ class TorchStainNormalizer(StainNormalizer):
         ))
 
     def get_fit(self, as_list: bool = False):
+        """Get the current normalizer fit.
+
+        Args:
+            as_list (bool). Convert the fit values (numpy arrays) to list
+                format. Defaults to False.
+
+        Returns:
+            Dict[str, np.ndarray]: Dictionary mapping fit parameters (e.g.
+                'target_concentrations') to their respective fit values.
+        """
         _fit = self.n.get_fit()
         if as_list:
             return {k: v.tolist() for k, v in _fit.items()}
@@ -92,6 +161,22 @@ class TorchStainNormalizer(StainNormalizer):
             return _fit
 
     def set_fit(self, **kwargs) -> None:
+        """Set the normalizer fit to teh given values.
+
+        Keyword args:
+            stain_matrix_target (np.ndarray, optional): Set the stain matrix
+                target for the normalizer. May raise an error if the normalizer
+                does not have a stain_matrix_target fit attribute.
+            target_concentrations (np.ndarray, optional): Set the target
+                concentrations for the normalizer. May raise an error if the
+                normalizer does not have a target_concentrations fit attribute.
+            target_means (np.ndarray, optional): Set the target means for the
+                normalizer. May raise an error if the normalizer does not have
+                a target_means fit attribute.
+            target_stds (np.ndarray, optional): Set the target standard
+                deviations for the normalizer. May raise an error if the
+                normalizer does not have a target_stds fit attribute.
+        """
         self.n.set_fit(**kwargs)
 
     def torch_to_torch(
@@ -99,6 +184,19 @@ class TorchStainNormalizer(StainNormalizer):
         image: Union[Dict, torch.Tensor],
         *args
     ) -> Tuple[Union[Dict, torch.Tensor], ...]:
+        """Normalize a torch.Tensor (uint8), returning a numpy array (uint8).
+
+        Args:
+            image (torch.Tensor, Dict): Image (uint8) either as a raw Tensor,
+                or a Dictionary with the image under the key 'tile_image'.
+            *args (Any): Any additional arguments, which will be passed
+                and returned unmodified.
+
+        Returns:
+            np.ndarray: Normalized tf.Tensor image, uint8, C x W x H.
+
+            *args (Any): Any additional arguments provided, unmodified.
+        """
         if isinstance(image, dict):
             to_return = {
                 k: v for k, v in image.items()
@@ -109,16 +207,15 @@ class TorchStainNormalizer(StainNormalizer):
         else:
             return detuple(self.n.transform(image), args)
 
-    def torch_to_rgb(self, image: torch.Tensor) -> np.ndarray:
-        return self.torch_to_torch(image).numpy()  # type: ignore
-
     def rgb_to_rgb(self, image: np.ndarray) -> np.ndarray:
-        '''Non-normalized RGB numpy array -> normalized RGB numpy array'''
-        return self.n.transform(torch.from_numpy(image)).numpy()
+        """Normalize a numpy array (uint8), returning a numpy array (uint8).
 
-    def jpeg_to_rgb(self, jpeg_string: Union[str, bytes]) -> np.ndarray:
-        '''Non-normalized compressed JPG string data -> normalized RGB numpy array'''
-        return self.torch_to_rgb(torchvision.io.decode_image(jpeg_string))
+        Args:
+            image (np.ndarray): Image (uint8), W x H x C.
 
-    def png_to_rgb(self, png_string: Union[str, bytes]) -> np.ndarray:
-        return self.torch_to_rgb(torchvision.io.decode_image(png_string))
+        Returns:
+            np.ndarray: Normalized image, uint8, W x H x C.
+        """
+        return cwh_to_whc(
+            self.n.transform(
+                whc_to_cwh(torch.from_numpy(image)))).numpy()

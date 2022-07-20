@@ -440,6 +440,10 @@ def autoselect(
     (Tensorflow or PyTorch), the native normalizer will be used.
     If not, the default numpy implementation will be used.
 
+    Currently, the PyTorch-native normalizers are NOT used by default, as they
+    are slower than the numpy implementations. Thus, with the PyTorch backend,
+    all normalizers will be the default numpy implementations.
+
     Args:
         method (str): Normalization method. Options include 'macenko',
             'reinhard', 'reinhard_fast', 'reinhard_mask', 'vahadane', and
@@ -455,8 +459,8 @@ def autoselect(
         import slideflow.norm.tensorflow
         BackendNormalizer = sf.norm.tensorflow.TensorflowStainNormalizer
     elif sf.backend() == 'torch':
-        import slideflow.norm.torch
-        BackendNormalizer = sf.norm.torch.TorchStainNormalizer  # type: ignore
+        log.debug("Not attempting to use PyTorch-native normalizer.")
+        BackendNormalizer = StainNormalizer  # type: ignore
     else:
         raise errors.UnrecognizedBackendError
 
