@@ -17,7 +17,7 @@ from tqdm import tqdm
 
 # --- Backend-specific imports and configuration ------------------------------
 
-if os.environ['SF_BACKEND'] == 'tensorflow':
+if sf.backend() == 'tensorflow':
     from slideflow.io.tensorflow import get_tfrecord_parser  # noqa F401
     from slideflow.io.tensorflow import read_and_return_record  # noqa F401
     from slideflow.io.tensorflow import serialized_record
@@ -27,7 +27,7 @@ if os.environ['SF_BACKEND'] == 'tensorflow':
     from tensorflow.io import TFRecordWriter
     dataloss_errors = [tf.errors.DataLossError, errors.TFRecordsError]
 
-elif os.environ['SF_BACKEND'] == 'torch':
+elif sf.backend() == 'torch':
     from slideflow.io.torch import \
         get_tfrecord_parser  # type: ignore  # noqa F401
     from slideflow.io.torch import read_and_return_record, serialized_record
@@ -36,7 +36,7 @@ elif os.environ['SF_BACKEND'] == 'torch':
     dataloss_errors = [errors.TFRecordsError]
 
 else:
-    raise errors.BackendError(f"Unknown backend {os.environ['SF_BACKEND']}")
+    raise errors.UnrecognizedBackendError
 
 # -----------------------------------------------------------------------------
 

@@ -3,11 +3,11 @@ and Tensorflow/PyTorch (vectorized) implementations."""
 
 from __future__ import absolute_import
 
-import multiprocessing as mp
 import os
+import sys
+import multiprocessing as mp
 from io import BytesIO
-from os.path import join
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple, Union
 
 import cv2
 import numpy as np
@@ -27,7 +27,6 @@ from slideflow.norm import (augment, macenko, reinhard, reinhard_fast,
 
 
 class StainNormalizer:
-    """Supervises stain normalization of images."""
 
     vectorized = False
     normalizers = {
@@ -40,6 +39,64 @@ class StainNormalizer:
     }  # type: Dict[str, Any]
 
     def __init__(self, method: str, **kwargs) -> None:
+        """H&E Stain normalizer supporting various normalization methods.
+
+        The stain normalizer supports numpy images, PNG or JPG strings,
+        Tensorflow tensors, and PyTorch tensors. The default `.transform()`
+        method will attempt to preserve the original image type while minimizing
+        conversions to and from Tensors.
+
+        Alternatively, you can manually specify the image conversion type
+        by using the appropriate function. For example, to convert a Tensor
+        to a normalized numpy RGB image, use `.tf_to_rgb()`.
+
+        Attributes:
+            vectorized (bool): Normalization is vectorized (a batch of images,
+                rather than only a single image, can be normalized).
+                If False, only single images may be normalized at a time.
+            normalizers (Dict): Dict mapping method names (e.g. 'reinhard',
+                'macenko' to their respective normalizers.)
+
+        Args:
+            method (str): Normalization method to use.
+
+        Keyword args:
+            stain_matrix_target (np.ndarray, optional): Set the stain matrix
+                target for the normalizer. May raise an error if the normalizer
+                does not have a stain_matrix_target fit attribute.
+            target_concentrations (np.ndarray, optional): Set the target
+                concentrations for the normalizer. May raise an error if the
+                normalizer does not have a target_concentrations fit attribute.
+            target_means (np.ndarray, optional): Set the target means for the
+                normalizer. May raise an error if the normalizer does not have
+                a target_means fit attribute.
+            target_stds (np.ndarray, optional): Set the target standard
+                deviations for the normalizer. May raise an error if the
+                normalizer does not have a target_stds fit attribute.
+
+        Raises:
+            ValueError: If the specified normalizer method is not available.
+
+        Examples:
+            Normalize a numpy image using the default fit.
+
+                >>> import slideflow as sf
+                >>> macenko = sf.norm.StainNormalizer('macenko')
+                >>> macenko.transform(image)
+
+            Fit the normalizer to a target image (numpy or path).
+
+                >>> macenko.fit(target_image)
+
+            Fit the normalizer to all images in a Dataset.
+
+                >>> dataset = sf.Dataset(...)
+                >>> macenko.fit(dataset)
+
+            Normalize an image and convert from Tensor to RGB.
+
+                >>> macenko.tf_to_rgb(image)
+        """
         if method not in self.normalizers:
             raise ValueError(f"Unrecognized normalizer method {method}")
         self.method = method
@@ -55,7 +112,17 @@ class StainNormalizer:
         base += ")"
         return base
 
-    def _torch_transform(self, inp):
+    def _torch_transform(self, inp: "torch.Tensor") -> "torch.Tensor":
+        """Normalize a torch uint8 image (CWH), via intermediate
+        conversion to WHC.
+
+        Args:
+            inp (torch.Tensor): Image, uint8, C x W x H.
+
+        Returns:
+            torch.Tensor:   Image, uint8, C x W x H.
+
+        """
         import torch
         from slideflow.io.torch import cwh_to_whc, whc_to_cwh
 
@@ -66,16 +133,6 @@ class StainNormalizer:
         else:
             return torch.from_numpy(self.rgb_to_rgb(inp.cpu().numpy()))
 
-    def get_fit(self, as_list: bool = False):
-        _fit = self.n.get_fit()
-        if as_list:
-            return {k: v.tolist() for k, v in _fit.items()}
-        else:
-            return _fit
-
-    def set_fit(self, **kwargs) -> None:
-        self.n.set_fit(**kwargs)
-
     def fit(
         self,
         arg1: Optional[Union[Dataset, np.ndarray, str]],
@@ -83,20 +140,17 @@ class StainNormalizer:
         num_threads: Union[str, int] = 'auto',
         **kwargs,
     ) -> None:
-        """Fit the normalizer.
+        """Fit the normalizer to a target image or dataset of images.
 
         Args:
-            arg1: (Dataset, np.ndarray, str): Target to fit.
+            arg1: (Dataset, np.ndarray, str): Target to fit. May be a numpy
+                image array (uint8), path to an image, or a Slideflow Dataset.
+                If a Dataset is provided, will average fit values across
+                all images in the dataset.
             batch_size (int, optional): Batch size during fitting, if fitting
                 to dataset. Defaults to 64.
             num_threads (Union[str, int], optional): Number of threads to use
                 during fitting, if fitting to a dataset. Defaults to 'auto'.
-
-        Raises:
-            NotImplementedError: If attempting to fit Dataset using
-            non-vectorized normalizer.
-
-            errors.NormalizerError: If unrecognized arguments are provided.
         """
 
         # Fit to a dataset
@@ -157,20 +211,182 @@ class StainNormalizer:
             self.set_fit(**kwargs)
 
         else:
-            raise errors.NormalizerError(f'Unrecognized args for fit: {arg1}')
+            raise ValueError(f'Unrecognized args for fit: {arg1}')
 
         log.debug('Fit normalizer: {}'.format(
             ', '.join([f"{fit_key} = {fit_val}"
             for fit_key, fit_val in self.get_fit().items()])
         ))
 
+    def get_fit(self, as_list: bool = False):
+        """Get the current normalizer fit.
+
+        Args:
+            as_list (bool). Convert the fit values (numpy arrays) to list
+                format. Defaults to False.
+
+        Returns:
+            Dict[str, np.ndarray]: Dictionary mapping fit parameters (e.g.
+                'target_concentrations') to their respective fit values.
+        """
+        _fit = self.n.get_fit()
+        if as_list:
+            return {k: v.tolist() for k, v in _fit.items()}
+        else:
+            return _fit
+
+    def set_fit(self, **kwargs) -> None:
+        """Set the normalizer fit to teh given values.
+
+        Keyword args:
+            stain_matrix_target (np.ndarray, optional): Set the stain matrix
+                target for the normalizer. May raise an error if the normalizer
+                does not have a stain_matrix_target fit attribute.
+            target_concentrations (np.ndarray, optional): Set the target
+                concentrations for the normalizer. May raise an error if the
+                normalizer does not have a target_concentrations fit attribute.
+            target_means (np.ndarray, optional): Set the target means for the
+                normalizer. May raise an error if the normalizer does not have
+                a target_means fit attribute.
+            target_stds (np.ndarray, optional): Set the target standard
+                deviations for the normalizer. May raise an error if the
+                normalizer does not have a target_stds fit attribute.
+        """
+        self.n.set_fit(**kwargs)
+
+    def transform(
+        self,
+        image: Union[str, bytes, np.ndarray, "tf.Tensor", "torch.Tensor"]
+    ) -> Union[str, bytes, np.ndarray, "tf.Tensor", "torch.Tensor"]:
+        """Normalize a target image, attempting to preserve the original type.
+
+        Args:
+            image (np.ndarray, tf.Tensor, or torch.Tensor): Image.
+
+        Returns:
+            Normalized image of the original type.
+        """
+        if isinstance(image, (str, bytes)):
+            raise ValueError("Unable to auto-transform bytes or str; please "
+                             "use .png_to_png() or .jpeg_to_jpeg().")
+        if 'tensorflow' in sys.modules:
+            import tensorflow as tf
+            if isinstance(image, tf.Tensor):
+                return self.tf_to_tf(image)
+        if 'torch' in sys.modules:
+            import torch
+            if isinstance(image, torch.Tensor):
+                return self.torch_to_torch(image)
+        if isinstance(image, np.ndarray):
+            return self.rgb_to_rgb(image)
+        raise ValueError(f"Unrecognized image type {type(image)}; expected "
+                         "np.ndarray, tf.Tensor, or torch.Tensor")
+
+    def jpeg_to_jpeg(
+        self,
+        jpeg_string: Union[str, bytes],
+        quality: int = 100
+    ) -> bytes:
+        """Normalize a JPEG image, returning a JPEG image.
+
+        Args:
+            jpeg_string (str, bytes): JPEG image data.
+            quality (int, optional): Quality level for creating the resulting
+                normalized JPEG image. Defaults to 100.
+
+        Returns:
+            bytes:  Normalized JPEG image.
+        """
+        cv_image = self.jpeg_to_rgb(jpeg_string)
+        with BytesIO() as output:
+            Image.fromarray(cv_image).save(
+                output,
+                format="JPEG",
+                quality=quality
+            )
+            return output.getvalue()
+
+    def jpeg_to_rgb(self, jpeg_string: Union[str, bytes]) -> np.ndarray:
+        """Normalize a JPEG image, returning a numpy uint8 array.
+
+        Args:
+            jpeg_string (str, bytes): JPEG image data.
+
+        Returns:
+            np.ndarray: Normalized image, uint8, W x H x C.
+        """
+        cv_image = cv2.imdecode(
+            np.fromstring(jpeg_string, dtype=np.uint8),
+            cv2.IMREAD_COLOR
+        )
+        cv_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB)
+        return self.n.transform(cv_image)
+
+    def png_to_png(self, png_string: Union[str, bytes]) -> bytes:
+        """Normalize a PNG image, returning a PNG image.
+
+        Args:
+            png_string (str, bytes): PNG image data.
+
+        Returns:
+            bytes: Normalized PNG image.
+        """
+        cv_image = self.png_to_rgb(png_string)
+        with BytesIO() as output:
+            Image.fromarray(cv_image).save(output, format="PNG")
+            return output.getvalue()
+
+    def png_to_rgb(self, png_string: Union[str, bytes]) -> np.ndarray:
+        """Normalize a PNG image, returning a numpy uint8 array.
+
+        Args:
+            png_string (str, bytes): PNG image data.
+
+        Returns:
+            np.ndarray: Normalized image, uint8, W x H x C.
+        """
+        return self.jpeg_to_rgb(png_string)  # It should auto-detect format
+
+    def rgb_to_rgb(self, image: np.ndarray) -> np.ndarray:
+        """Normalize a numpy array (uint8), returning a numpy array (uint8).
+
+        Args:
+            image (np.ndarray): Image (uint8).
+
+        Returns:
+            np.ndarray: Normalized image, uint8, W x H x C.
+        """
+        return self.n.transform(image)
+
+    def tf_to_rgb(self, image: "tf.Tensor") -> np.ndarray:
+        """Normalize a tf.Tensor (uint8), returning a numpy array (uint8).
+
+        Args:
+            image (tf.Tensor): Image (uint8).
+
+        Returns:
+            np.ndarray: Normalized image, uint8, W x H x C.
+        """
+        return self.rgb_to_rgb(np.array(image))
+
     def tf_to_tf(
         self,
         image: Union[Dict, "tf.Tensor"],
         *args: Any
     ) -> Tuple[Union[Dict, "tf.Tensor"], ...]:
-        '''Tensorflow RGB image (or batch)
-            -> normalized Tensorflow RGB image (or batch)'''
+        """Normalize a tf.Tensor (uint8), returning a numpy array (uint8).
+
+        Args:
+            image (tf.Tensor, Dict): Image (uint8) either as a raw Tensor,
+                or a Dictionary with the image under the key 'tile_image'.
+            *args (Any): Any additional arguments, which will be passed
+                and returned unmodified.
+
+        Returns:
+            np.ndarray: Normalized tf.Tensor image, uint8, W x H x C.
+
+            *args (Any): Any additional arguments provided, unmodified.
+        """
         import tensorflow as tf
 
         if isinstance(image, dict):
@@ -190,7 +406,19 @@ class StainNormalizer:
         image: Union[Dict, "torch.Tensor"],
         *args
     ) -> Tuple[Union[Dict, "torch.Tensor"], ...]:
-        '''Non-normalized PyTorch image -> normalized RGB PyTorch image'''
+        """Normalize a torch.Tensor (uint8), returning a numpy array (uint8).
+
+        Args:
+            image (torch.Tensor, Dict): Image (uint8) either as a raw Tensor,
+                or a Dictionary with the image under the key 'tile_image'.
+            *args (Any): Any additional arguments, which will be passed
+                and returned unmodified.
+
+        Returns:
+            np.ndarray: Normalized tf.Tensor image, uint8, C x W x H.
+
+            *args (Any): Any additional arguments provided, unmodified.
+        """
         if isinstance(image, dict):
             to_return = {
                 k: v for k, v in image.items()
@@ -201,56 +429,27 @@ class StainNormalizer:
         else:
             return detuple(self._torch_transform(image), args)
 
-    def tf_to_rgb(self, image: "tf.Tensor") -> np.ndarray:
-        '''Non-normalized tensorflow RGB array -> normalized RGB numpy array'''
-        return self.rgb_to_rgb(np.array(image))
-
-    def rgb_to_rgb(self, image: np.ndarray) -> np.ndarray:
-        '''Non-normalized RGB numpy array -> normalized RGB numpy array'''
-        return self.n.transform(image)
-
-    def jpeg_to_rgb(self, jpeg_string: Union[str, bytes]) -> np.ndarray:
-        '''Non-normalized compressed JPG data -> normalized RGB numpy array'''
-        cv_image = cv2.imdecode(
-            np.fromstring(jpeg_string, dtype=np.uint8),
-            cv2.IMREAD_COLOR
-        )
-        cv_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB)
-        return self.n.transform(cv_image)
-
-    def png_to_rgb(self, png_string: Union[str, bytes]) -> np.ndarray:
-        '''Non-normalized compressed PNG data -> normalized RGB numpy array'''
-        return self.jpeg_to_rgb(png_string)  # It should auto-detect format
-
-    def jpeg_to_jpeg(
-        self,
-        jpeg_string: Union[str, bytes],
-        quality: int = 75
-    ) -> bytes:
-        '''Non-normalized compressed JPG string data -> normalized
-        compressed JPG data
-        '''
-        cv_image = self.jpeg_to_rgb(jpeg_string)
-        with BytesIO() as output:
-            Image.fromarray(cv_image).save(
-                output,
-                format="JPEG",
-                quality=quality
-            )
-            return output.getvalue()
-
-    def png_to_png(self, png_string: Union[str, bytes]) -> bytes:
-        '''Non-normalized PNG string data -> normalized PNG string data'''
-        cv_image = self.png_to_rgb(png_string)
-        with BytesIO() as output:
-            Image.fromarray(cv_image).save(output, format="PNG")
-            return output.getvalue()
-
 
 def autoselect(
     method: str,
     source: Optional[str] = None
 ) -> StainNormalizer:
+    """Select the best normalizer for a given method, and fit to a given source.
+
+    If a normalizer method has a native implementation in the current backend
+    (Tensorflow or PyTorch), the native normalizer will be used.
+    If not, the default numpy implementation will be used.
+
+    Args:
+        method (str): Normalization method. Options include 'macenko',
+            'reinhard', 'reinhard_fast', 'reinhard_mask', 'vahadane', and
+            'augment'.
+        source (str, optional): Path to a source image. If provided, will
+            fit the normalizer to this image. Defaults to None.
+
+    Returns:
+        StainNormalizer:    Initialized StainNormalizer.
+    """
 
     if sf.backend() == 'tensorflow':
         import slideflow.norm.tensorflow
@@ -259,7 +458,7 @@ def autoselect(
         import slideflow.norm.torch
         BackendNormalizer = sf.norm.torch.TorchStainNormalizer  # type: ignore
     else:
-        raise Exception(f"Unrecognized backend: {sf.backend()}")
+        raise errors.UnrecognizedBackendError
 
     if method in BackendNormalizer.normalizers:
         normalizer = BackendNormalizer(method)

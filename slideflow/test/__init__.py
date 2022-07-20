@@ -41,8 +41,8 @@ class TestSuite:
                 starting. Defaults to False.
 
         Raises:
-            errors.BackendError: If the environmental variable SF_BACKEND
-                is not either "tensorflow" or "torch".
+            errors.UnrecognizedBackendError: If the environmental variable
+                SF_BACKEND is something other than  "tensorflow" or "torch".
         """
 
         if slides is None:
@@ -96,10 +96,7 @@ class TestSuite:
             if not torch.cuda.is_available():
                 log.error("GPU unavailable - tests may fail.")
         else:
-            raise errors.BackendError(
-                f"Unknown backend {sf.backend()} "
-                "Valid backends: 'tensorflow' or 'torch'"
-            )
+            raise errors.UnrecognizedBackendError
 
         # Configure datasets (input)
         self.buffer = buffer

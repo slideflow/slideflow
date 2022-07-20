@@ -16,95 +16,50 @@ import numpy as np
 
 import slideflow.norm.utils as ut
 
-
-def lab_split(I: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """
-    Convert from RGB uint8 to LAB and split into channels
-    :param I: uint8
-    :return:
-    """
-    I = cv.cvtColor(I, cv.COLOR_RGB2LAB)
-    I = I.astype(np.float32)
-    I1, I2, I3 = cv.split(I)
-    I1 /= 2.55
-    I2 -= 128.0
-    I3 -= 128.0
-    return I1, I2, I3
+from slideflow.norm.reinhard_fast import lab_split, merge_back, get_mean_std
+from slideflow.norm.reinhard import ReinhardNormalizer
 
 
-def merge_back(I1: np.ndarray, I2: np.ndarray, I3: np.ndarray) -> np.ndarray:
-    """
-    Take seperate LAB channels and merge back to give RGB uint8
-    :param I1:
-    :param I2:
-    :param I3:
-    :return:
-    """
-    I1 *= 2.55
-    I2 += 128.0
-    I3 += 128.0
-    I = np.clip(cv.merge((I1, I2, I3)), 0, 255).astype(np.uint8)
-    return cv.cvtColor(I, cv.COLOR_LAB2RGB)
+class ReinhardMaskNormalizer(ReinhardNormalizer):
 
+    def __init__(self, threshold: float = 0.93) -> None:
+        """Modified Reinhard H&E stain normalizer only applied to
+        non-whitepsace areas (numpy implementation).
 
-def get_mean_std(I: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
-    """
-    Get mean and standard deviation of each channel
-    :param I: uint8
-    :return:
-    """
-    I1, I2, I3 = lab_split(I)
-    m1, sd1 = cv.meanStdDev(I1)
-    m2, sd2 = cv.meanStdDev(I2)
-    m3, sd3 = cv.meanStdDev(I3)
-    means = np.array([m1, m2, m3])
-    stds = np.array([sd1, sd2, sd3])
-    return means, stds
+        Normalizes an image as defined by:
 
+        Reinhard, Erik, et al. "Color transfer between images." IEEE
+        Computer graphics and applications 21.5 (2001): 34-41.
 
-class ReinhardMaskNormalizer:
-    """
-    A stain normalization object
-    """
+        This "masked" implementation only normalizes non-whitespace areas.
 
-    def __init__(self) -> None:
-        package_directory = os.path.dirname(os.path.abspath(__file__))
-        img_path = os.path.join(package_directory, 'norm_tile.jpg')
-        self.fit(cv2.cvtColor(cv2.imread(img_path), cv2.COLOR_BGR2RGB))
+        This normalizer contains inspiration from StainTools by Peter Byfield
+        (https://github.com/Peter554/StainTools).
 
-    def fit(self, target: np.ndarray) -> None:
-        target = ut.standardize_brightness(target)
-        means, stds = get_mean_std(target)
-        self.target_means = means
-        self.target_stds = stds
+        Args:
+            threshold (float): Whitespace fraction threshold, above which
+                pixels are masked and not normalized. Defaults to 0.93.
+        """
+        super().__init__()
+        self.threshold = threshold
 
-    def get_fit(self) -> Dict[str, np.ndarray]:
-        return {
-            'target_means': self.target_means,
-            'target_stds': self.target_stds
-        }
+    def transform(self, image: np.ndarray) -> np.ndarray:
+        """Normalize an H&E image.
 
-    def set_fit(
-        self,
-        target_means: np.ndarray,
-        target_stds: np.ndarray
-    ) -> None:
-        self.target_means = ut._as_numpy(target_means)
-        self.target_stds = ut._as_numpy(target_stds)
+        Args:
+            img (np.ndarray): Image, RGB uint8 with dimensions W, H, C.
 
-    def transform(self, I: np.ndarray) -> np.ndarray:
-
-        if self.target_means is None or self.target_stds is None:
-            raise ValueError("Normalizer has not been fit: call normalizer.fit()")
-
-        I = ut.standardize_brightness(I)
-        I_LAB = cv.cvtColor(I, cv.COLOR_RGB2LAB)
+        Returns:
+            np.ndarray: Normalized image.
+        """
+        image = ut.standardize_brightness(image)
+        I_LAB = cv.cvtColor(image, cv.COLOR_RGB2LAB)
         I_LAB[:, :, 1] = I_LAB[:, :, 0]
         I_LAB[:, :, 2] = I_LAB[:, :, 0]
-        mask = I_LAB[:, :, :] / 255.0 < 0.93
-        I1, I2, I3 = lab_split(I)
-        means, stds = get_mean_std(I)
+        mask = I_LAB[:, :, :] / 255.0 < self.threshold
+        I1, I2, I3 = lab_split(image)
+        means, stds = get_mean_std(image)
         norm1 = ((I1 - means[0]) * (self.target_stds[0] / stds[0])) + self.target_means[0]
         norm2 = ((I2 - means[1]) * (self.target_stds[1] / stds[1])) + self.target_means[1]
         norm3 = ((I3 - means[2]) * (self.target_stds[2] / stds[2])) + self.target_means[2]
-        return np.where(mask, merge_back(norm1, norm2, norm3), I)
+        return np.where(mask, merge_back(norm1, norm2, norm3), image)

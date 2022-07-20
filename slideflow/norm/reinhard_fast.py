@@ -1,11 +1,4 @@
-"""
-From https://github.com/wanghao14/Stain_Normalization
-Normalize a patch stain to the target image using the method of:
-
-E. Reinhard, M. Adhikhmin, B. Gooch, and P. Shirley, ‘Color transfer between images’, IEEE Computer Graphics and Applications, vol. 21, no. 5, pp. 34–41, Sep. 2001.
-
-This implementation ("fast" implementation) skips the brightness standardization step.
-"""
+"""Modified Reinhard H&E stain normalization without brightness standardization."""
 
 from __future__ import division
 
@@ -20,12 +13,18 @@ import slideflow.norm.utils as ut
 
 
 def lab_split(I: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Convert from RGB uint8 to LAB and split into channels
+
+    Args:
+        I (np.ndarray): RGB uint8 image.
+
+    Returns:
+        np.ndarray: I1, first channel.
+
+        np.ndarray: I2, first channel.
+
+        np.ndarray: I3, first channel.
     """
-    Convert from RGB uint8 to LAB and split into channels
-    :param I: uint8
-    :return:
-    """
-    #I = I.astype(np.float32) / 127.5
     I = cv.cvtColor(I, cv.COLOR_RGB2LAB)
     I = I.astype(np.float32)
     I1, I2, I3 = cv.split(I)
@@ -36,12 +35,15 @@ def lab_split(I: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
 
 
 def merge_back(I1: np.ndarray, I2: np.ndarray, I3: np.ndarray) -> np.ndarray:
-    """
-    Take seperate LAB channels and merge back to give RGB uint8
-    :param I1:
-    :param I2:
-    :param I3:
-    :return:
+    """Take seperate LAB channels and merge back to give RGB uint8
+
+    Args:
+        I1 (np.ndarray): First channel.
+        I2 (np.ndarray): Second channel.
+        I3 (np.ndarray): Third channel.
+
+    Returns:
+        np.ndarray: RGB uint8 image.
     """
     I1 *= 2.55
     I2 += 128.0
@@ -51,10 +53,14 @@ def merge_back(I1: np.ndarray, I2: np.ndarray, I3: np.ndarray) -> np.ndarray:
 
 
 def get_mean_std(I: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
-    """
-    Get mean and standard deviation of each channel
-    :param I: uint8
-    :return:
+    """Get mean and standard deviation of each channel.
+
+    Args:
+        I (np.ndarray): RGB uint8 image.
+
+    Returns:
+        np.ndarray:     Channel means, shape = (3,)
+        np.ndarray:     Channel standard deviations, shape = (3,)
     """
     I1, I2, I3 = lab_split(I)
     m1, sd1 = cv.meanStdDev(I1)
@@ -66,22 +72,47 @@ def get_mean_std(I: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
 
 
 class ReinhardFastNormalizer:
-    """
-    A stain normalization object
-    """
 
     def __init__(self):
+        """Modified Reinhard H&E stain normalizer without brightness
+        standardization (numpy implementation).
+
+        Normalizes an image as defined by:
+
+        Reinhard, Erik, et al. "Color transfer between images." IEEE
+        Computer graphics and applications 21.5 (2001): 34-41.
+
+        This implementation does not include the brightness normalization step.
+
+        This normalizer contains inspiration from StainTools by Peter Byfield
+        (https://github.com/Peter554/StainTools).
+        """
         package_directory = os.path.dirname(os.path.abspath(__file__))
         img_path = os.path.join(package_directory, 'norm_tile.jpg')
         self.fit(cv2.cvtColor(cv2.imread(img_path), cv2.COLOR_BGR2RGB))
 
-    def fit(self, target: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
-        means, stds = get_mean_std(target)
-        self.target_means = means
-        self.target_stds = stds
+    def fit(self, img: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+        """Fit normalizer to a target image.
+
+        Args:
+            img (np.ndarray): Target image (RGB uint8) with dimensions W, H, C.
+
+        Returns:
+            target_means (np.ndarray):  Channel means.
+
+            target_stds (np.ndarray):   Channel standard deviations.
+        """
+        means, stds = get_mean_std(img)
+        self.set_fit(means, stds)
         return means, stds
 
     def get_fit(self) -> Dict[str, np.ndarray]:
+        """Get the current normalizer fit.
+
+        Returns:
+            Dict[str, np.ndarray]: Dictionary mapping 'target_means'
+                and 'target_stds' to their respective fit values.
+        """
         return {
             'target_means': self.target_means,
             'target_stds': self.target_stds
@@ -92,11 +123,37 @@ class ReinhardFastNormalizer:
         target_means: np.ndarray,
         target_stds: np.ndarray
     ) -> None:
-        self.target_means = ut._as_numpy(target_means)
-        self.target_stds = ut._as_numpy(target_stds)
+        """Set the normalizer fit to the given values.
+
+        Args:
+            target_means (np.ndarray): Channel means. Must
+                have the shape (3,).
+            target_stds (np.ndarray): Channel standard deviations. Must
+                have the shape (3,).
+        """
+        target_means = ut._as_numpy(target_means).flatten()
+        target_stds = ut._as_numpy(target_stds).flatten()
+
+        if target_means.shape != (3,):
+            raise ValueError("target_means must have flattened shape of (3,) - "
+                             f"got {target_means.shape}")
+        if target_stds.shape != (3,):
+            raise ValueError("target_stds must have flattened shape of (3,) - "
+                             f"got {target_stds.shape}")
+
+        self.target_means = target_means
+        self.target_stds = target_stds
 
 
     def transform(self, I: np.ndarray) -> np.ndarray:
+        """Normalize an H&E image.
+
+        Args:
+            img (np.ndarray): Image, RGB uint8 with dimensions W, H, C.
+
+        Returns:
+            np.ndarray: Normalized image.
+        """
 
         if self.target_means is None or self.target_stds is None:
             raise ValueError("Normalizer has not been fit: call normalizer.fit()")

@@ -2639,7 +2639,7 @@ class Project:
         Returns:
             Dict with model names mapped to train_acc, val_loss, and val_acc
 
-        Examples
+        Examples:
             Method 1 (hyperparameter sweep from a configuration file):
 
                 >>> P.train('outcome', params='sweep.json', ...)

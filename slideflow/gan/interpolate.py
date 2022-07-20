@@ -12,6 +12,7 @@ import torch
 from PIL import Image
 from slideflow.gan.stylegan2 import embedding, utils
 from slideflow.gan.utils import crop
+from slideflow import errors
 from tqdm import tqdm
 from functools import partial
 
@@ -75,7 +76,7 @@ class StyleGAN2Interpolator:
             import torch
             dtype = torch.uint8
         else:
-            raise ValueError(f"Unrecognized backend {sf.backend()}")
+            raise errors.UnrecognizedBackendError
         img = crop(img, **self.crop_kw)  # type: ignore
         return sf.io.convert_dtype(img, dtype)
 
@@ -111,7 +112,7 @@ class StyleGAN2Interpolator:
                 standardize=standardize,
                 resize_px=self.target_px)
         else:
-            raise ValueError(f"Unrecognized backend {sf.backend()}")
+            raise errors.UnrecognizedBackendError
 
     def _standardize(self, img: Any) -> Any:
         """Standardize image from uint8 to float.
@@ -129,7 +130,7 @@ class StyleGAN2Interpolator:
             import torch
             return sf.io.convert_dtype(img, torch.float32)
         else:
-            raise ValueError(f"Unrecognized backend {sf.backend()}")
+            raise errors.UnrecognizedBackendError
 
     def _build_gan_dataset(self, generator) -> Iterable:
         """Build a dataset from a given GAN generator.
@@ -163,7 +164,7 @@ class StyleGAN2Interpolator:
                     resize_px=self.target_px),
                 generator())
         else:
-            raise ValueError(f"Unrecognized backend {sf.backend()}")
+            raise errors.UnrecognizedBackendError
 
     def z(self, seed: int) -> torch.Tensor:
         """Returns a noise tensor for a given seed.
