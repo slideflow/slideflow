@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Training &mdash; slideflow 1.2.2 documentation</title>
+  <title>Training &mdash; slideflow 1.3.0-dev0 documentation</title>
   
 
   
@@ -406,8 +406,8 @@ each time doing a mid-epoch validation check. Defaults to 200.</p></li>
 <dd class="field-odd"><p>Dict with model names mapped to train_acc, val_loss, and val_acc</p>
 </dd>
 </dl>
-<dl>
-<dt>Examples</dt><dd><p>Method 1 (hyperparameter sweep from a configuration file):</p>
+<p class="rubric">Examples</p>
+<p>Method 1 (hyperparameter sweep from a configuration file):</p>
 <div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">P</span><span class="o">.</span><span class="n">train</span><span class="p">(</span><span class="s1">&#39;outcome&#39;</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="s1">&#39;sweep.json&#39;</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
 </pre></div>
 </div>
@@ -426,8 +426,6 @@ each time doing a mid-epoch validation check. Defaults to 200.</p></li>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">P</span><span class="o">.</span><span class="n">train</span><span class="p">(</span><span class="s1">&#39;outcome&#39;</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="n">hp</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
 </pre></div>
 </div>
-</dd>
-</dl>
 </dd></dl>
 
 <p>If you used the <code class="docutils literal notranslate"><span class="pre">ModelParams</span></code> class to configure a single combination of parameters, pass this object via the <code class="docutils literal notranslate"><span class="pre">params</span></code> argument. If you configured a hyperparameter sweep, set this argument to the name of your hyperparameter sweep file (saved by default to ‘sweep.json’).</p>
