@@ -120,7 +120,7 @@ def transform(
     I: tf.Tensor,
     tgt_mean: tf.Tensor,
     tgt_std: tf.Tensor,
-    mask_threshold: Optional[float] = None
+    #mask_threshold: Optional[float] = None
 ) -> tf.Tensor:
     """Transform an image using a given target means & stds.
 
@@ -138,8 +138,8 @@ def transform(
     I1, I2, I3 = lab_split(I)
     means, stds = get_mean_std(I1, I2, I3)
 
-    if mask_threshold:
-        mask = (I3 / 255.0 < mask_threshold)[:, :, :, tf.newaxis]
+    #if mask_threshold:
+    #    mask = (I3 / 255.0 < mask_threshold)[:, :, :, tf.newaxis]
 
     I1a = tf.subtract(I1, tf.expand_dims(tf.expand_dims(means[0], axis=-1), axis=-1))
     I1b = tf.divide(tgt_std[0], stds[0])
@@ -156,10 +156,11 @@ def transform(
     merged = tf.cast(merge_back(norm1, norm2, norm3), dtype=tf.int32)
     clipped = tf.cast(tf.clip_by_value(merged, clip_value_min=0, clip_value_max=255), dtype=tf.uint8)
 
-    if mask_threshold:
-        return tf.where(mask, clipped, I)
-    else:
-        return clipped
+    #if mask_threshold:
+    #    return tf.where(mask, clipped, I)
+    #else:
+    #    return clipped
+    return clipped
 
 
 @tf.function
@@ -186,7 +187,7 @@ def fit(target: tf.Tensor, reduce: bool = False) -> Tuple[tf.Tensor, tf.Tensor]:
 class ReinhardFastNormalizer:
 
     vectorized = True
-    preferred_device = 'gpu'
+    preferred_device = 'gpu:0'
 
     def __init__(self) -> None:
         """Modified Reinhard H&E stain normalizer without brightness
@@ -276,6 +277,7 @@ class ReinhardFastNormalizer:
         self.target_means = target_means
         self.target_stds = target_stds
 
+    @tf.function
     def _transform_batch(self, batch: tf.Tensor) -> tf.Tensor:
         """Normalize a batch of images.
 
@@ -288,6 +290,7 @@ class ReinhardFastNormalizer:
 
         return transform(batch, self.target_means, self.target_stds, **self.transform_kw)
 
+    @tf.function
     def transform(self, I: tf.Tensor) -> tf.Tensor:
         """Normalize an H&E image.
 
@@ -359,6 +362,7 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
         self.set_fit(**_fit)
         return _fit
 
+    @tf.function
     def transform(self, I: tf.Tensor) -> tf.Tensor:
         """Normalize an H&E image.
 
@@ -370,9 +374,19 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
         """
 
         if len(I.shape) == 3:
-            return self._transform_batch(standardize_brightness(tf.expand_dims(I, axis=0)))[0]
+            #return self._transform_batch(standardize_brightness(tf.expand_dims(I, axis=0)))[0]
+            return transform(
+                standardize_brightness(tf.expand_dims(I, axis=0)),
+                self.target_means,
+                self.target_stds
+            )[0]
         else:
-            return self._transform_batch(standardize_brightness(I))
+            #return self._transform_batch(standardize_brightness(I))
+            return transform(
+                standardize_brightness(I),
+                self.target_means,
+                self.target_stds
+            )
 
 
 class ReinhardFastMaskNormalizer(ReinhardFastNormalizer):
