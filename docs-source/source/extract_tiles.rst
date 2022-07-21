@@ -58,6 +58,10 @@ By default, slides with valid ROIs will only have tiles extracted from within RO
 Stain Normalization
 *******************
 
+.. note::
+    See :py:mod:`slideflow.norm` for more information about stain normalization functions.
+
+
 Image tiles can undergo digital H&E stain normalization either during tile extraction or in real-time during training. Real-time normalization adds CPU overhead during training and inference but offers greater flexibility, allowing you to test different normalization strategies without re-extracting tiles from your entire dataset.
 
 To normalize tiles during tile extraction, use the ``normalizer`` and ``normalizer_source`` arguments; ``normalizer`` is the name of the algorithm to use. A path to a normalization reference image may optionally be provided through ``normalizer_source``. Available stain normalization algorithms include:

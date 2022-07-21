@@ -32,7 +32,7 @@ class MacenkoNormalizer:
             beta (float): Luminosity threshold. Pixels with luminance above
                 this threshold will be ignored. Defaults to 0.15.
 
-        Examples:
+        Examples
             See :class:`slideflow.norm.StainNormalizer`
         """
         self.alpha = alpha
@@ -51,9 +51,11 @@ class MacenkoNormalizer:
             img (np.ndarray): Target image (RGB uint8) with dimensions W, H, C.
 
         Returns:
-            np.ndarray:     Stain matrix target.
+            A tuple containing
 
-            np.ndarray:     Target concentrations.
+                np.ndarray:     Stain matrix target.
+
+                np.ndarray:     Target concentrations.
         """
         HE, maxC, _ = self.matrix_and_concentrations(img)
         self.set_fit(HE, maxC)
@@ -67,7 +69,7 @@ class MacenkoNormalizer:
 
         Returns:
             Dict[str, np.ndarray]: Dictionary mapping fit keys to their
-                fitted values.
+            fitted values.
         """
         _fit = ut.fit_presets['macenko'][preset]
         self.set_fit(**_fit)
@@ -78,7 +80,7 @@ class MacenkoNormalizer:
 
         Returns:
             Dict[str, np.ndarray]: Dictionary mapping 'stain_matrix_target'
-                and 'target_concentrations' to their respective fit values.
+            and 'target_concentrations' to their respective fit values.
         """
         return {
             'stain_matrix_target': self.stain_matrix_target,
@@ -121,11 +123,13 @@ class MacenkoNormalizer:
             img (np.ndarray): Image (RGB uint8) with dimensions W, H, C.
 
         Returns:
-            np.ndarray: H&E stain matrix, shape = (3, 2)
+            A tuple containing
 
-            np.ndarray: Concentrations, shape = (2,)
+                np.ndarray: H&E stain matrix, shape = (3, 2)
 
-            np.ndarray: Concentrations of individual stains
+                np.ndarray: Concentrations, shape = (2,)
+
+                np.ndarray: Concentrations of individual stains
         """
 
         img = img.reshape((-1, 3))

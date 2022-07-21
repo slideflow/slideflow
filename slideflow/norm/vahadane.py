@@ -135,7 +135,7 @@ class VahadaneSklearnNormalizer:
 
         Returns:
             Dict[str, np.ndarray]: Dictionary mapping fit keys to their
-                fitted values.
+            fitted values.
         """
         _fit = ut.fit_presets['vahadane_sklearn'][preset]
         self.set_fit(**_fit)
@@ -146,7 +146,7 @@ class VahadaneSklearnNormalizer:
 
         Returns:
             Dict[str, np.ndarray]: Dictionary mapping 'stain_matrix_target'
-                to its respective fit value.
+            to its respective fit value.
         """
         return {
             'stain_matrix_target': self.stain_matrix_target,
@@ -217,7 +217,7 @@ class VahadaneSpamsNormalizer(VahadaneSklearnNormalizer):
 
         Returns:
             Dict[str, np.ndarray]: Dictionary mapping fit keys to their
-                fitted values.
+            fitted values.
         """
         _fit = ut.fit_presets['vahadane_spams'][preset]
         self.set_fit(**_fit)

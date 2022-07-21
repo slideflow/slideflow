@@ -44,11 +44,13 @@ def matrix_and_concentrations(
             this threshold will be ignored. Defaults to 0.15.
 
     Returns:
-        tf.Tensor: H&E stain matrix, shape = (3, 2)
+        A tuple containing
 
-        tf.Tensor: Concentrations, shape = (2,)
+            tf.Tensor: H&E stain matrix, shape = (3, 2)
 
-        tf.Tensor: Concentrations of individual stains
+            tf.Tensor: Concentrations, shape = (2,)
+
+            tf.Tensor: Concentrations of individual stains
     """
 
     # reshape image
@@ -168,8 +170,11 @@ def fit(
             this threshold will be ignored. Defaults to 0.15.
 
     Returns:
-        tf.Tensor: Fit stain matrix target
-        tf.Tensor: Fit target concentrations
+        A tuple containing
+
+            tf.Tensor: Fit stain matrix target
+
+            tf.Tensor: Fit target concentrations
     """
     HE, maxC, _ = matrix_and_concentrations(img, Io, alpha, beta)
     return HE, maxC
@@ -201,7 +206,7 @@ class MacenkoNormalizer:
             beta (float): Luminosity threshold. Pixels with luminance above
                 this threshold will be ignored. Defaults to 0.15.
 
-        Examples:
+        Examples
             See :class:`slideflow.norm.StainNormalizer`
         """
         self.Io = Io
@@ -223,9 +228,11 @@ class MacenkoNormalizer:
             img (tf.Tensor): Target image (RGB uint8) with dimensions W, H, C.
 
         Returns:
-            tf.Tensor:     Stain matrix target.
+            A tuple containing
 
-            tf.Tensor:     Target concentrations.
+                tf.Tensor:     Stain matrix target.
+
+                tf.Tensor:     Target concentrations.
         """
         if len(target.shape) != 3:
             raise ValueError(
@@ -244,7 +251,7 @@ class MacenkoNormalizer:
 
         Returns:
             Dict[str, np.ndarray]: Dictionary mapping fit keys to their
-                fitted values.
+            fitted values.
         """
         _fit = ut.fit_presets['macenko'][preset]
         self.set_fit(**_fit)
@@ -255,7 +262,7 @@ class MacenkoNormalizer:
 
         Returns:
             Dict[str, np.ndarray]: Dictionary mapping 'stain_matrix_target'
-                and 'target_concentrations' to their respective fit values.
+            and 'target_concentrations' to their respective fit values.
         """
         return {
             'stain_matrix_target': None if self.stain_matrix_target is None else self.stain_matrix_target.numpy(),  # type: ignore

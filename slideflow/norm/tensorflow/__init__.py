@@ -62,7 +62,7 @@ class TensorflowStainNormalizer(StainNormalizer):
         Raises:
             ValueError: If the specified normalizer method is not available.
 
-        Examples:
+        Examples
             Please see :class:`slideflow.norm.StainNormalizer` for examples.
         """
         super().__init__(method, **kwargs)

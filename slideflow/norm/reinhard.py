@@ -57,8 +57,11 @@ def get_mean_std(I: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
         I (np.ndarray): RGB uint8 image.
 
     Returns:
-        np.ndarray:     Channel means, shape = (3,)
-        np.ndarray:     Channel standard deviations, shape = (3,)
+        A tuple containing
+
+            np.ndarray:     Channel means, shape = (3,)
+
+            np.ndarray:     Channel standard deviations, shape = (3,)
     """
     I1, I2, I3 = lab_split(I)
     m1, sd1 = cv2.meanStdDev(I1)
@@ -95,9 +98,11 @@ class ReinhardFastNormalizer:
             img (np.ndarray): Target image (RGB uint8) with dimensions W, H, C.
 
         Returns:
-            target_means (np.ndarray):  Channel means.
+            A tuple containing
 
-            target_stds (np.ndarray):   Channel standard deviations.
+                np.ndarray:  Target means (channel means).
+
+                np.ndarray:   Target stds (channel standard deviations).
         """
         means, stds = get_mean_std(img)
         self.set_fit(means, stds)
@@ -111,7 +116,7 @@ class ReinhardFastNormalizer:
 
         Returns:
             Dict[str, np.ndarray]: Dictionary mapping fit keys to their
-                fitted values.
+            fitted values.
         """
         _fit = ut.fit_presets['reinhard_fast'][preset]
         self.set_fit(**_fit)
@@ -122,7 +127,7 @@ class ReinhardFastNormalizer:
 
         Returns:
             Dict[str, np.ndarray]: Dictionary mapping 'target_means'
-                and 'target_stds' to their respective fit values.
+            and 'target_stds' to their respective fit values.
         """
         return {
             'target_means': self.target_means,
@@ -202,9 +207,11 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
             img (np.ndarray): Target image (RGB uint8) with dimensions W, H, C.
 
         Returns:
-            target_means (np.ndarray):  Channel means.
+            A tuple containing
 
-            target_stds (np.ndarray):   Channel standard deviations.
+                np.ndarray:  Target means (channel means).
+
+                np.ndarray:   Target stds (channel standard deviations).
         """
         target = ut.standardize_brightness(target)
         return super().fit(target)
@@ -217,7 +224,7 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
 
         Returns:
             Dict[str, np.ndarray]: Dictionary mapping fit keys to their
-                fitted values.
+            fitted values.
         """
         _fit = ut.fit_presets['reinhard'][preset]
         self.set_fit(**_fit)

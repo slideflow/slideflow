@@ -559,7 +559,7 @@ class Dataset:
 
         Returns:
             str: Image format of tfrecords (PNG or JPG), or None if no tfrecords
-                have been extracted.
+            have been extracted.
         """
         return self.verify_img_format()
 
@@ -1305,7 +1305,7 @@ class Dataset:
                 minimum number of tiles.
 
         Returns:
-            :class:`slideflow.dataset.Dataset` object.
+            :class:`slideflow.dataset.Dataset`: Dataset with filter added.
         """
         if len(args) == 1 and 'filters' not in kwargs:
             kwargs['filters'] = args[0]
@@ -1345,8 +1345,7 @@ class Dataset:
             patient (str): Find a tfrecord associated with this patient.
 
         Returns:
-            str:    Matching path to slide, if found.
-            If not found, returns None
+            str: Matching path to slide, if found. If not found, returns None
         """
         if slide is None and patient is None:
             raise ValueError("Must supply either slide or patient.")
@@ -1376,8 +1375,7 @@ class Dataset:
             patient (str): Find a tfrecord associated with this patient.
 
         Returns:
-            str:    Matching path to tfrecord, if found.
-            If not found, returns None
+            str: Matching path to tfrecord, if found. If not found, returns None
         """
         if slide is None and patient is None:
             raise ValueError("Must supply either slide or patient.")
@@ -1471,11 +1469,14 @@ class Dataset:
                 returned list of unique outcomes as str). Defaults to 'index'.
 
         Returns:
-            1) Dictionary mapping slides to outcome labels in numerical format
-                (float for linear outcomes, int of outcome label id for
-                categorical outcomes).
-            2) List of unique labels. For categorical outcomes, this will be a
-                list of str; indices correspond with the outcome label id.
+            A tuple containing
+
+                **dict**: Dictionary mapping slides to outcome labels in numerical
+                format (float for linear outcomes, int of outcome label id
+                for categorical outcomes).
+
+                **list**: List of unique labels. For categorical outcomes, this will
+                be a list of str; indices correspond with the outcome label id.
         """
         if not len(self.filtered_annotations):
             raise errors.DatasetError(
@@ -1697,7 +1698,7 @@ class Dataset:
                 filter_blank.
 
         Returns:
-            :class:`slideflow.dataset.Dataset` object.
+            :class:`slideflow.dataset.Dataset`: Dataset with filter removed.
         """
 
         for kwarg in kwargs:
@@ -2059,7 +2060,7 @@ class Dataset:
                 source. Defaults to None (return all tfrecords in dataset).
 
         Returns:
-            List of tfrecords paths
+            List of tfrecords paths.
         """
         if source and source not in self.sources.keys():
             log.error(f"Dataset {source} not found.")
@@ -2289,8 +2290,11 @@ class Dataset:
                 Defaults to False.
 
         Returns:
-            slideflow.Dataset: training dataset,
-            slideflow.Dataset: validation dataset
+            A tuple containing
+
+                :class:`slideflow.Dataset`: Training dataset.
+
+                :class:`slideflow.Dataset`: Validation dataset.
         """
         if (not k_fold_iter and val_strategy == 'k-fold'):
             raise errors.DatasetSplitError(
@@ -2659,7 +2663,7 @@ class Dataset:
         """Returns a dataset object with all clips removed.
 
         Returns:
-            :class:`slideflow.dataset.Dataset` object.
+            :class:`slideflow.dataset.Dataset`: Dataset with clips removed.
         """
         ret = copy.deepcopy(self)
         ret._clip = {}

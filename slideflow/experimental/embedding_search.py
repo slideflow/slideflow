@@ -86,12 +86,14 @@ class EmbeddingSearch:
             pc (int): Index of the target principal component.
 
         Returns:
-            int: Index of the first dimension corresponding to the greatest
-            increase in the target PC with smallest change in other PCs
+            A tuple containing
 
-            float: Proportion by which the target PC changed
+                int: Index of the first dimension corresponding to the greatest
+                increase in the target PC with smallest change in other PCs
 
-            float: Sum of abs(proportion) by which all other PCs changed
+                float: Proportion by which the target PC changed
+
+                float: Sum of abs(proportion) by which all other PCs changed
         """
         proportion_of_pcs = arr / np.sum(np.abs(arr), axis=-1)[:, None]
         best_prop = np.max(proportion_of_pcs[:, pc])
@@ -151,9 +153,11 @@ class EmbeddingSearch:
             embedding (torch.Tensor): Embedding vector.
 
         Returns:
-            tf.Tensor: Features vector.
+            A tuple containing
 
-            tf.Tensor: Predictions vector.
+                tf.Tensor: Features vector.
+
+                tf.Tensor: Predictions vector.
         """
         if len(z.shape) == 1:
             z = torch.unsqueeze(z, dim=0)
@@ -236,7 +240,7 @@ class EmbeddingSearch:
                 (but not resized) uint8 tensors.
 
         Returns:
-            Iterable: _description_
+            Iterable: GAN dataset.
         """
 
         sig = tf.TensorSpec(shape=(None, None, None, 3), dtype=tf.uint8)
@@ -270,11 +274,13 @@ class EmbeddingSearch:
             batch_size (int, optional): Batch size. Defaults to 1.
 
         Returns:
-            int: Best embedding dimension.
+            A tuple containing
 
-            float: Amount the target PC changed.
+                int: Best embedding dimension.
 
-            float: Amount all other PCs changed.
+                float: Amount the target PC changed.
+
+                float: Amount all other PCs changed.
         """
         # Create starting mask
         if starting_dims is None:

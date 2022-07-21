@@ -470,7 +470,7 @@ class DatasetFeatures:
 
         Returns:
             dict: Dict mapping categories to feature activations for all
-                tiles in the category.
+            tiles in the category.
         """
 
         if not self.categories:
@@ -729,9 +729,13 @@ class DatasetFeatures:
             threshold (float, optional): Threshold if using 'threshold' method.
 
         Returns:
-            dict: Dict mapping slides to dict of slide-level features;
-            dict: Dict mapping features to tile-level statistics ('p', 'f');
-            dict: Dict mapping features to slide-level statistics ('p', 'f');
+            A tuple containing
+
+                dict: Dict mapping slides to dict of slide-level features;
+
+                dict: Dict mapping features to tile-level statistics ('p', 'f');
+
+                dict: Dict mapping features to slide-level statistics ('p', 'f');
         """
 
         if not self.categories:
@@ -841,7 +845,7 @@ class DatasetFeatures:
 
         Returns:
             dict:  This is a dictionary mapping slides to the mean logits
-                array for all tiles in each slide.
+            array for all tiles in each slide.
         """
 
         return {s: np.mean(v, axis=0) for s, v in self.logits.items()}
@@ -861,7 +865,7 @@ class DatasetFeatures:
 
         Returns:
             dict:  This is a dictionary mapping slides to an array of
-                percentages for each logit, of length num_logits
+            percentages for each logit, of length num_logits
         """
 
         if prediction_filter:
@@ -943,9 +947,13 @@ class DatasetFeatures:
                 be mapped to the Y-axis. Defaults to 0.
 
         Returns:
-            list:   List of x-axis coordinates (preds for the category 'x')
-            list:   List of y-axis coordinates (preds for the category 'y')
-            list:   List of dict containing tile-level metadata (for SlideMap)
+            A tuple containing
+
+                np.ndarray:   List of x-axis coordinates (preds for the category 'x')
+
+                np.ndarray:   List of y-axis coordinates (preds for the category 'y')
+
+                list:   List of dict containing tile-level metadata (for SlideMap)
         """
 
         umap_x, umap_y, umap_meta = [], [], []

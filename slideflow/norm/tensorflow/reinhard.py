@@ -41,11 +41,13 @@ def lab_split(I: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor]:
         I (tf.Tensor): RGB uint8 image.
 
     Returns:
-        tf.Tensor: I1, first channel (uint8).
+        A tuple containing
 
-        tf.Tensor: I2, first channel (uint8).
+            tf.Tensor: I1, first channel (uint8).
 
-        tf.Tensor: I3, first channel (uint8).
+            tf.Tensor: I2, first channel (uint8).
+
+            tf.Tensor: I3, first channel (uint8).
     """
     I = tf.cast(I, tf.float32)
     I /= 255
@@ -93,8 +95,11 @@ def get_mean_std(
         reduce (bool): Reduce batch to mean across images in the batch.
 
     Returns:
-        tf.Tensor:     Channel means, shape = (3,)
-        tf.Tensor:     Channel standard deviations, shape = (3,)
+        A tuple containing
+
+            tf.Tensor:     Channel means, shape = (3,)
+
+            tf.Tensor:     Channel standard deviations, shape = (3,)
     """
     m1, sd1 = tf.math.reduce_mean(I1, axis=(1,2)), tf.math.reduce_std(I1, axis=(1,2))
     m2, sd2 = tf.math.reduce_mean(I2, axis=(1,2)), tf.math.reduce_std(I2, axis=(1,2))
@@ -168,8 +173,11 @@ def fit(target: tf.Tensor, reduce: bool = False) -> Tuple[tf.Tensor, tf.Tensor]:
             Defaults to False (provides fit for each image in the batch).
 
     Returns:
-        tf.Tensor: Fit means
-        tf.Tensor: Fit stds
+        A tuple containing
+
+            tf.Tensor: Fit means
+
+            tf.Tensor: Fit stds
     """
     means, stds = get_mean_std(*lab_split(target), reduce=reduce)
     return means, stds
@@ -209,9 +217,11 @@ class ReinhardFastNormalizer:
                 images by average. Defaults to False.
 
         Returns:
-            target_means (np.ndarray):  Channel means.
+            A tuple containing
 
-            target_stds (np.ndarray):   Channel standard deviations.
+                target_means (np.ndarray):  Channel means.
+
+                target_stds (np.ndarray):   Channel standard deviations.
         """
         if len(target.shape) == 3:
             target = tf.expand_dims(target, axis=0)
@@ -228,7 +238,7 @@ class ReinhardFastNormalizer:
 
         Returns:
             Dict[str, np.ndarray]: Dictionary mapping fit keys to their
-                fitted values.
+            fitted values.
         """
         _fit = ut.fit_presets['reinhard_fast'][preset]
         self.set_fit(**_fit)
@@ -239,7 +249,7 @@ class ReinhardFastNormalizer:
 
         Returns:
             Dict[str, np.ndarray]: Dictionary mapping 'target_means'
-                and 'target_stds' to their respective fit values.
+            and 'target_stds' to their respective fit values.
         """
         return {
             'target_means': None if self.target_means is None else self.target_means.numpy(),  # type: ignore
@@ -321,9 +331,11 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
                 images by average. Defaults to False.
 
         Returns:
-            target_means (np.ndarray):  Channel means.
+            A tuple containing
 
-            target_stds (np.ndarray):   Channel standard deviations.
+                target_means (np.ndarray):  Channel means.
+
+                target_stds (np.ndarray):   Channel standard deviations.
         """
         if len(target.shape) == 3:
             target = tf.expand_dims(target, axis=0)

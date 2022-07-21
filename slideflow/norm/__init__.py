@@ -25,7 +25,7 @@ the sklearn implementation will be used if unspecified (``method='vahadane'``).
 Performance
 -----------
 
-The Numpy implementation contains all functions necessary for normalizing
+The Numpy implementations contain all functions necessary for normalizing
 Tensors from both Tensorflow and PyTorch, but may be slower than backend-native
 implementations when available. Performance benchmarks for the normalizer
 implementations are given below:
@@ -106,16 +106,19 @@ class StainNormalizer:
         """H&E Stain normalizer supporting various normalization methods.
 
         The stain normalizer supports numpy images, PNG or JPG strings,
-        Tensorflow tensors, and PyTorch tensors. The default `.transform()`
+        Tensorflow tensors, and PyTorch tensors. The default ``.transform()``
         method will attempt to preserve the original image type while minimizing
         conversions to and from Tensors.
 
         Alternatively, you can manually specify the image conversion type
         by using the appropriate function. For example, to convert a Tensor
-        to a normalized numpy RGB image, use `.tf_to_rgb()`.
+        to a normalized numpy RGB image, use ``.tf_to_rgb()``.
 
         Args:
-            method (str): Normalization method to use.
+            method (str): Normalization method. Options include 'macenko',
+                'reinhard', 'reinhard_fast', 'reinhard_mask',
+                'reinhard_fast_mask', 'vahadane', 'vahadane_spams',
+                'vahadane_sklearn', and 'augment'.
 
         Keyword args:
             stain_matrix_target (np.ndarray, optional): Set the stain matrix
@@ -134,7 +137,7 @@ class StainNormalizer:
         Raises:
             ValueError: If the specified normalizer method is not available.
 
-        Examples:
+        Examples
             Normalize a numpy image using the default fit.
 
                 >>> import slideflow as sf
@@ -154,11 +157,12 @@ class StainNormalizer:
 
                 >>> macenko.tf_to_rgb(image)
 
-            Normalize images during DataLoader pre-processing
+            Normalize images during DataLoader pre-processing.
 
                 >>> dataset = sf.Dataset(...)
                 >>> dataloader = dataset.torch(..., normalizer=macenko)
                 >>> dts = dataset.tensorflow(..., normalizer=macenko)
+
         """
         if method not in self.normalizers:
             raise ValueError(f"Unrecognized normalizer method {method}")
@@ -299,7 +303,7 @@ class StainNormalizer:
 
         Returns:
             Dict[str, np.ndarray]: Dictionary mapping fit parameters (e.g.
-                'target_concentrations') to their respective fit values.
+            'target_concentrations') to their respective fit values.
         """
         _fit = self.n.get_fit()
         if as_list:
@@ -455,9 +459,8 @@ class StainNormalizer:
                 and returned unmodified.
 
         Returns:
-            np.ndarray: Normalized tf.Tensor image, uint8, W x H x C.
-
-            args (Any, optional): Any additional arguments provided, unmodified.
+            A tuple containing the normalized tf.Tensor image (uint8,
+            W x H x C) and any additional arguments provided.
         """
         import tensorflow as tf
 
@@ -487,9 +490,11 @@ class StainNormalizer:
                 and returned unmodified.
 
         Returns:
-            np.ndarray: Normalized tf.Tensor image, uint8, C x W x H.
+            A tuple containing
 
-            args (Any, optional): Any additional arguments provided, unmodified.
+                np.ndarray: Normalized tf.Tensor image, uint8, C x W x H.
+
+                args (Any, optional): Any additional arguments provided, unmodified.
         """
         if isinstance(image, dict):
             to_return = {
@@ -519,8 +524,8 @@ def autoselect(
 
     Args:
         method (str): Normalization method. Options include 'macenko',
-            'reinhard', 'reinhard_fast', 'reinhard_mask', 'vahadane', and
-            'augment'.
+            'reinhard', 'reinhard_fast', 'reinhard_mask', 'reinhard_fast_mask',
+            'vahadane', 'vahadane_spams', 'vahadane_sklearn', and 'augment'.
         source (str, optional): Path to a source image. If provided, will
             fit the normalizer to this image. Defaults to None.
 

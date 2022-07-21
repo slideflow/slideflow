@@ -614,8 +614,11 @@ def get_tfrecord_parser(
             'xyrj' or True will use all augmentations.
 
     Returns:
-        func: Parsing function
-        dict: Detected feature description for the tfrecord
+        A tuple containing
+
+            func: Parsing function
+
+            dict: Detected feature description for the tfrecord
     """
 
     features, img_type = detect_tfrecord_format(tfrecord_path)

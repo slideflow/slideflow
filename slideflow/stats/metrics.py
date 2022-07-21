@@ -841,8 +841,8 @@ def predict_from_dataset(
 
     Returns:
         Dict[str, pd.DataFrame]: Dictionary with keys 'tile', 'slide', and
-            'patient', and values containing DataFrames with tile-, slide-,
-            and patient-level predictions.
+        'patient', and values containing DataFrames with tile-, slide-,
+        and patient-level predictions.
     """
     if model_type != 'categorical' and reduce_method != 'average':
         raise ValueError(

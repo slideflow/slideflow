@@ -62,8 +62,11 @@ def detect_tfrecord_format(tfr: str) -> Tuple[Optional[List[str]],
         tfr (str): Path to tfrecord.
 
     Returns:
-        list(str): List of detected features.
-        str: Image file type (png/jpeg)
+        A tuple containing
+
+            list(str): List of detected features.
+
+            str: Image file type (png/jpeg)
     '''
     typename_mapping = {
         "byte": "bytes_list",

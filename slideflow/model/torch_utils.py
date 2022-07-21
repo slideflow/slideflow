@@ -141,9 +141,13 @@ def get_uq_predictions(
         uq_n (int, optional): Number of forward passes. Defaults to 30.
 
     Returns:
-        torch.Tensor: Mean of forward passes.
-        torch.Tensor: Standard deviation of forward passes.
-        int: Number of detected outcomes.
+        A tuple containing
+
+            torch.Tensor: Mean of forward passes.
+
+            torch.Tensor: Standard deviation of forward passes.
+
+            int: Number of detected outcomes.
     """
     enable_dropout(model)
     if not num_outcomes:

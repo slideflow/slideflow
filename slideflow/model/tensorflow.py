@@ -143,8 +143,11 @@ class ModelParams(_base._ModelParams):
             regularizer (tf.keras.layers.Layer): Regularization for hidden layers.
 
         Returns:
-            tf.keras.Model: Model with hidden layers added.
-            tf.keras.layers.Layer: Last linear layer.
+            A tuple containing
+
+                tf.keras.Model: Model with hidden layers added.
+
+                tf.keras.layers.Layer: Last linear layer.
         """
         log.debug("Using Batch normalization")
         last_linear = None

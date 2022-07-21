@@ -38,11 +38,13 @@ def lab_split(
         I (torch.Tensor): RGB uint8 image.
 
     Returns:
-        torch.Tensor: I1, first channel (uint8).
+        A tuple containing
 
-        torch.Tensor: I2, first channel (uint8).
+            torch.Tensor: I1, first channel (uint8).
 
-        torch.Tensor: I3, first channel (uint8).
+            torch.Tensor: I2, first channel (uint8).
+
+            torch.Tensor: I3, first channel (uint8).
     """
 
     I = I.float()
@@ -155,9 +157,11 @@ def fit(
             Defaults to False (provides fit for each image in the batch).
 
     Returns:
-        torch.Tensor: Fit means
+        A tuple containing
 
-        torch.Tensor: Fit stds
+            torch.Tensor: Fit means
+
+            torch.Tensor: Fit stds
     """
     means, stds = get_mean_std(*lab_split(target), reduce=reduce)
     return means, stds
@@ -194,9 +198,11 @@ class ReinhardFastNormalizer:
                 images by average. Defaults to False.
 
         Returns:
-            target_means (np.ndarray):  Channel means.
+            A tuple containing
 
-            target_stds (np.ndarray):   Channel standard deviations.
+                target_means (np.ndarray):  Channel means.
+
+                target_stds (np.ndarray):   Channel standard deviations.
         """
         if len(target.shape) == 3:
             target = torch.unsqueeze(target, dim=0)
@@ -213,7 +219,7 @@ class ReinhardFastNormalizer:
 
         Returns:
             Dict[str, np.ndarray]: Dictionary mapping fit keys to their
-                fitted values.
+            fitted values.
         """
         _fit = ut.fit_presets['reinhard_fast'][preset]
         self.set_fit(**_fit)
@@ -224,7 +230,7 @@ class ReinhardFastNormalizer:
 
         Returns:
             Dict[str, np.ndarray]: Dictionary mapping 'target_means'
-                and 'target_stds' to their respective fit values.
+            and 'target_stds' to their respective fit values.
         """
         return {
             'target_means': None if self.target_means is None else self.target_means.numpy(),
@@ -295,9 +301,11 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
                 images by average. Defaults to False.
 
         Returns:
-            target_means (np.ndarray):  Channel means.
+            A tuple containing
 
-            target_stds (np.ndarray):   Channel standard deviations.
+                target_means (np.ndarray):  Channel means.
+
+                target_stds (np.ndarray):   Channel standard deviations.
         """
         if len(target.shape) == 3:
             target = torch.unsqueeze(target, dim=0)
@@ -315,7 +323,7 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
 
         Returns:
             Dict[str, np.ndarray]: Dictionary mapping fit keys to their
-                fitted values.
+            fitted values.
         """
         _fit = ut.fit_presets['reinhard'][preset]
         self.set_fit(**_fit)

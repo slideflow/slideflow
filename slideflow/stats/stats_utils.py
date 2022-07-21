@@ -15,8 +15,11 @@ def calculate_centroid(
             across tiles, of shape (n_tiles, n_features)
 
     Returns:
-        dict: Dict mapping slides to index of tile nearest to centroid
-        dict: Dict mapping slides to activations of tile nearest to centroid
+        A tuple containing
+
+            dict: Dict mapping slides to index of tile nearest to centroid
+
+            dict: Dict mapping slides to activations of tile nearest to centroid
     """
 
     optimal_indices = {}

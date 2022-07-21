@@ -141,7 +141,7 @@ class StyleGAN2Interpolator:
 
         Returns:
             Iterable: Iterable dataset which yields processed (resized and
-                normalized) images.
+            normalized) images.
         """
         if sf.backend() == 'tensorflow':
             import tensorflow as tf
@@ -444,9 +444,11 @@ class StyleGAN2Interpolator:
             embedding (torch.tensor): Class embedding.
 
         Returns:
-            tf.Tensor: Unprocessed resized image, uint8.
+            A tuple containing
 
-            tf.Tensor: Processed resized image, standardized and normalized.
+                tf.Tensor: Unprocessed resized image, uint8.
+
+                tf.Tensor: Processed resized image, standardized and normalized.
         """
         import tensorflow as tf
 
@@ -464,9 +466,11 @@ class StyleGAN2Interpolator:
             seed (int): Seed for noise vector.
 
         Returns:
-            tf.Tensor: Unprocessed image (tf.Tensor), uint8.
+            A tuple containing
 
-            tf.Tensor: Processed image (tf.Tensor), standardized and normalized.
+                tf.Tensor: Unprocessed image (tf.Tensor), uint8.
+
+                tf.Tensor: Processed image (tf.Tensor), standardized and normalized.
         """
         return self.generate_tf_from_embedding(seed, self.embed0)
 
@@ -478,9 +482,11 @@ class StyleGAN2Interpolator:
             seed (int): Seed for noise vector.
 
         Returns:
-            tf.Tensor: Unprocessed resized image, uint8.
+            A tuple containing
 
-            tf.Tensor: Processed resized image, standardized and normalized.
+                tf.Tensor: Unprocessed resized image, uint8.
+
+                tf.Tensor: Processed resized image, standardized and normalized.
         """
         return self.generate_tf_from_embedding(seed, self.embed1)
 
@@ -495,7 +501,7 @@ class StyleGAN2Interpolator:
 
         Returns:
             Generator: Generator which yields images (torch.tensor, uint8)
-                during interpolation.
+            during interpolation.
 
         Yields:
             Generator: images (torch.tensor, dtype=uint8)
@@ -521,7 +527,7 @@ class StyleGAN2Interpolator:
 
         Returns:
             Generator: Generator which yields images (torch.tensor, uint8)
-                during interpolation.
+            during interpolation.
 
         Yields:
             Generator: images (torch.tensor, dtype=uint8)

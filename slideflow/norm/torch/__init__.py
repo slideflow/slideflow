@@ -60,7 +60,7 @@ class TorchStainNormalizer(StainNormalizer):
         Raises:
             ValueError: If the specified normalizer method is not available.
 
-        Examples:
+        Examples
             Please see :class:`slideflow.norm.StainNormalizer` for examples.
         """
 
@@ -152,7 +152,7 @@ class TorchStainNormalizer(StainNormalizer):
 
         Returns:
             Dict[str, np.ndarray]: Dictionary mapping fit parameters (e.g.
-                'target_concentrations') to their respective fit values.
+            'target_concentrations') to their respective fit values.
         """
         _fit = self.n.get_fit()
         if as_list:
@@ -184,7 +184,7 @@ class TorchStainNormalizer(StainNormalizer):
         image: Union[Dict, torch.Tensor],
         *args
     ) -> Tuple[Union[Dict, torch.Tensor], ...]:
-        r"""Normalize a torch.Tensor (uint8), returning a numpy array (uint8).
+        """Normalize a torch.Tensor (uint8), returning a numpy array (uint8).
 
         Args:
             image (torch.Tensor, Dict): Image (uint8) either as a raw Tensor,
@@ -193,9 +193,11 @@ class TorchStainNormalizer(StainNormalizer):
                 and returned unmodified.
 
         Returns:
-            np.ndarray: Normalized tf.Tensor image, uint8, C x W x H.
+            A tuple containing
 
-            args (Any, optional): Any additional arguments provided, unmodified.
+                np.ndarray: Normalized tf.Tensor image, uint8, C x W x H.
+
+                args (Any, optional): Any additional arguments provided, unmodified.
         """
         if isinstance(image, dict):
             to_return = {

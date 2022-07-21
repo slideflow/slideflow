@@ -684,6 +684,7 @@ class Trainer:
         Returns:
             Dict[str, Dict[str, float]]: Dict with validation metrics.
             Returns metrics in the form:
+            ```
             {
                 'val_metrics': {
                     'loss': ...,
@@ -693,6 +694,7 @@ class Trainer:
                 'slide_auc': ...,
                 ...
             }
+            ```
         """
         if hasattr(self, 'optimizer'):
             self.optimizer.zero_grad()
