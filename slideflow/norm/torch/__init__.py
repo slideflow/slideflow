@@ -8,7 +8,7 @@ from tqdm import tqdm
 from slideflow.dataset import Dataset
 from slideflow.io.torch import cwh_to_whc, whc_to_cwh
 from slideflow.norm import StainNormalizer
-from slideflow.norm.torch import reinhard, reinhard_fast
+from slideflow.norm.torch import reinhard
 from slideflow.util import detuple, log
 from slideflow import errors
 
@@ -20,7 +20,7 @@ class TorchStainNormalizer(StainNormalizer):
 
     normalizers = {
         'reinhard': reinhard.ReinhardNormalizer,
-        'reinhard_fast': reinhard_fast.ReinhardFastNormalizer,
+        'reinhard_fast': reinhard.ReinhardFastNormalizer,
     }  # type: Dict
 
     def __init__(
@@ -109,7 +109,11 @@ class TorchStainNormalizer(StainNormalizer):
                 total=dataset.num_tiles
             )
             for i, slide in dts:
-                fit_vals = self.n.fit(i, reduce=True)
+                if self.vectorized:
+                    fit_vals = self.n.fit(i, reduce=True)
+                else:
+                    _img_fits = zip(*[self.n.fit(_i) for _i in i])
+                    fit_vals = [torch.mean(torch.stack(v), dim=0) for v in _img_fits]
                 if all_fit_vals == []:
                     all_fit_vals = [[] for _ in range(len(fit_vals))]
                 for v, val in enumerate(fit_vals):
@@ -119,6 +123,10 @@ class TorchStainNormalizer(StainNormalizer):
 
         elif isinstance(arg1, np.ndarray):
             self.n.fit(torch.from_numpy(arg1))
+
+        # Fit to a preset
+        elif isinstance(arg1, str) and arg1 in ('v1', 'v2'):
+            self.n.fit_preset(arg1)
 
         elif isinstance(arg1, str):
             self.src_img = torchvision.io.read_image(arg1)
@@ -169,7 +177,7 @@ class TorchStainNormalizer(StainNormalizer):
                 deviations for the normalizer. May raise an error if the
                 normalizer does not have a target_stds fit attribute.
         """
-        self.n.set_fit(**kwargs)
+        self.n.set_fit(**{k:v for k, v in kwargs.items() if v is not None})
 
     def torch_to_torch(
         self,

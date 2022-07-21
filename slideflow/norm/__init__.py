@@ -1,6 +1,9 @@
 """This module provides H&E stain normalization tools, with numpy, PyTorch,
 and Tensorflow implementations for several stain normalization methods.
 
+Overview
+--------
+
 The main normalizer interface, :class:`slideflow.norm.StainNormalizer`, offers
 efficient numpy implementations for the Macenko, Reinhard, Reinhard-Fast,
 Reinhard (masked), and Vahadane H&E stain normalization algorithms, as well
@@ -15,6 +18,13 @@ Tensorflow-native normalizer methods include Macenko, Reinhard, and
 Reinhard-fast. Torch-native normalizer methods include Reinhard and
 Reinhard-fast.
 
+The Vahadane normalizer has two numpy implementations available: SPAMS
+(``vahadane_spams``) and sklearn (``vahadane_sklearn``). As of version 1.2.3,
+the sklearn implementation will be used if unspecified (``method='vahadane'``).
+
+Performance
+-----------
+
 The Numpy implementation contains all functions necessary for normalizing
 Tensors from both Tensorflow and PyTorch, but may be slower than backend-native
 implementations when available. Performance benchmarks for the normalizer
@@ -27,20 +37,27 @@ implementations are given below:
       - Tensorflow backend
       - PyTorch backend
     * - macenko
-      - 12,299 img/sec
-      - 946 img/sec
+      - 12,299 img/s (**native**)
+      - 946 img/s
     * - reinhard
-      - 12,616 img/sec
-      - 2,780 img/sec
+      - 12,616 img/s (**native**)
+      - 2,780 img/s (**native**)
     * - reinhard_fast
-      - 16,101 img/sec
-      - 3,954 img/sec
+      - 16,101 img/s (**native**)
+      - 3,954 img/s (**native**)
     * - reinhard_mask
-      - 911 img/sec
-      - 2,478 img/sec
-    * - vahadane
-      - 111 img/sec
-      - 233 img/sec
+      - 911 img/s
+      - 2,478 img/s
+    * - reinhard_fast_mask
+      - 1,245 img/s
+      - 3,086 img/s
+    * - vahadane_spams
+      - 0.8 img/s
+      - 2.1 img/s
+    * - vahadane_sklearn
+      - 5.8 img/s
+      - 12 img/s
+
 
 Use :func:`slideflow.norm.autoselect` to get the fastest available normalizer
 for a given method and active backend (Tensorflow/PyTorch).
@@ -67,8 +84,7 @@ if TYPE_CHECKING:
     import tensorflow as tf
     import torch
 
-from slideflow.norm import (augment, macenko, reinhard, reinhard_fast,
-                            reinhard_mask, vahadane)
+from slideflow.norm import (augment, macenko, reinhard, vahadane)
 
 
 class StainNormalizer:
@@ -77,9 +93,12 @@ class StainNormalizer:
     normalizers = {
         'macenko':  macenko.MacenkoNormalizer,
         'reinhard': reinhard.ReinhardNormalizer,
-        'reinhard_fast': reinhard_fast.ReinhardFastNormalizer,
-        'reinhard_mask': reinhard_mask.ReinhardMaskNormalizer,
-        'vahadane': vahadane.VahadaneNormalizer,
+        'reinhard_fast': reinhard.ReinhardFastNormalizer,
+        'reinhard_mask': reinhard.ReinhardMaskNormalizer,
+        'reinhard_fast_mask': reinhard.ReinhardFastMaskNormalizer,
+        'vahadane': vahadane.VahadaneSklearnNormalizer,
+        'vahadane_sklearn': vahadane.VahadaneSklearnNormalizer,
+        'vahadane_spams': vahadane.VahadaneSpamsNormalizer,
         'augment': augment.AugmentNormalizer
     }  # type: Dict[str, Any]
 
@@ -134,11 +153,19 @@ class StainNormalizer:
             Normalize an image and convert from Tensor to RGB.
 
                 >>> macenko.tf_to_rgb(image)
+
+            Normalize images during DataLoader pre-processing
+
+                >>> dataset = sf.Dataset(...)
+                >>> dataloader = dataset.torch(..., normalizer=macenko)
+                >>> dts = dataset.tensorflow(..., normalizer=macenko)
         """
         if method not in self.normalizers:
             raise ValueError(f"Unrecognized normalizer method {method}")
+
         self.method = method
         self.n = self.normalizers[method]()
+
         if kwargs:
             self.n.fit(**kwargs)
 
@@ -243,6 +270,10 @@ class StainNormalizer:
         elif isinstance(arg1, np.ndarray):
             self.n.fit(arg1)
 
+        # Fit to a preset
+        elif isinstance(arg1, str) and arg1 in ('v1', 'v2'):
+            self.n.fit_preset(arg1)
+
         # Fit to a path to an image
         elif isinstance(arg1, str):
             self.src_img = cv2.cvtColor(cv2.imread(arg1), cv2.COLOR_BGR2RGB)
@@ -293,7 +324,7 @@ class StainNormalizer:
                 deviations for the normalizer. May raise an error if the
                 normalizer does not have a target_stds fit attribute.
         """
-        self.n.set_fit(**kwargs)
+        self.n.set_fit(**{k:v for k, v in kwargs.items() if v is not None})
 
     def transform(
         self,
@@ -415,7 +446,7 @@ class StainNormalizer:
         image: Union[Dict, "tf.Tensor"],
         *args: Any
     ) -> Tuple[Union[Dict, "tf.Tensor"], ...]:
-        r"""Normalize a tf.Tensor (uint8), returning a numpy array (uint8).
+        """Normalize a tf.Tensor (uint8), returning a numpy array (uint8).
 
         Args:
             image (tf.Tensor, Dict): Image (uint8) either as a raw Tensor,
@@ -447,7 +478,7 @@ class StainNormalizer:
         image: Union[Dict, "torch.Tensor"],
         *args
     ) -> Tuple[Union[Dict, "torch.Tensor"], ...]:
-        r"""Normalize a torch.Tensor (uint8), returning a numpy array (uint8).
+        """Normalize a torch.Tensor (uint8), returning a numpy array (uint8).
 
         Args:
             image (torch.Tensor, Dict): Image (uint8) either as a raw Tensor,
@@ -473,7 +504,8 @@ class StainNormalizer:
 
 def autoselect(
     method: str,
-    source: Optional[str] = None
+    source: Optional[str] = None,
+    **kwargs
 ) -> StainNormalizer:
     """Select the best normalizer for a given method, and fit to a given source.
 
@@ -506,9 +538,9 @@ def autoselect(
         raise errors.UnrecognizedBackendError
 
     if method in BackendNormalizer.normalizers:
-        normalizer = BackendNormalizer(method)
+        normalizer = BackendNormalizer(method, **kwargs)
     else:
-        normalizer = StainNormalizer(method)  # type: ignore
+        normalizer = StainNormalizer(method, **kwargs)  # type: ignore
 
     if source is not None and source != 'dataset':
         normalizer.fit(source)

@@ -10,8 +10,13 @@ from typing import Dict
 import slideflow.norm.utils as ut
 from sklearn.decomposition import DictionaryLearning
 
+try:
+    import spams
+except ImportError:
+    pass
 
-def get_stain_matrix(
+
+def get_stain_matrix_spams(
     I: np.ndarray,
     threshold: float = 0.8,
     alpha: float = 0.1
@@ -29,6 +34,43 @@ def get_stain_matrix(
     mask = ut.notwhite_mask(I, thresh=threshold).reshape((-1,))
     OD = ut.RGB_to_OD(I).reshape((-1, 3))
     OD = OD[mask]
+
+    dictionary = spams.trainDL(
+        OD.T,
+        K=2,
+        lambda1=alpha,
+        mode=2,
+        modeD=0,
+        posAlpha=True,
+        posD=True,
+        verbose=False
+    ).T
+
+    if dictionary[0, 0] < dictionary[1, 0]:
+        dictionary = dictionary[[1, 0], :]
+    dictionary = ut.normalize_rows(dictionary)
+    return dictionary
+
+
+def get_stain_matrix_sklearn(
+    I: np.ndarray,
+    threshold: float = 0.8,
+    alpha: float = 0.1
+) -> np.ndarray:
+    """Get 2x3 stain matrix. First row H and second row E.
+
+    Args:
+        I (np.ndarray): RGB uint8 image.
+        threshold (float): Threshold for determining non-white areas.
+        alpha (float): Alpha value for DictionaryLearning.
+
+    Returns:
+        np.ndarray:     2x3 stain matrix (first row H, second E)
+    """
+    mask = ut.notwhite_mask(I, thresh=threshold).reshape((-1,))
+    OD = ut.RGB_to_OD(I).reshape((-1, 3))
+    OD = OD[mask]
+
     dl = DictionaryLearning(
         n_components=2,
         alpha=alpha,
@@ -37,7 +79,7 @@ def get_stain_matrix(
         transform_algorithm="lasso_lars",
         positive_dict=True,
         verbose=False,
-        max_iter=3,
+        max_iter=1000,
         transform_max_iter=1000,
     )
     dictionary = dl.fit_transform(X=OD.T).T
@@ -48,9 +90,9 @@ def get_stain_matrix(
     return dictionary
 
 
-class VahadaneNormalizer:
+class VahadaneSklearnNormalizer:
 
-    def __init__(self) -> None:
+    def __init__(self, threshold: float = 0.93) -> None:
         """Vahadane H&E stain normalizer (numpy implementation).
 
         Normalizes an image as defined by:
@@ -61,12 +103,17 @@ class VahadaneNormalizer:
 
         This normalizer contains inspiration from StainTools by Peter Byfield
         (https://github.com/Peter554/StainTools).
-        """
-        package_directory = os.path.dirname(os.path.abspath(__file__))
-        img_path = os.path.join(package_directory, 'norm_tile.jpg')
-        self.fit(cv2.cvtColor(cv2.imread(img_path), cv2.COLOR_BGR2RGB))
 
-    def fit(self, target: np.ndarray) -> None:
+        This normalizer uses sklearn's DictionaryLearning for stain matrix
+        extraction.
+        """
+        self.threshold = threshold
+        self.set_fit(**ut.fit_presets['vahadane_sklearn']['v1'])  # type: ignore
+
+    def get_stain_matrix(self, image: np.ndarray) -> np.ndarray:
+        return get_stain_matrix_sklearn(image)
+
+    def fit(self, target: np.ndarray) -> np.ndarray:
         """Fit normalizer to a target image.
 
         Args:
@@ -76,7 +123,23 @@ class VahadaneNormalizer:
             stain_matrix_target (np.ndarray):  Stain matrix (H&E)
         """
         target = ut.standardize_brightness(target)
-        self.stain_matrix_target = get_stain_matrix(target)
+        stain_matrix = self.get_stain_matrix(target)
+        self.set_fit(stain_matrix)
+        return stain_matrix
+
+    def fit_preset(self, preset: str) -> Dict[str, np.ndarray]:
+        """Fit normalizer to a preset in sf.norm.utils.fit_presets.
+
+        Args:
+            preset (str): Preset.
+
+        Returns:
+            Dict[str, np.ndarray]: Dictionary mapping fit keys to their
+                fitted values.
+        """
+        _fit = ut.fit_presets['vahadane_sklearn'][preset]
+        self.set_fit(**_fit)
+        return _fit
 
     def get_fit(self) -> Dict[str, np.ndarray]:
         """Get the current normalizer fit.
@@ -119,7 +182,46 @@ class VahadaneNormalizer:
             raise ValueError("Normalizer has not been fit: call normalizer.fit()")
 
         I = ut.standardize_brightness(I)
-        stain_matrix_source = get_stain_matrix(I)
+        I_LAB = cv2.cvtColor(I, cv2.COLOR_RGB2LAB)
+        mask = (I_LAB[:, :, 0] / 255.0 < self.threshold)[:, :, np.newaxis]
+        stain_matrix_source = self.get_stain_matrix(I)
         source_concentrations = ut.get_concentrations(I, stain_matrix_source)
-        return (255 * np.exp(-1 * np.dot(source_concentrations, self.stain_matrix_target).reshape(I.shape))).astype(
-            np.uint8)
+        normalized = (255 * np.exp(-1 * np.dot(source_concentrations, self.stain_matrix_target).reshape(I.shape))).astype(np.uint8)
+        return np.where(mask, normalized, I)
+
+
+class VahadaneSpamsNormalizer(VahadaneSklearnNormalizer):
+
+    def __init__(self) -> None:
+        """Vahadane H&E stain normalizer (numpy implementation).
+
+        Normalizes an image as defined by:
+
+        Vahadane, Abhishek, et al. "Structure-preserving color normalization
+        and sparse stain separation for histological images."
+        IEEE transactions on medical imaging 35.8 (2016): 1962-1971.
+
+        This normalizer contains inspiration from StainTools by Peter Byfield
+        (https://github.com/Peter554/StainTools).
+
+        This normalizer uses the SPAMS library for stain matrix extraction.
+        """
+        super().__init__()
+        self.set_fit(**ut.fit_presets['vahadane_spams']['v1'])  # type: ignore
+
+    def fit_preset(self, preset: str) -> Dict[str, np.ndarray]:
+        """Fit normalizer to a preset in sf.norm.utils.fit_presets.
+
+        Args:
+            preset (str): Preset.
+
+        Returns:
+            Dict[str, np.ndarray]: Dictionary mapping fit keys to their
+                fitted values.
+        """
+        _fit = ut.fit_presets['vahadane_spams'][preset]
+        self.set_fit(**_fit)
+        return _fit
+
+    def get_stain_matrix(self, image: np.ndarray) -> np.ndarray:
+        return get_stain_matrix_spams(image)

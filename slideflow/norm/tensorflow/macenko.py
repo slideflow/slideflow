@@ -6,6 +6,8 @@ from typing import Tuple, Dict, Optional, Union
 from tensorflow.experimental.numpy import dot
 import tensorflow_probability as tfp
 
+from slideflow.norm import utils as ut
+
 
 @tf.function
 def standardize_brightness(I: tf.Tensor) -> tf.Tensor:
@@ -22,6 +24,7 @@ def standardize_brightness(I: tf.Tensor) -> tf.Tensor:
     scaled = tf.cast(I, tf.float32) * tf.constant(255.0, dtype=tf.float32) / p
     scaled = tf.experimental.numpy.clip(scaled, 0, 255)
     return tf.cast(scaled, tf.uint8)
+
 
 @tf.function
 def matrix_and_concentrations(
@@ -92,6 +95,7 @@ def matrix_and_concentrations(
 
     return HE, maxC, C
 
+
 @tf.function
 def transform(
     img: tf.Tensor,
@@ -145,37 +149,29 @@ def transform(
 
     return Inorm
 
+
 @tf.function
 def fit(
     img: tf.Tensor,
     Io: int = 255,
     alpha: float = 1,
     beta: float = 0.15,
-    reduce: bool = False
 ) -> Tuple[tf.Tensor, tf.Tensor]:
     """Fit a target image.
 
     Args:
-        img (torch.Tensor): Batch of images to fit.
+        img (torch.Tensor): Image to fit.
         Io (int, optional). Light transmission. Defaults to 255.
         alpha (float): Percentile of angular coordinates to be selected
             with respect to orthogonal eigenvectors. Defaults to 1.
         beta (float): Luminosity threshold. Pixels with luminance above
             this threshold will be ignored. Defaults to 0.15.
-        reduce (bool, optional): Reduce the fit means/stds across the batch
-            of images to a single mean/std array, reduced by average.
-            Defaults to False (provides fit for each image in the batch).
 
     Returns:
         tf.Tensor: Fit stain matrix target
         tf.Tensor: Fit target concentrations
     """
     HE, maxC, _ = matrix_and_concentrations(img, Io, alpha, beta)
-
-    if reduce:
-        HE = tf.math.reduce_mean(HE, axis=0)
-        maxC = tf.math.reduce_mean(maxC, axis=0)
-
     return HE, maxC
 
 
@@ -212,17 +208,11 @@ class MacenkoNormalizer:
         self.alpha = alpha
         self.beta = beta
 
-        HERef = tf.constant([[0.5626, 0.2159],
-                          [0.7201, 0.8012],
-                          [0.4062, 0.5581]])
-        maxCRef = tf.constant([1.9705, 1.0308])
-        self.stain_matrix_target = HERef
-        self.target_concentrations = maxCRef
+        self.set_fit(**ut.fit_presets['macenko']['v1'])  # type: ignore
 
     def fit(
         self,
         target: tf.Tensor,
-        reduce: bool = True
     ) -> Tuple[tf.Tensor, tf.Tensor]:
         """Fit normalizer to a target image.
 
@@ -237,12 +227,28 @@ class MacenkoNormalizer:
 
             tf.Tensor:     Target concentrations.
         """
-        if len(target.shape) == 3:
-            target = tf.expand_dims(target, axis=0)
-        HE, maxC = fit(target, self.Io, self.alpha, self.beta, reduce=reduce)
+        if len(target.shape) != 3:
+            raise ValueError(
+                f"Invalid shape for fit(): expected 3, got {target.shape}"
+            )
+        HE, maxC = fit(target, self.Io, self.alpha, self.beta)
         self.stain_matrix_target = HE
         self.target_concentrations = maxC
         return HE, maxC
+
+    def fit_preset(self, preset: str) -> Dict[str, np.ndarray]:
+        """Fit normalizer to a preset in sf.norm.utils.fit_presets.
+
+        Args:
+            preset (str): Preset.
+
+        Returns:
+            Dict[str, np.ndarray]: Dictionary mapping fit keys to their
+                fitted values.
+        """
+        _fit = ut.fit_presets['macenko'][preset]
+        self.set_fit(**_fit)
+        return _fit
 
     def get_fit(self) -> Dict[str, Optional[np.ndarray]]:
         """Get the current normalizer fit.
@@ -270,9 +276,9 @@ class MacenkoNormalizer:
                 concentrations. Must have the shape (2,).
         """
         if not isinstance(stain_matrix_target, tf.Tensor):
-            stain_matrix_target = tf.convert_to_tensor(stain_matrix_target)
+            stain_matrix_target = tf.convert_to_tensor(ut._as_numpy(stain_matrix_target))
         if not isinstance(target_concentrations, tf.Tensor):
-            target_concentrations = tf.convert_to_tensor(target_concentrations)
+            target_concentrations = tf.convert_to_tensor(ut._as_numpy(target_concentrations))
         self.stain_matrix_target = stain_matrix_target
         self.target_concentrations = target_concentrations
 

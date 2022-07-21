@@ -27,6 +27,9 @@ class AugmentNormalizer:
     def fit(self, target: np.ndarray) -> None:
         return
 
+    def fit_preset(self, target: np.ndarray) -> None:
+        pass
+
     def transform(self, I: np.ndarray) -> np.ndarray:
         """Performs HSV colorspace augmentation.
 

@@ -20,6 +20,11 @@ try:
 except ImportError:
     pass
 
+try:
+    import spams
+except ImportError:
+    pass
+
 class TestSlide(unittest.TestCase):
 
     @classmethod
@@ -27,21 +32,21 @@ class TestSlide(unittest.TestCase):
         cls._orig_logging_level = sf.getLoggingLevel()  # type: ignore
         sf.setLoggingLevel(40)
         float_img = np.random.random((71, 71, 3))
-        cls.img = (float_img * 255).clip(0, 255).astype(np.uint8)
+        cls.img = (float_img * 255).clip(0, 255).astype(np.uint8)  # type: ignore
         with BytesIO() as output:
-            Image.fromarray(cls.img).save(
+            Image.fromarray(cls.img).save(  # type: ignore
                 output,
                 format="JPEG",
                 quality=100
             )
-            cls.jpg = output.getvalue()
+            cls.jpg = output.getvalue()  # type: ignore
         with BytesIO() as output:
-            Image.fromarray(cls.img).save(output, format="PNG")
-            cls.png = output.getvalue()
+            Image.fromarray(cls.img).save(output, format="PNG")  # type: ignore
+            cls.png = output.getvalue()  # type: ignore
         if 'tensorflow' in sys.modules:
-            cls.tf = tf.convert_to_tensor(cls.img)
+            cls.tf = tf.convert_to_tensor(cls.img)  # type: ignore
         if 'torch' in sys.modules:
-            cls.torch = torch.from_numpy(cls.img)
+            cls.torch = torch.from_numpy(cls.img)  # type: ignore
 
     @classmethod
     def tearDownClass(cls) -> None:
@@ -113,8 +118,8 @@ class TestSlide(unittest.TestCase):
         norm.set_fit(target_means=tgt_means, target_stds=tgt_stds)
         fit = norm.get_fit()
         self._assert_valid_reinhard_fit(fit)
-        self.assertTrue(np.array_equal(tgt_means, fit['target_means']))
-        self.assertTrue(np.array_equal(tgt_stds, fit['target_stds']))
+        self.assertTrue(np.allclose(tgt_means, fit['target_means']))
+        self.assertTrue(np.allclose(tgt_stds, fit['target_stds']))
 
     def _test_macenko_fit_to_numpy(self, norm):
         norm.fit(self.img)
@@ -132,8 +137,8 @@ class TestSlide(unittest.TestCase):
         norm.set_fit(stain_matrix_target=HE, target_concentrations=C)
         fit = norm.get_fit()
         self._assert_valid_macenko_fit(fit)
-        self.assertTrue(np.array_equal(HE, fit['stain_matrix_target']))
-        self.assertTrue(np.array_equal(C, fit['target_concentrations']))
+        self.assertTrue(np.allclose(HE, fit['stain_matrix_target']))
+        self.assertTrue(np.allclose(C, fit['target_concentrations']))
 
     def _test_vahadane_fit_to_numpy(self, norm):
         norm.fit(self.img)
@@ -150,7 +155,7 @@ class TestSlide(unittest.TestCase):
         norm.set_fit(stain_matrix_target=HE)
         fit = norm.get_fit()
         self._assert_valid_vahadane_fit(fit)
-        self.assertTrue(np.array_equal(HE, fit['stain_matrix_target']))
+        self.assertTrue(np.allclose(HE, fit['stain_matrix_target']))
 
     def _test_transform_numpy(self, norm):
         self._assert_valid_numpy(norm.transform(self.img))
@@ -240,6 +245,21 @@ class TestSlide(unittest.TestCase):
         self._test_vahadane_fit_to_path(norm)
         self._test_vahadane_set_fit(norm)
 
+    def test_vahadane_sklearn_numpy(self):
+        norm = sf.norm.StainNormalizer('vahadane_sklearn')
+        self._test_transforms(norm)
+        self._test_vahadane_fit_to_numpy(norm)
+        self._test_vahadane_fit_to_path(norm)
+        self._test_vahadane_set_fit(norm)
+
+    @unittest.skipIf('spams' not in sys.modules, "SPAMS not installed")
+    def test_vahadane_spams_numpy(self):
+        norm = sf.norm.StainNormalizer('vahadane_spams')
+        self._test_transforms(norm)
+        self._test_vahadane_fit_to_numpy(norm)
+        self._test_vahadane_fit_to_path(norm)
+        self._test_vahadane_set_fit(norm)
+
     @unittest.skipIf('tensorflow' not in sys.modules, "Tensorflow not installed")
     def test_reinhard_tensorflow(self):
         norm = tf_norm.StainNormalizer('reinhard')
@@ -251,6 +271,22 @@ class TestSlide(unittest.TestCase):
     @unittest.skipIf('tensorflow' not in sys.modules, "Tensorflow not installed")
     def test_reinhard_fast_tensorflow(self):
         norm = tf_norm.StainNormalizer('reinhard_fast')
+        self._test_transforms(norm)
+        self._test_reinhard_fit_to_numpy(norm)
+        self._test_reinhard_fit_to_path(norm)
+        self._test_reinhard_set_fit(norm)
+
+    @unittest.skipIf('tensorflow' not in sys.modules, "Tensorflow not installed")
+    def test_reinhard_mask_tensorflow(self):
+        norm = tf_norm.StainNormalizer('reinhard_mask')
+        self._test_transforms(norm)
+        self._test_reinhard_fit_to_numpy(norm)
+        self._test_reinhard_fit_to_path(norm)
+        self._test_reinhard_set_fit(norm)
+
+    @unittest.skipIf('tensorflow' not in sys.modules, "Tensorflow not installed")
+    def test_reinhard_fast_mask_tensorflow(self):
+        norm = tf_norm.StainNormalizer('reinhard_fast_mask')
         self._test_transforms(norm)
         self._test_reinhard_fit_to_numpy(norm)
         self._test_reinhard_fit_to_path(norm)

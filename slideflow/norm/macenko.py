@@ -39,11 +39,7 @@ class MacenkoNormalizer:
         self.beta = beta
 
         # Default fit.
-        HERef = np.array([[0.5626, 0.2159],
-                          [0.7201, 0.8012],
-                          [0.4062, 0.5581]])
-        maxCRef = np.array([1.9705, 1.0308])
-        self.set_fit(HERef, maxCRef)
+        self.set_fit(**ut.fit_presets['macenko']['v1'])  # type: ignore
 
     def fit(self, img: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
         """Fit normalizer to a target image.
@@ -62,6 +58,20 @@ class MacenkoNormalizer:
         HE, maxC, _ = self.matrix_and_concentrations(img)
         self.set_fit(HE, maxC)
         return HE, maxC
+
+    def fit_preset(self, preset: str) -> Dict[str, np.ndarray]:
+        """Fit normalizer to a preset in sf.norm.utils.fit_presets.
+
+        Args:
+            preset (str): Preset.
+
+        Returns:
+            Dict[str, np.ndarray]: Dictionary mapping fit keys to their
+                fitted values.
+        """
+        _fit = ut.fit_presets['macenko'][preset]
+        self.set_fit(**_fit)
+        return _fit
 
     def get_fit(self) -> Dict[str, np.ndarray]:
         """Get the current normalizer fit.
