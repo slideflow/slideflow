@@ -1,5 +1,50 @@
-"""H&E stain normalization, with both numpy and native PyTorch/Tensorflow
-implementations."""
+"""This module provides H&E stain normalization tools, with numpy, PyTorch,
+and Tensorflow implementations for several stain normalization methods.
+
+The main normalizer interface, :class:`slideflow.norm.StainNormalizer`, offers
+efficient numpy implementations for the Macenko, Reinhard, Reinhard-Fast,
+Reinhard (masked), and Vahadane H&E stain normalization algorithms, as well
+as an HSV colorspace stain augmentation method. This normalizer can convert
+images to and from Tensors, numpy arrays, and raw JPEG/PNG images.
+
+In addition to these numpy implementations, PyTorch-native and Tensorflow-native
+implementations are also provided, which offer performance improvements
+and/or vectorized application. The native normalizers are found in
+``slideflow.norm.tensorflow`` and ``slideflow.norm.torch``, respectively.
+Tensorflow-native normalizer methods include Macenko, Reinhard, and
+Reinhard-fast. Torch-native normalizer methods include Reinhard and
+Reinhard-fast.
+
+The Numpy implementation contains all functions necessary for normalizing
+Tensors from both Tensorflow and PyTorch, but may be slower than backend-native
+implementations when available. Performance benchmarks for the normalizer
+implementations are given below:
+
+.. list-table:: Performance Benchmarks (3960X and A100 40GB, Slideflow 1.2.3)
+    :header-rows: 1
+
+    * -
+      - Tensorflow backend
+      - PyTorch backend
+    * - macenko
+      - 12,299 img/sec
+      - 946 img/sec
+    * - reinhard
+      - 12,616 img/sec
+      - 2,780 img/sec
+    * - reinhard_fast
+      - 16,101 img/sec
+      - 3,954 img/sec
+    * - reinhard_mask
+      - 911 img/sec
+      - 2,478 img/sec
+    * - vahadane
+      - 111 img/sec
+      - 233 img/sec
+
+Use :func:`slideflow.norm.autoselect` to get the fastest available normalizer
+for a given method and active backend (Tensorflow/PyTorch).
+"""
 
 from __future__ import absolute_import
 
