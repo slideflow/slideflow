@@ -30,33 +30,33 @@ Tensors from both Tensorflow and PyTorch, but may be slower than backend-native
 implementations when available. Performance benchmarks for the normalizer
 implementations are given below:
 
-.. list-table:: Performance Benchmarks (3960X and A100 40GB, Slideflow 1.2.3)
+.. list-table:: Performance Benchmarks (256 x 256 images, Slideflow 1.2.3, 3960X and A100 40GB)
     :header-rows: 1
 
     * -
       - Tensorflow backend
       - PyTorch backend
     * - macenko
-      - 12,299 img/s (**native**)
-      - 946 img/s
+      - 1,295 img/s (**native**)
+      - 142 img/s
     * - reinhard
-      - 12,616 img/s (**native**)
-      - 2,780 img/s (**native**)
+      - 459 img/s (**native**)
+      - 1,840 img/s (**native**)
     * - reinhard_fast
-      - 16,101 img/s (**native**)
-      - 3,954 img/s (**native**)
+      - 832 img/s (**native**)
+      - 2,590 img/s (**native**)
     * - reinhard_mask
-      - 911 img/s
-      - 2,478 img/s
+      - 443 img/s (**native**)
+      - 1,581 img/s
     * - reinhard_fast_mask
-      - 1,245 img/s
-      - 3,086 img/s
+      - 823 img/s (**native**)
+      - 2,116 img/s
     * - vahadane_spams
-      - 0.8 img/s
-      - 2.1 img/s
+      - 0.7 img/s
+      - 2.2 img/s
     * - vahadane_sklearn
-      - 5.8 img/s
-      - 12 img/s
+      - 0.9 img/s
+      - 1.0 img/s
 
 
 Use :func:`slideflow.norm.autoselect` to get the fastest available normalizer
