@@ -22,8 +22,7 @@ ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib
 # Repair pixman
 WORKDIR "/scripts"
 RUN wget https://raw.githubusercontent.com/jamesdolezal/slideflow/1.2.3/pixman_repair.sh && \
-    chmod +x pixman_repair.sh && \
-    ./pixman_repair.sh
+    chmod +x pixman_repair.sh
 
 # Install slideflow & download scripts
 ENV SF_BACKEND=torch
