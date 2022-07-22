@@ -6,14 +6,15 @@ E. Reinhard, M. Adhikhmin, B. Gooch, and P. Shirley, ‘Color transfer between i
 
 from __future__ import division
 
-import os
 import numpy as np
 from typing import Tuple, Dict, Union, Optional, Any
+from packaging import version
 
 import tensorflow as tf
 import tensorflow_probability as tfp
 from slideflow.norm.tensorflow import color
 from slideflow.norm import utils as ut
+from slideflow.util import log
 
 
 @tf.function
@@ -120,7 +121,7 @@ def transform(
     I: tf.Tensor,
     tgt_mean: tf.Tensor,
     tgt_std: tf.Tensor,
-    #mask_threshold: Optional[float] = None
+    mask_threshold: Optional[float] = None
 ) -> tf.Tensor:
     """Transform an image using a given target means & stds.
 
@@ -138,8 +139,8 @@ def transform(
     I1, I2, I3 = lab_split(I)
     means, stds = get_mean_std(I1, I2, I3)
 
-    #if mask_threshold:
-    #    mask = (I3 / 255.0 < mask_threshold)[:, :, :, tf.newaxis]
+    if mask_threshold:
+        mask = (I3 / 255.0 < mask_threshold)[:, :, :, tf.newaxis]
 
     I1a = tf.subtract(I1, tf.expand_dims(tf.expand_dims(means[0], axis=-1), axis=-1))
     I1b = tf.divide(tgt_std[0], stds[0])
@@ -156,11 +157,10 @@ def transform(
     merged = tf.cast(merge_back(norm1, norm2, norm3), dtype=tf.int32)
     clipped = tf.cast(tf.clip_by_value(merged, clip_value_min=0, clip_value_max=255), dtype=tf.uint8)
 
-    #if mask_threshold:
-    #    return tf.where(mask, clipped, I)
-    #else:
-    #    return clipped
-    return clipped
+    if mask_threshold:
+        return tf.where(mask, clipped, I)
+    else:
+        return clipped
 
 
 @tf.function
@@ -187,7 +187,7 @@ def fit(target: tf.Tensor, reduce: bool = False) -> Tuple[tf.Tensor, tf.Tensor]:
 class ReinhardFastNormalizer:
 
     vectorized = True
-    preferred_device = 'gpu:0'
+    preferred_device = 'gpu'
 
     def __init__(self) -> None:
         """Modified Reinhard H&E stain normalizer without brightness
@@ -200,7 +200,12 @@ class ReinhardFastNormalizer:
 
         This implementation does not include the brightness normalization step.
         """
-        super().__init__()
+        if (version.parse(tf.__version__) >= version.parse("2.8.0")
+            and version.parse(tf.__version__) < version.parse("2.8.2")):
+            log.warn("A bug in Tensorflow 2.8.0 prevents Reinhard GPU "
+                     "acceleration; please upgrade to >= 2.8.2. Falling back "
+                     "to CPU.")
+            self.preferred_device = 'cpu'
         self.transform_kw = {}  # type: Dict[str, Any]
         self.set_fit(**ut.fit_presets['reinhard_fast']['v1'])  # type: ignore
 
