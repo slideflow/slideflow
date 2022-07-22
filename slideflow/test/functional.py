@@ -253,7 +253,7 @@ def multi_thread_normalizer_tester(
     sf.setLoggingLevel(verbosity)
     if not len(methods):
         methods = sf.norm.StainNormalizer.normalizers  # type: ignore
-    dataset = project.dataset(71, 1208)
+    dataset = project.dataset(256, 1208)
     v = col.bold(f'({sf.backend()}-native)')
 
     for method in methods:

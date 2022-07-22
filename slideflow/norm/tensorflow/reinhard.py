@@ -6,14 +6,15 @@ E. Reinhard, M. Adhikhmin, B. Gooch, and P. Shirley, ‘Color transfer between i
 
 from __future__ import division
 
-import os
 import numpy as np
 from typing import Tuple, Dict, Union, Optional, Any
+from packaging import version
 
 import tensorflow as tf
 import tensorflow_probability as tfp
 from slideflow.norm.tensorflow import color
 from slideflow.norm import utils as ut
+from slideflow.util import log
 
 
 @tf.function
@@ -199,7 +200,12 @@ class ReinhardFastNormalizer:
 
         This implementation does not include the brightness normalization step.
         """
-        super().__init__()
+        if (version.parse(tf.__version__) >= version.parse("2.8.0")
+            and version.parse(tf.__version__) < version.parse("2.8.2")):
+            log.warn("A bug in Tensorflow 2.8.0 prevents Reinhard GPU "
+                     "acceleration; please upgrade to >= 2.8.2. Falling back "
+                     "to CPU.")
+            self.preferred_device = 'cpu'
         self.transform_kw = {}  # type: Dict[str, Any]
         self._warm_start()
         self.set_fit(**ut.fit_presets['reinhard_fast']['v1'])  # type: ignore
@@ -290,6 +296,7 @@ class ReinhardFastNormalizer:
         self.target_means = target_means
         self.target_stds = target_stds
 
+    @tf.function
     def _transform_batch(self, batch: tf.Tensor) -> tf.Tensor:
         """Normalize a batch of images.
 
@@ -302,6 +309,7 @@ class ReinhardFastNormalizer:
 
         return transform(batch, self.target_means, self.target_stds, **self.transform_kw)
 
+    @tf.function
     def transform(self, I: tf.Tensor) -> tf.Tensor:
         """Normalize an H&E image.
 
@@ -373,6 +381,7 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
         self.set_fit(**_fit)
         return _fit
 
+    @tf.function
     def transform(self, I: tf.Tensor) -> tf.Tensor:
         """Normalize an H&E image.
 
@@ -384,9 +393,19 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
         """
 
         if len(I.shape) == 3:
-            return self._transform_batch(standardize_brightness(tf.expand_dims(I, axis=0)))[0]
+            #return self._transform_batch(standardize_brightness(tf.expand_dims(I, axis=0)))[0]
+            return transform(
+                standardize_brightness(tf.expand_dims(I, axis=0)),
+                self.target_means,
+                self.target_stds
+            )[0]
         else:
-            return self._transform_batch(standardize_brightness(I))
+            #return self._transform_batch(standardize_brightness(I))
+            return transform(
+                standardize_brightness(I),
+                self.target_means,
+                self.target_stds
+            )
 
 
 class ReinhardFastMaskNormalizer(ReinhardFastNormalizer):
