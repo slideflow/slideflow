@@ -31,7 +31,7 @@ Full documentation with example tutorials can be found at [slideflow.dev](https:
   - _or_ [Pyomo](http://www.pyomo.org/installation) with [Bonmin](https://anaconda.org/conda-forge/coinbonmin) solver
 
 ## Updates (1.2.0)
-Please see the [Version 1.2.0 Release Notes](https://github.com/jamesdolezal/slideflow/releases/tag/1.2.2) for a summary of the latest updates and fixes.
+Please see the [Version 1.2.0 Release Notes](https://github.com/jamesdolezal/slideflow/releases/tag/1.2.3) for a summary of the latest updates and fixes.
 
 ## Installation
 Slideflow can be installed either with PyPI or as a Docker container. To install via pip:
