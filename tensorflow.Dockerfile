@@ -20,8 +20,9 @@ ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib
 
 # Repair pixman
 WORKDIR "/scripts"
-RUN wget https://github.com/jamesdolezal/slideflow/blob/1.2.1/pixman_repair.sh && \
-    chmod +x pixman_repair.sh
+RUN wget https://raw.githubusercontent.com/jamesdolezal/slideflow/1.2.1/pixman_repair.sh && \
+    chmod +x pixman_repair.sh && \
+    ./pixman_repair.sh
 
 # Install slideflow & download scripts
 RUN pip3 install slideflow==1.2.1 && \
