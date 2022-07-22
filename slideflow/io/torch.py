@@ -5,6 +5,7 @@ import threading
 from os import listdir
 from os.path import dirname, exists, isfile, join
 from queue import Queue
+from functools import partial
 from typing import (TYPE_CHECKING, Any, Callable, Dict, Iterable, List,
                     Optional, Tuple, Union)
 
@@ -613,8 +614,11 @@ def get_tfrecord_parser(
             'xyrj' or True will use all augmentations.
 
     Returns:
-        func: Parsing function
-        dict: Detected feature description for the tfrecord
+        A tuple containing
+
+            func: Parsing function
+
+            dict: Detected feature description for the tfrecord
     """
 
     features, img_type = detect_tfrecord_format(tfrecord_path)

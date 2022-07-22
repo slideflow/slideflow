@@ -45,7 +45,6 @@ setuptools.setup(
         'pandas',
         'pyvips',
         'fpdf',
-        'spams',
         'lifelines',
         'scikit-image',
         'tqdm',

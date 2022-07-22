@@ -265,11 +265,13 @@ def unwrap(
         model (tf.keras.models.Model): Model built with Slideflow.
 
     Returns:
-        tf.Tensor:  Input tensor.
+        A tuple containing
 
-        tf.Tensor:  Post-convolutional layer output tensor.
+            tf.Tensor:  Input tensor.
 
-        tf.Tensor:  Final model output tensor.
+            tf.Tensor:  Post-convolutional layer output tensor.
+
+            tf.Tensor:  Final model output tensor.
     """
     submodel = model.layers[1]
     x = submodel.outputs[0]

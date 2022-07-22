@@ -347,8 +347,11 @@ class Project:
                 additional input. Defaults to None.
 
         Returns:
-            Trainer (:class:`slideflow.model.Trainer`),
-            dataset (:class:`slideflow.Dataset`)
+            A tuple containing
+
+                :class:`slideflow.model.Trainer`: Trainer.
+
+                :class:`slideflow.Dataset`: Evaluation dataset.
         """
 
         if eval_k_fold is not None and outcomes is None:
@@ -1414,7 +1417,7 @@ class Project:
                 Defaults to 32.
 
         Returns:
-            :class:`slideflow.DatasetFeatures`:
+            :class:`slideflow.DatasetFeatures`
         """
         # Prepare dataset and annotations
         dataset = dataset.clip(max_tiles)

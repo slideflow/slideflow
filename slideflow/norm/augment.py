@@ -1,25 +1,44 @@
-"""HSV augmentation normalizer."""
+"""HSV stain augmentation."""
 
 from __future__ import division
 
 import cv2 as cv
 import numpy as np
+from typing import Dict
 
 import slideflow.norm.utils as ut
 
 
-class Normalizer(ut.BaseNormalizer):
-    """
-    A stain normalization object
-    """
+class AugmentNormalizer:
 
     def __init__(self):
+        """H&E stain augmentation.
+
+        Augments an image in the HSV colorspace.
+        """
+        return
+
+    def get_fit(self) -> Dict[str, np.ndarray]:
+        return {}
+
+    def set_fit(self) -> None:
         return
 
     def fit(self, target: np.ndarray) -> None:
         return
 
+    def fit_preset(self, target: np.ndarray) -> None:
+        pass
+
     def transform(self, I: np.ndarray) -> np.ndarray:
+        """Performs HSV colorspace augmentation.
+
+        Args:
+            I (np.ndarray): RGB uint8 image (W, H, C)
+
+        Returns:
+            np.ndarray: Augmented image.
+        """
 
         hsv = cv.cvtColor(I, cv.COLOR_RGB2HSV)
         hsv[:, :, 2] = cv.equalizeHist(hsv[:, :, 2])

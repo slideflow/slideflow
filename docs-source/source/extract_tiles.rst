@@ -58,9 +58,11 @@ By default, slides with valid ROIs will only have tiles extracted from within RO
 Stain Normalization
 *******************
 
-Tiles can be normalized to account for differing strengths of H&E staining, which has been shown to improve machine learning accuracy on some datasets. Images can be normalized to an internal H&E-stained control image ``slideflow.norm.norm_tile.jpg``, or you may explicitly provide a reference image for normalization.
+.. note::
+    See :py:mod:`slideflow.norm` for more information about stain normalization functions.
 
-Normalization can be performed either at the time of tile extraction or in real-time during training. Real-time normalization adds CPU overhead and may increase training or inference times for some models, although it allows greater flexibility, as normalization strategies can be changed without re-extracting tiles from your entire dataset.
+
+Image tiles can undergo digital H&E stain normalization either during tile extraction or in real-time during training. Real-time normalization adds CPU overhead during training and inference but offers greater flexibility, allowing you to test different normalization strategies without re-extracting tiles from your entire dataset.
 
 To normalize tiles during tile extraction, use the ``normalizer`` and ``normalizer_source`` arguments; ``normalizer`` is the name of the algorithm to use. A path to a normalization reference image may optionally be provided through ``normalizer_source``. Available stain normalization algorithms include:
 
@@ -85,7 +87,9 @@ Alternatively, real-time normalization can be performed with all pipeline functi
     from slideflow.model import ModelParams
     hp = ModelParams(..., normalizer='reinhard')
 
-If a normalizer was used during model training, the appropriate information will be stored in the model metadata file, `params.json`, located in the saved model folder. Any function within `slideflow` that uses this model will then process images using the same normalization strategy.
+If a normalizer was used during model training, the appropriate information will be stored in the model metadata file, ``params.json``, located in the saved model folder. Any Slideflow function that uses this model will then process images using the same normalization strategy.
+
+The normalizer interfaces can also be access directly through :class:`slideflow.norm.StainNormalizer`. See :py:mod:`slideflow.norm` for examples and more information.
 
 Background filtering
 ********************

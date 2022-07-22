@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Tile extraction &mdash; slideflow 1.2.2 documentation</title>
+  <title>Tile extraction &mdash; slideflow 1.2.3-dev1 documentation</title>
   
 
   
@@ -404,8 +404,11 @@ but do not export any images. Defaults to None.</p></li>
 </div>
 <div class="section" id="stain-normalization">
 <h2>Stain Normalization<a class="headerlink" href="#stain-normalization" title="Permalink to this heading">¶</a></h2>
-<p>Tiles can be normalized to account for differing strengths of H&amp;E staining, which has been shown to improve machine learning accuracy on some datasets. Images can be normalized to an internal H&amp;E-stained control image <code class="docutils literal notranslate"><span class="pre">slideflow.norm.norm_tile.jpg</span></code>, or you may explicitly provide a reference image for normalization.</p>
-<p>Normalization can be performed either at the time of tile extraction or in real-time during training. Real-time normalization adds CPU overhead and may increase training or inference times for some models, although it allows greater flexibility, as normalization strategies can be changed without re-extracting tiles from your entire dataset.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>See <a class="reference internal" href="norm.html#module-slideflow.norm" title="slideflow.norm"><code class="xref py py-mod docutils literal notranslate"><span class="pre">slideflow.norm</span></code></a> for more information about stain normalization functions.</p>
+</div>
+<p>Image tiles can undergo digital H&amp;E stain normalization either during tile extraction or in real-time during training. Real-time normalization adds CPU overhead during training and inference but offers greater flexibility, allowing you to test different normalization strategies without re-extracting tiles from your entire dataset.</p>
 <p>To normalize tiles during tile extraction, use the <code class="docutils literal notranslate"><span class="pre">normalizer</span></code> and <code class="docutils literal notranslate"><span class="pre">normalizer_source</span></code> arguments; <code class="docutils literal notranslate"><span class="pre">normalizer</span></code> is the name of the algorithm to use. A path to a normalization reference image may optionally be provided through <code class="docutils literal notranslate"><span class="pre">normalizer_source</span></code>. Available stain normalization algorithms include:</p>
 <ul class="simple">
 <li><p><strong>macenko</strong>: M. Macenko et al., ‘A method for normalizing histology slides for quantitative analysis’, <em>IEEE International Symposium on Biomedical Imaging: From Nano to Macro</em>, 2009, pp. 1107–1110.</p></li>
@@ -426,7 +429,8 @@ but do not export any images. Defaults to None.</p></li>
 <span class="n">hp</span> <span class="o">=</span> <span class="n">ModelParams</span><span class="p">(</span><span class="o">...</span><span class="p">,</span> <span class="n">normalizer</span><span class="o">=</span><span class="s1">&#39;reinhard&#39;</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>If a normalizer was used during model training, the appropriate information will be stored in the model metadata file, <cite>params.json</cite>, located in the saved model folder. Any function within <cite>slideflow</cite> that uses this model will then process images using the same normalization strategy.</p>
+<p>If a normalizer was used during model training, the appropriate information will be stored in the model metadata file, <code class="docutils literal notranslate"><span class="pre">params.json</span></code>, located in the saved model folder. Any Slideflow function that uses this model will then process images using the same normalization strategy.</p>
+<p>The normalizer interfaces can also be access directly through <a class="reference internal" href="norm.html#slideflow.norm.StainNormalizer" title="slideflow.norm.StainNormalizer"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.norm.StainNormalizer</span></code></a>. See <a class="reference internal" href="norm.html#module-slideflow.norm" title="slideflow.norm"><code class="xref py py-mod docutils literal notranslate"><span class="pre">slideflow.norm</span></code></a> for examples and more information.</p>
 </div>
 <div class="section" id="background-filtering">
 <h2>Background filtering<a class="headerlink" href="#background-filtering" title="Permalink to this heading">¶</a></h2>
@@ -582,7 +586,7 @@ but do not export any images. Defaults to None.</p></li>
   <!-- End Mobile Menu -->
 
   <script script type="text/javascript">
-    var collapsedSections = ['Source', 'Tutorials'];
+    var collapsedSections = [];
   </script>
 
   <script type="text/javascript" src="_static/js/vendor/anchor.min.js"></script>

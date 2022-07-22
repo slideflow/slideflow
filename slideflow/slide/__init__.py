@@ -1657,9 +1657,9 @@ class WSI(_BaseLoader):
                 but do not export any images. Defaults to None.
 
         Returns:
-            dict, with keys 'image' (image data), 'yolo' (optional
-                yolo-formatted annotations, (x_center, y_center,
-                width, height)) and 'grid' ((x, y) slide or grid coordinates)
+            dict: Dict with keys 'image' (image data), 'yolo' (optional
+            yolo-formatted annotations, (x_center, y_center,
+            width, height)) and 'grid' ((x, y) slide or grid coordinates)
 
         """
 

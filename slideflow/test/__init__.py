@@ -10,7 +10,7 @@ from typing import Optional
 import slideflow as sf
 import slideflow.test.functional
 from slideflow import errors
-from slideflow.test import dataset_test, slide_test, stats_test
+from slideflow.test import dataset_test, slide_test, stats_test, norm_test
 from slideflow.test.utils import (TaskWrapper, TestConfig,
                                   _assert_valid_results, process_isolate)
 from slideflow.util import colors as col
@@ -41,8 +41,8 @@ class TestSuite:
                 starting. Defaults to False.
 
         Raises:
-            errors.BackendError: If the environmental variable SF_BACKEND
-                is not either "tensorflow" or "torch".
+            errors.UnrecognizedBackendError: If the environmental variable
+                SF_BACKEND is something other than  "tensorflow" or "torch".
         """
 
         if slides is None:
@@ -96,10 +96,7 @@ class TestSuite:
             if not torch.cuda.is_available():
                 log.error("GPU unavailable - tests may fail.")
         else:
-            raise errors.BackendError(
-                f"Unknown backend {sf.backend()} "
-                "Valid backends: 'tensorflow' or 'torch'"
-            )
+            raise errors.UnrecognizedBackendError
 
         # Configure datasets (input)
         self.buffer = buffer
@@ -772,11 +769,19 @@ class TestSuite:
     def unittests(self) -> None:
         """Run unit tests."""
 
+        try:
+            import tensorflow as tf
+            physical_devices = tf.config.list_physical_devices('GPU')
+            for p in physical_devices:
+                tf.config.experimental.set_memory_growth(p, True)
+        except ImportError:
+            pass
+
         print("Running unit tests...")
         runner = unittest.TextTestRunner()
         all_tests = [
             unittest.TestLoader().loadTestsFromModule(module)
-            for module in (dataset_test, stats_test)
+            for module in (norm_test, dataset_test, stats_test)
         ]
         suite = unittest.TestSuite(all_tests)
 

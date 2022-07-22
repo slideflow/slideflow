@@ -48,7 +48,7 @@ def _generate_bonmin(
 
     Returns:
         dataframe with a new column, 'CV3' that contains values 1 - 3,
-            indicating the assigned crossfold
+        indicating the assigned crossfold
 
     .. _Preserved-site cross-validation:
         https://doi.org/10.1038/s41467-021-24698-1
@@ -159,7 +159,7 @@ def _generate_cplex(
 
     Returns:
         dataframe with a new column, 'CV3' that contains values 1 - 3,
-            indicating the assigned crossfold
+        indicating the assigned crossfold
 
     .. _Preserved-site cross-validation:
         https://doi.org/10.1038/s41467-021-24698-1

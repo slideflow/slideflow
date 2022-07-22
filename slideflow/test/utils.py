@@ -133,15 +133,16 @@ def _assert_valid_results(results):
 
 def test_throughput(
     dts: Any,
-    normalizer: sf.norm.StainNormalizer = None,
+    normalizer: Optional[sf.norm.StainNormalizer] = None,
     s: int = 5,
-    step_size: int = 1
 ) -> float:
     """Tests throughput of image normalization with a single thread.
 
     Returns:
         float: images/sec.
     """
+    #from slideflow.norm.tensorflow import macenko
+    #n= macenko.MacenkoNormalizer()
     start = -1  # type: float
     count = 0
     total_time = 0  # type: float
@@ -151,13 +152,19 @@ def test_throughput(
                 img = img.permute(1, 2, 0)
             else:
                 img = img.permute(0, 2, 3, 1)
-        img = img.numpy()
-        if normalizer is not None:
-            normalizer.rgb_to_rgb(img)
+
+        #n.transform(img)
+        if sf.backend() == 'tensorflow' and normalizer is not None:
+            normalizer.tf_to_tf(img)
+        if sf.backend() == 'torch' and normalizer is not None:
+            normalizer.torch_to_torch(img)
         if start == -1:
             start = time.time()
         else:
-            count += step_size
+            if len(img.shape) == 3:
+                count += 1
+            else:
+                count += img.shape[0]
         if time.time() - start > s:
             total_time = count / (time.time() - start)
             break
@@ -191,8 +198,7 @@ def test_multithread_throughput(
             infinite=True,
             normalizer=normalizer,
         )
-    step_size = 1 if batch_size is None else batch_size
-    return test_throughput(dts, step_size=step_size, s=s)
+    return test_throughput(dts, s=s)
 
 
 class TaskWrapper:

@@ -5,6 +5,7 @@ from typing import Any, Callable, Dict
 import slideflow as sf
 import numpy as np
 import saliency.core as saliency
+from slideflow import errors
 from slideflow.grad.plot_utils import (comparison_plot, inferno, multi_plot,
                                        oranges, overlay,
                                        saliency_map_comparison)
@@ -85,7 +86,7 @@ class SaliencyMap:
         elif sf.backend() == 'torch':
             return self._grad_fn_torch(image, call_model_args, expected_keys)
         else:
-            raise ValueError(f"Unrecognized backend {sf.backend()}")
+            raise errors.UnrecognizedBackendError
 
     def _apply_mask_fn(
         self,
