@@ -30,7 +30,7 @@ Tensors from both Tensorflow and PyTorch, but may be slower than backend-native
 implementations when available. Performance benchmarks for the normalizer
 implementations are given below:
 
-.. list-table:: Performance Benchmarks (256 x 256 images, Slideflow 1.2.3, 3960X and A100 40GB)
+.. list-table:: **Performance Benchmarks** (256 x 256 images, Slideflow 1.2.3, benchmarked on 3960X and A100 40GB)
     :header-rows: 1
 
     * -
@@ -40,16 +40,16 @@ implementations are given below:
       - 1,295 img/s (**native**)
       - 142 img/s
     * - reinhard
-      - 459 img/s (**native**)
+      - 1,536 img/s (**native**)
       - 1,840 img/s (**native**)
     * - reinhard_fast
-      - 832 img/s (**native**)
+      - 8,599 img/s (**native**)
       - 2,590 img/s (**native**)
     * - reinhard_mask
-      - 443 img/s (**native**)
+      - 1,537 img/s (**native**)
       - 1,581 img/s
     * - reinhard_fast_mask
-      - 823 img/s (**native**)
+      - 7,885 img/s (**native**)
       - 2,116 img/s
     * - vahadane_spams
       - 0.7 img/s
