@@ -10,11 +10,6 @@ from typing import Dict
 import slideflow.norm.utils as ut
 from sklearn.decomposition import DictionaryLearning
 
-try:
-    import spams
-except ImportError:
-    pass
-
 
 def get_stain_matrix_spams(
     I: np.ndarray,
@@ -31,6 +26,8 @@ def get_stain_matrix_spams(
     Returns:
         np.ndarray:     2x3 stain matrix (first row H, second E)
     """
+    import spams
+
     mask = ut.notwhite_mask(I, thresh=threshold).reshape((-1,))
     OD = ut.RGB_to_OD(I).reshape((-1, 3))
     OD = OD[mask]

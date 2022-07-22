@@ -10,13 +10,12 @@ import shutil
 import sys
 import threading
 import time
-from queue import Empty
 from functools import partial
 from glob import glob
 from os.path import dirname, exists, isdir, join
+from packaging import version
 from statistics import mean, median
-from typing import (Any, Callable, Dict, Iterable, List, Optional, Sized,
-                    Tuple, Union)
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
 import matplotlib.colors as mcol
 import numpy as np
@@ -676,16 +675,25 @@ def get_model_normalizer(
     """Loads and fits normalizer using configuration at a model path."""
 
     config = sf.util.get_model_config(model_path)
-    if config['hp']['normalizer']:
-        normalizer = sf.norm.autoselect(
-            config['hp']['normalizer'],
-            config['hp']['normalizer_source']
-        )
-        if 'norm_fit' in config and config['norm_fit'] is not None:
-            normalizer.set_fit(**config['norm_fit'])
-        return normalizer
-    else:
+
+    if not config['hp']['normalizer']:
         return None
+
+    if ('slideflow_version' in config
+       and version.parse(config['slideflow_version']) <= version.parse("1.2.2")
+       and config['hp']['normalizer'] in ('vahadane', 'macenko')):
+        log.warn("Detected model trained with Macenko or Vahadane "
+                    "normalization with Slideflow version <= 1.2.2. Macenko "
+                    "and Vahadane algorithms were optimized in 1.2.3 and may "
+                    "now yield slightly different results. ")
+
+    normalizer = sf.norm.autoselect(
+        config['hp']['normalizer'],
+        config['hp']['normalizer_source']
+    )
+    if 'norm_fit' in config and config['norm_fit'] is not None:
+        normalizer.set_fit(**config['norm_fit'])
+    return normalizer
 
 
 def get_slide_paths(slides_dir: Path) -> List[str]:

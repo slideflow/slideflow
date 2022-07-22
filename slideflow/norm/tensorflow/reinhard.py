@@ -207,21 +207,7 @@ class ReinhardFastNormalizer:
                      "to CPU.")
             self.preferred_device = 'cpu'
         self.transform_kw = {}  # type: Dict[str, Any]
-        self._warm_start()
         self.set_fit(**ut.fit_presets['reinhard_fast']['v1'])  # type: ignore
-
-    def _warm_start(self) -> None:
-        """I have no idea why this function is necessary, as the function
-        doesn't actually do anything, but I get a segfault without it."""
-
-        package_directory = os.path.dirname(os.path.abspath(__file__))
-        img_path = os.path.join(package_directory, '../norm_tile.jpg')
-        src_img = tf.image.decode_jpeg(tf.io.read_file(img_path))
-        target = tf.expand_dims(src_img, axis=0)
-        if len(target.shape) == 3:
-            target = tf.expand_dims(target, axis=0)
-        target = standardize_brightness(target)
-        fit(target, reduce=False)
 
     def fit(
         self,

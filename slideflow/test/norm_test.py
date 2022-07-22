@@ -1,5 +1,6 @@
 import unittest
 
+import importlib
 import sys
 import os
 import numpy as np
@@ -20,10 +21,7 @@ try:
 except ImportError:
     pass
 
-try:
-    import spams
-except ImportError:
-    pass
+spams_loader = importlib.find_loader('spams')
 
 class TestSlide(unittest.TestCase):
 
@@ -252,7 +250,7 @@ class TestSlide(unittest.TestCase):
         self._test_vahadane_fit_to_path(norm)
         self._test_vahadane_set_fit(norm)
 
-    @unittest.skipIf('spams' not in sys.modules, "SPAMS not installed")
+    @unittest.skipIf(spams_loader is None, "SPAMS not installed")
     def test_vahadane_spams_numpy(self):
         norm = sf.norm.StainNormalizer('vahadane_spams')
         self._test_transforms(norm)
