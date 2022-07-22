@@ -44,11 +44,11 @@ def lab_split(I: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor]:
     Returns:
         A tuple containing
 
-            tf.Tensor: I1, first channel (uint8).
+            tf.Tensor: I1, first channel (float32).
 
-            tf.Tensor: I2, first channel (uint8).
+            tf.Tensor: I2, second channel (float32).
 
-            tf.Tensor: I3, first channel (uint8).
+            tf.Tensor: I3, third channel (float32).
     """
     I = tf.cast(I, tf.float32)
     I /= 255
@@ -66,9 +66,9 @@ def merge_back(
     """Take seperate LAB channels and merge back to give RGB uint8
 
     Args:
-        I1 (tf.Tensor): First channel (uint8).
-        I2 (tf.Tensor): Second channel (uint8).
-        I3 (tf.Tensor): Third channel (uint8).
+        I1 (tf.Tensor): First channel (float32).
+        I2 (tf.Tensor): Second channel (float32).
+        I3 (tf.Tensor): Third channel (float32).
 
     Returns:
         tf.Tensor: RGB uint8 image.
@@ -90,9 +90,9 @@ def get_mean_std(
     """Get mean and standard deviation of each channel.
 
     Args:
-        I1 (tf.Tensor): First channel (uint8).
-        I2 (tf.Tensor): Second channel (uint8).
-        I3 (tf.Tensor): Third channel (uint8).
+        I1 (tf.Tensor): First channel (float32).
+        I2 (tf.Tensor): Second channel (float32).
+        I3 (tf.Tensor): Third channel (float32).
         reduce (bool): Reduce batch to mean across images in the batch.
 
     Returns:
@@ -140,7 +140,7 @@ def transform(
     means, stds = get_mean_std(I1, I2, I3)
 
     if mask_threshold:
-        mask = (I3 / 255.0 < mask_threshold)[:, :, :, tf.newaxis]
+        mask = ((I1 / 100) < mask_threshold)[:, :, :, tf.newaxis]
 
     I1a = tf.subtract(I1, tf.expand_dims(tf.expand_dims(means[0], axis=-1), axis=-1))
     I1b = tf.divide(tgt_std[0], stds[0])
@@ -293,7 +293,7 @@ class ReinhardFastNormalizer:
             tf.Tensor: Normalized image batch (uint8)
         """
 
-        return transform(batch, self.target_means, self.target_stds, **self.transform_kw)
+        return transform(batch, self.target_means, self.target_stds)
 
     @tf.function
     def transform(self, I: tf.Tensor) -> tf.Tensor:
@@ -379,19 +379,9 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
         """
 
         if len(I.shape) == 3:
-            #return self._transform_batch(standardize_brightness(tf.expand_dims(I, axis=0)))[0]
-            return transform(
-                standardize_brightness(tf.expand_dims(I, axis=0)),
-                self.target_means,
-                self.target_stds
-            )[0]
+            return self._transform_batch(standardize_brightness(tf.expand_dims(I, axis=0)))[0]
         else:
-            #return self._transform_batch(standardize_brightness(I))
-            return transform(
-                standardize_brightness(I),
-                self.target_means,
-                self.target_stds
-            )
+            return self._transform_batch(standardize_brightness(I))
 
 
 class ReinhardFastMaskNormalizer(ReinhardFastNormalizer):
@@ -416,9 +406,19 @@ class ReinhardFastMaskNormalizer(ReinhardFastNormalizer):
         """
         super().__init__()
         self.threshold = threshold
-        self.transform_kw = dict(
-            mask_threshold=threshold
-        )
+
+    @tf.function
+    def _transform_batch(self, batch: tf.Tensor) -> tf.Tensor:
+        """Normalize a batch of images.
+
+        Args:
+            img (tf.Tensor): Image, RGB uint8 with dimensions BWHC.
+
+        Returns:
+            tf.Tensor: Normalized image batch (uint8)
+        """
+
+        return transform(batch, self.target_means, self.target_stds, self.threshold)
 
 
 class ReinhardMaskNormalizer(ReinhardNormalizer):
@@ -443,6 +443,16 @@ class ReinhardMaskNormalizer(ReinhardNormalizer):
         """
         super().__init__()
         self.threshold = threshold
-        self.transform_kw = dict(
-            mask_threshold=threshold
-        )
+
+    @tf.function
+    def _transform_batch(self, batch: tf.Tensor) -> tf.Tensor:
+        """Normalize a batch of images.
+
+        Args:
+            img (tf.Tensor): Image, RGB uint8 with dimensions BWHC.
+
+        Returns:
+            tf.Tensor: Normalized image batch (uint8)
+        """
+
+        return transform(batch, self.target_means, self.target_stds, self.threshold)
