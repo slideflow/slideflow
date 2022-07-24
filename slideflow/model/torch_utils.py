@@ -215,7 +215,7 @@ def _predict_from_model(
         *Progress.get_default_columns(),
         TimeElapsedColumn(),
         ImgBatchSpeedColumn(dataset.batch_size),
-        transient=True
+        transient=sf.getLoggingLevel()>20
     )
     task = pb.add_task("Predicting...", total=dataset.num_tiles)
     pb.start()
@@ -326,7 +326,7 @@ def _eval_from_model(
         *Progress.get_default_columns(),
         TimeElapsedColumn(),
         ImgBatchSpeedColumn(dataset.batch_size),
-        transient=True
+        transient=sf.getLoggingLevel()>20
     )
     task = pb.add_task("Evaluating...", total=dataset.num_tiles)
     pb.start()

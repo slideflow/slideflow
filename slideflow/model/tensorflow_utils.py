@@ -327,7 +327,7 @@ def _eval_from_model(
         *Progress.get_default_columns(),
         TimeElapsedColumn(),
         MofNCompleteColumn(),
-        transient=True
+        transient=sf.getLoggingLevel()>20
     )
     task = pb.add_task("Evaluating...", total=num_tiles)
     pb.start()
@@ -440,7 +440,7 @@ def _predict_from_model(
         *Progress.get_default_columns(),
         TimeElapsedColumn(),
         MofNCompleteColumn(),
-        transient=True
+        transient=sf.getLoggingLevel()>20
     )
     task = pb.add_task("Predicting...", total=num_tiles)
     pb.start()

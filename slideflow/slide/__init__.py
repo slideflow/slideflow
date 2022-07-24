@@ -1718,7 +1718,7 @@ class WSI(_BaseLoader):
             else:
                 log.debug("Building generator with a shared pool")
             if show_progress:
-                pbar = Progress()
+                pbar = Progress(transient=sf.getLoggingLevel()>20)
                 task = pbar.add_task('Extracting...', total=self.estimated_num_tiles)
                 pbar.start()
 
@@ -2248,7 +2248,7 @@ class TMA(_BaseLoader):
 
         def generator():
             if show_progress:
-                pbar = Progress()
+                pbar = Progress(transient=sf.getLoggingLevel()>20)
                 task = pbar.add_task(
                     "Extracting...",
                     total=self.estimated_num_tiles

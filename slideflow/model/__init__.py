@@ -435,7 +435,7 @@ class DatasetFeatures:
         batch_proc_thread = threading.Thread(target=batch_worker, daemon=True)
         batch_proc_thread.start()
 
-        pb = Progress(transient=True)
+        pb = Progress(transient=sf.getLoggingLevel()>20)
         task = pb.add_task("Generating...", total=estimated_tiles)
         pb.start()
         for batch_img, _, batch_slides, batch_loc_x, batch_loc_y in dataloader:

@@ -1583,7 +1583,7 @@ class Trainer:
                 *Progress.get_default_columns(),
                 TimeElapsedColumn(),
                 ImgBatchSpeedColumn(self.hp.batch_size),
-                transient=True
+                transient=sf.getLoggingLevel()>20
             )
             task = pb.add_task("Training...", total=self.steps_per_epoch)
             pb.start()
