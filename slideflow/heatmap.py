@@ -486,7 +486,7 @@ class Heatmap:
                 **kwargs
             )
 
-        print('\r\033[KSaving base figures...', end='')
+        log.info('Saving base figures...')
 
         # Prepare matplotlib figure
         ax = self._prepare_ax()
@@ -517,7 +517,7 @@ class Heatmap:
             )
             # Make heatmap plots and sliders for each outcome category
             for i in range(self.num_classes):
-                print(f'\r\033[KMaking {i+1}/{self.num_classes}...', end='')
+                log.info(f'Making {i+1}/{self.num_classes}...')
                 self.plot(i, heatmap_alpha=0.6, ax=ax, **heatmap_kwargs)
                 _savefig(str(i), **save_kwargs)
 
@@ -526,7 +526,7 @@ class Heatmap:
 
             # Uncertainty map
             if self.uq:
-                print('\r\033[KMaking uncertainty heatmap...', end='')
+                log.info('Making uncertainty heatmap...')
                 self.plot_uncertainty(heatmap_alpha=0.6, ax=ax, **heatmap_kwargs)
                 _savefig('UQ', **save_kwargs)
 
@@ -534,5 +534,4 @@ class Heatmap:
                 _savefig('UQ-solid', **save_kwargs)
 
         plt.close()
-        print('\r\033[K', end='')
         log.info(f'Saved heatmaps for {col.green(self.slide.name)}')

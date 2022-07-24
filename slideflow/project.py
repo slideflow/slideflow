@@ -13,7 +13,6 @@ from typing import (TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple,
                     Union)
 
 import numpy as np
-from tqdm import tqdm
 
 import slideflow as sf
 from slideflow import errors, project_utils
@@ -2353,7 +2352,8 @@ class Project:
             # Verify slides and estimate total number of tiles
             log.info('Verifying slides...')
             total_tiles = 0
-            for slide_path in tqdm(slide_list, leave=False):
+            from rich.progress import track
+            for slide_path in track(slide_list, transient=True):
                 try:
                     slide = sf.WSI(slide_path,
                                    dataset.tile_px,

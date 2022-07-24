@@ -25,7 +25,7 @@ from slideflow import errors
 from slideflow.util import Labels, Path
 from slideflow.util import colors as col
 from slideflow.util import log
-from tqdm import tqdm
+from rich.progress import track, Progress
 
 if TYPE_CHECKING:
     import tensorflow as tf
@@ -435,12 +435,14 @@ class DatasetFeatures:
         batch_proc_thread = threading.Thread(target=batch_worker, daemon=True)
         batch_proc_thread.start()
 
-        pb = tqdm(total=estimated_tiles, ncols=80, leave=False)
+        pb = Progress(transient=True)
+        task = pb.add_task("Generating...", total=estimated_tiles)
+        pb.start()
         for batch_img, _, batch_slides, batch_loc_x, batch_loc_y in dataloader:
             model_output = combined_model(batch_img)
             q.put((model_output, batch_slides, (batch_loc_x, batch_loc_y)))
-            pb.update(batch_size)
-        pb.close()
+            pb.advance(task, batch_size)
+        pb.stop()
         q.put((None, None, None))
         batch_proc_thread.join()
 
@@ -586,7 +588,7 @@ class DatasetFeatures:
             feature_header = [f'Feature_{f}' for f in range(self.num_features)]
             header = ['Slide'] + logit_header + feature_header
             csvwriter.writerow(header)
-            for slide in tqdm(slides, ncols=80, leave=False):
+            for slide in track(slides):
                 if level == 'tile':
                     for i, tile_act in enumerate(self.activations[slide]):
                         if self.logits[slide] != []:
@@ -629,7 +631,7 @@ class DatasetFeatures:
         if not exists(outdir):
             os.makedirs(outdir)
         slides = self.slides if not slides else slides
-        for slide in tqdm(slides, ncols=80, leave=False):
+        for slide in track(slides):
             if self.activations[slide] == []:
                 log.info(f'Skipping empty slide {col.green(slide)}')
                 continue
@@ -1047,11 +1049,9 @@ class DatasetFeatures:
                 num=tiles_per_feature,
                 dtype=int
             )
-            for i, g in tqdm(enumerate(gradient[sample_idx]),
-                             ncols=80,
-                             leave=False,
+            for i, g in track(enumerate(gradient[sample_idx]),
                              total=tiles_per_feature,
-                             desc=f"Feature {f}"):
+                             description=f"Feature {f}"):
                 for tfr in self.tfrecords:
                     if sf.util.path_to_name(tfr) == g['slide']:
                         tfr_dir = tfr

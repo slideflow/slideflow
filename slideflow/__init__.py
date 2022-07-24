@@ -10,7 +10,7 @@
 
 __author__ = 'James Dolezal'
 __license__ = 'GNU General Public License v3.0'
-__version__ = "1.2.3"
+__version__ = "1.2.4-dev1"
 
 import os
 

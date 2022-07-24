@@ -13,7 +13,7 @@ from slideflow import errors
 from slideflow.io.io_utils import detect_tfrecord_format, convert_dtype
 from slideflow.util import colors as col
 from slideflow.util import log
-from tqdm import tqdm
+from rich.progress import Progress
 
 # --- Backend-specific imports and configuration ------------------------------
 
@@ -90,19 +90,19 @@ def update_manifest_at_dir(
 
     pool = DPool(8)
     if sf.getLoggingLevel() <= 20:
-        pb = tqdm(
-            desc='Verifying tfrecords...',
-            total=len(rel_paths),
-            leave=False
-        )
+        pb = Progress(transient=True)
+        task = pb.add_task("Verifying tfrecords...", total=len(rel_paths))
+        pb.start()
     else:
         pb = None
     for m in pool.imap(process_tfr, rel_paths):
         if pb is not None:
-            pb.update()
+            pb.advance(task)
         if m is None:
             continue
         manifest.update(m)
+    if pb is not None:
+        pb.stop()
     # Write manifest file
     if (manifest != prior_manifest) or (manifest == {}):
         sf.util.write_json(manifest, manifest_path)

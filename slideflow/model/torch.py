@@ -18,10 +18,9 @@ from slideflow import errors
 from slideflow.model import base as _base
 from slideflow.model import torch_utils
 from slideflow.model.base import log_manifest, no_scope
-from slideflow.util import NormFit, Path
+from slideflow.util import log, NormFit, Path, ImgBatchSpeedColumn
 from slideflow.util import colors as col
-from slideflow.util import log
-from tqdm import tqdm
+from rich.progress import Progress, TimeElapsedColumn
 from packaging import version
 
 import torch
@@ -520,7 +519,6 @@ class Trainer:
         self.ema_two_checks_prior = -1  # type: float
         self.epoch_records = 0  # type: int
         self.running_loss = 0.0
-        self.phase = None  # type: Optional[str]
         self.running_corrects = {}  # type: Union[Tensor, Dict[str, Tensor]]
 
     def _accuracy_as_numpy(
@@ -1163,7 +1161,7 @@ class Trainer:
             self.mid_train_val_dts = None  # type: ignore
             log.debug('Validation during training: None')
 
-    def _training_step(self, pb: tqdm) -> None:
+    def _training_step(self, pb: Progress) -> None:
         assert self.model is not None
         images, labels, slides = next(self.dataloaders['train'])
         images = images.to(self.device, non_blocking=True)
@@ -1210,9 +1208,10 @@ class Trainer:
             train_acc, acc_desc = 0, ''  # type: ignore
         self.running_loss += loss.item() * images.size(0)
         _loss = self.running_loss / self.epoch_records
-        pb.set_description(f'{col.bold(col.blue(self.phase))} '
-                           f'loss: {_loss:.4f} {acc_desc}')
-        pb.update(images.size(0))
+        pb.update(task_id=0,
+                  description=(f'{col.bold(col.blue("train"))} '
+                               f'loss: {_loss:.4f} {acc_desc}'))
+        pb.advance(task_id=0)
 
         # Log to tensorboard
         if self.use_tensorboard and self.global_step % self.log_frequency == 0:
@@ -1544,7 +1543,6 @@ class Trainer:
         else:
             self.steps_per_epoch = train_dts.num_tiles // self.hp.batch_size
             log.info(f"Steps per epoch = {self.steps_per_epoch}")
-        epoch_size = (self.steps_per_epoch * self.hp.batch_size)
         if use_tensorboard:
             self.writer = SummaryWriter(self.outdir, flush_secs=60)
         self._log_manifest(train_dts, val_dts)
@@ -1581,15 +1579,22 @@ class Trainer:
             self.step = 1
             self.running_corrects = self._empty_corrects()  # type: ignore
             self.model.train()
-            pb = tqdm(total=epoch_size, unit='img', leave=False)
-            while self.step < self.steps_per_epoch:
+            pb = Progress(
+                *Progress.get_default_columns(),
+                TimeElapsedColumn(),
+                ImgBatchSpeedColumn(self.hp.batch_size),
+                transient=True
+            )
+            task = pb.add_task("Training...", total=self.steps_per_epoch)
+            pb.start()
+            while self.step <= self.steps_per_epoch:
                 self._training_step(pb)
                 if self.early_stop:
                     break
                 self._mid_training_validation()
                 self.step += 1
                 self.global_step += 1
-            pb.close()
+            pb.stop()
 
             # Update and log epoch metrics ------------------------------------
             loss = self.running_loss / self.epoch_records

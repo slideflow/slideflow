@@ -78,7 +78,7 @@ from PIL import Image
 from slideflow import errors
 from slideflow.dataset import Dataset
 from slideflow.util import detuple, log
-from tqdm import tqdm
+from rich.progress import Progress
 
 if TYPE_CHECKING:
     import tensorflow as tf
@@ -251,11 +251,9 @@ class StainNormalizer:
                     num_workers=8
                 )
             all_fit_vals = []  # type: ignore
-            pb = tqdm(
-                desc='Fitting normalizer...',
-                ncols=80,
-                total=dataset.num_tiles
-            )
+            pb = Progress()
+            task = pb.add_task('Fitting normalizer...', total=dataset.num_tiles)
+            pb.start()
             for img_batch, slide in dts:
                 if sf.backend() == 'torch':
                     img_batch = img_batch.permute(0, 2, 3, 1)  # BCWH -> BWHC
@@ -266,7 +264,8 @@ class StainNormalizer:
                         all_fit_vals = [[] for _ in range(len(fit_vals))]
                     for v, val in enumerate(fit_vals):
                         all_fit_vals[v] += [np.squeeze(val)]
-                pb.update(batch_size)
+                pb.advance(task, batch_size)
+            pb.stop()
             self.n.set_fit(*[np.array(v).mean(axis=0) for v in all_fit_vals])
             pool.close()
 

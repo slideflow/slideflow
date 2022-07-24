@@ -19,7 +19,7 @@ from slideflow.io import convert_dtype
 from slideflow.io.io_utils import detect_tfrecord_format
 from slideflow.tfrecord.torch.dataset import MultiTFRecordDataset
 from slideflow.util import Labels, log, to_onehot
-from tqdm import tqdm
+from rich.progress import Progress
 
 import torch
 
@@ -776,15 +776,15 @@ def interleave(
 
         pool = mp.dummy.Pool(16)
         if rank == 0:
-            pb = tqdm(
-                desc='Loading indices...',
-                total=len(tfrecords),
-                leave=False
-            )
+            pb = Progress(transient=True)
+            task = pb.add_task('Loading indices...', total=len(tfrecords))
+            pb.start()
         for index in pool.imap(load_index, tfrecords):
             indices += [index]
             if rank == 0:
-                pb.update()
+                pb.advance(task)
+        if rank == 0:
+            pb.stop()
         pool.close()
 
     #  -------  Interleave and batch datasets ---------------------------------

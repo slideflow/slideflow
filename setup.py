@@ -59,6 +59,7 @@ setuptools.setup(
         'smac',
         'ConfigSpace',
         'pyarrow',
-        'ninja'
+        'ninja',
+        'rich'
     ],
 )

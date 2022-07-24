@@ -34,3 +34,4 @@ ConfigSpace
 pyarrow
 ninja
 tensorflow_probability
+rich

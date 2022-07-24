@@ -3,13 +3,11 @@ import csv
 import importlib.util
 import json
 import logging
-import multiprocessing as mp
 import os
 import re
 import shutil
 import sys
-import threading
-import time
+from rich import progress
 from functools import partial
 from glob import glob
 from os.path import dirname, exists, isdir, join
@@ -25,7 +23,6 @@ from slideflow.util import log_utils
 from slideflow import errors
 from slideflow.util import example_pb2
 from slideflow.util.colors import *  # noqa F403,F401 - Here for compatibility
-from tqdm import tqdm
 
 # --- Optional imports --------------------------------------------------------
 # git is not needed for pypi distribution
@@ -116,273 +113,31 @@ addLoggingFileHandler("slideflow.log")
 log.propagate = False
 
 
-# --- Multiprocessing-compatible progress bars --------------------------------
-class DummyLock:
-    def __init__(self, *args):
-        pass
+class TileExtractionSpeedColumn(progress.ProgressColumn):
+    """Renders human readable transfer speed."""
 
-    def __enter__(self, *args):
-        pass
+    def render(self, task: "progress.Task") -> progress.Text:
+        """Show data transfer speed."""
+        speed = task.finished_speed or task.speed
+        if speed is None:
+            return progress.Text("?", style="progress.data.speed")
+        data_speed = f'{int(speed)} img'
+        return progress.Text(f"{data_speed}/s", style="progress.data.speed")
 
-    def __exit__(self, *args):
-        pass
+class ImgBatchSpeedColumn(progress.ProgressColumn):
+    """Renders human readable transfer speed."""
 
+    def __init__(self, batch_size, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.batch_size = batch_size
 
-class DummyCounter:
-    def __init__(self, value: int):
-        self.value = value
-
-
-class Bar:
-    def __init__(
-        self,
-        ending_value: int,
-        starting_value: int = 0,
-        bar_length: int = 20,
-        label: str = '',
-        show_eta: bool = False,
-        show_counter: bool = False,
-        counter_text: str = '',
-        update_interval: int = 1,
-        mp_counter: Optional["mp.sharedctypes.Synchronized"] = None,
-        mp_lock: Optional["mp.synchronize.Lock"] = None
-    ) -> None:
-        if mp_counter is not None:
-            self.counter = mp_counter
-            self.mp_lock = mp_lock
-        else:
-            try:
-                manager = mp.Manager()
-                self.counter = manager.Value('i', 0)  # type: ignore
-                self.mp_lock = manager.Lock()  # type: ignore
-            except AssertionError:
-                self.counter = DummyCounter(0)  # type: ignore
-                self.mp_lock = DummyLock()  # type: ignore
-
-        # Setup timing
-        self.starttime = None  # type: Optional[int]
-        self.lastupdated = None  # type: Optional[int]
-        self.checkpoint_time = None  # type: Optional[int]
-        self.checkpoint_val = starting_value
-
-        # Other initializing variables
-        self.counter.value = starting_value
-        self.end_value = ending_value
-        self.bar_length = bar_length
-        self.label = label
-        self.show_counter = show_counter
-        self.counter_text = '' if not counter_text else " " + counter_text
-        self.show_eta = show_eta
-        self.text = ''
-        self.num_per_sec = 0
-        self.update_interval = update_interval
-
-    def get_text(self) -> str:
-        current_time = int(time.time())
-        if not self.starttime:
-            self.starttime = current_time
-            self.checkpoint_time = current_time
-            self.checkpoint_val = self.counter.value
-            self.lastupdated = self.starttime
-        elif current_time == self.lastupdated:
-            return self.text
-        else:
-            current_time
-
-        timediff = int(time.time())-self.starttime
-
-        # Checkpoint every {update_interval} seconds
-        assert self.checkpoint_time is not None
-        if (current_time - self.checkpoint_time) > self.update_interval:
-
-            self.num_per_sec = (
-                (self.counter.value - self.checkpoint_val)
-                / (current_time - self.checkpoint_time)
-            )
-            # Reset checkpoint
-            self.checkpoint_val = self.counter.value
-            self.checkpoint_time = current_time
-
-        percent = float(self.counter.value) / self.end_value
-        arrow = chr(0x2588) * int(round(percent * self.bar_length))
-        spaces = u'-' * (self.bar_length - len(arrow))
-
-        self.text = u"\u007c{0}\u007c {1:.1f}%{2}".format(
-            arrow + spaces,
-            (float(self.counter.value) / self.end_value)*100,
-            f' ({self.label})' if self.label else '')
-
-        if self.show_counter and self.num_per_sec:
-            nps_str = "?" if timediff == 0 else f'{self.num_per_sec:.1f}'
-            self.text += f" {nps_str}{self.counter_text}/sec"
-        if self.show_eta and timediff and self.num_per_sec:
-            eta = (self.end_value - self.counter.value) / self.num_per_sec
-            gm_eta = time.gmtime(eta)
-            self.text += f" (ETA: {time.strftime('%H:%M:%S', gm_eta)})"
-        elif self.show_eta:
-            self.text += " (ETA: ?)"
-        return self.text
-
-
-class ProgressBar:
-    '''Flexible progress bar with dynamic ETA monitoring and
-    multiprocessing support.
-    '''
-
-    def __init__(
-        self,
-        ending_val: int,
-        starting_val: int = 0,
-        bar_length: int = 20,
-        endtext: str = '',
-        show_eta: bool = False,
-        show_counter: bool = False,
-        counter_text: str = '',
-        leadtext: str = '',
-        mp_counter: Optional["mp.sharedctypes.Synchronized"] = None,
-        mp_lock: Optional["mp.synchronize.Lock"] = None
-    ) -> None:
-        self.leadtext = leadtext
-        self.tail = ''
-        self.text = ''
-        self.refresh_thread = None  # type: Optional[threading.Thread]
-        self.live = True
-        self.BARS = [Bar(ending_val,
-                         starting_val,
-                         bar_length,
-                         endtext,
-                         show_eta,
-                         show_counter,
-                         counter_text,
-                         mp_counter=mp_counter,
-                         mp_lock=mp_lock)]
-        self.refresh()
-
-    def add_bar(
-        self,
-        val: int,
-        endval: int,
-        bar_length: int = 20,
-        endtext: str = '',
-        show_eta: bool = False,
-        show_counter: bool = False,
-        counter_text: str = ''
-    ) -> int:
-        """Adds a bar to the ProgressBar.
-
-        Args:
-            val (int): Current bar value.
-            endval (int): Ending bar value.
-            bar_length (int, optional): Length of bar. Defaults to 20.
-            endtext (str, optional): Text description. Defaults to ''.
-            show_eta (bool, optional): Show ETA. Defaults to False.
-            show_counter (bool, optional): Show the counter. Defaults to False.
-            counter_text (str, optional): Counter text. Defaults to ''.
-
-        Returns:
-            int: Bar ID
-        """
-        self.BARS += [Bar(val,
-                          endval,
-                          bar_length,
-                          endtext,
-                          show_eta,
-                          show_counter,
-                          counter_text)]
-        self.refresh()
-        return len(self.BARS)-1
-
-    def increase_bar_value(self, amount: int = 1, id: int = 0) -> None:
-        """Increase value of a progress bar.
-
-        Args:
-            amount (int, optional): Amount to increase bar value. Defaults to 1.
-            id (int, optional): Bar ID. Defaults to 0.
-        """
-        with self.BARS[id].mp_lock:  # type: ignore
-            self.BARS[id].counter.value = min(
-                self.BARS[id].counter.value + amount,
-                self.BARS[id].end_value
-            )
-        self.refresh()
-
-    def get_counter(
-        self, id: int = 0
-    ) -> Union["mp.sharedctypes.Synchronized", DummyCounter]:
-        return self.BARS[id].counter
-
-    def get_lock(
-        self, id: int = 0
-    ) -> Union["mp.synchronize.Lock", DummyLock]:
-        return self.BARS[id].mp_lock  # type: ignore
-
-    def set_bar_value(self, value: int, id: int = 0) -> None:
-        """Set the bar to a given value.
-
-        Args:
-            value (int): Value to set bar at.
-            id (int, optional): Bar ID. Defaults to 0.
-        """
-        with self.BARS[id].mp_lock:  # type: ignore
-            self.BARS[id].counter.value = min(value, self.BARS[id].end_value)
-        self.refresh()
-
-    def set_bar_text(self, text: str, id: int = 0):
-        """Set the bar text description.
-
-        Args:
-            text (str): Text description
-            id (int, optional): Bar ID. Defaults to 0.
-        """
-        self.BARS[id].text = text
-        self.refresh()
-
-    def auto_refresh(self, freq: float = 0.1) -> None:
-        """Auto-refresh bar at this interval.
-
-        Args:
-            freq (float, optional): Refresh interval (sec). Defaults to 0.1.
-        """
-        def auto_refresh_worker():
-            while self.live:
-                self.refresh()
-                time.sleep(freq)
-
-        self.refresh_thread = threading.Thread(
-            target=auto_refresh_worker, daemon=True
-        )
-        self.refresh_thread.start()
-
-    def refresh(self) -> None:
-        if len(self.BARS) == 0:
-            sys.stdout.write("\r\033[K")
-            sys.stdout.flush()
-            return
-        new_text = f"\r\033[K{self.leadtext}"
-        for bar in self.BARS:
-            new_text += bar.get_text()
-            if len(self.BARS) > 1:
-                new_text += "  "
-        new_text += self.tail
-        if new_text != self.text:
-            sys.stdout.write(new_text)
-            sys.stdout.flush()
-            self.text = new_text
-
-    def end(self, id: int = -1) -> None:
-        if id == -1:
-            self.BARS = []
-            print("\r\033[K", end="")
-        else:
-            del(self.BARS[id])
-            print(f"\r\033[K{self.text}", end="")
-        self.live = False
-
-    def print(self, string: str) -> None:
-        sys.stdout.write(f"\r\033[K{string}\n")
-        sys.stdout.flush()
-        sys.stdout.write(self.text)
-        sys.stdout.flush()
+    def render(self, task: "progress.Task") -> progress.Text:
+        """Show data transfer speed."""
+        speed = task.finished_speed or task.speed
+        if speed is None:
+            return progress.Text("?", style="progress.data.speed")
+        data_speed = f'{int(speed * self.batch_size)} img'
+        return progress.Text(f"{data_speed}/s", style="progress.data.speed")
 
 
 # --- Utility functions and classes -------------------------------------------

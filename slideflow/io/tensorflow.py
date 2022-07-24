@@ -16,7 +16,7 @@ from slideflow.io.io_utils import detect_tfrecord_format
 from slideflow.util import Labels
 from slideflow.util import colors as col
 from slideflow.util import log
-from tqdm import tqdm
+from rich.progress import track
 
 import tensorflow as tf
 
@@ -466,7 +466,9 @@ def interleave(
             )
         datasets = []
         weights = [] if prob_weights else None  # type: Optional[List]
-        for tfr in tqdm(tfrecords, desc='Interleaving...', leave=False):
+        for tfr in track(tfrecords,
+                         description='Interleaving...',
+                         transient=True):
             tf_dts = tf.data.TFRecordDataset(
                 tfr,
                 num_parallel_reads=num_parallel_reads

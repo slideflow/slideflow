@@ -10,7 +10,7 @@ import slideflow as sf
 from pandas.core.frame import DataFrame
 from slideflow.stats import df_from_pred
 from slideflow.util import log
-from tqdm import tqdm
+from rich.progress import Progress, TimeElapsedColumn, MofNCompleteColumn
 
 import tensorflow as tf
 
@@ -323,7 +323,14 @@ def _eval_from_model(
     if not is_cat:
         acc = None
 
-    pb = tqdm(total=num_tiles, desc='Evaluating...', ncols=80, leave=False)
+    pb = Progress(
+        *Progress.get_default_columns(),
+        TimeElapsedColumn(),
+        MofNCompleteColumn(),
+        transient=True
+    )
+    task = pb.add_task("Evaluating...", total=num_tiles)
+    pb.start()
     for batch in dataset:
 
         # Parse dataset batch
@@ -333,7 +340,7 @@ def _eval_from_model(
         else:
             img, yt, slide = batch
 
-        pb.update(slide.shape[0])
+        pb.advance(task, slide.shape[0])
         tile_to_slides += [_byte.decode('utf-8') for _byte in slide.numpy()]
         num_vals += slide.shape[0]
         num_batches += 1
@@ -354,7 +361,7 @@ def _eval_from_model(
             y_true += [yt.numpy()]
         loss = pred_args.loss(yt, yp)
         running_loss += tf.math.reduce_sum(loss).numpy() * slide.shape[0]
-    pb.close()
+    pb.stop()
 
     if type(y_pred[0]) == list:
         # Concatenate predictions for each outcome
@@ -429,14 +436,21 @@ def _predict_from_model(
     y_std = [] if pred_args.uq else None  # type: ignore
     num_vals, num_batches, num_outcomes = 0, 0, 0
 
-    pb = tqdm(total=num_tiles, desc='Predicting...', ncols=80, leave=False)
+    pb = Progress(
+        *Progress.get_default_columns(),
+        TimeElapsedColumn(),
+        MofNCompleteColumn(),
+        transient=True
+    )
+    task = pb.add_task("Predicting...", total=num_tiles)
+    pb.start()
     for batch in dataset:  # TODO: support not needing to supply yt
         if incl_loc:
             img, yt, slide, loc_x, loc_y = batch
             locations += [tf.stack([loc_x, loc_y], axis=-1).numpy()]
         else:
             img, yt, slide = batch
-        pb.update(slide.shape[0])
+        pb.advance(task, slide.shape[0])
         tile_to_slides += [_bytes.decode('utf-8') for _bytes in slide.numpy()]
         num_vals += slide.shape[0]
         num_batches += 1
@@ -449,7 +463,7 @@ def _predict_from_model(
         else:
             yp = get_predictions(img, training=False)
             y_pred += [yp]
-    pb.close()
+    pb.stop()
 
     if type(y_pred[0]) == list:
         # Concatenate predictions for each outcome

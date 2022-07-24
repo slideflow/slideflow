@@ -13,7 +13,7 @@ from PIL import Image
 from slideflow.gan.stylegan2 import embedding, utils
 from slideflow.gan.utils import crop
 from slideflow import errors
-from tqdm import tqdm
+from rich.progress import track
 from functools import partial
 
 if TYPE_CHECKING:
@@ -244,7 +244,7 @@ class StyleGAN2Interpolator:
         # Calculate classifier features for GAN images created from seeds.
         # Calculation happens in batches to improve computational efficiency.
         # noise + embedding -> GAN -> Classifier -> Predictions, Features
-        pb = tqdm(total=len(seeds), leave=False)
+        pb = track(total=len(seeds))
         seeds_and_embeddings = zip(
             sf.util.batch(seeds, batch_size),
             gan_embed0_dts,
@@ -297,7 +297,7 @@ class StyleGAN2Interpolator:
                     tail = ""
                     swap_labels += ['no_swap']
                 if verbose:
-                    tqdm.write(f"Seed {seed_batch[i]:<6}: {pred0[i]:.2f}\t{pred1[i]:.2f}{tail}")
+                    print(f"Seed {seed_batch[i]:<6}: {pred0[i]:.2f}\t{pred1[i]:.2f}{tail}")
             pb.update(len(seed_batch))
         pb.close()
 
@@ -560,7 +560,7 @@ class StyleGAN2Interpolator:
         proc_imgs = []
         preds = []
 
-        for img in tqdm(self.class_interpolate(seed, steps), total=steps):
+        for img in track(self.class_interpolate(seed, steps), total=steps):
             img = torch.from_numpy(np.expand_dims(img, axis=0)).permute(0, 3, 1, 2)
             img = (img / 127.5) - 1
             img = self._crop_and_convert_to_uint8(img)

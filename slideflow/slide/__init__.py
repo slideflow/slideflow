@@ -38,7 +38,7 @@ from slideflow.slide.report import ExtractionReport, SlideReport
 from slideflow.util import SUPPORTED_FORMATS, Path  # noqa F401
 from slideflow.util import colors as col
 from slideflow.util import log, path_to_name  # noqa F401
-from tqdm import tqdm
+from rich.progress import Progress
 
 try:
     import pyvips as vips
@@ -630,24 +630,10 @@ class _BaseLoader:
         tile_um: Union[int, str],
         stride_div: int,
         enable_downsample: bool = True,
-        pb: Optional[sf.util.ProgressBar] = None,
-        pb_counter: Optional[Union[sf.util.DummyCounter,
-                                   "mp.sharedctypes.Synchronized"]] = None,
-        counter_lock: Optional[Union[sf.util.DummyLock,
-                                     "mp.synchronize.Lock"]] = None
+        pb: Optional[Progress] = None,
     ) -> None:
 
-        # if a progress bar is not directly provided, use the provided
-        # multiprocess-friendly progress bar counter and lock
-        # (for multiprocessing, as ProgressBar cannot be pickled)
-        if not pb:
-            self._pb_counter = pb_counter
-            self._counter_lock = counter_lock
-        # Otherwise, use the provided progress bar's counter and lock
-        else:
-            self._pb_counter = pb.get_counter()
-            self._counter_lock = pb.get_lock()
-
+        self.pb = pb
         self.name = path_to_name(path)
         self.shortname = sf.util._shortname(self.name)
         self.tile_px = tile_px
@@ -1119,7 +1105,7 @@ class _BaseLoader:
             ))
 
         generator = self.build_generator(
-            show_progress=(self._counter_lock is None),
+            show_progress=False,#(self.pb is None),
             img_format=img_format,
             **kwargs
         )
@@ -1185,7 +1171,7 @@ class _BaseLoader:
             if not num_wrote_to_tfr:
                 os.remove(join(tfrecord_dir, self.name+".tfrecords"))
                 log.info(f'No tiles extracted for {col.green(self.name)}')
-        if self._counter_lock is None:
+        if self.pb is None:
             generator_iterator.close()
 
         if tfrecord_dir or tiles_dir:
@@ -1260,7 +1246,7 @@ class _BaseLoader:
                 tiles_dir is set. Defaults to False.
         """
         if 'show_progress' not in kwargs:
-            kwargs['show_progress'] = (self._counter_lock is None)
+            kwargs['show_progress'] = (self.pb is None)
         generator = self.build_generator(
             dry_run=True,
             **kwargs
@@ -1287,9 +1273,7 @@ class WSI(_BaseLoader):
         rois: Optional[List[str]] = None,
         roi_method: str = 'auto',
         randomize_origin: bool = False,
-        pb: Optional[sf.util.ProgressBar] = None,
-        pb_counter: Optional["mp.sharedctypes.Synchronized"] = None,
-        counter_lock: Optional["mp.synchronize.Lock"] = None,
+        pb: Optional[Progress] = None,
         silent: bool = False
     ) -> None:
         """Loads slide and ROI(s).
@@ -1321,14 +1305,9 @@ class WSI(_BaseLoader):
                 Defaults to 'auto'.
             randomize_origin (bool, optional): Offset the starting grid by a
                 random amount. Defaults to False.
-            pb (:class:`slideflow.util.ProgressBar`, optional): Multiprocessing
-                capable ProgressBar instance; will update progress bar during
+            pb (:class:`Progress`, optional): Multiprocessing
+                capable Progress instance; will update progress bar during
                 tile extraction if provided.
-            pb_counter (obj): Multiprocessing counter (a multiprocessing Value,
-                from Progress Bar) used to follow tile extraction progress.
-                Defaults to None.
-            counter_lock (obj): Lock object for updating pb_counter, if
-                provided. Defaults to None.
             silent (bool, optional): Suppresses warnings about slide skipping
                 if ROIs are missing. Defaults to False.
         """
@@ -1339,9 +1318,7 @@ class WSI(_BaseLoader):
             tile_um=tile_um,
             stride_div=stride_div,
             enable_downsample=enable_downsample,
-            pb=pb,
-            pb_counter=pb_counter,
-            counter_lock=counter_lock
+            pb=pb
         )
 
         # Initialize calculated variables
@@ -1741,7 +1718,9 @@ class WSI(_BaseLoader):
             else:
                 log.debug("Building generator with a shared pool")
             if show_progress:
-                pbar = tqdm(total=self.estimated_num_tiles, ncols=80)
+                pbar = Progress()
+                task = pbar.add_task('Extracting...', total=self.estimated_num_tiles)
+                pbar.start()
 
             if pool is not None:
                 i_mapped = pool.imap(
@@ -1752,16 +1731,15 @@ class WSI(_BaseLoader):
                 if result == 'skip':
                     continue
                 if show_progress:
-                    pbar.update(1)
-                elif self._counter_lock is not None:
-                    with self._counter_lock:
-                        self._pb_counter.value += 1
+                    pbar.advance(task, 1)
+                elif self.pb is not None:
+                    self.pb.advance(0)
                 if result is None:
                     continue
                 else:
                     yield result
             if show_progress:
-                pbar.close()
+                pbar.stop()
             if should_close:
                 pool.close()
             name_msg = col.green(self.shortname)
@@ -1913,8 +1891,7 @@ class TMA(_BaseLoader):
         stride_div: int = 1,
         enable_downsample: bool = True,
         report_dir: Optional[Path] = None,
-        pb: Optional[sf.util.ProgressBar] = None,
-        pb_id: int = 0
+        pb: Optional[Progress] = None
     ) -> None:
         '''Initializer.
 
@@ -1928,10 +1905,9 @@ class TMA(_BaseLoader):
             enable_downsample (bool, optional): Allow use of downsampled
                 layers in the slide image pyramid, which greatly improves
                 tile extraction speed. Defaults to True.
-            pb (sf.util.ProgressBar, optional): ProgressBar; will update
+            pb (Progress, optional): Progress bar; will update
                 progress bar during tile extraction if provided.
                 Defaults to None.
-            pb_id (int, optional): ID of bar in ProgressBar. Defaults to 0.
         '''
         super().__init__(
             path,
@@ -1953,7 +1929,6 @@ class TMA(_BaseLoader):
         self.THUMB_DOWNSCALE = (self.DIM[0]
                                 / self.mpp_to_dim(target_thumb_mpp)[0])
         self.pb = pb
-        self.pb_id = pb_id
         self.estimated_num_tiles = self._detect_cores(report_dir=report_dir)  # type: int
         size_msg = f'Size: {self.dimensions[0]} x {self.dimensions[1]}'
         log.info(f"{self.shortname}: {self.mpp} um/px | {size_msg}")
@@ -2273,7 +2248,12 @@ class TMA(_BaseLoader):
 
         def generator():
             if show_progress:
-                pbar = tqdm(total=self.estimated_num_tiles, ncols=80)
+                pbar = Progress()
+                task = pbar.add_task(
+                    "Extracting...",
+                    total=self.estimated_num_tiles
+                )
+                pbar.start()
             ctx = mp.get_context('spawn')
             extraction_pool = ctx.Pool(
                 num_threads,
@@ -2292,9 +2272,9 @@ class TMA(_BaseLoader):
                     break
                 else:
                     if self.pb:
-                        self.pb.increase_bar_value(id=self.pb_id)
+                        self.pb.advance(0)
                     if show_progress:
-                        pbar.update(1)
+                        pbar.advance(task, 1)
 
                     resized_core = self._resize_to_target(image_core)
 
@@ -2351,6 +2331,6 @@ class TMA(_BaseLoader):
 
             extraction_pool.close()
             if show_progress:
-                pbar.close()
+                pbar.stop()
 
         return generator

@@ -103,15 +103,15 @@ from typing import (TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Tuple,
 import numpy as np
 import pandas as pd
 import shapely.geometry as sg
-from tqdm import tqdm
+from rich.progress import track, Progress, TimeElapsedColumn
 
 import slideflow as sf
 from slideflow import errors
 from slideflow.model import ModelParams
 from slideflow.slide import WSI, ExtractionReport, SlideReport
-from slideflow.util import Labels, Path, _shortname
+from slideflow.util import (log, Labels, Path, _shortname, path_to_name,
+                            tfrecord2idx, TileExtractionSpeedColumn)
 from slideflow.util import colors as col
-from slideflow.util import log, path_to_name, tfrecord2idx
 
 if TYPE_CHECKING:
     import tensorflow as tf
@@ -787,11 +787,10 @@ class Dataset:
             if not exists(index_name) or force:
                 tfrecord2idx.create_index(filename, index_name)
         pool = DPool(16)
-        for _ in tqdm(pool.imap(create_index, self.tfrecords()),
-                      desc='Creating index files...',
-                      ncols=80,
+        for _ in track(pool.imap(create_index, self.tfrecords()),
+                      description='Creating index files...',
                       total=len(self.tfrecords()),
-                      leave=False):
+                      transient=True):
             pass
         pool.close()
 
@@ -1105,9 +1104,9 @@ class Dataset:
             # Verify slides and estimate total number of tiles
             log.info('Verifying slides...')
             total_tiles = 0
-            for slide_path in tqdm(slide_list,
-                                   leave=False,
-                                   desc="Verifying slides..."):
+            for slide_path in track(slide_list,
+                                    description="Verifying slides...",
+                                    transient=True):
                 try:
                     if tma:
                         slide = sf.slide.TMA(
@@ -1144,8 +1143,6 @@ class Dataset:
                 manager = multiprocessing.Manager()
                 ctx = multiprocessing.get_context('spawn')
                 reports = manager.dict()  # type: dict
-                counter = manager.Value('i', 0)
-                counter_lock = manager.Lock()
 
                 # If only one worker, use a single shared multiprocessing pool
                 if num_workers == 1:
@@ -1162,16 +1159,13 @@ class Dataset:
 
                 # Set up the multiprocessing progress bar
                 if total_tiles:
-                    pb = sf.util.ProgressBar(
-                        total_tiles,
-                        counter_text='tiles',
-                        leadtext='Extracting tiles... ',
-                        show_counter=True,
-                        show_eta=True,
-                        mp_counter=counter,  # type: ignore
-                        mp_lock=counter_lock  # type: ignore
+                    pb = Progress(
+                        *Progress.get_default_columns(),
+                        TimeElapsedColumn(),
+                        TileExtractionSpeedColumn()
                     )
-                    pb.auto_refresh(0.1)
+                    task = pb.add_task("Extracting tiles...", total=total_tiles)
+                    pb.start()
                 else:
                     pb = None
 
@@ -1183,8 +1177,7 @@ class Dataset:
                     'roi_dir': roi_dir,
                     'roi_method': roi_method,
                     'randomize_origin': randomize_origin,
-                    'pb_counter': counter,
-                    'counter_lock': counter_lock
+                    'pb': pb
                 }
                 extraction_kwargs = {
                     'tfrecord_dir': tfrecord_dir,
@@ -1229,7 +1222,7 @@ class Dataset:
                 for thread in threads:
                     thread.join()
                 if pb:
-                    pb.end()
+                    pb.stop()
                 if kwargs['pool'] is not None:
                     kwargs['pool'].close()
                 if report:
@@ -1603,10 +1596,10 @@ class Dataset:
                 index = np.loadtxt(index_name, dtype=np.int64)
             return tfr_name, index
 
-        for tfr_name, index in tqdm(pool.imap(load_index, tfrecords),
-                                    desc="Loading indices...",
+        for tfr_name, index in track(pool.imap(load_index, tfrecords),
+                                    description="Loading indices...",
                                     total=len(tfrecords),
-                                    leave=False):
+                                    transient=True):
             indices[tfr_name] = index
         pool.close()
         return indices
@@ -1863,7 +1856,7 @@ class Dataset:
             out_path = join(destination, 'outside', f'{slidename}.tfrecords')
             inside_roi_writer = sf.io.TFRecordWriter(in_path)
             outside_roi_writer = sf.io.TFRecordWriter(out_path)
-            for record in tqdm(reader, total=manifest[tfr]['total']):
+            for record in track(reader, total=manifest[tfr]['total']):
                 parsed = parser(record)
                 loc_x, loc_y = parsed['loc_x'], parsed['loc_y']
                 tile_in_roi = any([
@@ -2829,10 +2822,10 @@ class Dataset:
         tfrecords = self.tfrecords()
         if len(tfrecords):
             img_formats = []
-            pb = tqdm(
+            pb = track(
                 tfrecords,
-                desc="Verifying tfrecord formats...",
-                leave=False
+                description="Verifying tfrecord formats...",
+                transient=True
             )
             for tfr in pb:
                 fmt = sf.io.detect_tfrecord_format(tfr)[-1]

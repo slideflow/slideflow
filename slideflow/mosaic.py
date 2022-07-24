@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 import cv2
 import numpy as np
 from matplotlib import patches
-from tqdm import tqdm
+from rich.progress import track
 
 import slideflow as sf
 from slideflow import errors
@@ -213,12 +213,9 @@ class Mosaic:
         global_coords = np.asarray([p['coord'] for p in self.points])
         dist_fn = partial(calc_distance, global_coords=global_coords)
         pool = DPool(8)
-        for i, _ in tqdm(enumerate(pool.imap_unordered(dist_fn, self.GRID), 1),
-                         total=len(self.GRID),
-                         ncols=80,
-                         leave=False):
-            if sf.getLoggingLevel() <= 20:
-                sys.stderr.write(f'\rCompleted {i/len(self.GRID):.2%}')
+        for i, _ in track(enumerate(pool.imap_unordered(dist_fn, self.GRID), 1),
+                          total=len(self.GRID)):
+            pass
         pool.close()
         pool.join()
         end = time.time()
@@ -348,10 +345,8 @@ class Mosaic:
                 tile['image'] = image
                 num_placed += 1
         elif self.mapping_method == 'expanded':
-            for distance_pair in tqdm(self.tile_point_distances,
-                                      total=len(self.tile_point_distances),
-                                      ncols=80,
-                                      leave=False):
+            for distance_pair in track(self.tile_point_distances,
+                                       total=len(self.tile_point_distances)):
                 # Attempt to place pair, skipping if unable
                 # (due to other prior pair)
                 point = self.points[distance_pair['point_index']]

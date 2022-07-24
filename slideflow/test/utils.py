@@ -12,13 +12,12 @@ import traceback
 from functools import wraps
 from os.path import exists, join
 from typing import Any, Callable, Dict, List, Optional
+from rich.progress import Progress
 
 import requests
 import slideflow as sf
-from slideflow.util import ProgressBar
 from slideflow.util import colors as col
 from slideflow.util import log
-from slideflow.util.spinner import Spinner
 
 
 def process_isolate(func: Callable, project: sf.Project, **kwargs) -> bool:
@@ -88,13 +87,15 @@ def download_from_tcga(uuid: str, dest: str, message: str = '') -> None:
     response_head_cd = response.headers["Content-Disposition"]
     block_size = 4096
     file_size = int(response.headers.get('Content-Length', ''))
-    pb = ProgressBar(file_size, leadtext=message)
+    pb = Progress()
+    task = pb.add_task(message, total=file_size)
+    pb.start()
     file_name = join(dest, re.findall("filename=(.+)", response_head_cd)[0])
     with open(file_name, "wb") as output_file:
         for chunk in response.iter_content(chunk_size=block_size):
             output_file.write(chunk)
-            pb.increase_bar_value(block_size)
-    pb.end()
+            pb.advance(task, block_size)
+    pb.stop()
 
 
 def random_annotations(
@@ -210,20 +211,14 @@ class TaskWrapper:
         self.failed = False
         self.skipped = False
         self.start = time.time()
-        if self.VERBOSITY >= logging.WARNING:
-            self.spinner = Spinner(message)
 
     def __enter__(self):
-        if self.VERBOSITY >= logging.WARNING:
-            self.spinner.__enter__()
-        else:
+        if self.VERBOSITY < logging.WARNING:
             print(self.message)
         return self
 
     def __exit__(self, exc_type, exc_val, exc_traceback) -> None:
         duration = time.time() - self.start
-        if self.VERBOSITY >= logging.WARNING:
-            self.spinner.__exit__(exc_type, exc_val, exc_traceback)
         exc_failed = (exc_type is not None
                       or exc_val is not None
                       or exc_traceback is not None)

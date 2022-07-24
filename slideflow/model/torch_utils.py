@@ -9,8 +9,8 @@ import slideflow as sf
 from pandas.core.frame import DataFrame
 from scipy.special import softmax
 from slideflow.stats import df_from_pred
-from slideflow.util import log
-from tqdm import tqdm
+from slideflow.util import log, ImgBatchSpeedColumn
+from rich.progress import Progress, TimeElapsedColumn
 
 import torch
 
@@ -211,13 +211,14 @@ def _predict_from_model(
     num_outcomes = 0
     model.eval()
     device = torch.device('cuda:0')
-    pb = tqdm(
-        desc='Predicting...',
-        total=dataset.num_tiles,  # type: ignore
-        ncols=80,
-        unit='img',
-        leave=False
+    pb = Progress(
+        *Progress.get_default_columns(),
+        TimeElapsedColumn(),
+        ImgBatchSpeedColumn(dataset.batch_size),
+        transient=True
     )
+    task = pb.add_task("Predicting...", total=dataset.num_tiles)
+    pb.start()
     for batch in dataset:  # TODO: support not needing to supply yt
 
         # Parse batch
@@ -255,7 +256,8 @@ def _predict_from_model(
                     res = res.cpu().numpy().copy()
                 y_pred += [res]
         tile_to_slides += slide
-        pb.update(img.shape[0])
+        pb.advance(task, img.shape[0])
+    pb.stop()
 
     # Concatenate predictions for each outcome
     if type(y_pred[0]) == list:
@@ -320,13 +322,14 @@ def _eval_from_model(
 
     model.eval()
     device = torch.device('cuda:0')
-    pb = tqdm(
-        desc='Evaluating...',
-        total=dataset.num_tiles,  # type: ignore
-        ncols=80,
-        unit='img',
-        leave=False
+    pb = Progress(
+        *Progress.get_default_columns(),
+        TimeElapsedColumn(),
+        ImgBatchSpeedColumn(dataset.batch_size),
+        transient=True
     )
+    task = pb.add_task("Evaluating...", total=dataset.num_tiles)
+    pb.start()
     for batch in dataset:
 
         # Parse batch
@@ -372,7 +375,8 @@ def _eval_from_model(
             y_true += [yt]
         tile_to_slides += slide
         total += img.shape[0]
-        pb.update(img.shape[0])
+        pb.advance(task, img.shape[0])
+    pb.stop()
 
     # Concatenate predictions for each outcome.
     if type(y_pred[0]) == list:

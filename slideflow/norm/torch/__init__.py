@@ -3,7 +3,7 @@ from typing import Dict, Optional, Tuple, Union
 import torch
 import numpy as np
 import torchvision
-from tqdm import tqdm
+from rich.progress import Progress
 
 from slideflow.dataset import Dataset
 from slideflow.io.torch import cwh_to_whc, whc_to_cwh
@@ -103,11 +103,9 @@ class TorchStainNormalizer(StainNormalizer):
                 infinite=False
             )
             all_fit_vals = []  # type: ignore
-            pb = tqdm(
-                desc='Fitting normalizer...',
-                ncols=80,
-                total=dataset.num_tiles
-            )
+            pb = Progress()
+            task = pb.add_task('Fitting normalizer...', total=dataset.num_tiles)
+            pb.start()
             for i, slide in dts:
                 if self.vectorized:
                     fit_vals = self.n.fit(i, reduce=True)
@@ -118,7 +116,8 @@ class TorchStainNormalizer(StainNormalizer):
                     all_fit_vals = [[] for _ in range(len(fit_vals))]
                 for v, val in enumerate(fit_vals):
                     all_fit_vals[v] += [val]
-                pb.update(batch_size)
+                pb.advance(task, batch_size)
+            pb.stop()
             self.n.set_fit(*[torch.mean(torch.stack(v), dim=0) for v in all_fit_vals])
 
         elif isinstance(arg1, np.ndarray):
