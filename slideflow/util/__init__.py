@@ -10,6 +10,8 @@ import sys
 from rich import progress
 from rich.logging import RichHandler
 from rich.highlighter import NullHighlighter
+from rich.panel import Panel
+from rich.console import Console
 from functools import partial
 from glob import glob
 from os.path import dirname, exists, isdir, join
@@ -141,6 +143,21 @@ class ImgBatchSpeedColumn(progress.ProgressColumn):
         data_speed = f'{int(speed * self.batch_size)} img'
         return progress.Text(f"{data_speed}/s", style="progress.data.speed")
 
+
+# --- Slideflow header --------------------------------------------------------
+
+
+def header(console=None):
+    if console is None:
+        console = Console()
+    color = 'yellow' if sf.backend() == 'tensorflow' else 'purple'
+    console.print(
+        Panel(f"[white bold]Slideflow[/]"
+              f"\nVersion: {sf.__version__}"
+              f"\nBackend: [{color}]{sf.backend()}[/]"
+              "\n[blue]https://slideflow.dev[/]",
+              border_style='purple'),
+        justify='center')
 
 # --- Utility functions and classes -------------------------------------------
 

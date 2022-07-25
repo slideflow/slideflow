@@ -6,6 +6,7 @@ import traceback
 import unittest
 from os.path import exists, join
 from typing import Optional
+from rich import print
 
 import slideflow as sf
 import slideflow.test.functional

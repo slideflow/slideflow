@@ -40,8 +40,6 @@ import slideflow as sf
 import argparse
 import logging
 import multiprocessing
-from rich.panel import Panel
-from rich.console import Console
 
 
 if __name__=='__main__':
@@ -74,12 +72,7 @@ if __name__=='__main__':
     if args.debug:
         sf.setLoggingLevel(logging.DEBUG)
 
-    console = Console()
-    console.print(
-        Panel(f"[white bold]Slideflow[/]\nVersion: {sf.__version__}\n[blue]"
-              "https://slideflow.dev[/]", border_style='green'),
-        justify='center')
-
+    sf.header()
     P = sf.Project.from_prompt(args.project, use_neptune=args.neptune)
     P.associate_slide_names()
 

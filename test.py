@@ -76,21 +76,7 @@ def main(slides, out, all_tests, slide_threads, **kwargs):
     else:
         verbosity = logging.WARNING
 
-    # Set tests to default values if --all argument is set
-    for test in kwargs:
-        if kwargs[test] is None and all_tests is not None:
-            kwargs[test] = all_tests
-
-    # Print version
-    print(col.bold("\nVersion: ") + str(sf.__version__))
-
-    # Show active backend
-    if sf.backend() == 'tensorflow':
-        print(col.bold("Active backend:"), col.yellow('tensorflow'))
-    elif sf.backend() == 'torch':
-        print(col.bold("Active backend:"), col.purple('torch'))
-    else:
-        print(col.bold("Active backend: <Unknown>"))
+    sf.header()
 
     # Show tests to run
     print(col.bold("\nTests to run:"))

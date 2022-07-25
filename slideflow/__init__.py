@@ -22,7 +22,7 @@ def backend():
     return os.environ['SF_BACKEND']
 
 # Import logging functions required for other submodules
-from slideflow.util import getLoggingLevel, log, setLoggingLevel
+from slideflow.util import getLoggingLevel, log, setLoggingLevel, header
 
 ...
 from slideflow import io, model, norm, stats
