@@ -36,7 +36,6 @@ from slideflow import errors
 from slideflow.slide.report import ExtractionPDF  # noqa F401
 from slideflow.slide.report import ExtractionReport, SlideReport
 from slideflow.util import SUPPORTED_FORMATS, Path  # noqa F401
-from slideflow.util import colors as col
 from slideflow.util import log, path_to_name  # noqa F401
 from rich.progress import Progress
 
@@ -392,8 +391,8 @@ def log_extraction_params(**kwargs) -> None:
         gs_t = kwargs['grayspace_threshold']
 
     if 'normalizer' in kwargs:
-        norm = col.bold(kwargs["normalizer"])
-        log.info(f'Extracting tiles using {norm} normalization')
+        log.info(f'Extracting tiles using [magenta]{kwargs["normalizer"]}[/] '
+                 'normalization')
     if ws_f < 1:
         log.info('Filtering tiles by whitespace fraction')
         excl = f'(exclude if >={ws_f*100:.0f}% whitespace)'
@@ -673,7 +672,7 @@ class _BaseLoader:
             self.mpp = float(self.slide.properties[OPS_MPP_X])
         except KeyError:
             raise errors.SlideLoadError(
-                f"Slide {col.green(self.name)} missing MPP ({OPS_MPP_X})"
+                f"Slide [green]{self.name}[/] missing MPP ({OPS_MPP_X})"
             )
 
         # Calculate downsample by magnification
@@ -1021,7 +1020,7 @@ class _BaseLoader:
         if self.tile_px > self.extract_px:
             ups_msg = 'Tiles will be up-scaled with bilinear interpolation'
             ups_amnt = f'({self.extract_px}px -> {self.tile_px}px)'
-            warn = f"[{col.red('!WARN!')}]"
+            warn = f"[red]'!WARN!'[/]"
             log.warn(f"{self.shortname}: {warn} {ups_msg} {ups_amnt}")
         return None
 
@@ -1170,7 +1169,7 @@ class _BaseLoader:
             writer.close()
             if not num_wrote_to_tfr:
                 os.remove(join(tfrecord_dir, self.name+".tfrecords"))
-                log.info(f'No tiles extracted for {col.green(self.name)}')
+                log.info(f'No tiles extracted for [green]{self.name}')
         if self.pb is None:
             generator_iterator.close()
 
@@ -1365,7 +1364,7 @@ class WSI(_BaseLoader):
                 log.debug(warn_msg)
         if not len(self.rois) and roi_method in ('inside', 'outside'):
             raise errors.MissingROIError(
-                f"Slide {col.green(self.name)} missing ROI."
+                f"Slide [green]{self.name}[/] missing ROI."
             )
         elif not len(self.rois):
             info_msg = f"No ROI for {self.name}, using whole slide."
@@ -1642,7 +1641,7 @@ class WSI(_BaseLoader):
 
         super().build_generator()
         if self.estimated_num_tiles == 0:
-            log.warning(f"No tiles extracted for slide {col.green(self.name)}")
+            log.warning(f"No tiles extracted for slide [green]{self.name}")
             return None
 
         # Detect CPU cores if num_threads not specified
@@ -1742,7 +1741,7 @@ class WSI(_BaseLoader):
                 pbar.stop()
             if should_close:
                 pool.close()
-            name_msg = col.green(self.shortname)
+            name_msg = f'[green]{self.shortname}[/]'
             pos = len(self.coord)
             num_msg = f'({np.sum(self.grid.sum())} tiles of {pos} possible)'
             log.info(f"Finished tile extraction for {name_msg} {num_msg}")
@@ -1822,7 +1821,7 @@ class WSI(_BaseLoader):
                 index_y = headers.index("y_base")
             except Exception:
                 raise errors.ROIError(
-                    f'Unable to read CSV ROI {col.green(path)}. Please ensure '
+                    f'Unable to read CSV ROI [green]{path}[/]. Please ensure '
                     'headers contain "ROI_name", "X_base and "Y_base".'
                 )
             for row in reader:
@@ -1846,7 +1845,7 @@ class WSI(_BaseLoader):
                     self.annPolys += [poly]
                 except ValueError:
                     log.warning(
-                        f"Unable to use ROI {i} for {col.green(self.name)}."
+                        f"Unable to use ROI {i} for [green]{self.name}[/]."
                         " At least 3 points required to create a shape."
                     )
             roi_area = sum([poly.area for poly in self.annPolys])

@@ -14,9 +14,9 @@ from slideflow import errors
 from slideflow.io import gaussian
 from slideflow.io.io_utils import detect_tfrecord_format
 from slideflow.util import Labels
-from slideflow.util import colors as col
 from slideflow.util import log
 from rich.progress import track
+from rich import print as richprint
 
 import tensorflow as tf
 
@@ -68,9 +68,9 @@ def _print_record(filename: str) -> None:
         raise errors.TFRecordsError(f"Unable to read TFRecord {filename}")
     for i, record in enumerate(dataset):
         slide, loc_x, loc_y = parser(record)
-        line = f"{col.purple(filename)}: Record {i}: Slide: "
-        line += f"{col.green(str(slide))} Loc: {(loc_x, loc_y)}"
-        print(line)
+        line = f"[magenta]{filename}[/]: Record {i}: Slide: "
+        line += f"[green]{str(slide)}[/] Loc: {(loc_x, loc_y)}"
+        richprint(line)
 
 
 @tf.function
@@ -784,12 +784,12 @@ def transform_tfrecord(
     '''Transforms images in a single tfrecord. Can perform hue shifting,
     resizing, or re-assigning slide label.
     '''
-    log.info(f"Transforming tiles in tfrecord {col.green(origin)}")
-    log.info(f"Saving to new tfrecord at {col.green(target)}")
+    log.info(f"Transforming tiles in tfrecord [green]{origin}")
+    log.info(f"Saving to new tfrecord at [green]{target}")
     if assign_slide:
-        log.info(f"Assigning slide name {col.bold(assign_slide)}")
+        log.info(f"Assigning slide name [bold]{assign_slide}")
     if hue_shift:
-        log.info(f"Shifting hue by {col.bold(str(hue_shift))}")
+        log.info(f"Shifting hue by [bold]{hue_shift}")
     if resize:
         log.info(f"Resizing records to ({resize}, {resize})")
     dataset = tf.data.TFRecordDataset(origin)

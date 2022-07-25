@@ -8,6 +8,8 @@ import re
 import shutil
 import sys
 from rich import progress
+from rich.logging import RichHandler
+from rich.highlighter import NullHighlighter
 from functools import partial
 from glob import glob
 from os.path import dirname, exists, isdir, join
@@ -18,7 +20,6 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 import matplotlib.colors as mcol
 import numpy as np
 import slideflow as sf
-import slideflow.util.colors as col
 from slideflow.util import log_utils
 from slideflow import errors
 from slideflow.util import example_pb2
@@ -94,7 +95,8 @@ def addLoggingFileHandler(path):
 
 
 # Add tqdm-friendly stream handler
-ch = log_utils.TqdmLoggingHandler()
+#ch = log_utils.TqdmLoggingHandler()
+ch = RichHandler(markup=True, log_time_format="[%X]", show_path=False, highlighter=NullHighlighter())
 ch.setFormatter(log_utils.LogFormatter())
 if 'SF_LOGGING_LEVEL' in os.environ:
     try:
@@ -629,7 +631,7 @@ def tfrecord_heatmap(
             f'tile_dict length ({td_len}) != TFRecord length ({loc_len}).'
         )
 
-    log.info(f'Generating TFRecord heatmap for {col.green(tfrecord)}...')
+    log.info(f'Generating TFRecord heatmap for [green]{tfrecord}[/]...')
     wsi = sf.slide.WSI(slide, tile_px, tile_um)
 
     stats = {}

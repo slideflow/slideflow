@@ -311,7 +311,7 @@ class TestConfig:
                     download_from_tcga(
                         uuid=tcga_slides[slide],
                         dest=slides_path,
-                        message=f"Downloading {col.green(slide)} from TCGA..."
+                        message=f"Downloading [green]{slide}[/] from TCGA..."
                     )
         self.annotations = random_annotations(slides_path)
         assert len(self.annotations) > 1

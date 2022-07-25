@@ -8,7 +8,7 @@ from PIL import Image
 from slideflow.stats import SlideMap
 from slideflow.test.utils import (handle_errors, test_multithread_throughput,
                                   test_throughput)
-from slideflow.util import colors as col
+from rich import print
 from tqdm import tqdm
 
 if TYPE_CHECKING:
@@ -204,7 +204,7 @@ def single_thread_normalizer_tester(
     if not len(methods):
         methods = sf.norm.StainNormalizer.normalizers  # type: ignore
     dataset = project.dataset(71, 1208)
-    v = col.bold(f'({sf.backend()}-native)')
+    v = f'[bold]({sf.backend()}-native)[/]'
 
     dts_kw = {'standardize': False, 'infinite': True}
     if sf.backend() == 'tensorflow':
@@ -217,7 +217,7 @@ def single_thread_normalizer_tester(
     for method in methods:
         gen_norm = sf.norm.StainNormalizer(method)
         vec_norm = sf.norm.autoselect(method)
-        st_msg = col.yellow('SINGLE-thread')
+        st_msg = '[yellow]SINGLE-thread[/]'
         print(f"'\r\033[kTesting {method} [{st_msg}]...", end="")
 
         # Save example image
@@ -225,7 +225,7 @@ def single_thread_normalizer_tester(
         img.save(join(project.root, f'{method}.png'))
 
         gen_tpt = test_throughput(dts, gen_norm)
-        dur = col.blue(f"[{gen_tpt:.1f} img/s]")
+        dur = f"[blue][{gen_tpt:.1f} img/s][/]"
         print(f"'\r\033[kTesting {method} [{st_msg}]... DONE " + dur)
         if type(vec_norm) != type(gen_norm):
             print(f"'\r\033[kTesting {method} {v} [{st_msg}]...", end="")
@@ -235,7 +235,7 @@ def single_thread_normalizer_tester(
             img.save(join(project.root, f'{method}_vectorized.png'))
 
             vec_tpt = test_throughput(dts, vec_norm)
-            dur = col.blue(f"[{vec_tpt:.1f} img/s]")
+            dur = f"[blue][{vec_tpt:.1f} img/s][/]"
             print(f"'\r\033[kTesting {method} {v} [{st_msg}]... DONE {dur}")
 
 
@@ -254,20 +254,20 @@ def multi_thread_normalizer_tester(
     if not len(methods):
         methods = sf.norm.StainNormalizer.normalizers  # type: ignore
     dataset = project.dataset(71, 1208)
-    v = col.bold(f'({sf.backend()}-native)')
+    v = f'[bold]({sf.backend()}-native)[/]'
 
     for method in methods:
         gen_norm = sf.norm.StainNormalizer(method)
         vec_norm = sf.norm.autoselect(method)
-        mt_msg = col.purple('MULTI-thread')
+        mt_msg = '[magenta]MULTI-thread[/]'
         print(f"'\r\033[kTesting {method} [{mt_msg}]...", end="")
         gen_tpt = test_multithread_throughput(dataset, gen_norm)
-        dur = col.blue(f"[{gen_tpt:.1f} img/s]")
+        dur = f"[blue][{gen_tpt:.1f} img/s][/]"
         print(f"'\r\033[kTesting {method} [{mt_msg}]... DONE " + dur)
         if type(vec_norm) != type(gen_norm):
             print(f"'\r\033[kTesting {method} {v} [{mt_msg}]...", end="")
             vec_tpt = test_multithread_throughput(dataset, vec_norm)
-            dur = col.blue(f"[{vec_tpt:.1f} img/s]")
+            dur = f"[blue][{vec_tpt:.1f} img/s][/]"
             print(f"'\r\033[kTesting {method} {v} [{mt_msg}]... DONE " + dur)
 
 

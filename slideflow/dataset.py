@@ -103,7 +103,7 @@ from typing import (TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Tuple,
 import numpy as np
 import pandas as pd
 import shapely.geometry as sg
-from rich.progress import track, Progress, TimeElapsedColumn
+from rich.progress import track, Progress, TimeElapsedColumn, SpinnerColumn
 
 import slideflow as sf
 from slideflow import errors
@@ -111,7 +111,6 @@ from slideflow.model import ModelParams
 from slideflow.slide import WSI, ExtractionReport, SlideReport
 from slideflow.util import (log, Labels, Path, _shortname, path_to_name,
                             tfrecord2idx, TileExtractionSpeedColumn)
-from slideflow.util import colors as col
 
 if TYPE_CHECKING:
     import tensorflow as tf
@@ -259,9 +258,9 @@ def split_patients_preserved_site(
     df = cv.generate(
         df, 'outcome_label', k=n, target_column='CV', method=method
     )
-    log.info(col.bold("Train/val split with Preserved-Site Cross-Val"))
-    log.info(col.bold(
-        "Category\t" + "\t".join([str(cat) for cat in range(n_unique)])
+    log.info("[bold]Train/val split with Preserved-Site Cross-Val")
+    log.info("[bold]Category\t" + "\t".join(
+        [str(cat) for cat in range(n_unique)]
     ))
     for k in range(n):
         def num_labels_matching(o):
@@ -318,9 +317,9 @@ def split_patients_balanced(
         list(sf.util.split_list(sub_l, n)) for sub_l in pt_by_outcome
     ]
     # Print splitting as a table
-    log.info(col.bold(
-        "Category\t" + "\t".join([str(cat) for cat in range(n_unique)])
-    ))
+    log.info(
+        "[bold]Category\t" + "\t".join([str(cat) for cat in range(n_unique)])
+    )
     for k in range(n):
         matching = [str(len(clist[k])) for clist in pt_by_outcome_by_n]
         log.info(f"K-fold-{k}\t" + "\t".join(matching))
@@ -1052,7 +1051,7 @@ class Dataset:
         sf.slide.log_extraction_params(**kwargs)
 
         for source in sources:
-            log.info(f'Working on dataset source {col.bold(source)}...')
+            log.info(f'Working on dataset source [bold]{source}[/]...')
             roi_dir = self.sources[source]['roi']
             src_conf = self.sources[source]
             if 'dry_run' not in kwargs or not kwargs['dry_run']:
@@ -1160,6 +1159,7 @@ class Dataset:
                 # Set up the multiprocessing progress bar
                 if total_tiles:
                     pb = Progress(
+                        SpinnerColumn(),
                         *Progress.get_default_columns(),
                         TimeElapsedColumn(),
                         TileExtractionSpeedColumn()
@@ -1972,8 +1972,7 @@ class Dataset:
         reports = []
         log.info('Generating TFRecords report...')
         # Get images for report
-        for tfr in tfrecord_list:
-            print(f'\r\033[KWorking on {col.green(path_to_name(tfr))}', end='')
+        for tfr in track(tfrecord_list, description='Generating report...'):
             dataset = sf.io.TFRecordDataset(tfr)
             parser = sf.io.get_tfrecord_parser(
                 tfr,
@@ -1994,7 +1993,6 @@ class Dataset:
             reports += [SlideReport(sample_tiles, tfr)]
 
         # Generate and save PDF
-        print('\r\033[K', end='')
         log.info('Generating PDF (this may take some time)...')
         pdf_report = ExtractionReport(reports, title='TFRecord Report')
         timestring = datetime.now().strftime('%Y%m%d-%H%M%S')
@@ -2005,7 +2003,7 @@ class Dataset:
         else:
             raise ValueError(f"Could not find destination directory {dest}.")
         pdf_report.save(filename)
-        log.info(f'TFRecord report saved to {col.green(filename)}')
+        log.info(f'TFRecord report saved to [green]{filename}')
 
     def tfrecord_heatmap(
         self,
@@ -2073,7 +2071,7 @@ class Dataset:
             tfrecord_path = join(tfrecords, label)
             if not exists(tfrecord_path):
                 log.debug(
-                    f"TFRecords path not found: {col.green(tfrecord_path)}"
+                    f"TFRecords path not found: {tfrecord_path}"
                 )
                 continue
             folders_to_search += [tfrecord_path]
@@ -2129,9 +2127,9 @@ class Dataset:
             tfrecord_path = join(base_dir, subfolder)
             if not exists(tfrecord_path):
                 raise errors.DatasetError(
-                    f"Unable to find subfolder {col.bold(subfolder)} in "
-                    f"source {col.bold(source)}, tfrecord directory: "
-                    f"{col.green(base_dir)}"
+                    f"Unable to find subfolder [bold]{subfolder}[/] in "
+                    f"source [bold]{source}[/], tfrecord directory: "
+                    f"[green]{base_dir}"
                 )
             folders_to_search += [tfrecord_path]
         for folder in folders_to_search:
@@ -2170,7 +2168,7 @@ class Dataset:
             tfrecord_dir = join(config['tfrecords'], config['label'])
             tiles_dir = join(config['tiles'], config['label'])
             if not exists(tiles_dir):
-                log.warn(f'No tiles found for source {col.bold(source)}')
+                log.warn(f'No tiles found for source [bold]{source}')
                 continue
             sf.io.write_tfrecords_multi(tiles_dir, tfrecord_dir)
             self.update_manifest()
@@ -2208,10 +2206,9 @@ class Dataset:
         log.info('Generating thumbnails...')
         slide_list = self.slide_paths()
         rois = self.rois()
-        log.info(f'Saving thumbnails to {col.green(outdir)}')
+        log.info(f'Saving thumbnails to [green]{outdir}')
         for slide_path in slide_list:
-            fmt_name = col.green(path_to_name(slide_path))
-            log.info(f'Working on {fmt_name}...')
+            log.info(f'Working on [green]{path_to_name(slide_path)}[/]...')
             try:
                 whole_slide = WSI(slide_path,
                                   tile_px=1000,
@@ -2391,7 +2388,7 @@ class Dataset:
             assert val_fraction is not None
             num_val = int(val_fraction * len(patients_list))
             log.info(
-                f"Boostrap validation: selecting {col.bold(num_val)} "
+                f"Boostrap validation: selecting {num_val} "
                 "patients at random for validation testing"
             )
             val_patients = patients_list[0:num_val]
@@ -2431,7 +2428,7 @@ class Dataset:
                     if c1 == c2:
                         log.info(
                             f"Using {val_strategy} validation split detected"
-                            f" at {col.green(splits_file)} (ID: {split_id})"
+                            f" at [green]{splits_file}[/] (ID: {split_id})"
                         )
                         accepted_split = split
                         break
@@ -2440,7 +2437,7 @@ class Dataset:
             if not accepted_split:
                 if splits_file:
                     log.info("No compatible train/val split found.")
-                    log.info(f"Logging new split at {col.green(splits_file)}")
+                    log.info(f"Logging new split at [green]{splits_file}")
                 else:
                     log.info("No training/validation splits file provided.")
                     log.info("Unable to save or load validation splits.")

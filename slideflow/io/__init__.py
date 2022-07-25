@@ -11,7 +11,6 @@ from typing import Any, Dict, Optional, Tuple, Union
 import slideflow as sf
 from slideflow import errors
 from slideflow.io.io_utils import detect_tfrecord_format, convert_dtype
-from slideflow.util import colors as col
 from slideflow.util import log
 from rich.progress import Progress
 
@@ -200,11 +199,9 @@ def write_tfrecords_multi(input_directory: str, output_directory: str) -> None:
             f'{slide_dir}.tfrecords',
             slide_dir
         )
-    msg_num_tiles = col.bold(total_tiles)
-    msg_num_tfr = col.bold(len(slide_dirs))
     log.info(
-        f"Wrote {msg_num_tiles} tiles across {msg_num_tfr} tfrecords "
-        f"in {sf.util.green(output_directory)}"
+        f"Wrote {total_tiles} tiles across {len(slide_dirs)} tfrecords "
+        f"in [green]{output_directory}"
     )
 
 

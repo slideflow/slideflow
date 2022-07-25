@@ -20,7 +20,6 @@ from slideflow.dataset import Dataset
 from slideflow.model import ModelParams
 from slideflow.project_utils import auto_dataset, get_validation_settings
 from slideflow.util import Path
-from slideflow.util import colors as col
 from slideflow.util import log, path_to_name
 
 if TYPE_CHECKING:
@@ -653,7 +652,7 @@ class Project:
                         mi,
                         results_dict[mi]['epochs']
                     )
-            log.info(f'Training results saved: {col.green(results_log_path)}')
+            log.info(f'Training results saved: [green]{results_log_path}')
 
     def _train_split(
         self,
@@ -678,7 +677,7 @@ class Project:
             k_msg = f' ({val_settings.strategy} #{s_args.k})'
         if sf.getLoggingLevel() <= 20:
             print()
-        log.info(f'Training model {col.bold(s_args.model_name)}{k_msg}...')
+        log.info(f'Training model [bold]{s_args.model_name}[/]{k_msg}...')
         log.info(f'Hyperparameters: {hp}')
         log.info(f'Val settings: {json.dumps(vars(val_settings), indent=2)}')
 
@@ -898,7 +897,7 @@ class Project:
             csv_writer.writerow(header)
             for slide in slides:
                 csv_writer.writerow([slide, '', ''])
-        log.info(f"Wrote annotations file to {col.green(filename)}")
+        log.info(f"Wrote annotations file to [green]{filename}")
 
     def create_hp_sweep(
         self,
@@ -939,7 +938,7 @@ class Project:
             mp = ModelParams(**full_params)
             hp_list += [{f'{label}HPSweep{i}': mp.get_dict()}]
         sf.util.write_json(hp_list, os.path.join(self.root, filename))
-        log.info(f'Wrote hp sweep (len {len(sweep)}) to {col.green(filename)}')
+        log.info(f'Wrote hp sweep (len {len(sweep)}) to [green]{filename}')
 
     def create_hyperparameter_sweep(self, *args: Any, **kwargs: Any) -> None:
         log.warn(
@@ -1008,7 +1007,7 @@ class Project:
         Returns:
             Dict: Dictionary of keras training results, nested by epoch.
         """
-        log.info(f'Evaluating model at {col.green(model)}')
+        log.info(f'Evaluating model at [green]{model}')
         trainer, eval_dts = self._prepare_trainer(
             model=model,
             dataset=dataset,
@@ -1077,7 +1076,7 @@ class Project:
         else:
             raise errors.CLAMError(f"Unable to find experiment '{exp_name}'")
 
-        log.info(f'Loading experiment from {col.green(exp_name)}, k={k}')
+        log.info(f'Loading experiment from [green]{exp_name}[/], k={k}')
         eval_dir = join(exp_name, 'eval')
         if not exists(eval_dir):
             os.makedirs(eval_dir)
@@ -1815,7 +1814,7 @@ class Project:
         if (show_prediction is not None) and (not use_float):
             outcome_labels = config['outcome_labels']
             model_type = model_type if model_type else config['model_type']
-            log.info(f'Loaded pred labels found at {col.green(df.model)}')
+            log.info(f'Loaded pred labels found at [green]{df.model}')
 
         # Create mosaic map from UMAP of layer activations
         umap = sf.SlideMap.from_features(
@@ -2342,7 +2341,7 @@ class Project:
         sf.slide.log_extraction_params(**kwargs)
 
         for source in sources:
-            log.info(f'Working on dataset source {col.bold(source)}')
+            log.info(f'Working on dataset source [bold]{source}')
             roi_dir = dataset.sources[source]['roi']
 
             # Prepare list of slides for extraction
@@ -2397,8 +2396,8 @@ class Project:
                         pickle.dump(wsi_grid, file)
 
                 except errors.TileCorruptionError:
-                    fmt_slide = col.green(path_to_name(slide_path))
-                    log.error(f'{fmt_slide} is corrupt; skipping slide')
+                    log.error(f'[green]{path_to_name(slide_path)}[/] is '
+                              'corrupt; skipping slide')
                     continue
 
     def save(self) -> None:
@@ -2759,12 +2758,12 @@ class Project:
             except ValueError:
                 pass
             else:
-                log.info(f'{col.green(model)} training metrics:')
+                log.info(f'[green]{model}[/] training metrics:')
                 for m in final_train_metrics:
                     log.info(f'{m}: {final_train_metrics[m]}')
                 if 'val_metrics' in ep_res[f'epoch{last}']:
                     final_val_metrics = ep_res[f'epoch{last}']['val_metrics']
-                    log.info(f'{col.green(model)} validation metrics:')
+                    log.info(f'[green]{model}[/] validation metrics:')
                     for m in final_val_metrics:
                         log.info(f'{m}: {final_val_metrics[m]}')
         return dict(results_dict)

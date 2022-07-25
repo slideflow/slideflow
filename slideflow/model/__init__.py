@@ -22,8 +22,7 @@ import pandas as pd
 import scipy.stats as stats
 import slideflow as sf
 from slideflow import errors
-from slideflow.util import Labels, Path
-from slideflow.util import colors as col
+from slideflow.util import Labels
 from slideflow.util import log
 from rich.progress import track, Progress
 
@@ -318,7 +317,7 @@ class DatasetFeatures:
         # Rename tfrecord_array to tfrecords
         log.info(f'Calculating activations for {self.tfrecords.shape[0]} '
                  f'tfrecords (layers={layers})')
-        log.info(f'Generating from {col.green(model)}')
+        log.info(f'Generating from [green]{model}')
         layers = sf.util.as_list(layers)
 
         # Load model
@@ -556,7 +555,7 @@ class DatasetFeatures:
                  self.locations],
                 pt_pkl_file
             )
-        log.info(f'Data cached to {col.green(path)}')
+        log.info(f'Data cached to [green]{path}')
 
     def to_csv(
         self,
@@ -612,7 +611,7 @@ class DatasetFeatures:
                         csvwriter.writerow([slide] + logit + act)
                     else:
                         csvwriter.writerow([slide] + act)
-        log.debug(f'Activations saved to {col.green(filename)}')
+        log.debug(f'Activations saved to [green]{filename}')
 
     def to_torch(
         self,
@@ -633,7 +632,7 @@ class DatasetFeatures:
         slides = self.slides if not slides else slides
         for slide in track(slides):
             if self.activations[slide] == []:
-                log.info(f'Skipping empty slide {col.green(slide)}')
+                log.info(f'Skipping empty slide [green]{slide}')
                 continue
             slide_activations = torch.from_numpy(
                 self.activations[slide].astype(np.float32)
@@ -696,7 +695,7 @@ class DatasetFeatures:
         Args:
             path (str): Path to pkl cache.
         """
-        log.info(f'Loading from cache {col.green(path)}...')
+        log.info(f'Loading from cache [green]{path}...')
         with open(path, 'rb') as pt_pkl_file:
             loaded_pkl = pickle.load(pt_pkl_file)
             self.activations = loaded_pkl[0]
@@ -811,7 +810,7 @@ class DatasetFeatures:
             if not exists(outdir):
                 os.makedirs(outdir)
             filename = join(outdir, 'slide_level_summary.csv')
-            log.info(f'Writing results to {col.green(filename)}...')
+            log.info(f'Writing results to [green]{filename}[/]...')
             with open(filename, 'w') as outfile:
                 csv_writer = csv.writer(outfile)
                 header = (['slide', 'category']

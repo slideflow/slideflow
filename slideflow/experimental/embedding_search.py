@@ -12,7 +12,6 @@ from functools import partial
 from sklearn.decomposition import PCA
 from slideflow.gan.stylegan2.utils import noise_tensor
 from slideflow.gan.utils import crop
-from slideflow.util import colors as col
 from slideflow.util import log
 from tqdm.auto import tqdm
 
@@ -420,7 +419,7 @@ class EmbeddingSearch:
         if depth is None:
             depth = self.e_dim
 
-        print(col.bold(f"\nSearching: PC={pc} on seed={seed} with depth={depth}"))
+        print(f"\n[bold]Searching: PC={pc} on seed={seed} with depth={depth}")
 
         z = noise_tensor(seed, z_dim=self.E_G.z_dim)[0].to(self.device)  # type: ignore
         self.selected_dims = []  # type: ignore
@@ -437,7 +436,7 @@ class EmbeddingSearch:
             )
             if verbose:
                 tqdm.write("{}: Chose {}, {:.3f} percent PC {}, {:.3f} other PC".format(
-                    col.blue(f'Depth {d}'),
+                    f'[blue]Depth {d}',
                     dim,
                     _pc_change,
                     pc,

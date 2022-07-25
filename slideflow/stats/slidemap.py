@@ -8,7 +8,6 @@ from pandas.core.frame import DataFrame
 from sklearn.cluster import KMeans
 from slideflow import errors
 from slideflow.stats.stats_utils import calculate_centroid, normalize_layout
-from slideflow.util import colors as col
 from slideflow.util import log
 
 if TYPE_CHECKING:
@@ -308,7 +307,7 @@ class SlideMap:
         num_warned = 0
         for slide in self.df.slides:
             if slide not in successful_slides:
-                log.debug(f"No centroid for {col.green(slide)}; skipping")
+                log.debug(f"No centroid for [green]{slide}[/]; skipping")
         if num_warned:
             log.warning(f"No centroid for {num_warned} slides.")
         if self.data is not None and not recalculate:
@@ -763,7 +762,7 @@ class SlideMap:
 
         self.plot(**kwargs)
         plt.savefig(filename, bbox_inches='tight', dpi=dpi)
-        log.info(f"Saved 2D UMAP to {col.green(filename)}")
+        log.info(f"Saved 2D UMAP to [green]{filename}")
 
     def save_3d(
         self,
@@ -791,7 +790,7 @@ class SlideMap:
 
         self.plot_3d(**kwargs)
         plt.savefig(filename, bbox_inches='tight', dpi=dpi)
-        log.info(f"Saved 3D UMAP to {col.green(filename)}")
+        log.info(f"Saved 3D UMAP to [green]{filename}")
 
     def save_cache(self, path: Optional[str] = None) -> None:
         """Save cache of coordinates to PKL file.
@@ -804,7 +803,7 @@ class SlideMap:
             path = self.cache
         if path:
             self.data.to_parquet(path)
-            log.info(f"Wrote slide map cache to {col.green(path)}")
+            log.info(f"Wrote slide map cache to [green]{path}")
 
     def load_cache(self, path: Optional[str] = None) -> bool:
         """Load coordinates from PKL cache.
@@ -822,13 +821,13 @@ class SlideMap:
             raise errors.SlideMapError("No cache set or given.")
         try:
             self.data = pd.read_parquet(path)
-            log.info(f"Loaded UMAP cache from {col.green(path)}")
+            log.info(f"Loaded UMAP cache from [green]{path}")
             return True
         except FileNotFoundError:
-            log.info(f"No UMAP cache found at {col.green(path)}")
+            log.info(f"No UMAP cache found at [green]{path}")
         except Exception:
             log.error(
-                f"Error loading slide map cache at {col.green(path)}, "
+                f"Error loading slide map cache at [green]{path}[/], "
                 "ensure it is a valid parquet-format dataframe."
             )
         return False

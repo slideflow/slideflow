@@ -13,7 +13,6 @@ from slideflow import errors
 from slideflow.test import dataset_test, slide_test, stats_test, norm_test
 from slideflow.test.utils import (TaskWrapper, TestConfig,
                                   _assert_valid_results, process_isolate)
-from slideflow.util import colors as col
 from slideflow.util import log
 
 
@@ -46,8 +45,8 @@ class TestSuite:
         """
 
         if slides is None:
-            print(col.yellow("Path to slides not provided, unable to perform"
-                             " functional tests."))
+            print("[yellow]Path to slides not provided, unable to perform"
+                  " functional tests.")
             self.project = None
             return
         else:
@@ -57,8 +56,8 @@ class TestSuite:
                 if sf.util.path_to_ext(f).lower() in sf.util.SUPPORTED_FORMATS
             ][:10]
             if not len(detected_slides):
-                print(col.yellow(f"No slides found at {slides}; "
-                                 "unable to perform functional tests."))
+                print(f"[yellow]No slides found at {slides}; "
+                      "unable to perform functional tests.")
                 self.project = None
                 return
 
@@ -78,8 +77,8 @@ class TestSuite:
         self.test_root = root
         self.project_root = join(root, 'project')
         self.slides_root = slides
-        print(f'Setting up test project at {col.green(root)}')
-        print(f'Testing using slides from {col.green(slides)}')
+        print(f'Setting up test project at [green]{root}')
+        print(f'Testing using slides from [green]{slides}')
         self.config = TestConfig(root, slides=slides)
         self.project = self.config.create_project(
             self.project_root,
@@ -739,8 +738,8 @@ class TestSuite:
         if unit:
             self.unittests()
         if self.project is None:
-            print(col.yellow("Slides not provided; unable to perform "
-                             "functional or WSI testing."))
+            print("[yellow]Slides not provided; unable to perform "
+                  "functional or WSI testing.")
         else:
             if extract:
                 self.test_extraction(num_threads=slide_threads)

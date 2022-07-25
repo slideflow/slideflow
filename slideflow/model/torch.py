@@ -19,7 +19,6 @@ from slideflow.model import base as _base
 from slideflow.model import torch_utils
 from slideflow.model.base import log_manifest, no_scope
 from slideflow.util import log, NormFit, Path, ImgBatchSpeedColumn
-from slideflow.util import colors as col
 from rich.progress import Progress, TimeElapsedColumn
 from packaging import version
 
@@ -536,7 +535,7 @@ class Trainer:
         pretrain: Optional[str] = None
     ) -> None:
         if checkpoint:
-            log.info(f"Loading checkpoint at {col.green(checkpoint)}")
+            log.info(f"Loading checkpoint at [green]{checkpoint}")
             self.load(checkpoint)
         else:
             self.model = self.hp.build_model(
@@ -808,7 +807,7 @@ class Trainer:
         accuracy_desc: str,
     ) -> None:
         """Logs epoch description."""
-        log.info(f'{col.bold(col.blue(phase))} Epoch {epoch} | loss:'
+        log.info(f'[bold blue]{phase}[/] Epoch {epoch} | loss:'
                  f' {loss:.4f} {accuracy_desc}')
 
     def _log_manifest(
@@ -1098,7 +1097,7 @@ class Trainer:
         name = self.name if self.name else 'trained_model'
         save_path = os.path.join(self.outdir, f'{name}_epoch{self.epoch}')
         torch.save(self.model.state_dict(), save_path)
-        log.info(f"Model saved to {col.green(save_path)}")
+        log.info(f"Model saved to [green]{save_path}[/")
 
     def _setup_dataloaders(
         self,
@@ -1209,7 +1208,7 @@ class Trainer:
         self.running_loss += loss.item() * images.size(0)
         _loss = self.running_loss / self.epoch_records
         pb.update(task_id=0,
-                  description=(f'{col.bold(col.blue("train"))} '
+                  description=(f'[bold blue]train[/] '
                                f'loss: {_loss:.4f} {acc_desc}'))
         pb.advance(task_id=0)
 
@@ -1571,7 +1570,7 @@ class Trainer:
         # === Epoch loop ======================================================
         for self.epoch in range(starting_epoch, max(self.hp.epochs)+1):
             np.random.seed(seed+self.epoch)
-            log.info(col.bold(f'Epoch {self.epoch}/{max(self.hp.epochs)}'))
+            log.info(f'[bold]Epoch {self.epoch}/{max(self.hp.epochs)}')
 
             # Training loop ---------------------------------------------------
             self.epoch_records = 0
@@ -1859,7 +1858,7 @@ class Features:
             img_format=img_format,
             **kwargs)
         if not generator:
-            log.error(f"No tiles extracted from slide {col.green(slide.name)}")
+            log.error(f"No tiles extracted from slide [green]{slide.name}")
             return None
 
         class SlideIterator(torch.utils.data.IterableDataset):

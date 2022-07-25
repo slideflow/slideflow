@@ -19,7 +19,6 @@ import slideflow as sf
 from slideflow import errors
 from slideflow.stats import SlideMap, get_centroid_index
 from slideflow.util import Path
-from slideflow.util import colors as col
 from slideflow.util import log
 from slideflow.stats import get_centroid_index
 
@@ -393,7 +392,7 @@ class Mosaic:
         for tfr in self.tfrecords:
             if sf.util.path_to_name(tfr) == slide:
                 return tfr
-        log.error(f'Unable to find TFRecord path for slide {col.green(slide)}')
+        log.error(f'Unable to find TFRecord path for slide [green]{slide}')
         return None
 
     def _decode_image_string(self, string: str) -> np.ndarray:
@@ -463,7 +462,7 @@ class Mosaic:
         except FileNotFoundError:
             pass
         plt.savefig(filename, bbox_inches='tight')
-        log.info(f'Saved figure to {col.green(filename)}')
+        log.info(f'Saved figure to [green]{filename}')
         plt.close()
 
     def save_report(self, filename: Path) -> None:
@@ -475,4 +474,4 @@ class Mosaic:
             for tfr in self.mapped_tiles:
                 for idx in self.mapped_tiles[tfr]:
                     writer.writerow([tfr, idx])
-        log.info(f'Mosaic report saved to {col.green(filename)}')
+        log.info(f'Mosaic report saved to [green]{filename}')

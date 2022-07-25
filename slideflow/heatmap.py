@@ -13,7 +13,6 @@ import slideflow as sf
 from slideflow import errors
 from slideflow.slide import WSI
 from slideflow.util import Path
-from slideflow.util import colors as col
 from slideflow.util import log
 
 if TYPE_CHECKING:
@@ -130,7 +129,7 @@ class Heatmap:
         else:
             self.logits = out
             self.uncertainty = None
-        log.info(f"Heatmap complete for {col.green(self.slide.name)}")
+        log.info(f"Heatmap complete for [green]{self.slide.name}")
 
     @staticmethod
     def _prepare_ax(ax: Optional["Axes"] = None) -> "Axes":
@@ -534,4 +533,4 @@ class Heatmap:
                 _savefig('UQ-solid', **save_kwargs)
 
         plt.close()
-        log.info(f'Saved heatmaps for {col.green(self.slide.name)}')
+        log.info(f'Saved heatmaps for [green]{self.slide.name}')

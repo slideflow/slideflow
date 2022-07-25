@@ -21,7 +21,6 @@ from slideflow.model import tensorflow_utils as tf_utils
 from slideflow.model.base import log_manifest, no_scope
 from slideflow.model.tensorflow_utils import unwrap
 from slideflow.util import NormFit, Path
-from slideflow.util import colors as col
 from slideflow.util import log
 
 import tensorflow as tf
@@ -266,7 +265,7 @@ class ModelParams(_base._ModelParams):
         image_shape = (self.tile_px, self.tile_px, 3)
         tile_input_tensor = tf.keras.Input(shape=image_shape, name='tile_image')
         if pretrain:
-            log.info(f'Using pretraining from {col.green(pretrain)}')
+            log.info(f'Using pretraining from [magenta]{pretrain}')
         if pretrain and pretrain != 'imagenet':
             pretrained_model = tf.keras.models.load_model(pretrain)
             try:
@@ -403,7 +402,7 @@ class ModelParams(_base._ModelParams):
             model.add_loss(tf_utils.batch_loss_crossentropy(last_linear))
 
         if checkpoint:
-            log.info(f'Loading checkpoint weights from {col.green(checkpoint)}')
+            log.info(f'Loading checkpoint weights from [green]{checkpoint}')
             model.load_weights(checkpoint)
 
         return model
@@ -500,7 +499,7 @@ class ModelParams(_base._ModelParams):
         model = tf.keras.Model(inputs=model_inputs, outputs=outputs)
 
         if checkpoint:
-            log.info(f'Loading checkpoint weights from {col.green(checkpoint)}')
+            log.info(f'Loading checkpoint weights from [green]{checkpoint}')
             model.load_weights(checkpoint)
 
         return model
@@ -636,7 +635,7 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
             )
             if self.cb_args.save_model:
                 self.model.save(model_path)
-                log.info(f'Trained model saved to {col.green(model_path)}')
+                log.info(f'Trained model saved to [green]{model_path}')
 
                 # Try to copy model settings/hyperparameters file
                 # into the model folder
@@ -746,12 +745,12 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
                 self.neptune_run["early_stop/stopped_early"] = False
 
             # Base logging message
-            batch_msg = col.blue(f'Batch {batch:<5}')
-            loss_msg = f"{col.green('loss')}: {logs['loss']:.3f}"
-            val_loss_msg = f"{col.purple('val_loss')}: {val_loss:.3f}"
+            batch_msg = f'[blue]Batch {batch:<5}[/]'
+            loss_msg = f"[green]loss[/]: {logs['loss']:.3f}"
+            val_loss_msg = f"[magenta]val_loss[/]: {val_loss:.3f}"
             if self.model_type == 'categorical':
-                acc_msg = f"{col.green('acc')}: {train_acc}"
-                val_acc_msg = f"{col.purple('val_acc')}: {val_acc}"
+                acc_msg = f"[green]acc[/]: {train_acc}"
+                val_acc_msg = f"[magenta]val_acc[/]: {val_acc}"
                 log_message = f"{batch_msg} {loss_msg}, {acc_msg} | "
                 log_message += f"{val_loss_msg}, {val_acc_msg}"
             else:
@@ -1694,7 +1693,7 @@ class Trainer:
                 )
             except tf.errors.ResourceExhaustedError as e:
                 log.debug(e)
-                log.error(f"Training failed for {col.bold(self.name)}, "
+                log.error(f"Training failed for [bold]{self.name}[/], "
                           "GPU memory exceeded.")
             results = val_callback.results
             if self.use_neptune and self.neptune_run is not None:
@@ -2024,7 +2023,7 @@ class Features:
             **kwargs
         )
         if not generator:
-            log.error(f"No tiles extracted from slide {col.green(slide.name)}")
+            log.error(f"No tiles extracted from slide [green]{slide.name}")
             return None
 
         def tile_generator():

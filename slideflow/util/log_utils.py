@@ -1,25 +1,22 @@
 import logging
 import queue
 import threading
-import multiprocessing as mp
 from tqdm import tqdm
-
-import slideflow.util.colors as col
 
 
 class LogFormatter(logging.Formatter):
-    MSG_FORMAT = "%(asctime)s [%(levelname)s] - %(message)s"
+    MSG_FORMAT = "%(message)s"
     LEVEL_FORMATS = {
-        logging.DEBUG: col.dim(MSG_FORMAT),
+        logging.DEBUG: f"[dim]{MSG_FORMAT}[/]",
         logging.INFO: MSG_FORMAT,
-        logging.WARNING: col.yellow(MSG_FORMAT),
-        logging.ERROR: col.red(MSG_FORMAT),
-        logging.CRITICAL: col.bold(col.red(MSG_FORMAT))
+        logging.WARNING: MSG_FORMAT,
+        logging.ERROR: MSG_FORMAT,
+        logging.CRITICAL: MSG_FORMAT
     }
 
     def format(self, record):
         log_fmt = self.LEVEL_FORMATS[record.levelno]
-        formatter = logging.Formatter(log_fmt, '%Y-%m-%d %H:%M:%S')
+        formatter = logging.Formatter(log_fmt)
         return formatter.format(record)
 
 

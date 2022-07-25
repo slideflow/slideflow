@@ -1,7 +1,6 @@
 """Categorical, linear, and CPH metrics for predictions."""
 
 import multiprocessing as mp
-from functools import partial
 from os.path import join
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
@@ -13,7 +12,6 @@ from lifelines.utils import concordance_index as c_index
 from pandas.core.frame import DataFrame
 from sklearn import metrics
 from slideflow import errors
-from slideflow.util import colors as col
 from slideflow.util import log
 
 if TYPE_CHECKING:
@@ -227,7 +225,7 @@ def categorical_metrics(
                 for orig_col in outcome_cols
             }
         )
-        log.info(f"Validation metrics for outcome {col.green(outcome)}:")
+        log.info(f"Validation metrics for outcome [green]{outcome}[/]:")
         y_pred_cols = [c for c in outcome_df.columns if c.startswith('y_pred')]
         num_cat = len(y_pred_cols)
         if not num_cat:
@@ -619,7 +617,7 @@ def linear_metrics(
 
     # Show results
     for o, r in zip(outcome_names, r_squared):
-        log.info(f"{col.green(o)}: R-squared ({level}-level): {r:.3f}")
+        log.info(f"[green]{o}[/]: R-squared ({level}-level): {r:.3f}")
 
     return {
         'r_squared': r_squared,

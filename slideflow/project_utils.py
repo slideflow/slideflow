@@ -11,7 +11,6 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 import slideflow as sf
 from slideflow import errors
 from slideflow.util import Path
-from slideflow.util import colors as col
 from slideflow.util import log, relative_path
 
 # Set the tensorflow logger
@@ -140,7 +139,7 @@ def _setup_input_labels(
         else:
             is_float = dts.is_float(inpt)
         kind = 'float' if is_float else 'categorical'
-        log.info(f"Adding input variable {col.blue(inpt)} as {kind}")
+        log.info(f"Adding input variable [blue]{inpt}[/] as {kind}")
 
         labels, unique = dts.labels(inpt, use_float=is_float)
         slides = list(labels.keys())
@@ -292,7 +291,7 @@ def interactive_project_setup(project_folder: str) -> Dict:
     while not project['sources']:
         path = relative_path(project['dataset_config'], project_folder)
         datasets_data, sources = load_sources(path)
-        print(col.bold('Detected dataset sources:'))
+        print('[bold]Detected dataset sources:')
         if not len(sources):
             print(' [None]')
         else:
@@ -307,7 +306,7 @@ def interactive_project_setup(project_folder: str) -> Dict:
             )
         if not len(sources) or str(len(sources)+1) in selection:
             # Create new dataset
-            print(f"{col.bold('Creating new dataset source')}")
+            print(f"{'[bold]Creating new dataset source'}")
             source_name = input('What is the dataset source name? ')
             source_slides = sf.util.path_input(
                 'Where are the slides stored? [./slides] ',
