@@ -486,7 +486,7 @@ def interleave(
                 weights += [prob_weights[tfr]]  # type: ignore
 
         # ------- Interleave and parse datasets -------------------------------
-        sampled_dataset = tf.data.experimental.sample_from_datasets(
+        sampled_dataset = tf.data.Dataset.sample_from_datasets(
             datasets,
             weights=weights
         )
