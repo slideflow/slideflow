@@ -19,12 +19,13 @@ from packaging import version
 from slideflow import errors
 from slideflow.model import tensorflow_utils as tf_utils
 from slideflow.model.base import log_manifest, no_scope
-from slideflow.model.tensorflow_utils import unwrap
+from slideflow.model.tensorflow_utils import unwrap  # type: ignore
 from slideflow.util import NormFit, Path
 from slideflow.util import log
 
 import tensorflow as tf
 from tensorflow.keras import applications as kapps
+from slideflow.model.tensorflow_utils import eval_from_model
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -577,7 +578,6 @@ class ModelParams(_base._ModelParams):
 
 
 class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
-    # TODO: log early stopping batch number, and record
 
     """Prediction and Evaluation Callback used during model training."""
 
@@ -602,21 +602,20 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
     def _metrics_from_dataset(
         self,
         epoch_label: str,
-        pred_args: SimpleNamespace
     ) -> Tuple[Dict, float, float]:
         return sf.stats.metrics_from_dataset(
             self.model,
             model_type=self.hp.model_type(),
             patients=self.parent.patients,
-            dataset=self.cb_args.validation_data_with_slidenames,
+            dataset=self.cb_args.validation_data,
             outcome_names=self.parent.outcome_names,
             label=epoch_label,
             data_dir=self.parent.outdir,
             num_tiles=self.cb_args.num_val_tiles,
             save_predictions=self.cb_args.save_predictions,
             reduce_method=self.cb_args.reduce_method,
-            pred_args=pred_args,
-            incl_loc=True,
+            loss=self.hp.get_loss(),
+            uq=bool(self.hp.uq),
         )
 
     def on_epoch_end(self, epoch: int, logs={}) -> None:
@@ -699,12 +698,21 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
         if (self.cb_args.using_validation and self.cb_args.validate_on_batch
            and (batch > 0)
            and (batch % self.cb_args.validate_on_batch == 0)):
-            val_metrics = self.model.evaluate(
+            _, acc, loss = eval_from_model(
+                self.model,
                 self.cb_args.validation_data,
-                verbose=0,
+                model_type=self.hp.model_type(),
+                uq=bool(self.hp.uq),
+                loss=self.hp.get_loss(),
                 steps=self.cb_args.validation_steps,
-                return_dict=True
+                verbosity='quiet',
             )
+            val_metrics = {'loss': loss}
+            if isinstance(acc, float):
+                val_metrics['accuracy'] = acc
+            elif acc is not None:
+                val_metrics.update({f'accuracy-{i+1}': acc[i] for i in range(len(acc))})
+
             val_loss = val_metrics['loss']
             self.model.stop_training = False
             if (self.hp.early_stop_method == 'accuracy'
@@ -820,10 +828,7 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
     def evaluate_model(self, logs={}) -> None:
         log.debug("Evaluating model from evaluation callback")
         epoch = self.epoch_count
-        metrics, acc, loss = self._metrics_from_dataset(
-            f'val_epoch{epoch}',
-            SimpleNamespace(loss=self.hp.get_loss(), uq=bool(self.hp.uq))
-        )
+        metrics, acc, loss = self._metrics_from_dataset(f'val_epoch{epoch}')
 
         # Note that Keras loss during training includes regularization losses,
         # so this loss will not match validation loss calculated during training
@@ -1158,7 +1163,6 @@ class Trainer:
     def _retrain_top_layers(
         self,
         train_data: tf.data.Dataset,
-        validation_data: tf.data.Dataset,
         steps_per_epoch: int,
         callbacks: tf.keras.callbacks.Callback = None,
         epochs: int = 1
@@ -1167,7 +1171,7 @@ class Trainer:
         log.info('Retraining top layer')
         # Freeze the base layer
         self.model.layers[0].trainable = False
-        val_steps = 200 if validation_data else None
+        #val_steps = 200 if validation_data else None
         self._compile_model()
 
         toplayer_model = self.model.fit(
@@ -1175,8 +1179,6 @@ class Trainer:
             epochs=epochs,
             verbose=(sf.getLoggingLevel() <= 20),
             steps_per_epoch=steps_per_epoch,
-            validation_data=validation_data,
-            validation_steps=val_steps,
             callbacks=callbacks
         )
         # Unfreeze the base layer
@@ -1214,7 +1216,9 @@ class Trainer:
         dataset: "sf.Dataset",
         batch_size: Optional[int] = None,
         norm_fit: Optional[NormFit] = None,
-        format: str = 'parquet'
+        format: str = 'parquet',
+        from_wsi: bool = False,
+        roi_method: str = 'auto',
     ) -> "pd.DataFrame":
         """Perform inference on a model, saving tile-level predictions.
 
@@ -1259,25 +1263,22 @@ class Trainer:
             )
             tf_dts_w_slidenames = dataset.tensorflow(
                 incl_slidenames=True,
-                incl_loc=True,
+                from_wsi=from_wsi,
+                roi_method=roi_method,
                 **interleave_kwargs
             )
         # Generate predictions
         log.info('Generating predictions...')
-        pred_args = SimpleNamespace(uq=bool(self.hp.uq))
-        dfs = sf.stats.predict_from_dataset(
+        dfs = sf.stats.predict_dataset(
             model=self.model,
             dataset=tf_dts_w_slidenames,
             model_type=self._model_type,
-            pred_args=pred_args,
+            uq=bool(self.hp.uq),
             num_tiles=dataset.num_tiles,
             outcome_names=self.outcome_names,
-            incl_loc=True
         )
-
         # Save predictions
         sf.stats.metrics.save_dfs(dfs, format=format, outdir=self.outdir)
-
         return dfs
 
     def evaluate(
@@ -1287,7 +1288,9 @@ class Trainer:
         save_predictions: Union[bool, str] = 'parquet',
         reduce_method: str = 'average',
         norm_fit: Optional[NormFit] = None,
-        uq: Union[bool, str] = 'auto'
+        uq: Union[bool, str] = 'auto',
+        from_wsi: bool = False,
+        roi_method: str = 'auto',
     ) -> Dict[str, Any]:
         """Evaluate model, saving metrics and predictions.
 
@@ -1320,6 +1323,10 @@ class Trainer:
             if not isinstance(uq, bool):
                 raise ValueError(f"Unrecognized value {uq} for uq")
             self.hp.uq = uq
+
+        # Perform evaluation
+        _unit_type = 'slides' if from_wsi else 'tfrecords'
+        log.info(f'Evaluating {len(dataset.tfrecords())} {_unit_type}')
 
         # Fit normalizer
         self._fit_normalizer(norm_fit)
@@ -1358,6 +1365,8 @@ class Trainer:
             tf_dts_w_slidenames = dataset.tensorflow(
                 incl_slidenames=True,
                 incl_loc=True,
+                from_wsi=from_wsi,
+                roi_method=roi_method,
                 **interleave_kwargs
             )
         # Generate performance metrics
@@ -1367,15 +1376,11 @@ class Trainer:
             num_tiles=dataset.num_tiles,
             label='eval'
         )
-        pred_args = SimpleNamespace(
-            loss=self.hp.get_loss(),
-            uq=bool(self.hp.uq)
-        )
         metrics, acc, loss = sf.stats.metrics_from_dataset(
             save_predictions=save_predictions,
-            pred_args=pred_args,
             reduce_method=reduce_method,
-            incl_loc=True,
+            loss=self.hp.get_loss(),
+            uq=bool(self.hp.uq),
             **metric_kwargs
         )
         results = {'eval': {}}  # type: Dict[str, Dict[str, float]]
@@ -1429,6 +1434,8 @@ class Trainer:
         multi_gpu: bool = False,
         reduce_method: str = 'average',
         norm_fit: Optional[NormFit] = None,
+        from_wsi: bool = False,
+        roi_method: str = 'auto',
     ):
         """Builds and trains a model from hyperparameters.
 
@@ -1517,10 +1524,15 @@ class Trainer:
             sf.util.write_json(config, config_path)
 
         # Save training / validation manifest
-        val_tfrecords = None if val_dts is None else val_dts.tfrecords()
+        if val_dts is None:
+            val_paths = None
+        elif from_wsi:
+            val_paths = val_dts.slide_paths()
+        else:
+            val_paths = val_dts.tfrecords()
         log_manifest(
             train_dts.tfrecords(),
-            val_tfrecords,
+            val_paths,
             labels=self.labels,
             filename=join(self.outdir, 'slide_manifest.csv')
         )
@@ -1569,12 +1581,16 @@ class Trainer:
                 t_kwargs = self._interleave_kwargs(
                     batch_size=self.hp.batch_size,
                     infinite=True,
-                    augment=self.hp.augment
+                    augment=self.hp.augment,
+                    from_wsi=from_wsi,
+                    roi_method=roi_method
                 )
                 train_data = train_dts.tensorflow(drop_last=True, **t_kwargs)
 
             # Set up validation data
-            using_validation = (val_dts and len(val_dts.tfrecords()))
+            using_validation = (val_dts
+                                and (len(val_dts.tfrecords()) if not from_wsi
+                                     else len(val_dts.slide_paths())))
             if using_validation:
                 assert val_dts is not None
                 with tf.name_scope('input'):
@@ -1583,10 +1599,11 @@ class Trainer:
                     v_kwargs = self._interleave_kwargs_val(
                         batch_size=validation_batch_size,
                         infinite=False,
-                        augment=False
+                        augment=False,
+                        from_wsi=from_wsi,
+                        roi_method=roi_method
                     )
-                    val_data = val_dts.tensorflow(**v_kwargs)
-                    val_data_w_slidenames = val_dts.tensorflow(
+                    validation_data = val_dts.tensorflow(
                         incl_slidenames=True,
                         incl_loc=True,
                         drop_last=True,
@@ -1598,21 +1615,23 @@ class Trainer:
                 else:
                     log.debug('Validation during training: at epoch end')
                 if validation_steps:
-                    validation_data_for_training = val_data.repeat()
                     num_samples = validation_steps * self.hp.batch_size
                     log.debug(f'Using {validation_steps} batches ({num_samples}'
                               ' samples) each validation check')
                 else:
-                    validation_data_for_training = val_data
                     log.debug('Using entire validation set each val check')
             else:
                 log.debug('Validation during training: None')
-                validation_data_for_training = None
-                val_data = None
-                val_data_w_slidenames = None
+                validation_data = None
                 validation_steps = 0
 
             # Calculate parameters
+            if from_wsi:
+                train_tiles = train_data.est_num_tiles
+                val_tiles = validation_data.est_num_tiles
+            else:
+                train_tiles = train_dts.num_tiles
+                val_tiles = 0 if val_dts is None else val_dts.num_tiles
             if max(self.hp.epochs) <= starting_epoch:
                 max_epoch = max(self.hp.epochs)
                 log.error(f'Starting epoch ({starting_epoch}) cannot be greater'
@@ -1626,19 +1645,18 @@ class Trainer:
             if steps_per_epoch_override:
                 steps_per_epoch = steps_per_epoch_override
             else:
-                steps_per_epoch = round(train_dts.num_tiles/self.hp.batch_size)
+                steps_per_epoch = round(train_tiles / self.hp.batch_size)
 
             cb_args = SimpleNamespace(
                 starting_epoch=starting_epoch,
                 using_validation=using_validation,
                 validate_on_batch=validate_on_batch,
-                validation_data=val_data,
                 validation_steps=validation_steps,
                 ema_observations=ema_observations,
                 ema_smoothing=ema_smoothing,
                 steps_per_epoch=steps_per_epoch,
-                validation_data_with_slidenames=val_data_w_slidenames,
-                num_val_tiles=(0 if val_dts is None else val_dts.num_tiles),
+                validation_data=validation_data,
+                num_val_tiles=val_tiles,
                 save_predictions=save_predictions,
                 save_model=save_model,
                 results_log=results_log,
@@ -1672,7 +1690,6 @@ class Trainer:
             if self.hp.toplayer_epochs:
                 self._retrain_top_layers(
                     train_data,
-                    validation_data_for_training,
                     steps_per_epoch,
                     callbacks=None,
                     epochs=self.hp.toplayer_epochs
@@ -1687,8 +1704,6 @@ class Trainer:
                     epochs=total_epochs,
                     verbose=(sf.getLoggingLevel() <= 20),
                     initial_epoch=self.hp.toplayer_epochs,
-                    validation_data=validation_data_for_training,
-                    validation_steps=validation_steps,
                     callbacks=callbacks
                 )
             except tf.errors.ResourceExhaustedError as e:

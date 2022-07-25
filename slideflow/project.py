@@ -683,6 +683,8 @@ class Project:
 
         # --- Set up validation data ------------------------------------------
         manifest = dataset.manifest()
+        from_wsi = ('from_wsi' in s_args.training_kwargs
+                    and s_args.training_kwargs['from_wsi'])
 
         # Use an external validation dataset if supplied
         if val_settings.source:
@@ -727,18 +729,26 @@ class Project:
                 val_fraction=val_settings.fraction,
                 val_k_fold=val_settings.k_fold,
                 k_fold_iter=s_args.k,
-                site_labels=site_labels
+                site_labels=site_labels,
+                from_wsi=from_wsi
             )
 
         # ---- Balance and clip datasets --------------------------------------
         if s_args.bal_headers is None:
             s_args.bal_headers = s_args.outcomes
-        train_dts = train_dts.balance(s_args.bal_headers, hp.training_balance)
-        train_dts = train_dts.clip(s_args.max_tiles)
-        if val_dts:
+        if not from_wsi:
+            train_dts = train_dts.balance(
+                s_args.bal_headers,
+                hp.training_balance,
+            )
+            train_dts = train_dts.clip(s_args.max_tiles)
+        else:
+            log.warning("Balancing / clipping is disabled when `from_wsi=True`")
+
+        if val_dts and not from_wsi:
             val_dts = val_dts.balance(
                 s_args.bal_headers,
-                hp.validation_balance
+                hp.validation_balance,
             )
             val_dts = val_dts.clip(s_args.max_tiles)
         num_train = len(train_dts.tfrecords())
@@ -1019,8 +1029,6 @@ class Project:
             input_header=input_header,
             mixed_precision=mixed_precision
         )
-        # Perform evaluation
-        log.info(f'Evaluating {len(eval_dts.tfrecords())} tfrecords')
         return trainer.evaluate(eval_dts, **kwargs)
 
     def evaluate_clam(

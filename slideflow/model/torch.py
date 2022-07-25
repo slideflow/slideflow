@@ -319,9 +319,9 @@ class ModelParams(_base._ModelParams):
             if 'image_size' in model_kw:
                 call_kw.update(dict(image_size=self.tile_px))
             if version.parse(torchvision.__version__) >= version.parse("0.13"):
-                call_kw.update(dict(weights=pretrain))
+                call_kw.update(dict(weights=pretrain))  # type: ignore
             else:
-                call_kw.update(dict(pretrained=pretrain))
+                call_kw.update(dict(pretrained=pretrain))  # type: ignore
             _model = model_fn(**call_kw)
 
         # Add final layers to models
@@ -701,7 +701,9 @@ class Trainer:
         epoch_results = {}
 
         # Preparations for calculating accuracy/loss in metrics_from_dataset()
-        def update_corrects(pred, labels, running_corrects):
+        def update_corrects(pred, labels, running_corrects=None):
+            if running_corrects is None:
+                running_corrects = self._empty_corrects()
             if self.hp.model_type() == 'categorical':
                 labels = self._labels_to_device(labels, self.device)
                 return self._update_corrects(pred, labels, running_corrects)
@@ -713,15 +715,11 @@ class Trainer:
             loss = self._calculate_loss(pred, labels, self.loss_fn)
             return running_loss + (loss.item() * size)
 
-        _running_corrects = self._empty_corrects()
-        pred_args = types.SimpleNamespace(
-            multi_outcome=(self.num_outcomes > 1),
+        torch_args = types.SimpleNamespace(
             update_corrects=update_corrects,
             update_loss=update_loss,
-            running_corrects=_running_corrects,
             num_slide_features=self.num_slide_features,
             slide_input=self.slide_input,
-            uq=bool(self.hp.uq)
         )
         # Calculate patient/slide/tile metrics (AUC, R-squared, C-index, etc)
         metrics, acc, loss = sf.stats.metrics_from_dataset(
@@ -732,8 +730,8 @@ class Trainer:
             data_dir=self.outdir,
             outcome_names=self.outcome_names,
             neptune_run=self.neptune_run,
-            pred_args=pred_args,
-            incl_loc=True,
+            torch_args=torch_args,
+            uq=bool(self.hp.uq),
             **kwargs
         )
         loss_and_acc = {'loss': loss}
@@ -974,7 +972,7 @@ class Trainer:
         running_val_correct = self._empty_corrects()
 
         for _ in range(self.validation_steps):
-            val_img, val_label, slides, *_ = next(self.mid_train_val_dts)
+            val_img, val_label, slides, *_ = next(self.mid_train_val_dts)  # type:ignore
             val_img = val_img.to(self.device)
 
             with torch.no_grad():
@@ -1207,10 +1205,10 @@ class Trainer:
             train_acc, acc_desc = 0, ''  # type: ignore
         self.running_loss += loss.item() * images.size(0)
         _loss = self.running_loss / self.epoch_records
-        pb.update(task_id=0,
+        pb.update(task_id=0,  # type: ignore
                   description=(f'[bold blue]train[/] '
                                f'loss: {_loss:.4f} {acc_desc}'))
-        pb.advance(task_id=0)
+        pb.advance(task_id=0)  # type: ignore
 
         # Log to tensorboard
         if self.use_tensorboard and self.global_step % self.log_frequency == 0:
@@ -1326,26 +1324,22 @@ class Trainer:
         if not batch_size:
             batch_size = self.hp.batch_size
         self._setup_dataloaders(None, dataset, incl_labels=False)
-        # Generate predictions
+
         log.info('Generating predictions...')
-        pred_args = types.SimpleNamespace(
-            uq=bool(self.hp.uq),
-            multi_outcome=(self.num_outcomes > 1),
+        torch_args = types.SimpleNamespace(
             num_slide_features=self.num_slide_features,
             slide_input=self.slide_input
         )
-        dfs = sf.stats.predict_from_dataset(
+        dfs = sf.stats.predict_dataset(
             model=self.model,
             dataset=self.dataloaders['val'],
             model_type=self._model_type,
-            pred_args=pred_args,
+            torch_args=torch_args,
             outcome_names=self.outcome_names,
-            incl_loc=True
+            uq=bool(self.hp.uq),
         )
-
         # Save predictions
         sf.stats.metrics.save_dfs(dfs, format=format, outdir=self.outdir)
-
         return dfs
 
     def evaluate(

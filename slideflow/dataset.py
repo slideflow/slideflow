@@ -84,7 +84,7 @@ overview of the structure of the Dataset class is as follows:
 
 import copy
 import csv
-import multiprocessing
+import multiprocessing as mp
 import os
 import shutil
 import threading
@@ -99,7 +99,6 @@ from queue import Queue
 from random import shuffle
 from typing import (TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Tuple,
                     Union)
-
 import numpy as np
 import pandas as pd
 import shapely.geometry as sg
@@ -211,6 +210,11 @@ def _fill_queue(
             q.put(path)
     q.put(None)
     q.join()
+
+
+def _count_otsu_tiles(wsi):
+    wsi.qc('otsu')
+    return wsi.estimated_num_tiles
 
 
 def split_patients_preserved_site(
@@ -647,7 +651,7 @@ class Dataset:
         self,
         headers: Optional[Union[str, List[str]]] = None,
         strategy: Optional[str] = 'category',
-        force: bool = False
+        force: bool = False,
     ) -> "Dataset":
         """Returns a dataset with prob_weights reflecting balancing per tile,
         slide, patient, or category.
@@ -1102,36 +1106,11 @@ class Dataset:
 
             # Verify slides and estimate total number of tiles
             log.info('Verifying slides...')
-            total_tiles = 0
-            for slide_path in track(slide_list,
-                                    description="Verifying slides...",
-                                    transient=True):
-                try:
-                    if tma:
-                        slide = sf.slide.TMA(
-                            slide_path,
-                            self.tile_px,
-                            self.tile_um,
-                            stride_div,
-                        )  # type: sf.slide._BaseLoader
-                    else:
-                        slide = sf.slide.WSI(
-                            slide_path,
-                            self.tile_px,
-                            self.tile_um,
-                            stride_div,
-                            roi_dir=roi_dir,
-                            roi_method=roi_method,
-                            silent=True
-                        )
-                except errors.SlideError as e:
-                    log.debug(f"Skipping {slide_path}")
-                    continue
-                else:
-                    est = slide.estimated_num_tiles  # type: ignore
-                    log.debug(f"Estimated tiles for slide {slide.name}: {est}")
-                    total_tiles += est
-                    del slide
+            filtered_dts = self.filter(
+                {'slide': list(map(sf.util.path_to_name, slide_list))}
+            )
+            slide_manifest = filtered_dts.slide_manifest(source=source)
+            total_tiles = sum(list(slide_manifest.values()))
             log.info(f'Total estimated tiles to extract: {total_tiles}')
 
             # Use multithreading if specified, extracting tiles
@@ -1139,8 +1118,8 @@ class Dataset:
             if len(slide_list):
                 q = Queue()  # type: Queue
                 task_finished = False
-                manager = multiprocessing.Manager()
-                ctx = multiprocessing.get_context('spawn')
+                manager = mp.Manager()
+                ctx = mp.get_context('spawn')
                 reports = manager.dict()  # type: dict
 
                 # If only one worker, use a single shared multiprocessing pool
@@ -1749,6 +1728,78 @@ class Dataset:
         slides = self.slides()
         return [r for r in list(set(rois_list)) if path_to_name(r) in slides]
 
+    def slide_manifest(
+        self,
+        roi_method: str = 'auto',
+        stride_div: int = 1,
+        tma: bool = False,
+        source: Optional[str] = None
+    ) -> Dict[str, int]:
+        """Return a dictionary mapping slide names to estimated number of tiles,
+        using Otsu thresholding for background filtering and the ROI strategy.
+
+        Args:
+            roi_method (str): Either 'inside', 'outside', 'auto', or 'ignore'.
+                Determines how ROIs are used to extract tiles.
+                If 'inside' or 'outside', will extract tiles in/out of an ROI,
+                and skip a slide if an ROI is not available.
+                If 'auto', will extract tiles inside an ROI if available,
+                and across the whole-slide if no ROI is found.
+                If 'ignore', will extract tiles across the whole-slide
+                regardless of whether an ROI is available.
+                Defaults to 'auto'.
+
+        Returns:
+            Dict[str, int]: Dictionary mapping slide names to number of
+            estimated non-background tiles in the slide.
+        """
+        if self.tile_px is None or self.tile_um is None:
+            raise errors.DatasetError(
+                "tile_px and tile_um must be set to calculate a slide manifest"
+            )
+        paths = self.slide_paths(source=source)
+        pb = Progress(transient=True)
+        read_task = pb.add_task('Reading slides...', total=len(paths))
+        otsu_task = pb.add_task("Otsu thresholding...", total=len(paths))
+        pb.start()
+        pool = mp.Pool(16 if os.cpu_count is None else os.cpu_count())
+        wsi_list = []
+        to_remove = []
+        for path in paths:
+            try:
+                if tma:
+                    wsi = sf.TMA(
+                        path,
+                        self.tile_px,
+                        self.tile_um,
+                        stride_div=stride_div,
+                    )
+                else:
+                    wsi = sf.WSI(  # type: ignore
+                        path,
+                        self.tile_px,
+                        self.tile_um,
+                        rois=self.rois(),
+                        stride_div=stride_div,
+                        roi_method=roi_method,
+                        silent=True)
+
+                wsi_list += [wsi]
+                pb.advance(read_task)
+            except errors.SlideLoadError as e:
+                log.error(f"Error reading slide {path}: {e}")
+                to_remove += [path]
+        for path in to_remove:
+            paths.remove(path)
+        pb.update(read_task, total=len(paths))
+        pb.update(otsu_task, total=len(paths))
+        counts = []
+        for count in pool.imap(_count_otsu_tiles, wsi_list):
+            counts += [count]
+            pb.advance(otsu_task)
+        pb.stop()
+        return {path: counts[p] for p, path in enumerate(paths)}
+
     def slide_paths(
         self,
         source: Optional[str] = None,
@@ -1875,6 +1926,7 @@ class Dataset:
         self,
         labels: Labels = None,
         batch_size: Optional[int] = None,
+        from_wsi: bool = False,
         **kwargs: Any
     ) -> "tf.data.Dataset":
         """Returns a Tensorflow Dataset object that interleaves tfrecords
@@ -1936,19 +1988,35 @@ class Dataset:
 
         from slideflow.io.tensorflow import interleave
 
-        tfrecords = self.tfrecords()
-        if not tfrecords:
-            raise errors.TFRecordsNotFoundError
-        self.verify_img_format()
         if self.tile_px is None:
             raise errors.DatasetError("tile_px and tile_um must be non-zero"
                                       "to create dataloaders.")
-        return interleave(tfrecords=tfrecords,
+        if self.prob_weights is not None and from_wsi:
+            log.warning("Dataset balancing is disabled when `from_wsi=True`")
+        if self._clip is not None and from_wsi:
+            log.warning("Dataset clipping is disabled when `from_wsi=True`")
+
+        if from_wsi:
+            tfrecords = self.slide_paths()
+            kwargs['rois'] = self.rois()
+            kwargs['tile_um'] = self.tile_um
+            kwargs['from_wsi'] = True
+            prob_weights = None
+            clip = None
+        else:
+            tfrecords = self.tfrecords()
+            prob_weights = self.prob_weights
+            clip = self._clip
+            if not tfrecords:
+                raise errors.TFRecordsNotFoundError
+            self.verify_img_format()
+
+        return interleave(paths=tfrecords,
                           labels=labels,
                           img_size=self.tile_px,
                           batch_size=batch_size,
-                          prob_weights=self.prob_weights,
-                          clip=self._clip,
+                          prob_weights=prob_weights,
+                          clip=clip,
                           **kwargs)
 
     def tfrecord_report(
@@ -2247,7 +2315,8 @@ class Dataset:
         val_k_fold: Optional[int] = None,
         k_fold_iter: Optional[int] = None,
         site_labels: Optional[Dict[str, str]] = None,
-        read_only: bool = False
+        read_only: bool = False,
+        from_wsi: bool = False,
     ) -> Tuple["Dataset", "Dataset"]:
         """From a specified subfolder in the project's main TFRecord folder,
         prepare a training set and validation set.
@@ -2321,11 +2390,11 @@ class Dataset:
 
         # Assemble dict of patients linking to list of slides & outcome labels
         # dataset.labels() ensures no duplicate labels for a single patient
-        tfrecord_dir_list = self.tfrecords()
+        tfrecord_dir_list = self.tfrecords() if not from_wsi else self.slide_paths()
         if not len(tfrecord_dir_list):
             raise errors.TFRecordsNotFoundError
         tfrecord_dir_list_names = [
-            tfr.split('/')[-1][:-10] for tfr in tfrecord_dir_list
+            sf.util.path_to_name(tfr) for tfr in tfrecord_dir_list
         ]
         patients_dict = {}
         num_warned = 0
@@ -2559,8 +2628,12 @@ class Dataset:
         training_dts = training_dts.filter(filters={'slide': train_slides})
         val_dts = copy.deepcopy(self)
         val_dts = val_dts.filter(filters={'slide': val_slides})
-        assert(sorted(training_dts.tfrecords()) == sorted(training_tfrecords))
-        assert(sorted(val_dts.tfrecords()) == sorted(val_tfrecords))
+        if not from_wsi:
+            assert(sorted(training_dts.tfrecords()) == sorted(training_tfrecords))
+            assert(sorted(val_dts.tfrecords()) == sorted(val_tfrecords))
+        else:
+            assert(sorted(training_dts.slide_paths()) == sorted(training_tfrecords))
+            assert(sorted(val_dts.slide_paths()) == sorted(val_tfrecords))
         return training_dts, val_dts
 
     def torch(

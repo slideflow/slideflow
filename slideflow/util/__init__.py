@@ -131,7 +131,7 @@ class TileExtractionSpeedColumn(progress.ProgressColumn):
 class ImgBatchSpeedColumn(progress.ProgressColumn):
     """Renders human readable transfer speed."""
 
-    def __init__(self, batch_size, *args, **kwargs):
+    def __init__(self, batch_size=1, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.batch_size = batch_size
 

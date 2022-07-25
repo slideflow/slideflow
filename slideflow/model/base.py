@@ -391,14 +391,14 @@ def log_manifest(
     if train_tfrecords or val_tfrecords:
         if train_tfrecords:
             for tfrecord in train_tfrecords:
-                slide = tfrecord.split('/')[-1][:-10]
+                slide = sf.util.path_to_name(tfrecord)
                 outcome_label = labels[slide] if labels else 'NA'
                 out += ' '.join([slide, 'training', str(outcome_label)])
                 if filename:
                     writer.writerow([slide, 'training', outcome_label])
         if val_tfrecords:
             for tfrecord in val_tfrecords:
-                slide = tfrecord.split('/')[-1][:-10]
+                slide = sf.util.path_to_name(tfrecord)
                 outcome_label = labels[slide] if labels else 'NA'
                 out += ' '.join([slide, 'validation', str(outcome_label)])
                 if filename:

@@ -207,6 +207,8 @@ def get_validation_settings(**kwargs: Any) -> SimpleNamespace:
         'filters': None,
     }
     for k in kwargs:
+        if k not in args_dict:
+            raise ValueError(f"Unrecognized validation setting {k}")
         args_dict[k] = kwargs[k]
     args = SimpleNamespace(**args_dict)
 

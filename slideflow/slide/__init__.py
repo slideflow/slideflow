@@ -213,10 +213,6 @@ def _wsi_extraction_worker(
     x_coord = int((x + args.full_extract_px / 2) / args.roi_scale)
     y_coord = int((y + args.full_extract_px / 2) / args.roi_scale)
 
-    # Skip tiles filtered out with QC or ROI
-    if not args.grid[grid_x, grid_y]:
-        return 'skip'
-
     # If downsampling is enabled, read image from highest level
     # to perform filtering; otherwise filter from our target level
     slide = _VIPSWrapper(args.path, silent=True)
@@ -255,7 +251,7 @@ def _wsi_extraction_worker(
                 return None
 
     # Prepare return dict with WS/GS fraction
-    return_dict = {'loc': [x_coord, y_coord]}
+    return_dict = {'loc': [x_coord, y_coord]}  # type: Dict[str, Any]
     return_dict.update({'grid': [grid_x, grid_y]})
     if args.grayspace_fraction < 1:
         return_dict.update({'gs_fraction': gs_fraction})
@@ -647,24 +643,15 @@ class _BaseLoader:
         self.roi_scale = 1  # type: float
         self.roi_method = None  # type: Optional[str]
         self.annPolys = []  # type: ignore
-        filetype = sf.util.path_to_ext(path)
+        self.filetype = sf.util.path_to_ext(path)
+        self.__slide = None
 
         # Initiate supported slide reader
         if not os.path.exists(path):
             raise errors.SlideNotFoundError(f"Could not find slide {path}.")
-        if filetype.lower() in sf.util.SUPPORTED_FORMATS:
-            if filetype.lower() in ('jpg', 'jpeg'):
-                self.slide = _JPGslideToVIPS(path)  # type: _VIPSWrapper
-            else:
-                try:
-                    self.slide = _VIPSWrapper(path)
-                except vips.error.Error as e:
-                    raise errors.SlideLoadError(
-                        f"Error loading slide {self.shortname}: {e}"
-                    )
-        else:
+        if self.filetype.lower() not in sf.util.SUPPORTED_FORMATS:
             raise errors.SlideLoadError(
-                f"{self.name}: unsupported filetype '{filetype}'"
+                f"{self.name}: unsupported filetype '{self.filetype}'"
             )
 
         # Collect basic slide information
@@ -726,6 +713,18 @@ class _BaseLoader:
         self.stride = self.extract_px // stride_div
         self.full_stride = self.full_extract_px // stride_div
 
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        # Remove the unpicklable entries.
+        if '__slide' in state:
+            state['__slide'] = None
+        if '_BaseLoader__slide' in state:
+            state['_BaseLoader__slide'] = None
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+
     @property
     def dimensions(self) -> Tuple[int, int]:
         return self.slide.dimensions
@@ -740,6 +739,22 @@ class _BaseLoader:
             return self.slide.properties[OPS_VENDOR]
         else:
             return None
+
+    @property
+    def slide(self) -> _VIPSWrapper:
+        if self.__slide is not None:
+            return self.__slide
+        if self.filetype.lower() in ('jpg', 'jpeg'):
+            self.__slide = _JPGslideToVIPS(self.path)  # type: ignore
+            return self.__slide  # type: ignore
+        else:
+            try:
+                self.__slide = _VIPSWrapper(self.path)  # type: ignore
+                return self.__slide  # type: ignore
+            except vips.error.Error as e:
+                raise errors.SlideLoadError(
+                    f"Error loading slide {self.shortname}: {e}"
+                )
 
     def _build_coord(self):
         raise NotImplementedError
@@ -1599,7 +1614,9 @@ class WSI(_BaseLoader):
         yolo: bool = False,
         draw_roi: bool = False,
         pool: Optional["mp.pool.Pool"] = None,
-        dry_run: bool = False
+        dry_run: bool = False,
+        lazy_iter: bool = False,
+        silent: bool = False
     ) -> Optional[Callable]:
         """Builds tile generator to extract tiles from this slide.
 
@@ -1702,6 +1719,12 @@ class WSI(_BaseLoader):
         def generator():
             nonlocal pool
             should_close = False
+
+            # Skip tiles filtered out with QC or ROI
+            non_roi_coord = self.coord[
+                self.grid[tuple(self.coord[:, 2:4].T)].astype(bool)
+            ]
+
             if pool is None:
                 if num_threads > 1:
                     log.debug(f"Building generator with {num_threads} threads")
@@ -1711,7 +1734,7 @@ class WSI(_BaseLoader):
                 else:
                     log.debug(f"Building generator without multithreading")
                     def _generator():
-                        for c in self.coord:
+                        for c in non_roi_coord:
                             yield _wsi_extraction_worker(c, args=w_args)
                     i_mapped = _generator()
             else:
@@ -1722,13 +1745,22 @@ class WSI(_BaseLoader):
                 pbar.start()
 
             if pool is not None:
-                i_mapped = pool.imap(
-                    partial(_wsi_extraction_worker, args=w_args),
-                    self.coord
-                )
-            for result in i_mapped:
-                if result == 'skip':
-                    continue
+                if lazy_iter:
+                    batched_coord = sf.util.batch(non_roi_coord, pool._processes)
+                    def _generator():
+                        for batch in batched_coord:
+                            yield from pool.imap(
+                                partial(_wsi_extraction_worker, args=w_args),
+                                batch
+                            )
+                    i_mapped = _generator()
+
+                else:
+                    i_mapped = pool.imap(
+                        partial(_wsi_extraction_worker, args=w_args),
+                        non_roi_coord,
+                    )
+            for e, result in enumerate(i_mapped):
                 if show_progress:
                     pbar.advance(task, 1)
                 elif self.pb is not None:
@@ -1742,9 +1774,10 @@ class WSI(_BaseLoader):
             if should_close:
                 pool.close()
             name_msg = f'[green]{self.shortname}[/]'
-            pos = len(self.coord)
+            pos = len(non_roi_coord)
             num_msg = f'({np.sum(self.grid.sum())} tiles of {pos} possible)'
-            log.info(f"Finished tile extraction for {name_msg} {num_msg}")
+            log_fn = log.debug if silent else log.info
+            log_fn(f"Finished tile extraction for {name_msg} {num_msg}")
 
         return generator
 
@@ -1868,6 +1901,70 @@ class WSI(_BaseLoader):
             self.rois[-1].add_shape(area_reduced)
         return len(self.rois)
 
+    def tensorflow(
+        self,
+        img_format: str = 'numpy',
+        incl_slidenames: bool = False,
+        incl_loc: Optional[str] = None,
+        shuffle: bool = True,
+        **kwargs
+    ) -> Any:
+        """Generate activations from slide => activation grid array."""
+
+        import tensorflow as tf
+
+        def tile_generator():
+            for image_dict in self.build_generator(
+                shuffle=shuffle,
+                show_progress=False,
+                img_format=img_format,
+                **kwargs
+            )():
+                if not (incl_slidenames or incl_loc):
+                    yield image_dict['image']
+                else:
+                    to_return = {
+                        'image_raw': image_dict['image']
+                    }
+                    if incl_slidenames:
+                        to_return['slide'] = self.name
+                    if incl_loc == 'coord' or incl_loc == True:
+                        to_return['loc_x'] = image_dict['loc'][0]
+                        to_return['loc_y'] = image_dict['loc'][1]
+                    if incl_loc == 'grid':
+                        to_return['loc_x'] = image_dict['grid'][0]
+                        to_return['loc_y'] = image_dict['grid'][1]
+                    yield to_return
+
+        # Generate dataset from the generator
+        with tf.name_scope('dataset_input'):
+            # Signatures for imaging data
+            if img_format == 'numpy':
+                image_sig = tf.TensorSpec(
+                    shape=(self.tile_px, self.tile_px, 3),
+                    dtype=tf.uint8
+                )
+            else:
+                image_sig = tf.TensorSpec(shape=(), dtype=tf.string)
+
+            # Rest of the signatures
+            if incl_slidenames or incl_loc:
+                sig = {'image_raw': image_sig}
+                if incl_slidenames:
+                    sig['slide'] = tf.TensorSpec(shape=(), dtype=tf.string)
+                if incl_loc:
+                    sig['loc_x'] = tf.TensorSpec(shape=(), dtype=tf.int32)
+                    sig['loc_y'] = tf.TensorSpec(shape=(), dtype=tf.int32)
+            else:
+                sig = image_sig
+
+            # Assemble dataset
+            dataset = tf.data.Dataset.from_generator(
+                tile_generator,
+                output_signature=sig
+            )
+
+        return dataset
 
 class TMA(_BaseLoader):
     '''Loads a TMA-formatted slide and detects tissue cores.'''

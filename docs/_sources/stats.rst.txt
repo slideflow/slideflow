@@ -50,7 +50,7 @@ Other functions
 ---------------
 .. autofunction:: df_from_pred
 
-.. autofunction:: eval_from_dataset
+.. autofunction:: eval_dataset
 
 .. autofunction:: group_reduce
 
@@ -58,7 +58,7 @@ Other functions
 
 .. autofunction:: name_columns
 
-.. autofunction:: predict_from_dataset
+.. autofunction:: predict_dataset
 
 .. autofunction:: calculate_centroid
 
