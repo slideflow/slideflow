@@ -264,7 +264,7 @@
 (maintained separately at <a class="reference external" href="https://github.com/jamesdolezal/stylegan2-slideflow">https://github.com/jamesdolezal/stylegan2-slideflow</a>).</p>
 <div class="section" id="training-stylegan2">
 <h2>Training StyleGAN2<a class="headerlink" href="#training-stylegan2" title="Permalink to this heading">¶</a></h2>
-<p>The easiest way to train GANs is with <code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Project.gan_train()</span></code>, which
+<p>The easiest way to train GANs is with <a class="reference internal" href="project.html#slideflow.Project.gan_train" title="slideflow.Project.gan_train"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Project.gan_train()</span></code></a>, which
 supervises training of StyleGAN2. Both standard and class-conditional GANs are
 supported. To train a GAN, pass a <a class="reference internal" href="dataset.html#slideflow.Dataset" title="slideflow.Dataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.Dataset</span></code></a>, experiment label,
 and StyleGAN2 keyword arguments to this function:</p>
@@ -291,6 +291,8 @@ outcome labels to the <code class="docutils literal notranslate"><span class="pr
 </pre></div>
 </div>
 <p>The trained networks will be saved in the <code class="docutils literal notranslate"><span class="pre">gan/</span></code> subfolder in the project directory.</p>
+<p>See the <a class="reference internal" href="project.html#slideflow.Project.gan_train" title="slideflow.Project.gan_train"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Project.gan_train()</span></code></a> documentation for additional
+keyword arguments to customize training.</p>
 </div>
 <div class="section" id="generating-images">
 <h2>Generating Images<a class="headerlink" href="#generating-images" title="Permalink to this heading">¶</a></h2>

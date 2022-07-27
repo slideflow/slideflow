@@ -1289,14 +1289,11 @@ class Project:
         )
         dataset.extract_tiles(**kwargs)
 
-    @auto_dataset
     def gan_train(
         self,
-        model: str = 'stylegan2',
-        *,
         dataset: Dataset,
-        filters: Optional[Dict] = None,
-        filter_blank: Optional[Union[str, List[str]]] = None,
+        *,
+        model: str = 'stylegan2',
         outcomes: Optional[Union[str, List[str]]] = None,
         exp_label: Optional[str] = None,
         mirror: bool = True,
@@ -1305,8 +1302,79 @@ class Project:
         metrics: Optional[Union[str, List[str]]] = None,
         dry_run: bool = False,
         **kwargs
-    ):
+    ) -> None:
+        """Train a GAN network.
 
+        Args:
+            dataset (:class:`slideflow.Dataset`): Training dataset.
+
+        Keyword Args:
+            allow_tf32 (bool): Allow internal use of Tensorflow-32.
+                Defaults to True.
+            aug (str): Augmentation mode. Options include 'ada',
+                'noaug', 'fixed'. Defaults to 'ada'.
+            augpipe (str): Augmentation pipeline. Options include
+                'blit', 'geom', 'color', 'filter', 'noise', 'cutout', 'bg',
+                'bgc', 'bgcfnc'. Defaults to 'bgcfnc'.
+            batch (int, optional): Override batch size set by `cfg`.
+            cfg (str): StyleGAN2 base configuration. Options include
+                'auto', 'stylegan2', 'paper256', 'paper512', 'paper1024', and
+                'cifar'. Defaults to 'auto'.
+            dry_run (bool): Set up training but do not execute.
+                Defaults to False.
+            exp_label (str, optional): Experiment label. Defaults to None.
+            freezed (int): Freeze this many discriminator layers.
+                Defaults to 0.
+            fp32 (bool, optional): Disable mixed-precision training. Defaults
+                to False.
+            gamma (float, optional): Override R1 gamma from configuration
+                (set with `cfg`).
+            gpus (int): Number GPUs to train on in parallel. Defaults
+                to 1.
+            kimg (int): Override training duration in kimg (thousand
+                images) set by `cfg`. Most configurations default to 25,000
+                kimg (25 million images).
+            lazy_resume (bool). Allow lazy loading from saved pretrained
+                networks, for example to load a non-conditional network
+                when training a conditional network. Defaults to False.
+            mirror (bool): Randomly flip/rotate images during
+                training. Defaults to True.
+            metrics (str, list(str), optional): Metrics to calculate during
+                training. Options include 'fid50k', 'is50k', 'ppl_zfull',
+                'ppl_wfull', 'ppl_zend', 'ppl2_wend', 'ls', and 'pr50k3'.
+                Defaults to None.
+            model (str): Architecture to train. Only currently valid model
+                architecture is "stylegan2". Defaults to "stylegan2".
+            nhwc (bool): Use NWHC memory format with FP16. Defaults to False.
+            nobench (bool): Disable cuDNN benchmarking. Defaults to False.
+            outcomes (str, list(str), optional): Class conditioning outcome
+                labels for training a class-conditioned GAN. If not provided,
+                trains an unconditioned GAN. Defaults to None.
+            resume (str): Load previous network. Options include
+                'noresume' , 'ffhq256', 'ffhq512', 'ffhqq1024', 'celebahq256',
+                'lsundog256', <file>, or <url>. Defaults to 'noresume'.
+            snap (int): Snapshot interval for saving network and
+                example images. Defaults to 50 ticks.
+
+        Examples
+            Train StyleGAN2 from a Slideflow dataset.
+
+                >>> P = sf.Project('/project/path')
+                >>> dataset = P.dataset(tile_px=512, tile_um=400)
+                >>> P.gan_train(dataset=dataset, exp_label="MyExperiment", ...)
+
+            Train StyleGAN2 as a class-conditional network.
+
+                >>> P.gan_train(..., outcomes='class_label')
+
+            Train using a pretrained network.
+
+                >>> P.gan_train(..., resume='/path/to/network.pkl')
+
+            Train with multiple GPUs.
+
+                >>> P.gan_train(..., gpus=4)
+        """
         # Validate the method and import the appropriate submodule
         supported_models = ('stylegan2',)
         if model not in supported_models:
@@ -1352,18 +1420,76 @@ class Project:
             metrics=metrics,
             **kwargs)
 
-    def gan_generate(self, network_pkl: str, out: str, **kwargs):
+    def gan_generate(
+        self,
+        network_pkl: str,
+        out: str,
+        seeds: List[int],
+        **kwargs
+    ) -> None:
         """Generate images from a trained GAN network.
 
         Args:
-            network_pkl (str): _description_
-            out (str): _description_
+            network_pkl (str): Path to a trained StyleGAN2 network (``.pkl``)
+            out (str): Directory in which to save generated images.
+            seeds (list(int)): Seeds for which images will be generated.
+
+        Keyword args:
+            format (str, optional): Image format, either 'jpg' or 'png'.
+                Defaults to 'png'.
+            truncation_psi (float, optional): Truncation PSI. Defaults to 1.
+            noise_mode (str, optional): Either 'const', 'random', or 'none'.
+                Defaults to 'const'.
+            class_idx (int, optional): Class index to generate, for class-
+                conditional networks. Defaults to None.
+            save_projection (bool, optional): Save weight projection for each
+                generated image as an `.npz` file in the out directory.
+                Defaults to False.
+            resize (bool, optional): Crop/resize images to a target micron/pixel
+                size. Defaults to False.
+            gan_um (int, optional): Size of GAN images in microns. Used for
+                cropping/resizing images to a target size. Defaults to None.
+            gan_px (int, optional): Size of GAN images in pixels. Used for
+                cropping/resizing images to a target size. Defaults to None.
+            target_um (int, optional): Crop/resize GAN images to this micron
+                size. Defaults to None.
+            target_px (int, optional): Crop/resize GAN images to this pixel
+                size. Defaults to None.
+
+        Examples
+            Save images as ``.png`` for seeds 0-100.
+
+                >>> network_pkl = '/path/to/trained/gan.pkl'
+                >>> P.gan_generate(
+                ...     network_pkl,
+                ...     out='/dir',
+                ...     format='jpg',
+                ...     seeds=range(100))
+
+            Save images in TFRecord format.
+
+                >>> P.gan_generate(... out='target.tfrecords')
+
+            Save images of class '0' for a class-conditional GAN.
+
+                >>> P.gan_generate(..., class_idx=0)
+
+            Resize GAN images (trained at 512 px / 400 um) to match a target
+            tile size (299 px / 302 um).
+
+                >>> P.gan_generate(
+                ...     ...,
+                ...     gan_px=512,
+                ...     gan_um=400,
+                ...     target_px=299,
+                ...     target_um=302)
         """
         from slideflow.gan import stylegan2
 
         stylegan2.generate.generate_images(
             network_pkl,
             outdir=out,
+            seeds=seeds,
             **kwargs
         )
 

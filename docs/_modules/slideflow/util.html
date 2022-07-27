@@ -260,13 +260,15 @@
 <span class="kn">import</span> <span class="nn">importlib.util</span>
 <span class="kn">import</span> <span class="nn">json</span>
 <span class="kn">import</span> <span class="nn">logging</span>
-<span class="kn">import</span> <span class="nn">multiprocessing</span> <span class="k">as</span> <span class="nn">mp</span>
 <span class="kn">import</span> <span class="nn">os</span>
 <span class="kn">import</span> <span class="nn">re</span>
 <span class="kn">import</span> <span class="nn">shutil</span>
 <span class="kn">import</span> <span class="nn">sys</span>
-<span class="kn">import</span> <span class="nn">threading</span>
-<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">from</span> <span class="nn">rich</span> <span class="kn">import</span> <span class="n">progress</span>
+<span class="kn">from</span> <span class="nn">rich.logging</span> <span class="kn">import</span> <span class="n">RichHandler</span>
+<span class="kn">from</span> <span class="nn">rich.highlighter</span> <span class="kn">import</span> <span class="n">NullHighlighter</span>
+<span class="kn">from</span> <span class="nn">rich.panel</span> <span class="kn">import</span> <span class="n">Panel</span>
+<span class="kn">from</span> <span class="nn">rich.console</span> <span class="kn">import</span> <span class="n">Console</span>
 <span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span>
 <span class="kn">from</span> <span class="nn">glob</span> <span class="kn">import</span> <span class="n">glob</span>
 <span class="kn">from</span> <span class="nn">os.path</span> <span class="kn">import</span> <span class="n">dirname</span><span class="p">,</span> <span class="n">exists</span><span class="p">,</span> <span class="n">isdir</span><span class="p">,</span> <span class="n">join</span>
@@ -277,12 +279,10 @@
 <span class="kn">import</span> <span class="nn">matplotlib.colors</span> <span class="k">as</span> <span class="nn">mcol</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
-<span class="kn">import</span> <span class="nn">slideflow.util.colors</span> <span class="k">as</span> <span class="nn">col</span>
 <span class="kn">from</span> <span class="nn">slideflow.util</span> <span class="kn">import</span> <span class="n">log_utils</span>
 <span class="kn">from</span> <span class="nn">slideflow</span> <span class="kn">import</span> <span class="n">errors</span>
 <span class="kn">from</span> <span class="nn">slideflow.util</span> <span class="kn">import</span> <span class="n">example_pb2</span>
 <span class="kn">from</span> <span class="nn">slideflow.util.colors</span> <span class="kn">import</span> <span class="o">*</span>  <span class="c1"># noqa F403,F401 - Here for compatibility</span>
-<span class="kn">from</span> <span class="nn">tqdm</span> <span class="kn">import</span> <span class="n">tqdm</span>
 
 <span class="c1"># --- Optional imports --------------------------------------------------------</span>
 <span class="c1"># git is not needed for pypi distribution</span>
@@ -354,7 +354,8 @@
 
 
 <span class="c1"># Add tqdm-friendly stream handler</span>
-<span class="n">ch</span> <span class="o">=</span> <span class="n">log_utils</span><span class="o">.</span><span class="n">TqdmLoggingHandler</span><span class="p">()</span>
+<span class="c1">#ch = log_utils.TqdmLoggingHandler()</span>
+<span class="n">ch</span> <span class="o">=</span> <span class="n">RichHandler</span><span class="p">(</span><span class="n">markup</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">log_time_format</span><span class="o">=</span><span class="s2">&quot;[</span><span class="si">%X</span><span class="s2">]&quot;</span><span class="p">,</span> <span class="n">show_path</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">highlighter</span><span class="o">=</span><span class="n">NullHighlighter</span><span class="p">())</span>
 <span class="n">ch</span><span class="o">.</span><span class="n">setFormatter</span><span class="p">(</span><span class="n">log_utils</span><span class="o">.</span><span class="n">LogFormatter</span><span class="p">())</span>
 <span class="k">if</span> <span class="s1">&#39;SF_LOGGING_LEVEL&#39;</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">:</span>
     <span class="k">try</span><span class="p">:</span>
@@ -373,274 +374,47 @@
 <span class="n">log</span><span class="o">.</span><span class="n">propagate</span> <span class="o">=</span> <span class="kc">False</span>
 
 
-<span class="c1"># --- Multiprocessing-compatible progress bars --------------------------------</span>
-<span class="k">class</span> <span class="nc">DummyLock</span><span class="p">:</span>
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
-        <span class="k">pass</span>
+<div class="viewcode-block" id="TileExtractionSpeedColumn"><a class="viewcode-back" href="../../util.html#slideflow.util.TileExtractionSpeedColumn">[docs]</a><span class="k">class</span> <span class="nc">TileExtractionSpeedColumn</span><span class="p">(</span><span class="n">progress</span><span class="o">.</span><span class="n">ProgressColumn</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Renders human readable transfer speed.&quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="fm">__enter__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
-        <span class="k">pass</span>
+<div class="viewcode-block" id="TileExtractionSpeedColumn.render"><a class="viewcode-back" href="../../util.html#slideflow.util.TileExtractionSpeedColumn.render">[docs]</a>    <span class="k">def</span> <span class="nf">render</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task</span><span class="p">:</span> <span class="s2">&quot;progress.Task&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">progress</span><span class="o">.</span><span class="n">Text</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Show data transfer speed.&quot;&quot;&quot;</span>
+        <span class="n">speed</span> <span class="o">=</span> <span class="n">task</span><span class="o">.</span><span class="n">finished_speed</span> <span class="ow">or</span> <span class="n">task</span><span class="o">.</span><span class="n">speed</span>
+        <span class="k">if</span> <span class="n">speed</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">progress</span><span class="o">.</span><span class="n">Text</span><span class="p">(</span><span class="s2">&quot;?&quot;</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="s2">&quot;progress.data.speed&quot;</span><span class="p">)</span>
+        <span class="n">data_speed</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">speed</span><span class="p">)</span><span class="si">}</span><span class="s1"> img&#39;</span>
+        <span class="k">return</span> <span class="n">progress</span><span class="o">.</span><span class="n">Text</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">data_speed</span><span class="si">}</span><span class="s2">/s&quot;</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="s2">&quot;progress.data.speed&quot;</span><span class="p">)</span></div></div>
 
-    <span class="k">def</span> <span class="fm">__exit__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
-        <span class="k">pass</span>
+<div class="viewcode-block" id="ImgBatchSpeedColumn"><a class="viewcode-back" href="../../util.html#slideflow.util.ImgBatchSpeedColumn">[docs]</a><span class="k">class</span> <span class="nc">ImgBatchSpeedColumn</span><span class="p">(</span><span class="n">progress</span><span class="o">.</span><span class="n">ProgressColumn</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Renders human readable transfer speed.&quot;&quot;&quot;</span>
 
+<div class="viewcode-block" id="ImgBatchSpeedColumn.__init__"><a class="viewcode-back" href="../../util.html#slideflow.util.ImgBatchSpeedColumn.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">batch_size</span> <span class="o">=</span> <span class="n">batch_size</span></div>
 
-<span class="k">class</span> <span class="nc">DummyCounter</span><span class="p">:</span>
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">value</span>
-
-
-<span class="k">class</span> <span class="nc">Bar</span><span class="p">:</span>
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
-        <span class="bp">self</span><span class="p">,</span>
-        <span class="n">ending_value</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-        <span class="n">starting_value</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
-        <span class="n">bar_length</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">20</span><span class="p">,</span>
-        <span class="n">label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="p">,</span>
-        <span class="n">show_eta</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-        <span class="n">show_counter</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-        <span class="n">counter_text</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="p">,</span>
-        <span class="n">update_interval</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
-        <span class="n">mp_counter</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="s2">&quot;mp.sharedctypes.Synchronized&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">mp_lock</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="s2">&quot;mp.synchronize.Lock&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="k">if</span> <span class="n">mp_counter</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">counter</span> <span class="o">=</span> <span class="n">mp_counter</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">mp_lock</span> <span class="o">=</span> <span class="n">mp_lock</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">try</span><span class="p">:</span>
-                <span class="n">manager</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">Manager</span><span class="p">()</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">counter</span> <span class="o">=</span> <span class="n">manager</span><span class="o">.</span><span class="n">Value</span><span class="p">(</span><span class="s1">&#39;i&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>  <span class="c1"># type: ignore</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">mp_lock</span> <span class="o">=</span> <span class="n">manager</span><span class="o">.</span><span class="n">Lock</span><span class="p">()</span>  <span class="c1"># type: ignore</span>
-            <span class="k">except</span> <span class="ne">AssertionError</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">counter</span> <span class="o">=</span> <span class="n">DummyCounter</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>  <span class="c1"># type: ignore</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">mp_lock</span> <span class="o">=</span> <span class="n">DummyLock</span><span class="p">()</span>  <span class="c1"># type: ignore</span>
-
-        <span class="c1"># Setup timing</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">starttime</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># type: Optional[int]</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">lastupdated</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># type: Optional[int]</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">checkpoint_time</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># type: Optional[int]</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">checkpoint_val</span> <span class="o">=</span> <span class="n">starting_value</span>
-
-        <span class="c1"># Other initializing variables</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">counter</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">starting_value</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">end_value</span> <span class="o">=</span> <span class="n">ending_value</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">bar_length</span> <span class="o">=</span> <span class="n">bar_length</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">label</span> <span class="o">=</span> <span class="n">label</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">show_counter</span> <span class="o">=</span> <span class="n">show_counter</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">counter_text</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">counter_text</span> <span class="k">else</span> <span class="s2">&quot; &quot;</span> <span class="o">+</span> <span class="n">counter_text</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">show_eta</span> <span class="o">=</span> <span class="n">show_eta</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">text</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">num_per_sec</span> <span class="o">=</span> <span class="mi">0</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">update_interval</span> <span class="o">=</span> <span class="n">update_interval</span>
-
-    <span class="k">def</span> <span class="nf">get_text</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-        <span class="n">current_time</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">())</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">starttime</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">starttime</span> <span class="o">=</span> <span class="n">current_time</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">checkpoint_time</span> <span class="o">=</span> <span class="n">current_time</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">checkpoint_val</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">counter</span><span class="o">.</span><span class="n">value</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">lastupdated</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">starttime</span>
-        <span class="k">elif</span> <span class="n">current_time</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">lastupdated</span><span class="p">:</span>
-            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">text</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">current_time</span>
-
-        <span class="n">timediff</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">())</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">starttime</span>
-
-        <span class="c1"># Checkpoint every {update_interval} seconds</span>
-        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">checkpoint_time</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
-        <span class="k">if</span> <span class="p">(</span><span class="n">current_time</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">checkpoint_time</span><span class="p">)</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">update_interval</span><span class="p">:</span>
-
-            <span class="bp">self</span><span class="o">.</span><span class="n">num_per_sec</span> <span class="o">=</span> <span class="p">(</span>
-                <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">counter</span><span class="o">.</span><span class="n">value</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">checkpoint_val</span><span class="p">)</span>
-                <span class="o">/</span> <span class="p">(</span><span class="n">current_time</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">checkpoint_time</span><span class="p">)</span>
-            <span class="p">)</span>
-            <span class="c1"># Reset checkpoint</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">checkpoint_val</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">counter</span><span class="o">.</span><span class="n">value</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">checkpoint_time</span> <span class="o">=</span> <span class="n">current_time</span>
-
-        <span class="n">percent</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">counter</span><span class="o">.</span><span class="n">value</span><span class="p">)</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">end_value</span>
-        <span class="n">arrow</span> <span class="o">=</span> <span class="nb">chr</span><span class="p">(</span><span class="mh">0x2588</span><span class="p">)</span> <span class="o">*</span> <span class="nb">int</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">percent</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">bar_length</span><span class="p">))</span>
-        <span class="n">spaces</span> <span class="o">=</span> <span class="sa">u</span><span class="s1">&#39;-&#39;</span> <span class="o">*</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bar_length</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">arrow</span><span class="p">))</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">text</span> <span class="o">=</span> <span class="sa">u</span><span class="s2">&quot;</span><span class="se">\u007c</span><span class="si">{0}</span><span class="se">\u007c</span><span class="s2"> </span><span class="si">{1:.1f}</span><span class="s2">%</span><span class="si">{2}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
-            <span class="n">arrow</span> <span class="o">+</span> <span class="n">spaces</span><span class="p">,</span>
-            <span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">counter</span><span class="o">.</span><span class="n">value</span><span class="p">)</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">end_value</span><span class="p">)</span><span class="o">*</span><span class="mi">100</span><span class="p">,</span>
-            <span class="sa">f</span><span class="s1">&#39; (</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="si">}</span><span class="s1">)&#39;</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">label</span> <span class="k">else</span> <span class="s1">&#39;&#39;</span><span class="p">)</span>
-
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">show_counter</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_per_sec</span><span class="p">:</span>
-            <span class="n">nps_str</span> <span class="o">=</span> <span class="s2">&quot;?&quot;</span> <span class="k">if</span> <span class="n">timediff</span> <span class="o">==</span> <span class="mi">0</span> <span class="k">else</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">num_per_sec</span><span class="si">:</span><span class="s1">.1f</span><span class="si">}</span><span class="s1">&#39;</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">text</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot; </span><span class="si">{</span><span class="n">nps_str</span><span class="si">}{</span><span class="bp">self</span><span class="o">.</span><span class="n">counter_text</span><span class="si">}</span><span class="s2">/sec&quot;</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">show_eta</span> <span class="ow">and</span> <span class="n">timediff</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_per_sec</span><span class="p">:</span>
-            <span class="n">eta</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">end_value</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">counter</span><span class="o">.</span><span class="n">value</span><span class="p">)</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_per_sec</span>
-            <span class="n">gm_eta</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">gmtime</span><span class="p">(</span><span class="n">eta</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">text</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot; (ETA: </span><span class="si">{</span><span class="n">time</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;%H:%M:%S&#39;</span><span class="p">,</span> <span class="n">gm_eta</span><span class="p">)</span><span class="si">}</span><span class="s2">)&quot;</span>
-        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">show_eta</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">text</span> <span class="o">+=</span> <span class="s2">&quot; (ETA: ?)&quot;</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">text</span>
+<div class="viewcode-block" id="ImgBatchSpeedColumn.render"><a class="viewcode-back" href="../../util.html#slideflow.util.ImgBatchSpeedColumn.render">[docs]</a>    <span class="k">def</span> <span class="nf">render</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task</span><span class="p">:</span> <span class="s2">&quot;progress.Task&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">progress</span><span class="o">.</span><span class="n">Text</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Show data transfer speed.&quot;&quot;&quot;</span>
+        <span class="n">speed</span> <span class="o">=</span> <span class="n">task</span><span class="o">.</span><span class="n">finished_speed</span> <span class="ow">or</span> <span class="n">task</span><span class="o">.</span><span class="n">speed</span>
+        <span class="k">if</span> <span class="n">speed</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">progress</span><span class="o">.</span><span class="n">Text</span><span class="p">(</span><span class="s2">&quot;?&quot;</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="s2">&quot;progress.data.speed&quot;</span><span class="p">)</span>
+        <span class="n">data_speed</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">speed</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">batch_size</span><span class="p">)</span><span class="si">}</span><span class="s1"> img&#39;</span>
+        <span class="k">return</span> <span class="n">progress</span><span class="o">.</span><span class="n">Text</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">data_speed</span><span class="si">}</span><span class="s2">/s&quot;</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="s2">&quot;progress.data.speed&quot;</span><span class="p">)</span></div></div>
 
 
-<div class="viewcode-block" id="ProgressBar"><a class="viewcode-back" href="../../util.html#slideflow.util.ProgressBar">[docs]</a><span class="k">class</span> <span class="nc">ProgressBar</span><span class="p">:</span>
-    <span class="sd">&#39;&#39;&#39;Flexible progress bar with dynamic ETA monitoring and</span>
-<span class="sd">    multiprocessing support.</span>
-<span class="sd">    &#39;&#39;&#39;</span>
+<span class="c1"># --- Slideflow header --------------------------------------------------------</span>
 
-<div class="viewcode-block" id="ProgressBar.__init__"><a class="viewcode-back" href="../../util.html#slideflow.util.ProgressBar.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
-        <span class="bp">self</span><span class="p">,</span>
-        <span class="n">ending_val</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-        <span class="n">starting_val</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
-        <span class="n">bar_length</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">20</span><span class="p">,</span>
-        <span class="n">endtext</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="p">,</span>
-        <span class="n">show_eta</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-        <span class="n">show_counter</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-        <span class="n">counter_text</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="p">,</span>
-        <span class="n">leadtext</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="p">,</span>
-        <span class="n">mp_counter</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="s2">&quot;mp.sharedctypes.Synchronized&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">mp_lock</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="s2">&quot;mp.synchronize.Lock&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">leadtext</span> <span class="o">=</span> <span class="n">leadtext</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">tail</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">text</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">refresh_thread</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># type: Optional[threading.Thread]</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">live</span> <span class="o">=</span> <span class="kc">True</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">BARS</span> <span class="o">=</span> <span class="p">[</span><span class="n">Bar</span><span class="p">(</span><span class="n">ending_val</span><span class="p">,</span>
-                         <span class="n">starting_val</span><span class="p">,</span>
-                         <span class="n">bar_length</span><span class="p">,</span>
-                         <span class="n">endtext</span><span class="p">,</span>
-                         <span class="n">show_eta</span><span class="p">,</span>
-                         <span class="n">show_counter</span><span class="p">,</span>
-                         <span class="n">counter_text</span><span class="p">,</span>
-                         <span class="n">mp_counter</span><span class="o">=</span><span class="n">mp_counter</span><span class="p">,</span>
-                         <span class="n">mp_lock</span><span class="o">=</span><span class="n">mp_lock</span><span class="p">)]</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span></div>
 
-<div class="viewcode-block" id="ProgressBar.add_bar"><a class="viewcode-back" href="../../util.html#slideflow.util.ProgressBar.add_bar">[docs]</a>    <span class="k">def</span> <span class="nf">add_bar</span><span class="p">(</span>
-        <span class="bp">self</span><span class="p">,</span>
-        <span class="n">val</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-        <span class="n">endval</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-        <span class="n">bar_length</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">20</span><span class="p">,</span>
-        <span class="n">endtext</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="p">,</span>
-        <span class="n">show_eta</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-        <span class="n">show_counter</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-        <span class="n">counter_text</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
-        <span class="sd">&quot;&quot;&quot;Adds a bar to the ProgressBar.</span>
-
-<span class="sd">        Args:</span>
-<span class="sd">            val (int): Current bar value.</span>
-<span class="sd">            endval (int): Ending bar value.</span>
-<span class="sd">            bar_length (int, optional): Length of bar. Defaults to 20.</span>
-<span class="sd">            endtext (str, optional): Text description. Defaults to &#39;&#39;.</span>
-<span class="sd">            show_eta (bool, optional): Show ETA. Defaults to False.</span>
-<span class="sd">            show_counter (bool, optional): Show the counter. Defaults to False.</span>
-<span class="sd">            counter_text (str, optional): Counter text. Defaults to &#39;&#39;.</span>
-
-<span class="sd">        Returns:</span>
-<span class="sd">            int: Bar ID</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">BARS</span> <span class="o">+=</span> <span class="p">[</span><span class="n">Bar</span><span class="p">(</span><span class="n">val</span><span class="p">,</span>
-                          <span class="n">endval</span><span class="p">,</span>
-                          <span class="n">bar_length</span><span class="p">,</span>
-                          <span class="n">endtext</span><span class="p">,</span>
-                          <span class="n">show_eta</span><span class="p">,</span>
-                          <span class="n">show_counter</span><span class="p">,</span>
-                          <span class="n">counter_text</span><span class="p">)]</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span>
-        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">BARS</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span></div>
-
-<div class="viewcode-block" id="ProgressBar.increase_bar_value"><a class="viewcode-back" href="../../util.html#slideflow.util.ProgressBar.increase_bar_value">[docs]</a>    <span class="k">def</span> <span class="nf">increase_bar_value</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">amount</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span> <span class="nb">id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="sd">&quot;&quot;&quot;Increase value of a progress bar.</span>
-
-<span class="sd">        Args:</span>
-<span class="sd">            amount (int, optional): Amount to increase bar value. Defaults to 1.</span>
-<span class="sd">            id (int, optional): Bar ID. Defaults to 0.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">BARS</span><span class="p">[</span><span class="nb">id</span><span class="p">]</span><span class="o">.</span><span class="n">mp_lock</span><span class="p">:</span>  <span class="c1"># type: ignore</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">BARS</span><span class="p">[</span><span class="nb">id</span><span class="p">]</span><span class="o">.</span><span class="n">counter</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">BARS</span><span class="p">[</span><span class="nb">id</span><span class="p">]</span><span class="o">.</span><span class="n">counter</span><span class="o">.</span><span class="n">value</span> <span class="o">+</span> <span class="n">amount</span><span class="p">,</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">BARS</span><span class="p">[</span><span class="nb">id</span><span class="p">]</span><span class="o">.</span><span class="n">end_value</span>
-            <span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span></div>
-
-    <span class="k">def</span> <span class="nf">get_counter</span><span class="p">(</span>
-        <span class="bp">self</span><span class="p">,</span> <span class="nb">id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="s2">&quot;mp.sharedctypes.Synchronized&quot;</span><span class="p">,</span> <span class="n">DummyCounter</span><span class="p">]:</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">BARS</span><span class="p">[</span><span class="nb">id</span><span class="p">]</span><span class="o">.</span><span class="n">counter</span>
-
-    <span class="k">def</span> <span class="nf">get_lock</span><span class="p">(</span>
-        <span class="bp">self</span><span class="p">,</span> <span class="nb">id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="s2">&quot;mp.synchronize.Lock&quot;</span><span class="p">,</span> <span class="n">DummyLock</span><span class="p">]:</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">BARS</span><span class="p">[</span><span class="nb">id</span><span class="p">]</span><span class="o">.</span><span class="n">mp_lock</span>  <span class="c1"># type: ignore</span>
-
-<div class="viewcode-block" id="ProgressBar.set_bar_value"><a class="viewcode-back" href="../../util.html#slideflow.util.ProgressBar.set_bar_value">[docs]</a>    <span class="k">def</span> <span class="nf">set_bar_value</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="sd">&quot;&quot;&quot;Set the bar to a given value.</span>
-
-<span class="sd">        Args:</span>
-<span class="sd">            value (int): Value to set bar at.</span>
-<span class="sd">            id (int, optional): Bar ID. Defaults to 0.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">BARS</span><span class="p">[</span><span class="nb">id</span><span class="p">]</span><span class="o">.</span><span class="n">mp_lock</span><span class="p">:</span>  <span class="c1"># type: ignore</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">BARS</span><span class="p">[</span><span class="nb">id</span><span class="p">]</span><span class="o">.</span><span class="n">counter</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">BARS</span><span class="p">[</span><span class="nb">id</span><span class="p">]</span><span class="o">.</span><span class="n">end_value</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span></div>
-
-<div class="viewcode-block" id="ProgressBar.set_bar_text"><a class="viewcode-back" href="../../util.html#slideflow.util.ProgressBar.set_bar_text">[docs]</a>    <span class="k">def</span> <span class="nf">set_bar_text</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="nb">id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Set the bar text description.</span>
-
-<span class="sd">        Args:</span>
-<span class="sd">            text (str): Text description</span>
-<span class="sd">            id (int, optional): Bar ID. Defaults to 0.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">BARS</span><span class="p">[</span><span class="nb">id</span><span class="p">]</span><span class="o">.</span><span class="n">text</span> <span class="o">=</span> <span class="n">text</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span></div>
-
-<div class="viewcode-block" id="ProgressBar.auto_refresh"><a class="viewcode-back" href="../../util.html#slideflow.util.ProgressBar.auto_refresh">[docs]</a>    <span class="k">def</span> <span class="nf">auto_refresh</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">freq</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.1</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="sd">&quot;&quot;&quot;Auto-refresh bar at this interval.</span>
-
-<span class="sd">        Args:</span>
-<span class="sd">            freq (float, optional): Refresh interval (sec). Defaults to 0.1.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">def</span> <span class="nf">auto_refresh_worker</span><span class="p">():</span>
-            <span class="k">while</span> <span class="bp">self</span><span class="o">.</span><span class="n">live</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span>
-                <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">freq</span><span class="p">)</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">refresh_thread</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="p">(</span>
-            <span class="n">target</span><span class="o">=</span><span class="n">auto_refresh_worker</span><span class="p">,</span> <span class="n">daemon</span><span class="o">=</span><span class="kc">True</span>
-        <span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">refresh_thread</span><span class="o">.</span><span class="n">start</span><span class="p">()</span></div>
-
-    <span class="k">def</span> <span class="nf">refresh</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">BARS</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\r\033</span><span class="s2">[K&quot;</span><span class="p">)</span>
-            <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
-            <span class="k">return</span>
-        <span class="n">new_text</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\r\033</span><span class="s2">[K</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">leadtext</span><span class="si">}</span><span class="s2">&quot;</span>
-        <span class="k">for</span> <span class="n">bar</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">BARS</span><span class="p">:</span>
-            <span class="n">new_text</span> <span class="o">+=</span> <span class="n">bar</span><span class="o">.</span><span class="n">get_text</span><span class="p">()</span>
-            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">BARS</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
-                <span class="n">new_text</span> <span class="o">+=</span> <span class="s2">&quot;  &quot;</span>
-        <span class="n">new_text</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tail</span>
-        <span class="k">if</span> <span class="n">new_text</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">text</span><span class="p">:</span>
-            <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">new_text</span><span class="p">)</span>
-            <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">text</span> <span class="o">=</span> <span class="n">new_text</span>
-
-    <span class="k">def</span> <span class="nf">end</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="k">if</span> <span class="nb">id</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">BARS</span> <span class="o">=</span> <span class="p">[]</span>
-            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\r\033</span><span class="s2">[K&quot;</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">del</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">BARS</span><span class="p">[</span><span class="nb">id</span><span class="p">])</span>
-            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\r\033</span><span class="s2">[K</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">text</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">live</span> <span class="o">=</span> <span class="kc">False</span>
-
-    <span class="k">def</span> <span class="nf">print</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">string</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\r\033</span><span class="s2">[K</span><span class="si">{</span><span class="n">string</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
-        <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">text</span><span class="p">)</span>
-        <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span></div>
-
+<span class="k">def</span> <span class="nf">header</span><span class="p">(</span><span class="n">console</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">console</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">console</span> <span class="o">=</span> <span class="n">Console</span><span class="p">()</span>
+    <span class="n">color</span> <span class="o">=</span> <span class="s1">&#39;yellow&#39;</span> <span class="k">if</span> <span class="n">sf</span><span class="o">.</span><span class="n">backend</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;tensorflow&#39;</span> <span class="k">else</span> <span class="s1">&#39;purple&#39;</span>
+    <span class="n">console</span><span class="o">.</span><span class="n">print</span><span class="p">(</span>
+        <span class="n">Panel</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[white bold]Slideflow[/]&quot;</span>
+              <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Version: </span><span class="si">{</span><span class="n">sf</span><span class="o">.</span><span class="n">__version__</span><span class="si">}</span><span class="s2">&quot;</span>
+              <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Backend: [</span><span class="si">{</span><span class="n">color</span><span class="si">}</span><span class="s2">]</span><span class="si">{</span><span class="n">sf</span><span class="o">.</span><span class="n">backend</span><span class="p">()</span><span class="si">}</span><span class="s2">[/]&quot;</span>
+              <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">[blue]https://slideflow.dev[/]&quot;</span><span class="p">,</span>
+              <span class="n">border_style</span><span class="o">=</span><span class="s1">&#39;purple&#39;</span><span class="p">),</span>
+        <span class="n">justify</span><span class="o">=</span><span class="s1">&#39;center&#39;</span><span class="p">)</span>
 
 <span class="c1"># --- Utility functions and classes -------------------------------------------</span>
 
@@ -1131,7 +905,7 @@
             <span class="sa">f</span><span class="s1">&#39;tile_dict length (</span><span class="si">{</span><span class="n">td_len</span><span class="si">}</span><span class="s1">) != TFRecord length (</span><span class="si">{</span><span class="n">loc_len</span><span class="si">}</span><span class="s1">).&#39;</span>
         <span class="p">)</span>
 
-    <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Generating TFRecord heatmap for </span><span class="si">{</span><span class="n">col</span><span class="o">.</span><span class="n">green</span><span class="p">(</span><span class="n">tfrecord</span><span class="p">)</span><span class="si">}</span><span class="s1">...&#39;</span><span class="p">)</span>
+    <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Generating TFRecord heatmap for [green]</span><span class="si">{</span><span class="n">tfrecord</span><span class="si">}</span><span class="s1">[/]...&#39;</span><span class="p">)</span>
     <span class="n">wsi</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">WSI</span><span class="p">(</span><span class="n">slide</span><span class="p">,</span> <span class="n">tile_px</span><span class="p">,</span> <span class="n">tile_um</span><span class="p">)</span>
 
     <span class="n">stats</span> <span class="o">=</span> <span class="p">{}</span>

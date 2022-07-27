@@ -360,15 +360,14 @@
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
 <span class="kn">import</span> <span class="nn">shapely.geometry</span> <span class="k">as</span> <span class="nn">sg</span>
-<span class="kn">from</span> <span class="nn">tqdm</span> <span class="kn">import</span> <span class="n">tqdm</span>
+<span class="kn">from</span> <span class="nn">rich.progress</span> <span class="kn">import</span> <span class="n">track</span><span class="p">,</span> <span class="n">Progress</span><span class="p">,</span> <span class="n">TimeElapsedColumn</span><span class="p">,</span> <span class="n">SpinnerColumn</span>
 
 <span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
 <span class="kn">from</span> <span class="nn">slideflow</span> <span class="kn">import</span> <span class="n">errors</span>
 <span class="kn">from</span> <span class="nn">slideflow.model</span> <span class="kn">import</span> <span class="n">ModelParams</span>
 <span class="kn">from</span> <span class="nn">slideflow.slide</span> <span class="kn">import</span> <span class="n">WSI</span><span class="p">,</span> <span class="n">ExtractionReport</span><span class="p">,</span> <span class="n">SlideReport</span>
-<span class="kn">from</span> <span class="nn">slideflow.util</span> <span class="kn">import</span> <span class="n">Labels</span><span class="p">,</span> <span class="n">Path</span><span class="p">,</span> <span class="n">_shortname</span>
-<span class="kn">from</span> <span class="nn">slideflow.util</span> <span class="kn">import</span> <span class="n">colors</span> <span class="k">as</span> <span class="n">col</span>
-<span class="kn">from</span> <span class="nn">slideflow.util</span> <span class="kn">import</span> <span class="n">log</span><span class="p">,</span> <span class="n">path_to_name</span><span class="p">,</span> <span class="n">tfrecord2idx</span>
+<span class="kn">from</span> <span class="nn">slideflow.util</span> <span class="kn">import</span> <span class="p">(</span><span class="n">log</span><span class="p">,</span> <span class="n">Labels</span><span class="p">,</span> <span class="n">Path</span><span class="p">,</span> <span class="n">_shortname</span><span class="p">,</span> <span class="n">path_to_name</span><span class="p">,</span>
+                            <span class="n">tfrecord2idx</span><span class="p">,</span> <span class="n">TileExtractionSpeedColumn</span><span class="p">)</span>
 
 <span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
     <span class="kn">import</span> <span class="nn">tensorflow</span> <span class="k">as</span> <span class="nn">tf</span>
@@ -516,9 +515,9 @@
     <span class="n">df</span> <span class="o">=</span> <span class="n">cv</span><span class="o">.</span><span class="n">generate</span><span class="p">(</span>
         <span class="n">df</span><span class="p">,</span> <span class="s1">&#39;outcome_label&#39;</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="n">n</span><span class="p">,</span> <span class="n">target_column</span><span class="o">=</span><span class="s1">&#39;CV&#39;</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="n">method</span>
     <span class="p">)</span>
-    <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">col</span><span class="o">.</span><span class="n">bold</span><span class="p">(</span><span class="s2">&quot;Train/val split with Preserved-Site Cross-Val&quot;</span><span class="p">))</span>
-    <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">col</span><span class="o">.</span><span class="n">bold</span><span class="p">(</span>
-        <span class="s2">&quot;Category</span><span class="se">\t</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\t</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="n">cat</span><span class="p">)</span> <span class="k">for</span> <span class="n">cat</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_unique</span><span class="p">)])</span>
+    <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;[bold]Train/val split with Preserved-Site Cross-Val&quot;</span><span class="p">)</span>
+    <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;[bold]Category</span><span class="se">\t</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\t</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+        <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">cat</span><span class="p">)</span> <span class="k">for</span> <span class="n">cat</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_unique</span><span class="p">)]</span>
     <span class="p">))</span>
     <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
         <span class="k">def</span> <span class="nf">num_labels_matching</span><span class="p">(</span><span class="n">o</span><span class="p">):</span>
@@ -575,9 +574,9 @@
         <span class="nb">list</span><span class="p">(</span><span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">split_list</span><span class="p">(</span><span class="n">sub_l</span><span class="p">,</span> <span class="n">n</span><span class="p">))</span> <span class="k">for</span> <span class="n">sub_l</span> <span class="ow">in</span> <span class="n">pt_by_outcome</span>
     <span class="p">]</span>
     <span class="c1"># Print splitting as a table</span>
-    <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">col</span><span class="o">.</span><span class="n">bold</span><span class="p">(</span>
-        <span class="s2">&quot;Category</span><span class="se">\t</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\t</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="n">cat</span><span class="p">)</span> <span class="k">for</span> <span class="n">cat</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_unique</span><span class="p">)])</span>
-    <span class="p">))</span>
+    <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+        <span class="s2">&quot;[bold]Category</span><span class="se">\t</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\t</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="n">cat</span><span class="p">)</span> <span class="k">for</span> <span class="n">cat</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_unique</span><span class="p">)])</span>
+    <span class="p">)</span>
     <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
         <span class="n">matching</span> <span class="o">=</span> <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">clist</span><span class="p">[</span><span class="n">k</span><span class="p">]))</span> <span class="k">for</span> <span class="n">clist</span> <span class="ow">in</span> <span class="n">pt_by_outcome_by_n</span><span class="p">]</span>
         <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;K-fold-</span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="se">\t</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\t</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">matching</span><span class="p">))</span>
@@ -1044,11 +1043,10 @@
             <span class="k">if</span> <span class="ow">not</span> <span class="n">exists</span><span class="p">(</span><span class="n">index_name</span><span class="p">)</span> <span class="ow">or</span> <span class="n">force</span><span class="p">:</span>
                 <span class="n">tfrecord2idx</span><span class="o">.</span><span class="n">create_index</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">index_name</span><span class="p">)</span>
         <span class="n">pool</span> <span class="o">=</span> <span class="n">DPool</span><span class="p">(</span><span class="mi">16</span><span class="p">)</span>
-        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">tqdm</span><span class="p">(</span><span class="n">pool</span><span class="o">.</span><span class="n">imap</span><span class="p">(</span><span class="n">create_index</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">tfrecords</span><span class="p">()),</span>
-                      <span class="n">desc</span><span class="o">=</span><span class="s1">&#39;Creating index files...&#39;</span><span class="p">,</span>
-                      <span class="n">ncols</span><span class="o">=</span><span class="mi">80</span><span class="p">,</span>
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">track</span><span class="p">(</span><span class="n">pool</span><span class="o">.</span><span class="n">imap</span><span class="p">(</span><span class="n">create_index</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">tfrecords</span><span class="p">()),</span>
+                      <span class="n">description</span><span class="o">=</span><span class="s1">&#39;Creating index files...&#39;</span><span class="p">,</span>
                       <span class="n">total</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tfrecords</span><span class="p">()),</span>
-                      <span class="n">leave</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+                      <span class="n">transient</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
             <span class="k">pass</span>
         <span class="n">pool</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></div>
 
@@ -1310,7 +1308,7 @@
         <span class="n">sf</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">log_extraction_params</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
         <span class="k">for</span> <span class="n">source</span> <span class="ow">in</span> <span class="n">sources</span><span class="p">:</span>
-            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Working on dataset source </span><span class="si">{</span><span class="n">col</span><span class="o">.</span><span class="n">bold</span><span class="p">(</span><span class="n">source</span><span class="p">)</span><span class="si">}</span><span class="s1">...&#39;</span><span class="p">)</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Working on dataset source [bold]</span><span class="si">{</span><span class="n">source</span><span class="si">}</span><span class="s1">[/]...&#39;</span><span class="p">)</span>
             <span class="n">roi_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sources</span><span class="p">[</span><span class="n">source</span><span class="p">][</span><span class="s1">&#39;roi&#39;</span><span class="p">]</span>
             <span class="n">src_conf</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sources</span><span class="p">[</span><span class="n">source</span><span class="p">]</span>
             <span class="k">if</span> <span class="s1">&#39;dry_run&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">kwargs</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;dry_run&#39;</span><span class="p">]:</span>
@@ -1362,9 +1360,9 @@
             <span class="c1"># Verify slides and estimate total number of tiles</span>
             <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Verifying slides...&#39;</span><span class="p">)</span>
             <span class="n">total_tiles</span> <span class="o">=</span> <span class="mi">0</span>
-            <span class="k">for</span> <span class="n">slide_path</span> <span class="ow">in</span> <span class="n">tqdm</span><span class="p">(</span><span class="n">slide_list</span><span class="p">,</span>
-                                   <span class="n">leave</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-                                   <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Verifying slides...&quot;</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">slide_path</span> <span class="ow">in</span> <span class="n">track</span><span class="p">(</span><span class="n">slide_list</span><span class="p">,</span>
+                                    <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Verifying slides...&quot;</span><span class="p">,</span>
+                                    <span class="n">transient</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
                 <span class="k">try</span><span class="p">:</span>
                     <span class="k">if</span> <span class="n">tma</span><span class="p">:</span>
                         <span class="n">slide</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">TMA</span><span class="p">(</span>
@@ -1401,8 +1399,6 @@
                 <span class="n">manager</span> <span class="o">=</span> <span class="n">multiprocessing</span><span class="o">.</span><span class="n">Manager</span><span class="p">()</span>
                 <span class="n">ctx</span> <span class="o">=</span> <span class="n">multiprocessing</span><span class="o">.</span><span class="n">get_context</span><span class="p">(</span><span class="s1">&#39;spawn&#39;</span><span class="p">)</span>
                 <span class="n">reports</span> <span class="o">=</span> <span class="n">manager</span><span class="o">.</span><span class="n">dict</span><span class="p">()</span>  <span class="c1"># type: dict</span>
-                <span class="n">counter</span> <span class="o">=</span> <span class="n">manager</span><span class="o">.</span><span class="n">Value</span><span class="p">(</span><span class="s1">&#39;i&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
-                <span class="n">counter_lock</span> <span class="o">=</span> <span class="n">manager</span><span class="o">.</span><span class="n">Lock</span><span class="p">()</span>
 
                 <span class="c1"># If only one worker, use a single shared multiprocessing pool</span>
                 <span class="k">if</span> <span class="n">num_workers</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
@@ -1419,16 +1415,14 @@
 
                 <span class="c1"># Set up the multiprocessing progress bar</span>
                 <span class="k">if</span> <span class="n">total_tiles</span><span class="p">:</span>
-                    <span class="n">pb</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">ProgressBar</span><span class="p">(</span>
-                        <span class="n">total_tiles</span><span class="p">,</span>
-                        <span class="n">counter_text</span><span class="o">=</span><span class="s1">&#39;tiles&#39;</span><span class="p">,</span>
-                        <span class="n">leadtext</span><span class="o">=</span><span class="s1">&#39;Extracting tiles... &#39;</span><span class="p">,</span>
-                        <span class="n">show_counter</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-                        <span class="n">show_eta</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-                        <span class="n">mp_counter</span><span class="o">=</span><span class="n">counter</span><span class="p">,</span>  <span class="c1"># type: ignore</span>
-                        <span class="n">mp_lock</span><span class="o">=</span><span class="n">counter_lock</span>  <span class="c1"># type: ignore</span>
+                    <span class="n">pb</span> <span class="o">=</span> <span class="n">Progress</span><span class="p">(</span>
+                        <span class="n">SpinnerColumn</span><span class="p">(),</span>
+                        <span class="o">*</span><span class="n">Progress</span><span class="o">.</span><span class="n">get_default_columns</span><span class="p">(),</span>
+                        <span class="n">TimeElapsedColumn</span><span class="p">(),</span>
+                        <span class="n">TileExtractionSpeedColumn</span><span class="p">()</span>
                     <span class="p">)</span>
-                    <span class="n">pb</span><span class="o">.</span><span class="n">auto_refresh</span><span class="p">(</span><span class="mf">0.1</span><span class="p">)</span>
+                    <span class="n">task</span> <span class="o">=</span> <span class="n">pb</span><span class="o">.</span><span class="n">add_task</span><span class="p">(</span><span class="s2">&quot;Extracting tiles...&quot;</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="n">total_tiles</span><span class="p">)</span>
+                    <span class="n">pb</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
                 <span class="k">else</span><span class="p">:</span>
                     <span class="n">pb</span> <span class="o">=</span> <span class="kc">None</span>
 
@@ -1440,8 +1434,7 @@
                     <span class="s1">&#39;roi_dir&#39;</span><span class="p">:</span> <span class="n">roi_dir</span><span class="p">,</span>
                     <span class="s1">&#39;roi_method&#39;</span><span class="p">:</span> <span class="n">roi_method</span><span class="p">,</span>
                     <span class="s1">&#39;randomize_origin&#39;</span><span class="p">:</span> <span class="n">randomize_origin</span><span class="p">,</span>
-                    <span class="s1">&#39;pb_counter&#39;</span><span class="p">:</span> <span class="n">counter</span><span class="p">,</span>
-                    <span class="s1">&#39;counter_lock&#39;</span><span class="p">:</span> <span class="n">counter_lock</span>
+                    <span class="s1">&#39;pb&#39;</span><span class="p">:</span> <span class="n">pb</span>
                 <span class="p">}</span>
                 <span class="n">extraction_kwargs</span> <span class="o">=</span> <span class="p">{</span>
                     <span class="s1">&#39;tfrecord_dir&#39;</span><span class="p">:</span> <span class="n">tfrecord_dir</span><span class="p">,</span>
@@ -1486,7 +1479,7 @@
                 <span class="k">for</span> <span class="n">thread</span> <span class="ow">in</span> <span class="n">threads</span><span class="p">:</span>
                     <span class="n">thread</span><span class="o">.</span><span class="n">join</span><span class="p">()</span>
                 <span class="k">if</span> <span class="n">pb</span><span class="p">:</span>
-                    <span class="n">pb</span><span class="o">.</span><span class="n">end</span><span class="p">()</span>
+                    <span class="n">pb</span><span class="o">.</span><span class="n">stop</span><span class="p">()</span>
                 <span class="k">if</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;pool&#39;</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
                     <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;pool&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
                 <span class="k">if</span> <span class="n">report</span><span class="p">:</span>
@@ -1860,10 +1853,10 @@
                 <span class="n">index</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="n">index_name</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
             <span class="k">return</span> <span class="n">tfr_name</span><span class="p">,</span> <span class="n">index</span>
 
-        <span class="k">for</span> <span class="n">tfr_name</span><span class="p">,</span> <span class="n">index</span> <span class="ow">in</span> <span class="n">tqdm</span><span class="p">(</span><span class="n">pool</span><span class="o">.</span><span class="n">imap</span><span class="p">(</span><span class="n">load_index</span><span class="p">,</span> <span class="n">tfrecords</span><span class="p">),</span>
-                                    <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Loading indices...&quot;</span><span class="p">,</span>
+        <span class="k">for</span> <span class="n">tfr_name</span><span class="p">,</span> <span class="n">index</span> <span class="ow">in</span> <span class="n">track</span><span class="p">(</span><span class="n">pool</span><span class="o">.</span><span class="n">imap</span><span class="p">(</span><span class="n">load_index</span><span class="p">,</span> <span class="n">tfrecords</span><span class="p">),</span>
+                                    <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Loading indices...&quot;</span><span class="p">,</span>
                                     <span class="n">total</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">tfrecords</span><span class="p">),</span>
-                                    <span class="n">leave</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+                                    <span class="n">transient</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
             <span class="n">indices</span><span class="p">[</span><span class="n">tfr_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">index</span>
         <span class="n">pool</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
         <span class="k">return</span> <span class="n">indices</span></div>
@@ -2120,7 +2113,7 @@
             <span class="n">out_path</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">destination</span><span class="p">,</span> <span class="s1">&#39;outside&#39;</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">slidename</span><span class="si">}</span><span class="s1">.tfrecords&#39;</span><span class="p">)</span>
             <span class="n">inside_roi_writer</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">TFRecordWriter</span><span class="p">(</span><span class="n">in_path</span><span class="p">)</span>
             <span class="n">outside_roi_writer</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">TFRecordWriter</span><span class="p">(</span><span class="n">out_path</span><span class="p">)</span>
-            <span class="k">for</span> <span class="n">record</span> <span class="ow">in</span> <span class="n">tqdm</span><span class="p">(</span><span class="n">reader</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="n">manifest</span><span class="p">[</span><span class="n">tfr</span><span class="p">][</span><span class="s1">&#39;total&#39;</span><span class="p">]):</span>
+            <span class="k">for</span> <span class="n">record</span> <span class="ow">in</span> <span class="n">track</span><span class="p">(</span><span class="n">reader</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="n">manifest</span><span class="p">[</span><span class="n">tfr</span><span class="p">][</span><span class="s1">&#39;total&#39;</span><span class="p">]):</span>
                 <span class="n">parsed</span> <span class="o">=</span> <span class="n">parser</span><span class="p">(</span><span class="n">record</span><span class="p">)</span>
                 <span class="n">loc_x</span><span class="p">,</span> <span class="n">loc_y</span> <span class="o">=</span> <span class="n">parsed</span><span class="p">[</span><span class="s1">&#39;loc_x&#39;</span><span class="p">],</span> <span class="n">parsed</span><span class="p">[</span><span class="s1">&#39;loc_y&#39;</span><span class="p">]</span>
                 <span class="n">tile_in_roi</span> <span class="o">=</span> <span class="nb">any</span><span class="p">([</span>
@@ -2236,8 +2229,7 @@
         <span class="n">reports</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Generating TFRecords report...&#39;</span><span class="p">)</span>
         <span class="c1"># Get images for report</span>
-        <span class="k">for</span> <span class="n">tfr</span> <span class="ow">in</span> <span class="n">tfrecord_list</span><span class="p">:</span>
-            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="se">\r\033</span><span class="s1">[KWorking on </span><span class="si">{</span><span class="n">col</span><span class="o">.</span><span class="n">green</span><span class="p">(</span><span class="n">path_to_name</span><span class="p">(</span><span class="n">tfr</span><span class="p">))</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">tfr</span> <span class="ow">in</span> <span class="n">track</span><span class="p">(</span><span class="n">tfrecord_list</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="s1">&#39;Generating report...&#39;</span><span class="p">):</span>
             <span class="n">dataset</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">TFRecordDataset</span><span class="p">(</span><span class="n">tfr</span><span class="p">)</span>
             <span class="n">parser</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">get_tfrecord_parser</span><span class="p">(</span>
                 <span class="n">tfr</span><span class="p">,</span>
@@ -2258,7 +2250,6 @@
             <span class="n">reports</span> <span class="o">+=</span> <span class="p">[</span><span class="n">SlideReport</span><span class="p">(</span><span class="n">sample_tiles</span><span class="p">,</span> <span class="n">tfr</span><span class="p">)]</span>
 
         <span class="c1"># Generate and save PDF</span>
-        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\r\033</span><span class="s1">[K&#39;</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">)</span>
         <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Generating PDF (this may take some time)...&#39;</span><span class="p">)</span>
         <span class="n">pdf_report</span> <span class="o">=</span> <span class="n">ExtractionReport</span><span class="p">(</span><span class="n">reports</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s1">&#39;TFRecord Report&#39;</span><span class="p">)</span>
         <span class="n">timestring</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;%Y%m</span><span class="si">%d</span><span class="s1">-%H%M%S&#39;</span><span class="p">)</span>
@@ -2269,7 +2260,7 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Could not find destination directory </span><span class="si">{</span><span class="n">dest</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
         <span class="n">pdf_report</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
-        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;TFRecord report saved to </span><span class="si">{</span><span class="n">col</span><span class="o">.</span><span class="n">green</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span></div>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;TFRecord report saved to [green]</span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="Dataset.tfrecord_heatmap"><a class="viewcode-back" href="../../dataset.html#slideflow.Dataset.tfrecord_heatmap">[docs]</a>    <span class="k">def</span> <span class="nf">tfrecord_heatmap</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
@@ -2337,7 +2328,7 @@
             <span class="n">tfrecord_path</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">tfrecords</span><span class="p">,</span> <span class="n">label</span><span class="p">)</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="n">exists</span><span class="p">(</span><span class="n">tfrecord_path</span><span class="p">):</span>
                 <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
-                    <span class="sa">f</span><span class="s2">&quot;TFRecords path not found: </span><span class="si">{</span><span class="n">col</span><span class="o">.</span><span class="n">green</span><span class="p">(</span><span class="n">tfrecord_path</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;TFRecords path not found: </span><span class="si">{</span><span class="n">tfrecord_path</span><span class="si">}</span><span class="s2">&quot;</span>
                 <span class="p">)</span>
                 <span class="k">continue</span>
             <span class="n">folders_to_search</span> <span class="o">+=</span> <span class="p">[</span><span class="n">tfrecord_path</span><span class="p">]</span>
@@ -2393,9 +2384,9 @@
             <span class="n">tfrecord_path</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">base_dir</span><span class="p">,</span> <span class="n">subfolder</span><span class="p">)</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="n">exists</span><span class="p">(</span><span class="n">tfrecord_path</span><span class="p">):</span>
                 <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">DatasetError</span><span class="p">(</span>
-                    <span class="sa">f</span><span class="s2">&quot;Unable to find subfolder </span><span class="si">{</span><span class="n">col</span><span class="o">.</span><span class="n">bold</span><span class="p">(</span><span class="n">subfolder</span><span class="p">)</span><span class="si">}</span><span class="s2"> in &quot;</span>
-                    <span class="sa">f</span><span class="s2">&quot;source </span><span class="si">{</span><span class="n">col</span><span class="o">.</span><span class="n">bold</span><span class="p">(</span><span class="n">source</span><span class="p">)</span><span class="si">}</span><span class="s2">, tfrecord directory: &quot;</span>
-                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">col</span><span class="o">.</span><span class="n">green</span><span class="p">(</span><span class="n">base_dir</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;Unable to find subfolder [bold]</span><span class="si">{</span><span class="n">subfolder</span><span class="si">}</span><span class="s2">[/] in &quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;source [bold]</span><span class="si">{</span><span class="n">source</span><span class="si">}</span><span class="s2">[/], tfrecord directory: &quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;[green]</span><span class="si">{</span><span class="n">base_dir</span><span class="si">}</span><span class="s2">&quot;</span>
                 <span class="p">)</span>
             <span class="n">folders_to_search</span> <span class="o">+=</span> <span class="p">[</span><span class="n">tfrecord_path</span><span class="p">]</span>
         <span class="k">for</span> <span class="n">folder</span> <span class="ow">in</span> <span class="n">folders_to_search</span><span class="p">:</span>
@@ -2434,7 +2425,7 @@
             <span class="n">tfrecord_dir</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;tfrecords&#39;</span><span class="p">],</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">])</span>
             <span class="n">tiles_dir</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;tiles&#39;</span><span class="p">],</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">])</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="n">exists</span><span class="p">(</span><span class="n">tiles_dir</span><span class="p">):</span>
-                <span class="n">log</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;No tiles found for source </span><span class="si">{</span><span class="n">col</span><span class="o">.</span><span class="n">bold</span><span class="p">(</span><span class="n">source</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;No tiles found for source [bold]</span><span class="si">{</span><span class="n">source</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
                 <span class="k">continue</span>
             <span class="n">sf</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">write_tfrecords_multi</span><span class="p">(</span><span class="n">tiles_dir</span><span class="p">,</span> <span class="n">tfrecord_dir</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">update_manifest</span><span class="p">()</span>
@@ -2472,10 +2463,9 @@
         <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Generating thumbnails...&#39;</span><span class="p">)</span>
         <span class="n">slide_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slide_paths</span><span class="p">()</span>
         <span class="n">rois</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rois</span><span class="p">()</span>
-        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Saving thumbnails to </span><span class="si">{</span><span class="n">col</span><span class="o">.</span><span class="n">green</span><span class="p">(</span><span class="n">outdir</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Saving thumbnails to [green]</span><span class="si">{</span><span class="n">outdir</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">slide_path</span> <span class="ow">in</span> <span class="n">slide_list</span><span class="p">:</span>
-            <span class="n">fmt_name</span> <span class="o">=</span> <span class="n">col</span><span class="o">.</span><span class="n">green</span><span class="p">(</span><span class="n">path_to_name</span><span class="p">(</span><span class="n">slide_path</span><span class="p">))</span>
-            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Working on </span><span class="si">{</span><span class="n">fmt_name</span><span class="si">}</span><span class="s1">...&#39;</span><span class="p">)</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Working on [green]</span><span class="si">{</span><span class="n">path_to_name</span><span class="p">(</span><span class="n">slide_path</span><span class="p">)</span><span class="si">}</span><span class="s1">[/]...&#39;</span><span class="p">)</span>
             <span class="k">try</span><span class="p">:</span>
                 <span class="n">whole_slide</span> <span class="o">=</span> <span class="n">WSI</span><span class="p">(</span><span class="n">slide_path</span><span class="p">,</span>
                                   <span class="n">tile_px</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span>
@@ -2592,7 +2582,7 @@
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">len</span><span class="p">(</span><span class="n">tfrecord_dir_list</span><span class="p">):</span>
             <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">TFRecordsNotFoundError</span>
         <span class="n">tfrecord_dir_list_names</span> <span class="o">=</span> <span class="p">[</span>
-            <span class="n">tfr</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">][:</span><span class="o">-</span><span class="mi">10</span><span class="p">]</span> <span class="k">for</span> <span class="n">tfr</span> <span class="ow">in</span> <span class="n">tfrecord_dir_list</span>
+            <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">path_to_name</span><span class="p">(</span><span class="n">tfr</span><span class="p">)</span> <span class="k">for</span> <span class="n">tfr</span> <span class="ow">in</span> <span class="n">tfrecord_dir_list</span>
         <span class="p">]</span>
         <span class="n">patients_dict</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="n">num_warned</span> <span class="o">=</span> <span class="mi">0</span>
@@ -2655,7 +2645,7 @@
             <span class="k">assert</span> <span class="n">val_fraction</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
             <span class="n">num_val</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">val_fraction</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">patients_list</span><span class="p">))</span>
             <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;Boostrap validation: selecting </span><span class="si">{</span><span class="n">col</span><span class="o">.</span><span class="n">bold</span><span class="p">(</span><span class="n">num_val</span><span class="p">)</span><span class="si">}</span><span class="s2"> &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;Boostrap validation: selecting </span><span class="si">{</span><span class="n">num_val</span><span class="si">}</span><span class="s2"> &quot;</span>
                 <span class="s2">&quot;patients at random for validation testing&quot;</span>
             <span class="p">)</span>
             <span class="n">val_patients</span> <span class="o">=</span> <span class="n">patients_list</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">num_val</span><span class="p">]</span>
@@ -2695,7 +2685,7 @@
                     <span class="k">if</span> <span class="n">c1</span> <span class="o">==</span> <span class="n">c2</span><span class="p">:</span>
                         <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
                             <span class="sa">f</span><span class="s2">&quot;Using </span><span class="si">{</span><span class="n">val_strategy</span><span class="si">}</span><span class="s2"> validation split detected&quot;</span>
-                            <span class="sa">f</span><span class="s2">&quot; at </span><span class="si">{</span><span class="n">col</span><span class="o">.</span><span class="n">green</span><span class="p">(</span><span class="n">splits_file</span><span class="p">)</span><span class="si">}</span><span class="s2"> (ID: </span><span class="si">{</span><span class="n">split_id</span><span class="si">}</span><span class="s2">)&quot;</span>
+                            <span class="sa">f</span><span class="s2">&quot; at [green]</span><span class="si">{</span><span class="n">splits_file</span><span class="si">}</span><span class="s2">[/] (ID: </span><span class="si">{</span><span class="n">split_id</span><span class="si">}</span><span class="s2">)&quot;</span>
                         <span class="p">)</span>
                         <span class="n">accepted_split</span> <span class="o">=</span> <span class="n">split</span>
                         <span class="k">break</span>
@@ -2704,7 +2694,7 @@
             <span class="k">if</span> <span class="ow">not</span> <span class="n">accepted_split</span><span class="p">:</span>
                 <span class="k">if</span> <span class="n">splits_file</span><span class="p">:</span>
                     <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;No compatible train/val split found.&quot;</span><span class="p">)</span>
-                    <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Logging new split at </span><span class="si">{</span><span class="n">col</span><span class="o">.</span><span class="n">green</span><span class="p">(</span><span class="n">splits_file</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Logging new split at [green]</span><span class="si">{</span><span class="n">splits_file</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
                 <span class="k">else</span><span class="p">:</span>
                     <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;No training/validation splits file provided.&quot;</span><span class="p">)</span>
                     <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Unable to save or load validation splits.&quot;</span><span class="p">)</span>
@@ -3086,10 +3076,10 @@
         <span class="n">tfrecords</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tfrecords</span><span class="p">()</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">tfrecords</span><span class="p">):</span>
             <span class="n">img_formats</span> <span class="o">=</span> <span class="p">[]</span>
-            <span class="n">pb</span> <span class="o">=</span> <span class="n">tqdm</span><span class="p">(</span>
+            <span class="n">pb</span> <span class="o">=</span> <span class="n">track</span><span class="p">(</span>
                 <span class="n">tfrecords</span><span class="p">,</span>
-                <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Verifying tfrecord formats...&quot;</span><span class="p">,</span>
-                <span class="n">leave</span><span class="o">=</span><span class="kc">False</span>
+                <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Verifying tfrecord formats...&quot;</span><span class="p">,</span>
+                <span class="n">transient</span><span class="o">=</span><span class="kc">True</span>
             <span class="p">)</span>
             <span class="k">for</span> <span class="n">tfr</span> <span class="ow">in</span> <span class="n">pb</span><span class="p">:</span>
                 <span class="n">fmt</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">detect_tfrecord_format</span><span class="p">(</span><span class="n">tfr</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>

@@ -270,7 +270,6 @@
                     <span class="n">Union</span><span class="p">)</span>
 
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
-<span class="kn">from</span> <span class="nn">tqdm</span> <span class="kn">import</span> <span class="n">tqdm</span>
 
 <span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
 <span class="kn">from</span> <span class="nn">slideflow</span> <span class="kn">import</span> <span class="n">errors</span><span class="p">,</span> <span class="n">project_utils</span>
@@ -278,7 +277,6 @@
 <span class="kn">from</span> <span class="nn">slideflow.model</span> <span class="kn">import</span> <span class="n">ModelParams</span>
 <span class="kn">from</span> <span class="nn">slideflow.project_utils</span> <span class="kn">import</span> <span class="n">auto_dataset</span><span class="p">,</span> <span class="n">get_validation_settings</span>
 <span class="kn">from</span> <span class="nn">slideflow.util</span> <span class="kn">import</span> <span class="n">Path</span>
-<span class="kn">from</span> <span class="nn">slideflow.util</span> <span class="kn">import</span> <span class="n">colors</span> <span class="k">as</span> <span class="n">col</span>
 <span class="kn">from</span> <span class="nn">slideflow.util</span> <span class="kn">import</span> <span class="n">log</span><span class="p">,</span> <span class="n">path_to_name</span>
 
 <span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
@@ -911,7 +909,7 @@
                         <span class="n">mi</span><span class="p">,</span>
                         <span class="n">results_dict</span><span class="p">[</span><span class="n">mi</span><span class="p">][</span><span class="s1">&#39;epochs&#39;</span><span class="p">]</span>
                     <span class="p">)</span>
-            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Training results saved: </span><span class="si">{</span><span class="n">col</span><span class="o">.</span><span class="n">green</span><span class="p">(</span><span class="n">results_log_path</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Training results saved: [green]</span><span class="si">{</span><span class="n">results_log_path</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">_train_split</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
@@ -936,7 +934,7 @@
             <span class="n">k_msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39; (</span><span class="si">{</span><span class="n">val_settings</span><span class="o">.</span><span class="n">strategy</span><span class="si">}</span><span class="s1"> #</span><span class="si">{</span><span class="n">s_args</span><span class="o">.</span><span class="n">k</span><span class="si">}</span><span class="s1">)&#39;</span>
         <span class="k">if</span> <span class="n">sf</span><span class="o">.</span><span class="n">getLoggingLevel</span><span class="p">()</span> <span class="o">&lt;=</span> <span class="mi">20</span><span class="p">:</span>
             <span class="nb">print</span><span class="p">()</span>
-        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Training model </span><span class="si">{</span><span class="n">col</span><span class="o">.</span><span class="n">bold</span><span class="p">(</span><span class="n">s_args</span><span class="o">.</span><span class="n">model_name</span><span class="p">)</span><span class="si">}{</span><span class="n">k_msg</span><span class="si">}</span><span class="s1">...&#39;</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Training model [bold]</span><span class="si">{</span><span class="n">s_args</span><span class="o">.</span><span class="n">model_name</span><span class="si">}</span><span class="s1">[/]</span><span class="si">{</span><span class="n">k_msg</span><span class="si">}</span><span class="s1">...&#39;</span><span class="p">)</span>
         <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Hyperparameters: </span><span class="si">{</span><span class="n">hp</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
         <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Val settings: </span><span class="si">{</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="nb">vars</span><span class="p">(</span><span class="n">val_settings</span><span class="p">),</span> <span class="n">indent</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
 
@@ -1156,7 +1154,7 @@
             <span class="n">csv_writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">(</span><span class="n">header</span><span class="p">)</span>
             <span class="k">for</span> <span class="n">slide</span> <span class="ow">in</span> <span class="n">slides</span><span class="p">:</span>
                 <span class="n">csv_writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">([</span><span class="n">slide</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">])</span>
-        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Wrote annotations file to </span><span class="si">{</span><span class="n">col</span><span class="o">.</span><span class="n">green</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Wrote annotations file to [green]</span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="Project.create_hp_sweep"><a class="viewcode-back" href="../../project.html#slideflow.Project.create_hp_sweep">[docs]</a>    <span class="k">def</span> <span class="nf">create_hp_sweep</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
@@ -1197,7 +1195,7 @@
             <span class="n">mp</span> <span class="o">=</span> <span class="n">ModelParams</span><span class="p">(</span><span class="o">**</span><span class="n">full_params</span><span class="p">)</span>
             <span class="n">hp_list</span> <span class="o">+=</span> <span class="p">[{</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s1">HPSweep</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">:</span> <span class="n">mp</span><span class="o">.</span><span class="n">get_dict</span><span class="p">()}]</span>
         <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">write_json</span><span class="p">(</span><span class="n">hp_list</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">root</span><span class="p">,</span> <span class="n">filename</span><span class="p">))</span>
-        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Wrote hp sweep (len </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">sweep</span><span class="p">)</span><span class="si">}</span><span class="s1">) to </span><span class="si">{</span><span class="n">col</span><span class="o">.</span><span class="n">green</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span></div>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Wrote hp sweep (len </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">sweep</span><span class="p">)</span><span class="si">}</span><span class="s1">) to [green]</span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span></div>
 
     <span class="k">def</span> <span class="nf">create_hyperparameter_sweep</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">log</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
@@ -1266,7 +1264,7 @@
 <span class="sd">        Returns:</span>
 <span class="sd">            Dict: Dictionary of keras training results, nested by epoch.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Evaluating model at </span><span class="si">{</span><span class="n">col</span><span class="o">.</span><span class="n">green</span><span class="p">(</span><span class="n">model</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Evaluating model at [green]</span><span class="si">{</span><span class="n">model</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
         <span class="n">trainer</span><span class="p">,</span> <span class="n">eval_dts</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_prepare_trainer</span><span class="p">(</span>
             <span class="n">model</span><span class="o">=</span><span class="n">model</span><span class="p">,</span>
             <span class="n">dataset</span><span class="o">=</span><span class="n">dataset</span><span class="p">,</span>
@@ -1335,7 +1333,7 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">CLAMError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unable to find experiment &#39;</span><span class="si">{</span><span class="n">exp_name</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
 
-        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Loading experiment from </span><span class="si">{</span><span class="n">col</span><span class="o">.</span><span class="n">green</span><span class="p">(</span><span class="n">exp_name</span><span class="p">)</span><span class="si">}</span><span class="s1">, k=</span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Loading experiment from [green]</span><span class="si">{</span><span class="n">exp_name</span><span class="si">}</span><span class="s1">[/], k=</span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
         <span class="n">eval_dir</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">exp_name</span><span class="p">,</span> <span class="s1">&#39;eval&#39;</span><span class="p">)</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">exists</span><span class="p">(</span><span class="n">eval_dir</span><span class="p">):</span>
             <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">eval_dir</span><span class="p">)</span>
@@ -1548,14 +1546,11 @@
         <span class="p">)</span>
         <span class="n">dataset</span><span class="o">.</span><span class="n">extract_tiles</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
 
-    <span class="nd">@auto_dataset</span>
-    <span class="k">def</span> <span class="nf">gan_train</span><span class="p">(</span>
+<div class="viewcode-block" id="Project.gan_train"><a class="viewcode-back" href="../../project.html#slideflow.Project.gan_train">[docs]</a>    <span class="k">def</span> <span class="nf">gan_train</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
-        <span class="n">model</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;stylegan2&#39;</span><span class="p">,</span>
-        <span class="o">*</span><span class="p">,</span>
         <span class="n">dataset</span><span class="p">:</span> <span class="n">Dataset</span><span class="p">,</span>
-        <span class="n">filters</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">filter_blank</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">model</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;stylegan2&#39;</span><span class="p">,</span>
         <span class="n">outcomes</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">exp_label</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">mirror</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
@@ -1564,8 +1559,79 @@
         <span class="n">metrics</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">dry_run</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
         <span class="o">**</span><span class="n">kwargs</span>
-    <span class="p">):</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Train a GAN network.</span>
 
+<span class="sd">        Args:</span>
+<span class="sd">            dataset (:class:`slideflow.Dataset`): Training dataset.</span>
+
+<span class="sd">        Keyword Args:</span>
+<span class="sd">            allow_tf32 (bool): Allow internal use of Tensorflow-32.</span>
+<span class="sd">                Defaults to True.</span>
+<span class="sd">            aug (str): Augmentation mode. Options include &#39;ada&#39;,</span>
+<span class="sd">                &#39;noaug&#39;, &#39;fixed&#39;. Defaults to &#39;ada&#39;.</span>
+<span class="sd">            augpipe (str): Augmentation pipeline. Options include</span>
+<span class="sd">                &#39;blit&#39;, &#39;geom&#39;, &#39;color&#39;, &#39;filter&#39;, &#39;noise&#39;, &#39;cutout&#39;, &#39;bg&#39;,</span>
+<span class="sd">                &#39;bgc&#39;, &#39;bgcfnc&#39;. Defaults to &#39;bgcfnc&#39;.</span>
+<span class="sd">            batch (int, optional): Override batch size set by `cfg`.</span>
+<span class="sd">            cfg (str): StyleGAN2 base configuration. Options include</span>
+<span class="sd">                &#39;auto&#39;, &#39;stylegan2&#39;, &#39;paper256&#39;, &#39;paper512&#39;, &#39;paper1024&#39;, and</span>
+<span class="sd">                &#39;cifar&#39;. Defaults to &#39;auto&#39;.</span>
+<span class="sd">            dry_run (bool): Set up training but do not execute.</span>
+<span class="sd">                Defaults to False.</span>
+<span class="sd">            exp_label (str, optional): Experiment label. Defaults to None.</span>
+<span class="sd">            freezed (int): Freeze this many discriminator layers.</span>
+<span class="sd">                Defaults to 0.</span>
+<span class="sd">            fp32 (bool, optional): Disable mixed-precision training. Defaults</span>
+<span class="sd">                to False.</span>
+<span class="sd">            gamma (float, optional): Override R1 gamma from configuration</span>
+<span class="sd">                (set with `cfg`).</span>
+<span class="sd">            gpus (int): Number GPUs to train on in parallel. Defaults</span>
+<span class="sd">                to 1.</span>
+<span class="sd">            kimg (int): Override training duration in kimg (thousand</span>
+<span class="sd">                images) set by `cfg`. Most configurations default to 25,000</span>
+<span class="sd">                kimg (25 million images).</span>
+<span class="sd">            lazy_resume (bool). Allow lazy loading from saved pretrained</span>
+<span class="sd">                networks, for example to load a non-conditional network</span>
+<span class="sd">                when training a conditional network. Defaults to False.</span>
+<span class="sd">            mirror (bool): Randomly flip/rotate images during</span>
+<span class="sd">                training. Defaults to True.</span>
+<span class="sd">            metrics (str, list(str), optional): Metrics to calculate during</span>
+<span class="sd">                training. Options include &#39;fid50k&#39;, &#39;is50k&#39;, &#39;ppl_zfull&#39;,</span>
+<span class="sd">                &#39;ppl_wfull&#39;, &#39;ppl_zend&#39;, &#39;ppl2_wend&#39;, &#39;ls&#39;, and &#39;pr50k3&#39;.</span>
+<span class="sd">                Defaults to None.</span>
+<span class="sd">            model (str): Architecture to train. Only currently valid model</span>
+<span class="sd">                architecture is &quot;stylegan2&quot;. Defaults to &quot;stylegan2&quot;.</span>
+<span class="sd">            nhwc (bool): Use NWHC memory format with FP16. Defaults to False.</span>
+<span class="sd">            nobench (bool): Disable cuDNN benchmarking. Defaults to False.</span>
+<span class="sd">            outcomes (str, list(str), optional): Class conditioning outcome</span>
+<span class="sd">                labels for training a class-conditioned GAN. If not provided,</span>
+<span class="sd">                trains an unconditioned GAN. Defaults to None.</span>
+<span class="sd">            resume (str): Load previous network. Options include</span>
+<span class="sd">                &#39;noresume&#39; , &#39;ffhq256&#39;, &#39;ffhq512&#39;, &#39;ffhqq1024&#39;, &#39;celebahq256&#39;,</span>
+<span class="sd">                &#39;lsundog256&#39;, &lt;file&gt;, or &lt;url&gt;. Defaults to &#39;noresume&#39;.</span>
+<span class="sd">            snap (int): Snapshot interval for saving network and</span>
+<span class="sd">                example images. Defaults to 50 ticks.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">            Train StyleGAN2 from a Slideflow dataset.</span>
+
+<span class="sd">                &gt;&gt;&gt; P = sf.Project(&#39;/project/path&#39;)</span>
+<span class="sd">                &gt;&gt;&gt; dataset = P.dataset(tile_px=512, tile_um=400)</span>
+<span class="sd">                &gt;&gt;&gt; P.gan_train(dataset=dataset, exp_label=&quot;MyExperiment&quot;, ...)</span>
+
+<span class="sd">            Train StyleGAN2 as a class-conditional network.</span>
+
+<span class="sd">                &gt;&gt;&gt; P.gan_train(..., outcomes=&#39;class_label&#39;)</span>
+
+<span class="sd">            Train using a pretrained network.</span>
+
+<span class="sd">                &gt;&gt;&gt; P.gan_train(..., resume=&#39;/path/to/network.pkl&#39;)</span>
+
+<span class="sd">            Train with multiple GPUs.</span>
+
+<span class="sd">                &gt;&gt;&gt; P.gan_train(..., gpus=4)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="c1"># Validate the method and import the appropriate submodule</span>
         <span class="n">supported_models</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;stylegan2&#39;</span><span class="p">,)</span>
         <span class="k">if</span> <span class="n">model</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">supported_models</span><span class="p">:</span>
@@ -1609,20 +1675,78 @@
             <span class="n">augpipe</span><span class="o">=</span><span class="n">augpipe</span><span class="p">,</span>
             <span class="n">allow_tf32</span><span class="o">=</span><span class="n">allow_tf32</span><span class="p">,</span>
             <span class="n">metrics</span><span class="o">=</span><span class="n">metrics</span><span class="p">,</span>
-            <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="Project.gan_generate"><a class="viewcode-back" href="../../project.html#slideflow.Project.gan_generate">[docs]</a>    <span class="k">def</span> <span class="nf">gan_generate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">network_pkl</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">out</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<div class="viewcode-block" id="Project.gan_generate"><a class="viewcode-back" href="../../project.html#slideflow.Project.gan_generate">[docs]</a>    <span class="k">def</span> <span class="nf">gan_generate</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">network_pkl</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">out</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">seeds</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span>
+        <span class="o">**</span><span class="n">kwargs</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Generate images from a trained GAN network.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            network_pkl (str): _description_</span>
-<span class="sd">            out (str): _description_</span>
+<span class="sd">            network_pkl (str): Path to a trained StyleGAN2 network (``.pkl``)</span>
+<span class="sd">            out (str): Directory in which to save generated images.</span>
+<span class="sd">            seeds (list(int)): Seeds for which images will be generated.</span>
+
+<span class="sd">        Keyword args:</span>
+<span class="sd">            format (str, optional): Image format, either &#39;jpg&#39; or &#39;png&#39;.</span>
+<span class="sd">                Defaults to &#39;png&#39;.</span>
+<span class="sd">            truncation_psi (float, optional): Truncation PSI. Defaults to 1.</span>
+<span class="sd">            noise_mode (str, optional): Either &#39;const&#39;, &#39;random&#39;, or &#39;none&#39;.</span>
+<span class="sd">                Defaults to &#39;const&#39;.</span>
+<span class="sd">            class_idx (int, optional): Class index to generate, for class-</span>
+<span class="sd">                conditional networks. Defaults to None.</span>
+<span class="sd">            save_projection (bool, optional): Save weight projection for each</span>
+<span class="sd">                generated image as an `.npz` file in the out directory.</span>
+<span class="sd">                Defaults to False.</span>
+<span class="sd">            resize (bool, optional): Crop/resize images to a target micron/pixel</span>
+<span class="sd">                size. Defaults to False.</span>
+<span class="sd">            gan_um (int, optional): Size of GAN images in microns. Used for</span>
+<span class="sd">                cropping/resizing images to a target size. Defaults to None.</span>
+<span class="sd">            gan_px (int, optional): Size of GAN images in pixels. Used for</span>
+<span class="sd">                cropping/resizing images to a target size. Defaults to None.</span>
+<span class="sd">            target_um (int, optional): Crop/resize GAN images to this micron</span>
+<span class="sd">                size. Defaults to None.</span>
+<span class="sd">            target_px (int, optional): Crop/resize GAN images to this pixel</span>
+<span class="sd">                size. Defaults to None.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">            Save images as ``.png`` for seeds 0-100.</span>
+
+<span class="sd">                &gt;&gt;&gt; network_pkl = &#39;/path/to/trained/gan.pkl&#39;</span>
+<span class="sd">                &gt;&gt;&gt; P.gan_generate(</span>
+<span class="sd">                ...     network_pkl,</span>
+<span class="sd">                ...     out=&#39;/dir&#39;,</span>
+<span class="sd">                ...     format=&#39;jpg&#39;,</span>
+<span class="sd">                ...     seeds=range(100))</span>
+
+<span class="sd">            Save images in TFRecord format.</span>
+
+<span class="sd">                &gt;&gt;&gt; P.gan_generate(... out=&#39;target.tfrecords&#39;)</span>
+
+<span class="sd">            Save images of class &#39;0&#39; for a class-conditional GAN.</span>
+
+<span class="sd">                &gt;&gt;&gt; P.gan_generate(..., class_idx=0)</span>
+
+<span class="sd">            Resize GAN images (trained at 512 px / 400 um) to match a target</span>
+<span class="sd">            tile size (299 px / 302 um).</span>
+
+<span class="sd">                &gt;&gt;&gt; P.gan_generate(</span>
+<span class="sd">                ...     ...,</span>
+<span class="sd">                ...     gan_px=512,</span>
+<span class="sd">                ...     gan_um=400,</span>
+<span class="sd">                ...     target_px=299,</span>
+<span class="sd">                ...     target_um=302)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="kn">from</span> <span class="nn">slideflow.gan</span> <span class="kn">import</span> <span class="n">stylegan2</span>
 
         <span class="n">stylegan2</span><span class="o">.</span><span class="n">generate</span><span class="o">.</span><span class="n">generate_images</span><span class="p">(</span>
             <span class="n">network_pkl</span><span class="p">,</span>
             <span class="n">outdir</span><span class="o">=</span><span class="n">out</span><span class="p">,</span>
+            <span class="n">seeds</span><span class="o">=</span><span class="n">seeds</span><span class="p">,</span>
             <span class="o">**</span><span class="n">kwargs</span>
         <span class="p">)</span></div>
 
@@ -2073,7 +2197,7 @@
         <span class="k">if</span> <span class="p">(</span><span class="n">show_prediction</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="ow">not</span> <span class="n">use_float</span><span class="p">):</span>
             <span class="n">outcome_labels</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;outcome_labels&#39;</span><span class="p">]</span>
             <span class="n">model_type</span> <span class="o">=</span> <span class="n">model_type</span> <span class="k">if</span> <span class="n">model_type</span> <span class="k">else</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;model_type&#39;</span><span class="p">]</span>
-            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Loaded pred labels found at </span><span class="si">{</span><span class="n">col</span><span class="o">.</span><span class="n">green</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">model</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Loaded pred labels found at [green]</span><span class="si">{</span><span class="n">df</span><span class="o">.</span><span class="n">model</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
 
         <span class="c1"># Create mosaic map from UMAP of layer activations</span>
         <span class="n">umap</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">SlideMap</span><span class="o">.</span><span class="n">from_features</span><span class="p">(</span>
@@ -2600,7 +2724,7 @@
         <span class="n">sf</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">log_extraction_params</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
         <span class="k">for</span> <span class="n">source</span> <span class="ow">in</span> <span class="n">sources</span><span class="p">:</span>
-            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Working on dataset source </span><span class="si">{</span><span class="n">col</span><span class="o">.</span><span class="n">bold</span><span class="p">(</span><span class="n">source</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Working on dataset source [bold]</span><span class="si">{</span><span class="n">source</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
             <span class="n">roi_dir</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">sources</span><span class="p">[</span><span class="n">source</span><span class="p">][</span><span class="s1">&#39;roi&#39;</span><span class="p">]</span>
 
             <span class="c1"># Prepare list of slides for extraction</span>
@@ -2610,7 +2734,8 @@
             <span class="c1"># Verify slides and estimate total number of tiles</span>
             <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Verifying slides...&#39;</span><span class="p">)</span>
             <span class="n">total_tiles</span> <span class="o">=</span> <span class="mi">0</span>
-            <span class="k">for</span> <span class="n">slide_path</span> <span class="ow">in</span> <span class="n">tqdm</span><span class="p">(</span><span class="n">slide_list</span><span class="p">,</span> <span class="n">leave</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+            <span class="kn">from</span> <span class="nn">rich.progress</span> <span class="kn">import</span> <span class="n">track</span>
+            <span class="k">for</span> <span class="n">slide_path</span> <span class="ow">in</span> <span class="n">track</span><span class="p">(</span><span class="n">slide_list</span><span class="p">,</span> <span class="n">transient</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
                 <span class="k">try</span><span class="p">:</span>
                     <span class="n">slide</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">WSI</span><span class="p">(</span><span class="n">slide_path</span><span class="p">,</span>
                                    <span class="n">dataset</span><span class="o">.</span><span class="n">tile_px</span><span class="p">,</span>
@@ -2654,8 +2779,8 @@
                         <span class="n">pickle</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">wsi_grid</span><span class="p">,</span> <span class="n">file</span><span class="p">)</span>
 
                 <span class="k">except</span> <span class="n">errors</span><span class="o">.</span><span class="n">TileCorruptionError</span><span class="p">:</span>
-                    <span class="n">fmt_slide</span> <span class="o">=</span> <span class="n">col</span><span class="o">.</span><span class="n">green</span><span class="p">(</span><span class="n">path_to_name</span><span class="p">(</span><span class="n">slide_path</span><span class="p">))</span>
-                    <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">fmt_slide</span><span class="si">}</span><span class="s1"> is corrupt; skipping slide&#39;</span><span class="p">)</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;[green]</span><span class="si">{</span><span class="n">path_to_name</span><span class="p">(</span><span class="n">slide_path</span><span class="p">)</span><span class="si">}</span><span class="s1">[/] is &#39;</span>
+                              <span class="s1">&#39;corrupt; skipping slide&#39;</span><span class="p">)</span>
                     <span class="k">continue</span></div>
 
 <div class="viewcode-block" id="Project.save"><a class="viewcode-back" href="../../project.html#slideflow.Project.save">[docs]</a>    <span class="k">def</span> <span class="nf">save</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
@@ -3016,12 +3141,12 @@
             <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
                 <span class="k">pass</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">col</span><span class="o">.</span><span class="n">green</span><span class="p">(</span><span class="n">model</span><span class="p">)</span><span class="si">}</span><span class="s1"> training metrics:&#39;</span><span class="p">)</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;[green]</span><span class="si">{</span><span class="n">model</span><span class="si">}</span><span class="s1">[/] training metrics:&#39;</span><span class="p">)</span>
                 <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">final_train_metrics</span><span class="p">:</span>
                     <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">m</span><span class="si">}</span><span class="s1">: </span><span class="si">{</span><span class="n">final_train_metrics</span><span class="p">[</span><span class="n">m</span><span class="p">]</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
                 <span class="k">if</span> <span class="s1">&#39;val_metrics&#39;</span> <span class="ow">in</span> <span class="n">ep_res</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;epoch</span><span class="si">{</span><span class="n">last</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">]:</span>
                     <span class="n">final_val_metrics</span> <span class="o">=</span> <span class="n">ep_res</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;epoch</span><span class="si">{</span><span class="n">last</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">][</span><span class="s1">&#39;val_metrics&#39;</span><span class="p">]</span>
-                    <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">col</span><span class="o">.</span><span class="n">green</span><span class="p">(</span><span class="n">model</span><span class="p">)</span><span class="si">}</span><span class="s1"> validation metrics:&#39;</span><span class="p">)</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;[green]</span><span class="si">{</span><span class="n">model</span><span class="si">}</span><span class="s1">[/] validation metrics:&#39;</span><span class="p">)</span>
                     <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">final_val_metrics</span><span class="p">:</span>
                         <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">m</span><span class="si">}</span><span class="s1">: </span><span class="si">{</span><span class="n">final_val_metrics</span><span class="p">[</span><span class="n">m</span><span class="p">]</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
         <span class="k">return</span> <span class="nb">dict</span><span class="p">(</span><span class="n">results_dict</span><span class="p">)</span></div>

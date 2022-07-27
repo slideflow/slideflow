@@ -330,7 +330,7 @@
 </li>
         <li><a href="stats.html#slideflow.SlideMap.__init__">(slideflow.SlideMap method)</a>
 </li>
-        <li><a href="util.html#slideflow.util.ProgressBar.__init__">(slideflow.util.ProgressBar method)</a>
+        <li><a href="util.html#slideflow.util.ImgBatchSpeedColumn.__init__">(slideflow.util.ImgBatchSpeedColumn method)</a>
 </li>
       </ul></li>
   </ul></td>
@@ -342,8 +342,6 @@
       <li><a href="stats.html#slideflow.SlideMap.activations">activations() (slideflow.SlideMap method)</a>
 </li>
       <li><a href="model.html#slideflow.model.DatasetFeatures.activations_by_category">activations_by_category() (slideflow.model.DatasetFeatures method)</a>
-</li>
-      <li><a href="util.html#slideflow.util.ProgressBar.add_bar">add_bar() (slideflow.util.ProgressBar method)</a>
 </li>
       <li><a href="heatmap.html#slideflow.Heatmap.add_inset">add_inset() (slideflow.Heatmap method)</a>
 </li>
@@ -358,8 +356,6 @@
       <li><a href="project.html#slideflow.Project.associate_slide_names">associate_slide_names() (slideflow.Project method)</a>
 </li>
       <li><a href="io_torch.html#slideflow.io.torch.auto_gaussian">auto_gaussian() (in module slideflow.io.torch)</a>
-</li>
-      <li><a href="util.html#slideflow.util.ProgressBar.auto_refresh">auto_refresh() (slideflow.util.ProgressBar method)</a>
 </li>
       <li><a href="norm.html#slideflow.norm.autoselect">autoselect() (in module slideflow.norm)</a>
 </li>
@@ -531,6 +527,8 @@
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="project.html#slideflow.Project.gan_generate">gan_generate() (slideflow.Project method)</a>
 </li>
+      <li><a href="project.html#slideflow.Project.gan_train">gan_train() (slideflow.Project method)</a>
+</li>
       <li><a href="gan.html#slideflow.gan.StyleGAN2Interpolator.generate">generate() (slideflow.gan.StyleGAN2Interpolator method)</a>
 </li>
       <li><a href="gan.html#slideflow.gan.StyleGAN2Interpolator.generate_end">generate_end() (slideflow.gan.StyleGAN2Interpolator method)</a>
@@ -563,10 +561,10 @@
 </li>
       <li><a href="project.html#slideflow.Project.generate_thumbnails">generate_thumbnails() (slideflow.Project method)</a>
 </li>
-      <li><a href="stats.html#slideflow.stats.get_centroid_index">get_centroid_index() (in module slideflow.stats)</a>
-</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="stats.html#slideflow.stats.get_centroid_index">get_centroid_index() (in module slideflow.stats)</a>
+</li>
       <li><a href="norm.html#slideflow.norm.StainNormalizer.get_fit">get_fit() (slideflow.norm.StainNormalizer method)</a>
 </li>
       <li><a href="io_torch.html#slideflow.io.torch.LocLabelInterleaver.get_label">get_label() (slideflow.io.torch.LocLabelInterleaver method)</a>
@@ -629,7 +627,7 @@
 </li>
       <li><a href="dataset.html#slideflow.Dataset.img_format">img_format (slideflow.Dataset property)</a>
 </li>
-      <li><a href="util.html#slideflow.util.ProgressBar.increase_bar_value">increase_bar_value() (slideflow.util.ProgressBar method)</a>
+      <li><a href="util.html#slideflow.util.ImgBatchSpeedColumn">ImgBatchSpeedColumn (class in slideflow.util)</a>
 </li>
       <li><a href="grad.html#slideflow.grad.inferno">inferno() (in module slideflow.grad)</a>
 </li>
@@ -882,8 +880,6 @@
 </li>
       <li><a href="io_tensorflow.html#slideflow.io.tensorflow.process_image">process_image() (in module slideflow.io.tensorflow)</a>
 </li>
-      <li><a href="util.html#slideflow.util.ProgressBar">ProgressBar (class in slideflow.util)</a>
-</li>
       <li><a href="project.html#slideflow.Project">Project (class in slideflow)</a>
 </li>
   </ul></td>
@@ -916,10 +912,16 @@
 </li>
       <li><a href="dataset.html#slideflow.Dataset.remove_filter">remove_filter() (slideflow.Dataset method)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="model.html#slideflow.model.DatasetFeatures.remove_slide">remove_slide() (slideflow.model.DatasetFeatures method)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="util.html#slideflow.util.ImgBatchSpeedColumn.render">render() (slideflow.util.ImgBatchSpeedColumn method)</a>
+
+      <ul>
+        <li><a href="util.html#slideflow.util.TileExtractionSpeedColumn.render">(slideflow.util.TileExtractionSpeedColumn method)</a>
+</li>
+      </ul></li>
       <li><a href="dataset.html#slideflow.Dataset.resize_tfrecords">resize_tfrecords() (slideflow.Dataset method)</a>
 </li>
       <li><a href="norm.html#slideflow.norm.StainNormalizer.rgb_to_rgb">rgb_to_rgb() (slideflow.norm.StainNormalizer method)</a>
@@ -966,10 +968,6 @@
         <li><a href="io_torch.html#slideflow.io.torch.serialized_record">(in module slideflow.io.torch)</a>
 </li>
       </ul></li>
-      <li><a href="util.html#slideflow.util.ProgressBar.set_bar_text">set_bar_text() (slideflow.util.ProgressBar method)</a>
-</li>
-      <li><a href="util.html#slideflow.util.ProgressBar.set_bar_value">set_bar_value() (slideflow.util.ProgressBar method)</a>
-</li>
       <li><a href="gan.html#slideflow.gan.StyleGAN2Interpolator.set_feature_model">set_feature_model() (slideflow.gan.StyleGAN2Interpolator method)</a>
 </li>
       <li><a href="norm.html#slideflow.norm.StainNormalizer.set_fit">set_fit() (slideflow.norm.StainNormalizer method)</a>
@@ -994,8 +992,6 @@
         <li><a href="gan.html#module-slideflow.gan.utils">module</a>
 </li>
       </ul></li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li>
     slideflow.grad
 
@@ -1003,6 +999,8 @@
         <li><a href="grad.html#module-slideflow.grad">module</a>
 </li>
       </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li>
     slideflow.io
 
@@ -1105,6 +1103,8 @@
 </li>
       </ul></li>
       <li><a href="dataset.html#slideflow.Dataset.thumbnails">thumbnails() (slideflow.Dataset method)</a>
+</li>
+      <li><a href="util.html#slideflow.util.TileExtractionSpeedColumn">TileExtractionSpeedColumn (class in slideflow.util)</a>
 </li>
       <li><a href="slide.html#slideflow.slide.TMA">TMA (class in slideflow.slide)</a>
 </li>

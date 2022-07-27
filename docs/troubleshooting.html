@@ -264,7 +264,13 @@
 <p>To check for errors in your environment or installation, you can also use the test script <code class="docutils literal notranslate"><span class="pre">test.py</span></code>, which uses the testing suite <code class="docutils literal notranslate"><span class="pre">slideflow.test.TestSuite</span></code> to execute all pipeline functions on a set of provided slides.</p>
 <div class="section" id="testing">
 <h2>Testing<a class="headerlink" href="#testing" title="Permalink to this heading">¶</a></h2>
-<p>To test all pipeline functions, use the <code class="docutils literal notranslate"><span class="pre">test.py</span></code> script, providing a path to a directory containing slides to use for testing:</p>
+<p>To troubleshoot environment or installation issues, start by running unit tests,
+which do not require any sample slides. Use the <code class="docutils literal notranslate"><span class="pre">test.py</span></code> script without any
+arguments:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ python3 test.py
+</pre></div>
+</div>
+<p>For a more comprehensive test of all pipeline functions, provide a path to a directory containing sample slides via <code class="docutils literal notranslate"><span class="pre">--slides</span></code>, setting <code class="docutils literal notranslate"><span class="pre">--all=True</span></code> to run all tests:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ python3 test.py --slides<span class="o">=</span>/path/to/slides --all<span class="o">=</span>True
 </pre></div>
 </div>
@@ -276,7 +282,7 @@
 </div>
 <div class="section" id="issue-reporting">
 <h2>Issue Reporting<a class="headerlink" href="#issue-reporting" title="Permalink to this heading">¶</a></h2>
-<p>If the issue is still unclear, please submit an Issue on the <a class="reference external" href="https://github.com/jamesdolezal/slideflow">project Github page</a>.</p>
+<p>If the issue is still unclear, please submit an Issue on the <a class="reference external" href="https://github.com/jamesdolezal/slideflow/issues">project Github page</a>.</p>
 </div>
 </div>
 
