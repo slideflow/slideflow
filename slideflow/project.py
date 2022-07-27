@@ -320,7 +320,6 @@ class Project:
         mixed_precision: bool = True,
         allow_tf32: bool = False,
         input_header: Optional[Union[str, List[str]]] = None,
-        load_method: str = 'full'
     ) -> Tuple["Trainer", Dataset]:
         """Prepares a :class:`slideflow.model.Trainer` for eval or prediction.
 
@@ -481,7 +480,6 @@ class Project:
             use_neptune=self.use_neptune,
             neptune_api=self.neptune_api,
             neptune_workspace=self.neptune_workspace,
-            load_method=load_method
         )
         if isinstance(model, str):
             trainer.load(model)
@@ -842,7 +840,6 @@ class Project:
             'use_neptune': self.use_neptune,
             'neptune_api': self.neptune_api,
             'neptune_workspace': self.neptune_workspace,
-            'load_method': s_args.load_method
         }
         process = s_args.ctx.Process(target=project_utils._train_worker,
                                      args=((train_dts, val_dts),
@@ -993,7 +990,6 @@ class Project:
         mixed_precision: bool = True,
         allow_tf32: bool = False,
         input_header: Optional[Union[str, List[str]]] = None,
-        load_method: str = 'full',
         **kwargs: Any
     ) -> Dict:
         """Evaluates a saved model on a given set of tfrecords.
@@ -1052,7 +1048,6 @@ class Project:
             input_header=input_header,
             mixed_precision=mixed_precision,
             allow_tf32=allow_tf32,
-            load_method=load_method
         )
         return trainer.evaluate(eval_dts, **kwargs)
 
@@ -2354,7 +2349,6 @@ class Project:
         input_header: Optional[Union[str, List[str]]] = None,
         mixed_precision: bool = True,
         allow_tf32: bool = False,
-        load_method: str = 'full',
         **kwargs: Any
     ) -> "pd.DataFrame":
         """Evaluates a saved model on a given set of tfrecords.
@@ -2412,7 +2406,6 @@ class Project:
             input_header=input_header,
             mixed_precision=mixed_precision,
             allow_tf32=allow_tf32,
-            load_method=load_method
         )
         results = trainer.predict(
             dataset=eval_dts,
@@ -2731,7 +2724,6 @@ class Project:
         splits: str = "splits.json",
         mixed_precision: bool = True,
         allow_tf32: bool = False,
-        load_method: str = 'full',
         balance_headers: Optional[Union[str, List[str]]] = None,
         **training_kwargs: Any
     ) -> Dict:
@@ -2924,7 +2916,6 @@ class Project:
                 balance_headers=balance_headers,
                 training_kwargs=training_kwargs,
                 results_dict=results_dict,
-                load_method=load_method
             )
         # Print summary of all models
         log.info('Training complete; validation accuracies:')

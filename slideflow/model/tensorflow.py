@@ -252,7 +252,6 @@ class ModelParams(_base._ModelParams):
     def _build_base(
         self,
         pretrain: Optional[str] = 'imagenet',
-        load_method: str = 'full'
     ) -> tf.keras.Model:
         """"Builds the base image model, from a Keras model core, with the
         appropriate input tensors and identity layers.
@@ -269,11 +268,7 @@ class ModelParams(_base._ModelParams):
         if pretrain:
             log.info(f'Using pretraining from [magenta]{pretrain}')
         if pretrain and pretrain != 'imagenet':
-            if load_method == 'full':
-                pretrained_model = tf.keras.models.load_model(pretrain)
-            else:
-                log.debug("Loading pretrained model from weights")
-                pretrained_model = load(pretrain)
+            pretrained_model = tf.keras.models.load_model(pretrain)
             try:
                 # This is the tile_image input
                 pretrained_input = pretrained_model.get_layer(name='tile_image').input
@@ -323,7 +318,6 @@ class ModelParams(_base._ModelParams):
         activation: str = 'softmax',
         pretrain: str = 'imagenet',
         checkpoint: Optional[str] = None,
-        load_method: str = 'full'
     ) -> tf.keras.Model:
         """Assembles categorical or linear model, using pretraining (imagenet)
         or the base layers of a supplied model.
@@ -341,8 +335,7 @@ class ModelParams(_base._ModelParams):
             checkpoint (str): Path to checkpoint from which to resume model
                 training. Defaults to None.
         """
-        tile_image_model, model_inputs = self._build_base(pretrain,
-                                                          load_method=load_method)
+        tile_image_model, model_inputs = self._build_base(pretrain)
         if num_slide_features:
             log.debug(f'Model has {num_slide_features} slide input features')
             slide_feature_input_tensor = tf.keras.Input(
@@ -421,7 +414,6 @@ class ModelParams(_base._ModelParams):
         num_slide_features: int = 1,
         pretrain: Optional[str] = None,
         checkpoint: Optional[str] = None,
-        load_method: str = 'full'
     ) -> tf.keras.Model:
         """Assembles a Cox Proportional Hazards (CPH) model, using pretraining
         (imagenet) or the base layers of a supplied model.
@@ -440,8 +432,7 @@ class ModelParams(_base._ModelParams):
                 training. Defaults to None.
         """
         activation = 'linear'
-        tile_image_model, model_inputs = self._build_base(pretrain,
-                                                          load_method=load_method)
+        tile_image_model, model_inputs = self._build_base(pretrain)
 
         # Add slide feature input tensors, if there are more slide features
         #    than just the event input tensor for CPH models
@@ -962,7 +953,6 @@ class Trainer:
         use_neptune: bool = False,
         neptune_api: Optional[str] = None,
         neptune_workspace: Optional[str] = None,
-        load_method: str = 'full'
     ) -> None:
 
         """Sets base configuration, preparing model inputs and outputs.
@@ -1001,11 +991,6 @@ class Trainer:
             neptune_workspace (str, optional): Neptune workspace.
                 Defaults to None.
         """
-
-        if load_method not in ('full', 'weights'):
-            raise ValueError("Unrecognized value for load_method, must be "
-                             "either 'full' or 'weights'.")
-
         self.outdir = outdir
         self.manifest = manifest
         self.tile_px = hp.tile_px
@@ -1022,7 +1007,6 @@ class Trainer:
         self.neptune_run = None
         self.annotations_tables = []
         self.eval_callback = _PredictionAndEvaluationCallback  # type: tf.keras.callbacks.Callback
-        self.load_method = load_method
 
         if patients:
             self.patients = patients
@@ -1242,11 +1226,7 @@ class Trainer:
                     dataset.img_format))
 
     def load(self, model: str) -> tf.keras.Model:
-        if self.load_method == 'full':
-            self.model = tf.keras.models.load_model(model)
-        else:
-            log.debug("Loading model from weights")
-            self.model = load(model)
+        self.model = tf.keras.models.load_model(model)
 
     def predict(
         self,
@@ -1628,7 +1608,6 @@ class Trainer:
                     num_slide_features=self.num_slide_features,
                     pretrain=pretrain,
                     checkpoint=checkpoint,
-                    load_method=self.load_method
                 )
                 self.model = model
                 tf_utils.log_summary(model, self.neptune_run)
@@ -1862,22 +1841,18 @@ class CPHTrainer(LinearTrainer):
                 )
 
     def load(self, model: str) -> tf.keras.Model:
-        if self.load_method == 'full':
-            custom_objects = {
-                'negative_log_likelihood': tf_utils.negative_log_likelihood,
-                'concordance_index': tf_utils.concordance_index
-            }
-            self.model = tf.keras.models.load_model(
-                model,
-                custom_objects=custom_objects
-            )
-            self.model.compile(
-                loss=tf_utils.negative_log_likelihood,
-                metrics=tf_utils.concordance_index
-            )
-        else:
-            log.debug("Loading model from weights")
-            self.model = load(model)
+        custom_objects = {
+            'negative_log_likelihood': tf_utils.negative_log_likelihood,
+            'concordance_index': tf_utils.concordance_index
+        }
+        self.model = tf.keras.models.load_model(
+            model,
+            custom_objects=custom_objects
+        )
+        self.model.compile(
+            loss=tf_utils.negative_log_likelihood,
+            metrics=tf_utils.concordance_index
+        )
 
     def _compile_model(self) -> None:
         self.model.compile(optimizer=self.hp.get_opt(),
