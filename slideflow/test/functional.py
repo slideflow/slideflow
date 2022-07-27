@@ -218,7 +218,6 @@ def single_thread_normalizer_tester(
         gen_norm = sf.norm.StainNormalizer(method)
         vec_norm = sf.norm.autoselect(method)
         st_msg = '[yellow]SINGLE-thread[/]'
-        print(f"'\r\033[kTesting {method} [{st_msg}]...", end="")
 
         # Save example image
         img = Image.fromarray(gen_norm.rgb_to_rgb(raw_img))
@@ -226,9 +225,8 @@ def single_thread_normalizer_tester(
 
         gen_tpt = test_throughput(dts, gen_norm)
         dur = f"[blue][{gen_tpt:.1f} img/s][/]"
-        print(f"'\r\033[kTesting {method} [{st_msg}]... DONE " + dur)
+        print(f"Testing {method} [{st_msg}]... DONE " + dur)
         if type(vec_norm) != type(gen_norm):
-            print(f"'\r\033[kTesting {method} {v} [{st_msg}]...", end="")
 
             # Save example image
             img = Image.fromarray(vec_norm.rgb_to_rgb(raw_img))
@@ -236,7 +234,7 @@ def single_thread_normalizer_tester(
 
             vec_tpt = test_throughput(dts, vec_norm)
             dur = f"[blue][{vec_tpt:.1f} img/s][/]"
-            print(f"'\r\033[kTesting {method} {v} [{st_msg}]... DONE {dur}")
+            print(f"Testing {method} {v} [{st_msg}]... DONE {dur}")
 
 
 @handle_errors
@@ -260,15 +258,13 @@ def multi_thread_normalizer_tester(
         gen_norm = sf.norm.StainNormalizer(method)
         vec_norm = sf.norm.autoselect(method)
         mt_msg = '[magenta]MULTI-thread[/]'
-        print(f"'\r\033[kTesting {method} [{mt_msg}]...", end="")
         gen_tpt = test_multithread_throughput(dataset, gen_norm)
         dur = f"[blue][{gen_tpt:.1f} img/s][/]"
-        print(f"'\r\033[kTesting {method} [{mt_msg}]... DONE " + dur)
+        print(f"Testing {method} [{mt_msg}]... DONE " + dur)
         if type(vec_norm) != type(gen_norm):
-            print(f"'\r\033[kTesting {method} {v} [{mt_msg}]...", end="")
             vec_tpt = test_multithread_throughput(dataset, vec_norm)
             dur = f"[blue][{vec_tpt:.1f} img/s][/]"
-            print(f"'\r\033[kTesting {method} {v} [{mt_msg}]... DONE " + dur)
+            print(f"Testing {method} {v} [{mt_msg}]... DONE " + dur)
 
 
 @handle_errors
