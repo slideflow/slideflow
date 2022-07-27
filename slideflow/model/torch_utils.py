@@ -224,7 +224,7 @@ def eval_from_model(
 
     y_true, y_pred, tile_to_slides, locations, y_std = [], [], [], [], []
     losses, total, num_outcomes, batch_size = 0, 0, 0, 0
-    corrects = None
+    corrects, acc, loss = None, None, None
     model.eval()
     device = torch.device('cuda:0')
 
@@ -292,16 +292,17 @@ def eval_from_model(
                 else:
                     res = model(*inp)
 
+                if not predict_only:
+                    assert torch_args is not None
+                    corrects = torch_args.update_corrects(res, yt, corrects)
+                    losses = torch_args.update_loss(res, yt, losses, img.size(0))
+
                 if isinstance(res, list):
                     res = [r.cpu().numpy().copy() for r in res]
                 else:
                     res = res.cpu().numpy().copy()
 
                 y_pred += [res]
-                if not predict_only:
-                    assert torch_args is not None
-                    corrects = torch_args.update_corrects(res, yt, corrects)
-                    losses = torch_args.update_loss(res, yt, losses, img.size(0))
 
         if not predict_only and type(yt) == dict:
             y_true += [[yt[f'out-{o}'] for o in range(len(yt))]]
