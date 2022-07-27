@@ -2325,7 +2325,7 @@ class Dataset:
         if not len(tfrecord_dir_list):
             raise errors.TFRecordsNotFoundError
         tfrecord_dir_list_names = [
-            tfr.split('/')[-1][:-10] for tfr in tfrecord_dir_list
+            sf.util.path_to_name(tfr) for tfr in tfrecord_dir_list
         ]
         patients_dict = {}
         num_warned = 0
