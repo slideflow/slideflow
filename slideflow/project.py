@@ -751,9 +751,15 @@ class Project:
                 hp.validation_balance,
             )
             val_dts = val_dts.clip(s_args.max_tiles)
-        num_train = len(train_dts.tfrecords())
-        num_val = 0 if not val_dts else len(val_dts.tfrecords())
-        log.info(f'Using {num_train} training TFRecords, {num_val} validation')
+
+        if from_wsi:
+            num_train = len(train_dts.slide_paths())
+            num_val = 0 if not val_dts else len(val_dts.slide_paths())
+            log.info(f'Using {num_train} training slides, {num_val} validation')
+        else:
+            num_train = len(train_dts.tfrecords())
+            num_val = 0 if not val_dts else len(val_dts.tfrecords())
+            log.info(f'Using {num_train} training TFRecords, {num_val} validation')
 
         # --- Prepare additional slide-level input ----------------------------
         if s_args.input_header:

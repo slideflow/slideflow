@@ -2461,8 +2461,11 @@ class Dataset:
         # Assemble dict of patients linking to list of slides & outcome labels
         # dataset.labels() ensures no duplicate labels for a single patient
         tfrecord_dir_list = self.tfrecords() if not from_wsi else self.slide_paths()
-        if not len(tfrecord_dir_list):
+        if not len(tfrecord_dir_list) and not from_wsi:
             raise errors.TFRecordsNotFoundError
+        elif not len(tfrecord_dir_list):
+            raise errors.SlideNotFoundError("No slides found.")
+
         tfrecord_dir_list_names = [
             sf.util.path_to_name(tfr) for tfr in tfrecord_dir_list
         ]
