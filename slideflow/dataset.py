@@ -1234,7 +1234,8 @@ class Dataset:
                                 qc_kwargs=qc_kwargs),
                         slide_list)
                     for wsi in wsi_imap:
-                        wsi_list += [wsi]
+                        if wsi is not None:
+                            wsi_list += [wsi]
                         pb.advance(qc_task)
 
                     total_tiles = sum([w.estimated_num_tiles for w in wsi_list])
@@ -1283,7 +1284,7 @@ class Dataset:
                         img_format=img_kwargs['img_format']
                     )
                     pdf_report = ExtractionReport(
-                        rep_vals,
+                        [r for r in rep_vals if r is not None],
                         meta=report_meta
                     )
                     _time = datetime.now().strftime('%Y%m%d-%H%M%S')
@@ -1298,6 +1299,7 @@ class Dataset:
         # Update manifest & rebuild indices
         self.update_manifest(force_update=True)
         self.build_index(True)
+        all_reports = [r for r in all_reports if r is not None]
         return {report.path: report for report in all_reports}
 
     def extract_tiles_from_tfrecords(self, dest: str) -> None:
