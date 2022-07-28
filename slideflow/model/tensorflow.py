@@ -62,69 +62,69 @@ class ModelParams(_base._ModelParams):
         # 'DenseNet': kapps.DenseNet,
         # 'NASNet': kapps.NASNet
     }
+    OptDict = {
+        'Adam': tf.keras.optimizers.Adam,
+        'SGD': tf.keras.optimizers.SGD,
+        'RMSprop': tf.keras.optimizers.RMSprop,
+        'Adagrad': tf.keras.optimizers.Adagrad,
+        'Adadelta': tf.keras.optimizers.Adadelta,
+        'Adamax': tf.keras.optimizers.Adamax,
+        'Nadam': tf.keras.optimizers.Nadam
+    }
+    if hasattr(kapps, 'EfficientNetV2B0'):
+        ModelDict.update({'efficientnet_v2b0': kapps.EfficientNetV2B0})
+    if hasattr(kapps, 'EfficientNetV2B1'):
+        ModelDict.update({'efficientnet_v2b1': kapps.EfficientNetV2B1})
+    if hasattr(kapps, 'EfficientNetV2B2'):
+        ModelDict.update({'efficientnet_v2b2': kapps.EfficientNetV2B2})
+    if hasattr(kapps, 'EfficientNetV2B3'):
+        ModelDict.update({'efficientnet_v2b3': kapps.EfficientNetV2B3})
+    if hasattr(kapps, 'EfficientNetV2S'):
+        ModelDict.update({'efficientnet_v2s': kapps.EfficientNetV2S})
+    if hasattr(kapps, 'EfficientNetV2M'):
+        ModelDict.update({'efficientnet_v2m': kapps.EfficientNetV2M})
+    if hasattr(kapps, 'EfficientNetV2L'):
+        ModelDict.update({'efficientnet_v2l': kapps.EfficientNetV2L})
+    LinearLossDict = {
+        loss: getattr(tf.keras.losses, loss)
+        for loss in [
+            'mean_squared_error',
+            'mean_absolute_error',
+            'mean_absolute_percentage_error',
+            'mean_squared_logarithmic_error',
+            'squared_hinge',
+            'hinge',
+            'logcosh'
+        ]
+    }
+    LinearLossDict.update({
+        'negative_log_likelihood': tf_utils.negative_log_likelihood
+    })
+    AllLossDict = {
+        loss: getattr(tf.keras.losses, loss)
+        for loss in [
+            'mean_squared_error',
+            'mean_absolute_error',
+            'mean_absolute_percentage_error',
+            'mean_squared_logarithmic_error',
+            'squared_hinge',
+            'hinge',
+            'categorical_hinge',
+            'logcosh',
+            'huber',
+            'categorical_crossentropy',
+            'sparse_categorical_crossentropy',
+            'binary_crossentropy',
+            'kullback_leibler_divergence',
+            'poisson'
+        ]
+    }
+    AllLossDict.update({
+        'batch_loss_crossentropy': tf_utils.batch_loss_crossentropy,
+        'negative_log_likelihood': tf_utils.negative_log_likelihood
+    })
 
     def __init__(self, *args, **kwargs):
-        self.OptDict = {
-            'Adam': tf.keras.optimizers.Adam,
-            'SGD': tf.keras.optimizers.SGD,
-            'RMSprop': tf.keras.optimizers.RMSprop,
-            'Adagrad': tf.keras.optimizers.Adagrad,
-            'Adadelta': tf.keras.optimizers.Adadelta,
-            'Adamax': tf.keras.optimizers.Adamax,
-            'Nadam': tf.keras.optimizers.Nadam
-        }
-        if hasattr(kapps, 'EfficientNetV2B0'):
-            self.ModelDict.update({'efficientnet_v2b0': kapps.EfficientNetV2B0})
-        if hasattr(kapps, 'EfficientNetV2B1'):
-            self.ModelDict.update({'efficientnet_v2b1': kapps.EfficientNetV2B1})
-        if hasattr(kapps, 'EfficientNetV2B2'):
-            self.ModelDict.update({'efficientnet_v2b2': kapps.EfficientNetV2B2})
-        if hasattr(kapps, 'EfficientNetV2B3'):
-            self.ModelDict.update({'efficientnet_v2b3': kapps.EfficientNetV2B3})
-        if hasattr(kapps, 'EfficientNetV2S'):
-            self.ModelDict.update({'efficientnet_v2s': kapps.EfficientNetV2S})
-        if hasattr(kapps, 'EfficientNetV2M'):
-            self.ModelDict.update({'efficientnet_v2m': kapps.EfficientNetV2M})
-        if hasattr(kapps, 'EfficientNetV2L'):
-            self.ModelDict.update({'efficientnet_v2l': kapps.EfficientNetV2L})
-        self.LinearLossDict = {
-            loss: getattr(tf.keras.losses, loss)
-            for loss in [
-                'mean_squared_error',
-                'mean_absolute_error',
-                'mean_absolute_percentage_error',
-                'mean_squared_logarithmic_error',
-                'squared_hinge',
-                'hinge',
-                'logcosh'
-            ]
-        }
-        self.LinearLossDict.update({
-            'negative_log_likelihood': tf_utils.negative_log_likelihood
-        })
-        self.AllLossDict = {
-            loss: getattr(tf.keras.losses, loss)
-            for loss in [
-                'mean_squared_error',
-                'mean_absolute_error',
-                'mean_absolute_percentage_error',
-                'mean_squared_logarithmic_error',
-                'squared_hinge',
-                'hinge',
-                'categorical_hinge',
-                'logcosh',
-                'huber',
-                'categorical_crossentropy',
-                'sparse_categorical_crossentropy',
-                'binary_crossentropy',
-                'kullback_leibler_divergence',
-                'poisson'
-            ]
-        }
-        self.AllLossDict.update({
-            'batch_loss_crossentropy': tf_utils.batch_loss_crossentropy,
-            'negative_log_likelihood': tf_utils.negative_log_likelihood
-        })
         super().__init__(*args, **kwargs)
         assert self.model in self.ModelDict.keys()
         assert self.optimizer in self.OptDict.keys()
