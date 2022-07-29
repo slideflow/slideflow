@@ -1198,10 +1198,10 @@ class _BaseLoader:
         loc_np = np.array(locations)
         grid_np = np.array(grid_locations)
         df_dict = {
-            'loc_x': loc_np[:, 0],
-            'loc_y': loc_np[:, 1],
-            'grid_x': grid_np[:, 0],
-            'grid_y': grid_np[:, 1]
+            'loc_x': [] if not len(loc_np) else loc_np[:, 0],
+            'loc_y': [] if not len(loc_np) else loc_np[:, 1],
+            'grid_x': [] if not len(grid_np) else grid_np[:, 0],
+            'grid_y': [] if not len(grid_np) else grid_np[:, 1]
         }
         if ws_fractions:
             df_dict.update({'ws_fraction': ws_fractions})
