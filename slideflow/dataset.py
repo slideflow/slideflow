@@ -103,14 +103,14 @@ from typing import (TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Tuple,
 import numpy as np
 import pandas as pd
 import shapely.geometry as sg
-from rich.progress import track, Progress, TimeElapsedColumn, SpinnerColumn
+from rich.progress import track, Progress
 
 import slideflow as sf
 from slideflow import errors
 from slideflow.model import ModelParams
 from slideflow.slide import WSI, ExtractionReport, SlideReport
 from slideflow.util import (log, Labels, Path, _shortname, path_to_name,
-                            tfrecord2idx, TileExtractionSpeedColumn)
+                            tfrecord2idx, TileExtractionProgress)
 
 if TYPE_CHECKING:
     import tensorflow as tf
@@ -201,7 +201,7 @@ def _tile_extractor(
             )
             reports.update({path: report})
     except errors.MissingROIError:
-        log.debug(f'Missing ROI for slide {path}; skipping')
+        log.info(f'Missing ROI for slide {path}; skipping')
     except errors.SlideLoadError as e:
         log.error(f'Error loading slide {path}: {e}. Skipping')
     except errors.QCError as e:
@@ -965,7 +965,6 @@ class Dataset:
         q_size: int = 4,
         qc: Optional[str] = None,
         report: bool = True,
-        low_memory: bool = False,
         **kwargs: Any
     ) -> Dict[str, SlideReport]:
         """Extract tiles from a group of slides, saving extracted tiles to
@@ -1014,8 +1013,6 @@ class Dataset:
                 Increases tile extraction time. Defaults to None.
             report (bool): Save a PDF report of tile extraction.
                 Defaults to True.
-            low_memory (bool): Operate in low-memory mode at the cost of
-                worse performance.
 
         Keyword Args:
             normalizer (str, optional): Normalization strategy.
@@ -1134,19 +1131,6 @@ class Dataset:
             _tail = f"(tile_px={self.tile_px}, tile_um={self.tile_um})"
             log.info(f'Extracting tiles from {len(slide_list)} slides {_tail}')
 
-            # Verify slides and estimate total number of tiles
-            if buffer or low_memory:
-                log.info('Verifying slides...')
-                filtered_dts = self.filter(
-                    {'slide': list(map(sf.util.path_to_name, slide_list))}
-                )
-                slide_manifest = filtered_dts.slide_manifest(
-                    source=source,
-                    low_memory=low_memory
-                )
-                total_tiles = sum(list(slide_manifest.values()))
-                log.info(f'Total estimated tiles to extract: {total_tiles}')
-
             # Use multithreading if specified, extracting tiles
             # from all slides in the filtered list
             if len(slide_list):
@@ -1168,12 +1152,7 @@ class Dataset:
                     kwargs['pool'] = ctx.Pool(num_threads)
 
                 # Set up the multiprocessing progress bar
-                pb = Progress(
-                    SpinnerColumn(),
-                    *Progress.get_default_columns(),
-                    TimeElapsedColumn(),
-                    TileExtractionSpeedColumn()
-                )
+                pb = TileExtractionProgress()
 
                 wsi_kwargs = {
                     'tile_px': self.tile_px,
@@ -1196,9 +1175,10 @@ class Dataset:
                     'wsi_kwargs': wsi_kwargs
                 }
 
-                if buffer or low_memory:
-                    pb.add_task("Extracting tiles...", total=total_tiles)
-                    pb.start()
+                speed_task = pb.add_task("Speed: ", progress_type="speed", total=None)
+                slide_task = pb.add_task("Extracting...", progress_type="slide_progress", total=len(slide_list))
+                pb.start()
+                if buffer:
                     # Worker to grab slide path from queue and start extraction
                     def worker():
                         while not task_finished:
@@ -1207,6 +1187,7 @@ class Dataset:
                                 q.task_done()
                                 break
                             _tile_extractor(path, **extraction_kwargs)
+                            pb.advance(slide_task)
                             if buffer:
                                 os.remove(path)
                             q.task_done()
@@ -1220,31 +1201,17 @@ class Dataset:
                     task_finished = True
                     thread.join()
                 else:
-                    main_task = pb.add_task("Extracting tiles...", total=None)
-                    qc_task = pb.add_task("Applying QC...", total=len(slide_list))
-                    pb.start()
-                    wsi_list = []
-                    wsi_imap = kwargs['pool'].imap(
-                        partial(_prepare_slide,
-                                report_dir=tfrecord_dir,
-                                tma=tma,
-                                wsi_kwargs={k:v for k,v in wsi_kwargs.items()
-                                            if k!='pb'},
-                                qc=qc,
-                                qc_kwargs=qc_kwargs),
-                        slide_list)
-                    for wsi in wsi_imap:
-                        if wsi is not None:
-                            wsi_list += [wsi]
-                        pb.advance(qc_task)
-
-                    total_tiles = sum([w.estimated_num_tiles for w in wsi_list])
-                    log.info(f'Total estimated tiles to extract: {total_tiles}')
-                    pb.update(qc_task, visible=False)
-                    pb.update(main_task, total=total_tiles)
-
-                    for wsi in wsi_list:
-                        wsi.pb = pb
+                    for slide in slide_list:
+                        wsi = _prepare_slide(
+                            slide,
+                            report_dir=tfrecord_dir,
+                            tma=tma,
+                            wsi_kwargs=wsi_kwargs,
+                            qc=qc,
+                            qc_kwargs=qc_kwargs)
+                        if wsi is None:
+                            pb.advance(slide_task)
+                            continue
                         try:
                             log.debug(f'Extracting tiles for {wsi.name}')
                             report = wsi.extract_tiles(
@@ -1255,6 +1222,7 @@ class Dataset:
                             reports.update({wsi.path: report})
                         except errors.TileCorruptionError:
                             log.error(f'{wsi.path} corrupt; skipping')
+                        pb.advance(slide_task)
 
                 if pb:
                     pb.stop()

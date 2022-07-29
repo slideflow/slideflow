@@ -12,6 +12,7 @@ from rich.logging import RichHandler
 from rich.highlighter import NullHighlighter
 from rich.panel import Panel
 from rich.console import Console
+from rich.progress import Progress, TextColumn, BarColumn
 from functools import partial
 from glob import glob
 from os.path import dirname, exists, isdir, join
@@ -142,6 +143,25 @@ class ImgBatchSpeedColumn(progress.ProgressColumn):
             return progress.Text("?", style="progress.data.speed")
         data_speed = f'{int(speed * self.batch_size)} img'
         return progress.Text(f"{data_speed}/s", style="progress.data.speed")
+
+
+class TileExtractionProgress(Progress):
+    def get_renderables(self):
+        for task in self.tasks:
+            if task.fields.get("progress_type") == 'speed':
+                self.columns = (
+                    TextColumn("[progress.description]{task.description}"),
+                    TileExtractionSpeedColumn(),)
+            if task.fields.get("progress_type") == 'slide_progress':
+                self.columns = (
+                    TextColumn("[progress.description]{task.description}"),
+                    BarColumn(),
+                    progress.TaskProgressColumn(),
+                    progress.MofNCompleteColumn(),
+                    "●",
+                    progress.TimeRemainingColumn(),
+                )
+            yield self.make_tasks_table([task])
 
 
 # --- Slideflow header --------------------------------------------------------
