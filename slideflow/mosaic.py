@@ -230,7 +230,8 @@ class Mosaic:
         tile_zoom: int = 15,
         relative_size: bool = False,
         focus: Optional[List[Path]] = None,
-        focus_slide: Optional[str] = None
+        focus_slide: Optional[str] = None,
+        background: str = '#dfdfdf'
     ) -> None:
         """Initializes figures and places image tiles.
 
@@ -252,7 +253,7 @@ class Mosaic:
         # Initialize figure
         fig = plt.figure(figsize=figsize)
         ax = fig.add_subplot(111, aspect='equal')
-        ax.set_facecolor('#dfdfdf')
+        ax.set_facecolor(background)
         fig.tight_layout()
         plt.subplots_adjust(
             left=0.02,
@@ -293,7 +294,7 @@ class Mosaic:
         log.info('Placing image tiles...')
         num_placed = 0
         if self.mapping_method == 'strict':
-            for tile in self.GRID:
+            for tile in track(self.GRID):
                 if not len(tile['points']):
                     continue
                 closest_point = tile['nearest_idx']
