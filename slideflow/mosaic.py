@@ -88,6 +88,10 @@ class Mosaic:
 
         # Detect tfrecord image format
         _, self.img_format = sf.io.detect_tfrecord_format(self.tfrecords[0])
+        if self.img_format not in ('jpg', 'jpeg', 'png'):
+            raise errors.MosaicError(
+                f"Unknown image format in tfrecords: {self.img_format}"
+            )
 
         # Setup normalization
         if isinstance(normalizer, str):
@@ -398,20 +402,20 @@ class Mosaic:
     def _decode_image_string(self, string: str) -> np.ndarray:
         """Internal method to convert an image string (as stored in TFRecords)
         to an RGB array."""
+
         if self.normalizer:
-            if self.img_format in ('jpg', 'jpeg'):
-                tile_image = self.normalizer.jpeg_to_rgb(string)
-            elif self.img_format == 'png':
-                tile_image = self.normalizer.png_to_rgb(string)
-            else:
-                raise errors.MosaicError(
-                    f"Unknown image format in tfrecords: {self.img_format}"
-                )
-        else:
-            image_arr = np.fromstring(string, np.uint8)
-            tile_image_bgr = cv2.imdecode(image_arr, cv2.IMREAD_COLOR)
-            tile_image = cv2.cvtColor(tile_image_bgr, cv2.COLOR_BGR2RGB)
-        return tile_image
+            try:
+                if self.img_format in ('jpg', 'jpeg'):
+                    return self.normalizer.jpeg_to_rgb(string)
+                elif self.img_format == 'png':
+                    return self.normalizer.png_to_rgb(string)
+            except Exception as e:
+                log.error("Error encountered during image normalization, "
+                          f"displaying image tile non-normalized. {e}")
+
+        image_arr = np.fromstring(string, np.uint8)
+        tile_image_bgr = cv2.imdecode(image_arr, cv2.IMREAD_COLOR)
+        return cv2.cvtColor(tile_image_bgr, cv2.COLOR_BGR2RGB)
 
     def focus(self, tfrecords: Optional[List[Path]]) -> None:
         """Highlights certain tiles according to a focus list if list provided,
