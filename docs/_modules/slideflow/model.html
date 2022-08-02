@@ -279,10 +279,9 @@
 <span class="kn">import</span> <span class="nn">scipy.stats</span> <span class="k">as</span> <span class="nn">stats</span>
 <span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
 <span class="kn">from</span> <span class="nn">slideflow</span> <span class="kn">import</span> <span class="n">errors</span>
-<span class="kn">from</span> <span class="nn">slideflow.util</span> <span class="kn">import</span> <span class="n">Labels</span><span class="p">,</span> <span class="n">Path</span>
-<span class="kn">from</span> <span class="nn">slideflow.util</span> <span class="kn">import</span> <span class="n">colors</span> <span class="k">as</span> <span class="n">col</span>
+<span class="kn">from</span> <span class="nn">slideflow.util</span> <span class="kn">import</span> <span class="n">Labels</span>
 <span class="kn">from</span> <span class="nn">slideflow.util</span> <span class="kn">import</span> <span class="n">log</span>
-<span class="kn">from</span> <span class="nn">tqdm</span> <span class="kn">import</span> <span class="n">tqdm</span>
+<span class="kn">from</span> <span class="nn">rich.progress</span> <span class="kn">import</span> <span class="n">track</span><span class="p">,</span> <span class="n">Progress</span>
 
 <span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
     <span class="kn">import</span> <span class="nn">tensorflow</span> <span class="k">as</span> <span class="nn">tf</span>
@@ -575,7 +574,7 @@
         <span class="c1"># Rename tfrecord_array to tfrecords</span>
         <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Calculating activations for </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">tfrecords</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s1"> &#39;</span>
                  <span class="sa">f</span><span class="s1">&#39;tfrecords (layers=</span><span class="si">{</span><span class="n">layers</span><span class="si">}</span><span class="s1">)&#39;</span><span class="p">)</span>
-        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Generating from </span><span class="si">{</span><span class="n">col</span><span class="o">.</span><span class="n">green</span><span class="p">(</span><span class="n">model</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Generating from [green]</span><span class="si">{</span><span class="n">model</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
         <span class="n">layers</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">as_list</span><span class="p">(</span><span class="n">layers</span><span class="p">)</span>
 
         <span class="c1"># Load model</span>
@@ -692,12 +691,14 @@
         <span class="n">batch_proc_thread</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="n">batch_worker</span><span class="p">,</span> <span class="n">daemon</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="n">batch_proc_thread</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
 
-        <span class="n">pb</span> <span class="o">=</span> <span class="n">tqdm</span><span class="p">(</span><span class="n">total</span><span class="o">=</span><span class="n">estimated_tiles</span><span class="p">,</span> <span class="n">ncols</span><span class="o">=</span><span class="mi">80</span><span class="p">,</span> <span class="n">leave</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">pb</span> <span class="o">=</span> <span class="n">Progress</span><span class="p">(</span><span class="n">transient</span><span class="o">=</span><span class="n">sf</span><span class="o">.</span><span class="n">getLoggingLevel</span><span class="p">()</span><span class="o">&gt;</span><span class="mi">20</span><span class="p">)</span>
+        <span class="n">task</span> <span class="o">=</span> <span class="n">pb</span><span class="o">.</span><span class="n">add_task</span><span class="p">(</span><span class="s2">&quot;Generating...&quot;</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="n">estimated_tiles</span><span class="p">)</span>
+        <span class="n">pb</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
         <span class="k">for</span> <span class="n">batch_img</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">batch_slides</span><span class="p">,</span> <span class="n">batch_loc_x</span><span class="p">,</span> <span class="n">batch_loc_y</span> <span class="ow">in</span> <span class="n">dataloader</span><span class="p">:</span>
             <span class="n">model_output</span> <span class="o">=</span> <span class="n">combined_model</span><span class="p">(</span><span class="n">batch_img</span><span class="p">)</span>
             <span class="n">q</span><span class="o">.</span><span class="n">put</span><span class="p">((</span><span class="n">model_output</span><span class="p">,</span> <span class="n">batch_slides</span><span class="p">,</span> <span class="p">(</span><span class="n">batch_loc_x</span><span class="p">,</span> <span class="n">batch_loc_y</span><span class="p">)))</span>
-            <span class="n">pb</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">batch_size</span><span class="p">)</span>
-        <span class="n">pb</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            <span class="n">pb</span><span class="o">.</span><span class="n">advance</span><span class="p">(</span><span class="n">task</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">)</span>
+        <span class="n">pb</span><span class="o">.</span><span class="n">stop</span><span class="p">()</span>
         <span class="n">q</span><span class="o">.</span><span class="n">put</span><span class="p">((</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span>
         <span class="n">batch_proc_thread</span><span class="o">.</span><span class="n">join</span><span class="p">()</span>
 
@@ -811,7 +812,7 @@
                  <span class="bp">self</span><span class="o">.</span><span class="n">locations</span><span class="p">],</span>
                 <span class="n">pt_pkl_file</span>
             <span class="p">)</span>
-        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Data cached to </span><span class="si">{</span><span class="n">col</span><span class="o">.</span><span class="n">green</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span></div>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Data cached to [green]</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="DatasetFeatures.to_csv"><a class="viewcode-back" href="../../model.html#slideflow.model.DatasetFeatures.to_csv">[docs]</a>    <span class="k">def</span> <span class="nf">to_csv</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
@@ -843,7 +844,7 @@
             <span class="n">feature_header</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s1">&#39;Feature_</span><span class="si">{</span><span class="n">f</span><span class="si">}</span><span class="s1">&#39;</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num_features</span><span class="p">)]</span>
             <span class="n">header</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;Slide&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="n">logit_header</span> <span class="o">+</span> <span class="n">feature_header</span>
             <span class="n">csvwriter</span><span class="o">.</span><span class="n">writerow</span><span class="p">(</span><span class="n">header</span><span class="p">)</span>
-            <span class="k">for</span> <span class="n">slide</span> <span class="ow">in</span> <span class="n">tqdm</span><span class="p">(</span><span class="n">slides</span><span class="p">,</span> <span class="n">ncols</span><span class="o">=</span><span class="mi">80</span><span class="p">,</span> <span class="n">leave</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">slide</span> <span class="ow">in</span> <span class="n">track</span><span class="p">(</span><span class="n">slides</span><span class="p">):</span>
                 <span class="k">if</span> <span class="n">level</span> <span class="o">==</span> <span class="s1">&#39;tile&#39;</span><span class="p">:</span>
                     <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">tile_act</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">activations</span><span class="p">[</span><span class="n">slide</span><span class="p">]):</span>
                         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">logits</span><span class="p">[</span><span class="n">slide</span><span class="p">]</span> <span class="o">!=</span> <span class="p">[]:</span>
@@ -867,7 +868,7 @@
                         <span class="n">csvwriter</span><span class="o">.</span><span class="n">writerow</span><span class="p">([</span><span class="n">slide</span><span class="p">]</span> <span class="o">+</span> <span class="n">logit</span> <span class="o">+</span> <span class="n">act</span><span class="p">)</span>
                     <span class="k">else</span><span class="p">:</span>
                         <span class="n">csvwriter</span><span class="o">.</span><span class="n">writerow</span><span class="p">([</span><span class="n">slide</span><span class="p">]</span> <span class="o">+</span> <span class="n">act</span><span class="p">)</span>
-        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Activations saved to </span><span class="si">{</span><span class="n">col</span><span class="o">.</span><span class="n">green</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span></div>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Activations saved to [green]</span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="DatasetFeatures.to_torch"><a class="viewcode-back" href="../../model.html#slideflow.model.DatasetFeatures.to_torch">[docs]</a>    <span class="k">def</span> <span class="nf">to_torch</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
@@ -886,9 +887,9 @@
         <span class="k">if</span> <span class="ow">not</span> <span class="n">exists</span><span class="p">(</span><span class="n">outdir</span><span class="p">):</span>
             <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">outdir</span><span class="p">)</span>
         <span class="n">slides</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slides</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">slides</span> <span class="k">else</span> <span class="n">slides</span>
-        <span class="k">for</span> <span class="n">slide</span> <span class="ow">in</span> <span class="n">tqdm</span><span class="p">(</span><span class="n">slides</span><span class="p">,</span> <span class="n">ncols</span><span class="o">=</span><span class="mi">80</span><span class="p">,</span> <span class="n">leave</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">slide</span> <span class="ow">in</span> <span class="n">track</span><span class="p">(</span><span class="n">slides</span><span class="p">):</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">activations</span><span class="p">[</span><span class="n">slide</span><span class="p">]</span> <span class="o">==</span> <span class="p">[]:</span>
-                <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Skipping empty slide </span><span class="si">{</span><span class="n">col</span><span class="o">.</span><span class="n">green</span><span class="p">(</span><span class="n">slide</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Skipping empty slide [green]</span><span class="si">{</span><span class="n">slide</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
                 <span class="k">continue</span>
             <span class="n">slide_activations</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">activations</span><span class="p">[</span><span class="n">slide</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
@@ -951,7 +952,7 @@
 <span class="sd">        Args:</span>
 <span class="sd">            path (str): Path to pkl cache.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Loading from cache </span><span class="si">{</span><span class="n">col</span><span class="o">.</span><span class="n">green</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="si">}</span><span class="s1">...&#39;</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Loading from cache [green]</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s1">...&#39;</span><span class="p">)</span>
         <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">pt_pkl_file</span><span class="p">:</span>
             <span class="n">loaded_pkl</span> <span class="o">=</span> <span class="n">pickle</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">pt_pkl_file</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">activations</span> <span class="o">=</span> <span class="n">loaded_pkl</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
@@ -1066,7 +1067,7 @@
             <span class="k">if</span> <span class="ow">not</span> <span class="n">exists</span><span class="p">(</span><span class="n">outdir</span><span class="p">):</span>
                 <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">outdir</span><span class="p">)</span>
             <span class="n">filename</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;slide_level_summary.csv&#39;</span><span class="p">)</span>
-            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Writing results to </span><span class="si">{</span><span class="n">col</span><span class="o">.</span><span class="n">green</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span><span class="si">}</span><span class="s1">...&#39;</span><span class="p">)</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Writing results to [green]</span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s1">[/]...&#39;</span><span class="p">)</span>
             <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">outfile</span><span class="p">:</span>
                 <span class="n">csv_writer</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">writer</span><span class="p">(</span><span class="n">outfile</span><span class="p">)</span>
                 <span class="n">header</span> <span class="o">=</span> <span class="p">([</span><span class="s1">&#39;slide&#39;</span><span class="p">,</span> <span class="s1">&#39;category&#39;</span><span class="p">]</span>
@@ -1304,11 +1305,9 @@
                 <span class="n">num</span><span class="o">=</span><span class="n">tiles_per_feature</span><span class="p">,</span>
                 <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span>
             <span class="p">)</span>
-            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">g</span> <span class="ow">in</span> <span class="n">tqdm</span><span class="p">(</span><span class="nb">enumerate</span><span class="p">(</span><span class="n">gradient</span><span class="p">[</span><span class="n">sample_idx</span><span class="p">]),</span>
-                             <span class="n">ncols</span><span class="o">=</span><span class="mi">80</span><span class="p">,</span>
-                             <span class="n">leave</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">g</span> <span class="ow">in</span> <span class="n">track</span><span class="p">(</span><span class="nb">enumerate</span><span class="p">(</span><span class="n">gradient</span><span class="p">[</span><span class="n">sample_idx</span><span class="p">]),</span>
                              <span class="n">total</span><span class="o">=</span><span class="n">tiles_per_feature</span><span class="p">,</span>
-                             <span class="n">desc</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Feature </span><span class="si">{</span><span class="n">f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">):</span>
+                             <span class="n">description</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Feature </span><span class="si">{</span><span class="n">f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">):</span>
                 <span class="k">for</span> <span class="n">tfr</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tfrecords</span><span class="p">:</span>
                     <span class="k">if</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">path_to_name</span><span class="p">(</span><span class="n">tfr</span><span class="p">)</span> <span class="o">==</span> <span class="n">g</span><span class="p">[</span><span class="s1">&#39;slide&#39;</span><span class="p">]:</span>
                         <span class="n">tfr_dir</span> <span class="o">=</span> <span class="n">tfr</span>

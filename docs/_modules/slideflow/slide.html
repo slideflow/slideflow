@@ -293,9 +293,8 @@
 <span class="kn">from</span> <span class="nn">slideflow.slide.report</span> <span class="kn">import</span> <span class="n">ExtractionPDF</span>  <span class="c1"># noqa F401</span>
 <span class="kn">from</span> <span class="nn">slideflow.slide.report</span> <span class="kn">import</span> <span class="n">ExtractionReport</span><span class="p">,</span> <span class="n">SlideReport</span>
 <span class="kn">from</span> <span class="nn">slideflow.util</span> <span class="kn">import</span> <span class="n">SUPPORTED_FORMATS</span><span class="p">,</span> <span class="n">Path</span>  <span class="c1"># noqa F401</span>
-<span class="kn">from</span> <span class="nn">slideflow.util</span> <span class="kn">import</span> <span class="n">colors</span> <span class="k">as</span> <span class="n">col</span>
 <span class="kn">from</span> <span class="nn">slideflow.util</span> <span class="kn">import</span> <span class="n">log</span><span class="p">,</span> <span class="n">path_to_name</span>  <span class="c1"># noqa F401</span>
-<span class="kn">from</span> <span class="nn">tqdm</span> <span class="kn">import</span> <span class="n">tqdm</span>
+<span class="kn">from</span> <span class="nn">rich.progress</span> <span class="kn">import</span> <span class="n">Progress</span>
 
 <span class="k">try</span><span class="p">:</span>
     <span class="kn">import</span> <span class="nn">pyvips</span> <span class="k">as</span> <span class="nn">vips</span>
@@ -649,8 +648,8 @@
         <span class="n">gs_t</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;grayspace_threshold&#39;</span><span class="p">]</span>
 
     <span class="k">if</span> <span class="s1">&#39;normalizer&#39;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
-        <span class="n">norm</span> <span class="o">=</span> <span class="n">col</span><span class="o">.</span><span class="n">bold</span><span class="p">(</span><span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;normalizer&quot;</span><span class="p">])</span>
-        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Extracting tiles using </span><span class="si">{</span><span class="n">norm</span><span class="si">}</span><span class="s1"> normalization&#39;</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Extracting tiles using [magenta]</span><span class="si">{</span><span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;normalizer&quot;</span><span class="p">]</span><span class="si">}</span><span class="s1">[/] &#39;</span>
+                 <span class="s1">&#39;normalization&#39;</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">ws_f</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
         <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Filtering tiles by whitespace fraction&#39;</span><span class="p">)</span>
         <span class="n">excl</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;(exclude if &gt;=</span><span class="si">{</span><span class="n">ws_f</span><span class="o">*</span><span class="mi">100</span><span class="si">:</span><span class="s1">.0f</span><span class="si">}</span><span class="s1">% whitespace)&#39;</span>
@@ -887,24 +886,10 @@
         <span class="n">tile_um</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
         <span class="n">stride_div</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
         <span class="n">enable_downsample</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
-        <span class="n">pb</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">ProgressBar</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">pb_counter</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">DummyCounter</span><span class="p">,</span>
-                                   <span class="s2">&quot;mp.sharedctypes.Synchronized&quot;</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">counter_lock</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">DummyLock</span><span class="p">,</span>
-                                     <span class="s2">&quot;mp.synchronize.Lock&quot;</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">pb</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Progress</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 
-        <span class="c1"># if a progress bar is not directly provided, use the provided</span>
-        <span class="c1"># multiprocess-friendly progress bar counter and lock</span>
-        <span class="c1"># (for multiprocessing, as ProgressBar cannot be pickled)</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">pb</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_pb_counter</span> <span class="o">=</span> <span class="n">pb_counter</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_counter_lock</span> <span class="o">=</span> <span class="n">counter_lock</span>
-        <span class="c1"># Otherwise, use the provided progress bar&#39;s counter and lock</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_pb_counter</span> <span class="o">=</span> <span class="n">pb</span><span class="o">.</span><span class="n">get_counter</span><span class="p">()</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_counter_lock</span> <span class="o">=</span> <span class="n">pb</span><span class="o">.</span><span class="n">get_lock</span><span class="p">()</span>
-
+        <span class="bp">self</span><span class="o">.</span><span class="n">pb</span> <span class="o">=</span> <span class="n">pb</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">path_to_name</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">shortname</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">_shortname</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">tile_px</span> <span class="o">=</span> <span class="n">tile_px</span>
@@ -944,7 +929,7 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">mpp</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="n">OPS_MPP_X</span><span class="p">])</span>
         <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">SlideLoadError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;Slide </span><span class="si">{</span><span class="n">col</span><span class="o">.</span><span class="n">green</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span><span class="si">}</span><span class="s2"> missing MPP (</span><span class="si">{</span><span class="n">OPS_MPP_X</span><span class="si">}</span><span class="s2">)&quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;Slide [green]</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">[/] missing MPP (</span><span class="si">{</span><span class="n">OPS_MPP_X</span><span class="si">}</span><span class="s2">)&quot;</span>
             <span class="p">)</span>
 
         <span class="c1"># Calculate downsample by magnification</span>
@@ -1292,7 +1277,7 @@
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_px</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">extract_px</span><span class="p">:</span>
             <span class="n">ups_msg</span> <span class="o">=</span> <span class="s1">&#39;Tiles will be up-scaled with bilinear interpolation&#39;</span>
             <span class="n">ups_amnt</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;(</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">extract_px</span><span class="si">}</span><span class="s1">px -&gt; </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">tile_px</span><span class="si">}</span><span class="s1">px)&#39;</span>
-            <span class="n">warn</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;[</span><span class="si">{</span><span class="n">col</span><span class="o">.</span><span class="n">red</span><span class="p">(</span><span class="s1">&#39;!WARN!&#39;</span><span class="p">)</span><span class="si">}</span><span class="s2">]&quot;</span>
+            <span class="n">warn</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;[red]&#39;!WARN!&#39;[/]&quot;</span>
             <span class="n">log</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">shortname</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">warn</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">ups_msg</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">ups_amnt</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="k">return</span> <span class="kc">None</span>
 
@@ -1376,7 +1361,7 @@
             <span class="p">))</span>
 
         <span class="n">generator</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">build_generator</span><span class="p">(</span>
-            <span class="n">show_progress</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_counter_lock</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">),</span>
+            <span class="n">show_progress</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span><span class="c1">#(self.pb is None),</span>
             <span class="n">img_format</span><span class="o">=</span><span class="n">img_format</span><span class="p">,</span>
             <span class="o">**</span><span class="n">kwargs</span>
         <span class="p">)</span>
@@ -1441,8 +1426,8 @@
             <span class="n">writer</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="n">num_wrote_to_tfr</span><span class="p">:</span>
                 <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">tfrecord_dir</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="o">+</span><span class="s2">&quot;.tfrecords&quot;</span><span class="p">))</span>
-                <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;No tiles extracted for </span><span class="si">{</span><span class="n">col</span><span class="o">.</span><span class="n">green</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_counter_lock</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;No tiles extracted for [green]</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">pb</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">generator_iterator</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
 
         <span class="k">if</span> <span class="n">tfrecord_dir</span> <span class="ow">or</span> <span class="n">tiles_dir</span><span class="p">:</span>
@@ -1517,7 +1502,7 @@
 <span class="sd">                tiles_dir is set. Defaults to False.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="s1">&#39;show_progress&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
-            <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;show_progress&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_counter_lock</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;show_progress&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pb</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">)</span>
         <span class="n">generator</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">build_generator</span><span class="p">(</span>
             <span class="n">dry_run</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
             <span class="o">**</span><span class="n">kwargs</span>
@@ -1544,9 +1529,7 @@
         <span class="n">rois</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">roi_method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;auto&#39;</span><span class="p">,</span>
         <span class="n">randomize_origin</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-        <span class="n">pb</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">ProgressBar</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">pb_counter</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="s2">&quot;mp.sharedctypes.Synchronized&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">counter_lock</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="s2">&quot;mp.synchronize.Lock&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">pb</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Progress</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">silent</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Loads slide and ROI(s).</span>
@@ -1578,14 +1561,9 @@
 <span class="sd">                Defaults to &#39;auto&#39;.</span>
 <span class="sd">            randomize_origin (bool, optional): Offset the starting grid by a</span>
 <span class="sd">                random amount. Defaults to False.</span>
-<span class="sd">            pb (:class:`slideflow.util.ProgressBar`, optional): Multiprocessing</span>
-<span class="sd">                capable ProgressBar instance; will update progress bar during</span>
+<span class="sd">            pb (:class:`Progress`, optional): Multiprocessing</span>
+<span class="sd">                capable Progress instance; will update progress bar during</span>
 <span class="sd">                tile extraction if provided.</span>
-<span class="sd">            pb_counter (obj): Multiprocessing counter (a multiprocessing Value,</span>
-<span class="sd">                from Progress Bar) used to follow tile extraction progress.</span>
-<span class="sd">                Defaults to None.</span>
-<span class="sd">            counter_lock (obj): Lock object for updating pb_counter, if</span>
-<span class="sd">                provided. Defaults to None.</span>
 <span class="sd">            silent (bool, optional): Suppresses warnings about slide skipping</span>
 <span class="sd">                if ROIs are missing. Defaults to False.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -1596,9 +1574,7 @@
             <span class="n">tile_um</span><span class="o">=</span><span class="n">tile_um</span><span class="p">,</span>
             <span class="n">stride_div</span><span class="o">=</span><span class="n">stride_div</span><span class="p">,</span>
             <span class="n">enable_downsample</span><span class="o">=</span><span class="n">enable_downsample</span><span class="p">,</span>
-            <span class="n">pb</span><span class="o">=</span><span class="n">pb</span><span class="p">,</span>
-            <span class="n">pb_counter</span><span class="o">=</span><span class="n">pb_counter</span><span class="p">,</span>
-            <span class="n">counter_lock</span><span class="o">=</span><span class="n">counter_lock</span>
+            <span class="n">pb</span><span class="o">=</span><span class="n">pb</span>
         <span class="p">)</span>
 
         <span class="c1"># Initialize calculated variables</span>
@@ -1645,7 +1621,7 @@
                 <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">warn_msg</span><span class="p">)</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rois</span><span class="p">)</span> <span class="ow">and</span> <span class="n">roi_method</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;inside&#39;</span><span class="p">,</span> <span class="s1">&#39;outside&#39;</span><span class="p">):</span>
             <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">MissingROIError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;Slide </span><span class="si">{</span><span class="n">col</span><span class="o">.</span><span class="n">green</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span><span class="si">}</span><span class="s2"> missing ROI.&quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;Slide [green]</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">[/] missing ROI.&quot;</span>
             <span class="p">)</span>
         <span class="k">elif</span> <span class="ow">not</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rois</span><span class="p">):</span>
             <span class="n">info_msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;No ROI for </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">, using whole slide.&quot;</span>
@@ -1922,7 +1898,7 @@
 
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">build_generator</span><span class="p">()</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">estimated_num_tiles</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;No tiles extracted for slide </span><span class="si">{</span><span class="n">col</span><span class="o">.</span><span class="n">green</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;No tiles extracted for slide [green]</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
             <span class="k">return</span> <span class="kc">None</span>
 
         <span class="c1"># Detect CPU cores if num_threads not specified</span>
@@ -1998,7 +1974,9 @@
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Building generator with a shared pool&quot;</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">show_progress</span><span class="p">:</span>
-                <span class="n">pbar</span> <span class="o">=</span> <span class="n">tqdm</span><span class="p">(</span><span class="n">total</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">estimated_num_tiles</span><span class="p">,</span> <span class="n">ncols</span><span class="o">=</span><span class="mi">80</span><span class="p">)</span>
+                <span class="n">pbar</span> <span class="o">=</span> <span class="n">Progress</span><span class="p">(</span><span class="n">transient</span><span class="o">=</span><span class="n">sf</span><span class="o">.</span><span class="n">getLoggingLevel</span><span class="p">()</span><span class="o">&gt;</span><span class="mi">20</span><span class="p">)</span>
+                <span class="n">task</span> <span class="o">=</span> <span class="n">pbar</span><span class="o">.</span><span class="n">add_task</span><span class="p">(</span><span class="s1">&#39;Extracting...&#39;</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">estimated_num_tiles</span><span class="p">)</span>
+                <span class="n">pbar</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
 
             <span class="k">if</span> <span class="n">pool</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="n">i_mapped</span> <span class="o">=</span> <span class="n">pool</span><span class="o">.</span><span class="n">imap</span><span class="p">(</span>
@@ -2009,19 +1987,18 @@
                 <span class="k">if</span> <span class="n">result</span> <span class="o">==</span> <span class="s1">&#39;skip&#39;</span><span class="p">:</span>
                     <span class="k">continue</span>
                 <span class="k">if</span> <span class="n">show_progress</span><span class="p">:</span>
-                    <span class="n">pbar</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
-                <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">_counter_lock</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_counter_lock</span><span class="p">:</span>
-                        <span class="bp">self</span><span class="o">.</span><span class="n">_pb_counter</span><span class="o">.</span><span class="n">value</span> <span class="o">+=</span> <span class="mi">1</span>
+                    <span class="n">pbar</span><span class="o">.</span><span class="n">advance</span><span class="p">(</span><span class="n">task</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">pb</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">pb</span><span class="o">.</span><span class="n">advance</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
                 <span class="k">if</span> <span class="n">result</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
                     <span class="k">continue</span>
                 <span class="k">else</span><span class="p">:</span>
                     <span class="k">yield</span> <span class="n">result</span>
             <span class="k">if</span> <span class="n">show_progress</span><span class="p">:</span>
-                <span class="n">pbar</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+                <span class="n">pbar</span><span class="o">.</span><span class="n">stop</span><span class="p">()</span>
             <span class="k">if</span> <span class="n">should_close</span><span class="p">:</span>
                 <span class="n">pool</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
-            <span class="n">name_msg</span> <span class="o">=</span> <span class="n">col</span><span class="o">.</span><span class="n">green</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">shortname</span><span class="p">)</span>
+            <span class="n">name_msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;[green]</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">shortname</span><span class="si">}</span><span class="s1">[/]&#39;</span>
             <span class="n">pos</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">coord</span><span class="p">)</span>
             <span class="n">num_msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;(</span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">grid</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span><span class="si">}</span><span class="s1"> tiles of </span><span class="si">{</span><span class="n">pos</span><span class="si">}</span><span class="s1"> possible)&#39;</span>
             <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Finished tile extraction for </span><span class="si">{</span><span class="n">name_msg</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">num_msg</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
@@ -2101,7 +2078,7 @@
                 <span class="n">index_y</span> <span class="o">=</span> <span class="n">headers</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s2">&quot;y_base&quot;</span><span class="p">)</span>
             <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">ROIError</span><span class="p">(</span>
-                    <span class="sa">f</span><span class="s1">&#39;Unable to read CSV ROI </span><span class="si">{</span><span class="n">col</span><span class="o">.</span><span class="n">green</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="si">}</span><span class="s1">. Please ensure &#39;</span>
+                    <span class="sa">f</span><span class="s1">&#39;Unable to read CSV ROI [green]</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s1">[/]. Please ensure &#39;</span>
                     <span class="s1">&#39;headers contain &quot;ROI_name&quot;, &quot;X_base and &quot;Y_base&quot;.&#39;</span>
                 <span class="p">)</span>
             <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">reader</span><span class="p">:</span>
@@ -2125,7 +2102,7 @@
                     <span class="bp">self</span><span class="o">.</span><span class="n">annPolys</span> <span class="o">+=</span> <span class="p">[</span><span class="n">poly</span><span class="p">]</span>
                 <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
                     <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
-                        <span class="sa">f</span><span class="s2">&quot;Unable to use ROI </span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2"> for </span><span class="si">{</span><span class="n">col</span><span class="o">.</span><span class="n">green</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span><span class="si">}</span><span class="s2">.&quot;</span>
+                        <span class="sa">f</span><span class="s2">&quot;Unable to use ROI </span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2"> for [green]</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">[/].&quot;</span>
                         <span class="s2">&quot; At least 3 points required to create a shape.&quot;</span>
                     <span class="p">)</span>
             <span class="n">roi_area</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">([</span><span class="n">poly</span><span class="o">.</span><span class="n">area</span> <span class="k">for</span> <span class="n">poly</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">annPolys</span><span class="p">])</span>
@@ -2170,8 +2147,7 @@
         <span class="n">stride_div</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
         <span class="n">enable_downsample</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
         <span class="n">report_dir</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Path</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">pb</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">ProgressBar</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">pb_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">pb</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Progress</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&#39;&#39;&#39;Initializer.</span>
 
@@ -2185,10 +2161,9 @@
 <span class="sd">            enable_downsample (bool, optional): Allow use of downsampled</span>
 <span class="sd">                layers in the slide image pyramid, which greatly improves</span>
 <span class="sd">                tile extraction speed. Defaults to True.</span>
-<span class="sd">            pb (sf.util.ProgressBar, optional): ProgressBar; will update</span>
+<span class="sd">            pb (Progress, optional): Progress bar; will update</span>
 <span class="sd">                progress bar during tile extraction if provided.</span>
 <span class="sd">                Defaults to None.</span>
-<span class="sd">            pb_id (int, optional): ID of bar in ProgressBar. Defaults to 0.</span>
 <span class="sd">        &#39;&#39;&#39;</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
             <span class="n">path</span><span class="p">,</span>
@@ -2210,7 +2185,6 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">THUMB_DOWNSCALE</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">DIM</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
                                 <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">mpp_to_dim</span><span class="p">(</span><span class="n">target_thumb_mpp</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">pb</span> <span class="o">=</span> <span class="n">pb</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">pb_id</span> <span class="o">=</span> <span class="n">pb_id</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">estimated_num_tiles</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_detect_cores</span><span class="p">(</span><span class="n">report_dir</span><span class="o">=</span><span class="n">report_dir</span><span class="p">)</span>  <span class="c1"># type: int</span>
         <span class="n">size_msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;Size: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">dimensions</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s1"> x </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">dimensions</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="si">}</span><span class="s1">&#39;</span>
         <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">shortname</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">mpp</span><span class="si">}</span><span class="s2"> um/px | </span><span class="si">{</span><span class="n">size_msg</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
@@ -2530,7 +2504,12 @@
 
         <span class="k">def</span> <span class="nf">generator</span><span class="p">():</span>
             <span class="k">if</span> <span class="n">show_progress</span><span class="p">:</span>
-                <span class="n">pbar</span> <span class="o">=</span> <span class="n">tqdm</span><span class="p">(</span><span class="n">total</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">estimated_num_tiles</span><span class="p">,</span> <span class="n">ncols</span><span class="o">=</span><span class="mi">80</span><span class="p">)</span>
+                <span class="n">pbar</span> <span class="o">=</span> <span class="n">Progress</span><span class="p">(</span><span class="n">transient</span><span class="o">=</span><span class="n">sf</span><span class="o">.</span><span class="n">getLoggingLevel</span><span class="p">()</span><span class="o">&gt;</span><span class="mi">20</span><span class="p">)</span>
+                <span class="n">task</span> <span class="o">=</span> <span class="n">pbar</span><span class="o">.</span><span class="n">add_task</span><span class="p">(</span>
+                    <span class="s2">&quot;Extracting...&quot;</span><span class="p">,</span>
+                    <span class="n">total</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">estimated_num_tiles</span>
+                <span class="p">)</span>
+                <span class="n">pbar</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
             <span class="n">ctx</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">get_context</span><span class="p">(</span><span class="s1">&#39;spawn&#39;</span><span class="p">)</span>
             <span class="n">extraction_pool</span> <span class="o">=</span> <span class="n">ctx</span><span class="o">.</span><span class="n">Pool</span><span class="p">(</span>
                 <span class="n">num_threads</span><span class="p">,</span>
@@ -2549,9 +2528,9 @@
                     <span class="k">break</span>
                 <span class="k">else</span><span class="p">:</span>
                     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">pb</span><span class="p">:</span>
-                        <span class="bp">self</span><span class="o">.</span><span class="n">pb</span><span class="o">.</span><span class="n">increase_bar_value</span><span class="p">(</span><span class="nb">id</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">pb_id</span><span class="p">)</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">pb</span><span class="o">.</span><span class="n">advance</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
                     <span class="k">if</span> <span class="n">show_progress</span><span class="p">:</span>
-                        <span class="n">pbar</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+                        <span class="n">pbar</span><span class="o">.</span><span class="n">advance</span><span class="p">(</span><span class="n">task</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
 
                     <span class="n">resized_core</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_resize_to_target</span><span class="p">(</span><span class="n">image_core</span><span class="p">)</span>
 
@@ -2608,7 +2587,7 @@
 
             <span class="n">extraction_pool</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
             <span class="k">if</span> <span class="n">show_progress</span><span class="p">:</span>
-                <span class="n">pbar</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+                <span class="n">pbar</span><span class="o">.</span><span class="n">stop</span><span class="p">()</span>
 
         <span class="k">return</span> <span class="n">generator</span></div></div>
 </pre></div>

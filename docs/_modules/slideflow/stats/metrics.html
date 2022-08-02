@@ -258,7 +258,6 @@
 <span></span><span class="sd">&quot;&quot;&quot;Categorical, linear, and CPH metrics for predictions.&quot;&quot;&quot;</span>
 
 <span class="kn">import</span> <span class="nn">multiprocessing</span> <span class="k">as</span> <span class="nn">mp</span>
-<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span>
 <span class="kn">from</span> <span class="nn">os.path</span> <span class="kn">import</span> <span class="n">join</span>
 <span class="kn">from</span> <span class="nn">types</span> <span class="kn">import</span> <span class="n">SimpleNamespace</span>
 <span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">TYPE_CHECKING</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span>
@@ -270,7 +269,6 @@
 <span class="kn">from</span> <span class="nn">pandas.core.frame</span> <span class="kn">import</span> <span class="n">DataFrame</span>
 <span class="kn">from</span> <span class="nn">sklearn</span> <span class="kn">import</span> <span class="n">metrics</span>
 <span class="kn">from</span> <span class="nn">slideflow</span> <span class="kn">import</span> <span class="n">errors</span>
-<span class="kn">from</span> <span class="nn">slideflow.util</span> <span class="kn">import</span> <span class="n">colors</span> <span class="k">as</span> <span class="n">col</span>
 <span class="kn">from</span> <span class="nn">slideflow.util</span> <span class="kn">import</span> <span class="n">log</span>
 
 <span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
@@ -484,7 +482,7 @@
                 <span class="k">for</span> <span class="n">orig_col</span> <span class="ow">in</span> <span class="n">outcome_cols</span>
             <span class="p">}</span>
         <span class="p">)</span>
-        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Validation metrics for outcome </span><span class="si">{</span><span class="n">col</span><span class="o">.</span><span class="n">green</span><span class="p">(</span><span class="n">outcome</span><span class="p">)</span><span class="si">}</span><span class="s2">:&quot;</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Validation metrics for outcome [green]</span><span class="si">{</span><span class="n">outcome</span><span class="si">}</span><span class="s2">[/]:&quot;</span><span class="p">)</span>
         <span class="n">y_pred_cols</span> <span class="o">=</span> <span class="p">[</span><span class="n">c</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">outcome_df</span><span class="o">.</span><span class="n">columns</span> <span class="k">if</span> <span class="n">c</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;y_pred&#39;</span><span class="p">)]</span>
         <span class="n">num_cat</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">y_pred_cols</span><span class="p">)</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">num_cat</span><span class="p">:</span>
@@ -876,7 +874,7 @@
 
     <span class="c1"># Show results</span>
     <span class="k">for</span> <span class="n">o</span><span class="p">,</span> <span class="n">r</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">outcome_names</span><span class="p">,</span> <span class="n">r_squared</span><span class="p">):</span>
-        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">col</span><span class="o">.</span><span class="n">green</span><span class="p">(</span><span class="n">o</span><span class="p">)</span><span class="si">}</span><span class="s2">: R-squared (</span><span class="si">{</span><span class="n">level</span><span class="si">}</span><span class="s2">-level): </span><span class="si">{</span><span class="n">r</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[green]</span><span class="si">{</span><span class="n">o</span><span class="si">}</span><span class="s2">[/]: R-squared (</span><span class="si">{</span><span class="n">level</span><span class="si">}</span><span class="s2">-level): </span><span class="si">{</span><span class="n">r</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
     <span class="k">return</span> <span class="p">{</span>
         <span class="s1">&#39;r_squared&#39;</span><span class="p">:</span> <span class="n">r_squared</span><span class="p">,</span>

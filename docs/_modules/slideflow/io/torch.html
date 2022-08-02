@@ -278,7 +278,7 @@
 <span class="kn">from</span> <span class="nn">slideflow.io.io_utils</span> <span class="kn">import</span> <span class="n">detect_tfrecord_format</span>
 <span class="kn">from</span> <span class="nn">slideflow.tfrecord.torch.dataset</span> <span class="kn">import</span> <span class="n">MultiTFRecordDataset</span>
 <span class="kn">from</span> <span class="nn">slideflow.util</span> <span class="kn">import</span> <span class="n">Labels</span><span class="p">,</span> <span class="n">log</span><span class="p">,</span> <span class="n">to_onehot</span>
-<span class="kn">from</span> <span class="nn">tqdm</span> <span class="kn">import</span> <span class="n">tqdm</span>
+<span class="kn">from</span> <span class="nn">rich.progress</span> <span class="kn">import</span> <span class="n">Progress</span>
 
 <span class="kn">import</span> <span class="nn">torch</span>
 
@@ -1035,15 +1035,15 @@
 
         <span class="n">pool</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">dummy</span><span class="o">.</span><span class="n">Pool</span><span class="p">(</span><span class="mi">16</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">rank</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="n">pb</span> <span class="o">=</span> <span class="n">tqdm</span><span class="p">(</span>
-                <span class="n">desc</span><span class="o">=</span><span class="s1">&#39;Loading indices...&#39;</span><span class="p">,</span>
-                <span class="n">total</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">tfrecords</span><span class="p">),</span>
-                <span class="n">leave</span><span class="o">=</span><span class="kc">False</span>
-            <span class="p">)</span>
+            <span class="n">pb</span> <span class="o">=</span> <span class="n">Progress</span><span class="p">(</span><span class="n">transient</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">task</span> <span class="o">=</span> <span class="n">pb</span><span class="o">.</span><span class="n">add_task</span><span class="p">(</span><span class="s1">&#39;Loading indices...&#39;</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">tfrecords</span><span class="p">))</span>
+            <span class="n">pb</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
         <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="n">pool</span><span class="o">.</span><span class="n">imap</span><span class="p">(</span><span class="n">load_index</span><span class="p">,</span> <span class="n">tfrecords</span><span class="p">):</span>
             <span class="n">indices</span> <span class="o">+=</span> <span class="p">[</span><span class="n">index</span><span class="p">]</span>
             <span class="k">if</span> <span class="n">rank</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-                <span class="n">pb</span><span class="o">.</span><span class="n">update</span><span class="p">()</span>
+                <span class="n">pb</span><span class="o">.</span><span class="n">advance</span><span class="p">(</span><span class="n">task</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">rank</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">pb</span><span class="o">.</span><span class="n">stop</span><span class="p">()</span>
         <span class="n">pool</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
 
     <span class="c1">#  -------  Interleave and batch datasets ---------------------------------</span>

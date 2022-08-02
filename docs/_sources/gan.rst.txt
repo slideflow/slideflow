@@ -41,6 +41,9 @@ outcome labels to the ``outcomes`` argument:
 
 The trained networks will be saved in the ``gan/`` subfolder in the project directory.
 
+See the :meth:`slideflow.Project.gan_train` documentation for additional
+keyword arguments to customize training.
+
 Generating Images
 -----------------
 

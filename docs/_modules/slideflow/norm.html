@@ -335,7 +335,7 @@
 <span class="kn">from</span> <span class="nn">slideflow</span> <span class="kn">import</span> <span class="n">errors</span>
 <span class="kn">from</span> <span class="nn">slideflow.dataset</span> <span class="kn">import</span> <span class="n">Dataset</span>
 <span class="kn">from</span> <span class="nn">slideflow.util</span> <span class="kn">import</span> <span class="n">detuple</span><span class="p">,</span> <span class="n">log</span>
-<span class="kn">from</span> <span class="nn">tqdm</span> <span class="kn">import</span> <span class="n">tqdm</span>
+<span class="kn">from</span> <span class="nn">rich.progress</span> <span class="kn">import</span> <span class="n">Progress</span>
 
 <span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
     <span class="kn">import</span> <span class="nn">tensorflow</span> <span class="k">as</span> <span class="nn">tf</span>
@@ -508,11 +508,9 @@
                     <span class="n">num_workers</span><span class="o">=</span><span class="mi">8</span>
                 <span class="p">)</span>
             <span class="n">all_fit_vals</span> <span class="o">=</span> <span class="p">[]</span>  <span class="c1"># type: ignore</span>
-            <span class="n">pb</span> <span class="o">=</span> <span class="n">tqdm</span><span class="p">(</span>
-                <span class="n">desc</span><span class="o">=</span><span class="s1">&#39;Fitting normalizer...&#39;</span><span class="p">,</span>
-                <span class="n">ncols</span><span class="o">=</span><span class="mi">80</span><span class="p">,</span>
-                <span class="n">total</span><span class="o">=</span><span class="n">dataset</span><span class="o">.</span><span class="n">num_tiles</span>
-            <span class="p">)</span>
+            <span class="n">pb</span> <span class="o">=</span> <span class="n">Progress</span><span class="p">()</span>
+            <span class="n">task</span> <span class="o">=</span> <span class="n">pb</span><span class="o">.</span><span class="n">add_task</span><span class="p">(</span><span class="s1">&#39;Fitting normalizer...&#39;</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="n">dataset</span><span class="o">.</span><span class="n">num_tiles</span><span class="p">)</span>
+            <span class="n">pb</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
             <span class="k">for</span> <span class="n">img_batch</span><span class="p">,</span> <span class="n">slide</span> <span class="ow">in</span> <span class="n">dts</span><span class="p">:</span>
                 <span class="k">if</span> <span class="n">sf</span><span class="o">.</span><span class="n">backend</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;torch&#39;</span><span class="p">:</span>
                     <span class="n">img_batch</span> <span class="o">=</span> <span class="n">img_batch</span><span class="o">.</span><span class="n">permute</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>  <span class="c1"># BCWH -&gt; BWHC</span>
@@ -523,7 +521,8 @@
                         <span class="n">all_fit_vals</span> <span class="o">=</span> <span class="p">[[]</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">fit_vals</span><span class="p">))]</span>
                     <span class="k">for</span> <span class="n">v</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">fit_vals</span><span class="p">):</span>
                         <span class="n">all_fit_vals</span><span class="p">[</span><span class="n">v</span><span class="p">]</span> <span class="o">+=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="n">val</span><span class="p">)]</span>
-                <span class="n">pb</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">batch_size</span><span class="p">)</span>
+                <span class="n">pb</span><span class="o">.</span><span class="n">advance</span><span class="p">(</span><span class="n">task</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">)</span>
+            <span class="n">pb</span><span class="o">.</span><span class="n">stop</span><span class="p">()</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">n</span><span class="o">.</span><span class="n">set_fit</span><span class="p">(</span><span class="o">*</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">v</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">all_fit_vals</span><span class="p">])</span>
             <span class="n">pool</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
 
@@ -569,7 +568,7 @@
             <span class="k">return</span> <span class="n">_fit</span></div>
 
 <div class="viewcode-block" id="StainNormalizer.set_fit"><a class="viewcode-back" href="../../norm.html#slideflow.norm.StainNormalizer.set_fit">[docs]</a>    <span class="k">def</span> <span class="nf">set_fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="sd">&quot;&quot;&quot;Set the normalizer fit to teh given values.</span>
+        <span class="sd">&quot;&quot;&quot;Set the normalizer fit to the given values.</span>
 
 <span class="sd">        Keyword args:</span>
 <span class="sd">            stain_matrix_target (np.ndarray, optional): Set the stain matrix</span>

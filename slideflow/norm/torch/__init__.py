@@ -160,7 +160,7 @@ class TorchStainNormalizer(StainNormalizer):
             return _fit
 
     def set_fit(self, **kwargs) -> None:
-        """Set the normalizer fit to teh given values.
+        """Set the normalizer fit to the given values.
 
         Keyword args:
             stain_matrix_target (np.ndarray, optional): Set the stain matrix

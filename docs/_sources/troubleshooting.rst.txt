@@ -8,7 +8,15 @@ To check for errors in your environment or installation, you can also use the te
 Testing
 *******
 
-To test all pipeline functions, use the ``test.py`` script, providing a path to a directory containing slides to use for testing:
+To troubleshoot environment or installation issues, start by running unit tests,
+which do not require any sample slides. Use the ``test.py`` script without any
+arguments:
+
+.. code-block:: bash
+
+    $ python3 test.py
+
+For a more comprehensive test of all pipeline functions, provide a path to a directory containing sample slides via ``--slides``, setting ``--all=True`` to run all tests:
 
 .. code-block:: bash
 
@@ -25,4 +33,4 @@ To view a list of all tests that will be run (and thus can be skipped), pass the
 Issue Reporting
 ***************
 
-If the issue is still unclear, please submit an Issue on the `project Github page <https://github.com/jamesdolezal/slideflow>`_.
+If the issue is still unclear, please submit an Issue on the `project Github page <https://github.com/jamesdolezal/slideflow/issues>`_.
