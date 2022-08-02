@@ -251,7 +251,7 @@ class DatasetFeatures:
         for loaded_slide in loaded_slides:
             if loaded_slide not in self.slides:
                 log.debug(
-                    f'Removing activations from slide {loaded_slide}'
+                    f'Removing activations from slide {loaded_slide} '
                     'slide not in the filtered tfrecords list'
                 )
                 self.remove_slide(loaded_slide)
@@ -265,7 +265,7 @@ class DatasetFeatures:
                 missing += [slide]
         num_loaded = len(self.slides)-len(missing)
         log.debug(
-            f'Loaded activations from {num_loaded}/{len(self.slides)}'
+            f'Loaded activations from {num_loaded}/{len(self.slides)} '
             f'slides ({len(missing)} missing)'
         )
         if missing:
