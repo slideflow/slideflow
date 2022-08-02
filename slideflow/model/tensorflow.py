@@ -1018,7 +1018,7 @@ class Trainer:
                 for i in range(outcome_labels.shape[1])
             ]
         outcome_names = sf.util.as_list(outcome_names)
-        if len(outcome_names) != outcome_labels.shape[1]:
+        if labels and (len(outcome_names) != outcome_labels.shape[1]):
             num_names = len(outcome_names)
             num_outcomes = outcome_labels.shape[1]
             raise errors.ModelError(f'Size of outcome_names ({num_names}) != '
