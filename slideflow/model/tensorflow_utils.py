@@ -396,19 +396,24 @@ def eval_from_model(
             y_pred += [yp]
 
         if not predict_only:
-            if type(yt) == dict:
+            if isinstance(yt, dict):
                 y_true += [[yt[f'out-{o}'].numpy() for o in range(len(yt))]]
                 yt = [yt[f'out-{o}'] for o in range(len(yt))]
+                if loss is not None:
+                    loss_val = [loss(yt[i], yp[i]) for i in range(len(yt))]
+                    running_loss += tf.math.reduce_sum(loss_val).numpy()
+                    running_loss *= slide.shape[0]
             else:
                 y_true += [yt.numpy()]
-            if loss is not None:
-                loss_val = loss(yt, yp)
-                running_loss += tf.math.reduce_sum(loss_val).numpy() * slide.shape[0]
+                if loss is not None:
+                    loss_val = loss(yt, yp)
+                    running_loss += tf.math.reduce_sum(loss_val).numpy()
+                    running_loss *= slide.shape[0]
 
     if verbosity != 'silent':
         pb.stop()
 
-    if type(y_pred[0]) == list:
+    if isinstance(y_pred[0], list):
         # Concatenate predictions for each outcome
         y_pred = [np.concatenate(yp) for yp in zip(*y_pred)]
         if uq:
@@ -418,7 +423,7 @@ def eval_from_model(
         if uq:
             y_std = [np.concatenate(y_std)]
 
-    if not predict_only and type(y_true[0]) == list:
+    if not predict_only and isinstance(y_true[0], list):
         # Concatenate y_true for each outcome
         y_true = [np.concatenate(yt) for yt in zip(*y_true)]
         if is_cat:
