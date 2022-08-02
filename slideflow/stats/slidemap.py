@@ -649,6 +649,7 @@ class SlideMap:
             # Check for categorical labels
             if (categorical is True
                or not pd.to_numeric(labels, errors='coerce').notnull().all()):
+
                 log.debug("Interpreting labels as categorical")
                 scatter_kwargs.update(
                     dict(hue=labels.astype('category'))
@@ -675,9 +676,8 @@ class SlideMap:
         ax.set_ylim(*((None, None) if not ylim else ylim))
         ax.set_xlim(*((None, None) if not xlim else xlim))
         if 'hue' in scatter_kwargs:
-            umap_2d.legend(
-                loc='center left',
-                bbox_to_anchor=(1.25, 0.5),
+            ax.legend(
+                loc='center right',
                 ncol=1,
                 title=legend
             )
