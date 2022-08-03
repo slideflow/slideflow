@@ -2,3 +2,6 @@
 	path = slideflow/gan/stylegan2
 	url = https://github.com/jamesdolezal/stylegan2-slideflow.git
 	branch = main
+[submodule "slideflow/gan/stylegan3"]
+	path = slideflow/gan/stylegan3
+	url = https://github.com/jamesdolezal/stylegan3-slideflow.git

@@ -1311,8 +1311,6 @@ class Project:
         outcomes: Optional[Union[str, List[str]]] = None,
         exp_label: Optional[str] = None,
         mirror: bool = True,
-        augpipe: str = 'bgcfnc',
-        allow_tf32: bool = True,
         metrics: Optional[Union[str, List[str]]] = None,
         dry_run: bool = False,
         **kwargs
@@ -1324,12 +1322,13 @@ class Project:
 
         Keyword Args:
             allow_tf32 (bool): Allow internal use of Tensorflow-32.
-                Defaults to True.
+                Option only available for StyleGAN2. Defaults to True.
             aug (str): Augmentation mode. Options include 'ada',
                 'noaug', 'fixed'. Defaults to 'ada'.
             augpipe (str): Augmentation pipeline. Options include
                 'blit', 'geom', 'color', 'filter', 'noise', 'cutout', 'bg',
-                'bgc', 'bgcfnc'. Defaults to 'bgcfnc'.
+                'bgc', 'bgcfnc'. Only available for StyleGAN2.
+                Defaults to 'bgcfnc'.
             batch (int, optional): Override batch size set by `cfg`.
             cfg (str): StyleGAN2 base configuration. Options include
                 'auto', 'stylegan2', 'paper256', 'paper512', 'paper1024', and
@@ -1390,12 +1389,14 @@ class Project:
                 >>> P.gan_train(..., gpus=4)
         """
         # Validate the method and import the appropriate submodule
-        supported_models = ('stylegan2',)
+        supported_models = ('stylegan2', 'stylegan3')
         if model not in supported_models:
             raise ValueError(f"Unknown method '{model}'. Valid methods "
                              f"include: {', '.join(supported_models)}")
         if model == 'stylegan2':
             from slideflow.gan import stylegan2 as network
+        elif model == 'stylegan3':
+            from slideflow.gan import stylegan3 as network
         if metrics is not None:
             log.warn(
                 "StyleGAN2 metrics are not fully implemented for Slideflow."
@@ -1429,8 +1430,6 @@ class Project:
             slideflow=config_loc,
             cond=(outcomes is not None),
             mirror=mirror,
-            augpipe=augpipe,
-            allow_tf32=allow_tf32,
             metrics=metrics,
             **kwargs)
 

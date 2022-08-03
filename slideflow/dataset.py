@@ -1582,7 +1582,7 @@ class Dataset:
         else:
             return results, unique_labels
 
-    def load_indices(self) -> Dict[str, np.ndarray]:
+    def load_indices(self, verbose=False) -> Dict[str, np.ndarray]:
         """Reads TFRecord indices. Needed for PyTorch."""
 
         pool = DPool(16)
@@ -1600,10 +1600,8 @@ class Dataset:
                 index = np.loadtxt(index_name, dtype=np.int64)
             return tfr_name, index
 
-        for tfr_name, index in track(pool.imap(load_index, tfrecords),
-                                    description="Loading indices...",
-                                    total=len(tfrecords),
-                                    transient=True):
+        log.debug("Loading indices...")
+        for tfr_name, index in pool.imap(load_index, tfrecords):
             indices[tfr_name] = index
         pool.close()
         return indices

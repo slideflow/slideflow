@@ -3,4 +3,5 @@
 """
 
 import slideflow.gan.stylegan2
+import slideflow.gan.stylegan3
 from slideflow.gan.interpolate import StyleGAN2Interpolator

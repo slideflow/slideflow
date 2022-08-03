@@ -775,16 +775,9 @@ def interleave(
             return index
 
         pool = mp.dummy.Pool(16)
-        if rank == 0:
-            pb = Progress(transient=True)
-            task = pb.add_task('Loading indices...', total=len(tfrecords))
-            pb.start()
+        log.debug("Loading indices...")
         for index in pool.imap(load_index, tfrecords):
             indices += [index]
-            if rank == 0:
-                pb.advance(task)
-        if rank == 0:
-            pb.stop()
         pool.close()
 
     #  -------  Interleave and batch datasets ---------------------------------
