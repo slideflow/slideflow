@@ -379,6 +379,7 @@ class Trainer:
         feature_names: Optional[List[str]] = None,
         outcome_names: Optional[List[str]] = None,
         mixed_precision: bool = True,
+        allow_tf32: bool = False,
         config: Dict[str, Any] = None,
         use_neptune: bool = False,
         neptune_api: Optional[str] = None,
@@ -408,6 +409,8 @@ class Trainer:
                 "Outcome {X}" for each outcome.
             mixed_precision (bool, optional): Use FP16 mixed precision (rather
                 than FP32). Defaults to True.
+            allow_tf32 (bool): Allow internal use of Tensorfloat-32 format.
+                Defaults to False.
             config (dict, optional): Training configuration dictionary, used
                 for logging. Defaults to None.
             use_neptune (bool, optional): Use Neptune API logging.
@@ -432,6 +435,12 @@ class Trainer:
         self.use_tensorboard: bool
         self.writer: SummaryWriter
         self._reset_training_params()
+
+        # Enable or disable Tensorflow-32
+        # Allows PyTorch to internally use tf32 for matmul and convolutions
+        torch.backends.cuda.matmul.allow_tf32 = allow_tf32
+        torch.backends.cudnn.allow_tf32 = allow_tf32  # type: ignore
+        self._allow_tf32 = allow_tf32
 
         # Slide-level input args
         if slide_input:
@@ -1434,7 +1443,7 @@ class Trainer:
         multi_gpu: bool = False,
         norm_fit: Optional[NormFit] = None,
         reduce_method: str = 'average',
-        seed: int = 0
+        seed: int = 0,
     ) -> Dict[str, Any]:
         """Builds and trains a model from hyperparameters.
 
@@ -1483,6 +1492,7 @@ class Trainer:
                 average of each logit across tiles. If 'proportion', will convert
                 tile predictions into onehot encoding then reduce by averaging
                 these onehot values. Defaults to 'average'.
+            seed (int): Set numpy random seed. Defaults to 0.
 
         Returns:
             Dict:   Nested dict containing metrics for each evaluated epoch.
@@ -1505,11 +1515,6 @@ class Trainer:
 
         # Validate early stopping parameters
         self._validate_early_stop()
-
-        # Enable TF32 (should be enabled by default)
-        # Allow PyTorch to internally use tf32 for matmul and convolutions
-        torch.backends.cuda.matmul.allow_tf32 = True
-        torch.backends.cudnn.allow_tf32 = True  # type: ignore
 
         # Fit normalizer to dataset, if applicable
         self._fit_normalizer(norm_fit)

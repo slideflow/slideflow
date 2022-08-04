@@ -948,6 +948,7 @@ class Trainer:
         feature_names: Optional[List[str]] = None,
         outcome_names: Optional[List[str]] = None,
         mixed_precision: bool = True,
+        allow_tf32: bool = False,
         config: Dict[str, Any] = None,
         use_neptune: bool = False,
         neptune_api: Optional[str] = None,
@@ -979,6 +980,8 @@ class Trainer:
                 "Outcome {X}" for each outcome.
             mixed_precision (bool, optional): Use FP16 mixed precision (rather
                 than FP32). Defaults to True.
+            allow_tf32 (bool): Allow internal use of Tensorfloat-32 format.
+                Defaults to False.
             config (dict, optional): Training configuration dictionary, used
                 for logging. Defaults to None.
             use_neptune (bool, optional): Use Neptune API logging.
@@ -999,6 +1002,7 @@ class Trainer:
         self.feature_sizes = feature_sizes
         self.num_slide_features = 0 if not feature_sizes else sum(feature_sizes)
         self.mixed_precision = mixed_precision
+        self._allow_tf32 = allow_tf32
         self.name = name
         self.neptune_run = None
         self.annotations_tables = []
@@ -1048,6 +1052,7 @@ class Trainer:
         if self.normalizer:
             log.info(f'Using realtime {self.hp.normalizer} normalization')
 
+        # Mixed precision and Tensorfloat-32
         if self.mixed_precision:
             _policy = 'mixed_float16'
             log.debug(f'Enabling mixed precision ({_policy})')
@@ -1056,6 +1061,7 @@ class Trainer:
             else:
                 policy = tf.keras.mixed_precision.experimental.Policy(_policy)
                 tf.keras.mixed_precision.experimental.set_policy(policy)
+        tf.config.experimental.enable_tensor_float_32_execution(allow_tf32)
 
         # Log parameters
         if config is None:

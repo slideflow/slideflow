@@ -31,6 +31,8 @@ class StyleGAN2Interpolator:
         gan_px: int,
         target_um: int,
         target_px: int,
+        noise_mode: str = 'const',
+        truncation_psi: int = 1,
         **gan_kwargs
     ) -> None:
         """Coordinates class and embedding interpolation for a trained
@@ -44,13 +46,13 @@ class StyleGAN2Interpolator:
         """
         self.E_G, self.G = embedding.load_embedding_gan(gan_pkl, device)
         self.device = device
-        self.gan_kwargs = gan_kwargs
-        self.embed0, self.embed1 = embedding.get_class_embeddings(
-            self.G,
-            start=start,
-            end=end,
-            device=device
-        )
+        self.gan_kwargs = dict(
+            noise_mode=noise_mode,
+            truncation_psi=truncation_psi,
+            **gan_kwargs)
+        self.embeddings = embedding.get_embeddings(self.G, device=device)
+        self.embed0 = self.embeddings[start]
+        self.embed1 = self.embeddings[end]
         self.features = None  # type: Optional[sf.model.Features]
         self.normalizer = None
         self.target_px = target_px

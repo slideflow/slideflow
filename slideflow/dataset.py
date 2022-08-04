@@ -124,7 +124,7 @@ def _prepare_slide(
     report_dir: Optional[str],
     tma: bool,
     wsi_kwargs: Dict,
-    qc: str,
+    qc: Optional[str],
     qc_kwargs: Dict,
 ) -> Optional[sf.slide._BaseLoader]:
 
@@ -1214,12 +1214,12 @@ class Dataset:
                             continue
                         try:
                             log.debug(f'Extracting tiles for {wsi.name}')
-                            report = wsi.extract_tiles(
+                            wsi_report = wsi.extract_tiles(
                                 tfrecord_dir=tfrecord_dir,
                                 tiles_dir=tiles_dir,
                                 **kwargs
                             )
-                            reports.update({wsi.path: report})
+                            reports.update({wsi.path: wsi_report})
                         except errors.TileCorruptionError:
                             log.error(f'{wsi.path} corrupt; skipping')
                         pb.advance(slide_task)

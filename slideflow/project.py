@@ -320,6 +320,7 @@ class Project:
         splits: str = "splits.json",
         max_tiles: int = 0,
         mixed_precision: bool = True,
+        allow_tf32: bool = False,
         input_header: Optional[Union[str, List[str]]] = None
     ) -> Tuple["Trainer", Dataset]:
         """Prepares a :class:`slideflow.model.Trainer` for eval or prediction.
@@ -341,6 +342,8 @@ class Project:
                 to evaluate. Defaults to 0 (include all tiles).
             mixed_precision (bool, optional): Enable mixed precision.
                 Defaults to True.
+            allow_tf32 (bool): Allow internal use of Tensorfloat-32 format.
+                Defaults to False.
             input_header (str, optional): Annotation column header to use as
                 additional input. Defaults to None.
 
@@ -471,6 +474,7 @@ class Project:
             slide_input=slide_inp,
             manifest=dataset.manifest(),
             mixed_precision=mixed_precision,
+            allow_tf32=allow_tf32,
             feature_names=input_header,
             feature_sizes=feature_sizes,
             outcome_names=outcomes,
@@ -504,6 +508,7 @@ class Project:
         min_tiles: int,
         max_tiles: int,
         mixed_precision: bool,
+        allow_tf32: bool,
         splits: str,
         results_dict: Dict,
         training_kwargs: Dict,
@@ -525,6 +530,8 @@ class Project:
             min_tiles (int): Only includes tfrecords with >= min_tiles
             max_tiles (int): Cap maximum tiles per tfrecord.
             mixed_precision (bool): Train with mixed precision.
+            allow_tf32 (bool): Allow internal use of Tensorfloat-32 format.
+                Defaults to False.
             splits (str): Location of splits file for logging/reading splits.
             balance_headers (str, list(str)): Annotation col headers for
                 mini-batch balancing.
@@ -626,6 +633,7 @@ class Project:
             filters=filters,
             training_kwargs=training_kwargs,
             mixed_precision=mixed_precision,
+            allow_tf32=allow_tf32,
             ctx=ctx,
             results_dict=results_dict,
             bal_headers=balance_headers,
@@ -827,6 +835,7 @@ class Project:
             'slide_input': slide_inp,
             'labels': s_args.labels,
             'mixed_precision': s_args.mixed_precision,
+            'allow_tf32': s_args.allow_tf32,
             'use_neptune': self.use_neptune,
             'neptune_api': self.neptune_api,
             'neptune_workspace': self.neptune_workspace,
@@ -978,6 +987,7 @@ class Project:
         splits: str = "splits.json",
         max_tiles: int = 0,
         mixed_precision: bool = True,
+        allow_tf32: bool = False,
         input_header: Optional[Union[str, List[str]]] = None,
         **kwargs: Any
     ) -> Dict:
@@ -1011,6 +1021,8 @@ class Project:
                 to evaluate. Defaults to 0. If zero, will include all tiles.
             mixed_precision (bool, optional): Enable mixed precision.
                 Defaults to True.
+            allow_tf32 (bool): Allow internal use of Tensorfloat-32 format.
+                Defaults to False.
             input_header (str, optional): Annotation column header to use as
                 additional input. Defaults to None.
             save_predictions (bool or str, optional): Save tile, slide, and
@@ -1033,7 +1045,8 @@ class Project:
             splits=splits,
             max_tiles=max_tiles,
             input_header=input_header,
-            mixed_precision=mixed_precision
+            mixed_precision=mixed_precision,
+            allow_tf32=allow_tf32
         )
         return trainer.evaluate(eval_dts, **kwargs)
 
@@ -1396,7 +1409,7 @@ class Project:
         if model == 'stylegan2':
             from slideflow.gan import stylegan2 as network
         elif model == 'stylegan3':
-            from slideflow.gan import stylegan3 as network
+            from slideflow.gan import stylegan3 as network  # type: ignore
         if metrics is not None:
             log.warn(
                 "StyleGAN2 metrics are not fully implemented for Slideflow."
@@ -2323,6 +2336,7 @@ class Project:
         format: str = 'csv',
         input_header: Optional[Union[str, List[str]]] = None,
         mixed_precision: bool = True,
+        allow_tf32: bool = False,
         **kwargs: Any
     ) -> "pd.DataFrame":
         """Evaluates a saved model on a given set of tfrecords.
@@ -2360,6 +2374,8 @@ class Project:
                 additional input. Defaults to None.
             mixed_precision (bool, optional): Enable mixed precision.
                 Defaults to True.
+            allow_tf32 (bool): Allow internal use of Tensorfloat-32 format.
+                Defaults to False.
 
         Returns:
             Dictionary of predictions dataframes, with the keys 'tile', 'slide',
@@ -2376,7 +2392,8 @@ class Project:
             splits=splits,
             max_tiles=max_tiles,
             input_header=input_header,
-            mixed_precision=mixed_precision
+            mixed_precision=mixed_precision,
+            allow_tf32=allow_tf32
         )
         results = trainer.predict(
             dataset=eval_dts,
@@ -2694,6 +2711,7 @@ class Project:
         max_tiles: int = 0,
         splits: str = "splits.json",
         mixed_precision: bool = True,
+        allow_tf32: bool = False,
         balance_headers: Optional[Union[str, List[str]]] = None,
         **training_kwargs: Any
     ) -> Dict:
@@ -2725,6 +2743,8 @@ class Project:
                 Defaults to "splits.json".
             mixed_precision (bool, optional): Enable mixed precision.
                 Defaults to True.
+            allow_tf32 (bool): Allow internal use of Tensorfloat-32 format.
+                Defaults to False.
             balance_headers (str or list(str)): Annotation header(s) specifying
                 labels on which to perform mini-batch balancing. If performing
                 category-level balancing and this is set to None, will default
@@ -2879,6 +2899,7 @@ class Project:
                 min_tiles=min_tiles,
                 max_tiles=max_tiles,
                 mixed_precision=mixed_precision,
+                allow_tf32=allow_tf32,
                 splits=splits,
                 balance_headers=balance_headers,
                 training_kwargs=training_kwargs,

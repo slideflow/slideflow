@@ -75,6 +75,8 @@ def trainer_from_hp(hp: "ModelParams", **kwargs) -> Trainer:
             "Outcome {X}" for each outcome.
         mixed_precision (bool, optional): Use FP16 mixed precision (rather
             than FP32). Defaults to True.
+        allow_tf32 (bool): Allow internal use of Tensorfloat-32 format.
+                Defaults to False.
         config (dict, optional): Training configuration dictionary, used
             for logging. Defaults to None.
         use_neptune (bool, optional): Use Neptune API logging.
