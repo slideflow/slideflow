@@ -35,7 +35,7 @@ setuptools.setup(
     install_requires=[
         'gast>=0.3.3',
         'scipy',
-        'sklearn',
+        'sklearn>=1.1',
         'matplotlib>=3.2',
         'imageio',
         'opencv-python',

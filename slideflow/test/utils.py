@@ -12,12 +12,12 @@ import traceback
 from functools import wraps
 from os.path import exists, join
 from typing import Any, Callable, Dict, List, Optional
-from rich.progress import Progress
+from rich.progress import Progress, TimeElapsedColumn, SpinnerColumn
 
 import requests
 import slideflow as sf
 from slideflow.util import colors as col
-from slideflow.util import log
+from slideflow.util import log, ImgBatchSpeedColumn
 
 
 def process_isolate(func: Callable, project: sf.Project, **kwargs) -> bool:
@@ -142,11 +142,17 @@ def test_throughput(
     Returns:
         float: images/sec.
     """
-    #from slideflow.norm.tensorflow import macenko
-    #n= macenko.MacenkoNormalizer()
     start = -1  # type: float
     count = 0
     total_time = 0  # type: float
+
+    pb = Progress(
+        SpinnerColumn(),
+        TimeElapsedColumn(),
+        ImgBatchSpeedColumn(),
+        transient=True)
+    task = pb.add_task("Testing...", total=None)  # type: ignore
+
     for img, slide in dts:
         if sf.backend() == 'torch':
             if len(img.shape) == 3:
@@ -161,14 +167,19 @@ def test_throughput(
             normalizer.torch_to_torch(img)
         if start == -1:
             start = time.time()
+            pb.start()
         else:
             if len(img.shape) == 3:
                 count += 1
+                pb.advance(task, 1)
             else:
                 count += img.shape[0]
+                pb.advance(task, img.shape[0])
         if time.time() - start > s:
             total_time = count / (time.time() - start)
             break
+
+    pb.stop()
     return total_time
 
 
@@ -176,7 +187,7 @@ def test_multithread_throughput(
     dataset: Any,
     normalizer: sf.norm.StainNormalizer,
     s: int = 5,
-    batch_size: int = 32
+    batch_size: int = 8
 ) -> float:
     """Tests throughput of image normalization with multiple threads.
 

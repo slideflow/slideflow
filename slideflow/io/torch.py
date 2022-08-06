@@ -5,7 +5,6 @@ import threading
 from os import listdir
 from os.path import dirname, exists, isfile, join
 from queue import Queue
-from functools import partial
 from typing import (TYPE_CHECKING, Any, Callable, Dict, Iterable, List,
                     Optional, Tuple, Union)
 
@@ -57,8 +56,7 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
         prob_weights: Optional[Dict[str, float]] = None,
         normalizer: Optional["StainNormalizer"] = None,
         clip: Optional[List[int]] = None,
-        chunk_size: int = 16,
-        preload: int = 8,
+        chunk_size: int = 1,
         use_labels: bool = True,
         model_type: str = 'categorical',
         onehot: bool = False,
@@ -100,9 +98,7 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
             clip (list(int), optional): Array of maximum tiles to take for each
                 tfrecord. Defaults to None.
             chunk_size (int, optional): Chunk size for image decoding.
-                Defaults to 16.
-            preload (int, optional): Preload this many samples for
-                parallelization. Defaults to 8.
+                Defaults to 1.
             use_labels (bool, optional): Enable use of labels (disabled for
                 non-conditional GANs). Defaults to True.
             model_type (str, optional): Used to generate random labels
@@ -130,7 +126,6 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
         self.max_size = max_size
         self.use_labels = use_labels
         self.chunk_size = chunk_size
-        self.preload = preload
         self.normalizer = normalizer
         self.onehot = onehot
         self.incl_slidenames = incl_slidenames
@@ -274,11 +269,6 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
         # Closes open files if iterator terminated early
         except GeneratorExit as e:
             queue_retriever.close()
-            try:
-                #self.dataloader._iterator._pin_memory_thread.join()
-                self.dataloader._iterator._worker_result_queue.cancel_join_thread()
-            except (AttributeError, RuntimeError):
-                pass
             del(queue_retriever)
             raise e
 
@@ -679,7 +669,7 @@ def interleave(
     standardize: bool = True,
     normalizer: Optional["StainNormalizer"] = None,
     num_threads: int = 4,
-    chunk_size: int = 8,
+    chunk_size: int = 1,
     num_replicas: int = 1,
     rank: int = 0,
     indices: Optional[List[str]] = None,
@@ -723,7 +713,7 @@ def interleave(
         num_threads (int, optional): Number of threads to use decoding images.
             Defaults to 4.
         chunk_size (int, optional): Chunk size for image decoding.
-            Defaults to 16.
+            Defaults to 8.
         num_replicas (int, optional): Number of total workers reading the
             dataset with this interleave function, defined as number of
             gpus * number of torch DataLoader workers. Used to interleave
@@ -815,8 +805,8 @@ def interleave(
         def __init__(self, sampler, num_threads):
             self.sampler = sampler
             self.closed = False
-            self.raw_q = Queue(1)
-            self.proc_q = Queue(1)
+            self.raw_q = Queue(num_threads)
+            self.proc_q = Queue(num_threads)
             self.n_threads = num_threads
             self.n_closed = 0
             self.il_closed = False
@@ -883,8 +873,6 @@ def interleave(
                     self.n_closed += 1
 
             self.sampler.close()
-            del self.proc_q
-            del self.raw_q
 
     return QueueRetriever(random_sampler, num_threads)
 
@@ -896,10 +884,10 @@ def interleave_dataloader(
     *,
     num_replicas: int = 1,
     labels: Optional[Labels] = None,
-    preload_factor: int = 1,
-    num_workers: int = 2,
-    pin_memory: bool = True,
-    persistent_workers: bool = True,
+    prefetch_factor: int = 2,
+    num_workers: Optional[int] = None,
+    pin_memory: bool = False,
+    persistent_workers: bool = False,
     drop_last: bool = False,
     **kwargs
 ) -> torch.utils.data.DataLoader:
@@ -935,8 +923,8 @@ def interleave_dataloader(
         normalizer (:class:`slideflow.norm.StainNormalizer`, optional):
             Normalizer to use on images. Defaults to None.
         chunk_size (int, optional): Chunk size for image decoding.
-            Defaults to 16.
-        preload_factor (int, optional): Number of batches to preload in each
+            Defaults to 1.
+        prefetch_factor (int, optional): Number of batches to prefetch in each
             SlideflowIterator. Defaults to 1.
         manifest (dict, optional): Dataset manifest containing number of tiles
             per tfrecord.
@@ -953,22 +941,27 @@ def interleave_dataloader(
         num_workers (int, optional): Number of DataLoader workers.
             Defaults to 2.
         persistent_workers (bool, optional): Sets the DataLoader
-            persistent_workers flag. Defaults to True.
+            persistent_workers flag. Defaults toNone (4 if not using a SPAMS
+            normalizer, 1 if using SPAMS).
         pin_memory (bool, optional): Pin memory to GPU. Defaults to True.
         drop_last (bool, optional): Drop the last non-full batch.
             Defaults to False.
     """
     if batch_size is None:
         replica_batch_size = None
-        preload = 1
     else:
         replica_batch_size = batch_size // num_replicas
-        preload = replica_batch_size * preload_factor
+
+    if num_workers is None and os.cpu_count():
+        num_workers = os.cpu_count() // 4  # type: ignore
+    elif num_workers is None:
+        num_workers = 8
+    log.debug(f"Using num_workers={num_workers}")
+
     iterator = InterleaveIterator(
         tfrecords=tfrecords,
         img_size=img_size,
         use_labels=(labels is not None),
-        preload=preload,
         num_replicas=num_replicas,
         labels=labels,
         **kwargs
@@ -981,7 +974,8 @@ def interleave_dataloader(
         pin_memory=pin_memory,
         persistent_workers=persistent_workers,
         worker_init_fn=worker_init_fn,
-        drop_last=drop_last
+        drop_last=drop_last,
+        prefetch_factor=prefetch_factor
     )
     dataloader.num_tiles = iterator.num_tiles
     dataloader.dataset.dataloader = dataloader  # type: ignore

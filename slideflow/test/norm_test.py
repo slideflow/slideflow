@@ -27,9 +27,10 @@ class TestSlide(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
+        cls.px = 71  # type: ignore
         cls._orig_logging_level = sf.getLoggingLevel()  # type: ignore
         sf.setLoggingLevel(40)
-        float_img = np.random.random((71, 71, 3))
+        float_img = np.random.random((cls.px, cls.px, 3))  # type: ignore
         cls.img = (float_img * 255).clip(0, 255).astype(np.uint8)  # type: ignore
         with BytesIO() as output:
             Image.fromarray(cls.img).save(  # type: ignore
@@ -78,7 +79,7 @@ class TestSlide(unittest.TestCase):
             np.fromstring(jpg, dtype=np.uint8),
             cv2.IMREAD_COLOR
         )
-        self.assertEqual(cv_image.shape, (71, 71, 3))
+        self.assertEqual(cv_image.shape, (self.px, self.px, 3))
 
     def _assert_valid_png(self, png):
         self.assertIsInstance(png, (str, bytes))
@@ -86,19 +87,19 @@ class TestSlide(unittest.TestCase):
             np.fromstring(png, dtype=np.uint8),
             cv2.IMREAD_COLOR
         )
-        self.assertEqual(cv_image.shape, (71, 71, 3))
+        self.assertEqual(cv_image.shape, (self.px, self.px, 3))
 
     def _assert_valid_numpy(self, img):
         self.assertIsInstance(img, np.ndarray)
-        self.assertEqual(img.shape, (71, 71, 3))
+        self.assertEqual(img.shape, (self.px, self.px, 3))
 
     def _assert_valid_tf(self, img):
         self.assertIsInstance(img, tf.Tensor)
-        self.assertEqual(img.shape, (71, 71, 3))
+        self.assertEqual(img.shape, (self.px, self.px, 3))
 
     def _assert_valid_torch(self, img):
         self.assertIsInstance(img, torch.Tensor)
-        self.assertEqual(img.shape, (71, 71, 3))
+        self.assertEqual(img.shape, (self.px, self.px, 3))
 
     def _test_reinhard_fit_to_numpy(self, norm):
         norm.fit(self.img)

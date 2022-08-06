@@ -96,7 +96,7 @@ class StainNormalizer:
         'reinhard_fast': reinhard.ReinhardFastNormalizer,
         'reinhard_mask': reinhard.ReinhardMaskNormalizer,
         'reinhard_fast_mask': reinhard.ReinhardFastMaskNormalizer,
-        'vahadane': vahadane.VahadaneSklearnNormalizer,
+        'vahadane': vahadane.VahadaneSpamsNormalizer,
         'vahadane_sklearn': vahadane.VahadaneSklearnNormalizer,
         'vahadane_spams': vahadane.VahadaneSpamsNormalizer,
         'augment': augment.AugmentNormalizer
@@ -535,8 +535,9 @@ def autoselect(
     if sf.backend() == 'tensorflow':
         import slideflow.norm.tensorflow
         BackendNormalizer = sf.norm.tensorflow.TensorflowStainNormalizer
+    elif sf.backend() == 'torch' and method == 'macenko':
+        BackendNormalizer = sf.norm.torch.TorchStainNormalizer  # type: ignore
     elif sf.backend() == 'torch':
-        log.debug("Not attempting to use PyTorch-native normalizer.")
         BackendNormalizer = StainNormalizer  # type: ignore
     else:
         raise errors.UnrecognizedBackendError

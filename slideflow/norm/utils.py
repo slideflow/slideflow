@@ -86,7 +86,7 @@ def RGB_to_OD(I):
     :return:
     """
     I = remove_zeros(I)
-    return -1 * np.log(I / 255)
+    return -1 * np.log(I / 255).astype(np.float32)
 
 
 def OD_to_RGB(OD):
@@ -140,7 +140,6 @@ def get_concentrations(I, stain_matrix, lamda=0.01):
     :param stain_matrix: a 2x3 stain matrix
     :return:
     """
-
     OD = RGB_to_OD(I).reshape((-1, 3))
 
     # rows correspond to channels (RGB), columns to OD values

@@ -25,7 +25,8 @@ class TestSuite:
         slides: Optional[str] = None,
         buffer: Optional[str] = None,
         verbosity: int = logging.WARNING,
-        reset: bool = False
+        reset: bool = False,
+        tile_px: int = 71,
     ) -> None:
         """Prepare for functional and unit testing testing. Functional tests
         require example slides.
@@ -44,6 +45,7 @@ class TestSuite:
             errors.UnrecognizedBackendError: If the environmental variable
                 SF_BACKEND is something other than  "tensorflow" or "torch".
         """
+        self.tile_px = tile_px
 
         if slides is None:
             print("[yellow]Path to slides not provided, unable to perform"
@@ -102,7 +104,7 @@ class TestSuite:
         self.buffer = buffer
 
         # Rebuild tfrecord indices
-        self.project.dataset(71, 1208).build_index(True)
+        self.project.dataset(self.tile_px, 1208).build_index(True)
 
     def _get_model(self, name: str, epoch: int = 1) -> str:
         assert self.project is not None
@@ -155,7 +157,7 @@ class TestSuite:
         # Create batch train file
         if sweep:
             self.project.create_hp_sweep(
-                tile_px=71,
+                tile_px=self.tile_px,
                 tile_um=1208,
                 epochs=[1, 3],
                 toplayer_epochs=[0],
@@ -182,7 +184,7 @@ class TestSuite:
 
         # Create single hyperparameter combination
         hp = sf.model.ModelParams(
-            tile_px=71,
+            tile_px=self.tile_px,
             tile_um=1208,
             epochs=1,
             toplayer_epochs=0,
@@ -215,7 +217,7 @@ class TestSuite:
         with TaskWrapper("Testing slide extraction...") as test:
             try:
                 self.project.extract_tiles(
-                    tile_px=71,
+                    tile_px=self.tile_px,
                     tile_um=1208,
                     buffer=self.buffer,
                     source=['TEST'],
@@ -226,7 +228,7 @@ class TestSuite:
                     **kwargs
                 )
                 self.project.extract_tiles(
-                    tile_px=71,
+                    tile_px=self.tile_px,
                     tile_um="2.5x",
                     buffer=self.buffer,
                     source=['TEST'],
@@ -243,7 +245,7 @@ class TestSuite:
     def test_normalizers(
         self,
         *args,
-        single: bool = True,
+        single: bool = False,
         multi: bool = True,
     ) -> None:
         """Test normalizer strategy and throughput, saving example image
@@ -262,6 +264,7 @@ class TestSuite:
                     sf.test.functional.single_thread_normalizer_tester,
                     project=self.project,
                     methods=args,
+                    tile_px=self.tile_px
                 )
                 if not passed:
                     test.fail()
@@ -271,6 +274,7 @@ class TestSuite:
                     sf.test.functional.multi_thread_normalizer_tester,
                     project=self.project,
                     methods=args,
+                    tile_px=self.tile_px
                 )
                 if not passed:
                     test.fail()
@@ -292,7 +296,8 @@ class TestSuite:
                 return
             passed = process_isolate(
                 sf.test.functional.reader_tester,
-                project=self.project
+                project=self.project,
+                tile_px=self.tile_px
             )
             if not passed:
                 test.fail()
@@ -656,6 +661,7 @@ class TestSuite:
                 sf.test.functional.activations_tester,
                 project=self.project,
                 model=model,
+                tile_px=self.tile_px,
                 **act_kwargs
             )
             if not passed:
@@ -707,7 +713,7 @@ class TestSuite:
                 test.skip()
             else:
                 try:
-                    dataset = self.project.dataset(71, 1208)
+                    dataset = self.project.dataset(self.tile_px, 1208)
                     self.project.train_clam(
                         'TEST_CLAM',
                         join(self.project.root, 'clam'),

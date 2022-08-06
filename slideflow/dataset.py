@@ -1585,7 +1585,7 @@ class Dataset:
     def load_indices(self, verbose=False) -> Dict[str, np.ndarray]:
         """Reads TFRecord indices. Needed for PyTorch."""
 
-        pool = DPool(16)
+        pool = DPool(8)
         tfrecords = self.tfrecords()
         indices = {}
 
