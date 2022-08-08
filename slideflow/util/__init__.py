@@ -564,19 +564,23 @@ def update_results_log(
     if exists(results_log_path):
         with open(results_log_path, "r") as results_file:
             reader = csv.reader(results_file)
-            headers = next(reader)
             try:
-                model_name_i = headers.index('model_name')
-                result_keys = [k for k in headers if k != 'model_name']
-            except ValueError:
-                model_name_i = headers.index('epoch')
-                result_keys = [k for k in headers if k != 'epoch']
-            for row in reader:
-                name = row[model_name_i]
-                results_log[name] = {}
-                for result_key in result_keys:
-                    result = row[headers.index(result_key)]
-                    results_log[name][result_key] = result
+                headers = next(reader)
+            except StopIteration:
+                pass
+            else:
+                try:
+                    model_name_i = headers.index('model_name')
+                    result_keys = [k for k in headers if k != 'model_name']
+                except ValueError:
+                    model_name_i = headers.index('epoch')
+                    result_keys = [k for k in headers if k != 'epoch']
+                for row in reader:
+                    name = row[model_name_i]
+                    results_log[name] = {}
+                    for result_key in result_keys:
+                        result = row[headers.index(result_key)]
+                        results_log[name][result_key] = result
         # Move the current log file into a temporary file
         shutil.move(results_log_path, f"{results_log_path}.temp")
 
