@@ -1731,6 +1731,7 @@ class Project:
         num_threads: Optional[int] = None,
         img_format: str = 'auto',
         skip_completed: bool = False,
+        verbose: bool = True,
         **kwargs: Any
     ) -> None:
         """Creates predictive heatmap overlays on a set of slides.
@@ -1791,6 +1792,7 @@ class Project:
                 color will only reflect predictions of up to three labels.
                 Example (this would map predictions for label 0 to red, 3 to
                 green, etc): {'r': 0, 'g': 3, 'b': 1 }
+            verbose (bool): Show verbose output. Defaults to True.
             vmin (float): Minimimum value to display on heatmap. Defaults to 0.
             vcenter (float): Center value for color display on heatmap.
                 Defaults to 0.5.
@@ -1798,12 +1800,12 @@ class Project:
         """
 
         # Prepare arguments for subprocess
-        heatmap_args = SimpleNamespace(**locals())
-        del heatmap_args.self
+        args = SimpleNamespace(**locals())
+        del args.self
 
         # Prepare dataset
         config = sf.util.get_model_config(model)
-        heatmap_args.rois = dataset.rois()
+        args.rois = dataset.rois()
 
         # Set resolution / stride
         resolutions = {'low': 1, 'medium': 2, 'high': 4}
@@ -1811,9 +1813,9 @@ class Project:
             stride_div = resolutions[resolution]
         except KeyError:
             raise ValueError(f"Invalid resolution '{resolution}'.")
-        heatmap_args.stride_div = stride_div
-        heatmap_args.verbosity = self.verbosity
-        heatmap_args.img_format = img_format
+        args.stride_div = stride_div
+        args.verbosity = self.verbosity  # Set logging level in subprocess
+        args.img_format = img_format
 
         # Attempt to auto-detect supplied model name
         model_name = os.path.basename(model)
@@ -1824,7 +1826,16 @@ class Project:
         outdir = outdir if outdir else join(self.root, 'heatmaps', model_name)
         if not exists(outdir):
             os.makedirs(outdir)
-        heatmap_args.outdir = outdir
+        args.outdir = outdir
+
+        # Verbose output
+        if verbose:
+            n_poss_slides = len(dataset.slides())
+            n_slides = len(dataset.slide_paths())
+            log.info("Generating heatmaps for {} slides.".format(n_slides))
+            log.info("Model: [green]{}".format(model))
+            log.info("Tile px: {}".format(config['tile_px']))
+            log.info("Tile um: {}".format(config['tile_um']))
 
         # Any function loading a slide must be kept in an isolated process,
         # as loading >1 slide in a single process causes instability.
@@ -1839,7 +1850,7 @@ class Project:
 
             ctx = multiprocessing.get_context('spawn')
             process = ctx.Process(target=project_utils._heatmap_worker,
-                                  args=(slide, heatmap_args, kwargs))
+                                  args=(slide, args, kwargs))
             process.start()
             process.join()
 
