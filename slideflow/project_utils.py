@@ -72,7 +72,7 @@ def _project_config(
 
 def _heatmap_worker(
     slide: str,
-    heatmap_args: SimpleNamespace,
+    args: SimpleNamespace,
     kwargs: Any
 ) -> None:
     """Heatmap worker for :meth:`slideflow.Project.generate_heatmaps.`
@@ -85,19 +85,19 @@ def _heatmap_worker(
 
     Args:
         slide (str): Path to slide.
-        heatmap_args (SimpleNamespace): Namespace of heatmap arguments.
+        args (SimpleNamespace): Namespace of heatmap arguments.
         kwargs (dict): kwargs for heatmap.save()
     """
-    sf.setLoggingLevel(heatmap_args.verbosity)
+    sf.setLoggingLevel(args.verbosity)
     heatmap = sf.Heatmap(slide,
-                         model=heatmap_args.model,
-                         stride_div=heatmap_args.stride_div,
-                         rois=heatmap_args.rois,
-                         roi_method=heatmap_args.roi_method,
-                         batch_size=heatmap_args.batch_size,
-                         img_format=heatmap_args.img_format,
-                         num_threads=heatmap_args.num_threads)
-    heatmap.save(heatmap_args.outdir, **kwargs)
+                         model=args.model,
+                         stride_div=args.stride_div,
+                         rois=args.rois,
+                         roi_method=args.roi_method,
+                         batch_size=args.batch_size,
+                         img_format=args.img_format,
+                         num_threads=args.num_threads)
+    heatmap.save(args.outdir, **kwargs)
 
 
 def _train_worker(
