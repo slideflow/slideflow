@@ -493,7 +493,8 @@ def interleave(
                         img_size,
                         tile_um,
                         rois=rois,
-                        roi_method=roi_method
+                        roi_method=roi_method,
+                        verbose=False
                     )
                     wsi_list += [wsi]
                     pb.advance(read_task)
@@ -529,7 +530,6 @@ def interleave(
                     incl_slidenames=True,
                     grayspace_fraction=1,
                     incl_loc=incl_loc,
-                    silent=True
                 )
                 tfr = sf.util.path_to_name(tfr)
             else:

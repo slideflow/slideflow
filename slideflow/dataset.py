@@ -1817,7 +1817,7 @@ class Dataset:
                         rois=self.rois(),
                         stride_div=stride_div,
                         roi_method=roi_method,
-                        silent=True)
+                        verbose=False)
                 if low_memory:
                     wsi.qc('otsu')
                     counts += [wsi.estimated_num_tiles]

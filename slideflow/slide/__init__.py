@@ -215,7 +215,7 @@ def _wsi_extraction_worker(
 
     # If downsampling is enabled, read image from highest level
     # to perform filtering; otherwise filter from our target level
-    slide = _VIPSWrapper(args.path, silent=True)
+    slide = _VIPSWrapper(args.path)
     if args.whitespace_fraction < 1 or args.grayspace_fraction < 1:
         if args.filter_downsample_ratio > 1:
             filter_extract_px = args.extract_px // args.filter_downsample_ratio
@@ -400,9 +400,9 @@ def log_extraction_params(**kwargs) -> None:
 
 
 class _VIPSWrapper:
-    '''Wrapper for VIPS to preserve openslide-like functions.'''
 
-    def __init__(self, path: str, silent: bool = False) -> None:
+    def __init__(self, path: str) -> None:
+        '''Wrapper for VIPS to preserve openslide-like functions.'''
         self.path = path
         self.full_image = vips.Image.new_from_file(
             path,
@@ -1288,7 +1288,8 @@ class WSI(_BaseLoader):
         roi_method: str = 'auto',
         randomize_origin: bool = False,
         pb: Optional[Progress] = None,
-        silent: bool = False
+        silent: Optional[bool] = None,
+        verbose: bool = True
     ) -> None:
         """Loads slide and ROI(s).
 
@@ -1322,9 +1323,15 @@ class WSI(_BaseLoader):
             pb (:class:`Progress`, optional): Multiprocessing
                 capable Progress instance; will update progress bar during
                 tile extraction if provided.
-            silent (bool, optional): Suppresses warnings about slide skipping
-                if ROIs are missing. Defaults to False.
+            verbose (bool, optional): Controls verbosity of output. If False,
+                suppresses warnings about slide skipping when ROIs are missing.
+                Defaults to True.
         """
+
+        if silent is not None:
+            warnings.warn("Argument `silent` is deprecated since 1.3 and will "
+                          "be removed in 1.4. Please use `verbose` instead.")
+            verbose = bool(not silent)
 
         super().__init__(
             path=path,
@@ -1344,6 +1351,7 @@ class WSI(_BaseLoader):
         self.rois = []  # type: List
         self.roi_method = roi_method
         self.randomize_origin = randomize_origin
+        self.verbose = verbose
 
         # Look in ROI directory if available
         if roi_dir and exists(join(roi_dir, self.name + ".csv")):
@@ -1373,7 +1381,7 @@ class WSI(_BaseLoader):
             # but the roi_method is not set to 'ignore',
             # indicating that this may be user error.
             warn_msg = f"No ROIs provided for {self.name}"
-            if not silent and not (rois is None and roi_dir is None):
+            if verbose and not (rois is None and roi_dir is None):
                 log.warning(warn_msg)
             else:
                 log.debug(warn_msg)
@@ -1383,7 +1391,7 @@ class WSI(_BaseLoader):
             )
         elif not len(self.rois):
             info_msg = f"No ROI for {self.name}, using whole slide."
-            if not silent and roi_method == 'auto':
+            if verbose and roi_method == 'auto':
                 log.info(info_msg)
             else:
                 log.debug(info_msg)
@@ -1616,7 +1624,6 @@ class WSI(_BaseLoader):
         pool: Optional["mp.pool.Pool"] = None,
         dry_run: bool = False,
         lazy_iter: bool = False,
-        silent: bool = False
     ) -> Optional[Callable]:
         """Builds tile generator to extract tiles from this slide.
 
@@ -1776,7 +1783,7 @@ class WSI(_BaseLoader):
             name_msg = f'[green]{self.shortname}[/]'
             pos = len(non_roi_coord)
             num_msg = f'({np.sum(self.grid.sum())} tiles of {pos} possible)'
-            log_fn = log.debug if silent else log.info
+            log_fn = log.info if self.verbose else log.debug
             log_fn(f"Finished tile extraction for {name_msg} {num_msg}")
 
         return generator
