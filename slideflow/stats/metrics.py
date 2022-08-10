@@ -257,6 +257,12 @@ def categorical_metrics(
                 fit.save_prc(data_dir, f"{label_start}{outcome}_tile_PRC{i}")
                 all_auc[outcome] += [fit.auroc]
                 all_ap[outcome] += [fit.ap]
+                if fit.auroc == None:
+                    log.info(
+                    f"{level}-level AUC (cat #{i:>2}): None "
+                    f"{level}-level AP: {fit.ap:.3f} (opt. threshold: "
+                    f"{fit.opt_thresh:.3f})"
+                )
                 log.info(
                     f"{level}-level AUC (cat #{i:>2}): {fit.auroc:.3f} "
                     f"{level}-level AP: {fit.ap:.3f} (opt. threshold: "
