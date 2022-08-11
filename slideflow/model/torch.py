@@ -409,7 +409,7 @@ class Trainer:
             mixed_precision (bool, optional): Use FP16 mixed precision (rather
                 than FP32). Defaults to True.
             config (dict, optional): Training configuration dictionary, used
-                for logging. Defaults to None.
+                for logging and image format verification. Defaults to None.
             use_neptune (bool, optional): Use Neptune API logging.
                 Defaults to False
             neptune_api (str, optional): Neptune API token, used for logging.
@@ -477,6 +477,7 @@ class Trainer:
 
         # Neptune logging
         self.config = config
+        self.img_format = config['img_format'] if 'img_format' in config else None
         self.use_neptune = use_neptune
         self.neptune_run = None
         if self.use_neptune:
@@ -1267,6 +1268,16 @@ class Trainer:
                 "in model params."
             )
 
+    def _verify_img_format(self, dataset: "sf.Dataset") -> None:
+        if self.img_format and not dataset.img_format:
+            log.warning("Unable to verify image format (PNG/JPG) of dataset.")
+        elif self.img_format and dataset.img_format != self.img_format:
+            log.error(
+                "Mismatched image formats. Expected '{}' per model config, "
+                "but dataset has format '{}'.".format(
+                    self.img_format,
+                    dataset.img_format))
+
     def load(self, model: str) -> None:
         """Loads a state dict at the given model location. Requires that the
         Trainer's hyperparameters (Trainer.hp)
@@ -1311,6 +1322,9 @@ class Trainer:
         """
         if format not in ('csv', 'feather', 'parquet'):
             raise ValueError(f"Unrecognized format {format}")
+
+        # Verify image format
+        self._verify_img_format(dataset)
 
         # Fit normalizer
         self._fit_normalizer(norm_fit)
@@ -1391,6 +1405,8 @@ class Trainer:
             self.validation_batch_size = batch_size
         if not self.model:
             raise errors.ModelNotLoadedError
+
+        self._verify_img_format(dataset)
         self._fit_normalizer(norm_fit)
         self.model.to(self.device)
         self.model.eval()

@@ -434,6 +434,7 @@ class Project:
             'model_name': model_name,
             'model_path': model,
             'stage': 'evaluation',
+            'img_format': config['img_format'],
             'tile_px': hp.tile_px,
             'tile_um': hp.tile_um,
             'model_type': hp.model_type(),
