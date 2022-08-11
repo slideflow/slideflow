@@ -21,13 +21,13 @@ ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib
 
 # Repair pixman
 WORKDIR "/scripts"
-RUN wget https://raw.githubusercontent.com/jamesdolezal/slideflow/1.2.3/pixman_repair.sh && \
+RUN wget https://raw.githubusercontent.com/jamesdolezal/slideflow/1.2.4/pixman_repair.sh && \
     chmod +x pixman_repair.sh
 
 # Install slideflow & download scripts
 ENV SF_BACKEND=torch
-RUN pip3 install slideflow==1.2.3 pretrainedmodels && \
-    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/1.2.3/test.py && \
-    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/1.2.3/run_project.py && \
-    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/1.2.3/qupath_roi.groovy && \
-    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/1.2.3/qupath_roi_legacy.groovy
+RUN pip3 install slideflow==1.2.4 pretrainedmodels && \
+    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/1.2.4/test.py && \
+    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/1.2.4/run_project.py && \
+    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/1.2.4/qupath_roi.groovy && \
+    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/1.2.4/qupath_roi_legacy.groovy
