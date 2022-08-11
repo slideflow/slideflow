@@ -1324,6 +1324,8 @@ class Project:
                 Defaults to mpp=4 (effective magnification 2.5 X)
             dry_run (bool, optional): Determine tiles that would be extracted,
                 but do not export any images. Defaults to None.
+            max_tiles (int, optional): Only extract this many tiles per slide.
+                Defaults to None.
 
         Returns:
             Dictionary mapping slide paths to each slide's SlideReport

@@ -1767,7 +1767,8 @@ class WSI(_BaseLoader):
         pool: Optional["mp.pool.Pool"] = None,
         dry_run: bool = False,
         lazy_iter: bool = False,
-        shard: Optional[Tuple[int, int]] = None
+        shard: Optional[Tuple[int, int]] = None,
+        max_tiles: Optional[int] = None
     ) -> Optional[Callable]:
         """Builds tile generator to extract tiles from this slide.
 
@@ -1799,6 +1800,8 @@ class WSI(_BaseLoader):
                 Defaults to False.
             dry_run (bool, optional): Determine tiles that would be extracted,
                 but do not export any images. Defaults to None.
+            max_tiles (int, optional): Only extract this many tiles per slide.
+                Defaults to None.
 
         Returns:
             dict: Dict with keys 'image' (image data), 'yolo' (optional
@@ -1876,6 +1879,7 @@ class WSI(_BaseLoader):
         def generator():
             nonlocal pool
             should_close = False
+            n_extracted = 0
 
             # Skip tiles filtered out with QC or ROI
             non_roi_coord = self.coord[
@@ -1947,13 +1951,16 @@ class WSI(_BaseLoader):
                     continue
                 else:
                     yield result
+                    n_extracted += 1
+                    if n_extracted >= max_tiles:
+                        break
             if show_progress:
                 pbar.stop()
             if should_close:
                 pool.close()
             name_msg = f'[green]{self.shortname}[/]'
             pos = len(non_roi_coord)
-            num_msg = f'({np.sum(self.grid.sum())} tiles of {pos} possible)'
+            num_msg = f'({n_extracted} tiles of {pos} possible)'
             log_fn = log.info if self.verbose else log.debug
             log_fn(f"Finished tile extraction for {name_msg} {num_msg}")
 
