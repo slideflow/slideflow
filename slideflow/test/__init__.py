@@ -245,7 +245,7 @@ class TestSuite:
     def test_normalizers(
         self,
         *args,
-        single: bool = False,
+        single: bool = True,
         multi: bool = True,
     ) -> None:
         """Test normalizer strategy and throughput, saving example image
