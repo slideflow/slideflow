@@ -256,8 +256,8 @@ def categorical_metrics(
         ]
         try:
             for i, fit in enumerate(p.imap(_generate_tile_roc, yt_and_yp)):
-                fit.save_roc(data_dir, f"{label_start}{outcome}_tile_ROC{i}")
-                fit.save_prc(data_dir, f"{label_start}{outcome}_tile_PRC{i}")
+                fit.save_roc(data_dir, f"{label_start}{outcome}_{level}_ROC{i}")
+                fit.save_prc(data_dir, f"{label_start}{outcome}_{level}_PRC{i}")
                 all_auc[outcome] += [fit.auroc]
                 all_ap[outcome] += [fit.ap]
                 auroc_str = 'NA' if not fit.auroc else f'{fit.auroc:.3f}'
