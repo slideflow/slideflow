@@ -11,15 +11,17 @@ import cv2
 
 try:
     import tensorflow as tf
-    import slideflow.norm.tensorflow as tf_norm
 except ImportError:
     pass
+else:
+    import slideflow.norm.tensorflow as tf_norm
 
 try:
     import torch
-    import slideflow.norm.torch as torch_norm
 except ImportError:
     pass
+else:
+    import slideflow.norm.torch as torch_norm
 
 spams_loader = importlib.util.find_spec('spams')
 
