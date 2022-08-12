@@ -1119,7 +1119,6 @@ class _BaseLoader:
             ))
 
         generator = self.build_generator(
-            show_progress=False,#(self.pb is None),
             img_format=img_format,
             **kwargs
         )

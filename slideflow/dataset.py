@@ -1137,7 +1137,8 @@ class Dataset:
                 q = Queue()  # type: Queue
                 task_finished = False
                 manager = mp.Manager()
-                ctx = mp.get_context('fork')
+                # Forking incompatible with some libvips configurations
+                ctx = mp.get_context('spawn')
                 reports = manager.dict()  # type: dict
 
                 # Use a single shared multiprocessing pool
