@@ -21,7 +21,7 @@ try:
 except ImportError:
     pass
 
-spams_loader = importlib.find_loader('spams')
+spams_loader = importlib.util.find_spec('spams')
 
 class TestSlide(unittest.TestCase):
 
@@ -237,6 +237,7 @@ class TestSlide(unittest.TestCase):
         self._test_macenko_fit_to_path(norm)
         self._test_macenko_set_fit(norm)
 
+    @unittest.skipIf(spams_loader is None, "SPAMS not installed")
     def test_vahadane_numpy(self):
         norm = sf.norm.StainNormalizer('vahadane')
         self._test_transforms(norm)
