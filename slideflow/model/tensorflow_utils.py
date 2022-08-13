@@ -2,7 +2,6 @@
 
 import os
 import tempfile
-from types import SimpleNamespace
 from typing import (TYPE_CHECKING, Any, Dict, List, Tuple, Union, Optional,
                     Callable)
 
@@ -227,7 +226,7 @@ def add_regularization(
 def get_uq_predictions(
     img: tf.Tensor,
     pred_fn: tf.keras.Model,
-    num_outcomes: int,
+    num_outcomes: Optional[int] = None,
     uq_n: int = 30
 ) -> Tuple[tf.Tensor, tf.Tensor, int]:
     if not num_outcomes:

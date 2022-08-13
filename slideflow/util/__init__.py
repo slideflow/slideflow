@@ -437,6 +437,15 @@ def get_slides_from_model_manifest(
     return slides
 
 
+def get_gan_config(model_path: Path) -> Dict:
+    """Loads a GAN training_options.json for an associated network PKL."""
+
+    if exists(join(dirname(model_path), 'training_options.json')):
+        return load_json(join(dirname(model_path), 'training_options.json'))
+    else:
+        raise errors.ModelParamsNotFoundError
+
+
 def get_model_config(model_path: Path) -> Dict:
     """Loads model configuration JSON file."""
 

@@ -127,7 +127,7 @@ def enable_dropout(m: torch.nn.Module) -> None:
 def get_uq_predictions(
     img: Union[torch.Tensor, Tuple[torch.Tensor, ...]],
     model: torch.nn.Module,
-    num_outcomes: int,
+    num_outcomes: Optional[int] = None,
     uq_n: int = 30
 ) -> Tuple[Union[torch.Tensor, List[torch.Tensor]],
            Union[torch.Tensor, List[torch.Tensor]],
