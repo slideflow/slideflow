@@ -527,7 +527,18 @@ class _VIPSWrapper:
         downsample_level: int,
         extract_size: Tuple[int, int]
     ) -> "vips.Image":
-        '''Extracts a region from the image at the given downsample level.'''
+        """Extracts a region from the image at the given downsample level.
+
+        Args:
+            base_level_dim (Tuple[int, int]): Top-left location of the region
+                to extract, using downsample layer coordinates (x, y)
+            downsample_level (int): Downsample level to read.
+            extract_size (Tuple[int, int]): Size of the region to read
+                (width, height) using base layer coordinates.
+
+        Returns:
+            vips.Image: VIPS image.
+        """
         base_level_x, base_level_y = base_level_dim
         extract_width, extract_height = extract_size
         downsample_factor = self.level_downsamples[downsample_level]
@@ -542,6 +553,47 @@ class _VIPSWrapper:
         )
         return region
 
+    def read_from_pyramid(
+        self,
+        top_left: Tuple[int, int],
+        window_size: Tuple[int, int],
+        target_size: Optional[Tuple[int, int]] = None
+    ) -> "vips.Image":
+        """Reads a region from the image. Performance is accelerated by
+        pyramid downsample layers, if available.
+
+        Args:
+            top_left (Tuple[int, int]): Top-left location of the region to
+                extract, using base layer coordinates (x, y).
+            window_size (Tuple[int, int]): Size of the region to read (width,
+                height) using base layer coordinates.
+            target_size (Tuple[int, int]): Resize the region to this target
+                size (width, height).
+
+        Returns:
+            vips.Image: VIPS image.
+        """
+        if target_size is None:
+            ds_level = 0
+        else:
+            ds_level = self.best_level_for_downsample(
+                window_size[0] / target_size[0]
+            )
+
+        ds_factor = self.level_downsamples[ds_level]
+        image = self.get_downsampled_image(ds_level)
+        ds_x = int(window_size[0]) / ds_factor
+        ds_y = int(window_size[1]) / ds_factor
+        region = image.crop(
+            int(top_left[0] / ds_factor),
+            int(top_left[1] / ds_factor),
+            ds_x,
+            ds_y
+        )
+        if target_size is None:
+            return region
+        else:
+            return region.resize(target_size[0] / ds_x)
 
 class _JPGslideToVIPS(_VIPSWrapper):
     '''Wrapper for JPG files, which do not possess separate levels, to
