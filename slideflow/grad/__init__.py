@@ -5,11 +5,22 @@ from typing import Any, Callable, Dict
 import slideflow as sf
 import numpy as np
 import saliency.core as saliency
+from functools import partial
 from slideflow import errors
 from slideflow.grad.plot_utils import (comparison_plot, inferno, multi_plot,
                                        oranges, overlay,
                                        saliency_map_comparison)
 
+VANILLA = 0
+VANILLA_SMOOTH = 1
+INTEGRATED_GRADIENTS = 2
+INTEGRATED_GRADIENTS_SMOOTH = 3
+GUIDED_INTEGRATED_GRADIENTS = 4
+GUIDED_INTEGRATED_GRADIENTS_SMOOTH = 5
+BLUR_INTEGRATED_GRADIENTS = 6
+BLUR_INTEGRATED_GRADIENTS_SMOOTH = 7
+XRAI = 8
+XRAI_FAST = 9
 
 class SaliencyMap:
 
@@ -32,6 +43,18 @@ class SaliencyMap:
         self.xrai_grads = saliency.XRAI()
         self.fast_xrai_params = saliency.XRAIParameters()
         self.fast_xrai_params.algorithm = 'fast'
+        self._fn_map = {
+            VANILLA: self.vanilla,
+            VANILLA_SMOOTH: partial(self.vanilla, smooth=True),
+            INTEGRATED_GRADIENTS: self.integrated_gradients,
+            INTEGRATED_GRADIENTS_SMOOTH: partial(self.integrated_gradients, smooth=True),
+            GUIDED_INTEGRATED_GRADIENTS: self.guided_integrated_gradients,
+            GUIDED_INTEGRATED_GRADIENTS_SMOOTH: partial(self.guided_integrated_gradients, smooth=True),
+            BLUR_INTEGRATED_GRADIENTS: self.blur_integrated_gradients,
+            BLUR_INTEGRATED_GRADIENTS_SMOOTH: partial(self.blur_integrated_gradients),
+            XRAI: self.xrai,
+            XRAI_FAST: self.xrai_fast
+        }
 
     def _grad_fn_torch(
         self,
@@ -147,6 +170,9 @@ class SaliencyMap:
             'Blur Integrated Gradients': self.blur_integrated_gradients(img),
             'Blur Integrated Gradients (Smooth)': self.blur_integrated_gradients(img, smooth=True),
         }
+
+    def get(self, img: np.ndarray, method: int) -> np.ndarray:
+        return self._fn_map[method](img)
 
     def vanilla(
         self,
