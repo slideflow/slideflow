@@ -215,7 +215,7 @@ def _wsi_extraction_worker(
 
     # If downsampling is enabled, read image from highest level
     # to perform filtering; otherwise filter from our target level
-    slide = _VIPSWrapper(args.path)
+    slide = args.vips_wrapper(args.path, args.mpp_override)
     if args.whitespace_fraction < 1 or args.grayspace_fraction < 1:
         if args.filter_downsample_ratio > 1:
             filter_extract_px = args.extract_px // args.filter_downsample_ratio
@@ -401,7 +401,7 @@ def log_extraction_params(**kwargs) -> None:
 
 class _VIPSWrapper:
 
-    def __init__(self, path: str) -> None:
+    def __init__(self, path: str, mpp: Optional[float] = None) -> None:
         '''Wrapper for VIPS to preserve openslide-like functions.'''
         self.path = path
         self.full_image = vips.Image.new_from_file(
@@ -420,18 +420,21 @@ class _VIPSWrapper:
             int(self.properties[OPS_HEIGHT])
         )
         # If Openslide MPP is not available, try reading from metadata
-        if OPS_MPP_X not in self.properties.keys():
+        if mpp is not None:
+            log.debug(f"Setting MPP to {mpp}")
+            self.properties[OPS_MPP_X] = mpp
+        elif OPS_MPP_X not in self.properties.keys():
             log.debug(
                 "Microns-Per-Pixel (MPP) not found, Searching EXIF"
             )
             try:
                 with Image.open(path) as img:
                     if TIF_EXIF_KEY_MPP in img.tag.keys():
-                        mpp = img.tag[TIF_EXIF_KEY_MPP][0]
+                        _mpp = img.tag[TIF_EXIF_KEY_MPP][0]
                         log.debug(
-                            f"Using MPP {mpp} per EXIF {TIF_EXIF_KEY_MPP}"
+                            f"Using MPP {_mpp} per EXIF {TIF_EXIF_KEY_MPP}"
                         )
-                        self.properties[OPS_MPP_X] = mpp
+                        self.properties[OPS_MPP_X] = _mpp
                     elif (sf.util.path_to_ext(path).lower() in ('tif', 'tiff')
                           and 'xres' in loaded_image.get_fields()):
                         xres = loaded_image.get('xres')  # 4000.0
@@ -455,7 +458,9 @@ class _VIPSWrapper:
                             f"Missing Microns-Per-Pixel (MPP) for {name}"
                         )
             except AttributeError:
-                self.properties[OPS_MPP_X] = DEFAULT_JPG_MPP
+                mpp = DEFAULT_JPG_MPP
+                log.debug(f"Could not detect microns-per-pixel; using default {mpp}")
+                self.properties[OPS_MPP_X] = mpp
             except UnidentifiedImageError:
                 log.error(
                     f"PIL error; unable to read slide {path_to_name(path)}."
@@ -599,7 +604,7 @@ class _JPGslideToVIPS(_VIPSWrapper):
     '''Wrapper for JPG files, which do not possess separate levels, to
     preserve openslide-like functions.'''
 
-    def __init__(self, path: str) -> None:
+    def __init__(self, path: str, mpp: Optional[float] = None) -> None:
         self.path = path
         self.full_image = vips.Image.new_from_file(path)
         if not self.full_image.hasalpha():
@@ -625,19 +630,22 @@ class _JPGslideToVIPS(_VIPSWrapper):
         self.level_dimensions = [(width, height)]
 
         # MPP data
-        try:
-            with Image.open(path) as img:
-                if TIF_EXIF_KEY_MPP in img.tag.keys():
-                    mpp = img.tag[TIF_EXIF_KEY_MPP][0]
-                    log.info(f"Using MPP {mpp} per EXIF field {TIF_EXIF_KEY_MPP}")
-                    self.properties[OPS_MPP_X] = mpp
-                else:
-                    log.info(f"Setting MPP to default {DEFAULT_JPG_MPP}")
-                    self.properties[OPS_MPP_X] = DEFAULT_JPG_MPP
-        except AttributeError:
-            self.properties[OPS_MPP_X] = DEFAULT_JPG_MPP
-
-
+        if mpp is not None:
+            log.debug(f"Setting MPP to {mpp}")
+            self.properties[OPS_MPP_X] = mpp
+        else:
+            try:
+                with Image.open(path) as img:
+                    if TIF_EXIF_KEY_MPP in img.tag.keys():
+                        _mpp = img.tag[TIF_EXIF_KEY_MPP][0]
+                        log.debug(f"Using MPP {_mpp} per EXIF field {TIF_EXIF_KEY_MPP}")
+                        self.properties[OPS_MPP_X] = _mpp
+                    else:
+                        raise AttributeError
+            except AttributeError:
+                mpp = DEFAULT_JPG_MPP
+                log.debug(f"Could not detect microns-per-pixel; using default {mpp}")
+                self.properties[OPS_MPP_X] = mpp
 class ROI:
     '''Object container for ROI annotations.'''
 
@@ -678,6 +686,7 @@ class _BaseLoader:
         stride_div: int,
         enable_downsample: bool = True,
         pb: Optional[Progress] = None,
+        mpp: Optional[float] = None
     ) -> None:
 
         self.pb = pb
@@ -697,6 +706,7 @@ class _BaseLoader:
         self.annPolys = []  # type: ignore
         self.filetype = sf.util.path_to_ext(path)
         self.__slide = None
+        self._mpp_override = mpp
 
         # Initiate supported slide reader
         if not os.path.exists(path):
@@ -778,6 +788,13 @@ class _BaseLoader:
         self.__dict__.update(state)
 
     @property
+    def _vips_wrapper(self) -> Any:
+        if self.filetype.lower() in ('jpg', 'jpeg'):
+            return _JPGslideToVIPS
+        else:
+            return _VIPSWrapper
+
+    @property
     def dimensions(self) -> Tuple[int, int]:
         return self.slide.dimensions
 
@@ -796,17 +813,14 @@ class _BaseLoader:
     def slide(self) -> _VIPSWrapper:
         if self.__slide is not None:
             return self.__slide
-        if self.filetype.lower() in ('jpg', 'jpeg'):
-            self.__slide = _JPGslideToVIPS(self.path)  # type: ignore
+
+        try:
+            self.__slide = self._vips_wrapper(self.path, self._mpp_override)
             return self.__slide  # type: ignore
-        else:
-            try:
-                self.__slide = _VIPSWrapper(self.path)  # type: ignore
-                return self.__slide  # type: ignore
-            except vips.error.Error as e:
-                raise errors.SlideLoadError(
-                    f"Error loading slide {self.shortname}: {e}"
-                )
+        except vips.error.Error as e:
+            raise errors.SlideLoadError(
+                f"Error loading slide {self.shortname}: {e}"
+            )
 
     def _build_coord(self):
         raise NotImplementedError
@@ -1340,7 +1354,8 @@ class WSI(_BaseLoader):
         randomize_origin: bool = False,
         pb: Optional[Progress] = None,
         silent: Optional[bool] = None,
-        verbose: bool = True
+        verbose: bool = True,
+        mpp: Optional[float] = None
     ) -> None:
         """Loads slide and ROI(s).
 
@@ -1377,6 +1392,8 @@ class WSI(_BaseLoader):
             verbose (bool, optional): Controls verbosity of output. If False,
                 suppresses warnings about slide skipping when ROIs are missing.
                 Defaults to True.
+            mpp (float, optional): Override the microns-per-pixel value for
+                the slide. Defaults to None (auto-detects).
         """
 
         if silent is not None:
@@ -1390,7 +1407,8 @@ class WSI(_BaseLoader):
             tile_um=tile_um,
             stride_div=stride_div,
             enable_downsample=enable_downsample,
-            pb=pb
+            pb=pb,
+            mpp=mpp
         )
 
         # Initialize calculated variables
@@ -1512,6 +1530,8 @@ class WSI(_BaseLoader):
             (x, y, grid_x, grid_y),
             SimpleNamespace(
                 full_extract_px=self.full_extract_px,
+                vips_wrapper=self._vips_wrapper,
+                mpp_override=self._mpp_override,
                 roi_scale=self.roi_scale,
                 rois=self.rois,
                 grid=self.grid,
@@ -1529,7 +1549,7 @@ class WSI(_BaseLoader):
                 img_format='numpy',
                 yolo=False,
                 draw_roi=False,
-                dry_run=False
+                dry_run=False,
             )
         )
         return image_dict['image']
@@ -1752,6 +1772,8 @@ class WSI(_BaseLoader):
 
         w_args = SimpleNamespace(**{
             'full_extract_px': self.full_extract_px,
+            'vips_wrapper': self._vips_wrapper,
+            'mpp_override': self._mpp_override,
             'roi_scale': self.roi_scale,
             'rois': self.rois,
             'grid': self.grid,
@@ -2045,7 +2067,8 @@ class TMA(_BaseLoader):
         stride_div: int = 1,
         enable_downsample: bool = True,
         report_dir: Optional[Path] = None,
-        pb: Optional[Progress] = None
+        pb: Optional[Progress] = None,
+        mpp: Optional[float] = None
     ) -> None:
         '''Initializer.
 
@@ -2062,6 +2085,8 @@ class TMA(_BaseLoader):
             pb (Progress, optional): Progress bar; will update
                 progress bar during tile extraction if provided.
                 Defaults to None.
+            mpp (float, optional): Override the microns-per-pixel value for
+                the slide. Defaults to None (auto-detects).
         '''
         super().__init__(
             path,
@@ -2069,7 +2094,8 @@ class TMA(_BaseLoader):
             tile_um,
             stride_div,
             enable_downsample,
-            pb
+            pb,
+            mpp
         )
         self.object_rects = []  # type: List
         self.box_areas = []  # type: List
