@@ -2078,11 +2078,11 @@ class Features:
                 image = tf.image.decode_jpeg(image, channels=3)
             elif img_format.lower() in ('png',):
                 image = tf.image.decode_png(image, channels=3)
+            image.set_shape([slide.tile_px, slide.tile_px, 3])
             loc = record['grid']
             if self.wsi_normalizer:
                 image = self.wsi_normalizer.tf_to_tf(image)
             parsed_image = tf.image.per_image_standardization(image)
-            parsed_image.set_shape([slide.tile_px, slide.tile_px, 3])
             return parsed_image, loc
 
         # Generate dataset from the generator
