@@ -164,8 +164,29 @@ class SlideWidget:
                     imgui.same_line(int((width - max_width)/2))
                     imgui.image(viz._wsi_tex_obj.gl_id, max_width, max_height)
 
+                    # Show location overlay
+                    if viz.wsi_window_size:
+                        # Convert from wsi coords to thumbnail coords
+                        t_x, t_y = imgui.get_window_position()
+                        t_x = t_x + int((width - max_width)/2)
+                        t_w_ratio = max_width / viz.wsi.dimensions[0]
+                        t_h_ratio = max_height / viz.wsi.dimensions[1]
+                        t_x += viz.thumb_origin[0] * t_w_ratio
+                        t_y += viz.thumb_origin[1] * t_h_ratio
+                        t_y += viz.spacing
+
+                        draw_list = imgui.get_overlay_draw_list()
+                        draw_list.add_rect(
+                            t_x,
+                            t_y,
+                            t_x + (viz.wsi_window_size[0] * t_w_ratio),
+                            t_y + (viz.wsi_window_size[1] * t_h_ratio),
+                            imgui.get_color_u32_rgba(0, 0, 0, 1),
+                            thickness=2)
+
             if viz.wsi_thumb is None:
                 imgui.text_colored('Slide not loaded', *dim_color)
+
             imgui.end_child()
             imgui.pop_style_color(3)
             imgui.pop_style_var(1)
@@ -181,7 +202,7 @@ class SlideWidget:
                 vals = [
                     str(prop['width']),
                     str(prop['height']),
-                    str(viz.wsi.mpp),
+                    f'{viz.wsi.mpp:.4f}',
                     viz.wsi.vendor if viz.wsi.vendor is not None else '-',
                     f'{10 / (viz.wsi.slide.level_downsamples[0] * viz.wsi.mpp):.1f}x',
                     str(viz.wsi.slide.level_count),
@@ -192,8 +213,8 @@ class SlideWidget:
                 vals = ["-" for _ in range(8)]
             rows = [
                 ['Property',     'Value'],
-                ['Width',         vals[0]],
-                ['Height',        vals[1]],
+                ['Width (px)',    vals[0]],
+                ['Height (px)',   vals[1]],
                 ['MPP',           vals[2]],
                 ['Scanner',       vals[3]],
                 ['Magnification', vals[4]],

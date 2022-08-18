@@ -64,12 +64,11 @@ class Workbench(imgui_window.ImguiWindow):
         # Widget interface.
         self.wsi                = None
         self.wsi_thumb          = None
+        self.wsi_window_size    = None
         self.thumb              = None
         self.thumb_zoom         = None
         self.thumb_origin       = None
         self.thumb_offset       = None
-        self.thumb_focus_x      = None
-        self.thumb_focus_y      = None
         self.box_x              = None
         self.box_y              = None
         self.tile_px            = None
@@ -170,13 +169,12 @@ class Workbench(imgui_window.ImguiWindow):
             if self._normalizer and self._normalize_wsi:
                 self.thumb = self._normalizer.transform(self.thumb)
             self.thumb_zoom = self.wsi.dimensions[0] / self.thumb.shape[1]
-            self.thumb_origin = (0, 0)
             self.thumb_offset = (
                 (max_w - self.thumb.shape[1]) / 2,
                 (max_h - self.thumb.shape[0]) / 2
             )
-            self.thumb_focus_x = self.wsi.dimensions[0] // 2
-            self.thumb_focus_y = self.wsi.dimensions[1] // 2
+            self.thumb_origin = [0, 0]
+            self.wsi_window_size = None
 
     def wsi_coords_to_display_coords(self, x, y):
         return (
@@ -227,8 +225,8 @@ class Workbench(imgui_window.ImguiWindow):
             # Update thumb focus location & zoom values
             # If shift-dragging or scrolling.
             if dragging:
-                self.thumb_focus_x -= (dx * self.thumb_zoom)
-                self.thumb_focus_y -= (dy * self.thumb_zoom)
+                self.thumb_origin[0] -= (dx * self.thumb_zoom)
+                self.thumb_origin[1] -= (dy * self.thumb_zoom)
             if wheel > 0:
                 self.thumb_zoom /= 1.5
             if wheel < 0:
@@ -238,21 +236,18 @@ class Workbench(imgui_window.ImguiWindow):
                            int(max_h * self.thumb_zoom))
 
             if wheel:
-                self.thumb_focus_x = wsi_x - (cx * window_size[0] / max_w)
-                self.thumb_focus_y = wsi_y - (cy * window_size[1] / max_h)
+                self.thumb_origin[0] = wsi_x - (cx * window_size[0] / max_w)
+                self.thumb_origin[1] = wsi_y - (cy * window_size[1] / max_h)
             if wheel or dragging or self._refresh_thumb_flag:
                 self._refresh_thumb_flag = False
                 try:
-                    top_left = (self.thumb_focus_x, self.thumb_focus_y)
-
                     # Enforce boundary limits.
-                    top_left = (max(top_left[0], 0), max(top_left[1], 0))
-                    top_left = (min(top_left[0], self.wsi.dimensions[0]-window_size[0]), min(top_left[1], self.wsi.dimensions[1]-window_size[1]))
+                    self.thumb_origin = [max(self.thumb_origin[0], 0), max(self.thumb_origin[1], 0)]
+                    self.thumb_origin = [min(self.thumb_origin[0], self.wsi.dimensions[0]-window_size[0]), min(self.thumb_origin[1], self.wsi.dimensions[1]-window_size[1])]
 
-                    self.thumb_origin = top_left
                     target_size = (max_w, max_h)
                     region = self.wsi.slide.read_from_pyramid(
-                        top_left=top_left,
+                        top_left=self.thumb_origin,
                         window_size=window_size,
                         target_size=target_size)
                     if region.bands == 4:
@@ -260,6 +255,7 @@ class Workbench(imgui_window.ImguiWindow):
                     self.thumb = sf.slide.vips2numpy(region)
                     if self._normalizer and self._normalize_wsi:
                         self.thumb = self._normalizer.transform(self.thumb)
+                    self.wsi_window_size = window_size
                 except pyvips.error.Error as e:
                     self.reset_thumb(max_w)
 
@@ -313,7 +309,7 @@ class Workbench(imgui_window.ImguiWindow):
                     self.box_x += self.pane_w
                 tw = self.wsi.full_extract_px // self.thumb_zoom
 
-                # Draw box with OpenGL.
+                # Draw box on main display.
                 gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_LINE)
                 gl.glLineWidth(3)
                 box_pos = np.array([self.box_x, self.box_y])
