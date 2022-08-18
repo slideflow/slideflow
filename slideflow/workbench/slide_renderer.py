@@ -6,10 +6,10 @@
 # distribution of this software and related documentation without an express
 # license agreement from NVIDIA CORPORATION is strictly prohibited.
 
+import time
 import sys
 import traceback
 import numpy as np
-import torch
 from .utils import EasyDict
 
 from rich import print
@@ -93,13 +93,13 @@ def _decode(img, img_format):
 class Renderer:
     def __init__(self, visualizer):
         self._visualizer        = visualizer
-        self._device            = torch.device('cuda')
+        #self._device            = torch.device('cuda')
         self._pkl_data          = dict()    # {pkl: dict | CapturedException, ...}
         self._pinned_bufs       = dict()    # {(shape, dtype): torch.Tensor, ...}
         self._cmaps             = dict()    # {name: torch.Tensor, ...}
         self._is_timing         = False
-        self._start_event       = torch.cuda.Event(enable_timing=True)
-        self._end_event         = torch.cuda.Event(enable_timing=True)
+        #self._start_event       = torch.cuda.Event(enable_timing=True)
+        #self._end_event         = torch.cuda.Event(enable_timing=True)
         self._net_layers        = dict()
         self._uq_thread         = None
         self._stop_uq_thread    = False
@@ -107,34 +107,21 @@ class Renderer:
 
     def render(self, **args):
         self._is_timing = True
-        self._start_event.record(torch.cuda.current_stream(self._device))
+        #self._start_event.record(torch.cuda.current_stream(self._device))
+        self._start_time = time.time()
         res = EasyDict()
         try:
             self._render_impl(res, **args)
         except:
             res.error = CapturedException()
-        self._end_event.record(torch.cuda.current_stream(self._device))
+        #self._end_event.record(torch.cuda.current_stream(self._device))
         if 'error' in res:
             res.error = str(res.error)
         if self._is_timing:
-            self._end_event.synchronize()
-            res.render_time = self._start_event.elapsed_time(self._end_event) * 1e-3
+            #self._end_event.synchronize()
+            res.render_time = time.time() - self._start_time #self._start_event.elapsed_time(self._end_event) * 1e-3
             self._is_timing = False
         return res
-
-    def _get_pinned_buf(self, ref):
-        key = (tuple(ref.shape), ref.dtype)
-        buf = self._pinned_bufs.get(key, None)
-        if buf is None:
-            buf = torch.empty(ref.shape, dtype=ref.dtype).pin_memory()
-            self._pinned_bufs[key] = buf
-        return buf
-
-    def to_device(self, buf):
-        return self._get_pinned_buf(buf).copy_(buf).to(self._device)
-
-    def to_cpu(self, buf):
-        return self._get_pinned_buf(buf).copy_(buf).clone()
 
     def _ignore_timing(self):
         self._is_timing = False

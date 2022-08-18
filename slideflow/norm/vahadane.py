@@ -9,17 +9,6 @@ from typing import Dict
 
 import slideflow.norm.utils as ut
 from sklearn.decomposition import DictionaryLearning
-import torch
-
-
-def dot(a: torch.Tensor, b: torch.Tensor):
-    """Equivalent to np.dot()."""
-    if len(a.shape) == 0 or len(b.shape) == 0:
-        return a * b
-    if len(b.shape) == 1:
-        return torch.tensordot(a, b, dims=[[-1], [-1]])
-    else:
-        return torch.tensordot(a, b, dims=[[-1], [-2]])
 
 
 def get_stain_matrix_spams(

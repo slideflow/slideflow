@@ -73,6 +73,10 @@ setuptools.setup(
         'pyarrow',
         'ninja',
         'rich',
-        'pillow>=6.0.0'
+        'pillow>=6.0.0',
+        'imgui',
+        'pyopengl',
+        'glfw',
+        'saliency'
     ],
 )
