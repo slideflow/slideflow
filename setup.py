@@ -72,6 +72,7 @@ setuptools.setup(
         'ConfigSpace',
         'pyarrow',
         'ninja',
-        'rich'
+        'rich',
+        'pillow>=6.0.0'
     ],
 )

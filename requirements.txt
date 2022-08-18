@@ -35,3 +35,4 @@ pyarrow
 ninja
 tensorflow_probability
 rich
+pillow>=6.0.0

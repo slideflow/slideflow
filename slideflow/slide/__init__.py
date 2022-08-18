@@ -636,8 +636,9 @@ class _JPGslideToVIPS(_VIPSWrapper):
         else:
             try:
                 with Image.open(path) as img:
-                    if TIF_EXIF_KEY_MPP in img.tag.keys():
-                        _mpp = img.tag[TIF_EXIF_KEY_MPP][0]
+                    exif_data = img.getexif()
+                    if TIF_EXIF_KEY_MPP in exif_data.keys():
+                        _mpp = exif_data[TIF_EXIF_KEY_MPP]
                         log.debug(f"Using MPP {_mpp} per EXIF field {TIF_EXIF_KEY_MPP}")
                         self.properties[OPS_MPP_X] = _mpp
                     else:
