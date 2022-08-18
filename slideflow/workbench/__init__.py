@@ -130,8 +130,49 @@ class Workbench(imgui_window.ImguiWindow):
     def defer_rendering(self, num_frames=1):
         self._defer_rendering = max(self._defer_rendering, num_frames)
 
+    def clear_model(self):
+        self._async_renderer.clear_result()
+        self._use_model         = False
+        self._model             = None
+        self._model_config      = None
+        self._use_model         = False
+        self._use_uncertainty   = False
+        self._normalizer        = None
+        self.tile_px            = None
+        self.tile_um            = None
+        self.heatmap            = None
+        self.x                  = None
+        self.y                  = None
+        self.clear_model_results()
+        self.heatmap_widget.reset()
+
     def clear_result(self):
         self._async_renderer.clear_result()
+        self._tex_img           = None
+        self._tex_obj           = None
+        self._norm_tex_img      = None
+        self._norm_tex_obj      = None
+        self._thumb_tex_img     = None
+        self._thumb_tex_obj     = None
+        self._heatmap_tex_img   = None
+        self._heatmap_tex_obj   = None
+        self._wsi_tex_img       = None
+        self._wsi_tex_obj       = None
+        self._heatmap_overlay_tex_img   = None
+        self._heatmap_overlay_tex_obj   = None
+        self.clear_model_results()
+
+    def clear_model_results(self):
+        self._async_renderer.clear_result()
+        self._predictions       = None
+        self._tex_img           = None
+        self._tex_obj           = None
+        self._norm_tex_img      = None
+        self._norm_tex_obj      = None
+        self._heatmap_tex_img   = None
+        self._heatmap_tex_obj   = None
+        self._heatmap_overlay_tex_img   = None
+        self._heatmap_overlay_tex_obj   = None
 
     def set_async(self, is_async):
         if is_async != self._async_renderer.is_async:
@@ -332,11 +373,11 @@ class Workbench(imgui_window.ImguiWindow):
         self.args.y = self.y
         if self._model_config is not None and self._use_model and 'img_format' in self._model_config:
             self.args.img_format = self._model_config['img_format']
+
         if self.is_skipping_frames():
             pass
         elif self._defer_rendering > 0:
             self._defer_rendering -= 1
-        #elif self.args.pkl is not None:
         else:
             self._async_renderer.set_args(**self.args)
             result = self._async_renderer.get_result()

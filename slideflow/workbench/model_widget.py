@@ -64,8 +64,10 @@ class ModelWidget:
 
     def load(self, model, ignore_errors=False):
         viz = self.viz
+        viz.clear_model()
         viz.clear_result()
         viz.skip_frame() # The input field will change on next frame.
+        viz._async_renderer.get_result() # Flush prior result
         try:
             self.cur_model = model
             self.user_model = model
@@ -80,10 +82,6 @@ class ModelWidget:
             viz.result.message = f'Loading {config["model_name"]}...'
             viz.defer_rendering()
             normalizer = sf.util.get_model_normalizer(model)
-            print("Classifier args:")
-            print("Tile px:   ", config['tile_px'])
-            print("Tile um:   ", config['tile_um'])
-            print("Normalizer:", normalizer)
 
             if sf.backend() == 'tensorflow':
                 import tensorflow as tf
@@ -188,7 +186,6 @@ class ModelWidget:
                         ))
                     else:
                         imgui.text("Latent class: -")
-
 
             # Image preview ===================================================
             width = viz.font_size * 28

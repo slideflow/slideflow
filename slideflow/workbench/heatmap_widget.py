@@ -20,6 +20,14 @@ def _apply_cmap(img, cmap):
         cmap = plt.get_cmap(cmap)
         return (cmap(img) * 255).astype(np.uint8)
 
+def process_grid(_heatmap, _grid):
+    if _heatmap.uq:
+        logits = _grid[:, :, :-(_heatmap.num_uncertainty)]
+        uncertainty = _grid[:, :, -(_heatmap.num_uncertainty):]
+        return logits, uncertainty
+    else:
+        return _grid, None
+
 #----------------------------------------------------------------------------
 
 class HeatmapWidget:
@@ -34,11 +42,17 @@ class HeatmapWidget:
         self.use_logits             = True
         self.use_uncertainty        = False
         self.cmap_idx               = 0
+        self.logits                 = None
+        self.uncertainty            = None
         self._generating            = False
+        self._button_pressed        = False
         self._old_logits            = 0
         self._old_uncertainty       = 0
         self._logits_gain           = 1.0
         self._uq_gain               = 1.0
+        self._heatmap_sum           = 0
+        self._heatmap_grid          = None
+        self._heatmap_thread        = None
         self._colormaps             = plt.colormaps()
 
     def update_transparency(self):
@@ -52,31 +66,61 @@ class HeatmapWidget:
         if self.viz.heatmap is None:
             return
         if self.use_logits:
-            heatmap_arr = self.viz.heatmap.logits[:, :, self.heatmap_logits]
+            heatmap_arr = self.logits[:, :, self.heatmap_logits]
             gain = self._logits_gain
         else:
-            heatmap_arr = self.viz.heatmap.uncertainty[:, :, self.heatmap_uncertainty]
+            heatmap_arr = self.uncertainty[:, :, self.heatmap_uncertainty]
             gain = self._uq_gain
         self.viz.rendered_heatmap = _apply_cmap(heatmap_arr * gain, self._colormaps[self.cmap_idx])[:, :, 0:3]
         self.update_transparency()
 
     def reset(self):
-        self.viz.rendered_heatmap = None
-        self.viz.overlay_heatmap = None
-        self.viz.heatmap = None
+        self.viz.rendered_heatmap   = None
+        self.viz.overlay_heatmap    = None
+        self.viz.heatmap            = None
+        self._heatmap_sum           = 0
+        self._heatmap_grid          = None
+        self._heatmap_thread        = None
+        self._old_logits            = 0
+        self._old_uncertainty       = 0
+        self.logits                 = None
+        self.uncertainty            = None
+        self._generating            = False
+        self.heatmap_logits         = 0
+        self.heatmap_uncertainty    = 0
 
     def generate_heatmap(self):
-        self._generating = True
         viz = self.viz
-        viz.heatmap = sf.Heatmap(viz.wsi.path, viz._model_path, stride_div=self.stride)
-        self.render_heatmap()
-        self.update_transparency()
-        self._generating = False
-        viz._show_overlay = self.show
+        self.reset()
+        self._button_pressed = True
+        viz.heatmap = sf.Heatmap(viz.wsi.path, viz._model_path, stride_div=self.stride, generate=False, batch_size=128)
+        self._generating = True
+        self._heatmap_grid, self._heatmap_thread = viz.heatmap.generate(threaded=True)
+
+    def refresh_generating_heatmap(self):
+        if self.viz.heatmap is not None and self._heatmap_grid is not None:
+            logits, uncertainty = process_grid(self.viz.heatmap, self._heatmap_grid)
+            _sum = np.sum(logits)
+            if _sum != self._heatmap_sum:
+                self.logits = logits
+                self.uncertainty = uncertainty
+                self.render_heatmap()
+                self.update_transparency()
+                self.viz._show_overlay = self.show
+                self._heatmap_sum = _sum
+
+        if self._heatmap_thread is not None and not self._heatmap_thread.is_alive():
+            self._generating = False
+            self._button_pressed = False
+            self._heatmap_thread = None
 
     @imgui_utils.scoped_by_object_id
     def __call__(self, show=True):
         viz = self.viz
+
+        if self._generating:
+            self.refresh_generating_heatmap()
+
         if show:
             _cmap_changed = False
             _uq_logits_switched = False
@@ -125,7 +169,7 @@ class HeatmapWidget:
                     viz._show_overlay = self.show
 
                 imgui.same_line(imgui.get_content_region_max()[0] - 1 - viz.button_w)
-                if imgui_utils.button(('Generate' if not self._generating else "Working..."), width=viz.button_w, enabled=(not self._generating)):
+                if imgui_utils.button(('Generate' if not self._button_pressed else "Working..."), width=viz.button_w, enabled=(not self._button_pressed)):
                     _thread = threading.Thread(target=self.generate_heatmap)
                     _thread.start()
 
@@ -160,7 +204,7 @@ class HeatmapWidget:
                         _gain_changed = True
 
                 # Logits.
-                heatmap_logits_max = 0 if viz.heatmap is None else viz.heatmap.logits.shape[2]-1
+                heatmap_logits_max = 0 if self.logits is None else self.logits.shape[2]-1
                 self.heatmap_logits = min(max(self.heatmap_logits, 0), heatmap_logits_max)
                 narrow_w = imgui.get_text_line_height_with_spacing()
                 with imgui_utils.grayed_out(heatmap_logits_max == 0):
@@ -184,7 +228,7 @@ class HeatmapWidget:
                         imgui.text(viz._model_config['outcome_labels'][str(self.heatmap_logits)])
 
                 # Uuncertainty.
-                heatmap_uncertainty_max = 0 if (viz.heatmap is None or viz.heatmap.uncertainty is None) else viz.heatmap.uncertainty.shape[2]-1
+                heatmap_uncertainty_max = 0 if (viz.heatmap is None or self.uncertainty is None) else self.uncertainty.shape[2]-1
                 self.heatmap_uncertainty = min(max(self.heatmap_uncertainty, 0), heatmap_uncertainty_max)
                 narrow_w = imgui.get_text_line_height_with_spacing()
                 with imgui_utils.grayed_out(viz.heatmap is None or not viz.has_uq()):
