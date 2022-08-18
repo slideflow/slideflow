@@ -95,7 +95,7 @@ class HeatmapWidget:
         self._button_pressed = True
         viz.heatmap = sf.Heatmap(viz.wsi.path, viz._model_path, stride_div=self.stride, generate=False, batch_size=128)
         self._generating = True
-        self._heatmap_grid, self._heatmap_thread = viz.heatmap.generate(threaded=True)
+        self._heatmap_grid, self._heatmap_thread = viz.heatmap.generate(asynchronous=True)
 
     def refresh_generating_heatmap(self):
         if self.viz.heatmap is not None and self._heatmap_grid is not None:
