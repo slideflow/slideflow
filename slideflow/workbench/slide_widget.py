@@ -79,6 +79,7 @@ class SlideWidget:
             tile_px = viz.tile_px if viz.tile_px else 100
             tile_um = viz.tile_um if viz.tile_um else 100
             viz._slide_path = slide
+            print(f'Loading {slide}...')
             viz.wsi = sf.WSI(slide, tile_px=tile_px, tile_um=tile_um, verbose=False)
             viz.reset_thumb(width=viz.content_width)
             viz.heatmap_widget.reset()

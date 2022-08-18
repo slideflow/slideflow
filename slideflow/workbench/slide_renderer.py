@@ -153,6 +153,7 @@ class Renderer:
                 img = tf.expand_dims(img, axis=0)
                 to_numpy = lambda x: x.numpy()
             elif sf.backend() == 'torch':
+                import torch
                 img = torch.unsqueeze(img, dim=0)
                 to_numpy = lambda x: x.cpu().detach().numpy()
 
@@ -189,6 +190,7 @@ class Renderer:
             import tensorflow as tf
             dtype = tf.uint8
         elif sf.backend() == 'torch':
+            import torch
             dtype = torch.uint8
 
         try:
@@ -210,7 +212,10 @@ class Renderer:
             else:
                 raise ValueError(f"Unknown image format {img_format}")
             if img_format is not None:
-                res.image = img.numpy()
+                if sf.backend() == 'torch':
+                    res.image = sf.io.torch.cwh_to_whc(img).numpy()
+                else:
+                    res.image = img.numpy()
                 proc_img = sf.io.convert_dtype(img, dtype)
             else:
                 proc_img = img
@@ -223,7 +228,10 @@ class Renderer:
                 if normalizer:
                     proc_img = normalizer.transform(proc_img)
                     if not isinstance(proc_img, np.ndarray):
-                        res.normalized = proc_img.numpy().astype(np.uint8)
+                        if sf.backend() == 'torch':
+                            res.normalized = sf.io.torch.cwh_to_whc(proc_img).numpy().astype(np.uint8)
+                        else:
+                            res.normalized = proc_img.numpy().astype(np.uint8)
                     else:
                         res.normalized = proc_img.astype(np.uint8)
                 if sf.backend() == 'tensorflow':

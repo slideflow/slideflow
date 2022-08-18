@@ -322,6 +322,7 @@ class ModelWidget:
         items = []
         run_regex = re.compile(r'\d+-.*')
         params_regex = re.compile(r'params\.json')
+        zip_regex = re.compile(r'.*\.zip')
         for parent in set(parents):
             if os.path.isdir(parent):
                 for entry in os.scandir(parent):
@@ -331,6 +332,8 @@ class ModelWidget:
                         for model_file in os.scandir(os.path.join(parent, entry.name)):
                             if model_file.is_file() and params_regex.fullmatch(model_file.name):
                                 items.append(EasyDict(type='model', name=entry.name, path=os.path.join(parent, entry.name)))
+                    elif entry.is_file() and zip_regex.fullmatch(entry.name):
+                        items.append(EasyDict(type='model', name=entry.name, path=os.path.join(parent, entry.name)))
 
         items = sorted(items, key=lambda item: (item.name.replace('_', ' '), item.path))
         return items
