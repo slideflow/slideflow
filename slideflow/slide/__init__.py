@@ -6,6 +6,7 @@ Requires: libvips (https://libvips.github.io/libvips/).'''
 
 from __future__ import absolute_import, division, print_function
 
+import re
 import csv
 import io
 import json
@@ -435,6 +436,16 @@ class _VIPSWrapper:
                             f"Using MPP {_mpp} per EXIF {TIF_EXIF_KEY_MPP}"
                         )
                         self.properties[OPS_MPP_X] = _mpp
+                    elif (sf.util.path_to_ext(path).lower() == 'svs'
+                          and 'image-description' in loaded_image.get_fields()):
+                          img_des = loaded_image.get('image-description')
+                          _mpp = re.findall(r'(?<=MPP\s\=\s)0\.\d+', img_des)
+                          if _mpp is not None:
+                            log.debug(
+                                f"Using MPP {_mpp} from 'image-description' for SCN"
+                                "-converted SVS format"
+                            )
+                            self.properties[OPS_MPP_X] = _mpp[0]
                     elif (sf.util.path_to_ext(path).lower() in ('tif', 'tiff')
                           and 'xres' in loaded_image.get_fields()):
                         xres = loaded_image.get('xres')  # 4000.0
