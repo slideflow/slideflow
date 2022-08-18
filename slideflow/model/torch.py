@@ -1103,7 +1103,7 @@ class Trainer:
     def _save_model(self) -> None:
         assert self.model is not None
         name = self.name if self.name else 'trained_model'
-        save_path = os.path.join(self.outdir, f'{name}_epoch{self.epoch}')
+        save_path = os.path.join(self.outdir, f'{name}_epoch{self.epoch}.zip')
         torch.save(self.model.state_dict(), save_path)
         log.info(f"Model saved to [green]{save_path}[/")
 
