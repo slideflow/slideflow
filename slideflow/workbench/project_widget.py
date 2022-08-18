@@ -30,6 +30,7 @@ class ProjectWidget:
         self.P              = None
         self.slide_paths    = []
         self.slide_idx      = 0
+        self._show_welcome  = True
 
     def add_recent(self, project, ignore_errors=False):
         try:
@@ -38,6 +39,22 @@ class ProjectWidget:
         except:
             if not ignore_errors:
                 raise
+
+    def disclaimer(self):
+        if self._show_welcome:
+            imgui.open_popup('disclaimer_popup')
+            imgui.set_next_window_position(self.viz.content_width/2, self.viz.content_height/2)
+
+            if imgui.begin_popup('disclaimer_popup'):
+                imgui.text('Welcome to Workbench!')
+                imgui.separator()
+                imgui.text('This is an early preview under active development.\n'
+                        'Please be aware there may be bugs or other issues. ')
+                imgui.text('')
+                imgui.same_line((imgui.get_content_region_max()[0])/2 - (self.viz.button_w/2) + self.viz.spacing)
+                if imgui.button('Proceed'):
+                    self._show_welcome = False
+                imgui.end_popup()
 
     def load(self, project, ignore_errors=False):
         viz = self.viz
@@ -72,6 +89,7 @@ class ProjectWidget:
     def __call__(self, show=True):
         viz = self.viz
         recent_projects = [project for project in self.recent_projects if project != self.user_project]
+        self.disclaimer()
         if show:
             bg_color = [0.16, 0.29, 0.48, 0.2]
             dim_color = list(imgui.get_style().colors[imgui.COLOR_TEXT])

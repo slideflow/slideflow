@@ -232,6 +232,7 @@ class Workbench(imgui_window.ImguiWindow):
 
     def draw_frame(self):
         self.begin_frame()
+
         self.args = EasyDict()
         self.pane_w = self.font_size * 45
         self.button_w = self.font_size * 5
@@ -272,10 +273,11 @@ class Workbench(imgui_window.ImguiWindow):
             if wheel > 0:
                 self.thumb_zoom /= 1.5
             if wheel < 0:
-                self.thumb_zoom *= 1.5
+                self.thumb_zoom = min(self.thumb_zoom * 1.5,
+                                      self.wsi.dimensions[0] / max_w)
 
-            window_size = (int(max_w * self.thumb_zoom),
-                           int(max_h * self.thumb_zoom))
+            window_size = (min(int(max_w * self.thumb_zoom), self.wsi.dimensions[0]),
+                           min(int(max_h * self.thumb_zoom), self.wsi.dimensions[1]))
 
             if wheel:
                 self.thumb_origin[0] = wsi_x - (cx * window_size[0] / max_w)
