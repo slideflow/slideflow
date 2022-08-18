@@ -12,6 +12,7 @@ from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
+import multiprocessing as mp
 import slideflow as sf
 import slideflow.model.base as _base
 import slideflow.util.neptune_utils
@@ -2033,6 +2034,7 @@ class Features:
         img_format: str = 'auto',
         batch_size: int = 32,
         dtype: type = np.float16,
+        grid: Optional[np.ndarray] = None,
         **kwargs
     ) -> Optional[np.ndarray]:
         """Generate activations from slide => activation grid array."""
@@ -2048,16 +2050,23 @@ class Features:
             assert self.img_format is not None
             img_format = self.img_format
         total_out = self.num_features + self.num_logits + self.num_uncertainty
-        features_grid = np.ones((
-                slide.grid.shape[1],
-                slide.grid.shape[0],
-                total_out),
-            dtype=dtype)
-        features_grid *= -1
+        if grid is None:
+            features_grid = np.ones((
+                    slide.grid.shape[1],
+                    slide.grid.shape[0],
+                    total_out),
+                dtype=dtype)
+            features_grid *= -1
+        else:
+            assert grid.shape == (slide.grid.shape[1], slide.grid.shape[0], total_out)
+            features_grid = grid
+        ctx = mp.get_context('spawn')
+        pool = ctx.Pool(16 if os.cpu_count is None else os.cpu_count())
         generator = slide.build_generator(
             shuffle=False,
             show_progress=True,
             img_format=img_format,
+            pool=pool,
             **kwargs
         )
         if not generator:
@@ -2072,7 +2081,7 @@ class Features:
                 }
 
         @tf.function
-        def _parse_function(record):
+        def _parse(record):
             image = record['image']
             if img_format.lower() in ('jpg', 'jpeg'):
                 image = tf.image.decode_jpeg(image, channels=3)
@@ -2080,8 +2089,10 @@ class Features:
                 image = tf.image.decode_png(image, channels=3)
             image.set_shape([slide.tile_px, slide.tile_px, 3])
             loc = record['grid']
-            if self.wsi_normalizer:
-                image = self.wsi_normalizer.tf_to_tf(image)
+            return image, loc
+
+        @tf.function
+        def _standardize(image, loc):
             parsed_image = tf.image.per_image_standardization(image)
             return parsed_image, loc
 
@@ -2096,29 +2107,49 @@ class Features:
                 output_signature=output_signature
             )
             tile_dataset = tile_dataset.map(
-                _parse_function,
-                num_parallel_calls=8
+                _parse,
+                num_parallel_calls=tf.data.AUTOTUNE,
+                deterministic=True
+            )
+            if self.wsi_normalizer:
+                if self.wsi_normalizer.vectorized:
+                    log.info("Using vectorized normalization")
+                    norm_batch_size = 32 if not batch_size else batch_size
+                    tile_dataset = tile_dataset.batch(norm_batch_size, drop_remainder=False)
+                else:
+                    log.info("Using per-image normalization")
+                tile_dataset = tile_dataset.map(
+                    self.wsi_normalizer.tf_to_tf,
+                    num_parallel_calls=tf.data.AUTOTUNE,
+                    deterministic=True
+                )
+                if self.wsi_normalizer.vectorized:
+                    tile_dataset = tile_dataset.unbatch()
+                if self.wsi_normalizer.method == 'macenko':
+                    # Drop the images that causes an error, e.g. if eigen
+                    # decomposition is unsuccessful.
+                    tile_dataset = tile_dataset.apply(tf.data.experimental.ignore_errors())
+            tile_dataset = tile_dataset.map(
+                _standardize,
+                num_parallel_calls=tf.data.AUTOTUNE,
+                deterministic=True
             )
             tile_dataset = tile_dataset.batch(batch_size, drop_remainder=False)
             tile_dataset = tile_dataset.prefetch(8)
 
-        act_arr = []
-        loc_arr = []
         for i, (batch_images, batch_loc) in enumerate(tile_dataset):
             model_out = self._predict(batch_images)
             if not isinstance(model_out, (list, tuple)):
                 model_out = [model_out]
-            act_arr += [np.concatenate([m.numpy() for m in model_out], axis=-1)]
-            loc_arr += [batch_loc.numpy()]
 
-        act_arr = np.concatenate(act_arr)
-        loc_arr = np.concatenate(loc_arr)
+            _act_batch = np.concatenate([m.numpy() for m in model_out], axis=-1)
+            _loc_batch = batch_loc.numpy()
+            for i, act in enumerate(_act_batch):
+                xi = _loc_batch[i][0]
+                yi = _loc_batch[i][1]
+                features_grid[yi][xi] = act
 
-        for i, act in enumerate(act_arr):
-            xi = loc_arr[i][0]
-            yi = loc_arr[i][1]
-            features_grid[yi][xi] = act
-
+        pool.close()
         return features_grid
 
     @tf.function

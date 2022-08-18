@@ -1899,25 +1899,16 @@ class Features:
 
         tile_dataset = torch.utils.data.DataLoader(
             SlideIterator(self),
-            batch_size=batch_size
-        )
-        act_arr = []
-        loc_arr = []
+            batch_size=batch_size)
+
         for i, (batch_images, batch_loc) in enumerate(tile_dataset):
             model_out = sf.util.as_list(self._predict(batch_images))
-            act_arr += [
-                np.concatenate([m.cpu().detach().numpy()
-                                for m in model_out])
-            ]
-            loc_arr += [batch_loc]
-
-        act_arr = np.concatenate(act_arr)
-        loc_arr = np.concatenate(loc_arr)
-
-        for i, act in enumerate(act_arr):
-            xi = loc_arr[i][0]
-            yi = loc_arr[i][1]
-            features_grid[yi][xi] = act
+            batch_act = np.concatenate([m.cpu().detach().numpy()
+                                        for m in model_out])
+            for i, act in enumerate(batch_act):
+                xi = batch_loc[i][0]
+                yi = batch_loc[i][1]
+                features_grid[yi][xi] = act
 
         return features_grid
 
