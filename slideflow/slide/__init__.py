@@ -826,12 +826,15 @@ class _BaseLoader:
 
         # Otsu's thresholding can be done on the lowest downsample level
         if method in ('otsu', 'both'):
-            otsu_thumb = vips.Image.new_from_file(
-                self.path,
-                fail=True,
-                access=vips.enums.Access.RANDOM,
-                level=self.slide.level_count-1
-            )
+            if self._vips_wrapper == _JPGslideToVIPS:
+                otsu_thumb = vips.Image.new_from_file(self.path, fail=True)
+            else:
+                otsu_thumb = vips.Image.new_from_file(
+                    self.path,
+                    fail=True,
+                    access=vips.enums.Access.RANDOM,
+                    level=self.slide.level_count-1
+                )
             try:
                 otsu_thumb = vips2numpy(otsu_thumb)
             except vips.error.Error:

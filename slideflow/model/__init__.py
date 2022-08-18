@@ -774,7 +774,14 @@ class DatasetFeatures:
             # Tile-level ANOVA
             stats_vals = list(self.activations_by_category(f).values())
             with warnings.catch_warnings():
-                warnings.simplefilter("ignore", category=stats.F_onewayConstantInputWarning)
+                if hasattr(stats, "F_onewayConstantInputWarning"):
+                    warnings.simplefilter(
+                        "ignore",
+                        category=stats.F_onewayConstantInputWarning)
+                elif hasattr(stats, "ConstantInputWarning"):
+                    warnings.simplefilter(
+                        "ignore",
+                        category=stats.ConstantInputWarning)
                 fvalue, pvalue = stats.f_oneway(*stats_vals)
                 if not isnan(fvalue) and not isnan(pvalue):
                     tile_stats.update({f: {'f': fvalue,
