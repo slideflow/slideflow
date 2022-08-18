@@ -243,7 +243,7 @@ class Renderer:
                 if show_saliency:
                     mask = viz.saliency.get(proc_img.numpy(), method=saliency_method)
                     if saliency_overlay:
-                        res.image = sf.grad.plot_utils.overlay(img, mask)
+                        res.image = sf.grad.plot_utils.overlay(img.numpy(), mask)
                     else:
                         res.image = sf.grad.plot_utils.inferno(mask)
                     if res.image.shape[-1] == 4:
