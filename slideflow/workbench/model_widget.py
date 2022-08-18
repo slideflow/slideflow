@@ -78,6 +78,7 @@ class ModelWidget:
             print("Loading model at {}...".format(model))
             config = sf.util.get_model_config(model)
             viz.result.message = f'Loading {config["model_name"]}...'
+            viz.defer_rendering()
             normalizer = sf.util.get_model_normalizer(model)
             print("Classifier args:")
             print("Tile px:   ", config['tile_px'])
@@ -221,8 +222,8 @@ class ModelWidget:
                     outcomes,
                     str(c['tile_px']),
                     str(c['tile_um']),
-                    str(c['img_format']),
-                    str(c['model_type']),
+                    "<unknown>" if 'img_format' not in c else c['img_format'],
+                    c['model_type'],
                     str(c['slideflow_version']),
                 ]
             else:

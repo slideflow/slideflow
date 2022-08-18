@@ -212,6 +212,8 @@ class Renderer:
             if img_format is not None:
                 res.image = img.numpy()
                 proc_img = sf.io.convert_dtype(img, dtype)
+            else:
+                proc_img = img
         except pyvips.error.Error as e:
             print(f"Tile coordinates {x}, {y} are out of bounds, skipping")
         else:

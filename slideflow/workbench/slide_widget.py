@@ -67,6 +67,9 @@ class SlideWidget:
         viz = self.viz
         viz.clear_result()
         viz.skip_frame() # The input field will change on next frame.
+        if slide == '':
+            viz.result = EasyDict(message='No slide loaded')
+            return
         try:
             name = slide.replace('\\', '/').split('/')[-1]
             self.cur_slide = slide
@@ -85,13 +88,10 @@ class SlideWidget:
             max_width = int(min(800 - viz.spacing*2, (800 - viz.spacing*2) / hw_ratio))
             viz.wsi_thumb = np.asarray(viz.wsi.thumb(width=max_width))
 
-        except:
+        except Exception:
             self.cur_slide = None
             self.user_slide = slide
-            if slide == '':
-                viz.result = EasyDict(message='No slide loaded')
-            else:
-                viz.result = EasyDict(error=renderer.CapturedException())
+            viz.result = EasyDict(error=renderer.CapturedException())
             if not ignore_errors:
                 raise
 

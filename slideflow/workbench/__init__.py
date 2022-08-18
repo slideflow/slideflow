@@ -101,6 +101,7 @@ class Workbench(imgui_window.ImguiWindow):
         self.set_position(0, 0)
         self._adjust_font_size()
         self.skip_frame() # Layout may change after first frame.
+        self.load_slide('')
 
     def close(self):
         super().close()
@@ -329,7 +330,7 @@ class Workbench(imgui_window.ImguiWindow):
         # Render.
         self.args.x = self.x
         self.args.y = self.y
-        if self._model_config is not None and self._use_model:
+        if self._model_config is not None and self._use_model and 'img_format' in self._model_config:
             self.args.img_format = self._model_config['img_format']
         if self.is_skipping_frames():
             pass
