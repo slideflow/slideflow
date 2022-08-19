@@ -2216,7 +2216,7 @@ class Features:
 class UncertaintyInterface(Features):
     def __init__(
         self,
-        path: Path,
+        path: Optional[Path],
         layers: Optional[Union[str, List[str]]] = None
     ) -> None:
         log.debug('Setting up UncertaintyInterface')
@@ -2234,13 +2234,18 @@ class UncertaintyInterface(Features):
         model: tf.keras.Model,
         layers: Optional[Union[str, List[str]]] = None,
         wsi_normalizer: Optional["StainNormalizer"] = None,
-    ) -> None:
-        super().from_model(
-            model,
-            layers=layers,
-            include_logits=True,
-            wsi_normalizer=wsi_normalizer
+    ):
+        obj = cls(None, layers)
+        if isinstance(model, tf.keras.models.Model):
+            obj._model = model
+        else:
+            raise errors.ModelError("Model is not a valid Tensorflow model.")
+        obj._build(
+            layers=layers, include_logits=True  # type: ignore
         )
+        obj.wsi_normalizer = wsi_normalizer
+        return obj
+
 
     @tf.function
     def _predict(self, inp):

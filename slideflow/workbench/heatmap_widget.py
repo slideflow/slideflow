@@ -93,7 +93,17 @@ class HeatmapWidget:
         viz = self.viz
         self.reset()
         self._button_pressed = True
-        viz.heatmap = sf.Heatmap(viz.wsi.path, viz._model_path, stride_div=self.stride, generate=False, batch_size=128)
+        viz.heatmap = sf.heatmap.ModelHeatmap(
+            viz.wsi.path,
+            viz._model,
+            tile_px=viz.tile_px,
+            tile_um=viz.tile_um,
+            img_format=viz._model_config['img_format'],
+            stride_div=self.stride,
+            generate=False,
+            normalizer=viz._normalizer,
+            uq=viz.has_uq()
+        )
         self._generating = True
         self._heatmap_grid, self._heatmap_thread = viz.heatmap.generate(asynchronous=True)
 
