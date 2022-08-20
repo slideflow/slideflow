@@ -125,8 +125,8 @@ class Workbench(imgui_window.ImguiWindow):
     def wsi_window_size(self):
         max_w = self.content_width - self.pane_w
         max_h = self.content_height
-        return (min(int(max_w * self.thumb_zoom), self.wsi.dimensions[0]),
-                min(int(max_h * self.thumb_zoom), self.wsi.dimensions[1]))
+        return (min(max_w * self.thumb_zoom, self.wsi.dimensions[0]),
+                min(max_h * self.thumb_zoom, self.wsi.dimensions[1]))
 
     def _apply_overlay_offset(self, y_correct=0):
         self._overlay_offset = [- (self.wsi.dimensions[0] - self._overlay_wsi_dim[0]) / 2,
@@ -240,7 +240,7 @@ class Workbench(imgui_window.ImguiWindow):
             wsi_ratio = self.wsi.dimensions[0] / self.wsi.dimensions[1]
             if wsi_ratio < max_w / max_h:
                 max_w = int(wsi_ratio * max_h)
-            self.thumb_origin = [0, 0]
+            self.thumb_origin = (0, 0)
             self._thumb_params = None
             self.thumb_zoom = max(self.wsi.dimensions[0] / max_w,
                                   self.wsi.dimensions[1] / max_h)
@@ -256,12 +256,13 @@ class Workbench(imgui_window.ImguiWindow):
         max_w = self.content_width - self.pane_w
         max_h = self.content_height
 
-        log.debug("Refreshing thumbnail (max_w={}, max_h={})".format(max_w, max_h))
+        #log.debug("Refreshing thumbnail (max_w={}, max_h={})".format(max_w, max_h))
 
+        _new_origin = list(self.thumb_origin)
         if dx is not None:
-            self.thumb_origin[0] -= (dx * self.thumb_zoom)
+            _new_origin[0] -= (dx * self.thumb_zoom)
         if dy is not None:
-            self.thumb_origin[1] -= (dy * self.thumb_zoom)
+            _new_origin[1] -= (dy * self.thumb_zoom)
         if dz is not None:
             assert cx is not None and cy is not None
             wsi_x, wsi_y = self.display_coords_to_wsi_coords(cx, cy)
@@ -269,14 +270,14 @@ class Workbench(imgui_window.ImguiWindow):
                                   max(self.wsi.dimensions[0] / max_w,
                                       self.wsi.dimensions[1] / max_h))
 
-            self.thumb_origin[0] = wsi_x - (cx * self.wsi_window_size[0] / max_w)
-            self.thumb_origin[1] = wsi_y - (cy * self.wsi_window_size[1] / max_h)
+            _new_origin[0] = wsi_x - (cx * self.wsi_window_size[0] / max_w)
+            _new_origin[1] = wsi_y - (cy * self.wsi_window_size[1] / max_h)
 
         # Refresh thumbnail.
         # Enforce boundary limits.
-        self.thumb_origin = [max(self.thumb_origin[0], 0), max(self.thumb_origin[1], 0)]
-        self.thumb_origin = [min(self.thumb_origin[0], self.wsi.dimensions[0] - self.wsi_window_size[0]),
-                                min(self.thumb_origin[1], self.wsi.dimensions[1] - self.wsi_window_size[1])]
+        _new_origin = [max(_new_origin[0], 0), max(_new_origin[1], 0)]
+        _new_origin = [min(_new_origin[0], self.wsi.dimensions[0] - self.wsi_window_size[0]),
+                            min(_new_origin[1], self.wsi.dimensions[1] - self.wsi_window_size[1])]
 
         wsi_ratio = self.wsi_window_size[0] / self.wsi_window_size[1]
         if wsi_ratio < (max_w / max_h):
@@ -289,8 +290,8 @@ class Workbench(imgui_window.ImguiWindow):
 
         # Calculate region to extract from image
         _thumb_params = dict(
-            top_left=self.thumb_origin,
-            window_size=self.wsi_window_size,
+            top_left=_new_origin,
+            window_size=(int(self.wsi_window_size[0]), int(self.wsi_window_size[1])),
             target_size=target_size
         )
         if _thumb_params != self._thumb_params:
@@ -300,6 +301,7 @@ class Workbench(imgui_window.ImguiWindow):
             if region.bands == 4:
                 region = region.flatten()  # removes alpha
             self.thumb = sf.slide.vips2numpy(region)
+            self.thumb_origin = tuple(_new_origin)
 
             # Log post-refresh parameters
             log.debug("Refreshed slide view:")
@@ -338,6 +340,7 @@ class Workbench(imgui_window.ImguiWindow):
         self.label_w = round(self.font_size * 4.5)
         max_w = self.content_width - self.pane_w
         max_h = self.content_height
+        window_changed = (self._content_width != self.content_width or self._content_height != self.content_height)
 
         # Begin control pane.
         imgui.set_next_window_position(0, 0)
@@ -381,12 +384,12 @@ class Workbench(imgui_window.ImguiWindow):
             if wheel < 0:
                 dz = 1.5
             if wheel or dragging or self._refresh_thumb:
-                log.debug("Loop refresh (wheel={}, dragging={}, refresh={})".format(wheel, dragging, self._refresh_thumb))
+                #log.debug("Loop refresh (wheel={}, dragging={}, refresh={})".format(wheel, dragging, self._refresh_thumb))
                 self._refresh_thumb = False
                 self.refresh_thumb(cx=cx, cy=cy, dx=dx, dy=dy, dz=dz)
 
         # Re-generate thumbnail if the window size changed.
-        if (self._content_width != self.content_width or self._content_height != self.content_height):
+        if window_changed:
             self.reset_thumb()
             self._content_width  = self.content_width
             self._content_height = self.content_height
@@ -442,7 +445,7 @@ class Workbench(imgui_window.ImguiWindow):
 
             # Update box location.
             if self.x is not None and self.y is not None:
-                if clicking or dragging or wheel:
+                if clicking or dragging or wheel or window_changed:
                     self.box_x, self.box_y = self.wsi_coords_to_display_coords(self.x, self.y)
                     self.box_x += self.pane_w
                 tw = self.wsi.full_extract_px / self.thumb_zoom

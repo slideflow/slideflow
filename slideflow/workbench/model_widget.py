@@ -42,6 +42,7 @@ class ModelWidget:
         self.enable_saliency    = False
         self.saliency_overlay   = False
         self.saliency_idx       = 0
+        self._show_params       = False
         self._saliency_methods_all = {
             'Vanilla': grad.VANILLA,
             'Vanilla (Smoothed)': grad.VANILLA_SMOOTH,
@@ -128,6 +129,32 @@ class ModelWidget:
         dim_color = list(imgui.get_style().colors[imgui.COLOR_TEXT])
         dim_color[-1] *= 0.5
         recent_models = [model for model in self.recent_models if model != self.user_model]
+
+        if self._show_params and self.viz._model_config:
+            hp = self.viz._model_config['hp']
+            rows = list(zip(list(map(str, hp.keys())), list(map(str, hp.values()))))
+
+            imgui.open_popup('params_popup')
+            if imgui.begin_popup('params_popup'):
+                imgui.text('Model parameters')
+                imgui.separator()
+                #height = imgui.get_text_line_height_with_spacing() * len(rows) + viz.spacing
+                #imgui.begin_child('##model_properties', width=-1, height=height, border=True)
+                for y, cols in enumerate(rows):
+                    for x, col in enumerate(cols):
+                        if x != 0:
+                            imgui.same_line(viz.font_size * 10)
+                        if x == 0: # or y == 0:
+                            imgui.text_colored(col, *dim_color)
+                        else:
+                            imgui.text(col)
+                #imgui.end_child()
+                imgui.text('')
+                imgui.same_line((imgui.get_content_region_max()[0])/2 - (self.viz.button_w/2) + self.viz.spacing)
+                if imgui.button('Close'):
+                    self._show_params = False
+                imgui.end_popup()
+
         if show:
             imgui.text('Model')
             imgui.same_line(viz.label_w)
@@ -189,7 +216,7 @@ class ModelWidget:
 
             # Image preview ===================================================
             width = viz.font_size * 28
-            height = imgui.get_text_line_height_with_spacing() * 10
+            height = imgui.get_text_line_height_with_spacing() * 11
             if self.show_preview:
                 imgui.begin_child('##pred_image', width=width, height=height, border=False)
                 if viz._tex_obj is not None and viz.tile_px:
@@ -234,7 +261,7 @@ class ModelWidget:
                 ['Model type',   vals[4]],
                 ['Version',      vals[5]],
             ]
-            height = imgui.get_text_line_height_with_spacing() * len(rows) + viz.spacing
+            height = imgui.get_text_line_height_with_spacing() * len(rows) + viz.spacing * 2
             imgui.begin_child('##model_properties', width=-1, height=height, border=True)
             for y, cols in enumerate(rows):
                 for x, col in enumerate(cols):
@@ -244,7 +271,14 @@ class ModelWidget:
                         imgui.text_colored(col, *dim_color)
                     else:
                         imgui.text(col)
+
+            with imgui_utils.grayed_out(viz._model is None):
+                imgui.same_line(imgui.get_content_region_max()[0] - viz.font_size - viz.spacing * 2)
+                if imgui.button("HP") and self.viz._model_config:
+                    self._show_params = True
             imgui.end_child()
+
+
             # -----------------------------------------------------------------
 
             imgui.text('Model')
