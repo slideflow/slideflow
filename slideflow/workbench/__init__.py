@@ -45,8 +45,8 @@ class Workbench(imgui_window.ImguiWindow):
         self._heatmap_tex_obj   = None
         self._wsi_tex_img       = None
         self._wsi_tex_obj       = None
-        self._heatmap_overlay_tex_img   = None
-        self._heatmap_overlay_tex_obj   = None
+        self._overlay_tex_img   = None
+        self._overlay_tex_obj   = None
         self._predictions       = None
         self._model             = None
         self._model_config      = None
@@ -59,7 +59,8 @@ class Workbench(imgui_window.ImguiWindow):
         self._content_width     = None
         self._slide_path        = None
         self._refresh_thumb_flag= False
-        self._show_overlay      = False
+        self._overlay_offset    = [0, 0]
+        self._overlay_wsi_dim   = None
 
         # Widget interface.
         self.wsi                = None
@@ -68,7 +69,6 @@ class Workbench(imgui_window.ImguiWindow):
         self.thumb              = None
         self.thumb_zoom         = None
         self.thumb_origin       = None
-        self.thumb_offset       = None
         self.box_x              = None
         self.box_y              = None
         self.tile_px            = None
@@ -103,6 +103,20 @@ class Workbench(imgui_window.ImguiWindow):
         self.skip_frame() # Layout may change after first frame.
         self.load_slide('')
 
+    @property
+    def thumb_screen_offset(self):
+        if self._thumb_tex_obj is not None:
+            max_w = (self.content_width - self.pane_w)
+            max_h = self.content_height
+            return ((max_w - self.thumb.shape[1]) / 2,
+                    (max_h - self.thumb.shape[0]) / 2)
+        else:
+            return (0, 0)
+
+    @property
+    def show_overlay(self):
+        return self.slide_widget.show_overlay or self.heatmap_widget.show
+
     def close(self):
         super().close()
         if self._async_renderer is not None:
@@ -130,6 +144,10 @@ class Workbench(imgui_window.ImguiWindow):
     def defer_rendering(self, num_frames=1):
         self._defer_rendering = max(self._defer_rendering, num_frames)
 
+    def clear_overlay(self):
+        self._overlay_tex_img   = None
+        self.overlay_heatmap    = None
+
     def clear_model(self):
         self._async_renderer.clear_result()
         self._use_model         = False
@@ -149,18 +167,12 @@ class Workbench(imgui_window.ImguiWindow):
     def clear_result(self):
         self._async_renderer.clear_result()
         self._tex_img           = None
-        self._tex_obj           = None
         self._norm_tex_img      = None
-        self._norm_tex_obj      = None
         self._thumb_tex_img     = None
-        self._thumb_tex_obj     = None
         self._heatmap_tex_img   = None
-        self._heatmap_tex_obj   = None
         self._wsi_tex_img       = None
-        self._wsi_tex_obj       = None
-        self._heatmap_overlay_tex_img   = None
-        self._heatmap_overlay_tex_obj   = None
         self.clear_model_results()
+        self.clear_overlay()
 
     def clear_model_results(self):
         self._async_renderer.clear_result()
@@ -171,8 +183,8 @@ class Workbench(imgui_window.ImguiWindow):
         self._norm_tex_obj      = None
         self._heatmap_tex_img   = None
         self._heatmap_tex_obj   = None
-        self._heatmap_overlay_tex_img   = None
-        self._heatmap_overlay_tex_obj   = None
+        self._overlay_tex_img   = None
+        self._overlay_tex_obj   = None
 
     def set_async(self, is_async):
         if is_async != self._async_renderer.is_async:
@@ -194,40 +206,85 @@ class Workbench(imgui_window.ImguiWindow):
                 and 'uq' in self._model_config['hp']
                 and self._model_config['hp']['uq'])
 
-    def reset_thumb(self, width):
+    def reset_thumb(self):
         if self.wsi:
-            max_w = (self.content_width - self.pane_w)
+            max_w = self.content_width - self.pane_w
             max_h = self.content_height
-            slide_hw_ratio = (self.wsi.dimensions[1] / self.wsi.dimensions[0])
-
-            if (max_h / max_w) < slide_hw_ratio:
-                _width = int(max_h // slide_hw_ratio)
-            else:
-                _width = int(width)
-
-            self.thumb = np.asarray(self.wsi.thumb(width=_width))
-            if self.thumb.shape[-1] == 4:
-                self.thumb = self.thumb[:, :, 0:3]
-            if self._normalizer and self._normalize_wsi:
-                self.thumb = self._normalizer.transform(self.thumb)
-            self.thumb_zoom = self.wsi.dimensions[0] / self.thumb.shape[1]
-            self.thumb_offset = (
-                (max_w - self.thumb.shape[1]) / 2,
-                (max_h - self.thumb.shape[0]) / 2
-            )
+            wsi_ratio = self.wsi.dimensions[0] / self.wsi.dimensions[1]
+            if wsi_ratio < max_w / max_h:
+                max_w = int(wsi_ratio * max_h)
+            self.thumb = np.asarray(self.wsi.thumb(width=max_w))
             self.thumb_origin = [0, 0]
-            self.wsi_window_size = None
+            self.thumb_zoom = None
+            self.move_thumb()
+
+    def move_thumb(self, cx=None, cy=None, dx=None, dy=None, dz=None):
+
+        max_w = self.content_width - self.pane_w
+        max_h = self.content_height
+
+        if self.thumb_zoom is None:
+            self.thumb_zoom = self.wsi.dimensions[0] / self.thumb.shape[1]
+
+        window_size = (min(int(max_w * self.thumb_zoom), self.wsi.dimensions[0]),
+                       min(int(max_h * self.thumb_zoom), self.wsi.dimensions[1]))
+
+        if dx is not None:
+            self.thumb_origin[0] -= (dx * self.thumb_zoom)
+        if dy is not None:
+            self.thumb_origin[1] -= (dy * self.thumb_zoom)
+        if dz is not None:
+            assert cx is not None and cy is not None
+            wsi_x, wsi_y = self.display_coords_to_wsi_coords(cx, cy)
+            self.thumb_zoom = min(self.thumb_zoom * dz,
+                                  max(self.wsi.dimensions[0] / max_w,
+                                      self.wsi.dimensions[1] / max_h))
+
+            window_size = (min(int(max_w * self.thumb_zoom), self.wsi.dimensions[0]),
+                           min(int(max_h * self.thumb_zoom), self.wsi.dimensions[1]))
+
+            self.thumb_origin[0] = wsi_x - (cx * window_size[0] / max_w)
+            self.thumb_origin[1] = wsi_y - (cy * window_size[1] / max_h)
+
+        # Refresh thumbnail.
+        # Enforce boundary limits.
+        self.thumb_origin = [max(self.thumb_origin[0], 0), max(self.thumb_origin[1], 0)]
+        self.thumb_origin = [min(self.thumb_origin[0], self.wsi.dimensions[0]-window_size[0]),
+                                min(self.thumb_origin[1], self.wsi.dimensions[1]-window_size[1])]
+
+        wsi_ratio = window_size[0] / window_size[1]#self.wsi.dimensions[0] / self.wsi.dimensions[1]
+        if wsi_ratio < (max_w / max_h):
+            # Image is taller than wide
+            max_w = int(window_size[0] / (window_size[1] / max_h))
+        else:
+            # Image is wider than tall
+            max_h = int(window_size[1] / (window_size[0] / max_w))
+        target_size = (max_w, max_h)
+        region = self.wsi.slide.read_from_pyramid(
+            top_left=self.thumb_origin,
+            window_size=window_size,
+            target_size=target_size)
+        if region.bands == 4:
+            region = region.flatten()  # removes alpha
+        self.thumb = sf.slide.vips2numpy(region)
+        if self._normalizer and self._normalize_wsi:
+            self.thumb = self._normalizer.transform(self.thumb)
+        self.wsi_window_size = window_size
+        if self._thumb_tex_obj is not None:
+            if self._thumb_tex_obj is not None and (abs(self._thumb_tex_obj.width - max_w) > 1) or (abs(self._thumb_tex_obj.height - max_h) > 1):
+                self._thumb_tex_img = None
+
 
     def wsi_coords_to_display_coords(self, x, y):
         return (
-            int(((x - self.thumb_origin[0]) / self.thumb_zoom) + self.thumb_offset[0]),
-            int(((y - self.thumb_origin[1]) / self.thumb_zoom) + self.thumb_offset[1])
+            int(((x - self.thumb_origin[0]) / self.thumb_zoom) + self.thumb_screen_offset[0]),
+            int(((y - self.thumb_origin[1]) / self.thumb_zoom) + self.thumb_screen_offset[1])
         )
 
     def display_coords_to_wsi_coords(self, x, y):
         return (
-            int((x - self.thumb_offset[0]) * self.thumb_zoom + self.thumb_origin[0]),
-            int((y - self.thumb_offset[1]) * self.thumb_zoom + self.thumb_origin[1])
+            int((x - self.thumb_screen_offset[0]) * self.thumb_zoom + self.thumb_origin[0]),
+            int((y - self.thumb_screen_offset[1]) * self.thumb_zoom + self.thumb_origin[1])
         )
 
     def draw_frame(self):
@@ -263,53 +320,30 @@ class Workbench(imgui_window.ImguiWindow):
         dragging, dx, dy = imgui_utils.drag_hidden_window('##result_area', x=self.pane_w, y=0, width=self.content_width-self.pane_w, height=self.content_height)
 
         if self.thumb is not None:
-            wsi_x, wsi_y = self.display_coords_to_wsi_coords(cx, cy)
-
             # Update thumb focus location & zoom values
             # If shift-dragging or scrolling.
-            if dragging:
-                self.thumb_origin[0] -= (dx * self.thumb_zoom)
-                self.thumb_origin[1] -= (dy * self.thumb_zoom)
+            dz = None
+            if not dragging:
+                dx, dy = None, None
             if wheel > 0:
-                self.thumb_zoom /= 1.5
+                dz = 1/1.5
             if wheel < 0:
-                self.thumb_zoom = min(self.thumb_zoom * 1.5,
-                                      self.wsi.dimensions[0] / max_w)
-
-            window_size = (min(int(max_w * self.thumb_zoom), self.wsi.dimensions[0]),
-                           min(int(max_h * self.thumb_zoom), self.wsi.dimensions[1]))
-
-            if wheel:
-                self.thumb_origin[0] = wsi_x - (cx * window_size[0] / max_w)
-                self.thumb_origin[1] = wsi_y - (cy * window_size[1] / max_h)
+                dz = 1.5
             if wheel or dragging or self._refresh_thumb_flag:
                 self._refresh_thumb_flag = False
-                try:
-                    # Enforce boundary limits.
-                    self.thumb_origin = [max(self.thumb_origin[0], 0), max(self.thumb_origin[1], 0)]
-                    self.thumb_origin = [min(self.thumb_origin[0], self.wsi.dimensions[0]-window_size[0]), min(self.thumb_origin[1], self.wsi.dimensions[1]-window_size[1])]
-
-                    target_size = (max_w, max_h)
-                    region = self.wsi.slide.read_from_pyramid(
-                        top_left=self.thumb_origin,
-                        window_size=window_size,
-                        target_size=target_size)
-                    if region.bands == 4:
-                        region = region.flatten()  # removes alpha
-                    self.thumb = sf.slide.vips2numpy(region)
-                    if self._normalizer and self._normalize_wsi:
-                        self.thumb = self._normalizer.transform(self.thumb)
-                    self.wsi_window_size = window_size
-                except pyvips.error.Error as e:
-                    self.reset_thumb(max_w)
+                self.move_thumb(cx=cx, cy=cy, dx=dx, dy=dy, dz=dz)
 
         # Re-generate thumbnail if the window size changed.
         if self._content_width != self.content_width:
-            self.reset_thumb(max_w)
+            self.reset_thumb()
             self._content_width = self.content_width
 
         # Display thumbnail.
         if self.thumb is not None:
+
+            # Calculate thumbnail zoom and offset.
+            thumb_max_x = self.thumb_screen_offset[0] + self.thumb.shape[1]
+            thumb_max_y = self.thumb_screen_offset[1] + self.thumb.shape[0]
 
             # Render thumbnail.
             t_pos = np.array([self.pane_w + max_w / 2, max_h / 2])
@@ -324,25 +358,33 @@ class Workbench(imgui_window.ImguiWindow):
             self._thumb_tex_obj.draw(pos=t_pos, zoom=t_zoom, align=0.5, rint=True)
 
             # Render overlay heatmap.
-            if self.overlay_heatmap is not None and self._show_overlay:
-                if self._heatmap_overlay_tex_img is not self.overlay_heatmap:
-                    self._heatmap_overlay_tex_img = self.overlay_heatmap
-                    if self._heatmap_overlay_tex_obj is None or not self._heatmap_overlay_tex_obj.is_compatible(image=self._heatmap_overlay_tex_img):
-                        self._heatmap_overlay_tex_obj = gl_utils.Texture(image=self._heatmap_overlay_tex_img, bilinear=False, mipmap=False)
+            #TODO: enforce top-left corner matches thumbnail
+            if self.overlay_heatmap is not None and self.show_overlay:
+                if self._overlay_tex_img is not self.overlay_heatmap:
+                    self._overlay_tex_img = self.overlay_heatmap
+                    if self._overlay_tex_obj is None or not self._overlay_tex_obj.is_compatible(image=self._overlay_tex_img):
+                        self._overlay_tex_obj = gl_utils.Texture(image=self._overlay_tex_img, bilinear=False, mipmap=False)
                     else:
-                        self._heatmap_overlay_tex_obj.update(self._heatmap_overlay_tex_img)
-                h_pos_x, h_pos_y = self.wsi_coords_to_display_coords(0, 0)
-                h_pos = (h_pos_x + self.pane_w + (self.wsi.dimensions[0] / self.thumb_zoom) / 2, h_pos_y + (self.wsi.dimensions[1] / self.thumb_zoom) / 2)
-                h_zoom = (self.wsi.dimensions[0] / self._heatmap_overlay_tex_obj.width) / self.thumb_zoom
-                self._heatmap_overlay_tex_obj.draw(pos=h_pos, zoom=h_zoom, align=0.5, rint=True)
+                        self._overlay_tex_obj.update(self._overlay_tex_img)
+                h_pos_x, h_pos_y = self.wsi_coords_to_display_coords(*self._overlay_offset)
 
-            # Calculate thumbnail zoom and offset.
-            self.thumb_offset = ((max_w - self.thumb.shape[1]) / 2, (max_h - self.thumb.shape[0]) / 2)
-            thumb_max_x = self.thumb_offset[0] + self.thumb.shape[1]
-            thumb_max_y = self.thumb_offset[1] + self.thumb.shape[0]
+                if self._overlay_wsi_dim is None:
+                    self._overlay_wsi_dim = self.wsi.dimensions
+
+                h_pos = [h_pos_x + self.pane_w + (self.wsi.dimensions[0] / self.thumb_zoom) / 2,
+                         h_pos_y + (self.wsi.dimensions[1] / self.thumb_zoom) / 2]
+                h_zoom = (self._overlay_wsi_dim[0] / self.overlay_heatmap.shape[1]) / self.thumb_zoom
+
+                pos_correction = (- (self.wsi.dimensions[0] - self._overlay_wsi_dim[0]) / (self.thumb_zoom * 2),
+                                  - (self.wsi.dimensions[1] - self._overlay_wsi_dim[1]) / (self.thumb_zoom * 2))
+                h_pos[0] += np.floor(pos_correction[0])
+                h_pos[1] += np.floor(pos_correction[1])
+
+                self._overlay_tex_obj.draw(pos=h_pos, zoom=h_zoom, align=0.5, rint=True)
 
             # Calculate location for model display.
-            if self._model and clicking and not dragging and (self.thumb_offset[0] <= cx <= thumb_max_x) and (self.thumb_offset[1] <= cy <= thumb_max_y):
+            if self._model and clicking and not dragging and (self.thumb_screen_offset[0] <= cx <= thumb_max_x) and (self.thumb_screen_offset[1] <= cy <= thumb_max_y):
+                wsi_x, wsi_y = self.display_coords_to_wsi_coords(cx, cy)
                 self.x = wsi_x - (self.wsi.full_extract_px/2)
                 self.y = wsi_y - (self.wsi.full_extract_px/2)
 

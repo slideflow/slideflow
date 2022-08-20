@@ -38,7 +38,6 @@ class HeatmapWidget:
         self.show                   = True
         self.heatmap_logits         = 0
         self.heatmap_uncertainty    = 0
-        self.stride                 = 1
         self.use_logits             = True
         self.use_uncertainty        = False
         self.cmap_idx               = 0
@@ -59,6 +58,11 @@ class HeatmapWidget:
         if self.viz.rendered_heatmap is not None:
             alpha_channel = np.full(self.viz.rendered_heatmap.shape[0:2], int(self.alpha * 255), dtype=np.uint8)
             self.viz.overlay_heatmap = np.dstack((self.viz.rendered_heatmap[:, :, 0:3], alpha_channel))
+
+            full_extract = self.viz.wsi.tile_um / self.viz.wsi.mpp
+            wsi_factor = full_extract / self.viz.wsi.stride_div
+            self.viz._overlay_wsi_dim = (int(full_extract + wsi_factor * (self.viz.overlay_heatmap.shape[1]-1)),
+                                         int(full_extract + wsi_factor * (self.viz.overlay_heatmap.shape[0]-1)))
 
     def render_heatmap(self):
         self._old_logits = self.heatmap_logits
@@ -94,12 +98,9 @@ class HeatmapWidget:
         self.reset()
         self._button_pressed = True
         viz.heatmap = sf.heatmap.ModelHeatmap(
-            viz.wsi.path,
+            viz.wsi,
             viz._model,
-            tile_px=viz.tile_px,
-            tile_um=viz.tile_um,
             img_format=viz._model_config['img_format'],
-            stride_div=self.stride,
             generate=False,
             normalizer=viz._normalizer,
             uq=viz.has_uq()
@@ -115,8 +116,6 @@ class HeatmapWidget:
                 self.logits = logits
                 self.uncertainty = uncertainty
                 self.render_heatmap()
-                self.update_transparency()
-                self.viz._show_overlay = self.show
                 self._heatmap_sum = _sum
 
         if self._heatmap_thread is not None and not self._heatmap_thread.is_alive():
@@ -170,29 +169,27 @@ class HeatmapWidget:
             # Heatmap options.
             with imgui_utils.grayed_out(viz._model is None or viz.wsi is None):
 
-                with imgui_utils.item_width(viz.font_size * 5):
-                    _alpha_changed, self.stride = imgui.slider_int('##stride', self.stride, min_value=1, max_value=16, format='Stride %d')
+                # Colormap.
+                with imgui_utils.item_width(viz.font_size * 6):
+                    _clicked, self.cmap_idx = imgui.combo("##cmap", self.cmap_idx, self._colormaps)
+                if _clicked:
+                    _cmap_changed = True
 
-                imgui.same_line(viz.font_size * 5 + viz.spacing)
+                imgui.same_line(viz.font_size * 6 + viz.spacing)
                 _clicked, self.show = imgui.checkbox('Show', self.show)
                 if _clicked:
-                    viz._show_overlay = self.show
+                    self.render_heatmap()
+                    if self.show:
+                        self.viz.slide_widget.show_slide_filter  = False
+                        self.viz.slide_widget.show_tile_filter   = False
 
                 imgui.same_line(imgui.get_content_region_max()[0] - 1 - viz.button_w)
                 if imgui_utils.button(('Generate' if not self._button_pressed else "Working..."), width=viz.button_w, enabled=(not self._button_pressed)):
                     _thread = threading.Thread(target=self.generate_heatmap)
                     _thread.start()
+                    self.show = True
 
                 with imgui_utils.grayed_out(viz.heatmap is None):
-                    # Colormap.
-                    with imgui_utils.item_width(-1 - viz.button_w - viz.spacing):
-                        _clicked, self.cmap_idx = imgui.combo("##cmap", self.cmap_idx, self._colormaps)
-                    if _clicked:
-                        _cmap_changed = True
-                    imgui.same_line(imgui.get_content_region_max()[0] - 1 - viz.button_w)
-                    if imgui_utils.button('Reset##cmap', width=-1, enabled=True):
-                        self.cmap_idx = 0
-                        _cmap_changed = True
 
                     # Alpha.
                     with imgui_utils.item_width(-1 - viz.button_w - viz.spacing):

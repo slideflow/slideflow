@@ -209,7 +209,7 @@ class SlideMap:
             if self.df.logits:
                 logits = [
                     self.df.logits[row.slide][row.tfr_index]
-                    for _, row in self.data.iterrows()
+                    for row in self.data.itertuples()
                 ]
             predictions = np.argmax(np.array(logits), axis=1)
             self.data['logits'] = pd.Series(logits)
@@ -388,7 +388,7 @@ class SlideMap:
             )
         return np.array([
             self.df.activations[row.slide][row.tfr_index]
-            for _, row in self.data.iterrows()
+            for row in self.data.itertuples()
         ])
 
     def cluster(self, n_clusters: int) -> None:
@@ -407,7 +407,7 @@ class SlideMap:
             )
         activations = [
             self.df.activations[row.slide][row.tfr_index]
-            for _, row in self.data.iterrows()
+            for row in self.data.itertuples()
         ]
         log.info(f"Calculating K-means clustering (n={n_clusters})")
         kmeans = KMeans(n_clusters=n_clusters).fit(activations)
@@ -726,7 +726,7 @@ class SlideMap:
         if z is None:
             z = np.array([
                 self.df.activations[row.slide][row.tfr_index][feature]
-                for _, row in plot_df.iterrows()
+                for row in plot_df.itertuples()
             ])
 
         # Plot tiles on a 3D coordinate space with 2 coordinates from UMAP

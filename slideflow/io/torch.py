@@ -328,7 +328,7 @@ class LocLabelInterleaver(StyleGAN2Interleaver):
                              'loc_labels dataset.')
 
         self.incl_loc = True
-        first_index, first_row  = next(self.df.iterrows())
+        first_row  = next(self.df.itertuples())
         self._label_shape = first_row.label.shape
 
     @property

@@ -79,4 +79,15 @@ setuptools.setup(
         'glfw',
         'saliency'
     ],
+    extras_require={
+        'tf': [
+            'tensorflow>=2.7,<2.10',
+            'tensorflow_probability'
+        ],
+        'torch': [
+            'torch',
+            'torchvision',
+            'pretrained_models'
+        ],
+    },
 )

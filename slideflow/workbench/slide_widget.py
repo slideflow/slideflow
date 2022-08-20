@@ -10,6 +10,7 @@ import os
 import re
 import imgui
 import numpy as np
+import threading
 
 from PIL import Image
 from . import renderer
@@ -37,8 +38,20 @@ class SlideWidget:
         self.normalize_wsi  = False
         self.norm_idx       = 0
         self.qc_idx         = 0
+        self.qc_mask        = None
         self.alpha          = 1.0
-        self.show_qc        = False
+        self.stride         = 1
+        self.show_slide_filter  = False
+        self.show_tile_filter   = False
+        self.gs_fraction    = sf.slide.DEFAULT_GRAYSPACE_FRACTION
+        self.gs_threshold   = sf.slide.DEFAULT_GRAYSPACE_THRESHOLD
+        self.ws_fraction    = sf.slide.DEFAULT_WHITESPACE_FRACTION
+        self.ws_threshold   = sf.slide.DEFAULT_WHITESPACE_THRESHOLD
+        self._filter_grid   = None
+        self._filter_thread = None
+        self._capturing_ws_thresh = None
+        self._capturing_gs_thresh = None
+        self._capturing_stride = None
         self._all_normalizer_methods = [
             'reinhard',
             'reinhard_fast',
@@ -63,8 +76,13 @@ class SlideWidget:
         self._qc_methods        = ['blur', 'otsu', 'both']
         self.load('', ignore_errors=True)
 
+    @property
+    def show_overlay(self):
+        return self.show_slide_filter or self.show_tile_filter
+
     def load(self, slide, ignore_errors=False):
         viz = self.viz
+        self.reset_tile_filter_and_join_thread()
         viz.clear_result()
         viz.skip_frame() # The input field will change on next frame.
         if slide == '':
@@ -76,12 +94,12 @@ class SlideWidget:
             self.user_slide = slide
             viz.result.message = f'Loading {name}...'
             viz.defer_rendering()
-            tile_px = viz.tile_px if viz.tile_px else 100
-            tile_um = viz.tile_um if viz.tile_um else 100
+            tile_px = viz.tile_px if viz.tile_px else 128
+            tile_um = viz.tile_um if viz.tile_um else 300
             viz._slide_path = slide
             print(f'Loading {slide}...')
-            viz.wsi = sf.WSI(slide, tile_px=tile_px, tile_um=tile_um, verbose=False)
-            viz.reset_thumb(width=viz.content_width)
+            viz.wsi = sf.WSI(slide, tile_px=tile_px, tile_um=tile_um, stride_div=self.stride, verbose=False)
+            viz.reset_thumb()
             viz.heatmap_widget.reset()
 
             # Generate WSI thumbnail.
@@ -95,6 +113,30 @@ class SlideWidget:
             viz.result = EasyDict(error=renderer.CapturedException())
             if not ignore_errors:
                 raise
+
+    def _clear_images(self):
+        self._overlay_tex_img    = None
+
+    def _join_filter_thread(self):
+        if self._filter_thread is not None:
+            self._filter_thread.join()
+        self._filter_thread = None
+
+    def _start_filter_thread(self):
+        self._filter_thread = threading.Thread(target=self._build_filter_grid)
+        self._filter_thread.start()
+
+    def refresh_stride(self):
+        self.reset_tile_filter_and_join_thread()
+        self.viz.clear_overlay()
+        self.show_tile_filter = False
+        self.show_slide_filter = False
+        self.viz.wsi = sf.WSI(
+            self.viz.wsi.path,
+            tile_px=self.viz.wsi.tile_px,
+            tile_um=self.viz.wsi.tile_um,
+            stride_div=self.stride,
+            verbose=False)
 
     def hide_model_normalizer(self):
         self._normalizer_methods = self._all_normalizer_methods
@@ -112,14 +154,123 @@ class SlideWidget:
         else:
             self.viz._normalizer = sf.norm.autoselect(method, source='v2')
 
-    def generate_qc(self):
-        if self.show_qc and self.viz.wsi is not None:
-            self.viz.wsi.remove_qc()
-            qc_mask = np.asarray(self.viz.wsi.qc(self._qc_methods[self.qc_idx]))
-            alpha_channel = (qc_mask).astype(np.uint8) * 255 * 255
-            self.viz.rendered_qc = np.asarray(Image.fromarray(~qc_mask).convert('RGB')) * 255
-            self.viz.overlay_heatmap = np.dstack((self.viz.rendered_qc[:, :, 0:3], alpha_channel))
-        self.viz._show_overlay = self.show_qc
+    def render_to_overlay(self, mask, offset=None, correct_wsi_dim=None):
+        """Renders boolean mask as an overlay, where:
+
+            True = show tile from slide
+            False = show black box
+        """
+        assert mask.dtype == bool
+        alpha = (~mask).astype(np.uint8) * 255
+        black = np.zeros(list(mask.shape) + [3], dtype=np.uint8)
+        self.viz.overlay_heatmap = np.dstack((black, alpha))
+        if offset is not None:
+            assert isinstance(offset, (list, tuple)) and len(offset) == 2
+            self.viz._overlay_offset = offset
+        if correct_wsi_dim:
+            full_extract = self.viz.wsi.tile_um / self.viz.wsi.mpp
+            wsi_factor = full_extract / self.viz.wsi.stride_div
+            self.viz._overlay_wsi_dim = (int(full_extract + wsi_factor * (mask.shape[1]-1)),
+                                         int(full_extract + wsi_factor * (mask.shape[0]-1)))
+
+    def reset_tile_filter_and_join_thread(self):
+        self._join_filter_thread()
+        self._clear_images()
+        self._filter_grid = None
+        self._filter_thread = None
+        self._ws_grid = None
+        self._gs_grid = None
+
+    def _build_filter_grid(self):
+        if self.viz.wsi is not None:
+            generator = self.viz.wsi.build_generator(
+                img_format='numpy',
+                grayspace_fraction=sf.slide.FORCE_CALCULATE_GRAYSPACE,
+                grayspace_threshold=self.gs_threshold,
+                whitespace_fraction=sf.slide.FORCE_CALCULATE_WHITESPACE,
+                whitespace_threshold=self.ws_threshold,
+                shuffle=False,
+                dry_run=True)
+            if not generator:
+                return
+            # Returns boolean grid, where:
+            #   True = tile will be extracted
+            #   False = tile will be discarded (failed QC)
+            self._filter_grid = np.transpose(self.viz.wsi.grid).astype(np.bool)
+            self._ws_grid = np.zeros_like(self._filter_grid, dtype=np.float)
+            self._gs_grid = np.zeros_like(self._filter_grid, dtype=np.float)
+            for tile in generator():
+                x = tile['grid'][0]
+                y = tile['grid'][1]
+                gs = tile['gs_fraction']
+                ws = tile['ws_fraction']
+                try:
+                    self._ws_grid[y][x] = ws
+                    self._gs_grid[y][x] = gs
+                    if gs > self.gs_fraction or ws > self.ws_fraction:
+                        self._filter_grid[y][x] = False
+                        self.render_to_overlay(self._filter_grid, correct_wsi_dim=True)
+                except TypeError:
+                    # Occurs when the _ws_grid is reset, e.g. the slide was re-loaded.
+                    print("Aborting tile filter calculation")
+                    return
+
+    def _render_slide_filter(self):
+        self.viz.heatmap_widget.show = False
+        self._clear_images()
+        self.viz._overlay_wsi_dim = None
+        self.render_to_overlay(self.qc_mask)
+
+    def _render_tile_filter(self):
+        self.viz.heatmap_widget.show = False
+        self._join_filter_thread()
+        self.render_to_overlay(self._filter_grid, correct_wsi_dim=True)
+
+    def update_tile_filter(self):
+        if self.show_tile_filter:
+            self.viz.heatmap_widget.show = False
+            self._join_filter_thread()
+            self._clear_images()
+            if not self.show_slide_filter:
+                self.viz.overlay_heatmap = None
+            if self._filter_grid is None and self.viz.wsi is not None:
+                self._start_filter_thread()
+            elif self._filter_grid is not None:
+                self._render_tile_filter()
+        else:
+            self._clear_images()
+            if self.show_slide_filter:
+                self._render_slide_filter()
+
+    def update_slide_filter(self):
+        self.viz.wsi.remove_qc()
+        self._join_filter_thread()
+        if self.show_slide_filter and self.viz.wsi is not None:
+            self.viz.heatmap_widget.show = False
+            self.qc_mask = ~np.asarray(self.viz.wsi.qc(self._qc_methods[self.qc_idx]), dtype=np.bool)
+            if not self.show_tile_filter:
+                self._render_slide_filter()
+        else:
+            self.qc_mask = None
+        self.reset_tile_filter_and_join_thread()
+        if self.show_tile_filter:
+            self.update_tile_filter()
+
+    def refresh_gs_ws(self):
+        self._join_filter_thread()
+        if self._ws_grid is not None:
+            # Returns boolean grid, where:
+            #   True = tile will be extracted
+            #   False = tile will be discarded (failed QC)
+            self._filter_grid = np.transpose(self.viz.wsi.grid).astype(np.bool)
+            for y in range(self._ws_grid.shape[0]):
+                for x in range(self._ws_grid.shape[1]):
+                    ws = self._ws_grid[y][x]
+                    gs = self._gs_grid[y][x]
+                    if gs > self.gs_fraction or ws > self.ws_fraction:
+                        self._filter_grid[y][x] = False
+            if self.show_tile_filter:
+                self.render_to_overlay(self._filter_grid, correct_wsi_dim=True)
 
     @imgui_utils.scoped_by_object_id
     def __call__(self, show=True):
@@ -200,28 +351,27 @@ class SlideWidget:
             # Slide properties (sub-child). -----------------------------------
             if viz.wsi is not None:
                 prop = viz.wsi.properties
+                if self._filter_grid is not None and self.show_tile_filter:
+                    est_tiles = int(self._filter_grid.sum())
+                elif self.show_slide_filter:
+                    est_tiles = viz.wsi.estimated_num_tiles
+                else:
+                    est_tiles = viz.wsi.grid.shape[0] * viz.wsi.grid.shape[1]
                 vals = [
-                    str(prop['width']),
-                    str(prop['height']),
-                    f'{viz.wsi.mpp:.4f}',
+                    f"{prop['width']} x {prop['height']}",
+                    f'{viz.wsi.mpp:.4f} ({int(10 / (viz.wsi.slide.level_downsamples[0] * viz.wsi.mpp)):d}x)',
                     viz.wsi.vendor if viz.wsi.vendor is not None else '-',
-                    f'{10 / (viz.wsi.slide.level_downsamples[0] * viz.wsi.mpp):.1f}x',
-                    str(viz.wsi.slide.level_count),
-                    '-' if viz._model is None else str(viz.wsi.estimated_num_tiles),
+                    str(est_tiles),
                     '-'
                 ]
             else:
                 vals = ["-" for _ in range(8)]
             rows = [
-                ['Property',     'Value'],
-                ['Width (px)',    vals[0]],
-                ['Height (px)',   vals[1]],
-                ['MPP',           vals[2]],
-                ['Scanner',       vals[3]],
-                ['Magnification', vals[4]],
-                ['Levels',        vals[5]],
-                ['Est. tiles',    vals[6]],
-                ['ROIs',          vals[7]],
+                ['Dimensions (w x h)',  vals[0]],
+                ['MPP (Magnification)', vals[1]],
+                ['Scanner',             vals[2]],
+                ['Est. tiles',          vals[3]],
+                ['ROIs',                vals[4]],
             ]
             height = imgui.get_text_line_height_with_spacing() * len(rows) + viz.spacing
             imgui.begin_child('##slide_properties', width=-1, height=height, border=True)
@@ -229,13 +379,36 @@ class SlideWidget:
                 for x, col in enumerate(cols):
                     if x != 0:
                         imgui.same_line(viz.font_size * (8 + (x - 1) * 6))
-                    if x == 0 or y == 0:
+                    if x == 0:
                         imgui.text_colored(col, *dim_color)
                     else:
                         imgui.text(col)
             imgui.end_child()
             # -----------------------------------------------------------------
 
+            # Tile filtering
+            _filter_clicked, self.show_tile_filter = imgui.checkbox('Tile filter', self.show_tile_filter)
+            if _filter_clicked:
+                self.update_tile_filter()
+            imgui.same_line(imgui.get_content_region_max()[0] - 1 - viz.font_size*8)
+            with imgui_utils.item_width(viz.font_size * 8):
+                _stride_changed, _stride = imgui.slider_int('##stride', self.stride, min_value=1, max_value=16, format='Stride %d')
+                if _stride_changed:
+                    self._capturing_stride = _stride
+                if imgui.is_mouse_released() and self._capturing_stride:
+                    self.stride = self._capturing_stride
+                    self._capturing_stride = None
+                    self.refresh_stride()
+
+            # Slide filtering
+            _qc_clicked, self.show_slide_filter = imgui.checkbox('Slide filter (QC)', self.show_slide_filter)
+            imgui.same_line(imgui.get_content_region_max()[0] - 1 - viz.font_size*8)
+            with imgui_utils.item_width(viz.font_size * 8), imgui_utils.grayed_out(not self.show_slide_filter):
+                _qc_method_clicked, self.qc_idx = imgui.combo("##qc_method", self.qc_idx, self._qc_methods_str)
+            if _qc_clicked or _qc_method_clicked:
+                self.update_slide_filter()
+
+            # Normalizing
             _norm_clicked, self.normalize_wsi = imgui.checkbox('Normalize', self.normalize_wsi)
             viz._normalize_wsi = self.normalize_wsi
             if _norm_clicked:
@@ -247,12 +420,42 @@ class SlideWidget:
                 self.change_normalizer()
                 viz._refresh_thumb_flag = True
 
-            _qc_clicked, self.show_qc = imgui.checkbox('Show QC', self.show_qc)
-            imgui.same_line(imgui.get_content_region_max()[0] - 1 - viz.font_size*8)
-            with imgui_utils.item_width(viz.font_size * 8), imgui_utils.grayed_out(not self.show_qc):
-                _qc_method_clicked, self.qc_idx = imgui.combo("##qc_method", self.qc_idx, self._qc_methods_str)
-            if _qc_clicked or _qc_method_clicked:
-                self.generate_qc()
+
+            # Grayspace & whitespace filtering --------------------------------
+            with imgui_utils.grayed_out((self._filter_thread is not None and self._filter_thread.is_alive()) or not self.show_tile_filter):
+                imgui.text("Grayspace")
+                imgui.same_line(viz.label_w)
+                slider_w = (imgui.get_content_region_max()[0] - (viz.spacing + viz.label_w)) / 2
+                with imgui_utils.item_width(slider_w):
+                    _gsf_changed, _gs_frac = imgui.slider_float('##gs_fraction', self.gs_fraction, min_value=0, max_value=1, format='Fraction %.2f')
+                imgui.same_line()
+                with imgui_utils.item_width(slider_w):
+                    _gst_changed, _gs_thresh = imgui.slider_float('##gs_threshold', self.gs_threshold, min_value=0, max_value=1, format='Thresh %.2f')
+
+                imgui.text("Whitespace")
+                imgui.same_line(viz.label_w)
+                with imgui_utils.item_width(slider_w):
+                    _wsf_changed, _ws_frac = imgui.slider_float('##ws_fraction', self.ws_fraction, min_value=0, max_value=1, format='Fraction %.2f')
+                imgui.same_line()
+                with imgui_utils.item_width(slider_w):
+                    _wst_changed, _ws_thresh = imgui.slider_float('##ws_threshold', self.ws_threshold, min_value=0, max_value=255, format='Thresh %.0f')
+                if self._filter_thread is None or not self._filter_thread.is_alive():
+                    if _gsf_changed or _wsf_changed:
+                        self.gs_fraction = _gs_frac
+                        self.ws_fraction = _ws_frac
+                        self.refresh_gs_ws()
+                    if _gst_changed or _wst_changed:
+                        self._capturing_ws_thresh = _ws_thresh
+                        self._capturing_gs_thresh = _gs_thresh
+                if imgui.is_mouse_released() and self._capturing_gs_thresh:
+                    self.gs_threshold = self._capturing_gs_thresh
+                    self.ws_threshold = self._capturing_ws_thresh
+                    self._capturing_ws_thresh = None
+                    self._capturing_gs_thresh = None
+                    self.reset_tile_filter_and_join_thread()
+                    self.update_tile_filter()
+
+            # -----------------------------------------------------------------
 
             # End slide options and properties
             imgui.end_child()

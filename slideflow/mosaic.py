@@ -108,7 +108,7 @@ class Mosaic:
         # First, load UMAP coordinates
         log.info('Loading coordinates and plotting points...')
         self.points = []
-        for i, row in slide_map.data.iterrows():
+        for i, row in enumerate(slide_map.data.itertuples()):
             if tile_meta:
                 meta = tile_meta[row.slide][row.tfr_index]
             else:

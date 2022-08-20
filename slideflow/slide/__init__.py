@@ -59,6 +59,8 @@ DEFAULT_WHITESPACE_THRESHOLD = 230
 DEFAULT_WHITESPACE_FRACTION = 1.0
 DEFAULT_GRAYSPACE_THRESHOLD = 0.05
 DEFAULT_GRAYSPACE_FRACTION = 0.6
+FORCE_CALCULATE_WHITESPACE = -1
+FORCE_CALCULATE_GRAYSPACE = -1
 
 
 def OPS_LEVEL_HEIGHT(level: int) -> str:
@@ -238,7 +240,8 @@ def _wsi_extraction_worker(
                 'more',
                 args.whitespace_threshold
             ).avg() / 255
-            if ws_fraction > args.whitespace_fraction:
+            if (ws_fraction > args.whitespace_fraction
+               and args.whitespace_fraction != FORCE_CALCULATE_WHITESPACE):
                 return None
 
         # Perform grayspace filtering [Libvips]
@@ -248,7 +251,8 @@ def _wsi_extraction_worker(
                 'less',
                 args.grayspace_threshold*255
             ).avg() / 255
-            if gs_fraction > args.grayspace_fraction:
+            if (gs_fraction > args.grayspace_fraction
+               and args.whitespace_fraction != FORCE_CALCULATE_WHITESPACE):
                 return None
 
     # Prepare return dict with WS/GS fraction
@@ -1275,18 +1279,18 @@ class _BaseLoader:
                 log.error(f"Unable to mark slide {self.name} as complete")
 
         # Assemble report DataFrame
-        loc_np = np.array(locations)
-        grid_np = np.array(grid_locations)
+        loc_np = np.array(locations, dtype=np.int64)
+        grid_np = np.array(grid_locations, dtype=np.int64)
         df_dict = {
-            'loc_x': [] if not len(loc_np) else loc_np[:, 0],
-            'loc_y': [] if not len(loc_np) else loc_np[:, 1],
-            'grid_x': [] if not len(grid_np) else grid_np[:, 0],
-            'grid_y': [] if not len(grid_np) else grid_np[:, 1]
+            'loc_x': [] if not len(loc_np) else pd.Series(loc_np[:, 0], dtype=int),
+            'loc_y': [] if not len(loc_np) else pd.Series(loc_np[:, 1], dtype=int),
+            'grid_x': [] if not len(grid_np) else pd.Series(grid_np[:, 0], dtype=int),
+            'grid_y': [] if not len(grid_np) else pd.Series(grid_np[:, 1], dtype=int)
         }
         if ws_fractions:
-            df_dict.update({'ws_fraction': ws_fractions})
+            df_dict.update({'ws_fraction': pd.Series(ws_fractions, dtype=float)})
         if gs_fractions:
-            df_dict.update({'gs_fraction': gs_fractions})
+            df_dict.update({'gs_fraction': pd.Series(gs_fractions, dtype=float)})
         df = pd.DataFrame(df_dict)
 
         # Generate extraction report
@@ -1597,7 +1601,7 @@ class WSI(_BaseLoader):
             (self.dimensions[0]+1) - self.full_extract_px,
             self.full_stride
         )
-        self.grid = np.ones((len(x_range), len(y_range)), dtype=np.int32)
+        self.grid = np.ones((len(x_range), len(y_range)), dtype=bool)
 
         # ROI filtering
         if self.roi_method != 'ignore' and self.annPolys is not None:
