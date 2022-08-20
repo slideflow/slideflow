@@ -54,6 +54,7 @@ class HeatmapWidget:
         self._heatmap_grid          = None
         self._heatmap_thread        = None
         self._colormaps             = plt.colormaps()
+        self._rendering_message     = "Calculating heatmap..."
 
     def update_transparency(self):
         if self.viz.rendered_heatmap is not None:
@@ -74,8 +75,7 @@ class HeatmapWidget:
 
             self.viz._overlay_wsi_dim = (full_extract + wsi_factor * (self.viz.overlay_heatmap.shape[1]-1),
                                          full_extract + wsi_factor * (self.viz.overlay_heatmap.shape[0]-1))
-            self.viz._overlay_offset = (- (self.viz.wsi.dimensions[0] - self.viz._overlay_wsi_dim[0]) / 2,
-                                        - (self.viz.wsi.dimensions[1] - self.viz._overlay_wsi_dim[1]) / 2 - y_correct)
+            self.viz._apply_overlay_offset(y_correct)
 
     def render_heatmap(self):
         self._old_logits = self.heatmap_logits
@@ -141,6 +141,7 @@ class HeatmapWidget:
             self._generating = False
             self._button_pressed = False
             self._heatmap_thread = None
+            self.viz.clear_message(self._rendering_message)
 
     @imgui_utils.scoped_by_object_id
     def __call__(self, show=True):
@@ -205,6 +206,8 @@ class HeatmapWidget:
                 imgui.same_line(imgui.get_content_region_max()[0] - 1 - viz.button_w)
                 _button_text = ('Generate' if not self._button_pressed else "Working...")
                 if imgui_utils.button(_button_text, width=viz.button_w, enabled=(not self._button_pressed)):
+                    print("setting message from heatmap")
+                    self.viz.set_message(self._rendering_message)
                     _thread = threading.Thread(target=self.generate_heatmap)
                     _thread.start()
                     self.show = True

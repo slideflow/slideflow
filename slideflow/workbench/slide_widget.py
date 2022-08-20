@@ -52,6 +52,7 @@ class SlideWidget:
         self._capturing_ws_thresh = None
         self._capturing_gs_thresh = None
         self._capturing_stride = None
+        self._rendering_message = "Calculating tile filter..."
         self._all_normalizer_methods = [
             'reinhard',
             'reinhard_fast',
@@ -96,7 +97,7 @@ class SlideWidget:
             name = slide.replace('\\', '/').split('/')[-1]
             self.cur_slide = slide
             self.user_slide = slide
-            viz.result.message = f'Loading {name}...'
+            self.viz.set_message(f'Loading {name}...')
             viz.defer_rendering()
             tile_px = viz.tile_px if viz.tile_px else 128
             tile_um = viz.tile_um if viz.tile_um else 300
@@ -110,10 +111,12 @@ class SlideWidget:
             hw_ratio = (viz.wsi.dimensions[0] / viz.wsi.dimensions[1])
             max_width = int(min(800 - viz.spacing*2, (800 - viz.spacing*2) / hw_ratio))
             viz.wsi_thumb = np.asarray(viz.wsi.thumb(width=max_width))
+            self.viz.clear_message(f'Loading {name}...')
 
         except Exception:
             self.cur_slide = None
             self.user_slide = slide
+            self.viz.clear_message(f'Loading {name}...')
             viz.result = EasyDict(error=renderer.CapturedException())
             if not ignore_errors:
                 raise
@@ -127,6 +130,7 @@ class SlideWidget:
         self._filter_thread = None
 
     def _start_filter_thread(self):
+        self._join_filter_thread()
         self._filter_thread = threading.Thread(target=self._build_filter_grid)
         self._filter_thread.start()
 
@@ -158,7 +162,7 @@ class SlideWidget:
         else:
             self.viz._normalizer = sf.norm.autoselect(method, source='v2')
 
-    def render_to_overlay(self, mask, offset=None, correct_wsi_dim=None):
+    def render_to_overlay(self, mask, correct_wsi_dim=None):
         """Renders boolean mask as an overlay, where:
 
             True = show tile from slide
@@ -168,14 +172,22 @@ class SlideWidget:
         alpha = (~mask).astype(np.uint8) * 255
         black = np.zeros(list(mask.shape) + [3], dtype=np.uint8)
         self.viz.overlay_heatmap = np.dstack((black, alpha))
-        if offset is not None:
-            assert isinstance(offset, (list, tuple)) and len(offset) == 2
-            self.viz._overlay_offset = offset
         if correct_wsi_dim:
             full_extract = self.viz.wsi.tile_um / self.viz.wsi.mpp
             wsi_factor = full_extract / self.viz.wsi.stride_div
+
+            # I have no idea why this is required, but it is necessary --------
+            # to ensure the heatmaps are properly aligned.                    |
+            # TODO: Find a better solution!                                   |
+            y_correct = (full_extract/30) * (self.viz.wsi.stride_div-1)  #    |
+            # -----------------------------------------------------------------
+
             self.viz._overlay_wsi_dim = (int(full_extract + wsi_factor * (mask.shape[1]-1)),
                                          int(full_extract + wsi_factor * (mask.shape[0]-1)))
+            self.viz._apply_overlay_offset(y_correct)
+        else:
+            self.viz._overlay_wsi_dim = None
+            self.viz._reset_overlay_offset()
 
     def reset_tile_filter_and_join_thread(self):
         self._join_filter_thread()
@@ -187,6 +199,7 @@ class SlideWidget:
 
     def _build_filter_grid(self):
         if self.viz.wsi is not None:
+            self.viz.set_message(self._rendering_message)
             generator = self.viz.wsi.build_generator(
                 img_format='numpy',
                 grayspace_fraction=sf.slide.FORCE_CALCULATE_GRAYSPACE,
@@ -196,6 +209,7 @@ class SlideWidget:
                 shuffle=False,
                 dry_run=True)
             if not generator:
+                self.viz.clear_message(self._rendering_message)
                 return
             # Returns boolean grid, where:
             #   True = tile will be extracted
@@ -217,9 +231,12 @@ class SlideWidget:
                 except TypeError:
                     # Occurs when the _ws_grid is reset, e.g. the slide was re-loaded.
                     print("Aborting tile filter calculation")
+                    self.viz.clear_message(self._rendering_message)
                     return
+            self.viz.clear_message(self._rendering_message)
 
     def _render_slide_filter(self):
+        """Render the slide filter (QC) to screen."""
         self.viz.heatmap_widget.show = False
         self._clear_images()
         self.viz._overlay_wsi_dim = None
@@ -249,16 +266,22 @@ class SlideWidget:
     def update_slide_filter(self):
         self.viz.wsi.remove_qc()
         self._join_filter_thread()
+
+        # Update the slide QC
         if self.show_slide_filter and self.viz.wsi is not None:
             self.viz.heatmap_widget.show = False
             self.qc_mask = ~np.asarray(self.viz.wsi.qc(self._qc_methods[self.qc_idx]), dtype=np.bool)
-            if not self.show_tile_filter:
-                self._render_slide_filter()
         else:
             self.qc_mask = None
+
+        # Update the tile filter since the QC method has changed
         self.reset_tile_filter_and_join_thread()
         if self.show_tile_filter:
             self.update_tile_filter()
+
+        # Render the slide filter
+        if self.show_slide_filter and not self.show_tile_filter:
+            self._render_slide_filter()
 
     def refresh_gs_ws(self):
         self._join_filter_thread()
@@ -279,6 +302,7 @@ class SlideWidget:
     @imgui_utils.scoped_by_object_id
     def __call__(self, show=True):
         viz = self.viz
+
         if show:
             imgui.text('Slide')
             imgui.same_line(viz.label_w)
@@ -420,13 +444,13 @@ class SlideWidget:
             _norm_clicked, self.normalize_wsi = imgui.checkbox('Normalize', self.normalize_wsi)
             viz._normalize_wsi = self.normalize_wsi
             if _norm_clicked:
-                viz._refresh_thumb_flag = True
+                viz._refresh_thumb = True
             imgui.same_line(imgui.get_content_region_max()[0] - 1 - viz.font_size*8)
             with imgui_utils.item_width(viz.font_size * 8), imgui_utils.grayed_out(not self.normalize_wsi):
                 _clicked, self.norm_idx = imgui.combo("##norm_method", self.norm_idx, self._normalizer_methods_str)
                 if _clicked:
                     self.change_normalizer()
-                    viz._refresh_thumb_flag = True
+                    viz._refresh_thumb = True
 
 
             # Grayspace & whitespace filtering --------------------------------

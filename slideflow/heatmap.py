@@ -39,7 +39,7 @@ class Heatmap:
         self,
         slide: Union[str, WSI],
         model: str,
-        stride_div: Optional[int] = 2,
+        stride_div: Optional[int] = None,
         batch_size: int = 32,
         num_threads: Optional[int] = None,
         img_format: str = 'auto',
@@ -112,7 +112,7 @@ class Heatmap:
 
         if isinstance(slide, str):
             if stride_div is None:
-                raise ValueError("If slide is a path, must supply stride_div.")
+                stride_div = 2
 
             self.slide_path = slide
             self.stride_div = stride_div
@@ -122,7 +122,7 @@ class Heatmap:
                     self.tile_px,
                     self.tile_um,
                     self.stride_div,
-                    **self.wsi_kwargs  # type: ignore
+                    **wsi_kwargs  # type: ignore
                 )
             except errors.SlideLoadError:
                 raise errors.HeatmapError(
@@ -625,7 +625,7 @@ class ModelHeatmap(Heatmap):
         img_format: str,
         tile_px: Optional[int] = None,
         tile_um: Optional[int] = None,
-        stride_div: Optional[int] = 2,
+        stride_div: Optional[int] = None,
         roi_dir: Optional[str] = None,
         rois: Optional[List[str]] = None,
         roi_method: str = 'auto',
@@ -685,7 +685,7 @@ class ModelHeatmap(Heatmap):
             if tile_um is None:
                 raise ValueError("If slide is a path, must supply tile_um.")
             if stride_div is None:
-                raise ValueError("If slide is a path, must supply stride_div.")
+                stride_div = 2
 
             self.slide_path = slide
             self.tile_px = tile_px
