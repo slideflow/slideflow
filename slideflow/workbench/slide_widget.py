@@ -80,6 +80,10 @@ class SlideWidget:
     def show_overlay(self):
         return self.show_slide_filter or self.show_tile_filter
 
+    @property
+    def _thread_is_running(self):
+        return self._filter_thread is not None and self._filter_thread.is_alive()
+
     def load(self, slide, ignore_errors=False):
         viz = self.viz
         self.reset_tile_filter_and_join_thread()
@@ -392,7 +396,11 @@ class SlideWidget:
                 self.update_tile_filter()
             imgui.same_line(imgui.get_content_region_max()[0] - 1 - viz.font_size*8)
             with imgui_utils.item_width(viz.font_size * 8):
-                _stride_changed, _stride = imgui.slider_int('##stride', self.stride, min_value=1, max_value=16, format='Stride %d')
+                _stride_changed, _stride = imgui.slider_int('##stride',
+                                                            self.stride,
+                                                            min_value=1,
+                                                            max_value=16,
+                                                            format='Stride %d')
                 if _stride_changed:
                     self._capturing_stride = _stride
                 if imgui.is_mouse_released() and self._capturing_stride:
@@ -415,31 +423,49 @@ class SlideWidget:
                 viz._refresh_thumb_flag = True
             imgui.same_line(imgui.get_content_region_max()[0] - 1 - viz.font_size*8)
             with imgui_utils.item_width(viz.font_size * 8), imgui_utils.grayed_out(not self.normalize_wsi):
-                _norm_method_clicked, self.norm_idx = imgui.combo("##norm_method", self.norm_idx, self._normalizer_methods_str)
-            if _norm_method_clicked:
-                self.change_normalizer()
-                viz._refresh_thumb_flag = True
+                _clicked, self.norm_idx = imgui.combo("##norm_method", self.norm_idx, self._normalizer_methods_str)
+                if _clicked:
+                    self.change_normalizer()
+                    viz._refresh_thumb_flag = True
 
 
             # Grayspace & whitespace filtering --------------------------------
-            with imgui_utils.grayed_out((self._filter_thread is not None and self._filter_thread.is_alive()) or not self.show_tile_filter):
+            with imgui_utils.grayed_out(self._thread_is_running or not self.show_tile_filter):
+                imgui.separator()
                 imgui.text("Grayspace")
                 imgui.same_line(viz.label_w)
                 slider_w = (imgui.get_content_region_max()[0] - (viz.spacing + viz.label_w)) / 2
                 with imgui_utils.item_width(slider_w):
-                    _gsf_changed, _gs_frac = imgui.slider_float('##gs_fraction', self.gs_fraction, min_value=0, max_value=1, format='Fraction %.2f')
+                    _gsf_changed, _gs_frac = imgui.slider_float('##gs_fraction',
+                                                                 self.gs_fraction,
+                                                                 min_value=0,
+                                                                 max_value=1,
+                                                                 format='Fraction %.2f')
                 imgui.same_line()
                 with imgui_utils.item_width(slider_w):
-                    _gst_changed, _gs_thresh = imgui.slider_float('##gs_threshold', self.gs_threshold, min_value=0, max_value=1, format='Thresh %.2f')
+                    _gst_changed, _gs_thresh = imgui.slider_float('##gs_threshold',
+                                                                  self.gs_threshold,
+                                                                  min_value=0,
+                                                                  max_value=1,
+                                                                  format='Thresh %.2f')
 
                 imgui.text("Whitespace")
                 imgui.same_line(viz.label_w)
                 with imgui_utils.item_width(slider_w):
-                    _wsf_changed, _ws_frac = imgui.slider_float('##ws_fraction', self.ws_fraction, min_value=0, max_value=1, format='Fraction %.2f')
+                    _wsf_changed, _ws_frac = imgui.slider_float('##ws_fraction',
+                                                                self.ws_fraction,
+                                                                min_value=0,
+                                                                max_value=1,
+                                                                format='Fraction %.2f')
                 imgui.same_line()
                 with imgui_utils.item_width(slider_w):
-                    _wst_changed, _ws_thresh = imgui.slider_float('##ws_threshold', self.ws_threshold, min_value=0, max_value=255, format='Thresh %.0f')
-                if self._filter_thread is None or not self._filter_thread.is_alive():
+                    _wst_changed, _ws_thresh = imgui.slider_float('##ws_threshold',
+                                                                  self.ws_threshold,
+                                                                  min_value=0,
+                                                                  max_value=255,
+                                                                  format='Thresh %.0f')
+
+                if not self._thread_is_running:
                     if _gsf_changed or _wsf_changed:
                         self.gs_fraction = _gs_frac
                         self.ws_fraction = _ws_frac
@@ -457,8 +483,8 @@ class SlideWidget:
 
             # -----------------------------------------------------------------
 
-            # End slide options and properties
             imgui.end_child()
+
             # =================================================================
 
         if imgui.begin_popup('project_slides_popup'):

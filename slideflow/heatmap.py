@@ -44,6 +44,7 @@ class Heatmap:
         num_threads: Optional[int] = None,
         img_format: str = 'auto',
         generate: bool = True,
+        generator_kwargs: Optional[Dict[str, Any]] = None,
         **wsi_kwargs
     ) -> None:
         """Convolutes across a whole slide, calculating logits and saving
@@ -149,7 +150,9 @@ class Heatmap:
             raise ValueError(f"Unrecognized value {slide} for argument slide")
 
         if generate:
-            self.generate()
+            if generator_kwargs is None:
+                generator_kwargs = {}
+            self.generate(**generator_kwargs)
 
     @staticmethod
     def _prepare_ax(ax: Optional["Axes"] = None) -> "Axes":
@@ -176,6 +179,7 @@ class Heatmap:
     def generate(
         self,
         asynchronous: bool = False,
+        **kwargs
     ) -> Optional[Tuple[np.ndarray, Thread]]:
         """Generate the heatmap.
 
@@ -203,7 +207,8 @@ class Heatmap:
                 batch_size=self.batch_size,
                 img_format=self.img_format,
                 dtype=np.float32,
-                grid=grid
+                grid=grid,
+                **kwargs
             )
             if self.uq:
                 self.logits = out[:, :, :-(self.num_uncertainty)]

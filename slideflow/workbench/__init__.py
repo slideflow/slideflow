@@ -271,20 +271,21 @@ class Workbench(imgui_window.ImguiWindow):
             self.thumb = self._normalizer.transform(self.thumb)
         self.wsi_window_size = window_size
         if self._thumb_tex_obj is not None:
-            if self._thumb_tex_obj is not None and (abs(self._thumb_tex_obj.width - max_w) > 1) or (abs(self._thumb_tex_obj.height - max_h) > 1):
+            if self._thumb_tex_obj is not None and ((abs(self._thumb_tex_obj.width - max_w) > 1)
+                                                    or (abs(self._thumb_tex_obj.height - max_h) > 1)):
                 self._thumb_tex_img = None
 
 
     def wsi_coords_to_display_coords(self, x, y):
         return (
-            int(((x - self.thumb_origin[0]) / self.thumb_zoom) + self.thumb_screen_offset[0]),
-            int(((y - self.thumb_origin[1]) / self.thumb_zoom) + self.thumb_screen_offset[1])
+            np.floor(((x - self.thumb_origin[0]) / self.thumb_zoom) + self.thumb_screen_offset[0]),
+            np.floor(((y - self.thumb_origin[1]) / self.thumb_zoom) + self.thumb_screen_offset[1])
         )
 
     def display_coords_to_wsi_coords(self, x, y):
         return (
-            int((x - self.thumb_screen_offset[0]) * self.thumb_zoom + self.thumb_origin[0]),
-            int((y - self.thumb_screen_offset[1]) * self.thumb_zoom + self.thumb_origin[1])
+            np.floor((x - self.thumb_screen_offset[0]) * self.thumb_zoom + self.thumb_origin[0]),
+            np.floor((y - self.thumb_screen_offset[1]) * self.thumb_zoom + self.thumb_origin[1])
         )
 
     def draw_frame(self):
@@ -307,17 +308,26 @@ class Workbench(imgui_window.ImguiWindow):
         self.project_widget(expanded)
         expanded, _visible = imgui_utils.collapsing_header('Whole-slide image', default=True)
         self.slide_widget(expanded)
-        expanded, _visible = imgui_utils.collapsing_header('Prediction & saliency', default=True)
+        expanded, _visible = imgui_utils.collapsing_header('Model & tile predictions', default=True)
         self.model_widget(expanded)
-        expanded, _visible = imgui_utils.collapsing_header('Heatmap', default=True)
+        expanded, _visible = imgui_utils.collapsing_header('Heatmap & slide prediction', default=True)
         self.heatmap_widget(expanded)
         expanded, _visible = imgui_utils.collapsing_header('Performance & capture', default=True)
         self.perf_widget(expanded)
         self.capture_widget(expanded)
 
         # Detect mouse dragging in the thumbnail display.
-        clicking, cx, cy, wheel = imgui_utils.click_hidden_window('##result_area', x=self.pane_w, y=0, width=self.content_width-self.pane_w, height=self.content_height, mouse_idx=1)
-        dragging, dx, dy = imgui_utils.drag_hidden_window('##result_area', x=self.pane_w, y=0, width=self.content_width-self.pane_w, height=self.content_height)
+        clicking, cx, cy, wheel = imgui_utils.click_hidden_window('##result_area',
+                                                                  x=self.pane_w,
+                                                                  y=0,
+                                                                  width=self.content_width-self.pane_w,
+                                                                  height=self.content_height,
+                                                                  mouse_idx=1)
+        dragging, dx, dy = imgui_utils.drag_hidden_window('##result_area',
+                                                          x=self.pane_w,
+                                                          y=0,
+                                                          width=self.content_width-self.pane_w,
+                                                          height=self.content_height)
 
         if self.thumb is not None:
             # Update thumb focus location & zoom values
@@ -375,15 +385,14 @@ class Workbench(imgui_window.ImguiWindow):
                          h_pos_y + (self.wsi.dimensions[1] / self.thumb_zoom) / 2]
                 h_zoom = (self._overlay_wsi_dim[0] / self.overlay_heatmap.shape[1]) / self.thumb_zoom
 
-                pos_correction = (- (self.wsi.dimensions[0] - self._overlay_wsi_dim[0]) / (self.thumb_zoom * 2),
-                                  - (self.wsi.dimensions[1] - self._overlay_wsi_dim[1]) / (self.thumb_zoom * 2))
-                h_pos[0] += np.floor(pos_correction[0])
-                h_pos[1] += np.floor(pos_correction[1])
-
                 self._overlay_tex_obj.draw(pos=h_pos, zoom=h_zoom, align=0.5, rint=True)
 
             # Calculate location for model display.
-            if self._model and clicking and not dragging and (self.thumb_screen_offset[0] <= cx <= thumb_max_x) and (self.thumb_screen_offset[1] <= cy <= thumb_max_y):
+            if (self._model
+               and clicking
+               and not dragging
+               and (self.thumb_screen_offset[0] <= cx <= thumb_max_x)
+               and (self.thumb_screen_offset[1] <= cy <= thumb_max_y)):
                 wsi_x, wsi_y = self.display_coords_to_wsi_coords(cx, cy)
                 self.x = wsi_x - (self.wsi.full_extract_px/2)
                 self.y = wsi_y - (self.wsi.full_extract_px/2)
@@ -515,7 +524,9 @@ class AsyncRenderer:
                 multiprocessing.set_start_method('spawn')
             except RuntimeError:
                 pass
-            self._process = multiprocessing.Process(target=self._process_fn, args=(self._args_queue, self._result_queue), daemon=True)
+            self._process = multiprocessing.Process(target=self._process_fn,
+                                                    args=(self._args_queue, self._result_queue),
+                                                    daemon=True)
             self._process.start()
         self._args_queue.put([args, self._cur_stamp])
 

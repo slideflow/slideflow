@@ -10,6 +10,7 @@ import numpy as np
 import imgui
 import threading
 import matplotlib.pyplot as plt
+from array import array
 from .gui_utils import imgui_utils
 
 import slideflow as sf
@@ -56,13 +57,25 @@ class HeatmapWidget:
 
     def update_transparency(self):
         if self.viz.rendered_heatmap is not None:
-            alpha_channel = np.full(self.viz.rendered_heatmap.shape[0:2], int(self.alpha * 255), dtype=np.uint8)
-            self.viz.overlay_heatmap = np.dstack((self.viz.rendered_heatmap[:, :, 0:3], alpha_channel))
+            alpha_channel = np.full(self.viz.rendered_heatmap.shape[0:2],
+                                    int(self.alpha * 255),
+                                    dtype=np.uint8)
+            self.viz.overlay_heatmap = np.dstack((self.viz.rendered_heatmap[:, :, 0:3],
+                                                  alpha_channel))
 
             full_extract = self.viz.wsi.tile_um / self.viz.wsi.mpp
             wsi_factor = full_extract / self.viz.wsi.stride_div
-            self.viz._overlay_wsi_dim = (int(full_extract + wsi_factor * (self.viz.overlay_heatmap.shape[1]-1)),
-                                         int(full_extract + wsi_factor * (self.viz.overlay_heatmap.shape[0]-1)))
+
+            # I have no idea why this is required, but it is necessary --------
+            # to ensure the heatmaps are properly aligned.                    |
+            # TODO: Find a better solution!                                   |
+            y_correct = (full_extract/30) * (self.viz.wsi.stride_div-1)  #    |
+            # -----------------------------------------------------------------
+
+            self.viz._overlay_wsi_dim = (full_extract + wsi_factor * (self.viz.overlay_heatmap.shape[1]-1),
+                                         full_extract + wsi_factor * (self.viz.overlay_heatmap.shape[0]-1))
+            self.viz._overlay_offset = (- (self.viz.wsi.dimensions[0] - self.viz._overlay_wsi_dim[0]) / 2,
+                                        - (self.viz.wsi.dimensions[1] - self.viz._overlay_wsi_dim[1]) / 2 - y_correct)
 
     def render_heatmap(self):
         self._old_logits = self.heatmap_logits
@@ -106,7 +119,13 @@ class HeatmapWidget:
             uq=viz.has_uq()
         )
         self._generating = True
-        self._heatmap_grid, self._heatmap_thread = viz.heatmap.generate(asynchronous=True)
+        self._heatmap_grid, self._heatmap_thread = viz.heatmap.generate(
+            asynchronous=True,
+            grayspace_fraction=self.viz.slide_widget.gs_fraction,
+            grayspace_threshold=self.viz.slide_widget.gs_threshold,
+            whitespace_fraction=self.viz.slide_widget.ws_fraction,
+            whitespace_threshold=self.viz.slide_widget.ws_threshold,
+        )
 
     def refresh_generating_heatmap(self):
         if self.viz.heatmap is not None and self._heatmap_grid is not None:
@@ -184,7 +203,8 @@ class HeatmapWidget:
                         self.viz.slide_widget.show_tile_filter   = False
 
                 imgui.same_line(imgui.get_content_region_max()[0] - 1 - viz.button_w)
-                if imgui_utils.button(('Generate' if not self._button_pressed else "Working..."), width=viz.button_w, enabled=(not self._button_pressed)):
+                _button_text = ('Generate' if not self._button_pressed else "Working...")
+                if imgui_utils.button(_button_text, width=viz.button_w, enabled=(not self._button_pressed)):
                     _thread = threading.Thread(target=self.generate_heatmap)
                     _thread.start()
                     self.show = True
@@ -193,7 +213,12 @@ class HeatmapWidget:
 
                     # Alpha.
                     with imgui_utils.item_width(-1 - viz.button_w - viz.spacing):
-                        _alpha_changed, self.alpha = imgui.slider_float('##alpha', self.alpha, min_value=0, max_value=1, format='Alpha %.2f')
+                        _alpha_changed, self.alpha = imgui.slider_float('##alpha',
+                                                                        self.alpha,
+                                                                        min_value=0,
+                                                                        max_value=1,
+                                                                        format='Alpha %.2f')
+
                     imgui.same_line(imgui.get_content_region_max()[0] - 1 - viz.button_w)
                     if imgui_utils.button('Reset##alpha', width=-1, enabled=True):
                         self.alpha = 0.5
@@ -201,7 +226,12 @@ class HeatmapWidget:
 
                     # Gain.
                     with imgui_utils.item_width(-1 - viz.button_w - viz.spacing):
-                        _gain_changed, self.gain = imgui.slider_float('##gain', self.gain, min_value=0, max_value=10, format='Gain %.2f')
+                        _gain_changed, self.gain = imgui.slider_float('##gain',
+                                                                      self.gain,
+                                                                      min_value=0,
+                                                                      max_value=10,
+                                                                      format='Gain %.2f')
+
                     imgui.same_line(imgui.get_content_region_max()[0] - 1 - viz.button_w)
                     if imgui_utils.button('Reset##gain', width=-1, enabled=True):
                         if self.use_logits:
@@ -222,7 +252,12 @@ class HeatmapWidget:
 
                     imgui.same_line()
                     with imgui_utils.item_width(-1 - viz.button_w - narrow_w * 2 - viz.spacing * 3):
-                        _changed, self.heatmap_logits = imgui.drag_int('##heatmap_logits', self.heatmap_logits, change_speed=0.05, min_value=0, max_value=heatmap_logits_max, format=f'Logits %d/{heatmap_logits_max}')
+                        _changed, self.heatmap_logits = imgui.drag_int('##heatmap_logits',
+                                                                       self.heatmap_logits,
+                                                                       change_speed=0.05,
+                                                                       min_value=0,
+                                                                       max_value=heatmap_logits_max,
+                                                                       format=f'Logits %d/{heatmap_logits_max}')
                     imgui.same_line()
                     if imgui_utils.button('-##heatmap_logits', width=narrow_w):
                         self.heatmap_logits -= 1
@@ -234,8 +269,12 @@ class HeatmapWidget:
                         imgui.same_line()
                         imgui.text(viz._model_config['outcome_labels'][str(self.heatmap_logits)])
 
-                # Uuncertainty.
-                heatmap_uncertainty_max = 0 if (viz.heatmap is None or self.uncertainty is None) else self.uncertainty.shape[2]-1
+                # Uncertainty.
+                if viz.heatmap is None or self.uncertainty is None:
+                    heatmap_uncertainty_max = 0
+                else:
+                    heatmap_uncertainty_max = self.uncertainty.shape[2] - 1
+
                 self.heatmap_uncertainty = min(max(self.heatmap_uncertainty, 0), heatmap_uncertainty_max)
                 narrow_w = imgui.get_text_line_height_with_spacing()
                 with imgui_utils.grayed_out(viz.heatmap is None or not viz.has_uq()):
@@ -246,14 +285,63 @@ class HeatmapWidget:
 
                     imgui.same_line()
                     with imgui_utils.item_width(-1 - viz.button_w - narrow_w * 2 - viz.spacing * 3):
-                        _changed, self.heatmap_uncertainty = imgui.drag_int('##heatmap_uncertainty', self.heatmap_uncertainty, change_speed=0.05, min_value=0, max_value=heatmap_uncertainty_max, format=f'UQ %d/{heatmap_uncertainty_max}')
+                        _changed, self.heatmap_uncertainty = imgui.drag_int('##heatmap_uncertainty',
+                                                                            self.heatmap_uncertainty,
+                                                                            change_speed=0.05,
+                                                                            min_value=0,
+                                                                            max_value=heatmap_uncertainty_max,
+                                                                            format=f'UQ %d/{heatmap_uncertainty_max}')
                     imgui.same_line()
                     if imgui_utils.button('-##heatmap_uncertainty', width=narrow_w):
                         self.heatmap_uncertainty -= 1
                     imgui.same_line()
                     if imgui_utils.button('+##heatmap_uncertainty', width=narrow_w):
                         self.heatmap_uncertainty += 1
-                    self.heatmap_uncertainty = min(max(self.heatmap_uncertainty, 0), heatmap_logits_max)
+                    self.heatmap_uncertainty = min(max(self.heatmap_uncertainty, 0), heatmap_uncertainty_max)
+
+                _histogram_size = imgui.get_content_region_max()[0] - 1, viz.font_size * 4
+                if viz.heatmap and self.logits is not None:
+                    flattened = self.logits[:, :, self.heatmap_logits].flatten()
+                    flattened = flattened[flattened >= 0]
+                    _hist, _bin_edges = np.histogram(flattened, range=(0, 1))
+                    if flattened.shape[0] > 0:
+                        overlay_text = f"Predictions (avg: {np.mean(flattened):.2f})"
+                        _hist_arr = array('f', _hist/np.sum(_hist))
+                        scale_max = np.max(_hist/np.sum(_hist))
+                    else:
+                        overlay_text = "Predictions (avg: - )"
+                        _hist_arr = array('f', [0])
+                        scale_max = 1
+                    imgui.separator()
+                    imgui.core.plot_histogram('##heatmap_pred',
+                                              _hist_arr,
+                                              scale_min=0,
+                                              overlay_text=overlay_text,
+                                              scale_max=scale_max,
+                                              graph_size=_histogram_size)
+
+                if viz.heatmap and self.uncertainty is not None:
+                    flattened = self.uncertainty[:, :, self.heatmap_uncertainty].flatten()
+                    flattened = flattened[flattened >= 0]
+                    _hist, _bin_edges = np.histogram(flattened)
+                    if flattened.shape[0] > 0:
+                        overlay_text = f"Uncertainty (avg: {np.mean(flattened):.2f})"
+                        _hist_arr = array('f', _hist/np.sum(_hist))
+                        scale_max = np.max(_hist/np.sum(_hist))
+                    else:
+                        overlay_text = "Uncertainty (avg: - )"
+                        _hist_arr = array('f', [0])
+                        scale_max = 1
+                    imgui.separator()
+                    imgui.core.plot_histogram('##heatmap_pred',
+                                              _hist_arr,
+                                              scale_min=0,
+                                              overlay_text=overlay_text,
+                                              scale_max=scale_max,
+                                              graph_size=_histogram_size)
+                    imgui.separator()
+                elif not viz.has_uq():
+                    imgui.text("Model not trained with uncertainty.")
 
             imgui.end_child()
 
@@ -269,7 +357,10 @@ class HeatmapWidget:
             if _uq_logits_switched:
                 self.gain = self._logits_gain if self.use_logits else self._uq_gain
                 self.render_heatmap()
-            if _cmap_changed or (self.heatmap_logits != self._old_logits and self.use_logits) or (self.heatmap_uncertainty != self._old_uncertainty and self.use_uncertainty) or _uq_logits_switched:
+            if (_cmap_changed
+               or (self.heatmap_logits != self._old_logits and self.use_logits)
+               or (self.heatmap_uncertainty != self._old_uncertainty and self.use_uncertainty)
+               or _uq_logits_switched):
                 self.render_heatmap()
 
 #----------------------------------------------------------------------------
