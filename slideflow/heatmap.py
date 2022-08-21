@@ -45,6 +45,7 @@ class Heatmap:
         img_format: str = 'auto',
         generate: bool = True,
         generator_kwargs: Optional[Dict[str, Any]] = None,
+        device: Optional["torch.device"] = None,
         **wsi_kwargs
     ) -> None:
         """Convolutes across a whole slide, calculating logits and saving
@@ -95,15 +96,22 @@ class Heatmap:
         else:
             self.img_format = img_format
 
-        if self.uq:
-            self.interface = sf.model.UncertaintyInterface(model)  # type: Any
+        if sf.backend() == 'torch':
+            int_kw = {'device': device}
         else:
-            self.interface = sf.model.Features(
+            int_kw = {}
+
+        if self.uq:
+            self.interface = sf.model.UncertaintyInterface(model, **int_kw)  # type: ignore
+        else:
+            self.interface = sf.model.Features(  # type: ignore
                 model,
                 layers=None,
-                include_logits=True)
+                include_logits=True,
+                **int_kw)
         self.num_threads = num_threads
         self.batch_size = batch_size
+        self.device = device
         self.tile_px = model_config['tile_px']
         self.tile_um = model_config['tile_um']
         self.num_classes = self.interface.num_logits
@@ -735,6 +743,8 @@ class ModelHeatmap(Heatmap):
                 layers=None,
                 **interface_kw)
         else:
+            if sf.backend() == 'torch':
+                interface_kw['tile_px'] = self.tile_px  # type: ignore
             self.interface = interface_class.from_model(
                 model,
                 layers=None,

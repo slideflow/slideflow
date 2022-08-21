@@ -22,8 +22,8 @@ from slideflow.workbench.utils import EasyDict
 
 #----------------------------------------------------------------------------
 
-def _load_model_and_saliency(model_path):
-    print("Loading model and saliency...")
+def _load_model_and_saliency(model_path, device=None):
+    print(f"Loading model and saliency (device={device})...")
 
     if sf.backend() == 'tensorflow':
         import tensorflow as tf
@@ -33,15 +33,14 @@ def _load_model_and_saliency(model_path):
                 tf.config.experimental.set_memory_growth(device, True)
         except Exception:
             pass
-
-    if sf.backend() == 'tensorflow':
-        import tensorflow as tf
         _model = tf.keras.models.load_model(model_path)
     elif sf.backend() == 'torch':
         _model = sf.model.torch.load(model_path)
-        _model = _model.eval()
+        _model.eval()
+        if device is not None:
+            _model = _model.to(device)
+
     _saliency = sf.grad.SaliencyMap(_model, class_idx=0)  #TODO: auto-update from heatmaps logit
-    print("...loading complete.")
     return _model, _saliency
 
 #----------------------------------------------------------------------------
@@ -579,6 +578,12 @@ class AsyncRenderer:
         self._model         = None
         self._saliency      = None
 
+        if sf.backend() == 'torch':
+            import torch
+            self.device = torch.device('cuda')
+        else:
+            self.device = None
+
     def close(self):
         self._closed = True
         self._renderer_obj = None
@@ -617,9 +622,9 @@ class AsyncRenderer:
 
     def _set_args_sync(self, **args):
         if self._model is None and self._model_path:
-            self._model, self._saliency = _load_model_and_saliency(self._model_path)
+            self._model, self._saliency = _load_model_and_saliency(self._model_path, device=self.device)
         if self._renderer_obj is None:
-            self._renderer_obj = renderer.Renderer()
+            self._renderer_obj = renderer.Renderer(device=self.device)
             self._renderer_obj._model = self._model
             self._renderer_obj._saliency = self._saliency
         self._cur_result = self._renderer_obj.render(**args)
@@ -640,7 +645,15 @@ class AsyncRenderer:
         self._cur_stamp += 1
 
     def load_model(self, model_path):
-        self._model_path = model_path
+        if self._is_async:
+            self._args_queue.put(['load_model', model_path])
+        elif model_path != self._model_path:
+            self._model_path = model_path
+            if self._renderer_obj is None:
+                self._renderer_obj = renderer.Renderer(device=self.device)
+            self._model, self._saliency = _load_model_and_saliency(self._model_path, device=self.device)
+            self._renderer_obj._model = self._model
+            self._renderer_obj._saliency = self._saliency
 
     def clear_model(self):
         self._model_path = None
@@ -649,9 +662,14 @@ class AsyncRenderer:
 
     @staticmethod
     def _process_fn(args_queue, result_queue, model_path):
-        renderer_obj = renderer.Renderer()
+        if sf.backend() == 'torch':
+            import torch
+            device = torch.device('cuda')
+        else:
+            device = None
+        renderer_obj = renderer.Renderer(device=device)
         if model_path:
-            _model, _saliency = _load_model_and_saliency(model_path)
+            _model, _saliency = _load_model_and_saliency(model_path, device=device)
             renderer_obj._model = _model
             renderer_obj._saliency = _saliency
         cur_args = None
@@ -660,7 +678,11 @@ class AsyncRenderer:
             args, stamp = args_queue.get()
             while args_queue.qsize() > 0:
                 args, stamp = args_queue.get()
-            if args != cur_args or stamp != cur_stamp:
+            if args == 'load_model':
+                _model, _saliency = _load_model_and_saliency(stamp, device=device)
+                renderer_obj._model = _model
+                renderer_obj._saliency = _saliency
+            elif args != cur_args or stamp != cur_stamp:
                 result = renderer_obj.render(**args)
                 if 'error' in result:
                     result.error = renderer.CapturedException(result.error)

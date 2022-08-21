@@ -15,6 +15,7 @@ import multiprocessing as mp
 import slideflow as sf
 import slideflow.util.neptune_utils
 import torchvision
+from scipy.special import softmax
 from slideflow import errors
 from slideflow.model import base as _base
 from slideflow.model import torch_utils
@@ -1727,7 +1728,8 @@ class Features:
         layers: Optional[Union[str, List[str]]] = 'postconv',
         include_logits: bool = False,
         mixed_precision: bool = True,
-        device: Optional[torch.device] = None
+        device: Optional[torch.device] = None,
+        apply_softmax: bool = True
     ):
         """Creates an activations interface from a saved slideflow model which
         outputs feature activations at the designated layers.
@@ -1746,6 +1748,8 @@ class Features:
                 Defaults to True.
             device (:class:`torch.device`, optional): Device for model.
                 Defaults to torch.device('cuda')
+            apply_softmax (bool): Apply softmax transformation to model output.
+                Defaults to True.
         """
 
         if layers and isinstance(layers, str):
@@ -1754,6 +1758,7 @@ class Features:
         self.num_logits = 0
         self.num_features = 0
         self.num_uncertainty = 0
+        self.apply_softmax = apply_softmax
         self.mixed_precision = mixed_precision
         self.img_format = None
         # Hook for storing layer activations during model inference
@@ -1793,7 +1798,7 @@ class Features:
         include_logits: bool = False,
         mixed_precision: bool = True,
         wsi_normalizer: Optional["StainNormalizer"] = None,
-        device: Optional[torch.device] = None
+        apply_softmax: bool = True
     ):
         """Creates an activations interface from a loaded slideflow model which
         outputs feature activations at the designated layers.
@@ -1814,10 +1819,13 @@ class Features:
                 individual tile datasets via __call__. Defaults to None.
             device (:class:`torch.device`, optional): Device for model.
                 Defaults to torch.device('cuda')
+            apply_softmax (bool): Apply softmax transformation to model output.
+                Defaults to True.
         """
+        device = next(model.parameters()).device
         obj = cls(None, layers, include_logits, mixed_precision, device)
         if isinstance(model, torch.nn.Module):
-            obj._model = model.to(obj.device)
+            obj._model = model
             obj._model.eval()
         else:
             raise errors.ModelError("Model is not a valid PyTorch model.")
@@ -1828,6 +1836,7 @@ class Features:
             obj.model_type = obj._model.__class__.__name__
         obj.tile_px = tile_px
         obj.wsi_normalizer = wsi_normalizer
+        obj.apply_softmax = apply_softmax
         obj._build()
         return obj
 
@@ -1923,8 +1932,7 @@ class Features:
 
         for i, (batch_images, batch_loc) in enumerate(tile_dataset):
             model_out = sf.util.as_list(self._predict(batch_images))
-            batch_act = np.concatenate([m.cpu().detach().numpy()
-                                        for m in model_out])
+            batch_act = np.concatenate(model_out)
             for i, act in enumerate(batch_act):
                 xi = batch_loc[i][0]
                 yi = batch_loc[i][1]
@@ -1938,7 +1946,11 @@ class Features:
         _mp = self.mixed_precision
         with torch.cuda.amp.autocast() if _mp else no_scope():  # type: ignore
             with torch.no_grad():
-                logits = self._model(inp.to(self.device))
+                logits = self._model(inp.to(self.device)).cpu()
+                if self.apply_softmax:
+                    logits = softmax(logits, axis=1)
+                else:
+                    logits = logits.cpu().detach().numpy()
 
         layer_activations = []
         if self.layers:
@@ -1947,7 +1959,7 @@ class Features:
                 if la == 'postconv':
                     act = self._postconv_processing(act)
                 layer_activations.append(act)
-
+        layer_activations = [l.cpu().detach().numpy() for l in layer_activations]
         if self.include_logits:
             layer_activations += [logits]
         self.activation = {}

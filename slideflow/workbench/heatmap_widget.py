@@ -206,7 +206,6 @@ class HeatmapWidget:
                 imgui.same_line(imgui.get_content_region_max()[0] - 1 - viz.button_w)
                 _button_text = ('Generate' if not self._button_pressed else "Working...")
                 if imgui_utils.button(_button_text, width=viz.button_w, enabled=(not self._button_pressed)):
-                    print("setting message from heatmap")
                     self.viz.set_message(self._rendering_message)
                     _thread = threading.Thread(target=self.generate_heatmap)
                     _thread.start()

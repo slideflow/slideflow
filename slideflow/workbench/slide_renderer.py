@@ -88,7 +88,7 @@ def _decode_jpeg(img):
 #----------------------------------------------------------------------------
 
 class Renderer:
-    def __init__(self):
+    def __init__(self, device=None):
         #self._device            = torch.device('cuda')
         self._pkl_data          = dict()    # {pkl: dict | CapturedException, ...}
         self._pinned_bufs       = dict()    # {(shape, dtype): torch.Tensor, ...}
@@ -100,6 +100,7 @@ class Renderer:
         self._uq_thread         = None
         self._model             = None
         self._saliency          = None
+        self.device             = device
 
     def render(self, **args):
         self._is_timing = True
@@ -224,7 +225,11 @@ class Renderer:
             print(f"Tile coordinates {x}, {y} are out of bounds, skipping")
         else:
             if use_model:
+                if not self._model:
+                    res.message = "Model not loaded"
+                    return
                 proc_img = img
+
                 # Pre-process image.
                 if normalizer:
                     proc_img = normalizer.transform(proc_img)
@@ -239,6 +244,8 @@ class Renderer:
                     proc_img = sf.io.tensorflow.preprocess_uint8(proc_img, standardize=True)['tile_image']
                 elif sf.backend() == 'torch':
                     proc_img = sf.io.torch.preprocess_uint8(proc_img, standardize=True)
+                    if self.device is not None:
+                        proc_img = proc_img.to(self.device)
 
                 # Saliency.
                 if use_saliency:
