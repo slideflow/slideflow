@@ -14,6 +14,21 @@ from .utils import EasyDict
 
 from rich import print
 import slideflow as sf
+from slideflow.util import model_backend
+
+if sf.util.tf_available:
+    import tensorflow as tf
+    import slideflow.io.tensorflow
+    physical_devices = tf.config.list_physical_devices('GPU')
+    try:
+        for device in physical_devices:
+            tf.config.experimental.set_memory_growth(device, True)
+    except Exception:
+        pass
+if sf.util.torch_available:
+    import torch
+    import torchvision
+    import slideflow.io.torch
 
 #----------------------------------------------------------------------------
 
@@ -38,49 +53,46 @@ class CaptureSuccess(Exception):
 
 #----------------------------------------------------------------------------
 
-def _reduce_dropout_preds(yp_drop, num_outcomes, stack=True):
-    if sf.backend() == 'tensorflow':
-        import tensorflow as tf
-        if num_outcomes > 1:
-            if stack:
-                yp_drop = [tf.stack(yp_drop[n], axis=0) for n in range(num_outcomes)]
-            else:
-                yp_drop = [yp_drop[0] for n in range(num_outcomes)]
-            yp_mean = [tf.math.reduce_mean(yp_drop[n], axis=0).numpy() for n in range(num_outcomes)]
-            yp_std = [tf.math.reduce_std(yp_drop[n], axis=0).numpy() for n in range(num_outcomes)]
+def _reduce_dropout_preds_torch(yp_drop, num_outcomes, stack=True):
+    if num_outcomes > 1:
+        if stack:
+            yp_drop = [torch.stack(yp_drop[n], dim=0) for n in range(num_outcomes)]
         else:
-            if stack:
-                yp_drop = tf.stack(yp_drop[0], axis=0)
-            else:
-                yp_drop = yp_drop[0]
-            yp_mean = tf.math.reduce_mean(yp_drop, axis=0).numpy()
-            yp_std = tf.math.reduce_std(yp_drop, axis=0).numpy()
+            yp_drop = [yp_drop[0] for n in range(num_outcomes)]
+        yp_mean = [torch.mean(yp_drop[n], dim=0) for n in range(num_outcomes)]
+        yp_std = [torch.std(yp_drop[n], dim=0) for n in range(num_outcomes)]
     else:
-        import torch
-        if num_outcomes > 1:
-            if stack:
-                yp_drop = [torch.stack(yp_drop[n], dim=0) for n in range(num_outcomes)]
-            else:
-                yp_drop = [yp_drop[0] for n in range(num_outcomes)]
-            yp_mean = [torch.mean(yp_drop[n], dim=0) for n in range(num_outcomes)]
-            yp_std = [torch.std(yp_drop[n], dim=0) for n in range(num_outcomes)]
+        if stack:
+            yp_drop = torch.stack(yp_drop[0], dim=0)  # type: ignore
         else:
-            if stack:
-                yp_drop = torch.stack(yp_drop[0], dim=0)  # type: ignore
-            else:
-                yp_drop = yp_drop[0]
-            yp_mean = torch.mean(yp_drop, dim=0)  # type: ignore
-            yp_std = torch.std(yp_drop, dim=0)  # type: ignore
+            yp_drop = yp_drop[0]
+        yp_mean = torch.mean(yp_drop, dim=0)  # type: ignore
+        yp_std = torch.std(yp_drop, dim=0)  # type: ignore
     return yp_mean, yp_std
 
 
-def _decode_jpeg(img):
-    if sf.backend() == 'tensorflow':
-        import tensorflow as tf
+def _reduce_dropout_preds_tf(yp_drop, num_outcomes, stack=True):
+    if num_outcomes > 1:
+        if stack:
+            yp_drop = [tf.stack(yp_drop[n], axis=0) for n in range(num_outcomes)]
+        else:
+            yp_drop = [yp_drop[0] for n in range(num_outcomes)]
+        yp_mean = [tf.math.reduce_mean(yp_drop[n], axis=0).numpy() for n in range(num_outcomes)]
+        yp_std = [tf.math.reduce_std(yp_drop[n], axis=0).numpy() for n in range(num_outcomes)]
+    else:
+        if stack:
+            yp_drop = tf.stack(yp_drop[0], axis=0)
+        else:
+            yp_drop = yp_drop[0]
+        yp_mean = tf.math.reduce_mean(yp_drop, axis=0).numpy()
+        yp_std = tf.math.reduce_std(yp_drop, axis=0).numpy()
+    return yp_mean, yp_std
+
+
+def _decode_jpeg(img, _model_type):
+    if _model_type == 'tensorflow':
         return tf.image.decode_jpeg(img, channels=3)
     else:
-        import torch
-        import torchvision
         np_data = torch.from_numpy(np.fromstring(img, dtype=np.uint8))
         return torchvision.io.decode_image(np_data)
 
@@ -101,6 +113,16 @@ class Renderer:
         self._model             = None
         self._saliency          = None
         self.device             = device
+
+    @property
+    def model_type(self):
+        return model_backend(self._model)
+
+    def to_numpy(self, x):
+        if self.model_type == 'tensorflow':
+            return x.numpy()
+        else:
+            return x.cpu().detach().numpy()
 
     def render(self, **args):
         self._is_timing = True
@@ -124,9 +146,14 @@ class Renderer:
         self._is_timing = False
 
     def _calc_preds_and_uncertainty(self, img, uq_n=30):
-        import tensorflow as tf
 
-        yp = self._model(tf.repeat(img, repeats=uq_n, axis=0), training=False)
+        if self.model_type == 'tensorflow':
+            yp = self._model(tf.repeat(img, repeats=uq_n, axis=0), training=False)
+            reduce_fn = _reduce_dropout_preds_tf
+        else:
+            yp = self._model(torch.repeat(img, repeats=uq_n, dim=0), training=False)
+            reduce_fn = _reduce_dropout_preds_torch
+
         num_outcomes = 1 if not isinstance(yp, list) else len(yp)
         yp_drop = {n: [] for n in range(num_outcomes)}
         if num_outcomes > 1:
@@ -134,7 +161,7 @@ class Renderer:
                 yp_drop[o] = yp[o]
         else:
             yp_drop[0] = yp
-        yp_mean, yp_std = _reduce_dropout_preds(yp_drop, num_outcomes, stack=False)
+        yp_mean, yp_std = reduce_fn(yp_drop, num_outcomes, stack=False)
         if num_outcomes > 1:
             uncertainty = [np.mean(s) for s in yp_std]
         else:
@@ -151,23 +178,19 @@ class Renderer:
         Returns:
             Predictions, Uncertainty
         """
-        if sf.backend() == 'tensorflow':
-            import tensorflow as tf
+        if self.model_type == 'tensorflow':
             img = tf.expand_dims(img, axis=0)
-            to_numpy = lambda x: x.numpy()
-        elif sf.backend() == 'torch':
-            import torch
+        elif self.model_type == 'torch':
             img = torch.unsqueeze(img, dim=0)
-            to_numpy = lambda x: x.cpu().detach().numpy()
 
         if use_uncertainty:
             return self._calc_preds_and_uncertainty(img)
         else:
             preds = self._model(img)
             if isinstance(preds, list):
-                preds = [to_numpy(p[0]) for p in preds]
+                preds = [self.to_numpy(p[0]) for p in preds]
             else:
-                preds = to_numpy(preds[0])
+                preds = self.to_numpy(preds[0])
             return preds, None
 
     def _render_impl(self, res,
@@ -191,11 +214,9 @@ class Renderer:
 
         import pyvips
 
-        if sf.backend() == 'tensorflow':
-            import tensorflow as tf
+        if self.model_type == 'tensorflow':
             dtype = tf.uint8
-        elif sf.backend() == 'torch':
-            import torch
+        elif self.model_type == 'torch':
             dtype = torch.uint8
 
         decode_jpeg = img_format is not None and img_format.lower() in ('jpg', 'jpeg')
@@ -211,8 +232,8 @@ class Renderer:
             if int(wsi.tile_px) != int(wsi.extract_px):
                 region = region.resize(wsi.tile_px/wsi.extract_px)
             if decode_jpeg:
-                img = _decode_jpeg(region.jpegsave_buffer())
-                if sf.backend() == 'torch':
+                img = _decode_jpeg(region.jpegsave_buffer(), self.model_type)
+                if self.model_type == 'torch':
                     res.image = sf.io.torch.cwh_to_whc(img).numpy()
                 res.image = img.numpy()
                 img = sf.io.convert_dtype(img, dtype)
@@ -228,30 +249,36 @@ class Renderer:
                 if not self._model:
                     res.message = "Model not loaded"
                     return
-                proc_img = img
+
+                if self.model_type == 'tensorflow' and isinstance(img, np.ndarray):
+                    proc_img = tf.convert_to_tensor(img)
+                elif isinstance(img, np.ndarray):
+                    proc_img = sf.io.torch.whc_to_cwh(torch.from_numpy(img)).to(self.device)
+                else:
+                    proc_img = img
 
                 # Pre-process image.
                 if normalizer:
                     proc_img = normalizer.transform(proc_img)
                     if not isinstance(proc_img, np.ndarray):
-                        if sf.backend() == 'torch':
+                        if self.model_type == 'torch':
                             res.normalized = sf.io.torch.cwh_to_whc(proc_img).numpy().astype(np.uint8)
                         else:
                             res.normalized = proc_img.numpy().astype(np.uint8)
                     else:
                         res.normalized = proc_img.astype(np.uint8)
-                if sf.backend() == 'tensorflow':
+                if self.model_type == 'tensorflow':
                     proc_img = sf.io.tensorflow.preprocess_uint8(proc_img, standardize=True)['tile_image']
-                elif sf.backend() == 'torch':
+                elif self.model_type == 'torch':
                     proc_img = sf.io.torch.preprocess_uint8(proc_img, standardize=True)
                     if self.device is not None:
                         proc_img = proc_img.to(self.device)
 
                 # Saliency.
                 if use_saliency:
-                    mask = self._saliency.get(proc_img.numpy(), method=saliency_method)
+                    mask = self._saliency.get(self.to_numpy(proc_img), method=saliency_method)
                     if saliency_overlay:
-                        res.image = sf.grad.plot_utils.overlay(img.numpy(), mask)
+                        res.image = sf.grad.plot_utils.overlay(res.image, mask)
                     else:
                         res.image = sf.grad.plot_utils.inferno(mask)
                     if res.image.shape[-1] == 4:

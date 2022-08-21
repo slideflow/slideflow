@@ -56,6 +56,17 @@ class SaliencyMap:
             XRAI_FAST: self.xrai_fast
         }
 
+    @property
+    def model_backend(self):
+        return sf.util.model_backend(self.model)
+
+    @property
+    def device(self):
+        if self.model_backend == 'tensorflow':
+            return None
+        else:
+            return next(self.model.parameters()).device
+
     def _grad_fn_torch(
         self,
         image: np.ndarray,
@@ -65,12 +76,12 @@ class SaliencyMap:
         """Calculate gradient attribution with PyTorch backend."""
         import torch
 
-        image = torch.tensor(image, requires_grad=True).to(torch.float32)  # type: ignore
+        image = torch.tensor(image, requires_grad=True).to(torch.float32).to(self.device)  # type: ignore
         output = self.model(image)
         if saliency.base.INPUT_OUTPUT_GRADIENTS in expected_keys:  # type: ignore
             outputs = output[:, self.class_idx]
             grads = torch.autograd.grad(outputs, image, grad_outputs=torch.ones_like(outputs))  # type: ignore
-            gradients = grads[0].detach().numpy()
+            gradients = grads[0].cpu().detach().numpy()
             return {saliency.base.INPUT_OUTPUT_GRADIENTS: gradients}
         else:
             # For Grad-CAM
@@ -104,9 +115,9 @@ class SaliencyMap:
         expected_keys: Dict = None
     ) -> Any:
         """Calculate gradient attribution."""
-        if sf.backend() == 'tensorflow':
+        if self.model_backend == 'tensorflow':
             return self._grad_fn_tf(image, call_model_args, expected_keys)
-        elif sf.backend() == 'torch':
+        elif self.model_backend == 'torch':
             return self._grad_fn_torch(image, call_model_args, expected_keys)
         else:
             raise errors.UnrecognizedBackendError
@@ -137,7 +148,7 @@ class SaliencyMap:
                 kwargs.update({'x_baseline': np.zeros(_img.shape)})
 
             out = mask_fn(_img, self._grad_fn, **kwargs)
-            if sf.backend() == 'torch':
+            if self.model_backend == 'torch':
                 out = np.transpose(out, (1, 2, 0))  # CWH -> WHC
             return out
 

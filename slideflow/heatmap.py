@@ -732,10 +732,15 @@ class ModelHeatmap(Heatmap):
 
         if uq:
             interface_class = sf.model.UncertaintyInterface  # type: ignore
-            interface_kw = {}
-        else:
-            interface_class = sf.model.Features  # type: ignore
+            interface_kw = {}  # type: Dict[str, Any]
+        elif sf.util.model_backend(model) == 'tensorflow':
+            interface_class = sf.model.tensorflow.Features  # type: ignore
             interface_kw = dict(include_logits=True)
+        elif sf.util.model_backend(model) == 'torch':
+            interface_class = sf.model.torch.Features  # type: ignore
+            interface_kw = dict(include_logits=True, tile_px=self.tile_px)
+        else:
+            raise ValueError(f"Unable to interpret model {model}")
 
         if isinstance(model, str):
             self.interface = interface_class(
@@ -743,8 +748,6 @@ class ModelHeatmap(Heatmap):
                 layers=None,
                 **interface_kw)
         else:
-            if sf.backend() == 'torch':
-                interface_kw['tile_px'] = self.tile_px  # type: ignore
             self.interface = interface_class.from_model(
                 model,
                 layers=None,

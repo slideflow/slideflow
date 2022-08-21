@@ -1,8 +1,8 @@
 import multiprocessing
-import pyvips
 import numpy as np
 import imgui
 import OpenGL.GL as gl
+import importlib
 from slideflow.workbench.gui_utils import imgui_window
 from slideflow.workbench.gui_utils import imgui_utils
 from slideflow.workbench.gui_utils import gl_utils
@@ -20,25 +20,31 @@ import slideflow.grad
 from slideflow.util import log
 from slideflow.workbench.utils import EasyDict
 
+if sf.util.tf_available:
+    import tensorflow as tf
+    physical_devices = tf.config.list_physical_devices('GPU')
+    try:
+        for device in physical_devices:
+            tf.config.experimental.set_memory_growth(device, True)
+    except Exception:
+        pass
+if sf.util.torch_available:
+    import slideflow.model.torch
+
 #----------------------------------------------------------------------------
 
 def _load_model_and_saliency(model_path, device=None):
-    print(f"Loading model and saliency (device={device})...")
+    print(f"Loading model and saliency...")
 
-    if sf.backend() == 'tensorflow':
-        import tensorflow as tf
-        physical_devices = tf.config.list_physical_devices('GPU')
-        try:
-            for device in physical_devices:
-                tf.config.experimental.set_memory_growth(device, True)
-        except Exception:
-            pass
-        _model = tf.keras.models.load_model(model_path)
-    elif sf.backend() == 'torch':
+    if sf.util.torch_available and sf.util.path_to_ext(model_path) == 'zip':
         _model = sf.model.torch.load(model_path)
         _model.eval()
         if device is not None:
             _model = _model.to(device)
+    elif sf.util.tf_available:
+        _model = tf.keras.models.load_model(model_path)
+    else:
+        raise ValueError(f"Unable to interpret model {model_path}")
 
     _saliency = sf.grad.SaliencyMap(_model, class_idx=0)  #TODO: auto-update from heatmaps logit
     return _model, _saliency
@@ -578,7 +584,7 @@ class AsyncRenderer:
         self._model         = None
         self._saliency      = None
 
-        if sf.backend() == 'torch':
+        if sf.util.torch_available:
             import torch
             self.device = torch.device('cuda')
         else:
@@ -662,7 +668,7 @@ class AsyncRenderer:
 
     @staticmethod
     def _process_fn(args_queue, result_queue, model_path):
-        if sf.backend() == 'torch':
+        if sf.util.torch_available:
             import torch
             device = torch.device('cuda')
         else:

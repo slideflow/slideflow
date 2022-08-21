@@ -28,6 +28,9 @@ from slideflow import errors
 from slideflow.util import example_pb2
 from slideflow.util.colors import *  # noqa F403,F401 - Here for compatibility
 
+tf_available = importlib.util.find_spec('tensorflow')
+torch_available = importlib.util.find_spec('torch')
+
 # --- Optional imports --------------------------------------------------------
 # git is not needed for pypi distribution
 try:
@@ -166,7 +169,6 @@ class TileExtractionProgress(Progress):
 
 # --- Slideflow header --------------------------------------------------------
 
-
 def header(console=None):
     if console is None:
         console = Console()
@@ -180,6 +182,18 @@ def header(console=None):
         justify='center')
 
 # --- Utility functions and classes -------------------------------------------
+
+def model_backend(model):
+    if sf.util.torch_available and 'torch' in sys.modules:
+        import torch
+        if isinstance(model, torch.nn.Module):
+            return 'torch'
+    if sf.util.tf_available and 'tensorflow' in sys.modules:
+        import tensorflow as tf
+        if isinstance(model, tf.keras.Model):
+            return 'tensorflow'
+    else:
+        raise ValueError(f"Unable to interpret model {model}")
 
 def detuple(arg1: Any, args: tuple) -> Any:
     if len(args):
@@ -446,13 +460,14 @@ def get_gan_config(model_path: Path) -> Dict:
         raise errors.ModelParamsNotFoundError
 
 
-def get_model_config(model_path: Path) -> Dict:
+def get_model_config(model_path: str) -> Dict:
     """Loads model configuration JSON file."""
 
     if exists(join(model_path, 'params.json')):
         config = load_json(join(model_path, 'params.json'))
     elif exists(join(dirname(model_path), 'params.json')):
-        if sf.backend() == 'tensorflow':
+        if not (sf.util.torch_available
+                and sf.util.path_to_ext(model_path) == 'zip'):
             log.warning(
                 "Hyperparameters not in model directory; loading from parent"
                 " directory. Please move params.json into model folder."
@@ -473,7 +488,7 @@ def get_model_config(model_path: Path) -> Dict:
 
 
 def get_model_normalizer(
-    model_path: Path
+    model_path: str
 ) -> Optional["sf.norm.StainNormalizer"]:
     """Loads and fits normalizer using configuration at a model path."""
 

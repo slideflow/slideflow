@@ -15,7 +15,7 @@ import multiprocessing as mp
 import slideflow as sf
 import slideflow.util.neptune_utils
 import torchvision
-from scipy.special import softmax
+from torch.nn.functional import softmax
 from slideflow import errors
 from slideflow.model import base as _base
 from slideflow.model import torch_utils
@@ -1932,7 +1932,10 @@ class Features:
 
         for i, (batch_images, batch_loc) in enumerate(tile_dataset):
             model_out = sf.util.as_list(self._predict(batch_images))
-            batch_act = np.concatenate(model_out)
+            batch_act = np.concatenate([
+                m.cpu().detach().numpy()
+                for m in model_out
+            ])
             for i, act in enumerate(batch_act):
                 xi = batch_loc[i][0]
                 yi = batch_loc[i][1]
@@ -1946,11 +1949,9 @@ class Features:
         _mp = self.mixed_precision
         with torch.cuda.amp.autocast() if _mp else no_scope():  # type: ignore
             with torch.no_grad():
-                logits = self._model(inp.to(self.device)).cpu()
+                logits = self._model(inp.to(self.device))
                 if self.apply_softmax:
-                    logits = softmax(logits, axis=1)
-                else:
-                    logits = logits.cpu().detach().numpy()
+                    logits = softmax(logits, dim=1)
 
         layer_activations = []
         if self.layers:
@@ -1959,7 +1960,6 @@ class Features:
                 if la == 'postconv':
                     act = self._postconv_processing(act)
                 layer_activations.append(act)
-        layer_activations = [l.cpu().detach().numpy() for l in layer_activations]
         if self.include_logits:
             layer_activations += [logits]
         self.activation = {}

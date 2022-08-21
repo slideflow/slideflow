@@ -36,6 +36,10 @@ def dot(a: torch.Tensor, b: torch.Tensor):
         return torch.tensordot(a, b, dims=[[-1], [-2]])
 
 
+def T(a: torch.Tensor):
+    return a.permute(*torch.arange(a.ndim - 1, -1, -1))
+
+
 class MacenkoNormalizer:
 
     vectorized = False
@@ -177,8 +181,8 @@ class MacenkoNormalizer:
         minPhi = torch.quantile(phi, self.alpha / 100)
         maxPhi = torch.quantile(phi, 1 - self.alpha / 100)
 
-        vMin = torch.tensordot(eigvecs[:, 1:3], torch.stack((torch.cos(minPhi), torch.sin(minPhi))).T, dims=[[-1], [-1]])
-        vMax = torch.tensordot(eigvecs[:, 1:3], torch.stack((torch.cos(maxPhi), torch.sin(maxPhi))).T, dims=[[-1], [-1]])
+        vMin = torch.tensordot(eigvecs[:, 1:3], T(torch.stack((torch.cos(minPhi), torch.sin(minPhi)))), dims=[[-1], [-1]])
+        vMax = torch.tensordot(eigvecs[:, 1:3], T(torch.stack((torch.cos(maxPhi), torch.sin(maxPhi)))), dims=[[-1], [-1]])
 
         # Ensure the vector corresponding to hematoxylin is first, eosin second.
         if vMin[0] > vMax[0]:
