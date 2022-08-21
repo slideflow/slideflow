@@ -112,12 +112,13 @@ class TestSuite:
             x for x in os.listdir(self.project.models_dir)
             if os.path.isdir(join(self.project.models_dir, x))
         ]
+        tail = '' if sf.backend() == 'tensorflow' else '.zip'
         for run in sorted(prev_run_dirs, reverse=True):
             if run[6:] == name:
                 return join(
                     self.project.models_dir,
                     run,
-                    f'{name}_epoch{epoch}'
+                    f'{name}_epoch{epoch}'+tail,
                 )
         raise OSError(f"Unable to find trained model {name}")
 

@@ -20,11 +20,29 @@ import slideflow.grad
 from slideflow.util import log
 from slideflow.workbench.utils import EasyDict
 
-if sf.backend() == 'tensorflow':
-    import tensorflow as tf
-    physical_devices = tf.config.list_physical_devices('GPU')
-    for device in physical_devices:
-        tf.config.experimental.set_memory_growth(device, True)
+#----------------------------------------------------------------------------
+
+def _load_model_and_saliency(model_path):
+    print("Loading model and saliency...")
+
+    if sf.backend() == 'tensorflow':
+        import tensorflow as tf
+        physical_devices = tf.config.list_physical_devices('GPU')
+        try:
+            for device in physical_devices:
+                tf.config.experimental.set_memory_growth(device, True)
+        except Exception:
+            pass
+
+    if sf.backend() == 'tensorflow':
+        import tensorflow as tf
+        _model = tf.keras.models.load_model(model_path)
+    elif sf.backend() == 'torch':
+        _model = sf.model.torch.load(model_path)
+        _model = _model.eval()
+    _saliency = sf.grad.SaliencyMap(_model, class_idx=0)  #TODO: auto-update from heatmaps logit
+    print("...loading complete.")
+    return _model, _saliency
 
 #----------------------------------------------------------------------------
 
@@ -34,7 +52,7 @@ class Workbench(imgui_window.ImguiWindow):
 
         # Internals.
         self._last_error_print  = None
-        self._async_renderer    = AsyncRenderer(self)
+        self._async_renderer    = AsyncRenderer()
         self._defer_rendering   = 0
         self._tex_img           = None
         self._tex_obj           = None
@@ -49,12 +67,10 @@ class Workbench(imgui_window.ImguiWindow):
         self._overlay_tex_img   = None
         self._overlay_tex_obj   = None
         self._predictions       = None
-        self._model             = None
+        self._model_path        = None
         self._model_config      = None
         self._normalizer        = None
         self._normalize_wsi     = False
-        self._use_model         = False
-        self._use_uncertainty   = False
         self._gan_config        = None
         self._uncertainty       = None
         self._content_width     = None
@@ -64,11 +80,15 @@ class Workbench(imgui_window.ImguiWindow):
         self._overlay_offset    = [0, 0]
         self._overlay_wsi_dim   = None
         self._thumb_params      = None
+        self._use_model         = None
+        self._use_uncertainty   = None
+        self._use_saliency      = None
+        self._use_model_img_fmt = False
 
         # Widget interface.
         self.wsi                = None
         self.wsi_thumb          = None
-        #self.wsi_window_size    = None
+        self.saliency           = None
         self.thumb              = None
         self.thumb_zoom         = None
         self.thumb_origin       = None
@@ -81,8 +101,8 @@ class Workbench(imgui_window.ImguiWindow):
         self.overlay_heatmap    = None
         self.rendered_qc        = None
         self.overlay_qc         = None
-        self.args               = EasyDict()
-        self.result             = EasyDict()
+        self.args               = EasyDict(use_model=False, use_uncertainty=False, use_saliency=False)
+        self.result             = EasyDict(predictions=None, uncertainty=None)
         self.message            = None
         self.pane_w             = 0
         self.label_w            = 0
@@ -128,6 +148,13 @@ class Workbench(imgui_window.ImguiWindow):
         return (min(max_w * self.thumb_zoom, self.wsi.dimensions[0]),
                 min(max_h * self.thumb_zoom, self.wsi.dimensions[1]))
 
+    @property
+    def model(self):
+        return self._async_renderer._model
+
+    def reload_model(self):
+        self._async_renderer.load_model(self._model_path)
+
     def _apply_overlay_offset(self, y_correct=0):
         self._overlay_offset = [- (self.wsi.dimensions[0] - self._overlay_wsi_dim[0]) / 2,
                                 - (self.wsi.dimensions[1] - self._overlay_wsi_dim[1]) / 2 - y_correct]
@@ -158,7 +185,9 @@ class Workbench(imgui_window.ImguiWindow):
         self.slide_widget.load(slide, ignore_errors=ignore_errors)
 
     def load_model(self, model, ignore_errors=False):
+        self._model_path = model
         self.model_widget.load(model)
+        self._async_renderer.load_model(model)
 
     def print_error(self, error):
         error = str(error)
@@ -175,17 +204,19 @@ class Workbench(imgui_window.ImguiWindow):
 
     def clear_model(self):
         self._async_renderer.clear_result()
-        self._use_model         = False
-        self._model             = None
-        self._model_config      = None
-        self._use_model         = False
+        self._use_model   = False
         self._use_uncertainty   = False
+        self._use_saliency      = False
+
+        self._model_path        = None
+        self._model_config      = None
         self._normalizer        = None
         self.tile_px            = None
         self.tile_um            = None
         self.heatmap            = None
         self.x                  = None
         self.y                  = None
+        self._async_renderer.clear_model()
         self.clear_model_results()
         self.heatmap_widget.reset()
 
@@ -226,7 +257,7 @@ class Workbench(imgui_window.ImguiWindow):
             self.skip_frame() # Layout changed.
 
     def has_uq(self):
-        return (self._model is not None
+        return (self._model_path is not None
                 and self._model_config is not None
                 and 'uq' in self._model_config['hp']
                 and self._model_config['hp']['uq'])
@@ -255,8 +286,6 @@ class Workbench(imgui_window.ImguiWindow):
         _zoom = self.thumb_zoom
         max_w = self.content_width - self.pane_w
         max_h = self.content_height
-
-        #log.debug("Refreshing thumbnail (max_w={}, max_h={})".format(max_w, max_h))
 
         _new_origin = list(self.thumb_origin)
         if dx is not None:
@@ -334,7 +363,7 @@ class Workbench(imgui_window.ImguiWindow):
     def draw_frame(self):
         self.begin_frame()
 
-        self.args = EasyDict()
+        self.args = EasyDict(use_model=False, use_uncertainty=False, use_saliency=False)
         self.pane_w = self.font_size * 45
         self.button_w = self.font_size * 5
         self.label_w = round(self.font_size * 4.5)
@@ -384,7 +413,6 @@ class Workbench(imgui_window.ImguiWindow):
             if wheel < 0:
                 dz = 1.5
             if wheel or dragging or self._refresh_thumb:
-                #log.debug("Loop refresh (wheel={}, dragging={}, refresh={})".format(wheel, dragging, self._refresh_thumb))
                 self._refresh_thumb = False
                 self.refresh_thumb(cx=cx, cy=cy, dx=dx, dy=dy, dz=dz)
 
@@ -434,7 +462,7 @@ class Workbench(imgui_window.ImguiWindow):
                 self._overlay_tex_obj.draw(pos=h_pos, zoom=h_zoom, align=0.5, rint=True)
 
             # Calculate location for model display.
-            if (self._model
+            if (self._model_path
                and clicking
                and not dragging
                and (self.thumb_screen_offset[0] <= cx <= thumb_max_x)
@@ -470,8 +498,16 @@ class Workbench(imgui_window.ImguiWindow):
         # Render.
         self.args.x = self.x
         self.args.y = self.y
-        if self._model_config is not None and self._use_model and 'img_format' in self._model_config:
+        if (self._model_config is not None
+           and self._use_model
+           and 'img_format' in self._model_config
+           and self._use_model_img_fmt):
             self.args.img_format = self._model_config['img_format']
+        self.args.use_model = self._use_model
+        self.args.use_uncertainty =  (self.has_uq() and self._use_uncertainty)
+        self.args.use_saliency = self._use_saliency
+        self.args.normalizer = self._normalizer
+        self.args.wsi = self.wsi
 
         if self.is_skipping_frames():
             pass
@@ -482,6 +518,9 @@ class Workbench(imgui_window.ImguiWindow):
             result = self._async_renderer.get_result()
             if result is not None:
                 self.result = result
+                if 'predictions' in result:
+                    self._predictions = result.predictions
+                    self._uncertainty = result.uncertainty
 
         # Display input image.
         middle_pos = np.array([self.pane_w + max_w/2, max_h/2])
@@ -526,8 +565,7 @@ class Workbench(imgui_window.ImguiWindow):
 #----------------------------------------------------------------------------
 
 class AsyncRenderer:
-    def __init__(self, visualizer):
-        self._visualizer    = visualizer
+    def __init__(self):
         self._closed        = False
         self._is_async      = False
         self._cur_args      = None
@@ -537,6 +575,9 @@ class AsyncRenderer:
         self._args_queue    = None
         self._result_queue  = None
         self._process       = None
+        self._model_path    = None
+        self._model         = None
+        self._saliency      = None
 
     def close(self):
         self._closed = True
@@ -565,21 +606,22 @@ class AsyncRenderer:
 
     def _set_args_async(self, **args):
         if self._process is None:
-            self._args_queue = multiprocessing.Queue()
-            self._result_queue = multiprocessing.Queue()
-            try:
-                multiprocessing.set_start_method('spawn')
-            except RuntimeError:
-                pass
-            self._process = multiprocessing.Process(target=self._process_fn,
-                                                    args=(self._args_queue, self._result_queue),
-                                                    daemon=True)
+            ctx = multiprocessing.get_context('spawn')
+            self._args_queue = ctx.Queue()
+            self._result_queue = ctx.Queue()
+            self._process = ctx.Process(target=self._process_fn,
+                                        args=(self._args_queue, self._result_queue, self._model_path),
+                                        daemon=True)
             self._process.start()
         self._args_queue.put([args, self._cur_stamp])
 
     def _set_args_sync(self, **args):
+        if self._model is None and self._model_path:
+            self._model, self._saliency = _load_model_and_saliency(self._model_path)
         if self._renderer_obj is None:
-            self._renderer_obj = renderer.Renderer(self._visualizer)
+            self._renderer_obj = renderer.Renderer()
+            self._renderer_obj._model = self._model
+            self._renderer_obj._saliency = self._saliency
         self._cur_result = self._renderer_obj.render(**args)
 
     def get_result(self):
@@ -597,9 +639,21 @@ class AsyncRenderer:
         self._cur_result = None
         self._cur_stamp += 1
 
+    def load_model(self, model_path):
+        self._model_path = model_path
+
+    def clear_model(self):
+        self._model_path = None
+        self._model = None
+        self._saliency = None
+
     @staticmethod
-    def _process_fn(args_queue, result_queue):
+    def _process_fn(args_queue, result_queue, model_path):
         renderer_obj = renderer.Renderer()
+        if model_path:
+            _model, _saliency = _load_model_and_saliency(model_path)
+            renderer_obj._model = _model
+            renderer_obj._saliency = _saliency
         cur_args = None
         cur_stamp = None
         while True:

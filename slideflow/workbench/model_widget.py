@@ -84,15 +84,7 @@ class ModelWidget:
             viz.defer_rendering()
             normalizer = sf.util.get_model_normalizer(model)
 
-            if sf.backend() == 'tensorflow':
-                import tensorflow as tf
-                model_fn = tf.keras.models.load_model(model)
-            elif sf.backend() == 'torch':
-                model_fn = sf.model.torch.load(model)
-                model_fn = model_fn.eval()
-
             viz._use_model = True
-            viz._model = model_fn
             viz._model_path = model
             viz._model_config = config
             viz._normalizer = normalizer
@@ -106,7 +98,7 @@ class ModelWidget:
             self.use_uncertainty = 'uq' in config['hp'] and config['hp']['uq']
             viz.tile_um = config['tile_um']
             viz.tile_px = config['tile_px']
-            viz.saliency = sf.grad.SaliencyMap(model_fn, class_idx=1)
+            viz.reload_model()
 
             if hasattr(viz, '_slide_path') and viz._slide_path:
                 viz.slide_widget.load(viz._slide_path, ignore_errors=ignore_errors)
@@ -272,7 +264,7 @@ class ModelWidget:
                     else:
                         imgui.text(col)
 
-            with imgui_utils.grayed_out(viz._model is None):
+            with imgui_utils.grayed_out(viz._model_path is None):
                 imgui.same_line(imgui.get_content_region_max()[0] - viz.font_size - viz.spacing * 2)
                 if imgui.button("HP") and self.viz._model_config:
                     self._show_params = True
@@ -284,11 +276,11 @@ class ModelWidget:
             imgui.text('Model')
             imgui.same_line(viz.label_w - viz.font_size)
 
-            with imgui_utils.item_width(viz.font_size * 5), imgui_utils.grayed_out(viz._model is None):
+            with imgui_utils.item_width(viz.font_size * 5), imgui_utils.grayed_out(viz._model_path is None):
                 _clicked, self.use_model = imgui.checkbox('Enable##model', self.use_model)
                 viz._use_model = self.use_model
 
-            with imgui_utils.grayed_out(viz.has_uq):
+            with imgui_utils.grayed_out(not viz.has_uq()):
                 imgui.same_line(viz.label_w - viz.font_size + viz.font_size * 5)
                 _clicked, self.use_uncertainty = imgui.checkbox('Enable UQ', self.use_uncertainty)
                 viz._use_uncertainty = self.use_uncertainty
@@ -297,7 +289,7 @@ class ModelWidget:
             if self.show_saliency:
                 imgui.text('Saliency')
                 imgui.same_line(viz.label_w - viz.font_size)
-                with imgui_utils.grayed_out(viz._model is None), imgui_utils.item_width(viz.font_size * 5):
+                with imgui_utils.grayed_out(viz._model_path is None), imgui_utils.item_width(viz.font_size * 5):
                     _clicked, self.enable_saliency = imgui.checkbox('Enable##saliency', self.enable_saliency)
 
                 imgui.same_line(viz.label_w - viz.font_size + viz.font_size * 5)
@@ -345,7 +337,7 @@ class ModelWidget:
         if paths is not None and len(paths) >= 1:
             self.load(paths[0], ignore_errors=True)
 
-        viz.args.show_saliency = self.enable_saliency
+        viz._use_saliency = self.enable_saliency
         viz.args.saliency_method = self.saliency_idx
         viz.args.saliency_overlay = self.saliency_overlay
 

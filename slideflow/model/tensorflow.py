@@ -2007,7 +2007,8 @@ class Features:
         if isinstance(model, tf.keras.models.Model):
             obj._model = model
         else:
-            raise errors.ModelError("Model is not a valid Tensorflow model.")
+            raise errors.ModelError(f"Model {model} is not a valid Tensorflow "
+                                    "model.")
         obj._build(
             layers=layers, include_logits=include_logits  # type: ignore
         )
@@ -2049,6 +2050,9 @@ class Features:
         elif img_format == 'auto':
             assert self.img_format is not None
             img_format = self.img_format
+        if img_format == 'png':  # PNG is lossless; this is equivalent but faster
+            log.debug("Using numpy image format instead of PNG")
+            img_format = 'numpy'
         total_out = self.num_features + self.num_logits + self.num_uncertainty
         if grid is None:
             features_grid = np.ones((
@@ -2085,8 +2089,6 @@ class Features:
             image = record['image']
             if img_format.lower() in ('jpg', 'jpeg'):
                 image = tf.image.decode_jpeg(image, channels=3)
-            elif img_format.lower() in ('png',):
-                image = tf.image.decode_png(image, channels=3)
             image.set_shape([slide.tile_px, slide.tile_px, 3])
             loc = record['grid']
             return image, loc
@@ -2099,9 +2101,19 @@ class Features:
         # Generate dataset from the generator
         with tf.name_scope('dataset_input'):
             output_signature = {
-                'image': tf.TensorSpec(shape=(), dtype=tf.string),
                 'grid': tf.TensorSpec(shape=(2), dtype=tf.uint32)
             }
+            if img_format.lower() in ('jpg', 'jpeg'):
+                output_signature.update({
+                    'image': tf.TensorSpec(shape=(), dtype=tf.string)
+                })
+            else:
+                output_signature.update({
+                    'image': tf.TensorSpec(shape=(slide.tile_px,
+                                                  slide.tile_px,
+                                                  3),
+                                           dtype=tf.uint8)
+                })
             tile_dataset = tf.data.Dataset.from_generator(
                 tile_generator,
                 output_signature=output_signature
@@ -2239,7 +2251,8 @@ class UncertaintyInterface(Features):
         if isinstance(model, tf.keras.models.Model):
             obj._model = model
         else:
-            raise errors.ModelError("Model is not a valid Tensorflow model.")
+            raise errors.ModelError(f"Model {model} is not a valid Tensorflow "
+                                    "model.")
         obj._build(
             layers=layers, include_logits=True  # type: ignore
         )

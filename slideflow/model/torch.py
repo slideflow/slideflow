@@ -11,6 +11,7 @@ from typing import (TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple,
 
 import numpy as np
 import pretrainedmodels
+import multiprocessing as mp
 import slideflow as sf
 import slideflow.util.neptune_utils
 import torchvision
@@ -1850,6 +1851,7 @@ class Features:
         img_format: str = 'auto',
         batch_size: int = 32,
         dtype: type = np.float16,
+        grid: Optional[np.ndarray] = None,
         **kwargs
     ) -> Optional[np.ndarray]:
         """Generate activations from slide => activation grid array."""
@@ -1864,13 +1866,27 @@ class Features:
         elif img_format == 'auto':
             assert self.img_format is not None
             img_format = self.img_format
+        if img_format == 'png':  # PNG is lossless; this is equivalent but faster
+            log.debug("Using numpy image format instead of PNG")
+            img_format = 'numpy'
         total_out = self.num_features + self.num_logits
-        zeros_shape = (slide.grid.shape[1], slide.grid.shape[0], total_out)
-        features_grid = np.zeros(zeros_shape, dtype=dtype)
+        if grid is None:
+            features_grid = np.ones((
+                    slide.grid.shape[1],
+                    slide.grid.shape[0],
+                    total_out),
+                dtype=dtype)
+            features_grid *= -1
+        else:
+            assert grid.shape == (slide.grid.shape[1], slide.grid.shape[0], total_out)
+            features_grid = grid
+        ctx = mp.get_context('spawn')
+        pool = ctx.Pool(16 if os.cpu_count is None else os.cpu_count())
         generator = slide.build_generator(
             shuffle=False,
             show_progress=True,
             img_format=img_format,
+            pool=pool,
             **kwargs)
         if not generator:
             log.error(f"No tiles extracted from slide [green]{slide.name}")
@@ -1884,9 +1900,13 @@ class Features:
             def __iter__(self):
                 for image_dict in generator():
                     img = image_dict['image']
-                    np_data = torch.from_numpy(np.fromstring(img,
-                                                             dtype=np.uint8))
-                    img = torchvision.io.decode_image(np_data)
+                    if img_format not in ('numpy', 'png'):
+                        np_data = torch.from_numpy(
+                            np.fromstring(img, dtype=np.uint8))
+                        img = torchvision.io.decode_image(np_data)
+                    else:
+                        img = torch.from_numpy(img).permute(2, 0, 1)
+
                     if self.parent.wsi_normalizer:
                         img = img.permute(1, 2, 0)  # CWH => WHC
                         img = torch.from_numpy(
@@ -1910,6 +1930,7 @@ class Features:
                 yi = batch_loc[i][1]
                 features_grid[yi][xi] = act
 
+        pool.close()
         return features_grid
 
     def _predict(self, inp: Tensor) -> List[Tensor]:

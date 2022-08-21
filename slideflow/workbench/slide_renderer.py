@@ -74,13 +74,10 @@ def _reduce_dropout_preds(yp_drop, num_outcomes, stack=True):
     return yp_mean, yp_std
 
 
-def _decode(img, img_format):
+def _decode_jpeg(img):
     if sf.backend() == 'tensorflow':
         import tensorflow as tf
-        if img_format.lower() in ('jpeg', 'jpg'):
-            return tf.image.decode_jpeg(img, channels=3)
-        elif img_format.lower() == 'png':
-            return tf.image.decode_png(img, channels=3)
+        return tf.image.decode_jpeg(img, channels=3)
     else:
         import torch
         import torchvision
@@ -91,8 +88,7 @@ def _decode(img, img_format):
 #----------------------------------------------------------------------------
 
 class Renderer:
-    def __init__(self, visualizer):
-        self._visualizer        = visualizer
+    def __init__(self):
         #self._device            = torch.device('cuda')
         self._pkl_data          = dict()    # {pkl: dict | CapturedException, ...}
         self._pinned_bufs       = dict()    # {(shape, dtype): torch.Tensor, ...}
@@ -102,8 +98,8 @@ class Renderer:
         #self._end_event         = torch.cuda.Event(enable_timing=True)
         self._net_layers        = dict()
         self._uq_thread         = None
-        self._stop_uq_thread    = False
-        self._stop_pred_thread  = False
+        self._model             = None
+        self._saliency          = None
 
     def render(self, **args):
         self._is_timing = True
@@ -127,10 +123,9 @@ class Renderer:
         self._is_timing = False
 
     def _calc_preds_and_uncertainty(self, img, uq_n=30):
-        self._visualizer._uncertainty = None
-
         import tensorflow as tf
-        yp = self._visualizer._model(tf.repeat(img, repeats=uq_n, axis=0), training=False)
+
+        yp = self._model(tf.repeat(img, repeats=uq_n, axis=0), training=False)
         num_outcomes = 1 if not isinstance(yp, list) else len(yp)
         yp_drop = {n: [] for n in range(num_outcomes)}
         if num_outcomes > 1:
@@ -140,51 +135,60 @@ class Renderer:
             yp_drop[0] = yp
         yp_mean, yp_std = _reduce_dropout_preds(yp_drop, num_outcomes, stack=False)
         if num_outcomes > 1:
-            self._visualizer._uncertainty = [np.mean(s) for s in yp_std]
+            uncertainty = [np.mean(s) for s in yp_std]
         else:
-            self._visualizer._uncertainty = np.mean(yp_std)
-        self._visualizer._predictions = yp_mean
+            uncertainty = np.mean(yp_std)
+        predictions = yp_mean
+        return predictions, uncertainty
 
-    def _classify_img(self, img):
-        def run_classification():
-            nonlocal img
-            if sf.backend() == 'tensorflow':
-                import tensorflow as tf
-                img = tf.expand_dims(img, axis=0)
-                to_numpy = lambda x: x.numpy()
-            elif sf.backend() == 'torch':
-                import torch
-                img = torch.unsqueeze(img, dim=0)
-                to_numpy = lambda x: x.cpu().detach().numpy()
+    def _classify_img(self, img, use_uncertainty=False):
+        """Classify an image, returning predictions and uncertainty.
 
-            if self._visualizer.has_uq() and self._visualizer._use_uncertainty:
-                self._calc_preds_and_uncertainty(img)
+        Args:
+            img (_type_): _description_
+
+        Returns:
+            Predictions, Uncertainty
+        """
+        if sf.backend() == 'tensorflow':
+            import tensorflow as tf
+            img = tf.expand_dims(img, axis=0)
+            to_numpy = lambda x: x.numpy()
+        elif sf.backend() == 'torch':
+            import torch
+            img = torch.unsqueeze(img, dim=0)
+            to_numpy = lambda x: x.cpu().detach().numpy()
+
+        if use_uncertainty:
+            return self._calc_preds_and_uncertainty(img)
+        else:
+            preds = self._model(img)
+            if isinstance(preds, list):
+                preds = [to_numpy(p[0]) for p in preds]
             else:
-                preds = self._visualizer._model(img)
-                if isinstance(preds, list):
-                    preds = [to_numpy(p[0]) for p in preds]
-                else:
-                    preds = to_numpy(preds[0])
-                self._visualizer._predictions = preds
-
-        run_classification()
+                preds = to_numpy(preds[0])
+            return preds, None
 
     def _render_impl(self, res,
         x                   = 0,
         y                   = 0,
-        show_saliency       = False,
         saliency_overlay    = False,
         saliency_method     = 0,
         img_format          = None,
+        use_model           = False,
+        use_uncertainty     = False,
+        use_saliency        = False,
+        normalizer          = None,
+        wsi                 = None,
     ):
         if x is None or y is None:
             return
+        assert wsi is not None
+
+        res.predictions = None
+        res.uncertainty = None
 
         import pyvips
-        # Stop UQ thread if running.
-        self._stop_uq_thread = True
-        viz = self._visualizer
-        wsi = viz.wsi
 
         if sf.backend() == 'tensorflow':
             import tensorflow as tf
@@ -192,6 +196,8 @@ class Renderer:
         elif sf.backend() == 'torch':
             import torch
             dtype = torch.uint8
+
+        decode_jpeg = img_format is not None and img_format.lower() in ('jpg', 'jpeg')
 
         try:
             region = wsi.slide.read_region(
@@ -203,28 +209,23 @@ class Renderer:
                 region = region.flatten()  # removes alpha
             if int(wsi.tile_px) != int(wsi.extract_px):
                 region = region.resize(wsi.tile_px/wsi.extract_px)
-            if img_format is not None and img_format.lower() in ('jpg', 'jpeg'):
-                proc_img = img = _decode(region.jpegsave_buffer(), img_format)
-            elif img_format == 'png':
-                proc_img = img = _decode(region.pngsave_buffer(), img_format)
-            elif img_format is None:
+            if decode_jpeg:
+                img = _decode_jpeg(region.jpegsave_buffer())
+                if sf.backend() == 'torch':
+                    res.image = sf.io.torch.cwh_to_whc(img).numpy()
+                res.image = img.numpy()
+                img = sf.io.convert_dtype(img, dtype)
+            elif img_format in ('png', None):
                 res.image = img = sf.slide.vips2numpy(region)
             else:
                 raise ValueError(f"Unknown image format {img_format}")
-            if img_format is not None:
-                if sf.backend() == 'torch':
-                    res.image = sf.io.torch.cwh_to_whc(img).numpy()
-                else:
-                    res.image = img.numpy()
-                proc_img = sf.io.convert_dtype(img, dtype)
-            else:
-                proc_img = img
-        except pyvips.error.Error as e:
+
+        except pyvips.error.Error:
             print(f"Tile coordinates {x}, {y} are out of bounds, skipping")
         else:
-            if viz._use_model:
+            if use_model:
+                proc_img = img
                 # Pre-process image.
-                normalizer = viz._normalizer
                 if normalizer:
                     proc_img = normalizer.transform(proc_img)
                     if not isinstance(proc_img, np.ndarray):
@@ -240,8 +241,8 @@ class Renderer:
                     proc_img = sf.io.torch.preprocess_uint8(proc_img, standardize=True)
 
                 # Saliency.
-                if show_saliency:
-                    mask = viz.saliency.get(proc_img.numpy(), method=saliency_method)
+                if use_saliency:
+                    mask = self._saliency.get(proc_img.numpy(), method=saliency_method)
                     if saliency_overlay:
                         res.image = sf.grad.plot_utils.overlay(img.numpy(), mask)
                     else:
@@ -250,6 +251,8 @@ class Renderer:
                         res.image = res.image[:, :, 0:3]
 
                 # Show predictions.
-                self._classify_img(proc_img)
+                predictions, uncertainty = self._classify_img(proc_img, use_uncertainty=use_uncertainty)
+                res.predictions = predictions
+                res.uncertainty = uncertainty
 
 #----------------------------------------------------------------------------

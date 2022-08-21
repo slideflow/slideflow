@@ -112,7 +112,7 @@ class HeatmapWidget:
         self._button_pressed = True
         viz.heatmap = sf.heatmap.ModelHeatmap(
             viz.wsi,
-            viz._model,
+            viz.model,
             img_format=viz._model_config['img_format'],
             generate=False,
             normalizer=viz._normalizer,
@@ -187,7 +187,7 @@ class HeatmapWidget:
             imgui.begin_child('##heatmap_options', width=-1, height=height, border=False)
 
             # Heatmap options.
-            with imgui_utils.grayed_out(viz._model is None or viz.wsi is None):
+            with imgui_utils.grayed_out(viz._model_path is None or viz.wsi is None):
 
                 # Colormap.
                 with imgui_utils.item_width(viz.font_size * 6):

@@ -536,6 +536,7 @@ def autoselect(
         import slideflow.norm.tensorflow
         BackendNormalizer = sf.norm.tensorflow.TensorflowStainNormalizer
     elif sf.backend() == 'torch' and method == 'macenko':
+        import slideflow.norm.torch
         BackendNormalizer = sf.norm.torch.TorchStainNormalizer  # type: ignore
     elif sf.backend() == 'torch':
         BackendNormalizer = StainNormalizer  # type: ignore

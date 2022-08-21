@@ -22,7 +22,7 @@ class PerformanceWidget:
         self.fps_limit      = 60
         self.use_vsync      = False
         self.is_async       = False
-        self.force_fp32     = False
+        self.ignore_jpg     = False
 
     @imgui_utils.scoped_by_object_id
     def __call__(self, show=True):
@@ -64,10 +64,11 @@ class PerformanceWidget:
             imgui.same_line(viz.label_w + viz.font_size * 18 + viz.spacing * 3)
             _clicked, self.is_async = imgui.checkbox('Separate process', self.is_async)
             imgui.same_line(imgui.get_content_region_max()[0] - 1 - viz.button_w * 2 - viz.spacing)
-            _clicked, self.force_fp32 = imgui.checkbox('Force FP32', self.force_fp32)
+            _clicked, self.ignore_jpg = imgui.checkbox('Ignore compression', self.ignore_jpg)
 
         viz.set_fps_limit(self.fps_limit)
         viz.set_vsync(self.use_vsync)
         viz.set_async(self.is_async)
+        viz._use_model_img_fmt = not self.ignore_jpg
 
 #----------------------------------------------------------------------------
