@@ -20,8 +20,10 @@ class CaptureWidget:
     def __init__(self, viz):
         self.viz            = viz
         self.path           = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '_screenshots'))
-        self.dump_image     = False
+        self.dump_tile      = False
         self.dump_gui       = False
+        self.dump_view      = False
+        self._crop_next     = False
         self.defer_frames   = 0
         self.disabled_time  = 0
 
@@ -55,13 +57,18 @@ class CaptureWidget:
                 imgui.same_line(viz.label_w)
                 _changed, self.path = imgui_utils.input_text('##path', self.path, 1024,
                     flags=(imgui.INPUT_TEXT_AUTO_SELECT_ALL | imgui.INPUT_TEXT_ENTER_RETURNS_TRUE),
-                    width=(-1 - viz.button_w * 2 - viz.spacing * 2),
+                    width=(-1 - viz.button_w * 3 - viz.spacing * 3),
                     help_text='PATH')
                 if imgui.is_item_hovered() and not imgui.is_item_active() and self.path != '':
                     imgui.set_tooltip(self.path)
                 imgui.same_line()
-                if imgui_utils.button('Save image', width=viz.button_w, enabled=(self.disabled_time == 0 and 'image' in viz.result)):
-                    self.dump_image = True
+                if imgui_utils.button('Save view', width=viz.button_w, enabled=(self.disabled_time == 0 and viz.thumb is not None)):
+                    self.dump_view = True
+                    self.defer_frames = 2
+                    self.disabled_time = 0.5
+                imgui.same_line()
+                if imgui_utils.button('Save tile', width=viz.button_w, enabled=(self.disabled_time == 0 and 'image' in viz.result)):
+                    self.dump_tile = True
                     self.defer_frames = 2
                     self.disabled_time = 0.5
                 imgui.same_line()
@@ -73,15 +80,19 @@ class CaptureWidget:
         self.disabled_time = max(self.disabled_time - viz.frame_delta, 0)
         if self.defer_frames > 0:
             self.defer_frames -= 1
-        elif self.dump_image:
+        elif self.dump_tile:
             if 'image' in viz.result:
                 self.dump_png(viz.result.image)
-            self.dump_image = False
-        elif self.dump_gui:
+            self.dump_tile = False
+        elif self.dump_gui or self.dump_view:
             viz.capture_next_frame()
-            self.dump_gui = False
+            self._crop_next = self.dump_view
+            self.dump_view = self.dump_gui = False
         captured_frame = viz.pop_captured_frame()
         if captured_frame is not None:
+            if self._crop_next:
+                captured_frame = captured_frame[:, self.viz.pane_w:, :]
             self.dump_png(captured_frame)
+            self._crop_next = False
 
 #----------------------------------------------------------------------------
