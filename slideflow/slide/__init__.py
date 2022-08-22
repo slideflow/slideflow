@@ -841,6 +841,18 @@ class _BaseLoader:
     def _build_coord(self):
         raise NotImplementedError
 
+    def _scaled_polys(
+        self,
+        xfact: float,
+        yfact: Optional[float] = None,
+    ) -> List[sg.Polygon]:
+        if yfact is None:
+            yfact = xfact
+        return [
+            sa.scale(poly, xfact=xfact, yfact=yfact, origin=(0, 0))
+            for poly in self.annPolys
+        ]
+
     def mpp_to_dim(self, mpp: float) -> Tuple[int, int]:
         width = int((self.mpp * self.dimensions[0]) / mpp)
         height = int((self.mpp * self.dimensions[1]) / mpp)
@@ -936,12 +948,8 @@ class _BaseLoader:
             if len(self.annPolys):
                 ofact = self.roi_scale / self.slide.level_downsamples[lev]
                 roi_mask = np.zeros((otsu_thumb.shape[0], otsu_thumb.shape[1]))
-                polys = [
-                    sa.scale(poly, xfact=ofact, yfact=ofact, origin=(0, 0))
-                    for poly in self.annPolys
-                ]
                 roi_mask = rasterio.features.rasterize(
-                    polys,
+                    self._scaled_polys(ofact),
                     out_shape=otsu_thumb.shape[:2]
                 )
                 otsu_thumb = cv2.bitwise_or(
@@ -1605,14 +1613,19 @@ class WSI(_BaseLoader):
 
         # ROI filtering
         if self.roi_method != 'ignore' and self.annPolys is not None:
-            xfact = self.grid.shape[0] / (self.dimensions[0] / self.roi_scale)
-            yfact = self.grid.shape[1] / (self.dimensions[1] / self.roi_scale)
-            scaled = [
-                sa.scale(poly, xfact=xfact, yfact=yfact, origin=(0, 0))
-                for poly in self.annPolys]
+
+            full_extract = self.tile_um / self.mpp
+            stride_factor = full_extract / self.stride_div
+            xtrim = int(full_extract + stride_factor * (self.grid.shape[0]-1))  # type: ignore
+            ytrim = int(full_extract + stride_factor * (self.grid.shape[1]-1))  # type: ignore
+
+            xfact = self.grid.shape[0] / (xtrim / self.roi_scale)
+            yfact = self.grid.shape[1] / (ytrim / self.roi_scale)
+            scaled = self._scaled_polys(xfact=xfact, yfact=yfact)
             self.roi_mask = rasterio.features.rasterize(
                 scaled,
-                out_shape=(self.grid.shape[1], self.grid.shape[0])).astype(bool)
+                out_shape=(self.grid.shape[1], self.grid.shape[0]),
+                all_touched=False).astype(bool)
         else:
             self.roi_mask = None
 
