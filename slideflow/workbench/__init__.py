@@ -34,8 +34,6 @@ if sf.util.torch_available:
 #----------------------------------------------------------------------------
 
 def _load_model_and_saliency(model_path, device=None):
-    print(f"Loading model and saliency...")
-
     if sf.util.torch_available and sf.util.path_to_ext(model_path) == 'zip':
         _model = sf.model.torch.load(model_path)
         _model.eval()

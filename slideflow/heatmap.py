@@ -161,6 +161,9 @@ class Heatmap:
             if generator_kwargs is None:
                 generator_kwargs = {}
             self.generate(**generator_kwargs)
+        elif generator_kwargs:
+            log.warn("Heatmap generate=False, ignoring generator_kwargs ("
+                     f"{generator_kwargs})")
 
     @staticmethod
     def _prepare_ax(ax: Optional["Axes"] = None) -> "Axes":
@@ -207,7 +210,6 @@ class Heatmap:
         """
 
         # Load the slide
-
         def _generate(grid=None):
             out = self.interface(
                 self.slide,
@@ -643,6 +645,7 @@ class ModelHeatmap(Heatmap):
         generate: bool = True,
         normalizer: Optional[sf.norm.StainNormalizer] = None,
         uq: bool = False,
+        generator_kwargs: Optional[Dict[str, Any]] = None,
         **wsi_kwargs
     ):
         """Convolutes across a whole slide, calculating logits and saving
@@ -685,6 +688,8 @@ class ModelHeatmap(Heatmap):
         self.num_threads = num_threads
         self.batch_size = batch_size
         self.insets = []  # type: List[Inset]
+        if generator_kwargs is None:
+            generator_kwargs = {}
 
         if isinstance(slide, str):
 
@@ -760,4 +765,7 @@ class ModelHeatmap(Heatmap):
         self.num_uncertainty = self.interface.num_uncertainty
 
         if generate:
-            self.generate()
+            self.generate(**generator_kwargs)
+        elif generator_kwargs:
+            log.warn("Heatmap generate=False, ignoring generator_kwargs ("
+                     f"{generator_kwargs})")

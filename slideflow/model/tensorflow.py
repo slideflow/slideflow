@@ -2036,6 +2036,8 @@ class Features:
         batch_size: int = 32,
         dtype: type = np.float16,
         grid: Optional[np.ndarray] = None,
+        shuffle: bool = False,
+        show_progress: bool = True,
         **kwargs
     ) -> Optional[np.ndarray]:
         """Generate activations from slide => activation grid array."""
@@ -2067,10 +2069,10 @@ class Features:
         ctx = mp.get_context('spawn')
         pool = ctx.Pool(16 if os.cpu_count is None else os.cpu_count())
         generator = slide.build_generator(
-            shuffle=False,
-            show_progress=True,
             img_format=img_format,
             pool=pool,
+            shuffle=shuffle,
+            show_progress=show_progress,
             **kwargs
         )
         if not generator:

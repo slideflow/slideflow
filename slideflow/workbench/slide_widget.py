@@ -433,7 +433,7 @@ class SlideWidget:
                     self.refresh_stride()
 
             # Slide filtering
-            _qc_clicked, self.show_slide_filter = imgui.checkbox('Slide filter (QC)', self.show_slide_filter)
+            _qc_clicked, self.show_slide_filter = imgui.checkbox('Slide filter', self.show_slide_filter)
             imgui.same_line(imgui.get_content_region_max()[0] - 1 - viz.font_size*8)
             with imgui_utils.item_width(viz.font_size * 8), imgui_utils.grayed_out(not self.show_slide_filter):
                 _qc_method_clicked, self.qc_idx = imgui.combo("##qc_method", self.qc_idx, self._qc_methods_str)

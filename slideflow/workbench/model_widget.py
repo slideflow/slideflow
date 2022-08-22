@@ -126,26 +126,16 @@ class ModelWidget:
             hp = self.viz._model_config['hp']
             rows = list(zip(list(map(str, hp.keys())), list(map(str, hp.values()))))
 
-            imgui.open_popup('params_popup')
-            if imgui.begin_popup('params_popup'):
-                imgui.text('Model parameters')
-                imgui.separator()
-                #height = imgui.get_text_line_height_with_spacing() * len(rows) + viz.spacing
-                #imgui.begin_child('##model_properties', width=-1, height=height, border=True)
-                for y, cols in enumerate(rows):
-                    for x, col in enumerate(cols):
-                        if x != 0:
-                            imgui.same_line(viz.font_size * 10)
-                        if x == 0: # or y == 0:
-                            imgui.text_colored(col, *dim_color)
-                        else:
-                            imgui.text(col)
-                #imgui.end_child()
-                imgui.text('')
-                imgui.same_line((imgui.get_content_region_max()[0])/2 - (self.viz.button_w/2) + self.viz.spacing)
-                if imgui.button('Close'):
-                    self._show_params = False
-                imgui.end_popup()
+            _, self._show_params = imgui.begin("Model parameters", closable=True, flags=imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_SCROLLBAR)
+            for y, cols in enumerate(rows):
+                for x, col in enumerate(cols):
+                    if x != 0:
+                        imgui.same_line(viz.font_size * 10)
+                    if x == 0:
+                        imgui.text_colored(col, *dim_color)
+                    else:
+                        imgui.text(col)
+            imgui.end()
 
         if show:
             imgui.text('Model')
@@ -267,7 +257,7 @@ class ModelWidget:
             with imgui_utils.grayed_out(viz._model_path is None):
                 imgui.same_line(imgui.get_content_region_max()[0] - viz.font_size - viz.spacing * 2)
                 if imgui.button("HP") and self.viz._model_config:
-                    self._show_params = True
+                    self._show_params = not self._show_params
             imgui.end_child()
 
 
