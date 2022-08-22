@@ -170,19 +170,10 @@ class SlideWidget:
         if correct_wsi_dim:
             full_extract = self.viz.wsi.tile_um / self.viz.wsi.mpp
             wsi_factor = full_extract / self.viz.wsi.stride_div
-
-            # I have no idea why this is required, but it is necessary --------
-            # to ensure the heatmaps are properly aligned.                    |
-            # TODO: Find a better solution!                                   |
-            y_correct = (full_extract/30) * (self.viz.wsi.stride_div-1)  #    |
-            # -----------------------------------------------------------------
-
             self.viz._overlay_wsi_dim = (int(full_extract + wsi_factor * (mask.shape[1]-1)),
                                          int(full_extract + wsi_factor * (mask.shape[0]-1)))
-            self.viz._apply_overlay_offset(y_correct)
         else:
             self.viz._overlay_wsi_dim = None
-            self.viz._reset_overlay_offset()
 
     def reset_tile_filter_and_join_thread(self):
         self._join_filter_thread()

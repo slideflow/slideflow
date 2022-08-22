@@ -79,7 +79,6 @@ class Workbench(imgui_window.ImguiWindow):
         self._content_width     = None
         self._content_height    = None
         self._refresh_thumb     = False
-        self._overlay_offset    = [0, 0]
         self._overlay_wsi_dim   = None
         self._thumb_params      = None
         self._use_model         = None
@@ -90,6 +89,7 @@ class Workbench(imgui_window.ImguiWindow):
         # Widget interface.
         self.wsi                = None
         self.wsi_thumb          = None
+        self.rois               = None
         self.saliency           = None
         self.thumb              = None
         self.thumb_zoom         = None
@@ -161,13 +161,6 @@ class Workbench(imgui_window.ImguiWindow):
     def reload_model(self):
         self._async_renderer.load_model(self._model_path)
 
-    def _apply_overlay_offset(self, y_correct=0):
-        self._overlay_offset = [- (self.wsi.dimensions[0] - self._overlay_wsi_dim[0]) / 2,
-                                - (self.wsi.dimensions[1] - self._overlay_wsi_dim[1]) / 2 - y_correct]
-
-    def _reset_overlay_offset(self):
-        self._overlay_offset = [0, 0]
-
     def close(self):
         super().close()
         if self._async_renderer is not None:
@@ -204,6 +197,15 @@ class Workbench(imgui_window.ImguiWindow):
             stride_div=stride,
             rois=rois if use_rois else None,
             verbose=False)
+        if self.thumb is not None:
+            self.refresh_rois()
+
+    def refresh_rois(self):
+        self.rois = [
+            np.array([self.wsi_coords_to_display_coords(v[0], v[1])
+                      for v in roi.coordinates])
+            for roi in self.wsi.rois
+        ]
 
     def load_model(self, model, ignore_errors=False):
         self.clear_model()
@@ -415,6 +417,9 @@ class Workbench(imgui_window.ImguiWindow):
                                                     or (abs(self._thumb_tex_obj.height - max_h) > 1)):
                 self._thumb_tex_img = None
 
+        # Refresh ROIs
+        self.refresh_rois()
+
 
     def wsi_coords_to_display_coords(self, x, y, pane_correct=True):
         correction = self.pane_w if pane_correct else 0
@@ -503,7 +508,7 @@ class Workbench(imgui_window.ImguiWindow):
             if self._thumb_tex_img is not self.thumb:
                 self._thumb_tex_img = self.thumb
                 if self._thumb_tex_obj is None or not self._thumb_tex_obj.is_compatible(image=self._thumb_tex_img):
-                    self._thumb_tex_obj = gl_utils.Texture(image=self._thumb_tex_img, bilinear=False, mipmap=False)
+                    self._thumb_tex_obj = gl_utils.Texture(image=self._thumb_tex_img, bilinear=True, mipmap=True)
                 else:
                     self._thumb_tex_obj.update(self._thumb_tex_img)
             t_zoom = min(max_w / self._thumb_tex_obj.width, max_h / self._thumb_tex_obj.height)
@@ -519,16 +524,11 @@ class Workbench(imgui_window.ImguiWindow):
                         self._overlay_tex_obj = gl_utils.Texture(image=self._overlay_tex_img, bilinear=False, mipmap=False)
                     else:
                         self._overlay_tex_obj.update(self._overlay_tex_img)
-                h_pos_x, h_pos_y = self.wsi_coords_to_display_coords(*self._overlay_offset, pane_correct=True)
 
                 if self._overlay_wsi_dim is None:
                     self._overlay_wsi_dim = self.wsi.dimensions
-
-                h_pos = [h_pos_x + (self.wsi.dimensions[0] / self.thumb_zoom) / 2,
-                         h_pos_y + (self.wsi.dimensions[1] / self.thumb_zoom) / 2]
                 h_zoom = (self._overlay_wsi_dim[0] / self.overlay_heatmap.shape[1]) / self.thumb_zoom
-
-                self._overlay_tex_obj.draw(pos=h_pos, zoom=h_zoom, align=0.5, rint=True)
+                self._overlay_tex_obj.draw(pos=self.wsi_coords_to_display_coords(0, 0), zoom=h_zoom, align=0.5, rint=True, anchor='topleft')
 
             # Calculate location for model display.
             if (self._model_path
@@ -555,14 +555,10 @@ class Workbench(imgui_window.ImguiWindow):
                 gl.glLineWidth(1)
 
             # Render ROIs.
-            if self.wsi and len(self.wsi.rois):
-                for roi in self.wsi.rois:
-                    vertices = np.array([
-                        self.wsi_coords_to_display_coords(v[0], v[1])
-                        for v in roi.coordinates
-                    ])
-                    gl_utils.draw_roi(vertices, color=1, alpha=0.7, linewidth=5)
-                    gl_utils.draw_roi(vertices, color=0, alpha=1, linewidth=3)
+            if self.wsi and len(self.rois):
+                for roi in self.rois:
+                    gl_utils.draw_roi(roi, color=1, alpha=0.7, linewidth=5)
+                    gl_utils.draw_roi(roi, color=0, alpha=1, linewidth=3)
 
 
         # Render WSI thumbnail in the widget.
@@ -570,7 +566,7 @@ class Workbench(imgui_window.ImguiWindow):
             if self._wsi_tex_img is not self.wsi_thumb:
                 self._wsi_tex_img = self.wsi_thumb
                 if self._wsi_tex_obj is None or not self._wsi_tex_obj.is_compatible(image=self._wsi_tex_img):
-                    self._wsi_tex_obj = gl_utils.Texture(image=self._wsi_tex_img, bilinear=False, mipmap=False)
+                    self._wsi_tex_obj = gl_utils.Texture(image=self._wsi_tex_img, bilinear=True, mipmap=True)
                 else:
                     self._wsi_tex_obj.update(self._wsi_tex_img)
 

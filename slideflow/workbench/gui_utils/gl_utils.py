@@ -190,13 +190,13 @@ class Texture:
                 gl.glGenerateMipmap(gl.GL_TEXTURE_2D)
             gl.glPopClientAttrib()
 
-    def draw(self, *, pos=0, zoom=1, align=0, rint=False, color=1, alpha=1, rounding=0):
+    def draw(self, *, pos=0, zoom=1, align=0, rint=False, color=1, alpha=1, rounding=0, anchor='center'):
         zoom = np.broadcast_to(np.asarray(zoom, dtype='float32'), [2])
         size = zoom * [self.width, self.height]
         with self.bind():
             gl.glPushAttrib(gl.GL_ENABLE_BIT)
             gl.glEnable(gl.GL_TEXTURE_2D)
-            draw_rect(pos=pos, size=size, align=align, rint=rint, color=color, alpha=alpha, rounding=rounding)
+            draw_rect(pos=pos, size=size, align=align, rint=rint, color=color, alpha=alpha, rounding=rounding, anchor=anchor)
             gl.glPopAttrib()
 
     def is_compatible(self, *, image=None, width=None, height=None, channels=None, dtype=None): # pylint: disable=too-many-return-statements
@@ -306,8 +306,9 @@ class Framebuffer:
 
 #----------------------------------------------------------------------------
 
-def draw_shape(vertices, *, mode=gl.GL_TRIANGLE_FAN, pos=0, size=1, color=1, alpha=1):
+def draw_shape(vertices, *, mode=gl.GL_TRIANGLE_FAN, pos=0, size=1, color=1, alpha=1, anchor='center'):
     assert vertices.ndim == 2 and vertices.shape[1] == 2
+    assert anchor in ('center', 'topleft')
     pos = np.broadcast_to(np.asarray(pos, dtype='float32'), [2])
     size = np.broadcast_to(np.asarray(size, dtype='float32'), [2])
     color = np.broadcast_to(np.asarray(color, dtype='float32'), [3])
@@ -322,7 +323,10 @@ def draw_shape(vertices, *, mode=gl.GL_TRIANGLE_FAN, pos=0, size=1, color=1, alp
     gl.glEnableClientState(gl.GL_TEXTURE_COORD_ARRAY)
     gl.glVertexPointer(2, gl.GL_FLOAT, 0, vertices)
     gl.glTexCoordPointer(2, gl.GL_FLOAT, 0, vertices)
-    gl.glTranslate(pos[0], pos[1], 0)
+    if anchor == 'center':
+        gl.glTranslate(pos[0], pos[1], 0)
+    else:
+        gl.glTranslate(pos[0]+size[0]/2, pos[1]+size[1]/2, 0)
     gl.glScale(size[0], size[1], 1)
     gl.glColor4f(color[0] * alpha, color[1] * alpha, color[2] * alpha, alpha)
     gl.glDrawArrays(mode, 0, vertices.shape[0])
@@ -333,21 +337,26 @@ def draw_shape(vertices, *, mode=gl.GL_TRIANGLE_FAN, pos=0, size=1, color=1, alp
 
 
 def draw_roi(vertices, *, color=1, alpha=1, linewidth=2):
+    assert vertices.ndim == 2 and vertices.shape[1] == 2
     color = np.broadcast_to(np.asarray(color, dtype='float32'), [3])
     gl.glLineWidth(linewidth)
     gl.glBegin(gl.GL_LINE_STRIP)
     gl.glColor4f(color[0] * alpha, color[1] * alpha, color[2] * alpha, alpha)
     for vertex in vertices:
         gl.glVertex2f(*vertex)
-    # Close the ROI
-    gl.glVertex2f(*vertices[0])
+    gl.glVertex2f(*vertices[0])  # Close the ROI
     gl.glEnd()
     gl.glLineWidth(1)
 
+    gl.glBindFramebuffer(gl.GL_FRAMEBUFFER, 0)
+    gl.glBindRenderbuffer(gl.GL_RENDERBUFFER, 0)
+    gl.glBindTexture(gl.GL_TEXTURE_2D, 0)
+
 #----------------------------------------------------------------------------
 
-def draw_rect(*, pos=0, pos2=None, size=None, align=0, rint=False, color=1, alpha=1, rounding=0, mode=gl.GL_TRIANGLE_FAN):
+def draw_rect(*, pos=0, pos2=None, size=None, align=0, rint=False, color=1, alpha=1, rounding=0, mode=gl.GL_TRIANGLE_FAN, anchor='center'):
     assert pos2 is None or size is None
+    assert anchor in ('center', 'topleft')
     pos = np.broadcast_to(np.asarray(pos, dtype='float32'), [2])
     pos2 = np.broadcast_to(np.asarray(pos2, dtype='float32'), [2]) if pos2 is not None else None
     size = np.broadcast_to(np.asarray(size, dtype='float32'), [2]) if size is not None else None
@@ -359,11 +368,11 @@ def draw_rect(*, pos=0, pos2=None, size=None, align=0, rint=False, color=1, alph
     rounding = np.minimum(np.abs(rounding) / np.maximum(np.abs(size), 1e-8), 0.5)
     if np.min(rounding) == 0:
         rounding *= 0
-    vertices = _setup_rect(float(rounding[0]), float(rounding[1]))
-    draw_shape(vertices, pos=pos, size=size, color=color, alpha=alpha, mode=mode)
+    vertices = _setup_center_rect(float(rounding[0]), float(rounding[1]))
+    draw_shape(vertices, pos=pos, size=size, color=color, alpha=alpha, mode=mode, anchor=anchor)
 
 @functools.lru_cache(maxsize=10000)
-def _setup_rect(rx, ry):
+def _setup_center_rect(rx, ry):
     t = np.linspace(0, np.pi / 2, 1 if max(rx, ry) == 0 else 64)
     s = 1 - np.sin(t); c = 1 - np.cos(t)
     x = [c * rx, 1 - s * rx, 1 - c * rx, s * rx]
