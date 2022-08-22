@@ -78,7 +78,6 @@ class Workbench(imgui_window.ImguiWindow):
         self._uncertainty       = None
         self._content_width     = None
         self._content_height    = None
-        self._slide_path        = None
         self._refresh_thumb     = False
         self._overlay_offset    = [0, 0]
         self._overlay_wsi_dim   = None
@@ -155,6 +154,10 @@ class Workbench(imgui_window.ImguiWindow):
     def model(self):
         return self._async_renderer._model
 
+    @property
+    def P(self):
+        return self.project_widget.P
+
     def reload_model(self):
         self._async_renderer.load_model(self._model_path)
 
@@ -187,10 +190,72 @@ class Workbench(imgui_window.ImguiWindow):
     def load_slide(self, slide, ignore_errors=False):
         self.slide_widget.load(slide, ignore_errors=ignore_errors)
 
+    def _reload_wsi(self, path=None, stride=None, use_rois=True):
+        if path is None:
+            path = self.wsi.path
+        if stride is None:
+            stride = self.wsi.stride_div
+        if self.P:
+            rois = self.P.dataset().rois()
+        self.wsi = sf.WSI(
+            path,
+            tile_px=self.tile_px,
+            tile_um=self.tile_um,
+            stride_div=stride,
+            rois=rois if use_rois else None,
+            verbose=False)
+
     def load_model(self, model, ignore_errors=False):
-        self._model_path = model
-        self.model_widget.load(model)
-        self._async_renderer.load_model(model)
+        self.clear_model()
+        self.clear_result()
+        self.skip_frame() # The input field will change on next frame.
+        self._async_renderer.get_result() # Flush prior result
+        try:
+            print("Loading model at {}...".format(model))
+            self.defer_rendering()
+            self.model_widget.user_model = model
+
+            # Read model configuration
+            config = sf.util.get_model_config(model)
+            normalizer = sf.util.get_model_normalizer(model)
+            self.result.message = f'Loading {config["model_name"]}...'
+            self.defer_rendering()
+            self._use_model = True
+            self._model_path = model
+            self._model_config = config
+            self._normalizer = normalizer
+            self._predictions = None
+            self._uncertainty = None
+            self._use_uncertainty = 'uq' in config['hp'] and config['hp']['uq']
+            self.tile_um = config['tile_um']
+            self.tile_px = config['tile_px']
+            self._async_renderer.load_model(model)
+            if sf.util.torch_available and sf.util.path_to_ext(model) == 'zip':
+                self.model_widget.backend = 'torch'
+            else:
+                self.model_widget.backend = 'tensorflow'
+
+            # Update widgets
+            self.model_widget.cur_model = model
+            self.model_widget.use_model = True
+            self.model_widget.use_uncertainty = 'uq' in config['hp'] and config['hp']['uq']
+            self.model_widget.refresh_recent()
+            if normalizer is not None and hasattr(self, 'slide_widget'):
+                self.slide_widget.show_model_normalizer()
+                self.slide_widget.norm_idx = len(self.slide_widget._normalizer_methods)-1
+            if self.wsi:
+                self.slide_widget.load(self.wsi.path, ignore_errors=ignore_errors)
+            if hasattr(self, 'heatmap_widget'):
+                self.heatmap_widget.reset()
+
+        except Exception:
+            self.model_widget.cur_model = None
+            if model == '':
+                self.result = EasyDict(message='No model loaded')
+            else:
+                self.result = EasyDict(error=renderer.CapturedException())
+            if not ignore_errors:
+                raise
 
     def print_error(self, error):
         error = str(error)
@@ -351,9 +416,10 @@ class Workbench(imgui_window.ImguiWindow):
                 self._thumb_tex_img = None
 
 
-    def wsi_coords_to_display_coords(self, x, y):
+    def wsi_coords_to_display_coords(self, x, y, pane_correct=True):
+        correction = self.pane_w if pane_correct else 0
         return (
-            ((x - self.thumb_origin[0]) / self.thumb_zoom) + self.thumb_screen_offset[0],
+            ((x - self.thumb_origin[0]) / self.thumb_zoom) + self.thumb_screen_offset[0] + correction,
             ((y - self.thumb_origin[1]) / self.thumb_zoom) + self.thumb_screen_offset[1]
         )
 
@@ -453,12 +519,12 @@ class Workbench(imgui_window.ImguiWindow):
                         self._overlay_tex_obj = gl_utils.Texture(image=self._overlay_tex_img, bilinear=False, mipmap=False)
                     else:
                         self._overlay_tex_obj.update(self._overlay_tex_img)
-                h_pos_x, h_pos_y = self.wsi_coords_to_display_coords(*self._overlay_offset)
+                h_pos_x, h_pos_y = self.wsi_coords_to_display_coords(*self._overlay_offset, pane_correct=True)
 
                 if self._overlay_wsi_dim is None:
                     self._overlay_wsi_dim = self.wsi.dimensions
 
-                h_pos = [h_pos_x + self.pane_w + (self.wsi.dimensions[0] / self.thumb_zoom) / 2,
+                h_pos = [h_pos_x + (self.wsi.dimensions[0] / self.thumb_zoom) / 2,
                          h_pos_y + (self.wsi.dimensions[1] / self.thumb_zoom) / 2]
                 h_zoom = (self._overlay_wsi_dim[0] / self.overlay_heatmap.shape[1]) / self.thumb_zoom
 
@@ -477,8 +543,7 @@ class Workbench(imgui_window.ImguiWindow):
             # Update box location.
             if self.x is not None and self.y is not None:
                 if clicking or dragging or wheel or window_changed:
-                    self.box_x, self.box_y = self.wsi_coords_to_display_coords(self.x, self.y)
-                    self.box_x += self.pane_w
+                    self.box_x, self.box_y = self.wsi_coords_to_display_coords(self.x, self.y, pane_correct=True)
                 tw = self.wsi.full_extract_px / self.thumb_zoom
 
                 # Draw box on main display.
@@ -487,7 +552,18 @@ class Workbench(imgui_window.ImguiWindow):
                 box_pos = np.array([self.box_x, self.box_y])
                 gl_utils.draw_rect(pos=box_pos, size=np.array([tw, tw]), color=[1, 0, 0], mode=gl.GL_LINE_LOOP)
                 gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_FILL)
-                gl.glLineWidth(3)
+                gl.glLineWidth(1)
+
+            # Render ROIs.
+            if self.wsi and len(self.wsi.rois):
+                for roi in self.wsi.rois:
+                    vertices = np.array([
+                        self.wsi_coords_to_display_coords(v[0], v[1])
+                        for v in roi.coordinates
+                    ])
+                    gl_utils.draw_roi(vertices, color=1, alpha=0.7, linewidth=5)
+                    gl_utils.draw_roi(vertices, color=0, alpha=1, linewidth=3)
+
 
         # Render WSI thumbnail in the widget.
         if self.wsi_thumb is not None:

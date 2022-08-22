@@ -34,6 +34,7 @@ class ModelWidget:
         self.search_dirs        = []
         self.cur_model          = None
         self.user_model         = ''
+        self.backend      = None
         self.recent_models      = []
         self.browse_cache       = dict()
         self.browse_refocus     = False
@@ -63,57 +64,13 @@ class ModelWidget:
             if not ignore_errors:
                 raise
 
+    def refresh_recent(self):
+        if self.user_model in self.recent_models:
+            self.recent_models.remove(self.user_model)
+        self.recent_models.insert(0, self.user_model)
+
     def load(self, model, ignore_errors=False):
-        viz = self.viz
-        viz.clear_model()
-        viz.clear_result()
-        viz.skip_frame() # The input field will change on next frame.
-        viz._async_renderer.get_result() # Flush prior result
-        try:
-            self.cur_model = model
-            self.user_model = model
-
-            viz.defer_rendering()
-            if model in self.recent_models:
-                self.recent_models.remove(model)
-            self.recent_models.insert(0, model)
-
-            print("Loading model at {}...".format(model))
-            config = sf.util.get_model_config(model)
-            viz.result.message = f'Loading {config["model_name"]}...'
-            viz.defer_rendering()
-            normalizer = sf.util.get_model_normalizer(model)
-
-            viz._use_model = True
-            viz._model_path = model
-            viz._model_config = config
-            viz._normalizer = normalizer
-            viz._predictions = None
-            viz._uncertainty = None
-            viz._use_uncertainty = 'uq' in config['hp'] and config['hp']['uq']
-            if normalizer is not None and hasattr(viz, 'slide_widget'):
-                viz.slide_widget.show_model_normalizer()
-                viz.slide_widget.norm_idx = len(viz.slide_widget._normalizer_methods)-1
-            self.use_model = True
-            self.use_uncertainty = 'uq' in config['hp'] and config['hp']['uq']
-            viz.tile_um = config['tile_um']
-            viz.tile_px = config['tile_px']
-            viz.reload_model()
-
-            if hasattr(viz, '_slide_path') and viz._slide_path:
-                viz.slide_widget.load(viz._slide_path, ignore_errors=ignore_errors)
-            if hasattr(viz, 'heatmap_widget'):
-                viz.heatmap_widget.reset()
-
-        except Exception:
-            self.cur_model = None
-            self.user_model = model
-            if model == '':
-                viz.result = EasyDict(message='No model loaded')
-            else:
-                viz.result = EasyDict(error=renderer.CapturedException())
-            if not ignore_errors:
-                raise
+        self.viz.load_model(model, ignore_errors=ignore_errors)
 
     @imgui_utils.scoped_by_object_id
     def __call__(self, show=True):
@@ -229,7 +186,7 @@ class ModelWidget:
                     str(c['tile_px']),
                     str(c['tile_um']),
                     "<unknown>" if 'img_format' not in c else c['img_format'],
-                    c['model_type'],
+                    self.backend,
                     str(c['slideflow_version']),
                 ]
             else:
@@ -240,7 +197,7 @@ class ModelWidget:
                 ['Tile (px)',    vals[1]],
                 ['Tile (um)',    vals[2]],
                 ['Image format', vals[3]],
-                ['Model type',   vals[4]],
+                ['Backend',      vals[4]],
                 ['Version',      vals[5]],
             ]
             height = imgui.get_text_line_height_with_spacing() * len(rows) + viz.spacing * 2
@@ -272,8 +229,9 @@ class ModelWidget:
 
             with imgui_utils.grayed_out(not viz.has_uq()):
                 imgui.same_line(viz.label_w - viz.font_size + viz.font_size * 5)
-                _clicked, self.use_uncertainty = imgui.checkbox('Enable UQ', self.use_uncertainty)
-                viz._use_uncertainty = self.use_uncertainty
+                _clicked, _uq = imgui.checkbox('Enable UQ', self.use_uncertainty)
+                if _clicked and viz.has_uq():
+                    viz._use_uncertainty = self.use_uncertainty = _uq
 
             # Saliency --------------------------------------------------------
             if self.show_saliency:

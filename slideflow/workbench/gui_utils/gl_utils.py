@@ -331,6 +331,19 @@ def draw_shape(vertices, *, mode=gl.GL_TRIANGLE_FAN, pos=0, size=1, color=1, alp
     gl.glPopAttrib()
     gl.glPopClientAttrib()
 
+
+def draw_roi(vertices, *, color=1, alpha=1, linewidth=2):
+    color = np.broadcast_to(np.asarray(color, dtype='float32'), [3])
+    gl.glLineWidth(linewidth)
+    gl.glBegin(gl.GL_LINE_STRIP)
+    gl.glColor4f(color[0] * alpha, color[1] * alpha, color[2] * alpha, alpha)
+    for vertex in vertices:
+        gl.glVertex2f(*vertex)
+    # Close the ROI
+    gl.glVertex2f(*vertices[0])
+    gl.glEnd()
+    gl.glLineWidth(1)
+
 #----------------------------------------------------------------------------
 
 def draw_rect(*, pos=0, pos2=None, size=None, align=0, rint=False, color=1, alpha=1, rounding=0, mode=gl.GL_TRIANGLE_FAN):

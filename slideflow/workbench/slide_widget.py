@@ -28,30 +28,32 @@ def _locate_results(pattern):
 
 class SlideWidget:
     def __init__(self, viz):
-        self.viz            = viz
-        self.search_dirs    = []
-        self.cur_slide        = None
-        self.user_slide       = ''
-        self.project_slides = []
-        self.browse_cache   = dict()
-        self.browse_refocus = False
-        self.normalize_wsi  = False
-        self.norm_idx       = 0
-        self.qc_idx         = 0
-        self.qc_mask        = None
-        self.alpha          = 1.0
-        self.stride         = 1
-        self.show_slide_filter  = False
-        self.show_tile_filter   = False
-        self.gs_fraction    = sf.slide.DEFAULT_GRAYSPACE_FRACTION
-        self.gs_threshold   = sf.slide.DEFAULT_GRAYSPACE_THRESHOLD
-        self.ws_fraction    = sf.slide.DEFAULT_WHITESPACE_FRACTION
-        self.ws_threshold   = sf.slide.DEFAULT_WHITESPACE_THRESHOLD
-        self._filter_grid   = None
-        self._filter_thread = None
-        self._capturing_ws_thresh = None
-        self._capturing_gs_thresh = None
-        self._capturing_stride = None
+        self.viz                    = viz
+        self.search_dirs            = []
+        self.cur_slide              = None
+        self.user_slide             = ''
+        self.project_slides         = []
+        self.browse_cache           = dict()
+        self.browse_refocus         = False
+        self.normalize_wsi          = False
+        self.norm_idx               = 0
+        self.qc_idx                 = 0
+        self.qc_mask                = None
+        self.alpha                  = 1.0
+        self.stride                 = 1
+        self.show_slide_filter      = False
+        self.show_tile_filter       = False
+        self.gs_fraction            = sf.slide.DEFAULT_GRAYSPACE_FRACTION
+        self.gs_threshold           = sf.slide.DEFAULT_GRAYSPACE_THRESHOLD
+        self.ws_fraction            = sf.slide.DEFAULT_WHITESPACE_FRACTION
+        self.ws_threshold           = sf.slide.DEFAULT_WHITESPACE_THRESHOLD
+        self.num_total_rois         = 0
+        self._filter_grid           = None
+        self._filter_thread         = None
+        self._capturing_ws_thresh   = None
+        self._capturing_gs_thresh   = None
+        self._capturing_stride      = None
+        self._use_rois              = True
         self._rendering_message = "Calculating tile filter..."
         self._all_normalizer_methods = [
             'reinhard',
@@ -97,15 +99,13 @@ class SlideWidget:
             name = slide.replace('\\', '/').split('/')[-1]
             self.cur_slide = slide
             self.user_slide = slide
+            self._use_rois = True
             self.viz.set_message(f'Loading {name}...')
             viz.defer_rendering()
-            tile_px = viz.tile_px if viz.tile_px else 128
-            tile_um = viz.tile_um if viz.tile_um else 300
-            viz._slide_path = slide
-            print(f'Loading {slide}...')
-            viz.wsi = sf.WSI(slide, tile_px=tile_px, tile_um=tile_um, stride_div=self.stride, verbose=False)
+            viz._reload_wsi(slide, stride=self.stride, use_rois=self._use_rois)
             viz.reset_thumb()
             viz.heatmap_widget.reset()
+            self.num_total_rois = len(viz.wsi.rois)
 
             # Generate WSI thumbnail.
             hw_ratio = (viz.wsi.dimensions[0] / viz.wsi.dimensions[1])
@@ -139,12 +139,7 @@ class SlideWidget:
         self.viz.clear_overlay()
         self.show_tile_filter = False
         self.show_slide_filter = False
-        self.viz.wsi = sf.WSI(
-            self.viz.wsi.path,
-            tile_px=self.viz.wsi.tile_px,
-            tile_um=self.viz.wsi.tile_um,
-            stride_div=self.stride,
-            verbose=False)
+        self.viz._reload_wsi(stride=self.stride, use_rois=self._use_rois)
 
     def hide_model_normalizer(self):
         self._normalizer_methods = self._all_normalizer_methods
@@ -217,6 +212,7 @@ class SlideWidget:
             self._filter_grid = np.transpose(self.viz.wsi.grid).astype(np.bool)
             self._ws_grid = np.zeros_like(self._filter_grid, dtype=np.float)
             self._gs_grid = np.zeros_like(self._filter_grid, dtype=np.float)
+            self.render_to_overlay(self._filter_grid, correct_wsi_dim=True)
             for tile in generator():
                 x = tile['grid'][0]
                 y = tile['grid'][1]
@@ -390,7 +386,7 @@ class SlideWidget:
                     f'{viz.wsi.mpp:.4f} ({int(10 / (viz.wsi.slide.level_downsamples[0] * viz.wsi.mpp)):d}x)',
                     viz.wsi.vendor if viz.wsi.vendor is not None else '-',
                     str(est_tiles),
-                    '-'
+                    str(self.num_total_rois)
                 ]
             else:
                 vals = ["-" for _ in range(8)]
@@ -402,7 +398,7 @@ class SlideWidget:
                 ['ROIs',                vals[4]],
             ]
             height = imgui.get_text_line_height_with_spacing() * len(rows) + viz.spacing
-            imgui.begin_child('##slide_properties', width=-1, height=height, border=True)
+            imgui.begin_child('##slide_properties', width=-1, height=height, border=True, flags=imgui.WINDOW_NO_SCROLLBAR)
             for y, cols in enumerate(rows):
                 for x, col in enumerate(cols):
                     if x != 0:
@@ -411,6 +407,13 @@ class SlideWidget:
                         imgui.text_colored(col, *dim_color)
                     else:
                         imgui.text(col)
+
+            with imgui_utils.grayed_out(not viz.wsi or not self.num_total_rois):
+                imgui.same_line(imgui.get_content_region_max()[0] - viz.font_size * 4 - viz.spacing * 3)
+                _rois_clicked, self._use_rois = imgui.checkbox("Use ROIs", self._use_rois)
+                if _rois_clicked:
+                    viz._reload_wsi(use_rois=self._use_rois)
+
             imgui.end_child()
             # -----------------------------------------------------------------
 
