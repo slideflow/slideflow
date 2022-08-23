@@ -510,8 +510,22 @@ class _VIPSWrapper:
         self.level_downsamples = [lev['downsample'] for lev in self.levels]
         self.level_dimensions = [lev['dimensions'] for lev in self.levels]
 
-    def best_level_for_downsample(self, downsample: float) -> int:
-        '''Return best level to match a given desired downsample.'''
+    def best_level_for_downsample(
+        self,
+        downsample: float,
+    ) -> int:
+        '''Return lowest magnification level with a downsample level lower than
+        the given target.
+
+        Args:
+            downsample (float): Ratio of target resolution to resolution
+                at the highest magnification level. The downsample level of the
+                highest magnification layer is equal to 1.
+            levels (list(int), optional): Valid levels to search. Defaults to
+                None (search all levels).
+
+        Returns:
+            int:    Optimal downsample level.'''
         max_downsample = 0
         for d in self.level_downsamples:
             if d < downsample:
@@ -519,6 +533,7 @@ class _VIPSWrapper:
         try:
             max_level = self.level_downsamples.index(max_downsample)
         except Exception:
+            log.debug(f"Error attempting to read level {max_downsample}")
             return 0
         return max_level
 
@@ -577,7 +592,7 @@ class _VIPSWrapper:
         self,
         top_left: Tuple[int, int],
         window_size: Tuple[int, int],
-        target_size: Optional[Tuple[int, int]] = None
+        target_size: Optional[Tuple[int, int]] = None,
     ) -> "vips.Image":
         """Reads a region from the image. Performance is accelerated by
         pyramid downsample layers, if available.
@@ -589,6 +604,8 @@ class _VIPSWrapper:
                 height) using base layer coordinates.
             target_size (Tuple[int, int]): Resize the region to this target
                 size (width, height).
+            levels (list(int)): Levels that can be read from. Defaults to None
+                (read from best layer).
 
         Returns:
             vips.Image: VIPS image.
@@ -1773,6 +1790,7 @@ class WSI(_BaseLoader):
 
         # Detect CPU cores if num_threads not specified
         if num_threads is None:
+            num_threads = 0
             num_threads = os.cpu_count()
             if num_threads is None:
                 num_threads = 8
@@ -1839,9 +1857,10 @@ class WSI(_BaseLoader):
 
             if pool is None:
                 if num_threads > 1:
-                    log.debug(f"Building generator with {num_threads} threads")
-                    ctx = mp.get_context('spawn')
-                    pool = ctx.Pool(processes=num_threads)
+                    # ThreadPool used by default due to escalating memory
+                    # requirements when using multiprocessing
+                    log.debug(f"Building generator ThreadPool({num_threads})")
+                    pool = mp.dummy.Pool(processes=num_threads)
                     should_close = True
                 else:
                     log.debug(f"Building generator without multithreading")

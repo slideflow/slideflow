@@ -2038,10 +2038,15 @@ class Features:
         grid: Optional[np.ndarray] = None,
         shuffle: bool = False,
         show_progress: bool = True,
+        num_processes: Optional[int] = None,
+        num_threads: Optional[int] = None,
         **kwargs
     ) -> Optional[np.ndarray]:
         """Generate activations from slide => activation grid array."""
 
+        if num_processes is not None and num_threads is not None:
+            raise ValueError("Features() invalid argument: cannot supply both "
+                             "num_processes and num_threads")
         log.debug(f"Slide prediction (batch_size={batch_size}, "
                   f"img_format={img_format})")
         if img_format == 'auto' and self.img_format is None:
@@ -2066,8 +2071,13 @@ class Features:
         else:
             assert grid.shape == (slide.grid.shape[1], slide.grid.shape[0], total_out)
             features_grid = grid
-        ctx = mp.get_context('spawn')
-        pool = ctx.Pool(16 if os.cpu_count is None else os.cpu_count())
+        if num_processes:
+            ctx = mp.get_context('spawn')
+            pool = ctx.Pool(num_processes)
+        elif num_threads:
+            pool = mp.dummy.Pool(num_threads)
+        else:
+            pool = None
         generator = slide.build_generator(
             img_format=img_format,
             pool=pool,
@@ -2163,7 +2173,8 @@ class Features:
                 yi = _loc_batch[i][1]
                 features_grid[yi][xi] = act
 
-        pool.close()
+        if pool is not None:
+            pool.close()
         return features_grid
 
     @tf.function

@@ -7,6 +7,7 @@ from slideflow.workbench.gui_utils import imgui_window
 from slideflow.workbench.gui_utils import imgui_utils
 from slideflow.workbench.gui_utils import gl_utils
 from slideflow.workbench.gui_utils import text_utils
+from slideflow.workbench.gui_utils import wsi_utils
 from slideflow.workbench import slide_renderer as renderer
 from slideflow.workbench import project_widget
 from slideflow.workbench import slide_widget
@@ -54,6 +55,8 @@ class Workbench(imgui_window.ImguiWindow):
         super().__init__(title=f'Slideflow Workbench ({sf.__version__})', window_width=3840, window_height=2160)
 
         # Internals.
+        self._dx = 0
+        self._dy = 0
         self._last_error_print  = None
         self._async_renderer    = AsyncRenderer()
         self._defer_rendering   = 0
@@ -61,12 +64,11 @@ class Workbench(imgui_window.ImguiWindow):
         self._tex_obj           = None
         self._norm_tex_img      = None
         self._norm_tex_obj      = None
-        self._thumb_tex_img     = None
-        self._thumb_tex_obj     = None
         self._heatmap_tex_img   = None
         self._heatmap_tex_obj   = None
-        self._wsi_tex_img       = None
         self._wsi_tex_obj       = None
+        self._wsi_tex_img       = None
+        self._wsi_obj           = None
         self._overlay_tex_img   = None
         self._overlay_tex_obj   = None
         self._predictions       = None
@@ -131,7 +133,7 @@ class Workbench(imgui_window.ImguiWindow):
 
     @property
     def thumb_screen_offset(self):
-        if self._thumb_tex_obj is not None:
+        if self.thumb is not None:
             max_w = (self.content_width - self.pane_w)
             max_h = self.content_height
             return ((max_w - self.thumb.shape[1]) / 2,
@@ -277,7 +279,6 @@ class Workbench(imgui_window.ImguiWindow):
         self._use_model   = False
         self._use_uncertainty   = False
         self._use_saliency      = False
-
         self._model_path        = None
         self._model_config      = None
         self._normalizer        = None
@@ -294,11 +295,12 @@ class Workbench(imgui_window.ImguiWindow):
         self._async_renderer.clear_result()
         self._tex_img           = None
         self._norm_tex_img      = None
-        self._thumb_tex_img     = None
         self._heatmap_tex_img   = None
         self._wsi_tex_img       = None
         self.clear_model_results()
         self.clear_overlay()
+        if self._wsi_obj is not None:
+            self._wsi_obj.clear()
 
     def clear_model_results(self):
         self._async_renderer.clear_result()
@@ -372,7 +374,7 @@ class Workbench(imgui_window.ImguiWindow):
             _new_origin[0] = wsi_x - (cx * self.wsi_window_size[0] / max_w)
             _new_origin[1] = wsi_y - (cy * self.wsi_window_size[1] / max_h)
 
-        # Refresh thumbnail.
+        # Refresh whole-slide view.
         # Enforce boundary limits.
         _new_origin = [max(_new_origin[0], 0), max(_new_origin[1], 0)]
         _new_origin = [min(_new_origin[0], self.wsi.dimensions[0] - self.wsi_window_size[0]),
@@ -385,13 +387,15 @@ class Workbench(imgui_window.ImguiWindow):
         else:
             # Image is wider than tall
             max_h = int(self.wsi_window_size[1] / (self.wsi_window_size[0] / max_w))
-        target_size = (max_w, max_h)
+        self.thumb_origin = tuple(_new_origin)
 
         # Calculate region to extract from image
+
+        target_size = (max_w, max_h)
         _thumb_params = dict(
             top_left=_new_origin,
             window_size=(int(self.wsi_window_size[0]), int(self.wsi_window_size[1])),
-            target_size=target_size
+            target_size=target_size,
         )
         if _thumb_params != self._thumb_params:
             # Extract region if it is different than currently displayed
@@ -412,14 +416,13 @@ class Workbench(imgui_window.ImguiWindow):
         # Normalize and finalize
         if self._normalizer and self._normalize_wsi:
             self.thumb = self._normalizer.transform(self.thumb)
-        if self._thumb_tex_obj is not None:
-            if self._thumb_tex_obj is not None and ((abs(self._thumb_tex_obj.width - max_w) > 1)
-                                                    or (abs(self._thumb_tex_obj.height - max_h) > 1)):
-                self._thumb_tex_img = None
+
+        if self._wsi_obj is not None and ((abs(self._wsi_obj._tex_obj.width - max_w) > 1)
+                                           or (abs(self._wsi_obj._tex_obj.height - max_h) > 1)):
+            self._wsi_obj.clear()
 
         # Refresh ROIs
         self.refresh_rois()
-
 
     def wsi_coords_to_display_coords(self, x, y, pane_correct=True):
         correction = self.pane_w if pane_correct else 0
@@ -477,7 +480,7 @@ class Workbench(imgui_window.ImguiWindow):
                                                           height=self.content_height)
 
         if self.thumb is not None:
-            # Update thumb focus location & zoom values
+            # Update WSI focus location & zoom values
             # If shift-dragging or scrolling.
             dz = None
             if not dragging:
@@ -489,34 +492,36 @@ class Workbench(imgui_window.ImguiWindow):
             if wheel or dragging or self._refresh_thumb:
                 self._refresh_thumb = False
                 self.refresh_thumb(cx=cx, cy=cy, dx=dx, dy=dy, dz=dz)
+                # Below is the new syntax I would eventually like to use
+                #if dx is not None and self._wsi_obj is not None:
+                #    self._wsi_obj.move(-dx, -dy)
+                #if wheel:
+                #    self._wsi_obj.zoom(dz)
 
-        # Re-generate thumbnail if the window size changed.
+        # Re-generate WSI view if the window size changed.
         if window_changed:
             self.reset_thumb()
             self._content_width  = self.content_width
             self._content_height = self.content_height
 
-        # Display thumbnail.
+        # Main display.
         if self.thumb is not None:
 
-            # Calculate thumbnail zoom and offset.
+            # Calculate WSI zoom and offset.
             thumb_max_x = self.thumb_screen_offset[0] + self.thumb.shape[1]
             thumb_max_y = self.thumb_screen_offset[1] + self.thumb.shape[0]
 
-            # Render thumbnail.
-            t_pos = np.array([self.pane_w + max_w / 2, max_h / 2])
-            if self._thumb_tex_img is not self.thumb:
-                self._thumb_tex_img = self.thumb
-                if self._thumb_tex_obj is None or not self._thumb_tex_obj.is_compatible(image=self._thumb_tex_img):
-                    self._thumb_tex_obj = gl_utils.Texture(image=self._thumb_tex_img, bilinear=True, mipmap=True)
-                else:
-                    self._thumb_tex_obj.update(self._thumb_tex_img)
-            t_zoom = min(max_w / self._thumb_tex_obj.width, max_h / self._thumb_tex_obj.height)
-            t_zoom = np.floor(t_zoom) if t_zoom >= 1 else t_zoom
-            self._thumb_tex_obj.draw(pos=t_pos, zoom=t_zoom, align=0.5, rint=True)
+            # Render WSI in main display.
+            if self._wsi_obj is None and self.wsi:
+                self._wsi_obj = wsi_utils.SlideViewer(self.wsi)
+            if self.thumb is not None:
+                self._wsi_obj.update(self.thumb)
+                self._wsi_obj.draw(max_w, max_h, x_offset=self.pane_w)
+
+            # Render black box behind the controls
+            gl_utils.draw_rect(pos=np.array([0, 0]), size=np.array([self.pane_w, self.content_height]), color=0, anchor='center')
 
             # Render overlay heatmap.
-            #TODO: enforce top-left corner matches thumbnail
             if self.overlay_heatmap is not None and self.show_overlay:
                 if self._overlay_tex_img is not self.overlay_heatmap:
                     self._overlay_tex_img = self.overlay_heatmap

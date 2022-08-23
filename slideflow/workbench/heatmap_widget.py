@@ -109,7 +109,8 @@ class HeatmapWidget:
             img_format=viz._model_config['img_format'],
             generate=False,
             normalizer=viz._normalizer,
-            uq=viz.has_uq()
+            uq=viz.has_uq(),
+            num_threads=48,
         )
         self._generating = True
         self._heatmap_grid, self._heatmap_thread = viz.heatmap.generate(
