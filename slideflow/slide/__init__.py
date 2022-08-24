@@ -858,18 +858,6 @@ class _BaseLoader:
     def _build_coord(self):
         raise NotImplementedError
 
-    def _scaled_polys(
-        self,
-        xfact: float,
-        yfact: Optional[float] = None,
-    ) -> List[sg.Polygon]:
-        if yfact is None:
-            yfact = xfact
-        return [
-            sa.scale(poly, xfact=xfact, yfact=yfact, origin=(0, 0))
-            for poly in self.annPolys
-        ]
-
     def mpp_to_dim(self, mpp: float) -> Tuple[int, int]:
         width = int((self.mpp * self.dimensions[0]) / mpp)
         height = int((self.mpp * self.dimensions[1]) / mpp)
@@ -965,8 +953,12 @@ class _BaseLoader:
             if len(self.annPolys):
                 ofact = self.roi_scale / self.slide.level_downsamples[lev]
                 roi_mask = np.zeros((otsu_thumb.shape[0], otsu_thumb.shape[1]))
+                scaled_polys = [
+                    sa.scale(poly, xfact=ofact, yfact=ofact, origin=(0, 0))
+                    for poly in self.annPolys
+                ]
                 roi_mask = rasterio.features.rasterize(
-                    self._scaled_polys(ofact),
+                    scaled_polys,
                     out_shape=otsu_thumb.shape[:2]
                 )
                 otsu_thumb = cv2.bitwise_or(
@@ -1631,14 +1623,34 @@ class WSI(_BaseLoader):
         # ROI filtering
         if self.roi_method != 'ignore' and self.annPolys is not None:
 
+            # Full extraction size and stride
             full_extract = self.tile_um / self.mpp
-            stride_factor = full_extract / self.stride_div
-            xtrim = int(full_extract + stride_factor * (self.grid.shape[0]-1))  # type: ignore
-            ytrim = int(full_extract + stride_factor * (self.grid.shape[1]-1))  # type: ignore
+            stride = full_extract / self.stride_div
 
+            # Coverage size of the extracted image tiles
+            xtrim = int(stride * (self.grid.shape[0]))  # type: ignore
+            ytrim = int(stride * (self.grid.shape[1]))  # type: ignore
+
+            # Degree to which the ROIs will need to be scaled
+            # to match the extracted image tile grid
             xfact = self.grid.shape[0] / (xtrim / self.roi_scale)
             yfact = self.grid.shape[1] / (ytrim / self.roi_scale)
-            scaled = self._scaled_polys(xfact=xfact, yfact=yfact)
+
+            # Offset to align the ROI polygons with the image tile grid
+            x_offset = - (full_extract/2 - stride/2)
+            y_offset = - (full_extract/2 - stride/2)
+
+            # Translate and scale the ROI polygons
+            translated = [
+                sa.translate(poly, x_offset/self.roi_scale, y_offset/self.roi_scale)
+                for poly in self.annPolys
+            ]
+            scaled = [
+                sa.scale(poly, xfact=xfact, yfact=yfact, origin=(0, 0))
+                for poly in translated
+            ]
+
+            # Rasterize polygons to the size of the tile extraction grid
             self.roi_mask = rasterio.features.rasterize(
                 scaled,
                 out_shape=(self.grid.shape[1], self.grid.shape[0]),
@@ -1736,6 +1748,7 @@ class WSI(_BaseLoader):
         normalizer: str = None,
         normalizer_source: str = None,
         num_threads: Optional[int] = None,
+        num_processes: Optional[int] = None,
         show_progress: bool = False,
         img_format: str = 'numpy',
         full_core: bool = False,
@@ -1782,18 +1795,17 @@ class WSI(_BaseLoader):
             width, height)) and 'grid' ((x, y) slide or grid coordinates)
 
         """
+        if (isinstance(num_threads, int)
+           and isinstance(num_processes, int)
+           and num_threads > 1
+           and num_processes > 1):
+            raise ValueError("num_threads and num_processes cannot both be "
+                             "non-zero.")
 
         super().build_generator()
         if self.estimated_num_tiles == 0:
             log.warning(f"No tiles extracted for slide [green]{self.name}")
             return None
-
-        # Detect CPU cores if num_threads not specified
-        if num_threads is None:
-            num_threads = 0
-            num_threads = os.cpu_count()
-            if num_threads is None:
-                num_threads = 8
 
         # Shuffle coordinates to randomize extraction order
         if shuffle:
@@ -1855,12 +1867,24 @@ class WSI(_BaseLoader):
                 self.grid[tuple(self.coord[:, 2:4].T)].astype(bool)
             ]
 
+            # Set up worker pool
             if pool is None:
-                if num_threads > 1:
+                if num_threads is None and num_processes is None:
                     # ThreadPool used by default due to escalating memory
                     # requirements when using multiprocessing
                     log.debug(f"Building generator ThreadPool({num_threads})")
+                    _threads = os.cpu_count() if os.cpu_count() else 8
+                    pool = mp.dummy.Pool(processes=_threads)
+                    should_close = True
+                elif num_threads is not None and num_threads > 1:
+                    log.debug(f"Building generator ThreadPool({num_threads})")
+                    _threads = os.cpu_count() if os.cpu_count() else 8
                     pool = mp.dummy.Pool(processes=num_threads)
+                    should_close = True
+                elif num_processes is not None and num_processes > 1:
+                    log.debug(f"Building generator with Pool({num_processes})")
+                    ctx = mp.get_context('spawn')
+                    pool = ctx.Pool(processes=num_processes)
                     should_close = True
                 else:
                     log.debug(f"Building generator without multithreading")

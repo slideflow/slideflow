@@ -51,7 +51,7 @@ def _load_model_and_saliency(model_path, device=None):
 #----------------------------------------------------------------------------
 
 class Workbench(imgui_window.ImguiWindow):
-    def __init__(self, capture_dir=None):
+    def __init__(self, capture_dir=None, low_memory=False):
         super().__init__(title=f'Slideflow Workbench ({sf.__version__})', window_width=3840, window_height=2160)
 
         # Internals.
@@ -82,12 +82,14 @@ class Workbench(imgui_window.ImguiWindow):
         self._content_height    = None
         self._refresh_thumb     = False
         self._overlay_wsi_dim   = None
+        self._overlay_offset_wsi_dim   = (0, 0)
         self._thumb_params      = None
         self._use_model         = None
         self._use_uncertainty   = None
         self._use_saliency      = None
         self._use_model_img_fmt = False
         self._tex_to_delete     = []
+        self._low_memory        = low_memory
 
         # Widget interface.
         self.wsi                = None
@@ -120,7 +122,7 @@ class Workbench(imgui_window.ImguiWindow):
         self.slide_widget       = slide_widget.SlideWidget(self)
         self.model_widget       = model_widget.ModelWidget(self)
         self.heatmap_widget     = heatmap_widget.HeatmapWidget(self)
-        self.perf_widget        = performance_widget.PerformanceWidget(self)
+        self.perf_widget        = performance_widget.PerformanceWidget(self, low_memory=low_memory)
         self.capture_widget     = capture_widget.CaptureWidget(self)
 
         if capture_dir is not None:
@@ -160,6 +162,10 @@ class Workbench(imgui_window.ImguiWindow):
     @property
     def P(self):
         return self.project_widget.P
+
+    def set_low_memory(self, low_memory):
+        assert isinstance(low_memory, bool)
+        self._low_memory = low_memory
 
     def reload_model(self):
         self._async_renderer.load_model(self._model_path)
@@ -541,7 +547,8 @@ class Workbench(imgui_window.ImguiWindow):
                 if self._overlay_wsi_dim is None:
                     self._overlay_wsi_dim = self.wsi.dimensions
                 h_zoom = (self._overlay_wsi_dim[0] / self.overlay_heatmap.shape[1]) / self.thumb_zoom
-                self._overlay_tex_obj.draw(pos=self.wsi_coords_to_display_coords(0, 0), zoom=h_zoom, align=0.5, rint=True, anchor='topleft')
+                h_pos = self.wsi_coords_to_display_coords(*self._overlay_offset_wsi_dim)
+                self._overlay_tex_obj.draw(pos=h_pos, zoom=h_zoom, align=0.5, rint=True, anchor='topleft')
 
             # Calculate location for model display.
             if (self._model_path

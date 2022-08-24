@@ -6,6 +6,7 @@
 # distribution of this software and related documentation without an express
 # license agreement from NVIDIA CORPORATION is strictly prohibited.
 
+import os
 import numpy as np
 import imgui
 import threading
@@ -63,12 +64,11 @@ class HeatmapWidget:
                                     dtype=np.uint8)
             self.viz.overlay_heatmap = np.dstack((self.viz.rendered_heatmap[:, :, 0:3],
                                                   alpha_channel))
-
-            full_extract = self.viz.wsi.tile_um / self.viz.wsi.mpp
-            wsi_factor = full_extract / self.viz.wsi.stride_div
-
-            self.viz._overlay_wsi_dim = (full_extract + wsi_factor * (self.viz.overlay_heatmap.shape[1]-1),
-                                         full_extract + wsi_factor * (self.viz.overlay_heatmap.shape[0]-1))
+            full_extract = int(self.viz.wsi.tile_um / self.viz.wsi.mpp)
+            wsi_stride = int(full_extract / self.viz.wsi.stride_div)
+            self.viz._overlay_wsi_dim = (wsi_stride * (self.viz.overlay_heatmap.shape[1]),
+                                         wsi_stride * (self.viz.overlay_heatmap.shape[0]))
+            self.viz._overlay_offset_wsi_dim = (full_extract/2 - wsi_stride/2, full_extract/2 - wsi_stride/2)
 
     def render_heatmap(self):
         self._old_logits = self.heatmap_logits
@@ -103,6 +103,8 @@ class HeatmapWidget:
         viz = self.viz
         self.reset()
         self._button_pressed = True
+        mp_key = 'num_threads' if self.viz._low_memory else 'num_processes'
+        mp_kw = {mp_key: os.cpu_count()}
         viz.heatmap = sf.heatmap.ModelHeatmap(
             viz.wsi,
             viz.model,
@@ -110,7 +112,7 @@ class HeatmapWidget:
             generate=False,
             normalizer=viz._normalizer,
             uq=viz.has_uq(),
-            num_threads=48,
+            **mp_kw
         )
         self._generating = True
         self._heatmap_grid, self._heatmap_thread = viz.heatmap.generate(

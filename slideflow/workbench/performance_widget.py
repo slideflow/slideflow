@@ -15,7 +15,7 @@ from .gui_utils import imgui_utils
 #----------------------------------------------------------------------------
 
 class PerformanceWidget:
-    def __init__(self, viz):
+    def __init__(self, viz, low_memory=False):
         self.viz            = viz
         self.gui_times      = [float('nan')] * 60
         self.render_times   = [float('nan')] * 30
@@ -23,6 +23,7 @@ class PerformanceWidget:
         self.use_vsync      = False
         self.is_async       = False
         self.ignore_jpg     = False
+        self.low_memory     = low_memory
 
     @imgui_utils.scoped_by_object_id
     def __call__(self, show=True):
@@ -62,13 +63,15 @@ class PerformanceWidget:
             imgui.same_line(viz.label_w + viz.font_size * 14)
             imgui.text(f'{1/t:.1f} FPS' if t > 0 else 'N/A')
             imgui.same_line(viz.label_w + viz.font_size * 18 + viz.spacing * 3)
-            _clicked, self.is_async = imgui.checkbox('Separate process', self.is_async)
+            #_clicked, self.is_async = imgui.checkbox('Separate process', self.is_async)
+            _clicked, self.low_memory = imgui.checkbox('Low memory mode', self.low_memory)
             imgui.same_line(imgui.get_content_region_max()[0] - 1 - viz.button_w * 2 - viz.spacing)
             _clicked, self.ignore_jpg = imgui.checkbox('Ignore compression', self.ignore_jpg)
 
         viz.set_fps_limit(self.fps_limit)
         viz.set_vsync(self.use_vsync)
         viz.set_async(self.is_async)
+        viz.set_low_memory(self.low_memory)
         viz._use_model_img_fmt = not self.ignore_jpg
 
 #----------------------------------------------------------------------------

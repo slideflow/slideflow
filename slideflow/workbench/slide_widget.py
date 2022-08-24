@@ -101,6 +101,7 @@ class SlideWidget:
             self.user_slide = slide
             self._use_rois = True
             self.viz.set_message(f'Loading {name}...')
+            print(f"Loading slide {slide}...")
             viz.defer_rendering()
             viz._reload_wsi(slide, stride=self.stride, use_rois=self._use_rois)
             viz.reset_thumb()
@@ -168,10 +169,12 @@ class SlideWidget:
         black = np.zeros(list(mask.shape) + [3], dtype=np.uint8)
         self.viz.overlay_heatmap = np.dstack((black, alpha))
         if correct_wsi_dim:
-            full_extract = self.viz.wsi.tile_um / self.viz.wsi.mpp
-            wsi_factor = full_extract / self.viz.wsi.stride_div
-            self.viz._overlay_wsi_dim = (int(full_extract + wsi_factor * (mask.shape[1]-1)),
-                                         int(full_extract + wsi_factor * (mask.shape[0]-1)))
+            full_extract = int(self.viz.wsi.tile_um / self.viz.wsi.mpp)
+            wsi_stride = int(full_extract / self.viz.wsi.stride_div)
+            self.viz._overlay_wsi_dim = (wsi_stride * (mask.shape[1]),
+                                         wsi_stride * (mask.shape[0]))
+            self.viz._overlay_offset_wsi_dim = (full_extract/2 - wsi_stride/2, full_extract/2 - wsi_stride/2)
+
         else:
             self.viz._overlay_wsi_dim = None
 
@@ -186,6 +189,8 @@ class SlideWidget:
     def _build_filter_grid(self):
         if self.viz.wsi is not None:
             self.viz.set_message(self._rendering_message)
+            mp_key = 'num_threads' if self.viz._low_memory else 'num_processes'
+            mp_kw = {mp_key: os.cpu_count()}
             generator = self.viz.wsi.build_generator(
                 img_format='numpy',
                 grayspace_fraction=sf.slide.FORCE_CALCULATE_GRAYSPACE,
@@ -193,7 +198,8 @@ class SlideWidget:
                 whitespace_fraction=sf.slide.FORCE_CALCULATE_WHITESPACE,
                 whitespace_threshold=self.ws_threshold,
                 shuffle=False,
-                dry_run=True)
+                dry_run=True,
+                **mp_kw)
             if not generator:
                 self.viz.clear_message(self._rendering_message)
                 return
