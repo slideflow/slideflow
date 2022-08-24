@@ -295,20 +295,15 @@ class SlideWidget:
             imgui.same_line(viz.label_w)
             changed, self.user_slide = imgui_utils.input_text('##slide', self.user_slide, 1024,
                 flags=(imgui.INPUT_TEXT_AUTO_SELECT_ALL | imgui.INPUT_TEXT_ENTER_RETURNS_TRUE),
-                width=(-1 - viz.button_w * 2 - viz.spacing * 2),
+                width=(-1 - viz.button_w * 1 - viz.spacing * 1),
                 help_text='<PATH>.svs')
             if changed:
                 self.load(self.user_slide, ignore_errors=True)
             if imgui.is_item_hovered() and not imgui.is_item_active() and self.user_slide != '':
                 imgui.set_tooltip(self.user_slide)
             imgui.same_line()
-            if imgui_utils.button('Project...', width=viz.button_w, enabled=(viz.project_widget.P is not None)):
+            if imgui_utils.button('Browse...', width=viz.button_w, enabled=(viz.project_widget.P is not None)):
                 imgui.open_popup('project_slides_popup')
-            imgui.same_line()
-            if imgui_utils.button('Browse...', enabled=len(self.search_dirs) > 0, width=-1):
-                imgui.open_popup('browse_slides_popup')
-                self.browse_cache.clear()
-                self.browse_refocus = True
 
             dim_color = list(imgui.get_style().colors[imgui.COLOR_TEXT])
             dim_color[-1] *= 0.5
@@ -437,15 +432,12 @@ class SlideWidget:
             # Normalizing
             _norm_clicked, self.normalize_wsi = imgui.checkbox('Normalize', self.normalize_wsi)
             viz._normalize_wsi = self.normalize_wsi
-            if _norm_clicked:
-                viz._refresh_thumb = True
             imgui.same_line(imgui.get_content_region_max()[0] - 1 - viz.font_size*8)
             with imgui_utils.item_width(viz.font_size * 8), imgui_utils.grayed_out(not self.normalize_wsi):
-                _clicked, self.norm_idx = imgui.combo("##norm_method", self.norm_idx, self._normalizer_methods_str)
-                if _clicked:
-                    self.change_normalizer()
-                    viz._refresh_thumb = True
-
+                _norm_method_clicked, self.norm_idx = imgui.combo("##norm_method", self.norm_idx, self._normalizer_methods_str)
+            if _norm_clicked or _norm_method_clicked:
+                self.change_normalizer()
+                viz._refresh_thumb = True
 
             # Grayspace & whitespace filtering --------------------------------
             with imgui_utils.grayed_out(self._thread_is_running or not self.show_tile_filter):
@@ -506,35 +498,13 @@ class SlideWidget:
             # =================================================================
 
         if imgui.begin_popup('project_slides_popup'):
+            if len(self.project_slides) == 0:
+                    with imgui_utils.grayed_out():
+                        imgui.menu_item('No results found')
             for slide in self.project_slides:
                 clicked, _state = imgui.menu_item(slide)
                 if clicked:
                     self.load(slide, ignore_errors=True)
-            imgui.end_popup()
-
-        if imgui.begin_popup('browse_slides_popup'):
-            def recurse(parents):
-                key = tuple(parents)
-                items = self.browse_cache.get(key, None)
-                if items is None:
-                    items = self.list_runs_and_slides(parents)
-                    self.browse_cache[key] = items
-                for item in items:
-                    if item.type == 'run' and imgui.begin_menu(item.name):
-                        recurse([item.path])
-                        imgui.end_menu()
-                    if item.type == 'slide':
-                        clicked, _state = imgui.menu_item(item.name)
-                        if clicked:
-                            self.load(item.path, ignore_errors=True)
-                if len(items) == 0:
-                    with imgui_utils.grayed_out():
-                        imgui.menu_item('No results found')
-            recurse(self.search_dirs)
-            if self.browse_refocus:
-                imgui.set_scroll_here()
-                viz.skip_frame() # Focus will change on next frame.
-                self.browse_refocus = False
             imgui.end_popup()
 
         paths = viz.pop_drag_and_drop_paths()

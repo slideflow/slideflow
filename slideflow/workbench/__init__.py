@@ -194,8 +194,8 @@ class Workbench(imgui_window.ImguiWindow):
             rois = self.P.dataset().rois()
         self.wsi = sf.WSI(
             path,
-            tile_px=self.tile_px,
-            tile_um=self.tile_um,
+            tile_px=(self.tile_px if self.tile_px else 256),
+            tile_um=(self.tile_um if self.tile_um else 512),
             stride_div=stride,
             rois=rois if use_rois else None,
             verbose=False)
@@ -349,7 +349,7 @@ class Workbench(imgui_window.ImguiWindow):
                                   self.wsi.dimensions[1] / max_h)
             self.refresh_thumb()
 
-    def refresh_thumb(self, cx=None, cy=None, dx=None, dy=None, dz=None):
+    def refresh_thumb(self, cx=None, cy=None, dx=None, dy=None, dz=None, force=False):
 
         # Log pre-refresh parameters
         _orig_origin = self.thumb_origin
@@ -397,7 +397,7 @@ class Workbench(imgui_window.ImguiWindow):
             window_size=(int(self.wsi_window_size[0]), int(self.wsi_window_size[1])),
             target_size=target_size,
         )
-        if _thumb_params != self._thumb_params:
+        if (_thumb_params != self._thumb_params) or force:
             # Extract region if it is different than currently displayed
             region = self.wsi.slide.read_from_pyramid(**_thumb_params)
             self._thumb_params = _thumb_params
@@ -490,8 +490,8 @@ class Workbench(imgui_window.ImguiWindow):
             if wheel < 0:
                 dz = 1.5
             if wheel or dragging or self._refresh_thumb:
+                self.refresh_thumb(cx=cx, cy=cy, dx=dx, dy=dy, dz=dz, force=self._refresh_thumb)
                 self._refresh_thumb = False
-                self.refresh_thumb(cx=cx, cy=cy, dx=dx, dy=dy, dz=dz)
                 # Below is the new syntax I would eventually like to use
                 #if dx is not None and self._wsi_obj is not None:
                 #    self._wsi_obj.move(-dx, -dy)

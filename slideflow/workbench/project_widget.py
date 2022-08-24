@@ -91,7 +91,6 @@ class ProjectWidget:
         recent_projects = [project for project in self.recent_projects if project != self.user_project]
         self.disclaimer()
         if show:
-            bg_color = [0.16, 0.29, 0.48, 0.2]
             dim_color = list(imgui.get_style().colors[imgui.COLOR_TEXT])
             dim_color[-1] *= 0.5
 
@@ -99,7 +98,7 @@ class ProjectWidget:
             imgui.same_line(viz.label_w)
             changed, self.user_project = imgui_utils.input_text('##project', self.user_project, 1024,
                 flags=(imgui.INPUT_TEXT_AUTO_SELECT_ALL | imgui.INPUT_TEXT_ENTER_RETURNS_TRUE),
-                width=(-1 - viz.button_w * 2 - viz.spacing * 2),
+                width=(-1 - viz.button_w * 1 - viz.spacing * 1),
                 help_text='<PATH>')
             if changed:
                 self.load(self.user_project, ignore_errors=True)
@@ -108,42 +107,12 @@ class ProjectWidget:
             imgui.same_line()
             if imgui_utils.button('Recent...', width=viz.button_w, enabled=(len(recent_projects) != 0)):
                 imgui.open_popup('recent_projects_popup')
-            imgui.same_line()
-            if imgui_utils.button('Browse...', enabled=len(self.search_dirs) > 0, width=-1):
-                imgui.open_popup('browse_projects_popup')
-                self.browse_cache.clear()
-                self.browse_refocus = True
 
         if imgui.begin_popup('recent_projects_popup'):
             for project in recent_projects:
                 clicked, _state = imgui.menu_item(project)
                 if clicked:
                     self.load(project, ignore_errors=True)
-            imgui.end_popup()
-
-        if imgui.begin_popup('browse_projects_popup'):
-            def recurse(parents):
-                key = tuple(parents)
-                items = self.browse_cache.get(key, None)
-                if items is None:
-                    items = []
-                    self.browse_cache[key] = items
-                for item in items:
-                    if item.type == 'run' and imgui.begin_menu(item.name):
-                        recurse([item.path])
-                        imgui.end_menu()
-                    if item.type == 'project':
-                        clicked, _state = imgui.menu_item(item.name)
-                        if clicked:
-                            self.load(item.path, ignore_errors=True)
-                if len(items) == 0:
-                    with imgui_utils.grayed_out():
-                        imgui.menu_item('No results found')
-            recurse(self.search_dirs)
-            if self.browse_refocus:
-                imgui.set_scroll_here()
-                viz.skip_frame() # Focus will change on next frame.
-                self.browse_refocus = False
             imgui.end_popup()
 
         paths = viz.pop_drag_and_drop_paths()
