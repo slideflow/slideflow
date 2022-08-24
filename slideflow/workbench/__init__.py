@@ -205,16 +205,28 @@ class Workbench(imgui_window.ImguiWindow):
             tile_um=(self.tile_um if self.tile_um else 512),
             stride_div=stride,
             rois=rois if use_rois else None,
+            vips_cache=dict(
+                tile_width=512,
+                tile_height=512,
+                max_tiles=-1,
+                threaded=True,
+                persistent=True
+            ),
             verbose=False)
         if self.thumb is not None:
             self.refresh_rois()
 
     def refresh_rois(self):
-        self.rois = [
-            np.array([self.wsi_coords_to_display_coords(v[0], v[1])
-                      for v in roi.coordinates])
-            for roi in self.wsi.rois
-        ]
+        self.rois = []
+        for roi in self.wsi.rois:
+            c = np.copy(roi.coordinates)
+            c[:, 0] = c[:, 0] - self.thumb_origin[0]
+            c[:, 0] = c[:, 0] / self.thumb_zoom
+            c[:, 0] = c[:, 0] + self.thumb_screen_offset[0] + self.pane_w
+            c[:, 1] = c[:, 1] - self.thumb_origin[1]
+            c[:, 1] = c[:, 1] / self.thumb_zoom
+            c[:, 1] = c[:, 1] + self.thumb_screen_offset[1]
+            self.rois += [c]
 
     def load_model(self, model, ignore_errors=False):
         self.clear_model()
@@ -399,19 +411,22 @@ class Workbench(imgui_window.ImguiWindow):
         # Calculate region to extract from image
 
         target_size = (max_w, max_h)
+        _window_size = (int(self.wsi_window_size[0]), int(self.wsi_window_size[1]))
         _thumb_params = dict(
             top_left=_new_origin,
-            window_size=(int(self.wsi_window_size[0]), int(self.wsi_window_size[1])),
+            window_size=_window_size,
             target_size=target_size,
         )
         if (_thumb_params != self._thumb_params) or force:
             # Extract region if it is different than currently displayed
+            self.thumb_origin = tuple(_new_origin)
+            print("Reading from new region:", _new_origin)
             region = self.wsi.slide.read_from_pyramid(**_thumb_params)
             self._thumb_params = _thumb_params
             if region.bands == 4:
                 region = region.flatten()  # removes alpha
             self.thumb = sf.slide.vips2numpy(region)
-            self.thumb_origin = tuple(_new_origin)
+
 
             # Log post-refresh parameters
             log.debug("Refreshed slide view:")

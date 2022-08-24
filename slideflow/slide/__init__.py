@@ -218,7 +218,7 @@ def _wsi_extraction_worker(
 
     # If downsampling is enabled, read image from highest level
     # to perform filtering; otherwise filter from our target level
-    slide = args.vips_wrapper(args.path, args.mpp_override)
+    slide = args.vips_wrapper(args.path, args.mpp_override, args.vips_cache)
     if args.whitespace_fraction < 1 or args.grayspace_fraction < 1:
         if args.filter_downsample_ratio > 1:
             filter_extract_px = args.extract_px // args.filter_downsample_ratio
@@ -406,15 +406,17 @@ def log_extraction_params(**kwargs) -> None:
 
 class _VIPSWrapper:
 
-    def __init__(self, path: str, mpp: Optional[float] = None) -> None:
+    def __init__(
+        self,
+        path: str,
+        mpp: Optional[float] = None,
+        cache_kw: Optional[Dict[str, Any]] = None
+    ) -> None:
         '''Wrapper for VIPS to preserve openslide-like functions.'''
         self.path = path
-        self.full_image = vips.Image.new_from_file(
-            path,
-            fail=True,
-            access=vips.enums.Access.RANDOM
-        )
-        loaded_image = self.full_image
+        self.cache_kw = cache_kw if cache_kw else {}
+        self.loaded_downsample_levels = {}  # type: Dict[int, "vips.Image"]
+        loaded_image = self.load_downsample_level(0)
 
         # Load image properties
         self.properties = {}
@@ -481,10 +483,6 @@ class _VIPSWrapper:
                     f"PIL error; unable to read slide {path_to_name(path)}."
                 )
 
-        # Prepare downsample levels
-        self.loaded_downsample_levels = {
-            0: self.full_image,
-        }
         if OPS_LEVEL_COUNT in self.properties:
             self.level_count = int(self.properties[OPS_LEVEL_COUNT])
             # Calculate level metadata
@@ -537,22 +535,27 @@ class _VIPSWrapper:
             return 0
         return max_level
 
+    def load_downsample_level(self, level: int) -> "vips.Image":
+        downsampled_image = vips.Image.new_from_file(
+            self.path,
+            level=level,
+            fail=True,
+            access=vips.enums.Access.RANDOM
+        )
+        if self.cache_kw:
+            downsampled_image = downsampled_image.tilecache(**self.cache_kw)
+        self.loaded_downsample_levels.update({
+            level: downsampled_image
+        })
+        return downsampled_image
+
     def get_downsampled_image(self, level: int) -> "vips.Image":
         '''Returns a VIPS image of a given downsample.'''
         if level in range(len(self.levels)):
             if level in self.loaded_downsample_levels:
                 return self.loaded_downsample_levels[level]
             else:
-                downsampled_image = vips.Image.new_from_file(
-                    self.path,
-                    level=level,
-                    fail=True,
-                    access=vips.enums.Access.RANDOM
-                )
-                self.loaded_downsample_levels.update({
-                    level: downsampled_image
-                })
-                return downsampled_image
+                return self.load_downsample_level(level)
         else:
             return False
 
@@ -719,7 +722,8 @@ class _BaseLoader:
         stride_div: int,
         enable_downsample: bool = True,
         pb: Optional[Progress] = None,
-        mpp: Optional[float] = None
+        mpp: Optional[float] = None,
+        vips_cache: Optional[Dict[str, Any]] = None
     ) -> None:
 
         self.pb = pb
@@ -740,6 +744,7 @@ class _BaseLoader:
         self.filetype = sf.util.path_to_ext(path)
         self.__slide = None
         self._mpp_override = mpp
+        self._vips_cache_kw = vips_cache
 
         # Initiate supported slide reader
         if not os.path.exists(path):
@@ -848,7 +853,10 @@ class _BaseLoader:
             return self.__slide
 
         try:
-            self.__slide = self._vips_wrapper(self.path, self._mpp_override)
+            self.__slide = self._vips_wrapper(
+                self.path,
+                self._mpp_override,
+                self._vips_cache_kw)
             return self.__slide  # type: ignore
         except vips.error.Error as e:
             raise errors.SlideLoadError(
@@ -1391,7 +1399,7 @@ class WSI(_BaseLoader):
         pb: Optional[Progress] = None,
         silent: Optional[bool] = None,
         verbose: bool = True,
-        mpp: Optional[float] = None
+        **kwargs
     ) -> None:
         """Loads slide and ROI(s).
 
@@ -1444,7 +1452,7 @@ class WSI(_BaseLoader):
             stride_div=stride_div,
             enable_downsample=enable_downsample,
             pb=pb,
-            mpp=mpp
+            **kwargs
         )
 
         # Initialize calculated variables
@@ -1568,6 +1576,7 @@ class WSI(_BaseLoader):
                 full_extract_px=self.full_extract_px,
                 vips_wrapper=self._vips_wrapper,
                 mpp_override=self._mpp_override,
+                vips_cache=self._vips_cache_kw,
                 roi_scale=self.roi_scale,
                 rois=self.rois,
                 grid=self.grid,
@@ -1836,6 +1845,7 @@ class WSI(_BaseLoader):
             'full_extract_px': self.full_extract_px,
             'vips_wrapper': self._vips_wrapper,
             'mpp_override': self._mpp_override,
+            'vips_cache': self._vips_cache_kw,
             'roi_scale': self.roi_scale,
             'rois': self.rois,
             'grid': self.grid,
@@ -2143,7 +2153,7 @@ class TMA(_BaseLoader):
         enable_downsample: bool = True,
         report_dir: Optional[Path] = None,
         pb: Optional[Progress] = None,
-        mpp: Optional[float] = None
+        **kwargs
     ) -> None:
         '''Initializer.
 
@@ -2170,7 +2180,7 @@ class TMA(_BaseLoader):
             stride_div,
             enable_downsample,
             pb,
-            mpp
+            **kwargs
         )
         self.object_rects = []  # type: List
         self.box_areas = []  # type: List
