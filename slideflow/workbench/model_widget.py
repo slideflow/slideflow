@@ -160,8 +160,10 @@ class ModelWidget:
                 imgui.begin_child('##pred_image', width=width, height=height, border=False)
                 if viz._tex_obj is not None and viz.tile_px:
                     imgui.image(viz._tex_obj.gl_id, viz.tile_px, viz.tile_px)
-                else:
+                elif viz._model_path is not None:
                     imgui.text_colored('Right click to preview', *dim_color)
+                else:
+                    imgui.text_colored('No model loaded', *dim_color)
                 imgui.same_line()
                 if self.use_model and viz._normalizer is not None and viz._norm_tex_obj is not None and viz.tile_px:
                     imgui.image(viz._norm_tex_obj.gl_id, viz.tile_px, viz.tile_px)

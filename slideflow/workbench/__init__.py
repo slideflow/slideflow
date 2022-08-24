@@ -87,6 +87,7 @@ class Workbench(imgui_window.ImguiWindow):
         self._use_uncertainty   = None
         self._use_saliency      = None
         self._use_model_img_fmt = False
+        self._tex_to_delete     = []
 
         # Widget interface.
         self.wsi                = None
@@ -440,6 +441,11 @@ class Workbench(imgui_window.ImguiWindow):
     def draw_frame(self):
         self.begin_frame()
 
+        # First, start by deleting all old textures
+        for _tex in self._tex_to_delete:
+            _tex.delete()
+        self._tex_to_delete = []
+
         self.args = EasyDict(use_model=False, use_uncertainty=False, use_saliency=False)
         self.pane_w = self.font_size * 45
         self.button_w = self.font_size * 5
@@ -526,6 +532,8 @@ class Workbench(imgui_window.ImguiWindow):
                 if self._overlay_tex_img is not self.overlay_heatmap:
                     self._overlay_tex_img = self.overlay_heatmap
                     if self._overlay_tex_obj is None or not self._overlay_tex_obj.is_compatible(image=self._overlay_tex_img):
+                        if self._overlay_tex_obj is not None:
+                            self._tex_to_delete += [self._overlay_tex_obj]
                         self._overlay_tex_obj = gl_utils.Texture(image=self._overlay_tex_img, bilinear=False, mipmap=False)
                     else:
                         self._overlay_tex_obj.update(self._overlay_tex_img)
@@ -571,6 +579,8 @@ class Workbench(imgui_window.ImguiWindow):
             if self._wsi_tex_img is not self.wsi_thumb:
                 self._wsi_tex_img = self.wsi_thumb
                 if self._wsi_tex_obj is None or not self._wsi_tex_obj.is_compatible(image=self._wsi_tex_img):
+                    if self._wsi_tex_obj is not None:
+                        self._tex_to_delete += [self._wsi_tex_obj]
                     self._wsi_tex_obj = gl_utils.Texture(image=self._wsi_tex_img, bilinear=True, mipmap=True)
                 else:
                     self._wsi_tex_obj.update(self._wsi_tex_img)
@@ -608,6 +618,8 @@ class Workbench(imgui_window.ImguiWindow):
             if self._tex_img is not self.result.image:
                 self._tex_img = self.result.image
                 if self._tex_obj is None or not self._tex_obj.is_compatible(image=self._tex_img):
+                    if self._tex_obj is not None:
+                        self._tex_to_delete += [self._tex_obj]
                     self._tex_obj = gl_utils.Texture(image=self._tex_img, bilinear=False, mipmap=False)
                 else:
                     self._tex_obj.update(self._tex_img)
@@ -615,6 +627,8 @@ class Workbench(imgui_window.ImguiWindow):
             if self._norm_tex_img is not self.result.normalized:
                 self._norm_tex_img = self.result.normalized
                 if self._norm_tex_obj is None or not self._norm_tex_obj.is_compatible(image=self._norm_tex_img):
+                    if self._norm_tex_obj is not None:
+                        self._tex_to_delete += [self._norm_tex_obj]
                     self._norm_tex_obj = gl_utils.Texture(image=self._norm_tex_img, bilinear=False, mipmap=False)
                 else:
                     self._norm_tex_obj.update(self._norm_tex_img)
@@ -633,6 +647,8 @@ class Workbench(imgui_window.ImguiWindow):
             if self._heatmap_tex_img is not self.rendered_heatmap:
                 self._heatmap_tex_img = self.rendered_heatmap
                 if self._heatmap_tex_obj is None or not self._heatmap_tex_obj.is_compatible(image=self._heatmap_tex_img):
+                    if self._heatmap_tex_obj is not None:
+                        self._tex_to_delete += [self._heatmap_tex_obj]
                     self._heatmap_tex_obj = gl_utils.Texture(image=self._heatmap_tex_img, bilinear=False, mipmap=False)
                 else:
                     self._heatmap_tex_obj.update(self._heatmap_tex_img)

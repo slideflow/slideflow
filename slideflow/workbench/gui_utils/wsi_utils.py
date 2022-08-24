@@ -32,6 +32,8 @@ class SlideViewer:
         if self._tex_img is not img:
             self._tex_img = img
             if self._tex_obj is None or not self._tex_obj.is_compatible(image=self._tex_img):
+                if self._tex_obj is not None:
+                    self._tex_obj.delete()
                 self._tex_obj = gl_utils.Texture(image=self._tex_img, bilinear=self.bilinear, mipmap=self.mipmap)
             else:
                 self._tex_obj.update(self._tex_img)
