@@ -464,8 +464,9 @@ def interleave(
     weights = [] if prob_weights else None  # type: Optional[List]
 
     pb = Progress(transient=True)
-    read_task = pb.add_task('Reading slides...', total=len(paths), visible=False)
-    otsu_task = pb.add_task("Otsu thresholding...", total=len(paths), visible=False)
+    if from_wsi:
+        read_task = pb.add_task('Reading slides...', total=len(paths), visible=False)
+        otsu_task = pb.add_task("Otsu thresholding...", total=len(paths), visible=False)
     interleave_task = pb.add_task('Interleaving...', total=len(paths))
     pb.start()
     with tf.device('cpu'):

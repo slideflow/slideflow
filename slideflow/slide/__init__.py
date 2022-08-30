@@ -36,7 +36,7 @@ from skimage.color import rgb2gray
 from slideflow import errors
 from slideflow.slide.report import ExtractionPDF  # noqa F401
 from slideflow.slide.report import ExtractionReport, SlideReport
-from slideflow.util import SUPPORTED_FORMATS, Path  # noqa F401
+from slideflow.util import SUPPORTED_FORMATS  # noqa F401
 from slideflow.util import log, path_to_name  # noqa F401
 from rich.progress import Progress
 
@@ -639,9 +639,10 @@ class _JPGslideToVIPS(_VIPSWrapper):
     '''Wrapper for JPG files, which do not possess separate levels, to
     preserve openslide-like functions.'''
 
-    def __init__(self, path: str, mpp: Optional[float] = None) -> None:
+    def __init__(self, path: str, mpp: Optional[float] = None, cache_kw = None) -> None:
         self.path = path
         self.full_image = vips.Image.new_from_file(path)
+        self.cache_kw = cache_kw if cache_kw else {}
         if not self.full_image.hasalpha():
             self.full_image = self.full_image.addalpha()
         self.properties = {}
@@ -1151,8 +1152,8 @@ class _BaseLoader:
 
     def extract_tiles(
         self,
-        tfrecord_dir: Optional[Path] = None,
-        tiles_dir: Optional[Path] = None,
+        tfrecord_dir: Optional[str] = None,
+        tiles_dir: Optional[str] = None,
         img_format: str = 'jpg',
         report: bool = True,
         **kwargs
@@ -1392,7 +1393,7 @@ class WSI(_BaseLoader):
         tile_um: Union[int, str],
         stride_div: int = 1,
         enable_downsample: bool = True,
-        roi_dir: Optional[Path] = None,
+        roi_dir: Optional[str] = None,
         rois: Optional[List[str]] = None,
         roi_method: str = 'auto',
         randomize_origin: bool = False,
@@ -1691,8 +1692,8 @@ class WSI(_BaseLoader):
 
     def extract_tiles(
         self,
-        tfrecord_dir: Optional[Path] = None,
-        tiles_dir: Optional[Path] = None,
+        tfrecord_dir: Optional[str] = None,
+        tiles_dir: Optional[str] = None,
         img_format: str = 'jpg',
         report: bool = True,
         **kwargs: Any
@@ -1766,6 +1767,7 @@ class WSI(_BaseLoader):
         pool: Optional["mp.pool.Pool"] = None,
         dry_run: bool = False,
         lazy_iter: bool = False,
+        shard: Optional[Tuple[int, int]] = None
     ) -> Optional[Callable]:
         """Builds tile generator to extract tiles from this slide.
 
@@ -1810,15 +1812,18 @@ class WSI(_BaseLoader):
            and num_processes > 1):
             raise ValueError("num_threads and num_processes cannot both be "
                              "non-zero.")
+        if (shard is not None
+           and (not isinstance(shard, (tuple, list))
+                or len(shard) != 2
+                or any(not isinstance(s, int) for s in shard))):
+            raise ValueError("If shard is provided, it must be a tuple of "
+                             "two int (shard_idx, shard_count)")
+
 
         super().build_generator()
         if self.estimated_num_tiles == 0:
             log.warning(f"No tiles extracted for slide [green]{self.name}")
             return None
-
-        # Shuffle coordinates to randomize extraction order
-        if shuffle:
-            np.random.shuffle(self.coord)
 
         # Set whitespace / grayspace fraction to defaults if not provided
         if whitespace_fraction is None:
@@ -1876,6 +1881,14 @@ class WSI(_BaseLoader):
             non_roi_coord = self.coord[
                 self.grid[tuple(self.coord[:, 2:4].T)].astype(bool)
             ]
+            if shard is not None:
+                shard_idx, shard_count = shard
+                sharded_coords = np.array_split(non_roi_coord, shard_count)
+                non_roi_coord = sharded_coords[shard_idx]
+
+            # Shuffle coordinates to randomize extraction order
+            if shuffle:
+                np.random.shuffle(non_roi_coord)
 
             # Set up worker pool
             if pool is None:
@@ -1905,7 +1918,7 @@ class WSI(_BaseLoader):
             else:
                 log.debug("Building generator with a shared pool")
             if show_progress:
-                pbar = Progress(transient=sf.getLoggingLevel()>20)
+                pbar = Progress(transient=sf.getLoggingLevel() > 20)
                 task = pbar.add_task('Extracting...', total=self.estimated_num_tiles)
                 pbar.start()
 
@@ -2003,7 +2016,7 @@ class WSI(_BaseLoader):
         else:
             return thumb
 
-    def load_csv_roi(self, path: Path) -> int:
+    def load_csv_roi(self, path: str) -> int:
         '''Loads CSV ROI from a given path.'''
 
         roi_dict = {}
@@ -2055,7 +2068,7 @@ class WSI(_BaseLoader):
 
         return len(self.rois)
 
-    def load_json_roi(self, path: Path, scale: int = 10) -> int:
+    def load_json_roi(self, path: str, scale: int = 10) -> int:
         '''Loads ROI from a JSON file.'''
 
         with open(path, "r") as json_file:
@@ -2074,7 +2087,32 @@ class WSI(_BaseLoader):
         shuffle: bool = True,
         **kwargs
     ) -> Any:
-        """Generate activations from slide => activation grid array."""
+        """Create a Tensorflow Dataset which extractes tiles from this slide.
+
+        Args:
+            img_format (str, optional): Image format for returned image tiles.
+                Options include 'png', 'jpg', and 'numpy'. Defaults to 'numpy'.
+            incl_slidenames (bool, optional): Yield slide names for each
+                image tile. Defaults to False.
+            incl_loc (Optional[str], optional): Yield image tile location
+                with each image tile. Options include True, 'coord', or 'grid'.
+                If True or 'coord', will return X/Y coordinates of the tile
+                in the slide's highest magnification layer. If 'grid', returns
+                the grid indices for the tile. Defaults to None.
+            shuffle (bool, optional): Shuffle image tiles. Defaults to True.
+
+        Returns:
+            tf.data.Dataset
+
+        Yields:
+            Iterator[Any]: Items yielded by the Dataset are in dictionary
+            format, with the keys:
+
+            'image_raw':    Contains the image (jpg, png, or numpy)
+            'slide':        Slide name (if ``incl_slidenames=True``)
+            'loc_x'         Image tile x location (if ``incl_loc`` provided)
+            'loc_y'         Image tile y location (if ``incl_loc`` provided)
+        """
 
         import tensorflow as tf
 
@@ -2131,6 +2169,68 @@ class WSI(_BaseLoader):
 
         return dataset
 
+    def torch(
+        self,
+        img_format: str = 'numpy',
+        incl_slidenames: bool = False,
+        incl_loc: Optional[str] = None,
+        shuffle: bool = True,
+        **kwargs
+    ) -> Any:
+        """Create a PyTorch iterator which extractes tiles from this slide.
+
+        Args:
+            img_format (str, optional): Image format for returned image tiles.
+                Options include 'png', 'jpg', and 'numpy'. Defaults to 'numpy'.
+            incl_slidenames (bool, optional): Yield slide names for each
+                image tile. Defaults to False.
+            incl_loc (Optional[str], optional): Yield image tile location
+                with each image tile. Options include True, 'coord', or 'grid'.
+                If True or 'coord', will return X/Y coordinates of the tile
+                in the slide's highest magnification layer. If 'grid', returns
+                the grid indices for the tile. Defaults to None.
+            shuffle (bool, optional): Shuffle image tiles. Defaults to True.
+
+        Returns:
+            An iterator which yields image tiles as Torch tensors.
+
+        Yields:
+            Iterator[Any]: Items yielded by the Dataset are in dictionary
+            format, with the keys:
+
+            'image_raw':    Contains the image as a Tensor (jpg, png, or numpy)
+            'slide':        Slide name (if ``incl_slidenames=True``)
+            'loc_x'         Image tile x location (if ``incl_loc`` provided)
+            'loc_y'         Image tile y location (if ``incl_loc`` provided)
+        """
+        import torch
+
+        def tile_generator():
+            for image_dict in self.build_generator(
+                shuffle=shuffle,
+                show_progress=False,
+                img_format=img_format,
+                **kwargs
+            )():
+                if not (incl_slidenames or incl_loc):
+                    yield torch.from_numpy(image_dict['image'])
+                else:
+                    to_return = {
+                        'image_raw': torch.from_numpy(image_dict['image'])
+                    }
+                    if incl_slidenames:
+                        to_return['slide'] = self.name
+                    if incl_loc == 'coord' or incl_loc == True:
+                        to_return['loc_x'] = image_dict['loc'][0]
+                        to_return['loc_y'] = image_dict['loc'][1]
+                    if incl_loc == 'grid':
+                        to_return['loc_x'] = image_dict['grid'][0]
+                        to_return['loc_y'] = image_dict['grid'][1]
+                    yield to_return
+
+        return tile_generator()
+
+
 class TMA(_BaseLoader):
     '''Loads a TMA-formatted slide and detects tissue cores.'''
 
@@ -2151,7 +2251,7 @@ class TMA(_BaseLoader):
         tile_um: Union[str, int],
         stride_div: int = 1,
         enable_downsample: bool = True,
-        report_dir: Optional[Path] = None,
+        report_dir: Optional[str] = None,
         pb: Optional[Progress] = None,
         **kwargs
     ) -> None:
@@ -2288,7 +2388,7 @@ class TMA(_BaseLoader):
 
         return subtiles
 
-    def _detect_cores(self, report_dir: Optional[Path] = None) -> int:
+    def _detect_cores(self, report_dir: Optional[str] = None) -> int:
         # Prepare annotated image
         assert self.thumb_image is not None
         img_annotated = self.thumb_image.copy()
@@ -2350,8 +2450,8 @@ class TMA(_BaseLoader):
 
     def extract_tiles(
         self,
-        tfrecord_dir: Optional[Path] = None,
-        tiles_dir: Optional[Path] = None,
+        tfrecord_dir: Optional[str] = None,
+        tiles_dir: Optional[str] = None,
         img_format: str = 'jpg',
         report: bool = True,
         **kwargs

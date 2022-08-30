@@ -17,6 +17,7 @@ from slideflow import errors
 from slideflow.io import convert_dtype
 from slideflow.io.io_utils import detect_tfrecord_format
 from slideflow.tfrecord.torch.dataset import MultiTFRecordDataset
+from slideflow.tfrecord.iterator_utils import RandomSampler
 from slideflow.util import Labels, log, to_onehot
 from rich.progress import Progress
 
@@ -63,6 +64,11 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
         indices: Optional[np.ndarray] = None,
         device: Optional[torch.device] = None,
         max_size: int = 0,
+        from_wsi: bool = False,
+        tile_um: Optional[int] = None,
+        rois: Optional[List[str]] = None,
+        roi_method: str = 'auto',
+        pool: Optional[Any] = None
     ) -> None:
         """Pytorch IterableDataset that interleaves tfrecords with
         :func:`slideflow.io.torch.interleave`.
@@ -133,6 +139,11 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
         self.num_tiles = num_tiles
         self.model_type = model_type
         self.device = device
+        self.from_wsi = from_wsi
+        self.tile_um = tile_um
+        self.rois = rois
+        self.roi_method = roi_method
+        self.pool = pool
 
         # Values for random label generation, for GAN
         if labels is not None:
@@ -243,6 +254,9 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
         msg += f"standardize={self.standardize})>"
         return msg
 
+    def __del__(self):
+        self.close()
+
     def __iter__(self):
         worker_info = torch.utils.data.get_worker_info()
         worker_id = 0 if not worker_info else worker_info.id
@@ -261,13 +275,21 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
             rank=self.rank + worker_id,
             chunk_size=self.chunk_size,
             indices=self.indices,
-            device=self.device
+            device=self.device,
+            tile_px=self.img_size,
+            from_wsi=self.from_wsi,
+            tile_um=self.tile_um,
+            rois=self.rois,
+            roi_method=self.roi_method,
+            pool=self.pool
         )
+        self.close = queue_retriever.close
         try:
             for record in queue_retriever:
                 yield self._parser(*record)
         # Closes open files if iterator terminated early
         except GeneratorExit as e:
+            log.debug("Generator exit triggered")
             queue_retriever.close()
             del(queue_retriever)
             raise e
@@ -380,7 +402,59 @@ def _get_images_by_dir(directory: str) -> List[str]:
     return files
 
 
-def cwh_to_whc(img):
+def _apply_otsu(wsi):
+    wsi.qc('otsu')
+    return wsi
+
+
+def multi_slide_loader(
+    slides: List["sf.WSI"],
+    splits: Optional[Dict[str, float]] = None,
+    shard: Optional[Tuple[int, int]] = None,
+    infinite: bool = True,
+    **kwargs
+) -> Iterable[Union[Dict[str, np.ndarray],
+                    Tuple[Dict[str, np.ndarray],
+                    Dict[str, List[np.ndarray]]]]]:
+    """Create an iterator by reading and merging multiple tfrecord datasets.
+
+    Params:
+    -------
+    paths: list of str
+        List of tfrecord paths.
+
+    indices: dict mapping tfrecord names to index paths.
+        Input index path pattern.
+
+    splits: dict
+        Dictionary of (key, value) pairs, where the key is used to
+        construct the data and index path(s) and the value determines
+        the contribution of each split to the batch.
+
+    infinite: bool, optional, default=True
+        Whether the returned iterator should be infinite or not
+
+    Returns:
+    --------
+    it: iterator
+        A repeating iterator that generates batches of data.
+    """
+    if splits is not None:
+        splits_list = splits
+    else:
+        splits_list = np.array(  # type: ignore
+            [0.5 for t in range(len(slides))]
+        )
+    loaders = [slide.torch(lazy_iter=True,
+                           shard=shard,
+                           **kwargs)
+               for slide in slides]
+    return RandomSampler(
+        loaders, splits_list, infinite=infinite, shard=None
+    )
+
+
+def cwh_to_whc(img: torch.Tensor) -> torch.Tensor:
     if len(img.shape) == 3:
         return img.permute(1, 2, 0)  # CWH -> WHC
     elif len(img.shape) == 4:
@@ -391,7 +465,7 @@ def cwh_to_whc(img):
             f"got {len(img.shape)} (shape={img.shape})")
 
 
-def whc_to_cwh(img):
+def whc_to_cwh(img: torch.Tensor) -> torch.Tensor:
     if len(img.shape) == 3:
         return img.permute(2, 0, 1)  # WHC => CWH
     elif len(img.shape) == 4:
@@ -492,7 +566,7 @@ def preprocess_uint8(
 
 
 def _decode_image(
-    img_string: Union[bytes, str],
+    image: Union[bytes, str, torch.Tensor],
     img_type: str,
     standardize: bool = False,
     normalizer: Optional["StainNormalizer"] = None,
@@ -501,10 +575,12 @@ def _decode_image(
 ) -> torch.Tensor:
     """Decodes image. Torch implementation; different than sf.io.tensorflow"""
 
-    np_data = torch.from_numpy(np.fromstring(img_string, dtype=np.uint8))
-    image = cwh_to_whc(torchvision.io.decode_image(np_data))
-    # Alternative method using PIL decoding:
-    # image = np.array(Image.open(BytesIO(img_string)))
+    if img_type != 'numpy':
+        np_data = torch.from_numpy(np.fromstring(image, dtype=np.uint8))
+        image = cwh_to_whc(torchvision.io.decode_image(np_data))
+        # Alternative method using PIL decoding:
+        # image = np.array(Image.open(BytesIO(img_string)))
+    assert isinstance(image, torch.Tensor)
 
     def random_jpeg_compression(img):
         img = torchvision.io.encode_jpeg(
@@ -660,7 +736,7 @@ def get_tfrecord_parser(
 
 
 def interleave(
-    tfrecords: List[str],
+    paths: List[str],
     prob_weights: Optional[Dict[str, float]] = None,
     incl_loc: bool = False,
     clip: Optional[Dict[str, int]] = None,
@@ -673,7 +749,13 @@ def interleave(
     num_replicas: int = 1,
     rank: int = 0,
     indices: Optional[List[str]] = None,
-    device: Optional[torch.device] = None
+    device: Optional[torch.device] = None,
+    from_wsi: bool = False,
+    tile_px: Optional[int] = None,
+    tile_um: Optional[int] = None,
+    rois: Optional[List[str]] = None,
+    roi_method: str = 'auto',
+    pool: Optional[Any] = None,
 ):
 
     """Returns a generator that interleaves records from a collection of
@@ -687,7 +769,7 @@ def interleave(
     data processing.
 
     Args:
-        tfrecords (list(str)): List of paths to TFRecord files.
+        paths (list(str)): List of paths to TFRecord files or slides.
         prob_weights (dict, optional): Dict mapping tfrecords to probability of
             including in batch. Defaults to None.
         incl_loc (bool, optional): Include loc_x and loc_y as additional
@@ -723,67 +805,136 @@ def interleave(
             duplications. Defaults to 0 (first worker).
         indices (list(str)): Paths to TFRecord index files. If not provided,
             will generate. Defaults to None.
+        pool (multiprocessing.Pool): Shared multiprocessing pool. Useful
+            if from_wsi=True, for sharing a unified processing pool between
+            dataloaders. Defaults to None.
     """
-    if not len(tfrecords):
+    if not len(paths):
         raise errors.TFRecordsNotFoundError
     if rank == 0:
+        _path_type = "slides" if from_wsi else "tfrecords"
         log.debug(
-            f'Interleaving {len(tfrecords)} tfrecords: '
+            f'Interleaving {len(paths)} {_path_type}: '
             f'infinite={infinite}, num_replicas={num_replicas}'
         )
+    if from_wsi and (not tile_um or not tile_px):
+        raise ValueError("`tile_um` and `tile_px` required for interleave() "
+                         "if `from_wsi=True`")
+    if prob_weights is not None:
+        assert len(prob_weights) == len(paths)
+    else:
+        prob_weights = None
+    should_close = False if pool is not None else True
 
-    # -------- Get the base TFRecord parser, based on the first tfrecord ------
     if incl_loc:
         features_to_return = ['image_raw', 'slide', 'loc_x', 'loc_y']
     else:
         features_to_return = ['image_raw', 'slide']
-    _, img_type = detect_tfrecord_format(tfrecords[0])
-    base_parser = get_tfrecord_parser(
-        tfrecords[0],
-        features_to_return,
-        decode_images=False,
-        to_numpy=False
-    )
-    # -------- Set up TFRecord indexes for sharding ---------------------------
-    # Index files not created in this interleave function, as there may be
-    # multiple instances of this function running across processes, and having
-    # each create index files would result in conflicts / corruption.
-    if indices is None:
-        indices = []
 
-        def load_index(tfr):
-            tfr = tfr.decode('utf-8')
-            index_name = join(dirname(tfr), sf.util.path_to_name(tfr)+'.index')
-            if not exists(index_name):
-                raise errors.TFRecordsError(
-                    f"Could not find index path for TFRecord {tfr}"
+    if from_wsi:
+        assert tile_um is not None and tile_px is not None
+        if rank == 0:
+            log.info(f"Reading {len(paths)} slides and thresholding...")
+
+        # ---- Load slides and apply Otsu thresholding ------------------------
+        if pool is None:
+            pool = mp.Pool(os.cpu_count() if os.cpu_count() else 8)
+        wsi_list = []
+        to_remove = []
+        otsu_list = []
+        for path in paths:
+            if isinstance(path, bytes):
+                path= path.decode('utf-8')
+            try:
+                wsi = sf.WSI(
+                    path,
+                    tile_px,
+                    tile_um,
+                    rois=rois,
+                    roi_method=roi_method,
+                    verbose=False
                 )
-            if os.stat(index_name).st_size == 0:
-                index = None
+                wsi_list += [wsi]
+            except errors.SlideLoadError as e:
+                log.error(f"Error reading slide {path}: {e}")
+                to_remove += [path]
+        for path in to_remove:
+            paths.remove(path)
+        for wsi in pool.imap(_apply_otsu, wsi_list):
+            otsu_list += [wsi]
+        est_num_tiles = sum([wsi.estimated_num_tiles for wsi in otsu_list])
+
+        # ---- Prepare parsing -----------------------------------------------
+        img_type = 'numpy'
+
+        def base_parser(record):
+            if type(features_to_return) == dict:
+                return {
+                    label: record[f]
+                    for label, f in features_to_return.items()
+                }
             else:
-                index = np.loadtxt(index_name, dtype=np.int64)
-            return index
+                return [record[f] for f in features_to_return]
 
-        pool = mp.dummy.Pool(16)
-        log.debug("Loading indices...")
-        for index in pool.imap(load_index, tfrecords):
-            indices += [index]
-        pool.close()
-
-    #  -------  Interleave and batch datasets ---------------------------------
-    if prob_weights is not None:
-        assert len(prob_weights) == len(tfrecords)
+        # ---- Interleave from slides -----------------------------------------
+        random_sampler = multi_slide_loader(
+            otsu_list,
+            pool=pool,
+            splits=prob_weights,
+            shard=(rank, num_replicas),
+            incl_slidenames=True,
+            incl_loc=incl_loc,
+            grayspace_fraction=1,
+            infinite=infinite
+        )
+        sampler_iter = iter(random_sampler)
     else:
-        prob_weights = None
-    random_sampler = MultiTFRecordDataset(
-        tfrecords,
-        indices,
-        prob_weights,
-        shard=(rank, num_replicas),
-        clip=[clip[t] for t in tfrecords] if clip else None,
-        infinite=infinite
-    )
-    sampler_iter = iter(random_sampler)
+        # ---- Get the base TFRecord parser, based on the first tfrecord ------
+        _, img_type = detect_tfrecord_format(paths[0])
+        base_parser = get_tfrecord_parser(
+            paths[0],
+            features_to_return,
+            decode_images=False,
+            to_numpy=False
+        )
+        # ---- Set up TFRecord indexes for sharding ---------------------------
+        # Index files not created in this interleave function, as there may be
+        # multiple instances of this function running across processes,
+        # & having each create indices would result in conflicts / corruption.
+        if indices is None:
+            indices = []
+
+            def load_index(tfr):
+                tfr = tfr.decode('utf-8')
+                index_name = join(dirname(tfr),
+                                  sf.util.path_to_name(tfr)+'.index')
+                if not exists(index_name):
+                    raise errors.TFRecordsError(
+                        f"Could not find index path for TFRecord {tfr}"
+                    )
+                if os.stat(index_name).st_size == 0:
+                    index = None
+                else:
+                    index = np.loadtxt(index_name, dtype=np.int64)
+                return index
+
+            if pool is None:
+                pool = mp.dummy.Pool(16)
+            log.debug("Loading indices...")
+            for index in pool.imap(load_index, paths):
+                indices += [index]
+            pool.close()
+
+        # ---- Interleave and batch datasets ----------------------------------
+        random_sampler = MultiTFRecordDataset(
+            paths,
+            indices,
+            prob_weights,
+            shard=(rank, num_replicas),
+            clip=[clip[t] for t in paths] if clip else None,
+            infinite=infinite
+        )
+        sampler_iter = iter(random_sampler)
 
     # Worker to decode images and process records
     def threading_worker(record):
@@ -864,6 +1015,7 @@ def interleave(
                         yield item
 
         def close(self):
+            log.debug("Closing QueueRetriever")
             self.closed = True
 
             # Clear out the queue
@@ -872,7 +1024,10 @@ def interleave(
                 if record is None:
                     self.n_closed += 1
 
-            self.sampler.close()
+            if from_wsi and should_close:
+                pool.close()
+            else:
+                self.sampler.close()
 
     return QueueRetriever(random_sampler, num_threads)
 
@@ -889,6 +1044,7 @@ def interleave_dataloader(
     pin_memory: bool = False,
     persistent_workers: bool = False,
     drop_last: bool = False,
+    from_wsi: bool = False,
     **kwargs
 ) -> torch.utils.data.DataLoader:
 
@@ -951,6 +1107,9 @@ def interleave_dataloader(
         replica_batch_size = None
     else:
         replica_batch_size = batch_size // num_replicas
+    if from_wsi and num_workers:
+        raise ValueError("Option `from_wsi=True` incompatible with "
+                         "num_workers > 0")
 
     if num_workers is None and os.cpu_count():
         num_workers = os.cpu_count() // 4  # type: ignore
@@ -964,6 +1123,7 @@ def interleave_dataloader(
         use_labels=(labels is not None),
         num_replicas=num_replicas,
         labels=labels,
+        from_wsi=from_wsi,
         **kwargs
     )
     torch.multiprocessing.set_sharing_strategy('file_system')

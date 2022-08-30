@@ -20,7 +20,7 @@ from slideflow import errors
 from slideflow.model import base as _base
 from slideflow.model import torch_utils
 from slideflow.model.base import log_manifest, no_scope
-from slideflow.util import log, NormFit, Path, ImgBatchSpeedColumn
+from slideflow.util import log, NormFit, ImgBatchSpeedColumn
 from rich.progress import Progress, TimeElapsedColumn
 from packaging import version
 
@@ -432,7 +432,7 @@ class Trainer:
         self.inference_model = None  # type: Optional[torch.nn.Module]
         self.mixed_precision = mixed_precision
         self.device = torch.device('cuda:0')
-        self.mid_train_val_dts: Optional[Iterable]
+        self.mid_train_val_dts: Optional[Iterable] = None
         self.loss_fn: torch.nn.modules.loss._Loss
         self.use_tensorboard: bool
         self.writer: SummaryWriter
@@ -1109,13 +1109,27 @@ class Trainer:
         torch.save(self.model.state_dict(), save_path)
         log.info(f"Model saved to [green]{save_path}[/")
 
+    def _close_dataloaders(self):
+        """Close dataloaders, ensuring threads have joined."""
+        del self.mid_train_val_dts
+        for name, d in self.dataloaders.items():
+            if '_dataset' in dir(d):
+                log.debug(f"Closing dataloader {name} via _dataset.close()")
+                d._dataset.close()
+            elif 'dataset' in dir(d):
+                log.debug(f"Closing dataloader {name} via dataset.close()")
+                d.dataset.close()
+
     def _setup_dataloaders(
         self,
         train_dts: Optional["sf.Dataset"],
         val_dts: Optional["sf.Dataset"],
         mid_train_val: bool = False,
-        incl_labels: bool = True
+        incl_labels: bool = True,
+        from_wsi: bool = False,
+        **kwargs
     ) -> None:
+        """Prepare dataloaders from training and validation."""
         interleave_args = types.SimpleNamespace(
             rank=0,
             num_replicas=1,
@@ -1123,10 +1137,12 @@ class Trainer:
             chunk_size=8,
             normalizer=self.normalizer,
             pin_memory=True,
-            num_workers=4,
+            num_workers=4 if not from_wsi else 0,
             onehot=False,
             incl_slidenames=True,
-            device=self.device
+            device=self.device,
+            from_wsi=from_wsi,
+            **kwargs
         )
 
         if train_dts is not None:
@@ -1152,7 +1168,10 @@ class Trainer:
                 **vars(interleave_args)
             )
             # Mid-training validation dataset
-            self.mid_train_val_dts = torch_utils.cycle(self.dataloaders['val'])
+            if mid_train_val:
+                self.mid_train_val_dts = torch_utils.cycle(
+                    self.dataloaders['val']
+                )
             if not self.validate_on_batch:
                 val_log_msg = ''
             else:
@@ -1167,7 +1186,6 @@ class Trainer:
             else:
                 log.debug('Using entire validation set each validation check')
         else:
-            self.mid_train_val_dts = None  # type: ignore
             log.debug('Validation during training: None')
 
     def _training_step(self, pb: Progress) -> None:
@@ -1310,7 +1328,9 @@ class Trainer:
         dataset: "sf.Dataset",
         batch_size: Optional[int] = None,
         norm_fit: Optional[NormFit] = None,
-        format: str = 'parquet'
+        format: str = 'parquet',
+        from_wsi: bool = False,
+        roi_method: str = 'auto',
     ) -> "pd.DataFrame":
         """Perform inference on a model, saving predictions.
 
@@ -1325,6 +1345,18 @@ class Trainer:
                 model params (if applicable). Defaults to None.
             format (str, optional): Format in which to save predictions. Either
                 'csv', 'feather', or 'parquet'. Defaults to 'parquet'.
+            from_wsi (bool): Generate predictions from tiles dynamically
+                extracted from whole-slide images, rather than TFRecords.
+                Defaults to False (use TFRecords).
+            roi_method (str): ROI method to use if from_wsi=True (ignored if
+                from_wsi=False).  Either 'inside', 'outside', 'auto', 'ignore'.
+                If 'inside' or 'outside', will extract tiles in/out of an ROI,
+                and raise errors.MissingROIError if an ROI is not available.
+                If 'auto', will extract tiles inside an ROI if available,
+                and across the whole-slide if no ROI is found.
+                If 'ignore', will extract tiles across the whole-slide
+                regardless of whether an ROI is available.
+                Defaults to 'auto'.
 
         Returns:
             pandas.DataFrame of tile-level predictions.
@@ -1346,9 +1378,20 @@ class Trainer:
         self.model.eval()
         self._log_manifest(None, dataset, labels=None)
 
+        if from_wsi:
+            pool = mp.Pool(os.cpu_count() if os.cpu_count() else 8)
+        else:
+            pool = None
         if not batch_size:
             batch_size = self.hp.batch_size
-        self._setup_dataloaders(None, dataset, incl_labels=False)
+
+        self._setup_dataloaders(
+            train_dts=None,
+            val_dts=dataset,
+            incl_labels=False,
+            from_wsi=from_wsi,
+            roi_method=roi_method,
+            pool=pool,)
 
         log.info('Generating predictions...')
         torch_args = types.SimpleNamespace(
@@ -1365,6 +1408,9 @@ class Trainer:
         )
         # Save predictions
         sf.stats.metrics.save_dfs(dfs, format=format, outdir=self.outdir)
+        self._close_dataloaders()
+        if pool is not None:
+            pool.close()
         return dfs
 
     def evaluate(
@@ -1374,7 +1420,9 @@ class Trainer:
         save_predictions: Union[bool, str] = 'parquet',
         reduce_method: str = 'average',
         norm_fit: Optional[NormFit] = None,
-        uq: Union[bool, str] = 'auto'
+        uq: Union[bool, str] = 'auto',
+        from_wsi: bool = False,
+        roi_method: str = 'auto',
     ):
         """Evaluate model, saving metrics and predictions.
 
@@ -1398,6 +1446,18 @@ class Trainer:
                 model params (if applicable). Defaults to None.
             uq (bool or str, optional): Enable UQ estimation (for
                 applicable models). Defaults to 'auto'.
+            from_wsi (bool): Generate predictions from tiles dynamically
+                extracted from whole-slide images, rather than TFRecords.
+                Defaults to False (use TFRecords).
+            roi_method (str): ROI method to use if from_wsi=True (ignored if
+                from_wsi=False).  Either 'inside', 'outside', 'auto', 'ignore'.
+                If 'inside' or 'outside', will extract tiles in/out of an ROI,
+                and raise errors.MissingROIError if an ROI is not available.
+                If 'auto', will extract tiles inside an ROI if available,
+                and across the whole-slide if no ROI is found.
+                If 'ignore', will extract tiles across the whole-slide
+                regardless of whether an ROI is available.
+                Defaults to 'auto'.
 
         Returns:
             Dictionary of evaluation metrics.
@@ -1410,6 +1470,10 @@ class Trainer:
             self.validation_batch_size = batch_size
         if not self.model:
             raise errors.ModelNotLoadedError
+        if from_wsi:
+            pool = mp.Pool(os.cpu_count() if os.cpu_count() else 8)
+        else:
+            pool = None
 
         self._verify_img_format(dataset)
         self._fit_normalizer(norm_fit)
@@ -1418,13 +1482,19 @@ class Trainer:
         self.loss_fn = self.hp.get_loss()
         self._log_manifest(None, dataset)
         self._prepare_neptune_run(dataset, 'eval')
-        self._setup_dataloaders(None, val_dts=dataset)
+        self._setup_dataloaders(
+            train_dts=None,
+            val_dts=dataset,
+            from_wsi=from_wsi,
+            roi_method=roi_method,
+            pool=pool)
 
         # Generate performance metrics
         log.info('Performing evaluation...')
         metrics = self._val_metrics(
             label='eval',
-            reduce_method=reduce_method
+            reduce_method=reduce_method,
+            save_predictions=save_predictions
         )
         results = {'eval': {
             k: v for k, v in metrics.items() if k != 'val_metrics'
@@ -1438,6 +1508,9 @@ class Trainer:
         if self.neptune_run:
             self.neptune_run['eval/results'] = results['eval']
             self.neptune_run.stop()
+        self._close_dataloaders()
+        if pool is not None:
+            pool.close()
         return results
 
     def train(
@@ -1462,6 +1535,8 @@ class Trainer:
         norm_fit: Optional[NormFit] = None,
         reduce_method: str = 'average',
         seed: int = 0,
+        from_wsi: bool = False,
+        roi_method: str = 'auto',
     ) -> Dict[str, Any]:
         """Builds and trains a model from hyperparameters.
 
@@ -1511,6 +1586,18 @@ class Trainer:
                 tile predictions into onehot encoding then reduce by averaging
                 these onehot values. Defaults to 'average'.
             seed (int): Set numpy random seed. Defaults to 0.
+            from_wsi (bool): Generate predictions from tiles dynamically
+                extracted from whole-slide images, rather than TFRecords.
+                Defaults to False (use TFRecords).
+            roi_method (str): ROI method to use if from_wsi=True (ignored if
+                from_wsi=False).  Either 'inside', 'outside', 'auto', 'ignore'.
+                If 'inside' or 'outside', will extract tiles in/out of an ROI,
+                and raise errors.MissingROIError if an ROI is not available.
+                If 'auto', will extract tiles inside an ROI if available,
+                and across the whole-slide if no ROI is found.
+                If 'ignore', will extract tiles across the whole-slide
+                regardless of whether an ROI is available.
+                Defaults to 'auto'.
 
         Returns:
             Dict:   Nested dict containing metrics for each evaluated epoch.
@@ -1530,6 +1617,11 @@ class Trainer:
         self.ema_smoothing = ema_smoothing
         self.use_tensorboard = use_tensorboard
         self.log_frequency = log_frequency
+
+        if from_wsi:
+            pool = mp.Pool(os.cpu_count() if os.cpu_count() else 8)
+        else:
+            pool = None
 
         # Validate early stopping parameters
         self._validate_early_stop()
@@ -1579,7 +1671,13 @@ class Trainer:
         self.model = self.model.to(self.device)
 
         # Setup dataloaders
-        self._setup_dataloaders(train_dts, val_dts, mid_train_val=True)
+        self._setup_dataloaders(
+            train_dts=train_dts,
+            val_dts=val_dts,
+            mid_train_val=True,
+            roi_method=roi_method,
+            from_wsi=from_wsi,
+            pool=pool)
 
         # Model parameters and optimizer
         self._prepare_optimizers_and_loss()
@@ -1650,6 +1748,9 @@ class Trainer:
         if self.neptune_run:
             self.neptune_run['sys/tags'].add('training_complete')
             self.neptune_run.stop()
+        self._close_dataloaders()
+        if pool is not None:
+            pool.close()
         return results
 
 
@@ -1724,7 +1825,7 @@ class Features:
 
     def __init__(
         self,
-        path: Optional[Path],
+        path: Optional[str],
         layers: Optional[Union[str, List[str]]] = 'postconv',
         include_logits: bool = False,
         mixed_precision: bool = True,

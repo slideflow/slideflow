@@ -127,7 +127,8 @@ class TestSuite:
         model_type: str,
         sweep: bool = False,
         normalizer: Optional[str] = 'reinhard_fast',
-        uq: bool = False
+        uq: bool = False,
+        balance: Optional[str] = 'patient',
     ) -> sf.ModelParams:
         """Set up hyperparameters.
 
@@ -200,7 +201,7 @@ class TestSuite:
             dropout=0.1,
             l2=1e-4,
             early_stop_patience=0,
-            training_balance='patient',
+            training_balance=balance,
             validation_balance='none',
             uq=uq,
             augment=True
@@ -342,6 +343,7 @@ class TestSuite:
         multi_input: bool = True,
         cph: bool = True,
         multi_cph: bool = True,
+        from_wsi: bool = True,
         **train_kwargs
     ) -> None:
         """Test model training using a variety of strategies.
@@ -520,8 +522,28 @@ class TestSuite:
                         test.fail()
                 else:
                     test.skip()
-        else:
-            print("Skipping CPH model testing [current backend is Pytorch]")
+        if from_wsi:
+            # Test training from slides without TFRecords
+            msg = "Training model directly from slides (from_wsi=True)..."
+            with TaskWrapper(msg) as test:
+                try:
+                    hp = self.setup_hp('categorical', sweep=False, balance=None)
+                    results = self.project.train(
+                        exp_label='from_wsi',
+                        outcomes='category1',
+                        val_k=1,
+                        params=hp,
+                        validate_on_batch=10,
+                        steps_per_epoch_override=20,
+                        save_predictions=True,
+                        from_wsi=True,
+                        pretrain=None,
+                        **train_kwargs
+                    )
+                    _assert_valid_results(results)
+                except Exception as e:
+                    log.error(traceback.format_exc())
+                    test.fail()
 
     def test_prediction(self, **predict_kwargs) -> None:
         """Test prediction generation using a previously trained model."""

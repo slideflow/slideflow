@@ -21,8 +21,7 @@ from slideflow import errors
 from slideflow.model import tensorflow_utils as tf_utils
 from slideflow.model.base import log_manifest, no_scope
 from slideflow.model.tensorflow_utils import unwrap  # type: ignore
-from slideflow.util import NormFit, Path
-from slideflow.util import log
+from slideflow.util import log, NormFit
 
 import tensorflow as tf
 from tensorflow.keras import applications as kapps
@@ -1251,6 +1250,18 @@ class Trainer:
                 model params (if applicable). Defaults to None.
             format (str, optional): Format in which to save predictions. Either
                 'csv', 'feather', or 'parquet'. Defaults to 'parquet'.
+            from_wsi (bool): Generate predictions from tiles dynamically
+                extracted from whole-slide images, rather than TFRecords.
+                Defaults to False (use TFRecords).
+            roi_method (str): ROI method to use if from_wsi=True (ignored if
+                from_wsi=False).  Either 'inside', 'outside', 'auto', 'ignore'.
+                If 'inside' or 'outside', will extract tiles in/out of an ROI,
+                and raise errors.MissingROIError if an ROI is not available.
+                If 'auto', will extract tiles inside an ROI if available,
+                and across the whole-slide if no ROI is found.
+                If 'ignore', will extract tiles across the whole-slide
+                regardless of whether an ROI is available.
+                Defaults to 'auto'.
 
         Returns:
             pandas.DataFrame of tile-level predictions.
@@ -1936,7 +1947,7 @@ class Features:
 
     def __init__(
         self,
-        path: Optional[Path],
+        path: Optional[str],
         layers: Optional[Union[str, List[str]]] = 'postconv',
         include_logits: bool = False
     ) -> None:
@@ -2241,7 +2252,7 @@ class Features:
 class UncertaintyInterface(Features):
     def __init__(
         self,
-        path: Optional[Path],
+        path: Optional[str],
         layers: Optional[Union[str, List[str]]] = None
     ) -> None:
         log.debug('Setting up UncertaintyInterface')

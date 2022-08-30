@@ -109,7 +109,7 @@ import slideflow as sf
 from slideflow import errors
 from slideflow.model import ModelParams
 from slideflow.slide import WSI, ExtractionReport, SlideReport
-from slideflow.util import (log, Labels, Path, _shortname, path_to_name,
+from slideflow.util import (log, Labels, _shortname, path_to_name,
                             tfrecord2idx, TileExtractionProgress)
 
 if TYPE_CHECKING:
@@ -435,13 +435,13 @@ class Dataset:
         tile_um: Optional[Union[str, int]],
         filters: Optional[Dict] = None,
         filter_blank: Optional[Union[List[str], str]] = None,
-        annotations: Optional[Union[Path, pd.DataFrame]] = None,
+        annotations: Optional[Union[str, pd.DataFrame]] = None,
         min_tiles: int = 0
     ) -> None:
         """Initializes dataset to organize processed images.
 
         Args:
-            config (Path): Path to dataset configuration.
+            config (str): Path to dataset configuration.
             sources (List[str]): List of dataset sources to include from
                 configuration file.
             tile_px (int): Tile size in pixels.
@@ -452,7 +452,7 @@ class Dataset:
             filter_blank (Optional[Union[List[str], str]], optional): Omit
                 slides that are blank in these annotation columns.
                 Defaults to None.
-            annotations (Optional[Union[Path, pd.DataFrame]], optional): Path
+            annotations (Optional[Union[str, pd.DataFrame]], optional): Path
                 to annotations file or pandas DataFrame with slide-level
                 annotations. Defaults to None.
             min_tiles (int, optional): Only include slides with this
@@ -616,11 +616,11 @@ class Dataset:
                 f"Dataset tile size {d_sz} does not match model {m_sz}"
             )
 
-    def load_annotations(self, annotations: Union[Path, pd.DataFrame]) -> None:
+    def load_annotations(self, annotations: Union[str, pd.DataFrame]) -> None:
         """Loads annotations.
 
         Args:
-            annotations (Union[Path, pd.DataFrame]): Either path to annotations
+            annotations (Union[str, pd.DataFrame]): Either path to annotations
                 in CSV format, or a pandas DataFrame.
 
         Raises:
@@ -849,16 +849,18 @@ class Dataset:
         strategy: Optional[str] = None,
         headers: Optional[List[str]] = None
     ) -> "Dataset":
-        '''Returns a dataset clipped to either a fixed maximum number of tiles
-        per tfrecord, or to the min number of tiles per patient or category.
+        '''Returns a dataset clipped to a fixed maximum number of tiles
+        per tfrecord and/or to the min number of tiles per patient or category.
 
         Args:
             max_tiles (int, optional): Clip the maximum number of tiles per
-                tfrecord to this number.
+                tfrecord to this number. Defaults to 0 (do not perform
+                tfrecord-level clipping).
             strategy (str, optional): 'slide', 'patient', or 'category'.
                 Clip the maximum number of tiles to the minimum tiles seen
                 across slides, patients, or categories. If 'category', headers
-                must be provided. Defaults to None.
+                must be provided. Defaults to None (do not perform group-level
+                clipping).
             headers (list of str, optional): List of annotation headers to use
                 if clipping by minimum category count (strategy='category').
                 Defaults to None.
@@ -866,15 +868,12 @@ class Dataset:
         Returns:
             clipped :class:`slideflow.dataset.Dataset` object.
         '''
-
         if strategy == 'category' and not headers:
             raise errors.DatasetClipError(
                 "headers must be provided if clip strategy is 'category'."
             )
-        if strategy is None and headers is not None:
-            strategy = 'category'
-        if strategy is None and headers is None and not max_tiles:
-            return self
+        if not max_tiles and strategy is None:
+            return self.unclip()
 
         ret = copy.deepcopy(self)
         manifest = ret.manifest()
@@ -1139,7 +1138,7 @@ class Dataset:
                 manager = mp.Manager()
                 # Forking incompatible with some libvips configurations
                 ctx = mp.get_context('spawn')
-                reports = manager.dict()  # type: dict
+                reports = manager.dict()
 
                 # Use a single shared multiprocessing pool
                 if 'num_threads' not in kwargs:
@@ -1231,7 +1230,7 @@ class Dataset:
                     kwargs['pool'].close()
                 if report:
                     log.info('Generating PDF (this may take some time)...', )
-                    rep_vals = list(reports.values())
+                    rep_vals = list(reports.copy().values())  # type: List[SlideReport]
                     all_reports += rep_vals
                     num_slides = len(slide_list)
                     img_kwargs = defaultdict(lambda: None)  # type: Dict
@@ -1891,7 +1890,7 @@ class Dataset:
         slides = ann.slide.unique().tolist()
         return slides
 
-    def split_tfrecords_by_roi(self, destination: Path) -> None:
+    def split_tfrecords_by_roi(self, destination: str) -> None:
         """Split dataset tfrecords into separate tfrecords according to ROI.
 
         Will generate two sets of tfrecords, with identical names: one with
@@ -2032,7 +2031,7 @@ class Dataset:
                                       "to create dataloaders.")
         if self.prob_weights is not None and from_wsi:
             log.warning("Dataset balancing is disabled when `from_wsi=True`")
-        if self._clip is not None and from_wsi:
+        if self._clip not in (None, {}) and from_wsi:
             log.warning("Dataset clipping is disabled when `from_wsi=True`")
 
         if from_wsi:
@@ -2212,7 +2211,7 @@ class Dataset:
             return [f for f in filtered
                     if f in manifest and manifest[f]['total'] > 0]
 
-    def tfrecords_by_subfolder(self, subfolder: Path) -> List[str]:
+    def tfrecords_by_subfolder(self, subfolder: str) -> List[str]:
         """Returns a list of all tfrecords in a specific subfolder,
         ignoring filters.
 
@@ -2284,7 +2283,7 @@ class Dataset:
 
     def thumbnails(
         self,
-        outdir: Path,
+        outdir: str,
         size: int = 512,
         roi: bool = False,
         enable_downsample: bool = True
@@ -2349,7 +2348,7 @@ class Dataset:
         model_type: str,
         labels: Dict,
         val_strategy: str,
-        splits: Optional[Path] = None,
+        splits: Optional[str] = None,
         val_fraction: Optional[float] = None,
         val_k_fold: Optional[int] = None,
         k_fold_iter: Optional[int] = None,
@@ -2683,6 +2682,7 @@ class Dataset:
         labels: Optional[Dict[str, Any]] = None,
         batch_size: Optional[int] = None,
         rebuild_index: bool = False,
+        from_wsi: bool = False,
         **kwargs: Any
     ) -> "DataLoader":
         """Returns a PyTorch DataLoader object that interleaves tfrecords.
@@ -2742,26 +2742,39 @@ class Dataset:
         if self.tile_px is None:
             raise errors.DatasetError("tile_px and tile_um must be non-zero"
                                       "to create dataloaders.")
-        self.build_index(rebuild_index)
-        tfrecords = self.tfrecords()
-        if not tfrecords:
-            raise errors.TFRecordsNotFoundError
-        self.verify_img_format()
+        if self._clip not in (None, {}) and from_wsi:
+            log.warning("Dataset clipping is disabled when `from_wsi=True`")
+
+        if from_wsi:
+            tfrecords = self.slide_paths()
+            kwargs['rois'] = self.rois()
+            kwargs['tile_um'] = self.tile_um
+            indices = None
+            clip = None
+        else:
+            self.build_index(rebuild_index)
+            tfrecords = self.tfrecords()
+            if not tfrecords:
+                raise errors.TFRecordsNotFoundError
+            self.verify_img_format()
+            _idx_dict = self.load_indices()
+            indices = [_idx_dict[path_to_name(tfr)] for tfr in tfrecords]
+            clip = self._clip
 
         if self.prob_weights:
             prob_weights = [self.prob_weights[tfr] for tfr in tfrecords]
         else:
             prob_weights = None
-        _idx_dict = self.load_indices()
-        indices = [_idx_dict[path_to_name(tfr)] for tfr in tfrecords]
+
         return interleave_dataloader(tfrecords=tfrecords,
                                      img_size=self.tile_px,
                                      batch_size=batch_size,
                                      labels=labels,
                                      num_tiles=self.num_tiles,
                                      prob_weights=prob_weights,
-                                     clip=self._clip,
+                                     clip=clip,
                                      indices=indices,
+                                     from_wsi=from_wsi,
                                      **kwargs)
 
     def unclip(self) -> "Dataset":
@@ -2790,7 +2803,7 @@ class Dataset:
 
     def update_annotations_with_slidenames(
         self,
-        annotations_file: Path
+        annotations_file: str
     ) -> None:
         """Attempts to automatically associate slide names from a directory
         with patients in a given annotations file, skipping any slide names

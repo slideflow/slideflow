@@ -2,24 +2,22 @@ import copy
 import csv
 import itertools
 import json
-import logging
 import multiprocessing
+import numpy as np
 import os
 import pickle
+from multiprocessing.managers import DictProxy
 from os.path import basename, exists, join
 from statistics import mean
 from types import SimpleNamespace
 from typing import (TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple,
                     Union)
 
-import numpy as np
-
 import slideflow as sf
 from slideflow import errors, project_utils
 from slideflow.dataset import Dataset
 from slideflow.model import ModelParams
 from slideflow.project_utils import auto_dataset, get_validation_settings
-from slideflow.util import Path
 from slideflow.util import log, path_to_name
 
 if TYPE_CHECKING:
@@ -140,7 +138,7 @@ class Project:
         return self._read_relative_path(self._settings['annotations'])
 
     @annotations.setter
-    def annotations(self, val: Path) -> None:
+    def annotations(self, val: str) -> None:
         if not isinstance(val, str):
             raise errors.ProjectError("'annotations' must be a path.")
         self._settings['annotations'] = val
@@ -151,7 +149,7 @@ class Project:
         return self._read_relative_path(self._settings['dataset_config'])
 
     @dataset_config.setter
-    def dataset_config(self, val: Path) -> None:
+    def dataset_config(self, val: str) -> None:
         if not isinstance(val, str):
             raise errors.ProjectError("'dataset_config' must be path to JSON.")
         self._settings['dataset_config'] = val
@@ -166,7 +164,7 @@ class Project:
             return self._read_relative_path(self._settings['eval_dir'])
 
     @eval_dir.setter
-    def eval_dir(self, val: Path) -> None:
+    def eval_dir(self, val: str) -> None:
         if not isinstance(val, str):
             raise errors.ProjectError("'eval_dir' must be a path")
         self._settings['eval_dir'] = val
@@ -177,7 +175,7 @@ class Project:
         return self._read_relative_path(self._settings['models_dir'])
 
     @models_dir.setter
-    def models_dir(self, val: Path) -> None:
+    def models_dir(self, val: str) -> None:
         if not isinstance(val, str):
             raise errors.ProjectError("'models_dir' must be a path")
         self._settings['models_dir'] = val
@@ -254,7 +252,7 @@ class Project:
         hp: ModelParams,
         outcomes: List[str],
         config: Dict,
-        splits: Path,
+        splits: str,
         eval_k_fold: Optional[int] = None
     ) -> Tuple[Dataset, Dict, Union[Dict, List]]:
         '''Prepares dataset and labels.'''
@@ -312,10 +310,10 @@ class Project:
 
     def _prepare_trainer(
         self,
-        model: Path,
+        model: str,
         dataset: Dataset,
         outcomes: Optional[Union[str, List[str]]] = None,
-        checkpoint: Optional[Path] = None,
+        checkpoint: Optional[str] = None,
         eval_k_fold: Optional[int] = None,
         splits: str = "splits.json",
         max_tiles: int = 0,
@@ -511,7 +509,7 @@ class Project:
         mixed_precision: bool,
         allow_tf32: bool,
         splits: str,
-        results_dict: Dict,
+        results_dict: Union[Dict, DictProxy],
         training_kwargs: Dict,
         balance_headers: Optional[Union[str, List[str]]]
     ) -> None:
@@ -751,7 +749,7 @@ class Project:
                 hp.training_balance,
             )
             train_dts = train_dts.clip(s_args.max_tiles)
-        else:
+        elif hp.training_balance not in ('none', None) or s_args.max_tiles:
             log.warning("Balancing / clipping is disabled when `from_wsi=True`")
 
         if val_dts and not from_wsi:
@@ -889,7 +887,7 @@ class Project:
 
     def create_blank_annotations(
         self,
-        filename: Optional[Path] = None
+        filename: Optional[str] = None
     ) -> None:
         """Creates an empty annotations file.
 
@@ -927,7 +925,7 @@ class Project:
 
     def create_hp_sweep(
         self,
-        filename: Path = 'sweep.json',
+        filename: str = 'sweep.json',
         label: Optional[str] = None,
         **kwargs: Any
     ) -> None:
@@ -976,14 +974,14 @@ class Project:
     @auto_dataset
     def evaluate(
         self,
-        model: Path,
+        model: str,
         outcomes: Union[str, List[str]],
         *,
         dataset: Dataset,
         filters: Optional[Dict] = None,
         filter_blank: Optional[Union[str, List[str]]] = None,
         min_tiles: int = 0,
-        checkpoint: Optional[Path] = None,
+        checkpoint: Optional[str] = None,
         eval_k_fold: Optional[int] = None,
         splits: str = "splits.json",
         max_tiles: int = 0,
@@ -1054,7 +1052,7 @@ class Project:
     def evaluate_clam(
         self,
         exp_name: str,
-        pt_files: Path,
+        pt_files: str,
         outcomes: Union[str, List[str]],
         tile_px: int,
         tile_um: Union[int, str],
@@ -1523,7 +1521,7 @@ class Project:
     @auto_dataset
     def generate_features(
         self,
-        model: Path,
+        model: str,
         *,
         dataset: Dataset,
         filters: Optional[Dict] = None,
@@ -1719,7 +1717,7 @@ class Project:
     @auto_dataset
     def generate_heatmaps(
         self,
-        model: Path,
+        model: str,
         *,
         dataset: Dataset,
         filters: Optional[Dict] = None,
@@ -2059,7 +2057,7 @@ class Project:
         header_y: str,
         *,
         dataset: Dataset,
-        model: Optional[Path] = None,
+        model: Optional[str] = None,
         outcomes: Optional[Union[str, List[str]]] = None,
         max_tiles: int = 100,
         use_optimal_tile: bool = False,
@@ -2322,7 +2320,7 @@ class Project:
             dataset.update_manifest()
         return dataset
 
-    def load_project(self, path: Path) -> None:
+    def load_project(self, path: str) -> None:
         """Loads a saved and pre-configured project from the specified path."""
 
         # Enable logging
@@ -2334,13 +2332,13 @@ class Project:
     @auto_dataset
     def predict(
         self,
-        model: Path,
+        model: str,
         *,
         dataset: Dataset,
         filters: Optional[Dict] = None,
         filter_blank: Optional[Union[str, List[str]]] = None,
         min_tiles: int = 0,
-        checkpoint: Optional[Path] = None,
+        checkpoint: Optional[str] = None,
         eval_k_fold: Optional[int] = None,
         splits: str = "splits.json",
         max_tiles: int = 0,
@@ -2418,8 +2416,8 @@ class Project:
     @auto_dataset
     def predict_wsi(
         self,
-        model: Path,
-        outdir: Path,
+        model: str,
+        outdir: str,
         *,
         dataset: Dataset,
         filters: Optional[Dict] = None,
@@ -2892,7 +2890,7 @@ class Project:
         # Next, prepare the multiprocessing manager (needed to free VRAM after
         # training and keep track of results)
         manager = multiprocessing.Manager()
-        results_dict = manager.dict()  # type: Dict
+        results_dict = manager.dict()
         ctx = multiprocessing.get_context('spawn')
 
         # === Train with a set of hyperparameters =============================
@@ -2943,7 +2941,7 @@ class Project:
     def train_clam(
         self,
         exp_name: str,
-        pt_files: Path,
+        pt_files: str,
         outcomes: Union[str, List[str]],
         dataset: Dataset,
         train_slides: Union[str, List[str]] = 'auto',

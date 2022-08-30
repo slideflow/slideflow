@@ -67,9 +67,6 @@ else:
 
 # --- Commonly used types -----------------------------------------------------
 
-# Path
-Path = Union[str, os.PathLike]
-
 # Outcome labels
 Labels = Union[Dict[str, str], Dict[str, int], Dict[str, List[float]]]
 
@@ -287,7 +284,7 @@ def clear_console() -> None:
     sys.stdout.flush()
 
 
-def make_dir(_dir: Path) -> None:
+def make_dir(_dir: str) -> None:
     """Makes a directory if one does not already exist,
     in a manner compatible with multithreading.
     """
@@ -346,7 +343,7 @@ def path_input(
     root: str,
     default: Optional[str] = None,
     create_on_invalid: bool = False,
-    filetype: Optional[Path] = None,
+    filetype: Optional[str] = None,
     verify: bool = True
 ) -> str:
     '''Prompts user for directory input.'''
@@ -401,20 +398,20 @@ def choice_input(prompt, valid_choices, default=None, multi_choice=False,
         return response
 
 
-def load_json(filename: Path) -> Any:
+def load_json(filename: str) -> Any:
     '''Reads JSON data from file.'''
     with open(filename, 'r') as data_file:
         return json.load(data_file)
 
 
-def write_json(data: Any, filename: Path) -> None:
+def write_json(data: Any, filename: str) -> None:
     '''Writes data to JSON file.'''
     with open(filename, "w") as data_file:
         json.dump(data, data_file, indent=1)
 
 
 def get_slides_from_model_manifest(
-    model_path: Path,
+    model_path: str,
     dataset: Optional[str] = None
 ) -> List[str]:
     """Get list of slides from a model manifest.
@@ -451,7 +448,7 @@ def get_slides_from_model_manifest(
     return slides
 
 
-def get_gan_config(model_path: Path) -> Dict:
+def get_gan_config(model_path: str) -> Dict:
     """Loads a GAN training_options.json for an associated network PKL."""
 
     if exists(join(dirname(model_path), 'training_options.json')):
@@ -514,7 +511,7 @@ def get_model_normalizer(
     return normalizer
 
 
-def get_slide_paths(slides_dir: Path) -> List[str]:
+def get_slide_paths(slides_dir: str) -> List[str]:
     '''Get all slide paths from a given directory containing slides.'''
     slide_list = [
         i for i in glob(join(slides_dir, '**/*.*'))
@@ -527,7 +524,7 @@ def get_slide_paths(slides_dir: Path) -> List[str]:
     return slide_list
 
 
-def read_annotations(path: Path) -> Tuple[List[str], List[Dict]]:
+def read_annotations(path: str) -> Tuple[List[str], List[Dict]]:
     '''Read an annotations file.'''
     results = []
     with open(path, 'r') as csv_file:
@@ -548,7 +545,7 @@ def read_annotations(path: Path) -> Tuple[List[str], List[Dict]]:
     return header, results
 
 
-def get_relative_tfrecord_paths(root: Path, directory: str = "") -> List[str]:
+def get_relative_tfrecord_paths(root: str, directory: str = "") -> List[str]:
     '''Returns relative tfrecord paths with respect to the given directory.'''
 
     tfrecords = [
@@ -565,7 +562,7 @@ def get_relative_tfrecord_paths(root: Path, directory: str = "") -> List[str]:
     return tfrecords
 
 
-def contains_nested_subdirs(directory: Path) -> bool:
+def contains_nested_subdirs(directory: str) -> bool:
     subdirs = [
         _dir for _dir in os.listdir(directory)
         if isdir(join(directory, _dir))
@@ -823,7 +820,7 @@ def detect_git_commit() -> Optional[str]:
         return None
 
 
-def get_new_model_dir(root: Path, model_name: str) -> str:
+def get_new_model_dir(root: str, model_name: str) -> str:
     prev_run_dirs = [
         x for x in os.listdir(root)
         if isdir(join(root, x))

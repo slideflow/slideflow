@@ -12,7 +12,6 @@ from threading import Thread
 import slideflow as sf
 from slideflow import errors
 from slideflow.slide import WSI
-from slideflow.util import Path
 from slideflow.util import log
 
 if TYPE_CHECKING:
@@ -528,7 +527,7 @@ class Heatmap:
 
     def save(
         self,
-        outdir: Path,
+        outdir: str,
         show_roi: bool = True,
         interpolation: str = 'none',
         logit_cmap: Optional[Union[Callable, Dict]] = None,
