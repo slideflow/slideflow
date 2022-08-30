@@ -197,14 +197,16 @@ class Workbench(imgui_window.ImguiWindow):
             path = self.wsi.path
         if stride is None:
             stride = self.wsi.stride_div
-        if self.P:
+        if self.P and use_rois:
             rois = self.P.dataset().rois()
+        else:
+            rois = None
         self.wsi = sf.WSI(
             path,
             tile_px=(self.tile_px if self.tile_px else 256),
             tile_um=(self.tile_um if self.tile_um else 512),
             stride_div=stride,
-            rois=rois if use_rois else None,
+            rois=rois,
             vips_cache=dict(
                 tile_width=512,
                 tile_height=512,
