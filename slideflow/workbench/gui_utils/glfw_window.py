@@ -35,6 +35,7 @@ class GlfwWindow: # pylint: disable=too-many-public-methods
         self._glfw_window = glfw.create_window(width=window_width, height=window_height, title=title, monitor=None, share=None)
         self._attach_glfw_callbacks()
         self.make_context_current()
+        print(f"Using OpenGL version {gl.glGetString(gl.GL_VERSION)}")
 
         # Adjust window.
         self.set_vsync(False)
