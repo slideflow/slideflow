@@ -260,6 +260,14 @@ class ModelParams(_base._ModelParams):
         Args:
             pretrain (str, optional): Pretrained weights to load.
                 Defaults to 'imagenet'.
+            load_method (str): Either 'full' or 'weights'. Method to use
+                when loading a model. If 'full', will load the saved model with
+                ``tf.keras.models.load_model()``. If 'weights', will read the
+                ``params.json``configuration file, build the model architecture,
+                and then load weights from the given model with
+                ``Model.load_weights()``. Loading with 'full' may improve
+                compatibility across Slideflow versions. Loading with 'weights'
+                may improve compatibility across hardware & environments.
 
         Returns:
             tf.keras.Model: Base model.
@@ -336,6 +344,14 @@ class ModelParams(_base._ModelParams):
                 pretraining. Defaults to 'imagenet'.
             checkpoint (str): Path to checkpoint from which to resume model
                 training. Defaults to None.
+            load_method (str): Either 'full' or 'weights'. Method to use
+                when loading a model. If 'full', will load the saved model with
+                ``tf.keras.models.load_model()``. If 'weights', will read the
+                ``params.json``configuration file, build the model architecture,
+                and then load weights from the given model with
+                ``Model.load_weights()``. Loading with 'full' may improve
+                compatibility across Slideflow versions. Loading with 'weights'
+                may improve compatibility across hardware & environments.
         """
         tile_image_model, model_inputs = self._build_base(pretrain, load_method)
         if num_slide_features:
@@ -433,6 +449,14 @@ class ModelParams(_base._ModelParams):
                 pretraining. Defaults to 'imagenet'.
             checkpoint (str): Path to checkpoint from which to resume model
                 training. Defaults to None.
+            load_method (str): Either 'full' or 'weights'. Method to use
+                when loading a model. If 'full', will load the saved model with
+                ``tf.keras.models.load_model()``. If 'weights', will read the
+                ``params.json``configuration file, build the model architecture,
+                and then load weights from the given model with
+                ``Model.load_weights()``. Loading with 'full' may improve
+                compatibility across Slideflow versions. Loading with 'weights'
+                may improve compatibility across hardware & environments.
         """
         activation = 'linear'
         tile_image_model, model_inputs = self._build_base(pretrain, load_method)
@@ -536,6 +560,13 @@ class ModelParams(_base._ModelParams):
                 model training. Defaults to None.
             load_method (str): Either 'full' or 'weights'. Method to use
                 when loading a pretrained model.
+                If 'full', will load the saved model with
+                ``tf.keras.models.load_model()``. If 'weights', will read the
+                ``params.json``configuration file, build the model architecture,
+                and then load weights from the given model with
+                ``Model.load_weights()``. Loading with 'full' may improve
+                compatibility across Slideflow versions. Loading with 'weights'
+                may improve compatibility across hardware & environments.
         """
 
         assert num_classes is not None or labels is not None
@@ -989,7 +1020,13 @@ class Trainer:
             allow_tf32 (bool): Allow internal use of Tensorfloat-32 format.
                 Defaults to False.
             load_method (str): Either 'full' or 'weights'. Method to use
-                when loading a pretrained model.
+                when loading a model. If 'full', will load the saved model with
+                ``tf.keras.models.load_model()``. If 'weights', will read the
+                ``params.json``configuration file, build the model architecture,
+                and then load weights from the given model with
+                ``Model.load_weights()``. Loading with 'full' may improve
+                compatibility across Slideflow versions. Loading with 'weights'
+                may improve compatibility across hardware & environments.
             config (dict, optional): Training configuration dictionary, used
                 for logging and image format verification. Defaults to None.
             use_neptune (bool, optional): Use Neptune API logging.
@@ -1968,7 +2005,7 @@ class Features:
         path: Optional[str],
         layers: Optional[Union[str, List[str]]] = 'postconv',
         include_logits: bool = False,
-        load_method: str = 'weights',
+        load_method: str = 'full',
     ) -> None:
         """Creates a features interface from a saved slideflow model which
         outputs feature activations at the designated layers.
@@ -1983,6 +2020,14 @@ class Features:
                 via 'postconv'. Defaults to 'postconv'.
             include_logits (bool, optional): Include logits in output. Will be
                 returned last. Defaults to False.
+            load_method (str): Either 'full' or 'weights'. Method to use
+                when loading a model. If 'full', will load the saved model with
+                ``tf.keras.models.load_model()``. If 'weights', will read the
+                ``params.json``configuration file, build the model architecture,
+                and then load weights from the given model with
+                ``Model.load_weights()``. Loading with 'full' may improve
+                compatibility across Slideflow versions. Loading with 'weights'
+                may improve compatibility across hardware & environments.
         """
         self.path = path
         self.num_logits = 0
@@ -1991,7 +2036,7 @@ class Features:
         self.img_format = None
         log.debug('Setting up Features interface')
         if path is not None:
-            self._model = load(self.path, method=load_method)
+            self._model = load(self.path, method=load_method)  # type: ignore
             config = sf.util.get_model_config(path)
             if 'img_format' in config:
                 self.img_format = config['img_format']
@@ -2338,6 +2383,14 @@ def load(path: str, method: str = 'full'):
 
     Args:
         path (str): Path to saved Tensorflow model.
+        method (str): Method to use when loading the model; either 'full' or
+            'weights'. If 'full', will load the saved model with
+            ``tf.keras.models.load_model()``. If 'weights', will read the
+            ``params.json``configuration file, build the model architecture,
+            and then load weights from the given model with
+            ``Model.load_weights()``. Loading with 'full' may improve
+            compatibility across Slideflow versions. Loading with 'weights'
+            may improve compatibility across hardware & environments.
 
     Returns:
         tf.keras.models.Model: Loaded model.
@@ -2357,8 +2410,8 @@ def load(path: str, method: str = 'full'):
             num_classes = {
                 outcome: len(list(config['outcome_labels'][outcome].keys()))
                 for outcome in config['outcomes']
-            }
-        model = hp.build_model(
+            }  # type: ignore
+        model = hp.build_model(  # type: ignore
             num_classes=num_classes,
             num_slide_features=0 if not config['input_feature_sizes'] else sum(config['input_feature_sizes']),
             pretrain=None

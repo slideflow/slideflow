@@ -345,6 +345,14 @@ class Project:
                 Defaults to False.
             input_header (str, optional): Annotation column header to use as
                 additional input. Defaults to None.
+            load_method (str): Either 'full' or 'weights'. Method to use
+                when loading a model. If 'full', will load the saved model with
+                ``tf.keras.models.load_model()``. If 'weights', will read the
+                ``params.json``configuration file, build the model architecture,
+                and then load weights from the given model with
+                ``Model.load_weights()``. Loading with 'full' may improve
+                compatibility across Slideflow versions. Loading with 'weights'
+                may improve compatibility across hardware & environments.
 
         Returns:
             A tuple containing
@@ -1030,6 +1038,14 @@ class Project:
                 Defaults to False.
             input_header (str, optional): Annotation column header to use as
                 additional input. Defaults to None.
+            load_method (str): Either 'full' or 'weights'. Method to use
+                when loading a model. If 'full', will load the saved model with
+                ``tf.keras.models.load_model()``. If 'weights', will read the
+                ``params.json``configuration file, build the model architecture,
+                and then load weights from the given model with
+                ``Model.load_weights()``. Loading with 'full' may improve
+                compatibility across Slideflow versions. Loading with 'weights'
+                may improve compatibility across hardware & environments.
             save_predictions (bool or str, optional): Save tile, slide, and
                 patient-level predictions at each evaluation. May be 'csv',
                 'feather', or 'parquet'. If False, will not save predictions.
@@ -2394,6 +2410,14 @@ class Project:
                 Defaults to True.
             allow_tf32 (bool): Allow internal use of Tensorfloat-32 format.
                 Defaults to False.
+            load_method (str): Either 'full' or 'weights'. Method to use
+                when loading a model. If 'full', will load the saved model with
+                ``tf.keras.models.load_model()``. If 'weights', will read the
+                ``params.json``configuration file, build the model architecture,
+                and then load weights from the given model with
+                ``Model.load_weights()``. Loading with 'full' may improve
+                compatibility across Slideflow versions. Loading with 'weights'
+                may improve compatibility across hardware & environments.
 
         Returns:
             Dictionary of predictions dataframes, with the keys 'tile', 'slide',
@@ -2765,6 +2789,14 @@ class Project:
                 Defaults to True.
             allow_tf32 (bool): Allow internal use of Tensorfloat-32 format.
                 Defaults to False.
+            load_method (str): Either 'full' or 'weights'. Method to use
+                when loading a model. If 'full', will load the saved model with
+                ``tf.keras.models.load_model()``. If 'weights', will read the
+                ``params.json``configuration file, build the model architecture,
+                and then load weights from the given model with
+                ``Model.load_weights()``. Loading with 'full' may improve
+                compatibility across Slideflow versions. Loading with 'weights'
+                may improve compatibility across hardware & environments.
             balance_headers (str or list(str)): Annotation header(s) specifying
                 labels on which to perform mini-batch balancing. If performing
                 category-level balancing and this is set to None, will default
