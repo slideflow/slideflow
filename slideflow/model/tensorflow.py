@@ -2268,28 +2268,42 @@ class Features:
         if layers and not isinstance(layers, list):
             layers = [layers]
         if layers:
+            if 'postconv' in layers:
+                layers[layers.index('postconv')] = 'post_convolution'  # type: ignore
             log.debug(f"Setting up interface to return activations from layers "
                       f"{', '.join(layers)}")
-            other_layers = [la for la in layers if la != 'postconv']
         else:
-            other_layers = []
+            layers = []
+
+        # Find the desired layers
         outputs = {}
-        if layers:
+        outer_layer_outputs = {
+            self._model.layers[i].name: self._model.layers[i].output
+            for i in range(len(self._model.layers))
+        }
+        core_layer_outputs = {}
+        inner_layers = [la for la in layers if la not in outer_layer_outputs]
+        if inner_layers:
             intermediate_core = tf.keras.models.Model(
                 inputs=self._model.layers[1].input,
                 outputs=[
-                    self._model.layers[1].get_layer(ol).output
-                    for ol in other_layers
+                    self._model.layers[1].get_layer(il).output
+                    for il in inner_layers
                 ]
             )
-            if len(other_layers) > 1:
+            if len(inner_layers) > 1:
                 int_out = intermediate_core(self._model.input)
-                for la, layer in enumerate(other_layers):
-                    outputs[layer] = int_out[la]
-            elif len(other_layers):
-                outputs[other_layers[0]] = intermediate_core(self._model.input)
-            if 'postconv' in layers:
-                outputs['postconv'] = self._model.layers[1].get_output_at(0)
+                for la, layer in enumerate(inner_layers):
+                    core_layer_outputs[layer] = int_out[la]
+            else:
+                outputs[inner_layers[0]] = intermediate_core(self._model.input)
+        for layer in layers:
+            if layer in outer_layer_outputs:
+                outputs[layer] = outer_layer_outputs[layer]
+            elif layer in core_layer_outputs:
+                outputs[layer] = core_layer_outputs[layer]
+
+        # Build a model that outputs the given layers
         outputs_list = [] if not layers else [outputs[la] for la in layers]
         if include_logits:
             outputs_list += [self._model.output]
