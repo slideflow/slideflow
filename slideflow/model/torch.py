@@ -2172,9 +2172,17 @@ def load(path):
     """
     config = sf.util.get_model_config(path)
     hp = ModelParams.from_dict(config['hp'])
+    if len(config['outcomes']) == 1:
+        num_classes = len(list(config['outcome_labels'].keys()))
+    else:
+        num_classes = {
+            outcome: len(list(config['outcome_labels'][outcome].keys()))
+            for outcome in config['outcomes']
+        }
     model = hp.build_model(
-        num_classes=len(list(config['outcome_labels'].keys())),
-        num_slide_features=0 if not config['input_feature_sizes'] else sum(config['input_feature_sizes'])
+        num_classes=num_classes,
+        num_slide_features=0 if not config['input_feature_sizes'] else sum(config['input_feature_sizes']),
+        pretrain=None
     )
     model.load_state_dict(torch.load(path))
     return model

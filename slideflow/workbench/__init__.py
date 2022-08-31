@@ -41,7 +41,7 @@ def _load_model_and_saliency(model_path, device=None):
         if device is not None:
             _model = _model.to(device)
     elif sf.util.tf_available:
-        _model = tf.keras.models.load_model(model_path)
+        _model = sf.model.tensorflow.load(model_path)
     else:
         raise ValueError(f"Unable to interpret model {model_path}")
 
