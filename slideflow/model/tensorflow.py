@@ -269,11 +269,7 @@ class ModelParams(_base._ModelParams):
         if pretrain:
             log.info(f'Using pretraining from [magenta]{pretrain}')
         if pretrain and pretrain != 'imagenet':
-            if load_method == 'full':
-                pretrained_model = tf.keras.models.load_model(pretrain)
-            else:
-                log.debug("Loading pretrained model from weights")
-                pretrained_model = load(pretrain)
+            pretrained_model = load(pretrain, method=load_method)
             try:
                 # This is the tile_image input
                 pretrained_input = pretrained_model.get_layer(name='tile_image').input
@@ -341,8 +337,7 @@ class ModelParams(_base._ModelParams):
             checkpoint (str): Path to checkpoint from which to resume model
                 training. Defaults to None.
         """
-        tile_image_model, model_inputs = self._build_base(pretrain,
-                                                          load_method=load_method)
+        tile_image_model, model_inputs = self._build_base(pretrain, load_method)
         if num_slide_features:
             log.debug(f'Model has {num_slide_features} slide input features')
             slide_feature_input_tensor = tf.keras.Input(
@@ -440,8 +435,7 @@ class ModelParams(_base._ModelParams):
                 training. Defaults to None.
         """
         activation = 'linear'
-        tile_image_model, model_inputs = self._build_base(pretrain,
-                                                          load_method=load_method)
+        tile_image_model, model_inputs = self._build_base(pretrain, load_method)
 
         # Add slide feature input tensors, if there are more slide features
         #    than just the event input tensor for CPH models
@@ -540,6 +534,8 @@ class ModelParams(_base._ModelParams):
                 as pretraining. Defaults to 'imagenet'.
             checkpoint (str, optional): Path to checkpoint from which to resume
                 model training. Defaults to None.
+            load_method (str): Either 'full' or 'weights'. Method to use
+                when loading a pretrained model.
         """
 
         assert num_classes is not None or labels is not None
@@ -992,6 +988,8 @@ class Trainer:
                 than FP32). Defaults to True.
             allow_tf32 (bool): Allow internal use of Tensorfloat-32 format.
                 Defaults to False.
+            load_method (str): Either 'full' or 'weights'. Method to use
+                when loading a pretrained model.
             config (dict, optional): Training configuration dictionary, used
                 for logging and image format verification. Defaults to None.
             use_neptune (bool, optional): Use Neptune API logging.
@@ -1242,11 +1240,7 @@ class Trainer:
                     dataset.img_format))
 
     def load(self, model: str) -> tf.keras.Model:
-        if self.load_method == 'full':
-            self.model = tf.keras.models.load_model(model)
-        else:
-            log.debug("Loading model from weights")
-            self.model = load(model)
+        self.model = load(model, method=self.load_method)
 
     def predict(
         self,
@@ -1876,8 +1870,7 @@ class CPHTrainer(LinearTrainer):
                 metrics=tf_utils.concordance_index
             )
         else:
-            log.debug("Loading model from weights")
-            self.model = load(model)
+            self.model = load(model, method=self.load_method)
 
     def _compile_model(self) -> None:
         self.model.compile(optimizer=self.hp.get_opt(),
@@ -1974,7 +1967,8 @@ class Features:
         self,
         path: Optional[str],
         layers: Optional[Union[str, List[str]]] = 'postconv',
-        include_logits: bool = False
+        include_logits: bool = False,
+        load_method: str = 'weights',
     ) -> None:
         """Creates a features interface from a saved slideflow model which
         outputs feature activations at the designated layers.
@@ -1997,7 +1991,7 @@ class Features:
         self.img_format = None
         log.debug('Setting up Features interface')
         if path is not None:
-            self._model = tf.keras.models.load_model(self.path)
+            self._model = load(self.path, method=load_method)
             config = sf.util.get_model_config(path)
             if 'img_format' in config:
                 self.img_format = config['img_format']
@@ -2339,7 +2333,7 @@ class UncertaintyInterface(Features):
             return logits, uncertainty
 
 
-def load(path):
+def load(path: str, method: str = 'full'):
     """Load Tensorflow model from location.
 
     Args:
@@ -2348,19 +2342,26 @@ def load(path):
     Returns:
         tf.keras.models.Model: Loaded model.
     """
-    config = sf.util.get_model_config(path)
-    hp = ModelParams.from_dict(config['hp'])
-    if len(config['outcomes']) == 1:
-        num_classes = len(list(config['outcome_labels'].keys()))
+    if method not in ('full', 'weights'):
+        raise ValueError(f"Unrecognized method {method}, expected "
+                         "either 'full' or 'weights'")
+    log.info(f"Loading model with method='{method}'")
+    if method == 'full':
+        return tf.keras.models.load_model(path)
     else:
-        num_classes = {
-            outcome: len(list(config['outcome_labels'][outcome].keys()))
-            for outcome in config['outcomes']
-        }
-    model = hp.build_model(
-        num_classes=num_classes,
-        num_slide_features=0 if not config['input_feature_sizes'] else sum(config['input_feature_sizes']),
-        pretrain=None
-    )
-    model.load_weights(path)
-    return model
+        config = sf.util.get_model_config(path)
+        hp = ModelParams.from_dict(config['hp'])
+        if len(config['outcomes']) == 1:
+            num_classes = len(list(config['outcome_labels'].keys()))
+        else:
+            num_classes = {
+                outcome: len(list(config['outcome_labels'][outcome].keys()))
+                for outcome in config['outcomes']
+            }
+        model = hp.build_model(
+            num_classes=num_classes,
+            num_slide_features=0 if not config['input_feature_sizes'] else sum(config['input_feature_sizes']),
+            pretrain=None
+        )
+        model.load_weights(join(path, 'variables/variables'))
+        return model
