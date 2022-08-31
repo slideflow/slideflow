@@ -272,6 +272,7 @@ class ModelParams(_base._ModelParams):
             if load_method == 'full':
                 pretrained_model = tf.keras.models.load_model(pretrain)
             else:
+                log.debug("Loading pretrained model from weights")
                 pretrained_model = load(pretrain)
             try:
                 # This is the tile_image input
@@ -1244,6 +1245,7 @@ class Trainer:
         if self.load_method == 'full':
             self.model = tf.keras.models.load_model(model)
         else:
+            log.debug("Loading model from weights")
             self.model = load(model)
 
     def predict(
@@ -1874,6 +1876,7 @@ class CPHTrainer(LinearTrainer):
                 metrics=tf_utils.concordance_index
             )
         else:
+            log.debug("Loading model from weights")
             self.model = load(model)
 
     def _compile_model(self) -> None:
