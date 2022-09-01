@@ -66,3 +66,8 @@ class TestSlide(unittest.TestCase):
         pool = mp.dummy.Pool(8)
         self._assert_is_pil(self.wsi.preview(show_progress=False, pool=pool))
         pool.close()
+
+# -----------------------------------------------------------------------------
+
+if __name__ == '__main__':
+    unittest.main()

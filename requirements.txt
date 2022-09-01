@@ -2,7 +2,7 @@ numpy<1.22
 gast>=0.3.3
 tensorflow>=2.7,<2.10
 scipy
-sklearn
+scikit-learn
 matplotlib>=3.2
 imageio
 opencv-python
@@ -35,3 +35,4 @@ pyarrow
 ninja
 tensorflow_probability
 rich
+parameterized

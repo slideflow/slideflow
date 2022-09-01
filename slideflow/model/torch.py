@@ -171,8 +171,8 @@ class ModelWrapper(torch.nn.Module):
             x = self.model(img)
 
         # Discard auxillary classifier
-        if self.has_aux:
-            x, _ = x
+        if self.has_aux and self.training:
+            x = x.logits
 
         # Merging image data with any slide-level input data
         if self.num_slide_features and not self.drop_images:
@@ -274,6 +274,11 @@ class ModelParams(_base._ModelParams):
         if isinstance(self.augment, str) and 'b' in self.augment:
             log.warn('Gaussian blur not yet optimized in PyTorch backend; '
                      'image pre-processing may be slow.')
+        if self.model == 'inception':
+            log.warn("Model 'inception' has an auxillary classifier, which "
+                     "is currently ignored during training. Auxillary "
+                     "classifier loss will be included during training "
+                     "starting in version 1.3")
 
     def get_opt(self, params_to_update: Iterable) -> torch.optim.Optimizer:
         return self.OptDict[self.optimizer](
@@ -1951,7 +1956,10 @@ class Features:
             return self._model.avgpool
         if self.model_type in ('AlexNet', 'SqueezeNet', 'VGG', 'MobileNetV2',
                                'MobileNetV3', 'MNASNet'):
-            return next(self._model.classifier.children())
+            if self._model.classifier.__class__.__name__ == 'Identity':
+                return self._model.classifier
+            else:
+                return next(self._model.classifier.children())
         if self.model_type == 'DenseNet':
             return self._model.features.norm5
         if self.model_type == 'ShuffleNetV2':
@@ -2000,7 +2008,8 @@ class Features:
                         get_activation('postconv')
                     )
                 else:
-                    getattr(self._model, la).register_forward_hook(
+                    la_out = torch_utils.get_module_by_name(self._model, la)
+                    la_out.register_forward_hook(
                         get_activation(la)
                     )
         elif self.layers is not None:

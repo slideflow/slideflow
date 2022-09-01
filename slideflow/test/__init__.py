@@ -11,7 +11,8 @@ from rich import print
 import slideflow as sf
 import slideflow.test.functional
 from slideflow import errors
-from slideflow.test import dataset_test, slide_test, stats_test, norm_test
+from slideflow.test import (dataset_test, slide_test, stats_test, norm_test,
+                            model_test)
 from slideflow.test.utils import (TaskWrapper, TestConfig,
                                   _assert_valid_results, process_isolate)
 from slideflow.util import log
@@ -781,7 +782,7 @@ class TestSuite:
         runner = unittest.TextTestRunner()
         all_tests = [
             unittest.TestLoader().loadTestsFromModule(module)
-            for module in (norm_test, dataset_test, stats_test)
+            for module in (norm_test, dataset_test, stats_test, model_test)
         ]
         suite = unittest.TestSuite(all_tests)
 

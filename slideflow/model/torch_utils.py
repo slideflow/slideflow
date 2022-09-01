@@ -4,6 +4,7 @@ import types
 from types import SimpleNamespace
 from typing import Dict, Generator, Iterable, List, Tuple, Union
 
+import torch
 import numpy as np
 import slideflow as sf
 from pandas.core.frame import DataFrame
@@ -11,14 +12,23 @@ from scipy.special import softmax
 from slideflow.stats import df_from_pred
 from slideflow.util import log, ImgBatchSpeedColumn
 from rich.progress import Progress, TimeElapsedColumn
-
-import torch
+from functools import reduce
 
 
 def cycle(iterable: Iterable) -> Generator:
     while True:
         for i in iterable:
             yield i
+
+
+def get_module_by_name(module: Union[torch.Tensor, torch.nn.Module],
+                       access_string: str):
+    """Retrieve a module nested in another by its access string.
+
+    Works even when there is a Sequential in the module.
+    """
+    names = access_string.split(sep='.')
+    return reduce(getattr, names, module)
 
 
 def print_module_summary(
