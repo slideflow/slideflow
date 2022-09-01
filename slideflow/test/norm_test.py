@@ -318,7 +318,7 @@ class TestSlide(unittest.TestCase):
         self._test_reinhard_fit_to_path(norm)
         self._test_reinhard_set_fit(norm)
 
+# -----------------------------------------------------------------------------
 
-
-
-
+if __name__ == '__main__':
+    unittest.main()

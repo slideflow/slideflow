@@ -1697,6 +1697,11 @@ class Project:
                 num_classes=1,
                 pretrain='imagenet'
             )  # type: ignore
+
+            if sf.backend() == 'torch':
+                import torch
+                model = model.to(torch.device('cuda'))
+                model.eval()
         elif not exists(model):
             raise ValueError(
                 f"'{model}' is neither a path to a saved model nor the name "

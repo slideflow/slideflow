@@ -40,3 +40,4 @@ imgui
 pyopengl
 glfw
 saliency
+parameterized

@@ -89,5 +89,8 @@ setuptools.setup(
             'torchvision',
             'pretrained_models'
         ],
+        'dev': [
+            'parameterized'
+        ]
     },
 )
