@@ -104,7 +104,6 @@ class SlideWidget:
             print(f"Loading slide {slide}...")
             viz.defer_rendering()
             viz._reload_wsi(slide, stride=self.stride, use_rois=self._use_rois)
-            viz.reset_thumb()
             viz.heatmap_widget.reset()
             self.num_total_rois = len(viz.wsi.rois)
 
@@ -339,8 +338,8 @@ class SlideWidget:
                         t_x = t_x + int((width - max_width)/2)
                         t_w_ratio = max_width / viz.wsi.dimensions[0]
                         t_h_ratio = max_height / viz.wsi.dimensions[1]
-                        t_x += viz.thumb_origin[0] * t_w_ratio
-                        t_y += viz.thumb_origin[1] * t_h_ratio
+                        t_x += viz.wsi_viewer.origin[0] * t_w_ratio
+                        t_y += viz.wsi_viewer.origin[1] * t_h_ratio
                         t_y += viz.spacing
 
                         draw_list = imgui.get_overlay_draw_list()
@@ -438,6 +437,11 @@ class SlideWidget:
             # Normalizing
             _norm_clicked, self.normalize_wsi = imgui.checkbox('Normalize', self.normalize_wsi)
             viz._normalize_wsi = self.normalize_wsi
+            if self.normalize_wsi and viz.wsi_viewer:
+                viz.wsi_viewer.set_normalizer(viz._normalizer)
+            elif viz.wsi_viewer:
+                viz.wsi_viewer.clear_normalizer()
+
             imgui.same_line(imgui.get_content_region_max()[0] - 1 - viz.font_size*8)
             with imgui_utils.item_width(viz.font_size * 8), imgui_utils.grayed_out(not self.normalize_wsi):
                 _norm_method_clicked, self.norm_idx = imgui.combo("##norm_method", self.norm_idx, self._normalizer_methods_str)

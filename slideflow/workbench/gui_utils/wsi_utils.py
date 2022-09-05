@@ -18,31 +18,191 @@ from slideflow.util import log
 
 class SlideViewer:
 
-    def __init__(self, bilinear=True, mipmap=True):
+    def __init__(self, wsi, width, height, bilinear=True, mipmap=True, x_offset=0, y_offset=0, normalizer=None):
         self._tex_img       = None
         self._tex_obj       = None
-
+        self._normalizer    = normalizer
+        self.origin         = (0, 0)  # WSI origin for the current view.
+        self.view           = None    # Numpy image of current view.
+        self.view_zoom      = None    # Zoom level for the current view.
+        self.rois           = []
+        self.wsi            = wsi
+        self.width          = width
+        self.height         = height
         self.bilinear       = bilinear
         self.mipmap         = mipmap
+
+        # Window offset for the display
+        self.x_offset       = x_offset
+        self.y_offset       = y_offset
+
+        # Create initial display
+        wsi_ratio = self.wsi.dimensions[0] / self.wsi.dimensions[1]
+        max_w, max_h = width, height
+        if wsi_ratio < width / height:
+            max_w = int(wsi_ratio * max_h)
+        else:
+            max_h = int(max_w / wsi_ratio)
+        self.view_zoom = max(self.wsi.dimensions[0] / max_w,
+                             self.wsi.dimensions[1] / max_h)
+        self.view_params = self.calculate_view_params()
+        self.refresh_view()
+        self.refresh_rois()
+
+    @property
+    def wsi_window_size(self):
+        return (min(self.width * self.view_zoom, self.wsi.dimensions[0]),
+                min(self.height * self.view_zoom, self.wsi.dimensions[1]))
+
+    @property
+    def view_offset(self):
+        '''Offset for the displayed thumbnail in the viewer.'''
+        if self.view is not None:
+            return ((self.width - self.view.shape[1]) / 2,
+                    (self.height - self.view.shape[0]) / 2)
+        else:
+            return (0, 0)
+
+    def _update_texture(self):
+        self._tex_img = self.view
+        if self._tex_obj is None or not self._tex_obj.is_compatible(image=self._tex_img):
+            if self._tex_obj is not None:
+                self._tex_obj.delete()
+            self._tex_obj = gl_utils.Texture(image=self._tex_img, bilinear=self.bilinear, mipmap=self.mipmap)
+        else:
+            self._tex_obj.update(self._tex_img)
+
+    def set_normalizer(self, normalizer):
+        self._normalizer = normalizer
+
+    def clear_normalizer(self):
+        self._normalizer = None
+
+    def update_offset(self, x_offset, y_offset):
+        self.x_offset = x_offset
+        self.y_offset = y_offset
+        self.refresh_view()
+
+    def is_in_view(self, cx, cy):
+        return ((self.view_offset[0] <= cx <= (self.view_offset[0] + self.view.shape[1]))
+                and (self.view_offset[1] <= cy <= (self.view_offset[1] + self.view.shape[0])))
+
+    def wsi_coords_to_display_coords(self, x, y):
+        return (
+            ((x - self.origin[0]) / self.view_zoom) + self.view_offset[0],
+            ((y - self.origin[1]) / self.view_zoom) + self.view_offset[1]
+        )
+
+    def display_coords_to_wsi_coords(self, x, y):
+        return (
+            (x - self.view_offset[0]) * self.view_zoom + self.origin[0],
+            (y - self.view_offset[1]) * self.view_zoom + self.origin[1]
+        )
 
     def clear(self):
         self._tex_img = None
 
-    def update(self, img):
-        if self._tex_img is not img:
-            self._tex_img = img
-            if self._tex_obj is None or not self._tex_obj.is_compatible(image=self._tex_img):
-                if self._tex_obj is not None:
-                    self._tex_obj.delete()
-                self._tex_obj = gl_utils.Texture(image=self._tex_img, bilinear=self.bilinear, mipmap=self.mipmap)
-            else:
-                self._tex_obj.update(self._tex_img)
+    def calculate_view_params(self, origin=None):
+        if origin is None:
+            origin = self.origin
 
-    def draw(self,max_w, max_h, x_offset=0, y_offset=0):
-        pos = np.array([x_offset + max_w / 2, y_offset + max_h / 2])
-        zoom = min(max_w / self._tex_obj.width, max_h / self._tex_obj.height)
-        zoom = np.floor(zoom) if zoom >= 1 else zoom
-        self._tex_obj.draw(pos=pos, zoom=zoom, align=0.5, rint=True)
+        # Refresh whole-slide view.
+        # Enforce boundary limits.
+        origin = [max(origin[0], 0), max(origin[1], 0)]
+        origin = [min(origin[0], self.wsi.dimensions[0] - self.wsi_window_size[0]),
+                            min(origin[1], self.wsi.dimensions[1] - self.wsi_window_size[1])]
+
+        max_w = self.width
+        max_h = self.height
+        wsi_ratio = self.wsi_window_size[0] / self.wsi_window_size[1]
+        if wsi_ratio < (max_w / max_h):
+            # Image is taller than wide
+            max_w = int(self.wsi_window_size[0] / (self.wsi_window_size[1] / max_h))
+        else:
+            # Image is wider than tall
+            max_h = int(self.wsi_window_size[1] / (self.wsi_window_size[0] / max_w))
+        self.origin = tuple(origin)
+
+        # Calculate region to extract from image
+        target_size = (max_w, max_h)
+        window_size = (int(self.wsi_window_size[0]), int(self.wsi_window_size[1]))
+        return EasyDict(
+            top_left=origin,
+            window_size=window_size,
+            target_size=target_size,
+        )
+
+    def move(self, dx, dy):
+        new_origin = [self.origin[0] - (dx * self.view_zoom),
+                      self.origin[1] - (dy * self.view_zoom)]
+
+        view_params = self.calculate_view_params(new_origin)
+        if view_params != self.view_params:
+            self.refresh_view(view_params=view_params)
+
+
+    def zoom(self, cx, cy, dz):
+        wsi_x, wsi_y = self.display_coords_to_wsi_coords(cx, cy)
+        self.view_zoom = min(self.view_zoom * dz,
+                                max(self.wsi.dimensions[0] / self.width,
+                                    self.wsi.dimensions[1] / self.height))
+        new_origin = [wsi_x - (cx * self.wsi_window_size[0] / self.width),
+                      wsi_y - (cy * self.wsi_window_size[1] / self.height)]
+
+        view_params = self.calculate_view_params(new_origin)
+        if view_params != self.view_params:
+            self.refresh_view(view_params=view_params)
+
+    def refresh_view(self, view_params=None):
+
+        if view_params is None:
+            view_params = self.view_params
+        else:
+            self.view_params = view_params
+
+        self.origin = tuple(view_params.top_left)
+        region = self.wsi.slide.read_from_pyramid(**view_params)
+        if region.bands == 4:
+            region = region.flatten()  # removes alpha
+        self.view = sf.slide.vips2numpy(region)
+
+        # Normalize and finalize
+        if self._normalizer:
+            self.view = self._normalizer.transform(self.view)
+
+        if (self._tex_obj is not None
+           and ((abs(self._tex_obj.width - self.width) > 1)
+                or (abs(self._tex_obj.height - self.height) > 1))):
+            self.clear()
+
+        # Refresh ROIs
+        self.refresh_rois()
+
+    def draw(self, max_w, max_h):
+        if self._tex_img is not self.view:
+            self._update_texture()
+        if self._tex_obj is not None:
+            pos = np.array([self.x_offset + max_w / 2, self.y_offset + max_h / 2])
+            zoom = min(max_w / self._tex_obj.width, max_h / self._tex_obj.height)
+            zoom = np.floor(zoom) if zoom >= 1 else zoom
+            self._tex_obj.draw(pos=pos, zoom=zoom, align=0.5, rint=True)
+
+    def refresh_rois(self):
+        self.rois = []
+        for roi in self.wsi.rois:
+            c = np.copy(roi.coordinates)
+            c[:, 0] = c[:, 0] - self.origin[0]
+            c[:, 0] = c[:, 0] / self.view_zoom
+            c[:, 0] = c[:, 0] + self.view_offset[0] + self.x_offset
+            c[:, 1] = c[:, 1] - self.origin[1]
+            c[:, 1] = c[:, 1] / self.view_zoom
+            c[:, 1] = c[:, 1] + self.view_offset[1] + self.y_offset
+            self.rois += [c]
+
+    def render_rois(self):
+        for roi in self.rois:
+            gl_utils.draw_roi(roi, color=1, alpha=0.7, linewidth=5)
+            gl_utils.draw_roi(roi, color=0, alpha=1, linewidth=3)
 
 
 class TiledSlideViewer:

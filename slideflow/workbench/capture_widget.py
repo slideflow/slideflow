@@ -62,7 +62,7 @@ class CaptureWidget:
                 if imgui.is_item_hovered() and not imgui.is_item_active() and self.path != '':
                     imgui.set_tooltip(self.path)
                 imgui.same_line()
-                if imgui_utils.button('Save view', width=viz.button_w, enabled=(self.disabled_time == 0 and viz.thumb is not None)):
+                if imgui_utils.button('Save view', width=viz.button_w, enabled=(self.disabled_time == 0 and viz.wsi_viewer)):
                     self.dump_view = True
                     self.defer_frames = 2
                     self.disabled_time = 0.5
