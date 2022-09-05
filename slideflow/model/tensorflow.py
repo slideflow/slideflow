@@ -1562,9 +1562,9 @@ class Trainer:
                 model from which to load weights. Defaults to 'imagenet'.
             checkpoint (str, optional): Path to cp.ckpt from which to load
                 weights. Defaults to None.
-            save_checkpoint(bool, optional): Save checkpoints at each epoch.
+            save_checkpoint (bool, optional): Save checkpoints at each epoch.
                 Defaults to True.
-            multi_gpu(bool, optional): Enable multi-GPU training using
+            multi_gpu (bool, optional): Enable multi-GPU training using
                 Tensorflow/Keras MirroredStrategy.
             reduce_method (str, optional): Reduction method for calculating
                 slide-level and patient-level predictions for categorical outcomes.
@@ -1794,9 +1794,8 @@ class Trainer:
                     callbacks=callbacks
                 )
             except tf.errors.ResourceExhaustedError as e:
-                log.debug(e)
-                log.error(f"Training failed for [bold]{self.name}[/], "
-                          "GPU memory exceeded.")
+                log.error(f"Training failed for [bold]{self.name}[/]. "
+                          f"Error: \n {e}")
             results = val_callback.results
             if self.use_neptune and self.neptune_run is not None:
                 self.neptune_run['results'] = results['epochs']
@@ -2115,13 +2114,14 @@ class Features:
         show_progress: bool = True,
         num_processes: Optional[int] = None,
         num_threads: Optional[int] = None,
+        pool: Optional[mp.pool.Pool] = None,
         **kwargs
     ) -> Optional[np.ndarray]:
         """Generate activations from slide => activation grid array."""
 
-        if num_processes is not None and num_threads is not None:
-            raise ValueError("Features() invalid argument: cannot supply both "
-                             "num_processes and num_threads")
+        if sum([n is not None for n in (num_processes, num_threads, pool)]) > 1:
+            raise ValueError("Features() invalid argument: can supply only "
+                             "one of pool, num_processes, or num_threads")
         log.debug(f"Slide prediction (batch_size={batch_size}, "
                   f"img_format={img_format})")
         if img_format == 'auto' and self.img_format is None:
@@ -2146,11 +2146,15 @@ class Features:
         else:
             assert grid.shape == (slide.grid.shape[1], slide.grid.shape[0], total_out)
             features_grid = grid
-        if num_processes:
+        if pool:
+            should_close = False
+        elif num_processes:
             ctx = mp.get_context('spawn')
             pool = ctx.Pool(num_processes)
+            should_close = True
         elif num_threads:
             pool = mp.dummy.Pool(num_threads)
+            should_close = True
         else:
             pool = None
         generator = slide.build_generator(
@@ -2248,7 +2252,7 @@ class Features:
                 yi = _loc_batch[i][1]
                 features_grid[yi][xi] = act
 
-        if pool is not None:
+        if should_close:
             pool.close()
         return features_grid
 
@@ -2412,7 +2416,7 @@ def load(path: str, method: str = 'full'):
     if method not in ('full', 'weights'):
         raise ValueError(f"Unrecognized method {method}, expected "
                          "either 'full' or 'weights'")
-    log.info(f"Loading model with method='{method}'")
+    log.debug(f"Loading model with method='{method}'")
     if method == 'full':
         return tf.keras.models.load_model(path)
     else:

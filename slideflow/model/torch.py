@@ -1971,10 +1971,14 @@ class Features:
         show_progress: bool = True,
         num_processes: Optional[int] = None,
         num_threads: Optional[int] = None,
+        pool: Optional[mp.pool.Pool] = None,
         **kwargs
     ) -> Optional[np.ndarray]:
         """Generate activations from slide => activation grid array."""
 
+        if sum([n is not None for n in (num_processes, num_threads, pool)]) > 1:
+            raise ValueError("Features() invalid argument: can supply only "
+                             "one of pool, num_processes, or num_threads")
         log.debug(f"Slide prediction (batch_size={batch_size}, "
                   f"img_format={img_format})")
         if img_format == 'auto' and self.img_format is None:
@@ -1999,11 +2003,15 @@ class Features:
         else:
             assert grid.shape == (slide.grid.shape[1], slide.grid.shape[0], total_out)
             features_grid = grid
-        if num_processes:
+        if pool:
+            should_close = False
+        elif num_processes:
             ctx = mp.get_context('spawn')
             pool = ctx.Pool(num_processes)
+            should_close = True
         elif num_threads:
             pool = mp.dummy.Pool(num_threads)
+            should_close = True
         else:
             pool = None
         generator = slide.build_generator(
@@ -2056,7 +2064,7 @@ class Features:
                 yi = batch_loc[i][1]
                 features_grid[yi][xi] = act
 
-        if pool is not None:
+        if should_close:
             pool.close()
         return features_grid
 

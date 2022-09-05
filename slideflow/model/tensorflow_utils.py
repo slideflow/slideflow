@@ -400,16 +400,14 @@ def eval_from_model(
                 yt = [yt[f'out-{o}'] for o in range(len(yt))]
                 if loss is not None:
                     loss_val = [loss(yt[i], yp[i]) for i in range(len(yt))]
-                    batch_loss = (tf.math.reduce_sum(loss_val).numpy()
-                                 * slide.shape[0])
-                    running_loss += batch_loss
+                    batch_loss = tf.math.reduce_sum(loss_val).numpy()
+                    running_loss = (((num_vals - slide.shape[0]) * running_loss) + batch_loss) / num_vals
             else:
                 y_true += [yt.numpy()]
                 if loss is not None:
                     loss_val = loss(yt, yp)
-                    batch_loss = (tf.math.reduce_sum(loss_val).numpy()
-                                 * slide.shape[0])
-                    running_loss += batch_loss
+                    batch_loss = tf.math.reduce_sum(loss_val).numpy()
+                    running_loss = (((num_vals - slide.shape[0]) * running_loss) + batch_loss) / num_vals
 
     if verbosity != 'silent':
         pb.stop()
@@ -451,9 +449,8 @@ def eval_from_model(
 
     # Note that Keras loss during training includes regularization losses,
     # so this loss will not match validation loss calculated during training
-    total_loss = running_loss / num_vals
     log.debug("Evaluation complete.")
-    return df, acc, total_loss  # type: ignore
+    return df, acc, running_loss  # type: ignore
 
 
 def predict_from_model(

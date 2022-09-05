@@ -789,63 +789,6 @@ def checkpoint_to_tf_model(models_dir: str, model_name: str) -> None:
         pass
 
 
-def update_tfrecord_dir(
-    directory: str,
-    assign_slide: Optional[str] = None,
-) -> int:
-    """Updates tfrecords in a directory to have new slide names assigned to
-    all contained records.
-
-    Args:
-        directory (str): Directory containing TFRecords to update.
-        assign_slide (str, optional): Overwrite slide names in all records in
-            these TFrecord files with this new slide name. Defaults to None.
-
-    Returns:
-        int: Number of tfrecords updated.
-    """
-    log.warn("update_tfrecord_dir() is deprecated, use transform_tfrecord()")
-    if not exists(directory):
-        log.error(f"{directory} does not exist; unable to update tfrecords.")
-        return 0
-    else:
-        tfrecord_files = glob(join(directory, "*.tfrecords"))
-        for tfr in tfrecord_files:
-            update_tfrecord(tfr, assign_slide)
-        return len(tfrecord_files)
-
-
-def update_tfrecord(
-    tfrecord_file: str,
-    assign_slide: Optional[str] = None
-) -> None:
-    """Updates a single tfrecord with a new slide name.
-
-    Args:
-        tfrecord_file (str): TFrecord to update.
-        assign_slide (str, optional): Overwrite slide names in all records in
-            this TFrecord file with this new slide name. Defaults to None.
-    """
-    log.warn("update_tfrecord() is deprecated, use transform_tfrecord()")
-    shutil.move(tfrecord_file, tfrecord_file+".old")
-    dataset = tf.data.TFRecordDataset(tfrecord_file+".old")
-    writer = tf.io.TFRecordWriter(tfrecord_file)
-    parser = get_tfrecord_parser(
-        tfrecord_file+'.old',
-        decode_images=False,
-        to_numpy=True
-    )
-    for record in dataset:
-        slidename = bytes(assign_slide, 'utf-8') if assign_slide else None
-        writer.write(read_and_return_record(
-            record,
-            parser,  # type: ignore
-            assign_slide=slidename
-        ))
-    writer.close()
-    os.remove(tfrecord_file+'.old')
-
-
 def transform_tfrecord(
     origin: str,
     target: str,
@@ -869,6 +812,7 @@ def transform_tfrecord(
     parser = get_tfrecord_parser(
         origin,
         ('slide', 'image_raw', 'loc_x', 'loc_y'),
+        decode_images=(hue_shift is not None or resize is not None),
         error_if_invalid=False,
         to_numpy=True
     )

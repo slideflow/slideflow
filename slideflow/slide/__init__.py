@@ -912,7 +912,6 @@ class _BaseLoader:
             raise errors.QCError(f"Unknown QC method {method}")
         starttime = time.time()
 
-        self.qc_mpp = blur_mpp
         self.qc_method = method
 
         # Blur QC must be performed at a set microns-per-pixel rather than
@@ -932,12 +931,11 @@ class _BaseLoader:
             gaussian = skimage.filters.gaussian(img_laplace, sigma=blur_radius)
             blur_mask = gaussian <= blur_threshold
             lev = self.slide.level_count - 1
-            qc_ratio = 1 / self.slide.level_downsamples[lev]
-            qc_ratio = self.mpp / blur_mpp
             self.qc_mask = blur_mask
 
         # Otsu's thresholding can be done on the lowest downsample level
         if method in ('otsu', 'both'):
+            lev = self.slide.level_count - 1
             if self._vips_wrapper == _JPGslideToVIPS:
                 otsu_thumb = vips.Image.new_from_file(self.path, fail=True)
             else:
@@ -945,7 +943,7 @@ class _BaseLoader:
                     self.path,
                     fail=True,
                     access=vips.enums.Access.RANDOM,
-                    level=self.slide.level_count-1
+                    level=lev
                 )
             try:
                 otsu_thumb = vips2numpy(otsu_thumb)
@@ -953,8 +951,6 @@ class _BaseLoader:
                 raise errors.QCError(
                     f"Thumbnail error for slide {self.shortname}, QC failed"
                 )
-            lev = self.slide.level_count-1
-            qc_ratio = 1 / self.slide.level_downsamples[lev]
             if otsu_thumb.shape[-1] == 4:
                 otsu_thumb = otsu_thumb[:, :, :3]
 
@@ -998,19 +994,36 @@ class _BaseLoader:
             log.debug(f"Blur burden: {self.blur_burden}")
 
         # Filter coordinates
-        assert self.qc_mask is not None
+        img = self._apply_qc(self.qc_mask, filter_threshold=filter_threshold)
+        dur = f'(time: {time.time()-starttime:.2f}s)'
+        log.debug(f'QC ({method}) complete for slide {self.shortname} {dur}')
+        return img
+
+    def _apply_qc(
+        self,
+        mask: np.ndarray,
+        filter_threshold: float = 0.6,
+    ) -> Image:
+        """Apply custom slide-level QC by filtering grid coordinates."""
+
+        assert isinstance(mask, np.ndarray)
+        assert len(mask.shape) == 2
+        assert mask.dtype == np.bool
+
+        downsample = self.dimensions[0] / mask.shape[1]
+        qc_ratio = 1 / downsample
         qc_width = int(self.full_extract_px * qc_ratio)
         for i, (x, y, xi, yi) in enumerate(self.coord):  # type: ignore
             qc_x = int(x * qc_ratio)
             qc_y = int(y * qc_ratio)
-            submask = self.qc_mask[qc_y:(qc_y+qc_width), qc_x:(qc_x+qc_width)]
+            submask = mask[qc_y:(qc_y+qc_width), qc_x:(qc_x+qc_width)]
             if np.mean(submask) > filter_threshold:
                 self.grid[xi, yi] = 0
+
+        self.qc_mask = mask
+        self.qc_mpp = self.mpp * downsample
         self.estimated_num_tiles = int(self.grid.sum())
-        img = Image.fromarray(img_as_ubyte(self.qc_mask))
-        dur = f'(time: {time.time()-starttime:.2f}s)'
-        log.debug(f'QC ({method}) complete for slide {self.shortname} {dur}')
-        return img
+        return Image.fromarray(img_as_ubyte(self.qc_mask))
 
     def square_thumb(self, width: int = 512) -> Image.Image:
         '''Returns a square thumbnail of the slide, with black bar borders.
@@ -1928,7 +1941,11 @@ class WSI(_BaseLoader):
 
             if pool is not None:
                 if lazy_iter:
-                    batched_coord = sf.util.batch(non_roi_coord, pool._processes)
+                    if max_tiles:
+                        batch_size = min(pool._processes, max_tiles)
+                    else:
+                        batch_size = pool._processes
+                    batched_coord = sf.util.batch(non_roi_coord, batch_size)
                     def _generator():
                         for batch in batched_coord:
                             yield from pool.imap(
@@ -1952,7 +1969,7 @@ class WSI(_BaseLoader):
                 else:
                     yield result
                     n_extracted += 1
-                    if n_extracted >= max_tiles:
+                    if max_tiles and n_extracted >= max_tiles:
                         break
             if show_progress:
                 pbar.stop()

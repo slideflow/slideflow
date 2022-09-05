@@ -741,7 +741,7 @@ class ModelHeatmap(Heatmap):
             if stride_div is not None:
                 log.warn("slide is a WSI; ignoring supplied stride_div.")
             if wsi_kwargs:
-                log.warn("WSI provided; ignoring keyword arguments: "
+                log.warn("WSI provided; ignoring keyword arguments: " +
                          ", ".join(list(wsi_kwargs.keys())))
 
             self.slide_path = slide.path
