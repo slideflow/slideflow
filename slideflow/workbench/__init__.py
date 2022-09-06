@@ -415,7 +415,7 @@ class Workbench(imgui_window.ImguiWindow):
         if self.wsi_viewer:
 
             # Render slide view.
-            self.wsi_viewer.draw(max_w, max_h)
+            self.wsi_viewer.render(max_w, max_h)
 
             # Render overlay heatmap.
             if self.overlay_heatmap is not None and self.show_overlay:
@@ -438,7 +438,7 @@ class Workbench(imgui_window.ImguiWindow):
                and clicking
                and not dragging
                and self.wsi_viewer.is_in_view(cx, cy)):
-                wsi_x, wsi_y = self.wsi_viewer.display_coords_to_wsi_coords(cx, cy)
+                wsi_x, wsi_y = self.wsi_viewer.display_coords_to_wsi_coords(cx, cy, offset=False)
                 self.x = wsi_x - (self.wsi.full_extract_px/2)
                 self.y = wsi_y - (self.wsi.full_extract_px/2)
 
@@ -446,7 +446,6 @@ class Workbench(imgui_window.ImguiWindow):
             if self.x is not None and self.y is not None:
                 if clicking or dragging or wheel or window_changed:
                     self.box_x, self.box_y = self.wsi_viewer.wsi_coords_to_display_coords(self.x, self.y)
-                    self.box_x += self.pane_w
                 tw = self.wsi.full_extract_px / self.wsi_viewer.view_zoom
 
                 # Draw box on main display.
@@ -458,8 +457,7 @@ class Workbench(imgui_window.ImguiWindow):
                 gl.glLineWidth(1)
 
             # Render ROIs.
-            if self.wsi_viewer:
-                self.wsi_viewer.render_rois()
+            self.wsi_viewer.render_rois()
 
         # Render WSI thumbnail in the widget.
         if self.wsi_thumb is not None:

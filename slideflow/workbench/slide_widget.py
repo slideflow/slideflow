@@ -176,6 +176,7 @@ class SlideWidget:
 
         else:
             self.viz._overlay_wsi_dim = None
+            self.viz._overlay_offset_wsi_dim = (0, 0)
 
     def reset_tile_filter_and_join_thread(self):
         self._join_filter_thread()
@@ -232,7 +233,7 @@ class SlideWidget:
         self.viz.heatmap_widget.show = False
         self._clear_images()
         self.viz._overlay_wsi_dim = None
-        self.render_to_overlay(self.qc_mask)
+        self.render_to_overlay(self.qc_mask, correct_wsi_dim=False)
 
     def _render_tile_filter(self):
         self.viz.heatmap_widget.show = False

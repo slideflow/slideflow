@@ -607,33 +607,28 @@ class _VIPSWrapper:
                 height) using base layer coordinates.
             target_size (Tuple[int, int]): Resize the region to this target
                 size (width, height).
-            levels (list(int)): Levels that can be read from. Defaults to None
-                (read from best layer).
 
         Returns:
             vips.Image: VIPS image.
         """
+        target_ds = window_size[0] / target_size[0]
         if target_size is None:
             ds_level = 0
         else:
-            ds_level = self.best_level_for_downsample(
-                window_size[0] / target_size[0]
-            )
+            ds_level = self.best_level_for_downsample(target_ds)
 
-        ds_factor = self.level_downsamples[ds_level]
         image = self.get_downsampled_image(ds_level)
-        ds_x = int(window_size[0]) / ds_factor
-        ds_y = int(window_size[1]) / ds_factor
-        region = image.crop(
-            int(top_left[0] / ds_factor),
-            int(top_left[1] / ds_factor),
-            ds_x,
-            ds_y
+        resize_factor = self.level_downsamples[ds_level] / target_ds
+
+        if target_size is not None:
+            image = image.resize(resize_factor)
+
+        return image.crop(
+            int(top_left[0] / target_ds),
+            int(top_left[1] / target_ds),
+            target_size[0],
+            target_size[1]
         )
-        if target_size is None:
-            return region
-        else:
-            return region.resize(target_size[0] / ds_x)
 
 class _JPGslideToVIPS(_VIPSWrapper):
     '''Wrapper for JPG files, which do not possess separate levels, to
