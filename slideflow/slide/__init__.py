@@ -596,6 +596,7 @@ class _VIPSWrapper:
         top_left: Tuple[int, int],
         window_size: Tuple[int, int],
         target_size: Optional[Tuple[int, int]] = None,
+        target_downsample: Optional[float] = None,
     ) -> "vips.Image":
         """Reads a region from the image. Performance is accelerated by
         pyramid downsample layers, if available.
@@ -609,26 +610,30 @@ class _VIPSWrapper:
                 size (width, height).
 
         Returns:
-            vips.Image: VIPS image.
+            vips.Image: VIPS image. Dimensions will equal target_size unless
+            the window includes an area of the image which is out of bounds.
+            In this case, the returned image will be cropped.
         """
-        target_ds = window_size[0] / target_size[0]
-        if target_size is None:
-            ds_level = 0
-        else:
-            ds_level = self.best_level_for_downsample(target_ds)
+        if target_size is None and target_downsample is None:
+            raise ValueError("Must supply either target_size or "
+                             "target_downsample to read_from_pyramid()")
+        if target_downsample is None:
+            target_downsample = window_size[0] / target_size[0]
 
+        ds_level = self.best_level_for_downsample(target_downsample)
         image = self.get_downsampled_image(ds_level)
-        resize_factor = self.level_downsamples[ds_level] / target_ds
+        resize_factor = self.level_downsamples[ds_level] / target_downsample
+        image = image.resize(resize_factor)
 
         if target_size is not None:
-            image = image.resize(resize_factor)
-
-        return image.crop(
-            int(top_left[0] / target_ds),
-            int(top_left[1] / target_ds),
-            target_size[0],
-            target_size[1]
-        )
+            return image.crop(
+                int(top_left[0] / target_downsample),
+                int(top_left[1] / target_downsample),
+                min(target_size[0], image.width),
+                min(target_size[1], image.height)
+            )
+        else:
+            return image
 
 class _JPGslideToVIPS(_VIPSWrapper):
     '''Wrapper for JPG files, which do not possess separate levels, to
