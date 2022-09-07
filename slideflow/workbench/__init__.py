@@ -2,7 +2,7 @@ import multiprocessing
 import numpy as np
 import imgui
 import OpenGL.GL as gl
-import importlib
+
 from slideflow.workbench.gui_utils import imgui_window
 from slideflow.workbench.gui_utils import imgui_utils
 from slideflow.workbench.gui_utils import gl_utils
@@ -41,7 +41,7 @@ def _load_model_and_saliency(model_path, device=None):
         if device is not None:
             _model = _model.to(device)
     elif sf.util.tf_available:
-        _model = sf.model.tensorflow.load(model_path)
+        _model = sf.model.tensorflow.load(model_path, method='weights')
     else:
         raise ValueError(f"Unable to interpret model {model_path}")
 
@@ -51,7 +51,8 @@ def _load_model_and_saliency(model_path, device=None):
 #----------------------------------------------------------------------------
 
 class Workbench(imgui_window.ImguiWindow):
-    def __init__(self, capture_dir=None, low_memory=False):
+    def __init__(self, low_memory=False, widgets=None):
+
         super().__init__(title=f'Slideflow Workbench ({sf.__version__})', window_width=3840, window_height=2160)
 
         # Internals.
@@ -68,7 +69,6 @@ class Workbench(imgui_window.ImguiWindow):
         self._heatmap_tex_obj   = None
         self._wsi_tex_obj       = None
         self._wsi_tex_img       = None
-        self.wsi_viewer           = None
         self._overlay_tex_img   = None
         self._overlay_tex_obj   = None
         self._predictions       = None
@@ -94,6 +94,7 @@ class Workbench(imgui_window.ImguiWindow):
         # Widget interface.
         self.wsi                = None
         self.wsi_thumb          = None
+        self.wsi_viewer         = None
         self.saliency           = None
         self.box_x              = None
         self.box_y              = None
@@ -113,16 +114,18 @@ class Workbench(imgui_window.ImguiWindow):
         self.x                  = None
         self.y                  = None
 
-        # Widgets.
+        # Core widgets.
         self.project_widget     = project_widget.ProjectWidget(self)
         self.slide_widget       = slide_widget.SlideWidget(self)
         self.model_widget       = model_widget.ModelWidget(self)
         self.heatmap_widget     = heatmap_widget.HeatmapWidget(self)
-        self.perf_widget        = performance_widget.PerformanceWidget(self, low_memory=low_memory)
-        self.capture_widget     = capture_widget.CaptureWidget(self)
 
-        if capture_dir is not None:
-            self.capture_widget.path = capture_dir
+        # User-defined widgets.
+        self.widgets = []
+        if widgets is None:
+            widgets = self.get_default_widgets()
+        for widget in widgets:
+            self.widgets += [widget(self)]
 
         # Initialize window.
         self.set_position(0, 0)
@@ -145,6 +148,13 @@ class Workbench(imgui_window.ImguiWindow):
     @property
     def P(self):
         return self.project_widget.P
+
+    @staticmethod
+    def get_default_widgets():
+        return [
+            performance_widget.PerformanceWidget,
+            capture_widget.CaptureWidget
+        ]
 
     def set_low_memory(self, low_memory):
         assert isinstance(low_memory, bool)
@@ -354,7 +364,7 @@ class Workbench(imgui_window.ImguiWindow):
         imgui.set_next_window_size(self.pane_w, self.content_height)
         imgui.begin('##control_pane', closable=False, flags=(imgui.WINDOW_NO_TITLE_BAR | imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_MOVE))
 
-        # Widgets.
+        # Core widgets.
         expanded, _visible = imgui_utils.collapsing_header('Slideflow project', default=True)
         self.project_widget(expanded)
         expanded, _visible = imgui_utils.collapsing_header('Whole-slide image', default=True)
@@ -364,8 +374,10 @@ class Workbench(imgui_window.ImguiWindow):
         expanded, _visible = imgui_utils.collapsing_header('Heatmap & slide prediction', default=True)
         self.heatmap_widget(expanded)
         expanded, _visible = imgui_utils.collapsing_header('Performance & capture', default=True)
-        self.perf_widget(expanded)
-        self.capture_widget(expanded)
+
+        # User-defined widgets
+        for widget in self.widgets:
+            widget(expanded)
 
         # Detect mouse dragging in the thumbnail display.
         clicking, cx, cy, wheel = imgui_utils.click_hidden_window('##result_area',
@@ -407,6 +419,10 @@ class Workbench(imgui_window.ImguiWindow):
                 self.load_wsi_viewer()
             self._content_width  = self.content_width
             self._content_height = self.content_height
+
+            for widget in self.widgets:
+                if hasattr(widget, '_on_window_change'):
+                    widget._on_window_change()
 
         # Render black box behind the controls
         gl_utils.draw_rect(pos=np.array([0, 0]), size=np.array([self.pane_w, self.content_height]), color=0, anchor='center')
@@ -469,6 +485,11 @@ class Workbench(imgui_window.ImguiWindow):
                     self._wsi_tex_obj = gl_utils.Texture(image=self._wsi_tex_img, bilinear=True, mipmap=True)
                 else:
                     self._wsi_tex_obj.update(self._wsi_tex_img)
+
+        # Render user widgets.
+        for widget in self.widgets:
+            if hasattr(widget, 'render'):
+                widget.render()
 
         # Render.
         self.args.x = self.x

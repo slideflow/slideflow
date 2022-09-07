@@ -6,18 +6,18 @@ from os.path import dirname, realpath
 
 @click.command()
 @click.argument('slide', metavar='PATH', required=False)
-@click.option('--capture-dir', help='Where to save screenshot captures', metavar='PATH', default=None)
 @click.option('--browse-dir', help='Specify model path for the \'Browse...\' button', metavar='PATH')
 @click.option('--model', help='Classifier network for categorical predictions.', metavar='PATH')
 @click.option('--project', '-p', help='Slideflow project.', metavar='PATH')
 @click.option('--low_memory', '-lm', help='Low memory mode.', metavar=bool)
+@click.option('--picam', help='Enable Picamera2.', metavar=bool)
 def main(
     slide,
-    capture_dir,
     browse_dir,
     model,
     project,
-    low_memory
+    low_memory,
+    picam
 ):
     """Interactive model visualizer.
 
@@ -25,7 +25,13 @@ def main(
     """
     if low_memory is None:
         low_memory = False
-    viz = Workbench(capture_dir=capture_dir, low_memory=low_memory)
+
+    widgets = Workbench.get_default_widgets()
+    if picam:
+        from slideflow.workbench.picam_widget import PicamWidget
+        widgets += [PicamWidget]
+
+    viz = Workbench(low_memory=low_memory, widgets=widgets)
     viz.project_widget.search_dirs += [dirname(realpath(__file__))]
 
     if browse_dir is not None:

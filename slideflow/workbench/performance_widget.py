@@ -15,7 +15,7 @@ from .gui_utils import imgui_utils
 #----------------------------------------------------------------------------
 
 class PerformanceWidget:
-    def __init__(self, viz, low_memory=False):
+    def __init__(self, viz):
         self.viz            = viz
         self.gui_times      = [float('nan')] * 60
         self.render_times   = [float('nan')] * 30
@@ -23,7 +23,7 @@ class PerformanceWidget:
         self.use_vsync      = False
         self.is_async       = False
         self.ignore_jpg     = False
-        self.low_memory     = low_memory
+        self.low_memory     = viz._low_memory
 
     @imgui_utils.scoped_by_object_id
     def __call__(self, show=True):
