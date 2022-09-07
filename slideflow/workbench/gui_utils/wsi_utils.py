@@ -77,37 +77,6 @@ class SlideViewer:
         else:
             return (0, 0)
 
-    def _update_texture(self) -> None:
-        """Update the internal Texture object to match a given numpy image."""
-        self._tex_img = self.view
-        if (self._tex_obj is None
-           or not self._tex_obj.is_compatible(image=self._tex_img)):
-            if self._tex_obj is not None:
-                self._tex_obj.delete()
-            self._tex_obj = gl_utils.Texture(
-                image=self._tex_img,
-                bilinear=self.bilinear,
-                mipmap=self.mipmap)
-        else:
-            self._tex_obj.update(self._tex_img)
-
-    def read_from_pyramid(self, **kwargs) -> np.ndarray:
-        """Read from the Libvips slide pyramid and convert to numpy array.
-
-        Keyword args:
-            top_left (Tuple[int, int]): Top-left location of the region to
-                extract, using base layer coordinates (x, y).
-            window_size (Tuple[int, int]): Size of the region to read (width,
-                height) using base layer coordinates.
-            target_size (Tuple[int, int]): Resize the region to this target
-                size (width, height).
-
-        Returns:
-            Numpy image (uint8)
-        """
-        region = self.wsi.slide.read_from_pyramid(**kwargs)
-        return self.process_vips(region)
-
     @staticmethod
     def process_vips(region: "pyvips.Image") -> np.ndarray:
         """Process a vips image and conver to numpy.
@@ -122,109 +91,19 @@ class SlideViewer:
             region = region.flatten()
         return sf.slide.vips2numpy(region)
 
-    def set_normalizer(self, normalizer: sf.norm.StainNormalizer) -> None:
-        """Set the internal WSI normalizer.
-
-        Args:
-            normalizer (sf.norm.StainNormalizer): Stain normalizer.
-        """
-        self._normalizer = normalizer
-
-    def clear_normalizer(self) -> None:
-        """Clear the internal normalizer, if one exists."""
-        self._normalizer = None
-
-    def update_offset(self, x_offset: int, y_offset: int) -> None:
-        """Update the window offset.
-
-        Args:
-            x_offset (int): X offset for this Slide viewer in the parent
-                OpenGL frame.
-            y_offset (int): Y offset for this Slide viewer in the parent
-                OpenGL frame.
-        """
-        self.x_offset = x_offset
-        self.y_offset = y_offset
-        self.refresh_view_full()
-
-    def is_in_view(self, cx: int, cy: int) -> bool:
-        """Checks if the given coordinates (in screen space) are in the active
-        Slide viewer.
-
-        Args:
-            cx (int): X coordinate (without offset).
-            cy (int): Y coordinate (without offset).
-
-        Returns:
-            bool
-        """
-        x_in_view = (self.view_offset[0] <= cx <= (self.view_offset[0] + self.view.shape[1]))
-        y_in_view = (self.view_offset[1] <= cy <= (self.view_offset[1] + self.view.shape[0]))
-        return x_in_view and y_in_view
-
-    def wsi_coords_to_display_coords(
-        self,
-        x: int,
-        y: int,
-        offset: bool = True
-    ) -> Tuple[float, float]:
-        """Convert the given coordinates from WSI (highest magnification level)
-        to screen space (with offsets).
-
-        Args:
-            x (int): X coordinate in WSI space (highest magnification level).
-            y (int): Y coordinate in WSI space (highest magnification level).
-
-        Returns:
-            A tuple containing
-
-                float: x coordinate in display space
-
-                float: y coordinate in display space
-        """
-        all_x_offset = self.view_offset[0]
-        all_y_offset = self.view_offset[1]
-        if offset:
-            all_x_offset += self.x_offset
-            all_y_offset += self.y_offset
-        return (
-            ((x - self.origin[0]) / self.view_zoom) + all_x_offset,
-            ((y - self.origin[1]) / self.view_zoom) + all_y_offset
-        )
-
-    def display_coords_to_wsi_coords(
-        self,
-        x: int,
-        y: int,
-        offset: bool = True
-    ) -> Tuple[float, float]:
-        """Convert the given coordinates from screen space (with offsets)
-        to WSI space (highest magnification level).
-
-        Args:
-            x (int): X coordinate in display space.
-            y (int): Y coordinate in display space.
-
-        Returns:
-            A tuple containing
-
-                float: x coordinate in WSI space (highest magnification level).
-
-                float: y coordinate in WSI space (highest magnification level).
-        """
-        all_x_offset = self.view_offset[0]
-        all_y_offset = self.view_offset[1]
-        if offset:
-            all_x_offset += self.x_offset
-            all_y_offset += self.y_offset
-        return (
-            (x - all_x_offset) * self.view_zoom + self.origin[0],
-            (y - all_y_offset) * self.view_zoom + self.origin[1]
-        )
-
-    def clear(self):
-        """Remove the displayed image."""
-        self._tex_img = None
+    def _update_texture(self) -> None:
+        """Update the internal Texture object to match a given numpy image."""
+        self._tex_img = self.view
+        if (self._tex_obj is None
+           or not self._tex_obj.is_compatible(image=self._tex_img)):
+            if self._tex_obj is not None:
+                self._tex_obj.delete()
+            self._tex_obj = gl_utils.Texture(
+                image=self._tex_img,
+                bilinear=self.bilinear,
+                mipmap=self.mipmap)
+        else:
+            self._tex_obj.update(self._tex_img)
 
     def calculate_view_params(
         self,
@@ -275,6 +154,59 @@ class SlideViewer:
             target_size=target_size,
         )
 
+    def clear(self):
+        """Remove the displayed image."""
+        self._tex_img = None
+
+    def clear_normalizer(self) -> None:
+        """Clear the internal normalizer, if one exists."""
+        self._normalizer = None
+
+    def display_coords_to_wsi_coords(
+        self,
+        x: int,
+        y: int,
+        offset: bool = True
+    ) -> Tuple[float, float]:
+        """Convert the given coordinates from screen space (with offsets)
+        to WSI space (highest magnification level).
+
+        Args:
+            x (int): X coordinate in display space.
+            y (int): Y coordinate in display space.
+
+        Returns:
+            A tuple containing
+
+                float: x coordinate in WSI space (highest magnification level).
+
+                float: y coordinate in WSI space (highest magnification level).
+        """
+        all_x_offset = self.view_offset[0]
+        all_y_offset = self.view_offset[1]
+        if offset:
+            all_x_offset += self.x_offset
+            all_y_offset += self.y_offset
+        return (
+            (x - all_x_offset) * self.view_zoom + self.origin[0],
+            (y - all_y_offset) * self.view_zoom + self.origin[1]
+        )
+
+    def is_in_view(self, cx: int, cy: int) -> bool:
+        """Checks if the given coordinates (in screen space) are in the active
+        Slide viewer.
+
+        Args:
+            cx (int): X coordinate (without offset).
+            cy (int): Y coordinate (without offset).
+
+        Returns:
+            bool
+        """
+        x_in_view = (self.view_offset[0] <= cx <= (self.view_offset[0] + self.view.shape[1]))
+        y_in_view = (self.view_offset[1] <= cy <= (self.view_offset[1] + self.view.shape[0]))
+        return x_in_view and y_in_view
+
     def move(self, dx: float, dy: float) -> None:
         """Move the view in the given directions.
 
@@ -289,25 +221,22 @@ class SlideViewer:
         if view_params != self.view_params:
             self.refresh_view_fast(view_params=view_params)
 
+    def read_from_pyramid(self, **kwargs) -> np.ndarray:
+        """Read from the Libvips slide pyramid and convert to numpy array.
 
-    def zoom(self, cx: int, cy: int, dz: float) -> None:
-        """Zoom the slide display.
+        Keyword args:
+            top_left (Tuple[int, int]): Top-left location of the region to
+                extract, using base layer coordinates (x, y).
+            window_size (Tuple[int, int]): Size of the region to read (width,
+                height) using base layer coordinates.
+            target_size (Tuple[int, int]): Resize the region to this target
+                size (width, height).
 
-        Args:
-            cx (int): Zoom focus location, X coordinate, without offset.
-            cy (int): Zoom focus location, Y coordinate, without offset.
-            dz (float): Amount to zoom.
+        Returns:
+            Numpy image (uint8)
         """
-        wsi_x, wsi_y = self.display_coords_to_wsi_coords(cx, cy, offset=False)
-        self.view_zoom = min(self.view_zoom * dz,
-                                max(self.wsi.dimensions[0] / self.width,
-                                    self.wsi.dimensions[1] / self.height))
-        new_origin = [wsi_x - (cx * self.wsi_window_size[0] / self.width),
-                      wsi_y - (cy * self.wsi_window_size[1] / self.height)]
-
-        view_params = self.calculate_view_params(new_origin)
-        if view_params != self.view_params:
-            self.refresh_view_full(view_params=view_params)
+        region = self.wsi.slide.read_from_pyramid(**kwargs)
+        return self.process_vips(region)
 
     def refresh_view_fast(self, view_params: EasyDict) -> None:
         """Refresh the slide viewer with the given view parameters.
@@ -440,16 +369,6 @@ class SlideViewer:
         # Refresh ROIs
         self.refresh_rois()
 
-    def render(self, max_w: int, max_h: int) -> None:
-        """Render the Slide view display with OpenGL."""
-        if self._tex_img is not self.view:
-            self._update_texture()
-        if self._tex_obj is not None:
-            pos = np.array([self.x_offset + max_w / 2, self.y_offset + max_h / 2])
-            zoom = min(max_w / self._tex_obj.width, max_h / self._tex_obj.height)
-            zoom = np.floor(zoom) if zoom >= 1 else zoom
-            self._tex_obj.draw(pos=pos, zoom=zoom, align=0.5, rint=True)
-
     def refresh_rois(self) -> None:
         """Refresh the ROIs for the given location and zoom."""
         self.rois = []
@@ -463,207 +382,88 @@ class SlideViewer:
             c[:, 1] = c[:, 1] + self.view_offset[1] + self.y_offset
             self.rois += [c]
 
+    def render(self, max_w: int, max_h: int) -> None:
+        """Render the Slide view display with OpenGL."""
+        if self._tex_img is not self.view:
+            self._update_texture()
+        if self._tex_obj is not None:
+            pos = np.array([self.x_offset + max_w / 2, self.y_offset + max_h / 2])
+            zoom = min(max_w / self._tex_obj.width, max_h / self._tex_obj.height)
+            zoom = np.floor(zoom) if zoom >= 1 else zoom
+            self._tex_obj.draw(pos=pos, zoom=zoom, align=0.5, rint=True)
+
     def render_rois(self) -> None:
         """Render the ROIs with OpenGL."""
         for roi in self.rois:
             gl_utils.draw_roi(roi, color=1, alpha=0.7, linewidth=5)
             gl_utils.draw_roi(roi, color=0, alpha=1, linewidth=3)
 
+    def set_normalizer(self, normalizer: sf.norm.StainNormalizer) -> None:
+        """Set the internal WSI normalizer.
 
-class TiledSlideViewer:
+        Args:
+            normalizer (sf.norm.StainNormalizer): Stain normalizer.
+        """
+        self._normalizer = normalizer
 
-    def __init__(self, wsi, bilinear=True, mipmap=True):
-        self._tex_img       = None
-        self._tex_obj       = EasyDict(width=0, height=0)
+    def update_offset(self, x_offset: int, y_offset: int) -> None:
+        """Update the window offset.
 
-        self.wsi            = wsi
-        self.bilinear       = bilinear
-        self.mipmap         = mipmap
-        self.z              = 4 # Zoom (1 = full resolution, higher = zoomed out)
-        self.x              = 0 # Top-left corner
-        self.y              = 0 # Top-left corner
-        self.max_w          = 0
-        self.max_h          = 0
-        self.tile_width     = 512
-        self.grid           = None
-        self._n_grid_x      = 0
-        self._n_grid_y      = 0
-        self.dim            = wsi.dimensions
-        self.finished_q     = Queue()
-        self.request_q      = Queue()
-        self._abort         = False
-        self._thread = threading.Thread(target=self._async_loader)
-        self._thread.start()
+        Args:
+            x_offset (int): X offset for this Slide viewer in the parent
+                OpenGL frame.
+            y_offset (int): Y offset for this Slide viewer in the parent
+                OpenGL frame.
+        """
+        self.x_offset = x_offset
+        self.y_offset = y_offset
+        self.refresh_view_full()
 
-    @property
-    def extract_width(self):
-        return self.tile_width * self.z
+    def wsi_coords_to_display_coords(
+        self,
+        x: int,
+        y: int,
+        offset: bool = True
+    ) -> Tuple[float, float]:
+        """Convert the given coordinates from WSI (highest magnification level)
+        to screen space (with offsets).
 
-    def clear(self):
-        self._tex_img = None
+        Args:
+            x (int): X coordinate in WSI space (highest magnification level).
+            y (int): Y coordinate in WSI space (highest magnification level).
 
-    def update(self, img):
-        pass
+        Returns:
+            A tuple containing
 
-    def zoom(self, zoom):
-        self.z *= zoom
-        log.debug("Zooming to: ", self.z)
-        self._refresh_grid()
+                float: x coordinate in display space
 
-    def move(self, x, y):
-        x *= self.z
-        y *= self.z
-        self.x = min(max(self.x + x, 0), self.dim[0] - self.max_w)
-        self.y = min(max(self.y + y, 0), self.dim[1] - self.max_h)
-
-    def set_position(self, x, y):
-        self.x = x
-        self.y = y
-
-    @staticmethod
-    def load_from_slide(wsi_coord, window_size, target_size, wsi):
-        region = wsi.slide.read_from_pyramid(
-            top_left=wsi_coord,
-            window_size=window_size,
-            target_size=target_size
+                float: y coordinate in display space
+        """
+        all_x_offset = self.view_offset[0]
+        all_y_offset = self.view_offset[1]
+        if offset:
+            all_x_offset += self.x_offset
+            all_y_offset += self.y_offset
+        return (
+            ((x - self.origin[0]) / self.view_zoom) + all_x_offset,
+            ((y - self.origin[1]) / self.view_zoom) + all_y_offset
         )
-        if region.bands == 4:
-            region = region.flatten()
-        return sf.slide.vips2numpy(region)
 
-    def _empty_queues(self):
-        log.debug("Emptying queues")
-        self._abort = True
-        self.request_q.put(None)
-        self.finished_q.put(None)
-        while self.request_q.qsize():
-            log.debug("emptying from request q")
-            self.request_q.get()
-        while self.finished_q.qsize():
-            log.debug("emptying finished from request q")
-            if self.finished_q.get() is None:
-                break
-        self._abort = False
-        log.debug("Empty q finished")
+    def zoom(self, cx: int, cy: int, dz: float) -> None:
+        """Zoom the slide display.
 
-    def _refresh_grid(self):
-        # Empty queues
-        self._empty_queues()
+        Args:
+            cx (int): Zoom focus location, X coordinate, without offset.
+            cy (int): Zoom focus location, Y coordinate, without offset.
+            dz (float): Amount to zoom.
+        """
+        wsi_x, wsi_y = self.display_coords_to_wsi_coords(cx, cy, offset=False)
+        self.view_zoom = min(self.view_zoom * dz,
+                                max(self.wsi.dimensions[0] / self.width,
+                                    self.wsi.dimensions[1] / self.height))
+        new_origin = [wsi_x - (cx * self.wsi_window_size[0] / self.width),
+                      wsi_y - (cy * self.wsi_window_size[1] / self.height)]
 
-        # Populate with images
-        self._n_grid_x = int(self.dim[0] // self.extract_width)
-        self._n_grid_y = int(self.dim[1] // self.extract_width)
-        self.grid = np.zeros((self._n_grid_x, self._n_grid_y)).tolist()
-        log.debug("Refresh grid complete")
-
-    def _async_loader(self):
-        #ctx = mp.get_context('spawn')
-        #pool = ctx.Pool(os.cpu_count())
-        pool = mp.dummy.Pool(os.cpu_count())
-        while not self._abort:
-            requests = []
-            log.debug("inside async loop")
-            if self.request_q.qsize() > 1:
-                while self.request_q.qsize():
-                    request = self.request_q.get()
-                    if request is not None:
-                        requests += [request]
-            else:
-                request = self.request_q.get()
-                if request is not None:
-                    requests += [request]
-            if not len(requests):
-                continue
-
-            dims = [r[1] for r in requests]
-            for idx, image in enumerate(pool.imap(partial(self.load_from_slide,
-                                                          window_size=(self.extract_width, self.extract_width),
-                                                          target_size=(self.tile_width, self.tile_width),
-                                                          wsi=self.wsi),
-                                                  dims)):
-                i, j = requests[idx][0], requests[idx][1]
-                log.debug(f"putting {(i, j)} into finished queue")
-                self.finished_q.put((requests[idx][0], requests[idx][1], image))
-        pool.close()
-
-    def _load_from_queue(self):
-        while self.finished_q.qsize():
-            log.debug("inside finished Q loader")
-
-            (i, j), (wsi_x, wsi_y), image = self.finished_q.get()
-            log.debug("LOADED ({}) from finished q".format((i, j)))
-            self.grid[i][j] = Tile(image, wsi_x, wsi_y)
-
-    def draw(self, max_w, max_h, x_offset=0, y_offset=0):
-        if max_w != self.max_w or max_h != self.max_h:
-            self.max_w = max_w
-            self.max_h = max_h
-            self._refresh_grid()
-
-        log.info("pre-queue")
-        self._load_from_queue()
-        log.info("POST-queue")
-
-        if self.grid is not None:
-            draw_size = np.array([self.tile_width, self.tile_width])
-
-            # For now, show entire grid
-            min_grid_x = int(self.x // self.extract_width) - 1
-            min_grid_y = int(self.y // self.extract_width) - 1
-            max_grid_x = int((self.x / self.z + self.max_w + self.tile_width) // self.tile_width) + 1
-            max_grid_y = int((self.y / self.z + self.max_h + self.tile_width) // self.tile_width) + 1
-
-            # Enforce limits
-            min_grid_x = max(min_grid_x, 0)
-            min_grid_y = max(min_grid_y, 0)
-            max_grid_x = min(max_grid_x, self._n_grid_x)
-            max_grid_y = min(max_grid_y, self._n_grid_y)
-
-            log.info("pre-GRID")
-            for i in range(min_grid_x-1, max_grid_x+1):
-                for j in range(min_grid_y-1, max_grid_y+1):
-                    try:
-                        tile = self.grid[i][j]
-                    except IndexError:
-                        continue
-                    in_view = ((min_grid_x <= i < max_grid_x)
-                               and (min_grid_y <= j < max_grid_y))
-                    #if tile and not in_view:
-                    #    #self.grid[i][j] = None
-                    #    pass
-                    if in_view:
-                        grid_wsi_x = (i * self.extract_width)
-                        grid_wsi_y = (j * self.extract_width)
-                        screen_x = x_offset + (grid_wsi_x - self.x) / self.z
-                        screen_y = y_offset + (grid_wsi_y - self.y) / self.z
-                        if isinstance(tile, Tile):
-                            #log.info("drawing")
-                            pos = np.array([screen_x, screen_y])
-                            tile.draw(pos, draw_size)
-                        elif self.grid[i][j] == 0:
-                            log.info(f"putting {(i, j)} into queue")
-                            self.request_q.put(((i, j), (grid_wsi_x, grid_wsi_y)))
-                            self.grid[i][j] = 1 # Signify that async request has started, do not request again
-
-    def draw_box(self, pos, size):
-
-        gl_utils.draw_rect(pos=pos, size=size, color=[1, 0, 0], mode=gl.GL_LINE_LOOP)
-        gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_FILL)
-        gl.glLineWidth(1)
-
-class Tile:
-    def __init__(self, image, wsi_x, wsi_y, bilinear=False, mipmap=False):
-        self.x = wsi_x
-        self.y = wsi_y
-        self._tex_obj = gl_utils.Texture(image=image,
-                                         bilinear=bilinear,
-                                         mipmap=mipmap)
-
-    def draw(self, pos, size):
-        self._tex_obj.draw(pos=pos, zoom=1, align=0.5, rint=True, anchor='topleft')
-
-        #gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_LINE)
-        #gl.glLineWidth(3)
-        #gl_utils.draw_rect(pos=pos, size=size, color=[1, 0, 0], mode=gl.GL_LINE_LOOP)
-        #gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_FILL)
-        #gl.glLineWidth(1)
+        view_params = self.calculate_view_params(new_origin)
+        if view_params != self.view_params:
+            self.refresh_view_full(view_params=view_params)
