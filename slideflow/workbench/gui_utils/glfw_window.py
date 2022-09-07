@@ -95,12 +95,12 @@ class GlfwWindow: # pylint: disable=too-many-public-methods
         return self._frame_delta
 
     def set_fullscreen(self):
-        print("Setting fullscreen")
-        glfw.set_window_monitor(self._glfw_window, glfw.get_primary_monitor(), width=1920, height=1080, xpos=0, ypos=0, refresh_rate=60)
+        monitor = glfw.get_primary_monitor()
+        mode = glfw.get_video_mode(monitor)
+        glfw.set_window_monitor(self._glfw_window, glfw.get_primary_monitor(), width=mode.size.width, height=mode.size.height, xpos=0, ypos=0, refresh_rate=60)
 
     def set_windowed(self):
-        print("Setting windowed")
-        glfw.set_window_monitor(self._glfw_window, monitor=None, width=1600, height=800, xpos=0, ypos=0, refresh_rate=60)
+        glfw.set_window_monitor(self._glfw_window, monitor=None, width=1920, height=1080, xpos=0, ypos=0, refresh_rate=60)
 
     def set_title(self, title):
         glfw.set_window_title(self._glfw_window, title)

@@ -135,9 +135,6 @@ class Workbench(imgui_window.ImguiWindow):
         self.skip_frame() # Layout may change after first frame.
         self.load_slide('')
 
-        # Fullscreen view (experimental)
-        self.set_windowed()
-
     @property
     def show_overlay(self):
         return self.slide_widget.show_overlay or self.heatmap_widget.show
@@ -422,7 +419,7 @@ class Workbench(imgui_window.ImguiWindow):
                 if wheel:
                     self.wsi_viewer.zoom(cx, cy, dz)
                 if self._refresh_thumb and dx is None and not wheel:
-                    self.wsi_viewer.refresh_view()
+                    self.wsi_viewer.refresh_view_full()
                     self._refresh_thumb = False
 
 
