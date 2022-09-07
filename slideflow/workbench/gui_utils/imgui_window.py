@@ -189,7 +189,7 @@ class _GlfwRenderer(FixedPipelineRenderer):
     def scroll_callback(self, window, x_offset, y_offset):
         self.io.mouse_wheel_horizontal = x_offset
         self.io.mouse_wheel = y_offset
-        self.io.mouse_wheel += y_offset * self.mouse_wheel_multiplier        
+        self.io.mouse_wheel += y_offset * self.mouse_wheel_multiplier
 
     def process_inputs(self):
         io = imgui.get_io()

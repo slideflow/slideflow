@@ -90,6 +90,7 @@ class Workbench(imgui_window.ImguiWindow):
         self._use_model_img_fmt = False
         self._tex_to_delete     = []
         self._low_memory        = low_memory
+        self._show_control      = True
 
         # Widget interface.
         self.wsi                = None
@@ -132,6 +133,9 @@ class Workbench(imgui_window.ImguiWindow):
         self._adjust_font_size()
         self.skip_frame() # Layout may change after first frame.
         self.load_slide('')
+
+        # Fullscreen view (experimental)
+        self.set_windowed()
 
     @property
     def show_overlay(self):
@@ -344,6 +348,7 @@ class Workbench(imgui_window.ImguiWindow):
                 and self._model_config['hp']['uq'])
 
     def draw_frame(self):
+
         self.begin_frame()
 
         # First, start by deleting all old textures
@@ -352,16 +357,22 @@ class Workbench(imgui_window.ImguiWindow):
         self._tex_to_delete = []
 
         self.args = EasyDict(use_model=False, use_uncertainty=False, use_saliency=False)
-        self.pane_w = self.font_size * 45
         self.button_w = self.font_size * 5
         self.label_w = round(self.font_size * 4.5)
+
+        # Begin control pane.
+        if self._show_control:
+            self.pane_w = self.font_size * 45
+            imgui.set_next_window_position(0, 0)
+            imgui.set_next_window_size(self.pane_w, self.content_height)
+        else:
+            self.pane_w = 0
+            imgui.set_next_window_size(5, 5)
+
         max_w = self.content_width - self.pane_w
         max_h = self.content_height
         window_changed = (self._content_width != self.content_width or self._content_height != self.content_height)
 
-        # Begin control pane.
-        imgui.set_next_window_position(0, 0)
-        imgui.set_next_window_size(self.pane_w, self.content_height)
         imgui.begin('##control_pane', closable=False, flags=(imgui.WINDOW_NO_TITLE_BAR | imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_MOVE))
 
         # Core widgets.

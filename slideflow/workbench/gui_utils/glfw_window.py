@@ -14,7 +14,7 @@ from . import gl_utils
 #----------------------------------------------------------------------------
 
 class GlfwWindow: # pylint: disable=too-many-public-methods
-    def __init__(self, *, title='GlfwWindow', window_width=1920, window_height=1080, deferred_show=True, close_on_esc=True):
+    def __init__(self, *, title='GlfwWindow', window_width=1920, window_height=1080, deferred_show=True, close_on_q=True):
         self._glfw_window           = None
         self._drawing_frame         = False
         self._frame_start_time      = None
@@ -23,8 +23,8 @@ class GlfwWindow: # pylint: disable=too-many-public-methods
         self._vsync                 = None
         self._skip_frames           = 0
         self._deferred_show         = deferred_show
-        self._close_on_esc          = close_on_esc
-        self._esc_pressed           = False
+        self._close_on_q          = close_on_q
+        self._q_pressed             = False
         self._drag_and_drop_paths   = None
         self._capture_next_frame    = False
         self._captured_frame        = None
@@ -94,6 +94,14 @@ class GlfwWindow: # pylint: disable=too-many-public-methods
     def frame_delta(self):
         return self._frame_delta
 
+    def set_fullscreen(self):
+        print("Setting fullscreen")
+        glfw.set_window_monitor(self._glfw_window, glfw.get_primary_monitor(), width=1920, height=1080, xpos=0, ypos=0, refresh_rate=60)
+
+    def set_windowed(self):
+        print("Setting windowed")
+        glfw.set_window_monitor(self._glfw_window, monitor=None, width=1600, height=800, xpos=0, ypos=0, refresh_rate=60)
+
     def set_title(self, title):
         glfw.set_window_title(self._glfw_window, title)
 
@@ -126,7 +134,7 @@ class GlfwWindow: # pylint: disable=too-many-public-methods
         self._fps_limit = int(fps_limit)
 
     def should_close(self):
-        return glfw.window_should_close(self._glfw_window) or (self._close_on_esc and self._esc_pressed)
+        return glfw.window_should_close(self._glfw_window) or (self._close_on_q and self._q_pressed)
 
     def skip_frame(self):
         self.skip_frames(1)
@@ -222,7 +230,13 @@ class GlfwWindow: # pylint: disable=too-many-public-methods
 
     def _glfw_key_callback(self, _window, key, _scancode, action, _mods):
         if action == glfw.PRESS and key == glfw.KEY_ESCAPE:
-            self._esc_pressed = True
+            self.set_windowed()
+        elif action == glfw.PRESS and key == glfw.KEY_F:
+            self.set_fullscreen()
+        elif action == glfw.PRESS and key == glfw.KEY_C:
+            self._show_control = not self._show_control
+        elif action == glfw.PRESS and key == glfw.KEY_Q:
+            self._q_pressed = True
 
     def _glfw_drop_callback(self, _window, paths):
         self._drag_and_drop_paths = paths
