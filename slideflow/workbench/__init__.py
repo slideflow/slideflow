@@ -80,6 +80,7 @@ class Workbench(imgui_window.ImguiWindow):
         self._uncertainty       = None
         self._content_width     = None
         self._content_height    = None
+        self._pane_w            = None
         self._refresh_thumb     = False
         self._overlay_wsi_dim   = None
         self._overlay_offset_wsi_dim   = (0, 0)
@@ -371,7 +372,9 @@ class Workbench(imgui_window.ImguiWindow):
 
         max_w = self.content_width - self.pane_w
         max_h = self.content_height
-        window_changed = (self._content_width != self.content_width or self._content_height != self.content_height)
+        window_changed = (self._content_width != self.content_width
+                          or self._content_height != self.content_height
+                          or self._pane_w != self.pane_w)
 
         imgui.begin('##control_pane', closable=False, flags=(imgui.WINDOW_NO_TITLE_BAR | imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_MOVE))
 
@@ -430,6 +433,7 @@ class Workbench(imgui_window.ImguiWindow):
                 self.load_wsi_viewer()
             self._content_width  = self.content_width
             self._content_height = self.content_height
+            self._pane_w = self.pane_w
 
             for widget in self.widgets:
                 if hasattr(widget, '_on_window_change'):
@@ -487,7 +491,7 @@ class Workbench(imgui_window.ImguiWindow):
             self.wsi_viewer.render_rois()
 
         # Render WSI thumbnail in the widget.
-        if self.wsi_thumb is not None:
+        if self.wsi_thumb is not None and self._show_control:
             if self._wsi_tex_img is not self.wsi_thumb:
                 self._wsi_tex_img = self.wsi_thumb
                 if self._wsi_tex_obj is None or not self._wsi_tex_obj.is_compatible(image=self._wsi_tex_img):

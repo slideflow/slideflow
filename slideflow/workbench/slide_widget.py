@@ -333,7 +333,7 @@ class SlideWidget:
                     imgui.image(viz._wsi_tex_obj.gl_id, max_width, max_height)
 
                     # Show location overlay
-                    if viz.wsi_window_size:
+                    if viz.wsi_window_size and viz._show_control:
                         # Convert from wsi coords to thumbnail coords
                         t_x, t_y = imgui.get_window_position()
                         t_x = t_x + int((width - max_width)/2)
