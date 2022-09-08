@@ -844,8 +844,11 @@ class Workbench(imgui_window.ImguiWindow):
         if self._use_model and self._predictions is not None and not isinstance(self._predictions, list):
             #TODO: support multi-outcome models
             outcomes = self._model_config['outcome_labels']
-            pred_str = outcomes[str(np.argmax(self._predictions))]
-            self._render_prediction_message(f'{pred_str} ({np.max(self._predictions)*100:.1f})%')
+            if self._model_config['model_type'] == 'categorical':
+                pred_str = f'{outcomes[str(np.argmax(self._predictions))]} ({np.max(self._predictions)*100:.1f}%)'
+            else:
+                pred_str = f'{self._predictions[0]:.2f}'
+            self._render_prediction_message(pred_str)
 
         # End frame.
         if self._should_close_model:
@@ -981,9 +984,8 @@ class AsyncRenderer:
                     renderer_obj._saliency = _saliency
                 if 'quit' in args:
                     return
-            if ((args != cur_args or stamp != cur_stamp)
-               or (live_updates and not result_queue.qsize())):
-
+            # if ((args != cur_args or stamp != cur_stamp)
+            if (live_updates and not result_queue.qsize()):
                 result = renderer_obj.render(**args)
                 if 'error' in result:
                     result.error = renderer.CapturedException(result.error)
