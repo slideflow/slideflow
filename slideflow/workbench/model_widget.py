@@ -147,6 +147,9 @@ class ModelWidget:
                     pred_str += " (UQ: {:.4f})".format(viz._uncertainty)
                 imgui.text(pred_str)
 
+                # Render prediction screen to main view
+                viz._prediction_render_message = f'{pred_str} ({np.max(viz._predictions)*100:.1f})%'
+
             # Image preview ===================================================
             width = viz.font_size * 28
             height = imgui.get_text_line_height_with_spacing() * 11

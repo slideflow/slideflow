@@ -95,6 +95,7 @@ class Workbench(imgui_window.ImguiWindow):
         self._defer_tile_refresh = None
         self._should_close_slide = False
         self._should_close_model = False
+        self._prediction_render_message = None
 
         # Interface.
         self._show_control      = True
@@ -431,7 +432,8 @@ class Workbench(imgui_window.ImguiWindow):
                 if imgui.menu_item('Close Model')[1]:
                     self.close_model(True)
                 imgui.separator()
-                imgui.menu_item('Exit', 'Ctrl+Q')
+                if imgui.menu_item('Exit', 'Ctrl+Q')[1]:
+                    self._exit_trigger = True
                 imgui.end_menu()
 
             if imgui.begin_menu('View', True):
@@ -825,6 +827,14 @@ class Workbench(imgui_window.ImguiWindow):
             _msg = self.message if 'message' not in self.result else self.result['message']
             tex = text_utils.get_texture(_msg, size=self.font_size, max_width=max_w, max_height=max_h, outline=2)
             tex.draw(pos=middle_pos, align=0.5, rint=True, color=1)
+
+        # Draw prediction message next to box on main display.
+        if self._prediction_render_message:
+            tex = text_utils.get_texture(self._prediction_render_message, size=self.font_size, max_width=max_w, max_height=max_h, outline=2)
+            box_w = self.viewer.full_extract_px / self.viewer.view_zoom
+            text_pos = np.array([self.box_x + (box_w/2), self.box_y + box_w + self.font_size])
+            tex.draw(pos=text_pos, align=0.5, rint=True, color=1)
+            self._prediction_render_message = None
 
         # End frame.
         if self._should_close_model:

@@ -14,7 +14,7 @@ from . import gl_utils
 #----------------------------------------------------------------------------
 
 class GlfwWindow: # pylint: disable=too-many-public-methods
-    def __init__(self, *, title='GlfwWindow', window_width=1920, window_height=1080, deferred_show=True, close_on_q=True):
+    def __init__(self, *, title='GlfwWindow', window_width=1920, window_height=1080, deferred_show=True):
         self._glfw_window           = None
         self._drawing_frame         = False
         self._frame_start_time      = None
@@ -23,8 +23,7 @@ class GlfwWindow: # pylint: disable=too-many-public-methods
         self._vsync                 = None
         self._skip_frames           = 0
         self._deferred_show         = deferred_show
-        self._close_on_q          = close_on_q
-        self._q_pressed             = False
+        self._exit_trigger          = False
         self._drag_and_drop_paths   = None
         self._capture_next_frame    = False
         self._captured_frame        = None
@@ -145,7 +144,7 @@ class GlfwWindow: # pylint: disable=too-many-public-methods
         self._fps_limit = int(fps_limit)
 
     def should_close(self):
-        return glfw.window_should_close(self._glfw_window) or (self._close_on_q and self._q_pressed)
+        return glfw.window_should_close(self._glfw_window) or self._exit_trigger
 
     def skip_frame(self):
         self.skip_frames(1)
@@ -260,7 +259,7 @@ class GlfwWindow: # pylint: disable=too-many-public-methods
         if self._control_down and self._shift_down and action == glfw.PRESS and key == glfw.KEY_P:
             self._show_performance = not self._show_performance
         if self._control_down and action == glfw.PRESS and key == glfw.KEY_Q:
-            self._q_pressed = True
+            self._exit_trigger = True
 
     def _glfw_drop_callback(self, _window, paths):
         self._drag_and_drop_paths = paths
