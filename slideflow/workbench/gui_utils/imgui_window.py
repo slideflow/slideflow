@@ -62,7 +62,7 @@ class ImguiWindow(glfw_window.GlfwWindow):
 
     @property
     def font_size(self):
-        return self._cur_font_size + 2
+        return self._cur_font_size + 2  # Adjustment for DroidSans
 
     @property
     def spacing(self):

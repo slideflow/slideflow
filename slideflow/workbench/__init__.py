@@ -188,6 +188,8 @@ class Workbench(imgui_window.ImguiWindow):
         self.slide_widget.load(slide, ignore_errors=ignore_errors)
 
     def _reload_wsi(self, path=None, stride=None, use_rois=True):
+        if self.wsi is None and path is None:
+            return
         if path is None:
             path = self.wsi.path
         if stride is None:
@@ -344,7 +346,7 @@ class Workbench(imgui_window.ImguiWindow):
 
     def _adjust_font_size(self):
         old = self.font_size
-        self.set_font_size(min(self.content_width / 120, self.content_height / 60))
+        self.set_font_size(13)
         if self.font_size != old:
             self.skip_frame() # Layout changed.
 
