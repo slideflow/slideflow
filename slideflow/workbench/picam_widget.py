@@ -172,6 +172,7 @@ class PicamWidget:
     def __init__(self, viz):
         self.viz            = viz
         self.um_width       = 800
+        self.content_height = 0
 
         viewer = PicamViewer(self.um_width, **viz._viewer_kwargs())
         viz.set_viewer(viewer)
@@ -184,12 +185,16 @@ class PicamWidget:
     def __call__(self, show=True):
         viz = self.viz
 
-        imgui.text('Width (um)')
-        imgui.same_line(viz.label_w)
-        with imgui_utils.item_width(viz.font_size * 6):
-            _changed, self.um_width = imgui.input_int('um_width', self.um_width, flags=imgui.INPUT_TEXT_ENTER_RETURNS_TRUE)
-            self.um_width = min(max(self.um_width, 1), 10000)
-            if _changed:
-                viz.viewer.set_um_width(self.um_width)
+        if show:
+            self.content_height = viz.font_size + viz.spacing * 2
+            imgui.text('Width (um)')
+            imgui.same_line(viz.label_w)
+            with imgui_utils.item_width(viz.font_size * 6):
+                _changed, self.um_width = imgui.input_int('um_width', self.um_width, flags=imgui.INPUT_TEXT_ENTER_RETURNS_TRUE)
+                self.um_width = min(max(self.um_width, 1), 10000)
+                if _changed:
+                    viz.viewer.set_um_width(self.um_width)
+        else:
+            self.content_height = 0
 
 #----------------------------------------------------------------------------

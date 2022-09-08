@@ -95,7 +95,6 @@ class Workbench(imgui_window.ImguiWindow):
         self._defer_tile_refresh = None
         self._should_close_slide = False
         self._should_close_model = False
-        self._prediction_render_message = None
 
         # Interface.
         self._show_control      = True
@@ -128,6 +127,7 @@ class Workbench(imgui_window.ImguiWindow):
         self.button_w           = 0
         self.x                  = None
         self.y                  = None
+        self.menu_bar_height    = self.font_size + self.spacing
 
         # Core widgets.
         self.project_widget     = project_widget.ProjectWidget(self)
@@ -542,7 +542,10 @@ class Workbench(imgui_window.ImguiWindow):
             for widget in self.widgets:
                 if hasattr(widget, 'collapsing_header'):
                     expanded, _visible = widget.collapsing_header()
+                    self._control_size += (self.font_size + self.spacing * 3)
                 widget(expanded)
+                if hasattr(widget, 'content_height'):
+                    self._control_size += widget.content_height
 
             self._render_control_pane_contents()
             imgui.end()
@@ -706,6 +709,15 @@ class Workbench(imgui_window.ImguiWindow):
             dy=dy
         )
 
+    def _render_prediction_message(self, message):
+        """Render a prediction string to below the tile bounding box."""
+        max_w = self.content_width - self.offset_x
+        max_h = self.content_height - self.offset_y
+        tex = text_utils.get_texture(message, size=self.font_size, max_width=max_w, max_height=max_h, outline=2)
+        box_w = self.viewer.full_extract_px / self.viewer.view_zoom
+        text_pos = np.array([self.box_x + (box_w/2), self.box_y + box_w + self.font_size])
+        tex.draw(pos=text_pos, align=0.5, rint=True, color=1)
+
     def draw_frame(self):
         """Main draw loop."""
 
@@ -829,12 +841,11 @@ class Workbench(imgui_window.ImguiWindow):
             tex.draw(pos=middle_pos, align=0.5, rint=True, color=1)
 
         # Draw prediction message next to box on main display.
-        if self._prediction_render_message:
-            tex = text_utils.get_texture(self._prediction_render_message, size=self.font_size, max_width=max_w, max_height=max_h, outline=2)
-            box_w = self.viewer.full_extract_px / self.viewer.view_zoom
-            text_pos = np.array([self.box_x + (box_w/2), self.box_y + box_w + self.font_size])
-            tex.draw(pos=text_pos, align=0.5, rint=True, color=1)
-            self._prediction_render_message = None
+        if self._use_model and self._predictions is not None and not isinstance(self._predictions, list):
+            #TODO: support multi-outcome models
+            outcomes = self._model_config['outcome_labels']
+            pred_str = outcomes[str(np.argmax(self._predictions))]
+            self._render_prediction_message(f'{pred_str} ({np.max(self._predictions)*100:.1f})%')
 
         # End frame.
         if self._should_close_model:
