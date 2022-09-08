@@ -20,7 +20,7 @@ from . import gl_utils
 #----------------------------------------------------------------------------
 
 def get_default_font():
-    return join(dirname(abspath(__file__)), 'open_sans.ttf') # Open Sans regular
+    return join(dirname(abspath(__file__)), 'DroidSans.ttf') # Open Sans regular
 
 #----------------------------------------------------------------------------
 

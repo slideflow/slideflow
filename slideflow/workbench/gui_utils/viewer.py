@@ -16,8 +16,8 @@ class Viewer:
         height: int,
         x_offset: int = 0,
         y_offset: int = 0,
-        bilinear: bool = True,
-        mipmap: bool = True,
+        bilinear: bool = False,
+        mipmap: bool = False,
         normalizer: sf.norm.StainNormalizer = None
     ):
         self._tex_img       = None

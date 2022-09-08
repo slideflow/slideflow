@@ -62,7 +62,7 @@ class ImguiWindow(glfw_window.GlfwWindow):
 
     @property
     def font_size(self):
-        return self._cur_font_size
+        return self._cur_font_size + 2
 
     @property
     def spacing(self):
