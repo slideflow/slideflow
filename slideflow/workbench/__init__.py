@@ -54,7 +54,7 @@ def _load_model_and_saliency(model_path, device=None):
 class Workbench(imgui_window.ImguiWindow):
     def __init__(self, low_memory=False, widgets=None):
 
-        super().__init__(title=f'Slideflow Workbench ({sf.__version__})')
+        super().__init__(title=f'Slideflow Workbench')
 
         # Internals.
         self._dx                = 0
@@ -356,28 +356,61 @@ class Workbench(imgui_window.ImguiWindow):
                 and 'uq' in self._model_config['hp']
                 and self._model_config['hp']['uq'])
 
-    def draw_frame(self):
+    def _draw_menu_bar(self):
+        if imgui.begin_main_menu_bar():
+            if imgui.begin_menu('File', True):
+                imgui.menu_item('Open Project...', 'Ctrl+P')
+                imgui.menu_item('Load Slide...', 'Ctrl+O')
+                imgui.menu_item('Load Model...', 'Ctrl+M')
+                imgui.separator()
+                if imgui.begin_menu('Export...', True):
+                    imgui.menu_item('Main view')
+                    imgui.menu_item('Tile view')
+                    imgui.menu_item('GUI view')
+                    imgui.menu_item('Heatmap (PNG)')
+                    imgui.menu_item('Heatmap (NPZ)')
+                    imgui.end_menu()
+                imgui.separator()
+                imgui.menu_item('Close Slide')
+                imgui.menu_item('Close Model')
+                imgui.separator()
+                imgui.menu_item('Exit', 'Q')
+                imgui.end_menu()
 
-        self.begin_frame()
+            if imgui.begin_menu('View', True):
+                imgui.menu_item('Fullscreen', 'F')
+                imgui.menu_item('Toggle dock', 'C')
+                imgui.separator()
+                imgui.menu_item('Toggle camera view')
+                imgui.end_menu()
 
-        self.args = EasyDict(use_model=False, use_uncertainty=False, use_saliency=False)
-        self.button_w = self.font_size * 5
-        self.label_w = round(self.font_size * 4.5)
+            if imgui.begin_menu('Help', True):
+                imgui.menu_item('Get Started')
+                imgui.menu_item('Documentation')
+                imgui.separator()
+                imgui.menu_item('Release Notes')
+                imgui.menu_item('Report Issue')
+                imgui.separator()
+                imgui.menu_item('View License')
+                imgui.menu_item('About')
+                imgui.end_menu()
 
+            version_text = f'slideflow {sf.__version__}'
+            imgui.same_line(imgui.get_content_region_max()[0] - (imgui.calc_text_size(version_text)[0] + self.spacing))
+            imgui.text(version_text)
+            imgui.end_main_menu_bar()
+
+
+    def _draw_control_pane(self):
         # Begin control pane.
+
         if self._show_control:
             self.pane_w = self.font_size * 45
-            imgui.set_next_window_position(0, 0)
-            imgui.set_next_window_size(self.pane_w, self.content_height)
+            imgui.set_next_window_position(0, self.menu_bar_height)
+            imgui.set_next_window_size(self.pane_w, self.content_height - self.menu_bar_height)
         else:
             self.pane_w = 0
             imgui.set_next_window_size(5, 5)
-
-        max_w = self.content_width - self.pane_w
-        max_h = self.content_height
-        window_changed = (self._content_width != self.content_width
-                          or self._content_height != self.content_height
-                          or self._pane_w != self.pane_w)
 
         imgui.begin('##control_pane', closable=False, flags=(imgui.WINDOW_NO_TITLE_BAR | imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_MOVE))
 
@@ -398,38 +431,129 @@ class Workbench(imgui_window.ImguiWindow):
                 expanded, _visible = widget.collapsing_header()
             widget(expanded)
 
-        # Detect mouse dragging in the thumbnail display.
-        clicking, cx, cy, wheel = imgui_utils.click_hidden_window('##result_area',
-                                                                  x=self.pane_w,
-                                                                  y=0,
-                                                                  width=self.content_width-self.pane_w,
-                                                                  height=self.content_height,
-                                                                  mouse_idx=1)
-        dragging, dx, dy = imgui_utils.drag_hidden_window('##result_area',
-                                                          x=self.pane_w,
-                                                          y=0,
-                                                          width=self.content_width-self.pane_w,
-                                                          height=self.content_height)
+    def _draw_main_window(self, inp, window_changed):
+        """Update the main window view.
 
+        Draws the slide / picam view, overlay heatmap, overlay box, and ROIs.
+
+        Args:
+            inp (EasyDict): Dictionary of user input.
+            window_changed (bool): Window size has changed (force refresh).
+        """
+
+        max_w = self.content_width - self.pane_w
+        max_h = self.content_height
+
+        # Update the viewer in response to user input.
         if self.viewer and self.viewer.movable:
             # Update WSI focus location & zoom values
             # If shift-dragging or scrolling.
             dz = None
-            if not dragging:
-                dx, dy = None, None
-            if wheel > 0:
+            if not inp.dragging:
+                inp.dx, inp.dy = None, None
+            if inp.wheel > 0:
                 dz = 1/1.5
-            if wheel < 0:
+            if inp.wheel < 0:
                 dz = 1.5
-            if wheel or dragging or self._refresh_view:
-                if dx is not None:
-                    self.viewer.move(dx, dy)
-                if wheel:
-                    self.viewer.zoom(cx, cy, dz)
-                if self._refresh_view and dx is None and not wheel:
+            if inp.wheel or inp.dragging or self._refresh_view:
+                if inp.dx is not None:
+                    self.viewer.move(inp.dx, inp.dy)
+                if inp.wheel:
+                    self.viewer.zoom(inp.cx, inp.cy, dz)
+                if self._refresh_view and inp.dx is None and not inp.wheel:
                     self.viewer.refresh_view()
                     self._refresh_view = False
 
+        # Render slide view.
+        self.viewer.render(max_w, max_h)
+
+        # Render overlay heatmap.
+        if self.overlay_heatmap is not None and self.show_overlay:
+            if self._overlay_tex_img is not self.overlay_heatmap:
+                self._overlay_tex_img = self.overlay_heatmap
+                if self._overlay_tex_obj is None or not self._overlay_tex_obj.is_compatible(image=self._overlay_tex_img):
+                    if self._overlay_tex_obj is not None:
+                        self._tex_to_delete += [self._overlay_tex_obj]
+                    self._overlay_tex_obj = gl_utils.Texture(image=self._overlay_tex_img, bilinear=False, mipmap=False)
+                else:
+                    self._overlay_tex_obj.update(self._overlay_tex_img)
+            if self._overlay_wsi_dim is None:
+                self._overlay_wsi_dim = self.viewer.dimensions
+            h_zoom = (self._overlay_wsi_dim[0] / self.overlay_heatmap.shape[1]) / self.viewer.view_zoom
+            h_pos = self.viewer.wsi_coords_to_display_coords(*self._overlay_offset_wsi_dim)
+            self._overlay_tex_obj.draw(pos=h_pos, zoom=h_zoom, align=0.5, rint=True, anchor='topleft')
+
+        # Calculate location for model display.
+        if (self._model_path
+            and inp.clicking
+            and not inp.dragging
+            and self.viewer.is_in_view(inp.cx, inp.cy)):
+            wsi_x, wsi_y = self.viewer.display_coords_to_wsi_coords(inp.cx, inp.cy, offset=False)
+            self.x = wsi_x - (self.viewer.full_extract_px/2)
+            self.y = wsi_y - (self.viewer.full_extract_px/2)
+
+        # Update box location.
+        if self.x is not None and self.y is not None:
+            if inp.clicking or inp.dragging or inp.wheel or window_changed:
+                self.box_x, self.box_y = self.viewer.wsi_coords_to_display_coords(self.x, self.y)
+            tw = self.viewer.full_extract_px / self.viewer.view_zoom
+
+            # Draw box on main display.
+            gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_LINE)
+            gl.glLineWidth(3)
+            box_pos = np.array([self.box_x, self.box_y])
+            gl_utils.draw_rect(pos=box_pos, size=np.array([tw, tw]), color=[1, 0, 0], mode=gl.GL_LINE_LOOP)
+            gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_FILL)
+            gl.glLineWidth(1)
+
+        # Render ROIs.
+        self.viewer.late_render()
+
+    def _handle_user_input(self):
+        # Detect mouse dragging in the thumbnail display.
+        clicking, cx, cy, wheel = imgui_utils.click_hidden_window(
+            '##result_area',
+            x=self.pane_w,
+            y=self.menu_bar_height,
+            width=self.content_width-self.pane_w,
+            height=self.content_height - self.menu_bar_height,
+            mouse_idx=1)
+        dragging, dx, dy = imgui_utils.drag_hidden_window(
+            '##result_area',
+            x=self.pane_w,
+            y=self.menu_bar_height,
+            width=self.content_width-self.pane_w,
+            height=self.content_height-self.menu_bar_height)
+        return EasyDict(
+            clicking=clicking,
+            cx=cx,
+            cy=cy,
+            wheel=wheel,
+            dragging=dragging,
+            dx=dx,
+            dy=dy
+        )
+
+    def draw_frame(self):
+        """Main draw loop."""
+
+        self.begin_frame()
+
+        self.args = EasyDict(use_model=False, use_uncertainty=False, use_saliency=False)
+        self.button_w = self.font_size * 5
+        self.label_w = round(self.font_size * 4.5)
+        self.menu_bar_height = self.font_size + self.spacing
+
+        max_w = self.content_width - self.pane_w
+        max_h = self.content_height
+        window_changed = (self._content_width != self.content_width
+                          or self._content_height != self.content_height
+                          or self._pane_w != self.pane_w)
+
+        self._draw_menu_bar()
+        self._draw_control_pane()
+
+        user_input = self._handle_user_input()
 
         # Re-generate WSI view if the window size changed, or if we don't
         # yet have a SlideViewer initialized.
@@ -444,57 +568,13 @@ class Workbench(imgui_window.ImguiWindow):
                 if hasattr(widget, '_on_window_change'):
                     widget._on_window_change()
 
-        # Render black box behind the controls
+        # Render black box behind the controls, if docked
         if self.pane_w:
             gl_utils.draw_rect(pos=np.array([0, 0]), size=np.array([self.pane_w, self.content_height]), color=0, anchor='center')
 
         # Main display.
         if self.viewer:
-
-            # Render slide view.
-            self.viewer.render(max_w, max_h)
-
-            # Render overlay heatmap.
-            if self.overlay_heatmap is not None and self.show_overlay:
-                if self._overlay_tex_img is not self.overlay_heatmap:
-                    self._overlay_tex_img = self.overlay_heatmap
-                    if self._overlay_tex_obj is None or not self._overlay_tex_obj.is_compatible(image=self._overlay_tex_img):
-                        if self._overlay_tex_obj is not None:
-                            self._tex_to_delete += [self._overlay_tex_obj]
-                        self._overlay_tex_obj = gl_utils.Texture(image=self._overlay_tex_img, bilinear=False, mipmap=False)
-                    else:
-                        self._overlay_tex_obj.update(self._overlay_tex_img)
-                if self._overlay_wsi_dim is None:
-                    self._overlay_wsi_dim = self.viewer.dimensions
-                h_zoom = (self._overlay_wsi_dim[0] / self.overlay_heatmap.shape[1]) / self.viewer.view_zoom
-                h_pos = self.viewer.wsi_coords_to_display_coords(*self._overlay_offset_wsi_dim)
-                self._overlay_tex_obj.draw(pos=h_pos, zoom=h_zoom, align=0.5, rint=True, anchor='topleft')
-
-            # Calculate location for model display.
-            if (self._model_path
-               and clicking
-               and not dragging
-               and self.viewer.is_in_view(cx, cy)):
-                wsi_x, wsi_y = self.viewer.display_coords_to_wsi_coords(cx, cy, offset=False)
-                self.x = wsi_x - (self.viewer.full_extract_px/2)
-                self.y = wsi_y - (self.viewer.full_extract_px/2)
-
-            # Update box location.
-            if self.x is not None and self.y is not None:
-                if clicking or dragging or wheel or window_changed:
-                    self.box_x, self.box_y = self.viewer.wsi_coords_to_display_coords(self.x, self.y)
-                tw = self.viewer.full_extract_px / self.viewer.view_zoom
-
-                # Draw box on main display.
-                gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_LINE)
-                gl.glLineWidth(3)
-                box_pos = np.array([self.box_x, self.box_y])
-                gl_utils.draw_rect(pos=box_pos, size=np.array([tw, tw]), color=[1, 0, 0], mode=gl.GL_LINE_LOOP)
-                gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_FILL)
-                gl.glLineWidth(1)
-
-            # Render ROIs.
-            self.viewer.late_render()
+            self._draw_main_window(user_input, window_changed)
 
         # Render WSI thumbnail in the widget.
         if self.wsi_thumb is not None and self._show_control:
