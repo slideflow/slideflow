@@ -30,6 +30,7 @@ class ProjectWidget:
         self.P              = None
         self.slide_paths    = []
         self.slide_idx      = 0
+        self.content_height = 0
         self._show_welcome  = True
 
     def add_recent(self, project, ignore_errors=False):
@@ -69,7 +70,7 @@ class ProjectWidget:
                 self.recent_projects.remove(project)
             self.recent_projects.insert(0, project)
 
-            print("Loading project at {}...".format(project))
+            sf.log.debug("Loading project at {}...".format(project))
             self.P = sf.Project(project)
             self.slide_paths = self.P.dataset().slide_paths()
             viz.model_widget.search_dirs = [self.P.models_dir]
@@ -91,6 +92,7 @@ class ProjectWidget:
         recent_projects = [project for project in self.recent_projects if project != self.user_project]
         self.disclaimer()
         if show:
+            self.content_height = viz.font_size + viz.spacing * 2
             dim_color = list(imgui.get_style().colors[imgui.COLOR_TEXT])
             dim_color[-1] *= 0.5
 
@@ -107,6 +109,8 @@ class ProjectWidget:
             imgui.same_line()
             if imgui_utils.button('Recent...', width=viz.button_w, enabled=(len(recent_projects) != 0)):
                 imgui.open_popup('recent_projects_popup')
+        else:
+            self.content_height = 0
 
         if imgui.begin_popup('recent_projects_popup'):
             for project in recent_projects:

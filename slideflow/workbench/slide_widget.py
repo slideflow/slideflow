@@ -44,6 +44,7 @@ class SlideWidget:
         self.ws_fraction            = sf.slide.DEFAULT_WHITESPACE_FRACTION
         self.ws_threshold           = sf.slide.DEFAULT_WHITESPACE_THRESHOLD
         self.num_total_rois         = 0
+        self.content_height         = 0
         self._filter_grid           = None
         self._filter_thread         = None
         self._capturing_ws_thresh   = None
@@ -97,7 +98,7 @@ class SlideWidget:
             self.user_slide = slide
             self._use_rois = True
             self.viz.set_message(f'Loading {name}...')
-            print(f"Loading slide {slide}...")
+            sf.log.debug(f"Loading slide {slide}...")
             viz.defer_rendering()
             viz._reload_wsi(slide, stride=self.stride, use_rois=self._use_rois)
             viz.heatmap_widget.reset()
@@ -153,7 +154,7 @@ class SlideWidget:
         else:
             self.viz._normalizer = sf.norm.autoselect(method, source='v2')
 
-    def render_to_overlay(self, mask, correct_wsi_dim=None):
+    def render_to_overlay(self, mask, correct_wsi_dim=False):
         """Renders boolean mask as an overlay, where:
 
             True = show tile from slide
@@ -162,15 +163,26 @@ class SlideWidget:
         assert mask.dtype == bool
         alpha = (~mask).astype(np.uint8) * 255
         black = np.zeros(list(mask.shape) + [3], dtype=np.uint8)
-        self.viz.overlay_heatmap = cv2.resize(np.dstack((black, alpha)), (self.viz.viewer.view.shape[1], self.viz.viewer.view.shape[0]))
+        overlay = np.dstack((black, alpha))
         if correct_wsi_dim:
+            self.viz.overlay = overlay
             full_extract = int(self.viz.wsi.tile_um / self.viz.wsi.mpp)
             wsi_stride = int(full_extract / self.viz.wsi.stride_div)
-            self.viz._overlay_wsi_dim = (wsi_stride * (self.viz.overlay_heatmap.shape[1]),
-                                         wsi_stride * (self.viz.overlay_heatmap.shape[0]))
+            self.viz._overlay_wsi_dim = (wsi_stride * (self.viz.overlay.shape[1]),
+                                         wsi_stride * (self.viz.overlay.shape[0]))
             self.viz._overlay_offset_wsi_dim = (full_extract/2 - wsi_stride/2, full_extract/2 - wsi_stride/2)
 
         else:
+            # Cap the maximum size, to fit in GPU memory of smaller devices (e.g. Raspberry Pi)
+            if (overlay.shape[1] > overlay.shape[0]) and overlay.shape[1] > 2000:
+                target_shape = (2000, int((2000 / overlay.shape[1]) * overlay.shape[0]))
+                overlay = cv2.resize(overlay, target_shape)
+            elif (overlay.shape[1] < overlay.shape[0]) and overlay.shape[0] > 2000:
+                target_shape = (int((2000 / overlay.shape[0]) * overlay.shape[1]), 2000)
+                overlay = cv2.resize(overlay, target_shape)
+
+            print(overlay.shape)
+            self.viz.overlay = overlay
             self.viz._overlay_wsi_dim = None
             self.viz._overlay_offset_wsi_dim = (0, 0)
 
@@ -219,7 +231,7 @@ class SlideWidget:
                         self.render_to_overlay(self._filter_grid, correct_wsi_dim=True)
                 except TypeError:
                     # Occurs when the _ws_grid is reset, e.g. the slide was re-loaded.
-                    print("Aborting tile filter calculation")
+                    sf.log.debug("Aborting tile filter calculation")
                     self.viz.clear_message(self._rendering_message)
                     return
             self.viz.clear_message(self._rendering_message)
@@ -242,7 +254,7 @@ class SlideWidget:
             self._join_filter_thread()
             self._clear_images()
             if not self.show_slide_filter:
-                self.viz.overlay_heatmap = None
+                self.viz.overlay = None
             if self._filter_grid is None and self.viz.wsi is not None:
                 self._start_filter_thread()
             elif self._filter_grid is not None:
@@ -295,6 +307,7 @@ class SlideWidget:
         viz = self.viz
 
         if show:
+            self.content_height = imgui.get_text_line_height_with_spacing() * 13 + viz.spacing * 3
             imgui.text('Slide')
             imgui.same_line(viz.label_w)
             changed, self.user_slide = imgui_utils.input_text('##slide', self.user_slide, 1024,
@@ -341,7 +354,7 @@ class SlideWidget:
                         t_y += viz.viewer.origin[1] * t_h_ratio
                         t_y += viz.spacing
 
-                        draw_list = imgui.get_overlay_draw_list()
+                        draw_list = imgui.get_window_draw_list()
                         draw_list.add_rect(
                             t_x,
                             t_y,
@@ -503,7 +516,8 @@ class SlideWidget:
             # -----------------------------------------------------------------
 
             imgui.end_child()
-
+        else:
+            self.content_height = 0
             # =================================================================
 
         if imgui.begin_popup('project_slides_popup'):

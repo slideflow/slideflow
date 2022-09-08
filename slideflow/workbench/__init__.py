@@ -20,6 +20,7 @@ from slideflow.workbench import capture_widget
 import slideflow as sf
 import slideflow.grad
 from slideflow.workbench.utils import EasyDict
+from slideflow import log
 
 if sf.util.tf_available:
     import tensorflow as tf
@@ -35,7 +36,7 @@ if sf.util.torch_available:
 #----------------------------------------------------------------------------
 
 def _load_model_and_saliency(model_path, device=None):
-    print("Loading model at {}...".format(model_path))
+    log.debug("Loading model at {}...".format(model_path))
     if sf.util.torch_available and sf.util.path_to_ext(model_path) == 'zip':
         _model = sf.model.torch.load(model_path)
         _model.eval()
@@ -91,8 +92,18 @@ class Workbench(imgui_window.ImguiWindow):
         self._use_model_img_fmt = False
         self._tex_to_delete     = []
         self._low_memory        = low_memory
-        self._show_control      = True
         self._defer_tile_refresh = None
+        self._should_close_slide = False
+        self._should_close_model = False
+
+        # Interface.
+        self._show_control      = True
+        self._dock_control      = True
+        self._show_performance  = False
+        self._control_size      = None
+        self._show_tile_preview = False
+        self._tile_preview_is_new = True
+        self._tile_preview_image_is_new = True
 
         # Widget interface.
         self.wsi                = None
@@ -105,7 +116,7 @@ class Workbench(imgui_window.ImguiWindow):
         self.tile_um            = None
         self.heatmap            = None
         self.rendered_heatmap   = None
-        self.overlay_heatmap    = None
+        self.overlay            = None
         self.rendered_qc        = None
         self.overlay_qc         = None
         self.args               = EasyDict(use_model=False, use_uncertainty=False, use_saliency=False)
@@ -122,6 +133,8 @@ class Workbench(imgui_window.ImguiWindow):
         self.slide_widget       = slide_widget.SlideWidget(self)
         self.model_widget       = model_widget.ModelWidget(self)
         self.heatmap_widget     = heatmap_widget.HeatmapWidget(self)
+        self.performance_widget = performance_widget.PerformanceWidget(self)
+        self.capture_widget     = capture_widget.CaptureWidget(self)
 
         # User-defined widgets.
         self.widgets = []
@@ -148,12 +161,17 @@ class Workbench(imgui_window.ImguiWindow):
     def P(self):
         return self.project_widget.P
 
+    @property
+    def offset_x(self):
+        return self.pane_w
+
+    @property
+    def offset_y(self):
+        return self.menu_bar_height
+
     @staticmethod
     def get_default_widgets():
-        return [
-            performance_widget.PerformanceWidget,
-            capture_widget.CaptureWidget
-        ]
+        return []
 
     def has_live_viewer(self):
         return (self.viewer is not None and self.viewer.live)
@@ -187,6 +205,23 @@ class Workbench(imgui_window.ImguiWindow):
     def load_slide(self, slide, ignore_errors=False):
         self.slide_widget.load(slide, ignore_errors=ignore_errors)
 
+    def _close_slide(self):
+        self.wsi = None
+        self.viewer = None
+        self.wsi_thumb = None
+        self.x = None
+        self.y = None
+        self.clear_result()
+        self._wsi_tex_obj = None
+        self._async_renderer._live_updates = False
+
+    def close_slide(self, now=False):
+        if now:
+            self._close_slide()
+            self._should_close_slide = False
+        else:
+            self._should_close_slide = True
+
     def _reload_wsi(self, path=None, stride=None, use_rois=True):
         if self.wsi is None and path is None:
             return
@@ -216,9 +251,10 @@ class Workbench(imgui_window.ImguiWindow):
 
     def _viewer_kwargs(self):
         return dict(
-            width=self.content_width - self.pane_w,
-            height=self.content_height,
-            x_offset=self.pane_w,
+            width=self.content_width - self.offset_x,
+            height=self.content_height - self.offset_y,
+            x_offset=self.offset_x,
+            y_offset=self.offset_y,
             normalizer=(self._normalizer if self._normalize_wsi else None)
         )
 
@@ -231,13 +267,17 @@ class Workbench(imgui_window.ImguiWindow):
                 self.viewer.reload(**self._viewer_kwargs())
 
     def set_viewer(self, viewer):
+        log.debug("Setting viewer to {}".format(viewer))
         self.viewer = viewer
         self._async_renderer._live_updates = viewer.live
         self._async_renderer.set_async(viewer.live)
 
     def load_model(self, model, ignore_errors=False):
-        self.clear_model()
+        log.debug("Loading model from workbench")
+        self.close_model(True)
+        log.debug("Model closed")
         self.clear_result()
+        log.debug("Model result cleared")
         self.skip_frame() # The input field will change on next frame.
         self._async_renderer.get_result() # Flush prior result
         try:
@@ -265,6 +305,7 @@ class Workbench(imgui_window.ImguiWindow):
                 self.model_widget.backend = 'tensorflow'
 
             # Update widgets
+            log.debug("Updating widgets")
             self.model_widget.cur_model = model
             self.model_widget.use_model = True
             self.model_widget.use_uncertainty = 'uq' in config['hp'] and config['hp']['uq']
@@ -273,23 +314,30 @@ class Workbench(imgui_window.ImguiWindow):
                 self.slide_widget.show_model_normalizer()
                 self.slide_widget.norm_idx = len(self.slide_widget._normalizer_methods)-1
             if self.wsi:
+                log.debug(f"Loading slide... tile_px={self.tile_px}, tile_um={self.tile_um}")
                 self.slide_widget.load(self.wsi.path, ignore_errors=ignore_errors)
             if hasattr(self, 'heatmap_widget'):
+                log.debug("Resetting heatmap")
                 self.heatmap_widget.reset()
 
             # Update viewer
-            if self.viewer:
+            self._show_tile_preview = True
+            log.debug("Updating viewer with tile_px={}, tile_um={}".format(self.tile_px, self.tile_um))
+            if self.viewer and not isinstance(self.viewer, wsi_utils.SlideViewer):
                 self.viewer.set_tile_px(self.tile_px)
                 self.viewer.set_tile_um(self.tile_um)
 
-        except Exception:
+        except Exception as e:
             self.model_widget.cur_model = None
             if model == '':
+                log.debug("Exception raised: no model loaded.")
                 self.result = EasyDict(message='No model loaded')
             else:
+                log.debug("Exception raised (ignore_errors={}): {}".format(ignore_errors, e))
                 self.result = EasyDict(error=renderer.CapturedException())
             if not ignore_errors:
                 raise
+        log.debug("Model loading complete (path={})".format(self._model_path))
 
     def print_error(self, error):
         error = str(error)
@@ -302,9 +350,9 @@ class Workbench(imgui_window.ImguiWindow):
 
     def clear_overlay(self):
         self._overlay_tex_img   = None
-        self.overlay_heatmap    = None
+        self.overlay            = None
 
-    def clear_model(self):
+    def _close_model(self):
         self._async_renderer.clear_result()
         self._use_model   = False
         self._use_uncertainty   = False
@@ -320,6 +368,13 @@ class Workbench(imgui_window.ImguiWindow):
         self._async_renderer.clear_model()
         self.clear_model_results()
         self.heatmap_widget.reset()
+
+    def close_model(self, now=False):
+        if now:
+            self._close_model()
+            self._should_close_model = False
+        else:
+            self._should_close_model = True
 
     def clear_result(self):
         self._async_renderer.clear_result()
@@ -371,16 +426,26 @@ class Workbench(imgui_window.ImguiWindow):
                     imgui.menu_item('Heatmap (NPZ)')
                     imgui.end_menu()
                 imgui.separator()
-                imgui.menu_item('Close Slide')
-                imgui.menu_item('Close Model')
+                if imgui.menu_item('Close Slide')[1]:
+                    self.close_slide(True)
+                if imgui.menu_item('Close Model')[1]:
+                    self.close_model(True)
                 imgui.separator()
-                imgui.menu_item('Exit', 'Q')
+                imgui.menu_item('Exit', 'Ctrl+Q')
                 imgui.end_menu()
 
             if imgui.begin_menu('View', True):
-                imgui.menu_item('Fullscreen', 'F')
-                imgui.menu_item('Toggle dock', 'C')
+                if imgui.menu_item('Fullscreen', 'Ctrl+F')[1]:
+                    self.toggle_fullscreen()
+                if imgui.menu_item('Dock Controls', 'Ctrl+Shift+D')[1]:
+                    self._dock_control = not self._dock_control
+                if imgui.menu_item('Toggle Controls', 'Ctrl+Shift+C')[1]:
+                    self._show_control = not self._show_control
+                if imgui.menu_item('Toggle Performance', 'Ctrl+Shift+P')[1]:
+                    self._show_performance = not self._show_performance
                 imgui.separator()
+                if imgui.menu_item('Toggle tile preview')[1]:
+                    self._show_tile_preview = not self._show_tile_preview
                 imgui.menu_item('Toggle camera view')
                 imgui.end_menu()
 
@@ -400,38 +465,142 @@ class Workbench(imgui_window.ImguiWindow):
             imgui.text(version_text)
             imgui.end_main_menu_bar()
 
+    def _render_control_pane_contents(self):
+        """Perform rendering of control panel contents, such as WSI thumbnails,
+        widgets, and heatmaps."""
+
+        # Render WSI thumbnail in the widget.
+        if self.wsi_thumb is not None and self._show_control:
+            if self._wsi_tex_img is not self.wsi_thumb:
+                self._wsi_tex_img = self.wsi_thumb
+                if self._wsi_tex_obj is None or not self._wsi_tex_obj.is_compatible(image=self._wsi_tex_img):
+                    if self._wsi_tex_obj is not None:
+                        self._tex_to_delete += [self._wsi_tex_obj]
+                    self._wsi_tex_obj = gl_utils.Texture(image=self._wsi_tex_img, bilinear=True, mipmap=True)
+                else:
+                    self._wsi_tex_obj.update(self._wsi_tex_img)
+
+        # Render user widgets.
+        for widget in self.widgets:
+            if hasattr(widget, 'render'):
+                widget.render()
+
+        # Display rendered (non-transparent) heatmap in widget.
+        # Render overlay heatmap.
+        if self.heatmap:
+            if self._heatmap_tex_img is not self.rendered_heatmap:
+                self._heatmap_tex_img = self.rendered_heatmap
+                if self._heatmap_tex_obj is None or not self._heatmap_tex_obj.is_compatible(image=self._heatmap_tex_img):
+                    if self._heatmap_tex_obj is not None:
+                        self._tex_to_delete += [self._heatmap_tex_obj]
+                    self._heatmap_tex_obj = gl_utils.Texture(image=self._heatmap_tex_img, bilinear=False, mipmap=False)
+                else:
+                    self._heatmap_tex_obj.update(self._heatmap_tex_img)
 
     def _draw_control_pane(self):
-        # Begin control pane.
+        """Draw the control pane with Imgui."""
 
-        if self._show_control:
+        if self._dock_control and self._show_control:
             self.pane_w = self.font_size * 45
             imgui.set_next_window_position(0, self.menu_bar_height)
             imgui.set_next_window_size(self.pane_w, self.content_height - self.menu_bar_height)
+            control_kw = dict(
+                closable=False,
+                flags=(imgui.WINDOW_NO_TITLE_BAR | imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_MOVE))
         else:
+            imgui.set_next_window_size(self.font_size * 45, self._control_size)
             self.pane_w = 0
-            imgui.set_next_window_size(5, 5)
+            control_kw = dict(
+                closable=True,
+                flags=(imgui.WINDOW_NO_COLLAPSE | imgui.WINDOW_ALWAYS_AUTO_RESIZE)
+            )
 
-        imgui.begin('##control_pane', closable=False, flags=(imgui.WINDOW_NO_TITLE_BAR | imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_MOVE))
+        if self._show_control:
+            _, self._show_control = imgui.begin('Control Pane', **control_kw)
 
-        # Core widgets.
-        expanded, _visible = imgui_utils.collapsing_header('Slideflow project', default=True)
-        self.project_widget(expanded)
-        expanded, _visible = imgui_utils.collapsing_header('Whole-slide image', default=True)
-        self.slide_widget(expanded)
-        expanded, _visible = imgui_utils.collapsing_header('Model & tile predictions', default=True)
-        self.model_widget(expanded)
-        expanded, _visible = imgui_utils.collapsing_header('Heatmap & slide prediction', default=True)
-        self.heatmap_widget(expanded)
-        expanded, _visible = imgui_utils.collapsing_header('Performance & capture', default=True)
+            # Core widgets.
+            self._control_size = self.font_size * 4 + self.spacing * 11
+            expanded, _visible = imgui_utils.collapsing_header('Slideflow project', default=True)
+            self.project_widget(expanded)
+            self._control_size += self.project_widget.content_height
 
-        # User-defined widgets
-        for widget in self.widgets:
-            if hasattr(widget, 'collapsing_header'):
-                expanded, _visible = widget.collapsing_header()
-            widget(expanded)
+            expanded, _visible = imgui_utils.collapsing_header('Whole-slide image', default=True)
+            self.slide_widget(expanded)
+            self._control_size += self.slide_widget.content_height
 
-    def _draw_main_window(self, inp, window_changed):
+            expanded, _visible = imgui_utils.collapsing_header('Model & tile predictions', default=True)
+            self.model_widget(expanded)
+            self._control_size += self.model_widget.content_height
+
+            expanded, _visible = imgui_utils.collapsing_header('Heatmap & slide prediction', default=True)
+            self.heatmap_widget(expanded)
+            self._control_size += self.heatmap_widget.content_height
+
+            # User-defined widgets
+            for widget in self.widgets:
+                if hasattr(widget, 'collapsing_header'):
+                    expanded, _visible = widget.collapsing_header()
+                widget(expanded)
+
+            self._render_control_pane_contents()
+            imgui.end()
+
+    def _draw_performance_pane(self):
+        if self._show_performance:
+            _, self._show_performance = imgui.begin('Performance & Capture', closable=True, flags=(imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_COLLAPSE))
+            self.performance_widget(True)
+            self.capture_widget(True)
+            imgui.end()
+
+    def _draw_tile_view(self):
+        if self._show_tile_preview:
+
+            has_raw_image = self._tex_obj is not None and self.tile_px
+            has_norm_image = self.model_widget.use_model and self._normalizer is not None and self._norm_tex_obj is not None and self.tile_px
+
+            width = 0
+            height = self.font_size * 2
+            if has_raw_image:
+                height += self.tile_px
+                width += self.tile_px
+            if has_norm_image:
+                width += self.tile_px + self.spacing
+
+            if not width:
+                width = self.font_size * 8
+                height = self.font_size * 3
+
+            imgui.set_next_window_size(width, height)
+
+            if self._tile_preview_is_new:
+                imgui.set_next_window_position(self.content_width - width - self.spacing, self.content_height - height - self.spacing)
+                self._tile_preview_is_new = False
+
+            if self._tile_preview_image_is_new and (has_raw_image or has_norm_image):
+                imgui.set_next_window_position(self.content_width - width - self.spacing, self.content_height - height - self.spacing)
+                self._tile_preview_image_is_new = False
+
+            _, self._show_tile_preview = imgui.begin("##tile view", closable=True, flags=(imgui.WINDOW_NO_COLLAPSE | imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_SCROLLBAR))
+            # Image preview ===================================================
+            dim_color = list(imgui.get_style().colors[imgui.COLOR_TEXT])
+            dim_color[-1] *= 0.5
+            imgui.begin_child('##pred_image', border=False)
+            if has_raw_image:
+                imgui.image(self._tex_obj.gl_id, self.tile_px, self.tile_px)
+            elif self._model_path is not None:
+                imgui.text_colored('Right click to preview', *dim_color)
+            else:
+                imgui.text_colored('No model loaded', *dim_color)
+            imgui.same_line()
+            if has_norm_image:
+                imgui.image(self._norm_tex_obj.gl_id, self.tile_px, self.tile_px)
+            elif self._tex_obj is not None and self.tile_px:
+                imgui.text_colored('Normalizer not used', *dim_color)
+            imgui.end_child()
+            imgui.same_line()
+            imgui.end()
+
+    def _draw_main_view(self, inp, window_changed):
         """Update the main window view.
 
         Draws the slide / picam view, overlay heatmap, overlay box, and ROIs.
@@ -441,8 +610,8 @@ class Workbench(imgui_window.ImguiWindow):
             window_changed (bool): Window size has changed (force refresh).
         """
 
-        max_w = self.content_width - self.pane_w
-        max_h = self.content_height
+        max_w = self.content_width - self.offset_x
+        max_h = self.content_height - self.offset_y
 
         # Update the viewer in response to user input.
         if self.viewer and self.viewer.movable:
@@ -468,9 +637,9 @@ class Workbench(imgui_window.ImguiWindow):
         self.viewer.render(max_w, max_h)
 
         # Render overlay heatmap.
-        if self.overlay_heatmap is not None and self.show_overlay:
-            if self._overlay_tex_img is not self.overlay_heatmap:
-                self._overlay_tex_img = self.overlay_heatmap
+        if self.overlay is not None and self.show_overlay:
+            if self._overlay_tex_img is not self.overlay:
+                self._overlay_tex_img = self.overlay
                 if self._overlay_tex_obj is None or not self._overlay_tex_obj.is_compatible(image=self._overlay_tex_img):
                     if self._overlay_tex_obj is not None:
                         self._tex_to_delete += [self._overlay_tex_obj]
@@ -479,7 +648,7 @@ class Workbench(imgui_window.ImguiWindow):
                     self._overlay_tex_obj.update(self._overlay_tex_img)
             if self._overlay_wsi_dim is None:
                 self._overlay_wsi_dim = self.viewer.dimensions
-            h_zoom = (self._overlay_wsi_dim[0] / self.overlay_heatmap.shape[1]) / self.viewer.view_zoom
+            h_zoom = (self._overlay_wsi_dim[0] / self.overlay.shape[1]) / self.viewer.view_zoom
             h_pos = self.viewer.wsi_coords_to_display_coords(*self._overlay_offset_wsi_dim)
             self._overlay_tex_obj.draw(pos=h_pos, zoom=h_zoom, align=0.5, rint=True, anchor='topleft')
 
@@ -510,20 +679,21 @@ class Workbench(imgui_window.ImguiWindow):
         self.viewer.late_render()
 
     def _handle_user_input(self):
+
         # Detect mouse dragging in the thumbnail display.
         clicking, cx, cy, wheel = imgui_utils.click_hidden_window(
             '##result_area',
-            x=self.pane_w,
-            y=self.menu_bar_height,
-            width=self.content_width-self.pane_w,
-            height=self.content_height - self.menu_bar_height,
+            x=self.offset_x,
+            y=self.offset_y,
+            width=self.content_width - self.offset_x,
+            height=self.content_height - self.offset_y,
             mouse_idx=1)
         dragging, dx, dy = imgui_utils.drag_hidden_window(
             '##result_area',
-            x=self.pane_w,
-            y=self.menu_bar_height,
-            width=self.content_width-self.pane_w,
-            height=self.content_height-self.menu_bar_height)
+            x=self.offset_x,
+            y=self.offset_y,
+            width=self.content_width - self.offset_x,
+            height=self.content_height - self.offset_y)
         return EasyDict(
             clicking=clicking,
             cx=cx,
@@ -544,14 +714,16 @@ class Workbench(imgui_window.ImguiWindow):
         self.label_w = round(self.font_size * 4.5)
         self.menu_bar_height = self.font_size + self.spacing
 
-        max_w = self.content_width - self.pane_w
-        max_h = self.content_height
+        max_w = self.content_width - self.offset_x
+        max_h = self.content_height - self.offset_y
         window_changed = (self._content_width != self.content_width
                           or self._content_height != self.content_height
                           or self._pane_w != self.pane_w)
 
         self._draw_menu_bar()
         self._draw_control_pane()
+        self._draw_performance_pane()
+        self._draw_tile_view()
 
         user_input = self._handle_user_input()
 
@@ -570,27 +742,11 @@ class Workbench(imgui_window.ImguiWindow):
 
         # Render black box behind the controls, if docked
         if self.pane_w:
-            gl_utils.draw_rect(pos=np.array([0, 0]), size=np.array([self.pane_w, self.content_height]), color=0, anchor='center')
+            gl_utils.draw_rect(pos=np.array([0, self.offset_y]), size=np.array([self.offset_x, self.content_height - self.offset_y]), color=0, anchor='center')
 
         # Main display.
         if self.viewer:
-            self._draw_main_window(user_input, window_changed)
-
-        # Render WSI thumbnail in the widget.
-        if self.wsi_thumb is not None and self._show_control:
-            if self._wsi_tex_img is not self.wsi_thumb:
-                self._wsi_tex_img = self.wsi_thumb
-                if self._wsi_tex_obj is None or not self._wsi_tex_obj.is_compatible(image=self._wsi_tex_img):
-                    if self._wsi_tex_obj is not None:
-                        self._tex_to_delete += [self._wsi_tex_obj]
-                    self._wsi_tex_obj = gl_utils.Texture(image=self._wsi_tex_img, bilinear=True, mipmap=True)
-                else:
-                    self._wsi_tex_obj.update(self._wsi_tex_img)
-
-        # Render user widgets.
-        for widget in self.widgets:
-            if hasattr(widget, 'render'):
-                widget.render()
+            self._draw_main_view(user_input, window_changed)
 
         # --- Render arguments ------------------------------------------------
         self.args.x = self.x
@@ -670,21 +826,12 @@ class Workbench(imgui_window.ImguiWindow):
             tex = text_utils.get_texture(_msg, size=self.font_size, max_width=max_w, max_height=max_h, outline=2)
             tex.draw(pos=middle_pos, align=0.5, rint=True, color=1)
 
-        # Display rendered (non-transparent) heatmap in widget.
-        # Render overlay heatmap.
-        if self.heatmap:
-            if self._heatmap_tex_img is not self.rendered_heatmap:
-                self._heatmap_tex_img = self.rendered_heatmap
-                if self._heatmap_tex_obj is None or not self._heatmap_tex_obj.is_compatible(image=self._heatmap_tex_img):
-                    if self._heatmap_tex_obj is not None:
-                        self._tex_to_delete += [self._heatmap_tex_obj]
-                    self._heatmap_tex_obj = gl_utils.Texture(image=self._heatmap_tex_img, bilinear=False, mipmap=False)
-                else:
-                    self._heatmap_tex_obj.update(self._heatmap_tex_img)
-
         # End frame.
+        if self._should_close_model:
+            self.close_model(True)
+        if self._should_close_slide:
+            self.close_slide(True)
         self._adjust_font_size()
-        imgui.end()
         self.end_frame()
 
 #----------------------------------------------------------------------------

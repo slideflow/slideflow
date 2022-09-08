@@ -345,10 +345,12 @@ class SlideViewer(Viewer):
 
     def set_tile_px(self, tile_px: int):
         if tile_px != self.tile_px:
+            sf.log.error("Attempted to set tile_px={}, existing={}".format(tile_px, self.tile_px))
             raise NotImplementedError
 
     def set_tile_um(self, tile_um: int):
         if tile_um != self.tile_um:
+            sf.log.error("Attempted to set tile_um={}, existing={}".format(tile_um, self.tile_um))
             raise NotImplementedError
 
     def zoom(self, cx: int, cy: int, dz: float) -> None:

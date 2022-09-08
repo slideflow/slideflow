@@ -27,7 +27,7 @@ def _locate_results(pattern):
 #----------------------------------------------------------------------------
 
 class ModelWidget:
-    def __init__(self, viz, show_preview=True, show_saliency=True):
+    def __init__(self, viz, show_preview=False, show_saliency=True):
         self.viz                = viz
         self.show_preview       = show_preview
         self.show_saliency      = show_saliency
@@ -43,6 +43,7 @@ class ModelWidget:
         self.enable_saliency    = False
         self.saliency_overlay   = False
         self.saliency_idx       = 0
+        self.content_height     = 0
         self._show_params       = False
         self._saliency_methods_all = {
             'Vanilla': grad.VANILLA,
@@ -96,6 +97,7 @@ class ModelWidget:
             imgui.end()
 
         if show:
+            self.content_height = imgui.get_text_line_height_with_spacing() * 12 + viz.spacing * 2
             imgui.text('Model')
             imgui.same_line(viz.label_w)
             changed, self.user_model = imgui_utils.input_text('##model', self.user_model, 1024,
@@ -119,6 +121,7 @@ class ModelWidget:
             config = viz._model_config
             if viz._use_model and viz._predictions is not None and isinstance(viz._predictions, list):
                 for p, _pred_array in enumerate(viz._predictions):
+                    self.content_height += (imgui.get_text_line_height_with_spacing() + viz.spacing)
                     imgui.text(f'Pred {p}')
                     imgui.same_line(viz.label_w)
                     imgui.core.plot_histogram('##pred', array('f', _pred_array), scale_min=0, scale_max=1)
@@ -133,6 +136,7 @@ class ModelWidget:
                         pred_str += " (UQ: {:.4f})".format(viz._uncertainty[p])
                     imgui.text(pred_str)
             elif viz._use_model and viz._predictions is not None:
+                self.content_height += (imgui.get_text_line_height_with_spacing() + viz.spacing)
                 imgui.text('Prediction')
                 imgui.same_line(viz.label_w)
                 imgui.core.plot_histogram('##pred', array('f', viz._predictions), scale_min=0, scale_max=1)
@@ -240,6 +244,8 @@ class ModelWidget:
                     _clicked, self.saliency_idx = imgui.combo("##method", self.saliency_idx, self._saliency_methods_names)
 
             imgui.end_child()
+        else:
+            self.content_height = 0
 
         if imgui.begin_popup('recent_models_popup'):
             for model in recent_models:

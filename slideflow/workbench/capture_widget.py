@@ -91,7 +91,7 @@ class CaptureWidget:
         captured_frame = viz.pop_captured_frame()
         if captured_frame is not None:
             if self._crop_next:
-                captured_frame = captured_frame[:, self.viz.pane_w:, :]
+                captured_frame = captured_frame[self.viz.offset_y:, self.viz.offset_x:, :]
             self.dump_png(captured_frame)
             self._crop_next = False
 

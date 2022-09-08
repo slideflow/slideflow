@@ -60,8 +60,7 @@ class PerformanceWidget:
             with imgui_utils.item_width(viz.font_size * 6):
                 _changed, self.fps_limit = imgui.input_int('FPS limit', self.fps_limit, flags=imgui.INPUT_TEXT_ENTER_RETURNS_TRUE)
                 self.fps_limit = min(max(self.fps_limit, 5), 1000)
-            imgui.same_line(imgui.get_content_region_max()[0] - 1 - viz.button_w * 2 - viz.spacing)
-            _clicked, self.use_vsync = imgui.checkbox('Vertical sync', self.use_vsync)
+
 
             # Render
             imgui.text('Render')
@@ -71,8 +70,7 @@ class PerformanceWidget:
             self.timing_text(self.render_times)
             imgui.same_line(viz.label_w + viz.font_size * 18 + viz.spacing * 3)
             _clicked, self.low_memory = imgui.checkbox('Low memory mode', self.low_memory)
-            imgui.same_line(imgui.get_content_region_max()[0] - 1 - viz.button_w * 2 - viz.spacing)
-            _clicked, self.ignore_jpg = imgui.checkbox('Ignore compression', self.ignore_jpg)
+
 
             # Normalizer times
             imgui.text('Normalize')
@@ -80,6 +78,8 @@ class PerformanceWidget:
             with imgui_utils.item_width(viz.font_size * 8):
                 imgui.plot_lines('##norm_times', array.array('f', self.norm_times), scale_min=0)
             self.timing_text(self.norm_times)
+            imgui.same_line(viz.label_w + viz.font_size * 18 + viz.spacing * 3)
+            _clicked, self.use_vsync = imgui.checkbox('Vertical sync', self.use_vsync)
 
             # Inference times
             imgui.text('Predict')
@@ -87,6 +87,8 @@ class PerformanceWidget:
             with imgui_utils.item_width(viz.font_size * 8):
                 imgui.plot_lines('##predict_times', array.array('f', self.predict_times), scale_min=0)
             self.timing_text(self.predict_times)
+            imgui.same_line(viz.label_w + viz.font_size * 18 + viz.spacing * 3)
+            _clicked, self.ignore_jpg = imgui.checkbox('Ignore compression', self.ignore_jpg)
 
         viz.set_fps_limit(self.fps_limit)
         viz.set_vsync(self.use_vsync)

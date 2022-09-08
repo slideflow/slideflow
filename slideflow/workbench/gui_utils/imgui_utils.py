@@ -160,7 +160,7 @@ def drag_hidden_window(label, x, y, width, height, enabled=True):
     imgui.push_style_color(imgui.COLOR_BORDER, 0, 0, 0, 0)
     imgui.set_next_window_position(x, y)
     imgui.set_next_window_size(width, height)
-    imgui.begin(label, closable=False, flags=(imgui.WINDOW_NO_TITLE_BAR | imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_MOVE))
+    imgui.begin(label, closable=False, flags=(imgui.WINDOW_NO_TITLE_BAR | imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_MOVE | imgui.WINDOW_NO_FOCUS_ON_APPEARING | imgui.WINDOW_NO_BRING_TO_FRONT_ON_FOCUS))
     dragging, dx, dy = drag_previous_control(enabled=enabled)
     imgui.end()
     imgui.pop_style_color(2)
@@ -183,7 +183,7 @@ def click_hidden_window(label, x, y, width, height, enabled=True, mouse_idx=0):
     imgui.push_style_color(imgui.COLOR_BORDER, 0, 0, 0, 0)
     imgui.set_next_window_position(x, y)
     imgui.set_next_window_size(width, height)
-    imgui.begin(label, closable=False, flags=(imgui.WINDOW_NO_TITLE_BAR | imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_MOVE))
+    imgui.begin(label, closable=False, flags=(imgui.WINDOW_NO_TITLE_BAR | imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_MOVE | imgui.WINDOW_NO_FOCUS_ON_APPEARING | imgui.WINDOW_NO_BRING_TO_FRONT_ON_FOCUS))
     clicking, cx, cy = click_previous_control(mouse_idx=mouse_idx, enabled=enabled)
     if cx-x < 0 or cy-y < 0:
         clicking = False

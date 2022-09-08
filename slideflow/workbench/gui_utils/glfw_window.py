@@ -28,6 +28,9 @@ class GlfwWindow: # pylint: disable=too-many-public-methods
         self._drag_and_drop_paths   = None
         self._capture_next_frame    = False
         self._captured_frame        = None
+        self._shift_down            = False
+        self._control_down          = False
+        self._is_fullscreen         = False
 
         # Create window.
         glfw.init()
@@ -98,9 +101,17 @@ class GlfwWindow: # pylint: disable=too-many-public-methods
         monitor = glfw.get_primary_monitor()
         mode = glfw.get_video_mode(monitor)
         glfw.set_window_monitor(self._glfw_window, glfw.get_primary_monitor(), width=mode.size.width, height=mode.size.height, xpos=0, ypos=0, refresh_rate=60)
+        self._is_fullscreen = True
 
     def set_windowed(self):
         glfw.set_window_monitor(self._glfw_window, monitor=None, width=1600, height=900, xpos=0, ypos=0, refresh_rate=60)
+        self._is_fullscreen = False
+
+    def toggle_fullscreen(self):
+        if not self._is_fullscreen:
+            self.set_fullscreen()
+        else:
+            self.set_windowed()
 
     def set_title(self, title):
         glfw.set_window_title(self._glfw_window, title)
@@ -229,13 +240,26 @@ class GlfwWindow: # pylint: disable=too-many-public-methods
         glfw.set_drop_callback(self._glfw_window, self._glfw_drop_callback)
 
     def _glfw_key_callback(self, _window, key, _scancode, action, _mods):
+
+        if action == glfw.PRESS and key in (glfw.KEY_LEFT_CONTROL, glfw.KEY_RIGHT_CONTROL):
+            self._control_down = True
+        if action == glfw.RELEASE and key in (glfw.KEY_LEFT_CONTROL, glfw.KEY_RIGHT_CONTROL):
+            self._control_down = False
+        if action == glfw.PRESS and key in (glfw.KEY_LEFT_SHIFT, glfw.KEY_RIGHT_SHIFT):
+            self._shift_down = True
+        if action == glfw.RELEASE and key in (glfw.KEY_LEFT_SHIFT, glfw.KEY_RIGHT_SHIFT):
+            self._shift_down = False
         if action == glfw.PRESS and key == glfw.KEY_ESCAPE:
             self.set_windowed()
-        elif action == glfw.PRESS and key == glfw.KEY_F:
-            self.set_fullscreen()
-        elif action == glfw.PRESS and key == glfw.KEY_C:
+        if self._control_down and action == glfw.PRESS and key == glfw.KEY_F:
+            self.toggle_fullscreen()
+        if self._control_down and self._shift_down and action == glfw.PRESS and key == glfw.KEY_C:
             self._show_control = not self._show_control
-        elif action == glfw.PRESS and key == glfw.KEY_Q:
+        if self._control_down and self._shift_down and action == glfw.PRESS and key == glfw.KEY_D:
+            self._dock_control = not self._dock_control
+        if self._control_down and self._shift_down and action == glfw.PRESS and key == glfw.KEY_P:
+            self._show_performance = not self._show_performance
+        if self._control_down and action == glfw.PRESS and key == glfw.KEY_Q:
             self._q_pressed = True
 
     def _glfw_drop_callback(self, _window, paths):

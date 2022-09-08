@@ -45,6 +45,7 @@ class HeatmapWidget:
         self.cmap_idx               = 0
         self.logits                 = None
         self.uncertainty            = None
+        self.content_height         = 0
         self._generating            = False
         self._button_pressed        = False
         self._old_logits            = 0
@@ -62,12 +63,12 @@ class HeatmapWidget:
             alpha_channel = np.full(self.viz.rendered_heatmap.shape[0:2],
                                     int(self.alpha * 255),
                                     dtype=np.uint8)
-            self.viz.overlay_heatmap = np.dstack((self.viz.rendered_heatmap[:, :, 0:3],
+            self.viz.overlay = np.dstack((self.viz.rendered_heatmap[:, :, 0:3],
                                                   alpha_channel))
             full_extract = int(self.viz.wsi.tile_um / self.viz.wsi.mpp)
             wsi_stride = int(full_extract / self.viz.wsi.stride_div)
-            self.viz._overlay_wsi_dim = (wsi_stride * (self.viz.overlay_heatmap.shape[1]),
-                                         wsi_stride * (self.viz.overlay_heatmap.shape[0]))
+            self.viz._overlay_wsi_dim = (wsi_stride * (self.viz.overlay.shape[1]),
+                                         wsi_stride * (self.viz.overlay.shape[0]))
             self.viz._overlay_offset_wsi_dim = (full_extract/2 - wsi_stride/2, full_extract/2 - wsi_stride/2)
 
     def render_heatmap(self):
@@ -86,7 +87,7 @@ class HeatmapWidget:
 
     def reset(self):
         self.viz.rendered_heatmap   = None
-        self.viz.overlay_heatmap    = None
+        self.viz.overlay            = None
         self.viz.heatmap            = None
         self._heatmap_sum           = 0
         self._heatmap_grid          = None
@@ -147,6 +148,7 @@ class HeatmapWidget:
             self.refresh_generating_heatmap()
 
         if show:
+            self.content_height = imgui.get_text_line_height_with_spacing() * 13 + viz.spacing * 2
             _cmap_changed = False
             _uq_logits_switched = False
             bg_color = [0.16, 0.29, 0.48, 0.2]
@@ -360,5 +362,6 @@ class HeatmapWidget:
                or (self.heatmap_uncertainty != self._old_uncertainty and self.use_uncertainty)
                or _uq_logits_switched):
                 self.render_heatmap()
-
+        else:
+            self.content_height = 0
 #----------------------------------------------------------------------------
