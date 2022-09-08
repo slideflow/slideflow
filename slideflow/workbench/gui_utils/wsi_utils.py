@@ -1,84 +1,56 @@
 """Utility for an efficient, tiled Whole-slide image viewer."""
 
-import os
 import numpy as np
-import OpenGL.GL as gl
-import threading
-import multiprocessing as mp
-from queue import Queue
-from functools import partial
-from typing import Tuple, TYPE_CHECKING
+from typing import Tuple, Optional, TYPE_CHECKING
 from . import gl_utils
+from .viewer import Viewer
 from ..utils import EasyDict
 
 import slideflow as sf
-from slideflow.util import log
 
 if TYPE_CHECKING:
     import pyvips
 
 # -----------------------------------------------------------------------------
 
-class SlideViewer:
+class SlideViewer(Viewer):
 
-    def __init__(
-        self,
-        wsi: sf.WSI,
-        width: int,
-        height: int,
-        bilinear: bool = True,
-        mipmap: bool = True,
-        x_offset: int = 0,
-        y_offset: int = 0,
-        normalizer: sf.norm.StainNormalizer = None
-    ) -> None:
-        self._tex_img       = None
-        self._tex_obj       = None
-        self._normalizer    = normalizer
-        self.origin         = (0, 0)  # WSI origin for the current view.
-        self.view           = None    # Numpy image of current view.
-        self.view_zoom      = None    # Zoom level for the current view.
+    movable = True
+    live    = False
+
+    def __init__(self, wsi: sf.WSI, *args, **kwargs) -> None:
+
+        super().__init__(*args, **kwargs)
+
+        # WSI parameters.
         self.rois           = []
         self.wsi            = wsi
-        self.width          = width
-        self.height         = height
-        self.bilinear       = bilinear
-        self.mipmap         = mipmap
-
-        # Window offset for the display
-        self.x_offset       = x_offset
-        self.y_offset       = y_offset
+        self._tile_px       = wsi.tile_px
+        self._tile_um       = wsi.tile_um
 
         # Create initial display
-        wsi_ratio = self.wsi.dimensions[0] / self.wsi.dimensions[1]
-        max_w, max_h = width, height
-        if wsi_ratio < width / height:
+        wsi_ratio = self.dimensions[0] / self.dimensions[1]
+        max_w, max_h = self.width, self.height
+        if wsi_ratio < self.width / self.height:
             max_w = int(wsi_ratio * max_h)
         else:
             max_h = int(max_w / wsi_ratio)
-        self.view_zoom = max(self.wsi.dimensions[0] / max_w,
-                             self.wsi.dimensions[1] / max_h)
-        self.view_params = self.calculate_view_params()
-        self.refresh_view_full()
-        self.refresh_rois()
+        self.view_zoom = max(self.dimensions[0] / max_w,
+                             self.dimensions[1] / max_h)
+        self.view_params = self._calculate_view_params()
+        self._refresh_view_full()
+        self._refresh_rois()
 
     @property
-    def wsi_window_size(self) -> Tuple[float, float]:
-        """Size of the displayed window, in WSI coordinates."""
-        return (min(self.width * self.view_zoom, self.wsi.dimensions[0]),
-                min(self.height * self.view_zoom, self.wsi.dimensions[1]))
+    def dimensions(self) -> Tuple[int, int]:
+        return self.wsi.dimensions
 
     @property
-    def view_offset(self) -> Tuple[int, int]:
-        """Offset for the displayed thumbnail in the viewer."""
-        if self.view is not None:
-            return ((self.width - self.view.shape[1]) / 2,
-                    (self.height - self.view.shape[0]) / 2)
-        else:
-            return (0, 0)
+    def full_extract_px(self) -> int:
+        return self.wsi.full_extract_px
 
     @staticmethod
-    def process_vips(region: "pyvips.Image") -> np.ndarray:
+    def _process_vips(region: "pyvips.Image") -> np.ndarray:
         """Process a vips image and conver to numpy.
 
         Args:
@@ -91,21 +63,7 @@ class SlideViewer:
             region = region.flatten()
         return sf.slide.vips2numpy(region)
 
-    def _update_texture(self) -> None:
-        """Update the internal Texture object to match a given numpy image."""
-        self._tex_img = self.view
-        if (self._tex_obj is None
-           or not self._tex_obj.is_compatible(image=self._tex_img)):
-            if self._tex_obj is not None:
-                self._tex_obj.delete()
-            self._tex_obj = gl_utils.Texture(
-                image=self._tex_img,
-                bilinear=self.bilinear,
-                mipmap=self.mipmap)
-        else:
-            self._tex_obj.update(self._tex_img)
-
-    def calculate_view_params(
+    def _calculate_view_params(
         self,
         origin: Tuple[float, float] = None
     ) -> EasyDict:
@@ -131,8 +89,8 @@ class SlideViewer:
         # Refresh whole-slide view.
         # Enforce boundary limits.
         origin = [max(origin[0], 0), max(origin[1], 0)]
-        origin = [min(origin[0], self.wsi.dimensions[0] - self.wsi_window_size[0]),
-                            min(origin[1], self.wsi.dimensions[1] - self.wsi_window_size[1])]
+        origin = [min(origin[0], self.dimensions[0] - self.wsi_window_size[0]),
+                            min(origin[1], self.dimensions[1] - self.wsi_window_size[1])]
 
         max_w = self.width
         max_h = self.height
@@ -154,74 +112,7 @@ class SlideViewer:
             target_size=target_size,
         )
 
-    def clear(self):
-        """Remove the displayed image."""
-        self._tex_img = None
-
-    def clear_normalizer(self) -> None:
-        """Clear the internal normalizer, if one exists."""
-        self._normalizer = None
-
-    def display_coords_to_wsi_coords(
-        self,
-        x: int,
-        y: int,
-        offset: bool = True
-    ) -> Tuple[float, float]:
-        """Convert the given coordinates from screen space (with offsets)
-        to WSI space (highest magnification level).
-
-        Args:
-            x (int): X coordinate in display space.
-            y (int): Y coordinate in display space.
-
-        Returns:
-            A tuple containing
-
-                float: x coordinate in WSI space (highest magnification level).
-
-                float: y coordinate in WSI space (highest magnification level).
-        """
-        all_x_offset = self.view_offset[0]
-        all_y_offset = self.view_offset[1]
-        if offset:
-            all_x_offset += self.x_offset
-            all_y_offset += self.y_offset
-        return (
-            (x - all_x_offset) * self.view_zoom + self.origin[0],
-            (y - all_y_offset) * self.view_zoom + self.origin[1]
-        )
-
-    def is_in_view(self, cx: int, cy: int) -> bool:
-        """Checks if the given coordinates (in screen space) are in the active
-        Slide viewer.
-
-        Args:
-            cx (int): X coordinate (without offset).
-            cy (int): Y coordinate (without offset).
-
-        Returns:
-            bool
-        """
-        x_in_view = (self.view_offset[0] <= cx <= (self.view_offset[0] + self.view.shape[1]))
-        y_in_view = (self.view_offset[1] <= cy <= (self.view_offset[1] + self.view.shape[0]))
-        return x_in_view and y_in_view
-
-    def move(self, dx: float, dy: float) -> None:
-        """Move the view in the given directions.
-
-        Args:
-            dx (float): Move the view this many pixels right.
-            dy (float): Move the view this many pixels down.
-        """
-        new_origin = [self.origin[0] - (dx * self.view_zoom),
-                      self.origin[1] - (dy * self.view_zoom)]
-
-        view_params = self.calculate_view_params(new_origin)
-        if view_params != self.view_params:
-            self.refresh_view_fast(view_params=view_params)
-
-    def read_from_pyramid(self, **kwargs) -> np.ndarray:
+    def _read_from_pyramid(self, **kwargs) -> np.ndarray:
         """Read from the Libvips slide pyramid and convert to numpy array.
 
         Keyword args:
@@ -236,9 +127,9 @@ class SlideViewer:
             Numpy image (uint8)
         """
         region = self.wsi.slide.read_from_pyramid(**kwargs)
-        return self.process_vips(region)
+        return self._process_vips(region)
 
-    def refresh_view_fast(self, view_params: EasyDict) -> None:
+    def _refresh_view_fast(self, view_params: EasyDict) -> None:
         """Refresh the slide viewer with the given view parameters.
 
         Performs a fast refresh, where only edge pixels previously out of view
@@ -249,8 +140,9 @@ class SlideViewer:
                 'window_size', and 'target_size'.
         """
         if (view_params.window_size != self.view_params.window_size
-           or view_params.target_size != self.view_params.target_size):
-            self.refresh_view_full(view_params)
+           or view_params.target_size != self.view_params.target_size
+           or self._normalizer):
+            self._refresh_view_full(view_params)
         else:
 
             tl_old = self.view_params.top_left
@@ -306,7 +198,7 @@ class SlideViewer:
                     int(tl_new[1] / target_ds),
                     dx,
                     view_params.target_size[1])
-                new_horizontal = self.process_vips(new_horizontal)
+                new_horizontal = self._process_vips(new_horizontal)
                 new_view[:, None:dx, :] = new_horizontal
             if moved_down:
                 new_vertical = region.crop(
@@ -314,7 +206,7 @@ class SlideViewer:
                     int(tl_new[1] / target_ds),
                     view_params.target_size[0],
                     dy)
-                new_vertical = self.process_vips(new_vertical)
+                new_vertical = self._process_vips(new_vertical)
                 new_view[None:dy, :, :] = new_vertical
             if moved_left:
                 new_horizontal = region.crop(
@@ -322,7 +214,7 @@ class SlideViewer:
                     int(tl_new[1] / target_ds),
                     -dx,
                     view_params.target_size[1])
-                new_horizontal = self.process_vips(new_horizontal)
+                new_horizontal = self._process_vips(new_horizontal)
                 new_view[:, view_params.target_size[0]+dx:None, :] = new_horizontal
             if moved_up:
                 new_vertical = region.crop(
@@ -330,16 +222,16 @@ class SlideViewer:
                     int((tl_new[1] + view_params.window_size[1] + full_dy) / target_ds),
                     view_params.target_size[0],
                     -dy)
-                new_vertical = self.process_vips(new_vertical)
+                new_vertical = self._process_vips(new_vertical)
                 new_view[view_params.target_size[1]+dy:None, :, :] = new_vertical
 
             # Finalize
             self.view = new_view
             self.view_params = view_params
             self.origin = tuple(view_params.top_left)
-            self.refresh_rois()
+            self._refresh_rois()
 
-    def refresh_view_full(self, view_params=None):
+    def _refresh_view_full(self, view_params: Optional[EasyDict] = None):
         """Refresh the slide viewer with the given view parameters.
 
         Performs a full refresh, where all pixels are regenerated by extracting
@@ -355,7 +247,7 @@ class SlideViewer:
         else:
             self.view_params = view_params
 
-        self.view = self.read_from_pyramid(**view_params)
+        self.view = self._read_from_pyramid(**view_params)
 
         # Normalize and finalize
         if self._normalizer:
@@ -367,9 +259,9 @@ class SlideViewer:
             self.clear()
 
         # Refresh ROIs
-        self.refresh_rois()
+        self._refresh_rois()
 
-    def refresh_rois(self) -> None:
+    def _refresh_rois(self) -> None:
         """Refresh the ROIs for the given location and zoom."""
         self.rois = []
         for roi in self.wsi.rois:
@@ -382,8 +274,67 @@ class SlideViewer:
             c[:, 1] = c[:, 1] + self.view_offset[1] + self.y_offset
             self.rois += [c]
 
+    def _render_rois(self) -> None:
+        """Render the ROIs with OpenGL."""
+        for roi in self.rois:
+            gl_utils.draw_roi(roi, color=1, alpha=0.7, linewidth=5)
+            gl_utils.draw_roi(roi, color=0, alpha=1, linewidth=3)
+
+    def read_tile(
+        self,
+        x: int,
+        y: int,
+        img_format: Optional[str] = None,
+        allow_errors: bool = True
+    ) -> np.ndarray:
+
+        decode_jpeg = img_format is not None and img_format.lower() in ('jpg', 'jpeg')
+        try:
+            region = self.wsi.slide.read_region(
+                (x, y),
+                self.wsi.downsample_level,
+                (self.wsi.extract_px, self.wsi.extract_px)
+            )
+        except pyvips.error.Error:
+            if allow_errors:
+                print(f"Tile coordinates {x}, {y} are out of bounds, skipping")
+                return None
+            else:
+                raise
+        if region.bands == 4:
+            region = region.flatten()  # removes alpha
+        if int(self.wsi.tile_px) != int(self.wsi.extract_px):
+            region = region.resize(self.wsi.tile_px/self.wsi.extract_px)
+        if decode_jpeg:
+            return region.jpegsave_buffer()
+        elif img_format in ('png', None):
+            return sf.slide.vips2numpy(region)
+        else:
+            raise ValueError(f"Unknown image format {img_format}")
+
+    def late_render(self):
+        self._render_rois()
+
+    def move(self, dx: float, dy: float) -> None:
+        """Move the view in the given directions.
+
+        Args:
+            dx (float): Move the view this many pixels right.
+            dy (float): Move the view this many pixels down.
+        """
+        new_origin = [self.origin[0] - (dx * self.view_zoom),
+                      self.origin[1] - (dy * self.view_zoom)]
+
+        view_params = self._calculate_view_params(new_origin)
+        if view_params != self.view_params:
+            self._refresh_view_fast(view_params=view_params)
+
+    def refresh_view(self, view_params: Optional[EasyDict] = None) -> None:
+        self._refresh_view_full(view_params)
+
     def render(self, max_w: int, max_h: int) -> None:
         """Render the Slide view display with OpenGL."""
+        super().render()
         if self._tex_img is not self.view:
             self._update_texture()
         if self._tex_obj is not None:
@@ -392,62 +343,13 @@ class SlideViewer:
             zoom = np.floor(zoom) if zoom >= 1 else zoom
             self._tex_obj.draw(pos=pos, zoom=zoom, align=0.5, rint=True)
 
-    def render_rois(self) -> None:
-        """Render the ROIs with OpenGL."""
-        for roi in self.rois:
-            gl_utils.draw_roi(roi, color=1, alpha=0.7, linewidth=5)
-            gl_utils.draw_roi(roi, color=0, alpha=1, linewidth=3)
+    def set_tile_px(self, tile_px: int):
+        if tile_px != self.tile_px:
+            raise NotImplementedError
 
-    def set_normalizer(self, normalizer: sf.norm.StainNormalizer) -> None:
-        """Set the internal WSI normalizer.
-
-        Args:
-            normalizer (sf.norm.StainNormalizer): Stain normalizer.
-        """
-        self._normalizer = normalizer
-
-    def update_offset(self, x_offset: int, y_offset: int) -> None:
-        """Update the window offset.
-
-        Args:
-            x_offset (int): X offset for this Slide viewer in the parent
-                OpenGL frame.
-            y_offset (int): Y offset for this Slide viewer in the parent
-                OpenGL frame.
-        """
-        self.x_offset = x_offset
-        self.y_offset = y_offset
-        self.refresh_view_full()
-
-    def wsi_coords_to_display_coords(
-        self,
-        x: int,
-        y: int,
-        offset: bool = True
-    ) -> Tuple[float, float]:
-        """Convert the given coordinates from WSI (highest magnification level)
-        to screen space (with offsets).
-
-        Args:
-            x (int): X coordinate in WSI space (highest magnification level).
-            y (int): Y coordinate in WSI space (highest magnification level).
-
-        Returns:
-            A tuple containing
-
-                float: x coordinate in display space
-
-                float: y coordinate in display space
-        """
-        all_x_offset = self.view_offset[0]
-        all_y_offset = self.view_offset[1]
-        if offset:
-            all_x_offset += self.x_offset
-            all_y_offset += self.y_offset
-        return (
-            ((x - self.origin[0]) / self.view_zoom) + all_x_offset,
-            ((y - self.origin[1]) / self.view_zoom) + all_y_offset
-        )
+    def set_tile_um(self, tile_um: int):
+        if tile_um != self.tile_um:
+            raise NotImplementedError
 
     def zoom(self, cx: int, cy: int, dz: float) -> None:
         """Zoom the slide display.
@@ -459,11 +361,11 @@ class SlideViewer:
         """
         wsi_x, wsi_y = self.display_coords_to_wsi_coords(cx, cy, offset=False)
         self.view_zoom = min(self.view_zoom * dz,
-                                max(self.wsi.dimensions[0] / self.width,
-                                    self.wsi.dimensions[1] / self.height))
+                                max(self.dimensions[0] / self.width,
+                                    self.dimensions[1] / self.height))
         new_origin = [wsi_x - (cx * self.wsi_window_size[0] / self.width),
                       wsi_y - (cy * self.wsi_window_size[1] / self.height)]
 
-        view_params = self.calculate_view_params(new_origin)
+        view_params = self._calculate_view_params(new_origin)
         if view_params != self.view_params:
-            self.refresh_view_full(view_params=view_params)
+            self._refresh_view_full(view_params=view_params)

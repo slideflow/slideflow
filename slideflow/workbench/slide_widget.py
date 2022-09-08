@@ -8,6 +8,7 @@
 
 import os
 import re
+import cv2
 import imgui
 import numpy as np
 import threading
@@ -18,11 +19,6 @@ from .utils import EasyDict
 from .gui_utils import imgui_utils
 
 import slideflow as sf
-
-#----------------------------------------------------------------------------
-
-def _locate_results(pattern):
-    return pattern
 
 #----------------------------------------------------------------------------
 
@@ -54,7 +50,7 @@ class SlideWidget:
         self._capturing_gs_thresh   = None
         self._capturing_stride      = None
         self._use_rois              = True
-        self._rendering_message = "Calculating tile filter..."
+        self._rendering_message     = "Calculating tile filter..."
         self._all_normalizer_methods = [
             'reinhard',
             'reinhard_fast',
@@ -121,9 +117,6 @@ class SlideWidget:
             if not ignore_errors:
                 raise
 
-    def _clear_images(self):
-        self._overlay_tex_img    = None
-
     def _join_filter_thread(self):
         if self._filter_thread is not None:
             self._filter_thread.join()
@@ -133,6 +126,9 @@ class SlideWidget:
         self._join_filter_thread()
         self._filter_thread = threading.Thread(target=self._build_filter_grid)
         self._filter_thread.start()
+
+    def _clear_images(self):
+        self.viz._overlay_tex_obj = None
 
     def refresh_stride(self):
         self.reset_tile_filter_and_join_thread()
@@ -166,12 +162,12 @@ class SlideWidget:
         assert mask.dtype == bool
         alpha = (~mask).astype(np.uint8) * 255
         black = np.zeros(list(mask.shape) + [3], dtype=np.uint8)
-        self.viz.overlay_heatmap = np.dstack((black, alpha))
+        self.viz.overlay_heatmap = cv2.resize(np.dstack((black, alpha)), (self.viz.viewer.view.shape[1], self.viz.viewer.view.shape[0]))
         if correct_wsi_dim:
             full_extract = int(self.viz.wsi.tile_um / self.viz.wsi.mpp)
             wsi_stride = int(full_extract / self.viz.wsi.stride_div)
-            self.viz._overlay_wsi_dim = (wsi_stride * (mask.shape[1]),
-                                         wsi_stride * (mask.shape[0]))
+            self.viz._overlay_wsi_dim = (wsi_stride * (self.viz.overlay_heatmap.shape[1]),
+                                         wsi_stride * (self.viz.overlay_heatmap.shape[0]))
             self.viz._overlay_offset_wsi_dim = (full_extract/2 - wsi_stride/2, full_extract/2 - wsi_stride/2)
 
         else:
@@ -257,6 +253,8 @@ class SlideWidget:
                 self._render_slide_filter()
 
     def update_slide_filter(self):
+        if not self.viz.wsi:
+            return
         self.viz.wsi.remove_qc()
         self._join_filter_thread()
 
@@ -333,22 +331,22 @@ class SlideWidget:
                     imgui.image(viz._wsi_tex_obj.gl_id, max_width, max_height)
 
                     # Show location overlay
-                    if viz.wsi_window_size and viz._show_control:
+                    if viz.viewer.wsi_window_size and viz._show_control:
                         # Convert from wsi coords to thumbnail coords
                         t_x, t_y = imgui.get_window_position()
                         t_x = t_x + int((width - max_width)/2)
                         t_w_ratio = max_width / viz.wsi.dimensions[0]
                         t_h_ratio = max_height / viz.wsi.dimensions[1]
-                        t_x += viz.wsi_viewer.origin[0] * t_w_ratio
-                        t_y += viz.wsi_viewer.origin[1] * t_h_ratio
+                        t_x += viz.viewer.origin[0] * t_w_ratio
+                        t_y += viz.viewer.origin[1] * t_h_ratio
                         t_y += viz.spacing
 
                         draw_list = imgui.get_overlay_draw_list()
                         draw_list.add_rect(
                             t_x,
                             t_y,
-                            t_x + (viz.wsi_window_size[0] * t_w_ratio),
-                            t_y + (viz.wsi_window_size[1] * t_h_ratio),
+                            t_x + (viz.viewer.wsi_window_size[0] * t_w_ratio),
+                            t_y + (viz.viewer.wsi_window_size[1] * t_h_ratio),
                             imgui.get_color_u32_rgba(0, 0, 0, 1),
                             thickness=2)
 
@@ -438,17 +436,17 @@ class SlideWidget:
             # Normalizing
             _norm_clicked, self.normalize_wsi = imgui.checkbox('Normalize', self.normalize_wsi)
             viz._normalize_wsi = self.normalize_wsi
-            if self.normalize_wsi and viz.wsi_viewer:
-                viz.wsi_viewer.set_normalizer(viz._normalizer)
-            elif viz.wsi_viewer:
-                viz.wsi_viewer.clear_normalizer()
+            if self.normalize_wsi and viz.viewer:
+                viz.viewer.set_normalizer(viz._normalizer)
+            elif viz.viewer:
+                viz.viewer.clear_normalizer()
 
             imgui.same_line(imgui.get_content_region_max()[0] - 1 - viz.font_size*8)
             with imgui_utils.item_width(viz.font_size * 8), imgui_utils.grayed_out(not self.normalize_wsi):
                 _norm_method_clicked, self.norm_idx = imgui.combo("##norm_method", self.norm_idx, self._normalizer_methods_str)
             if _norm_clicked or _norm_method_clicked:
                 self.change_normalizer()
-                viz._refresh_thumb = True
+                viz._refresh_view = True
 
             # Grayspace & whitespace filtering --------------------------------
             with imgui_utils.grayed_out(self._thread_is_running or not self.show_tile_filter):

@@ -6,6 +6,7 @@
 # distribution of this software and related documentation without an express
 # license agreement from NVIDIA CORPORATION is strictly prohibited.
 
+import cv2
 import time
 import sys
 import traceback
@@ -100,7 +101,7 @@ def _decode_jpeg(img, _model_type):
 #----------------------------------------------------------------------------
 
 class Renderer:
-    def __init__(self, device=None):
+    def __init__(self, device=None, buffer=None, extract_px=None, tile_px=None):
         #self._device            = torch.device('cuda')
         self._pkl_data          = dict()    # {pkl: dict | CapturedException, ...}
         self._pinned_bufs       = dict()    # {(shape, dtype): torch.Tensor, ...}
@@ -112,11 +113,17 @@ class Renderer:
         self._uq_thread         = None
         self._model             = None
         self._saliency          = None
+        self._buffer            = buffer
+        self.extract_px         = extract_px
+        self.tile_px            = tile_px
         self.device             = device
 
     @property
     def model_type(self):
-        return model_backend(self._model)
+        if self._model is None:
+            return None
+        else:
+            return model_backend(self._model)
 
     def to_numpy(self, x):
         if self.model_type == 'tensorflow':
@@ -203,90 +210,89 @@ class Renderer:
         use_uncertainty     = False,
         use_saliency        = False,
         normalizer          = None,
-        wsi                 = None,
+        viewer              = None,
+        tile_px = None,
+        full_image = None
     ):
         if x is None or y is None:
             return
-        assert wsi is not None
 
-        res.predictions = None
-        res.uncertainty = None
+        if full_image is not None:
+            img = cv2.resize(full_image, (tile_px, tile_px))
+            res.image = img
+        else:
+            assert viewer is not None
 
-        import pyvips
+            if not self._model:
+                res.message = "Model not loaded"
+                print(res.message)
+                return
 
-        if self.model_type == 'tensorflow':
-            dtype = tf.uint8
-        elif self.model_type == 'torch':
-            dtype = torch.uint8
+            res.predictions = None
+            res.uncertainty = None
 
-        decode_jpeg = img_format is not None and img_format.lower() in ('jpg', 'jpeg')
+            if self.model_type == 'tensorflow':
+                dtype = tf.uint8
+            elif self.model_type == 'torch':
+                dtype = torch.uint8
 
-        try:
-            region = wsi.slide.read_region(
-                (x, y),
-                wsi.downsample_level,
-                (wsi.extract_px, wsi.extract_px)
-            )
-            if region.bands == 4:
-                region = region.flatten()  # removes alpha
-            if int(wsi.tile_px) != int(wsi.extract_px):
-                region = region.resize(wsi.tile_px/wsi.extract_px)
-            if decode_jpeg:
-                img = _decode_jpeg(region.jpegsave_buffer(), self.model_type)
+            use_jpeg = use_model and img_format is not None and img_format.lower() in ('jpg', 'jpeg')
+            img = viewer.read_tile(x, y, img_format='jpg' if use_jpeg else None, allow_errors=True)
+            if img is None:
+                res.message = "Invalid tile location."
+                print(res.message)
+                return
+            if use_jpeg:
+                img = _decode_jpeg(img, self.model_type)
                 if self.model_type == 'torch':
                     res.image = sf.io.torch.cwh_to_whc(img).numpy()
                 res.image = img.numpy()
                 img = sf.io.convert_dtype(img, dtype)
-            elif img_format in ('png', None):
-                res.image = img = sf.slide.vips2numpy(region)
             else:
-                raise ValueError(f"Unknown image format {img_format}")
+                res.image = img
 
-        except pyvips.error.Error:
-            print(f"Tile coordinates {x}, {y} are out of bounds, skipping")
-        else:
-            if use_model:
-                if not self._model:
-                    res.message = "Model not loaded"
-                    return
+        if use_model:
+            if self.model_type == 'tensorflow' and isinstance(img, np.ndarray):
+                proc_img = tf.convert_to_tensor(img)
+            elif isinstance(img, np.ndarray):
+                proc_img = sf.io.torch.whc_to_cwh(torch.from_numpy(img)).to(self.device)
+            else:
+                proc_img = img
 
-                if self.model_type == 'tensorflow' and isinstance(img, np.ndarray):
-                    proc_img = tf.convert_to_tensor(img)
-                elif isinstance(img, np.ndarray):
-                    proc_img = sf.io.torch.whc_to_cwh(torch.from_numpy(img)).to(self.device)
+            # Pre-process image.
+            if normalizer:
+                _norm_start = time.time()
+                proc_img = normalizer.transform(proc_img)
+                if not isinstance(proc_img, np.ndarray):
+                    if self.model_type == 'torch':
+                        res.normalized = sf.io.torch.cwh_to_whc(proc_img).numpy().astype(np.uint8)
+                    else:
+                        res.normalized = proc_img.numpy().astype(np.uint8)
                 else:
-                    proc_img = img
+                    res.normalized = proc_img.astype(np.uint8)
+                res.norm_time = time.time() - _norm_start
+            if self.model_type == 'tensorflow':
+                proc_img = sf.io.tensorflow.preprocess_uint8(proc_img, standardize=True)['tile_image']
+            elif self.model_type == 'torch':
+                proc_img = sf.io.torch.preprocess_uint8(proc_img, standardize=True)
+                if self.device is not None:
+                    proc_img = proc_img.to(self.device)
 
-                # Pre-process image.
-                if normalizer:
-                    proc_img = normalizer.transform(proc_img)
-                    if not isinstance(proc_img, np.ndarray):
-                        if self.model_type == 'torch':
-                            res.normalized = sf.io.torch.cwh_to_whc(proc_img).numpy().astype(np.uint8)
-                        else:
-                            res.normalized = proc_img.numpy().astype(np.uint8)
-                    else:
-                        res.normalized = proc_img.astype(np.uint8)
-                if self.model_type == 'tensorflow':
-                    proc_img = sf.io.tensorflow.preprocess_uint8(proc_img, standardize=True)['tile_image']
-                elif self.model_type == 'torch':
-                    proc_img = sf.io.torch.preprocess_uint8(proc_img, standardize=True)
-                    if self.device is not None:
-                        proc_img = proc_img.to(self.device)
+            # Saliency.
+            if use_saliency:
+                mask = self._saliency.get(self.to_numpy(proc_img), method=saliency_method)
+                if saliency_overlay:
+                    res.image = sf.grad.plot_utils.overlay(res.image, mask)
+                else:
+                    res.image = sf.grad.plot_utils.inferno(mask)
+                if res.image.shape[-1] == 4:
+                    res.image = res.image[:, :, 0:3]
 
-                # Saliency.
-                if use_saliency:
-                    mask = self._saliency.get(self.to_numpy(proc_img), method=saliency_method)
-                    if saliency_overlay:
-                        res.image = sf.grad.plot_utils.overlay(res.image, mask)
-                    else:
-                        res.image = sf.grad.plot_utils.inferno(mask)
-                    if res.image.shape[-1] == 4:
-                        res.image = res.image[:, :, 0:3]
-
-                # Show predictions.
-                predictions, uncertainty = self._classify_img(proc_img, use_uncertainty=use_uncertainty)
-                res.predictions = predictions
-                res.uncertainty = uncertainty
+            # Show predictions.
+            _inference_start = time.time()
+            predictions, uncertainty = self._classify_img(proc_img, use_uncertainty=use_uncertainty)
+            res.inference_time = time.time() - _inference_start
+            res.predictions = predictions
+            res.uncertainty = uncertainty
 
 #----------------------------------------------------------------------------

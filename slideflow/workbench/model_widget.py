@@ -74,6 +74,7 @@ class ModelWidget:
 
     @imgui_utils.scoped_by_object_id
     def __call__(self, show=True):
+
         viz = self.viz
         dim_color = list(imgui.get_style().colors[imgui.COLOR_TEXT])
         dim_color[-1] *= 0.5
@@ -141,17 +142,6 @@ class ModelWidget:
                 if viz._use_uncertainty and viz._uncertainty is not None:
                     pred_str += " (UQ: {:.4f})".format(viz._uncertainty)
                 imgui.text(pred_str)
-            if viz._gan_config is not None and 'slideflow_kwargs' in viz._gan_config:
-                sf_kw = viz._gan_config['slideflow_kwargs']
-                if 'outcome_labels' in sf_kw:
-                    latent_idx = viz.latent_widget.class_idx
-                    if latent_idx >= 0 and str(latent_idx) in sf_kw['outcome_labels']:
-                        imgui.text("Latent class: {} ({})".format(
-                            sf_kw['outcome_labels'][str(latent_idx)],
-                            latent_idx
-                        ))
-                    else:
-                        imgui.text("Latent class: -")
 
             # Image preview ===================================================
             width = viz.font_size * 28

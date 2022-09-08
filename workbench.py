@@ -9,8 +9,8 @@ from os.path import dirname, realpath
 @click.option('--browse-dir', help='Specify model path for the \'Browse...\' button', metavar='PATH')
 @click.option('--model', help='Classifier network for categorical predictions.', metavar='PATH')
 @click.option('--project', '-p', help='Slideflow project.', metavar='PATH')
-@click.option('--low_memory', '-lm', help='Low memory mode.', metavar=bool)
-@click.option('--picam', help='Enable Picamera2.', metavar=bool)
+@click.option('--low_memory', '-l', is_flag=True, help='Low memory mode.', metavar=bool)
+@click.option('--picam', is_flag=True, help='Enable Picamera2.', metavar=bool)
 def main(
     slide,
     browse_dir,
