@@ -707,8 +707,10 @@ class DatasetFeatures:
             self.logits = loaded_pkl[1]
             self.uncertainty = loaded_pkl[2]
             self.locations = loaded_pkl[3]
-            self.num_features = self.activations[self.slides[0]].shape[-1]
-            self.num_logits = self.logits[self.slides[0]].shape[-1]
+            if self.activations:
+                self.num_features = self.activations[self.slides[0]].shape[-1]
+            if self.logits:
+                self.num_logits = self.logits[self.slides[0]].shape[-1]
 
     def stats(
         self,
