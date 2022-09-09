@@ -91,7 +91,7 @@ def _reduce_dropout_preds_tf(yp_drop, num_outcomes, stack=True):
 
 
 def _decode_jpeg(img, _model_type):
-    if _model_type == 'tensorflow':
+    if _model_type in ('tensorflow', 'tflite'):
         return tf.image.decode_jpeg(img, channels=3)
     else:
         np_data = torch.from_numpy(np.fromstring(img, dtype=np.uint8))
@@ -126,7 +126,7 @@ class Renderer:
             return model_backend(self._model)
 
     def to_numpy(self, x):
-        if self.model_type == 'tensorflow':
+        if self.model_type in ('tensorflow', 'tflite'):
             return x.numpy()
         else:
             return x.cpu().detach().numpy()
@@ -154,7 +154,7 @@ class Renderer:
 
     def _calc_preds_and_uncertainty(self, img, uq_n=30):
 
-        if self.model_type == 'tensorflow':
+        if self.model_type in ('tensorflow', 'tflite'):
             yp = self._model(tf.repeat(img, repeats=uq_n, axis=0), training=False)
             reduce_fn = _reduce_dropout_preds_tf
         else:
@@ -185,20 +185,27 @@ class Renderer:
         Returns:
             Predictions, Uncertainty
         """
-        if self.model_type == 'tensorflow':
+        if self.model_type in ('tensorflow', 'tflite'):
             img = tf.expand_dims(img, axis=0)
         elif self.model_type == 'torch':
             img = torch.unsqueeze(img, dim=0)
 
         if use_uncertainty:
             return self._calc_preds_and_uncertainty(img)
+        elif self.model_type == 'tflite':
+            sig_name = list(self._model._inputs.keys())[0]
+            preds = self._model(**{sig_name: img})['output']
+            if isinstance(preds, list):
+                preds = [p[0] for p in preds]
+            else:
+                preds = preds[0]
         else:
             preds = self._model(img)
             if isinstance(preds, list):
                 preds = [self.to_numpy(p[0]) for p in preds]
             else:
                 preds = self.to_numpy(preds[0])
-            return preds, None
+        return preds, None
 
     def _render_impl(self, res,
         x                   = 0,
@@ -231,7 +238,7 @@ class Renderer:
             res.predictions = None
             res.uncertainty = None
 
-            if self.model_type == 'tensorflow':
+            if self.model_type in ('tensorflow', 'tflite'):
                 dtype = tf.uint8
             elif self.model_type == 'torch':
                 dtype = torch.uint8
@@ -252,7 +259,7 @@ class Renderer:
                 res.image = img
 
         if use_model:
-            if self.model_type == 'tensorflow' and isinstance(img, np.ndarray):
+            if self.model_type in ('tensorflow', 'tflite') and isinstance(img, np.ndarray):
                 proc_img = tf.convert_to_tensor(img)
             elif isinstance(img, np.ndarray):
                 proc_img = sf.io.torch.whc_to_cwh(torch.from_numpy(img)).to(self.device)
@@ -271,7 +278,7 @@ class Renderer:
                 else:
                     res.normalized = proc_img.astype(np.uint8)
                 res.norm_time = time.time() - _norm_start
-            if self.model_type == 'tensorflow':
+            if self.model_type in ('tensorflow', 'tflite'):
                 proc_img = sf.io.tensorflow.preprocess_uint8(proc_img, standardize=True)['tile_image']
             elif self.model_type == 'torch':
                 proc_img = sf.io.torch.preprocess_uint8(proc_img, standardize=True)

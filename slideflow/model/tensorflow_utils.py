@@ -256,7 +256,7 @@ def get_uq_predictions(
 
 def unwrap(
     model: tf.keras.models.Model
-):
+) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor]:
     """Unwraps a Tensorflow model built in Slideflow, returning the
     input tensor, post-convolutional output tensor, and final model output
     tensor.
@@ -281,6 +281,15 @@ def unwrap(
         x = extracted_layer(x)
 
     return submodel.inputs, postconv, x
+
+
+def flatten(
+    model: tf.keras.models.Model
+) -> tf.keras.models.Model:
+    """Unwrapped then flattens a Tensorflow model."""
+
+    inputs, _, outputs = unwrap(model)
+    return tf.keras.models.Model(inputs=inputs, outputs=outputs)
 
 
 def eval_from_model(

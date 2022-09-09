@@ -42,12 +42,16 @@ def _load_model_and_saliency(model_path, device=None):
         _model.eval()
         if device is not None:
             _model = _model.to(device)
+        _saliency = sf.grad.SaliencyMap(_model, class_idx=0)  #TODO: auto-update from heatmaps logit
+    elif sf.util.tf_available and sf.util.path_to_ext(model_path) == 'tflite':
+        interpreter = tf.lite.Interpreter(model_path)
+        _model = interpreter.get_signature_runner()
+        _saliency = sf.grad.SaliencyMap(_model, class_idx=0)  #TODO: auto-update from heatmaps logit
     elif sf.util.tf_available:
         _model = sf.model.tensorflow.load(model_path, method='weights')
+        _saliency = None
     else:
         raise ValueError(f"Unable to interpret model {model_path}")
-
-    _saliency = sf.grad.SaliencyMap(_model, class_idx=0)  #TODO: auto-update from heatmaps logit
     return _model, _saliency
 
 #----------------------------------------------------------------------------

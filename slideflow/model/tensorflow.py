@@ -20,7 +20,7 @@ from packaging import version
 from slideflow import errors
 from slideflow.model import tensorflow_utils as tf_utils
 from slideflow.model.base import log_manifest, no_scope
-from slideflow.model.tensorflow_utils import unwrap  # type: ignore
+from slideflow.model.tensorflow_utils import unwrap, flatten  # type: ignore
 from slideflow.util import log, NormFit
 
 import tensorflow as tf

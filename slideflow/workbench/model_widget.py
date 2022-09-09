@@ -34,7 +34,7 @@ class ModelWidget:
         self.search_dirs        = []
         self.cur_model          = None
         self.user_model         = ''
-        self.backend      = None
+        self.backend            = 'Unknown'
         self.recent_models      = []
         self.browse_cache       = dict()
         self.browse_refocus     = False

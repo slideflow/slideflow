@@ -189,6 +189,9 @@ def model_backend(model):
         import tensorflow as tf
         if isinstance(model, tf.keras.Model):
             return 'tensorflow'
+        from tensorflow.lite.python.interpreter import SignatureRunner
+        if isinstance(model, SignatureRunner):
+            return 'tflite'
     raise ValueError(f"Unable to interpret model {model}")
 
 def detuple(arg1: Any, args: tuple) -> Any:
