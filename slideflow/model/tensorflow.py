@@ -9,7 +9,7 @@ import os
 import shutil
 from os.path import dirname, exists, join
 from types import SimpleNamespace
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union, Callable
 
 import numpy as np
 import multiprocessing as mp
@@ -2005,6 +2005,7 @@ class Features:
         layers: Optional[Union[str, List[str]]] = 'postconv',
         include_logits: bool = False,
         load_method: str = 'full',
+        pooling: Optional[Any] = None
     ) -> None:
         """Creates a features interface from a saved slideflow model which
         outputs feature activations at the designated layers.
@@ -2049,7 +2050,7 @@ class Features:
                 else:
                     self.wsi_normalizer.set_fit(**config['norm_fit'])
             self._build(
-                layers=layers, include_logits=include_logits  # type: ignore
+                layers=layers, include_logits=include_logits, pooling=pooling  # type: ignore
             )
 
     @classmethod
@@ -2058,7 +2059,8 @@ class Features:
         model: tf.keras.Model,
         layers: Optional[Union[str, List[str]]] = 'postconv',
         include_logits: bool = False,
-        wsi_normalizer: Optional["StainNormalizer"] = None
+        wsi_normalizer: Optional["StainNormalizer"] = None,
+        pooling: Optional[Any] = None
     ):
         """Creates a features interface from a loaded slideflow model which
         outputs feature activations at the designated layers.
@@ -2084,7 +2086,7 @@ class Features:
             raise errors.ModelError(f"Model {model} is not a valid Tensorflow "
                                     "model.")
         obj._build(
-            layers=layers, include_logits=include_logits  # type: ignore
+            layers=layers, include_logits=include_logits, pooling=pooling  # type: ignore
         )
         obj.wsi_normalizer = wsi_normalizer
         return obj
@@ -2264,11 +2266,22 @@ class Features:
     def _build(
         self,
         layers: Optional[Union[str, List[str]]],
-        include_logits: bool = True
+        include_logits: bool = True,
+        pooling: Optional[Any] = None
     ) -> None:
         """Builds the interface model that outputs feature activations at the
         designated layers and/or logits. Intermediate layers are returned in
         the order of layers. Logits are returned last."""
+
+        if isinstance(pooling, str):
+            if pooling == 'avg':
+                pooling = tf.keras.layers.GlobalAveragePooling2D
+            elif pooling == 'max':
+                pooling = tf.keras.layers.GlobalMaxPool2D
+            else:
+                raise ValueError(f"Unrecognized pooling value {pooling}. "
+                                 "Expected 'avg', 'max', or Keras layer.")
+
         if layers and not isinstance(layers, list):
             layers = [layers]
         if layers:
@@ -2278,6 +2291,12 @@ class Features:
                       f"{', '.join(layers)}")
         else:
             layers = []
+
+        def pool_if_3d(tensor):
+            if pooling is not None and len(tensor.shape) == 4:
+                return pooling()(tensor)
+            else:
+                return tensor
 
         # Find the desired layers
         outputs = {}
@@ -2291,7 +2310,7 @@ class Features:
             intermediate_core = tf.keras.models.Model(
                 inputs=self._model.layers[1].input,
                 outputs=[
-                    self._model.layers[1].get_layer(il).output
+                    pool_if_3d(self._model.layers[1].get_layer(il).output)
                     for il in inner_layers
                 ]
             )
@@ -2335,10 +2354,18 @@ class UncertaintyInterface(Features):
     def __init__(
         self,
         path: Optional[str],
-        layers: Optional[Union[str, List[str]]] = None
+        layers: Optional[Union[str, List[str]]] = None,
+        load_method: str = 'full',
+        pooling: Optional[Any] = None
     ) -> None:
         log.debug('Setting up UncertaintyInterface')
-        super().__init__(path, layers=layers, include_logits=True)
+        super().__init__(
+            path,
+            layers=layers,
+            include_logits=True,
+            load_method=load_method,
+            pooling=pooling
+        )
         # TODO: As the below to-do suggests, this should be updated
         # for multi-class
         self.num_uncertainty = 1
@@ -2352,6 +2379,7 @@ class UncertaintyInterface(Features):
         model: tf.keras.Model,
         layers: Optional[Union[str, List[str]]] = None,
         wsi_normalizer: Optional["StainNormalizer"] = None,
+        pooling: Optional[Any] = None
     ):
         obj = cls(None, layers)
         if isinstance(model, tf.keras.models.Model):
@@ -2360,7 +2388,7 @@ class UncertaintyInterface(Features):
             raise errors.ModelError(f"Model {model} is not a valid Tensorflow "
                                     "model.")
         obj._build(
-            layers=layers, include_logits=True  # type: ignore
+            layers=layers, include_logits=True, pooling=pooling  # type: ignore
         )
         obj.wsi_normalizer = wsi_normalizer
         return obj

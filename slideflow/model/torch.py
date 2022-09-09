@@ -1835,7 +1835,8 @@ class Features:
         include_logits: bool = False,
         mixed_precision: bool = True,
         device: Optional[torch.device] = None,
-        apply_softmax: bool = True
+        apply_softmax: bool = True,
+        pooling: Optional[Any] = None
     ):
         """Creates an activations interface from a saved slideflow model which
         outputs feature activations at the designated layers.
@@ -1893,7 +1894,7 @@ class Features:
                 self.model_type = self._model.model.__class__.__name__
             else:
                 self.model_type = self._model.__class__.__name__
-            self._build()
+            self._build(pooling=pooling)
 
     @classmethod
     def from_model(
@@ -1904,7 +1905,8 @@ class Features:
         include_logits: bool = False,
         mixed_precision: bool = True,
         wsi_normalizer: Optional["StainNormalizer"] = None,
-        apply_softmax: bool = True
+        apply_softmax: bool = True,
+        pooling: Optional[Any] = None
     ):
         """Creates an activations interface from a loaded slideflow model which
         outputs feature activations at the designated layers.
@@ -1943,7 +1945,7 @@ class Features:
         obj.tile_px = tile_px
         obj.wsi_normalizer = wsi_normalizer
         obj.apply_softmax = apply_softmax
-        obj._build()
+        obj._build(pooling=pooling)
         return obj
 
     def __call__(
@@ -2131,16 +2133,31 @@ class Features:
             return squeeze(pool(output))
         return output
 
-    def _build(self) -> None:
+    def _build(self, pooling: Optional[Any] = None) -> None:
         """Builds the interface model that outputs feature activations at the
         designated layers and/or logits. Intermediate layers are returned in
         the order of layers. Logits are returned last."""
 
+        if isinstance(pooling, str):
+            if pooling == 'avg':
+                pooling = lambda x: torch.nn.functional.adaptive_avg_pool2d(x, (1, 1))
+            elif pooling == 'max':
+                pooling = lambda x: torch.nn.functional.adaptive_max_pool2d(x, (1, 1))
+            else:
+                raise ValueError(f"Unrecognized pooling value {pooling}. "
+                                 "Expected 'avg', 'max', or custom Tensor op.")
+
         self.activation = {}
+
+        def squeeze(x):
+            return x.view(x.size(0), -1)
 
         def get_activation(name):
             def hook(model, input, output):
-                self.activation[name] = output.detach()
+                if len(output.shape) == 4 and pooling is not None:
+                    self.activation[name] = squeeze(pooling(output)).detach()
+                else:
+                    self.activation[name] = output.detach()
             return hook
 
         if isinstance(self.layers, list):
