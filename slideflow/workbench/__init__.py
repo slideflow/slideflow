@@ -1,9 +1,11 @@
+import os
 import time
 import multiprocessing
 import numpy as np
 import imgui
 import OpenGL.GL as gl
 
+from os.path import join, exists
 from slideflow.workbench.gui_utils import imgui_window
 from slideflow.workbench.gui_utils import imgui_utils
 from slideflow.workbench.gui_utils import gl_utils
@@ -35,8 +37,50 @@ if sf.util.torch_available:
 
 #----------------------------------------------------------------------------
 
+def _load_umap_encoders(path, model) -> EasyDict:
+    import tensorflow as tf
+
+    layers = [d for d in os.listdir(path) if os.path.isdir(join(path, d))]
+    log.debug("Layers found at path {} in _load_umap_encoders: {}".format(path, layers))
+    features = sf.model.Features.from_model(
+        model,
+        include_logits=True,
+        layers=layers,
+        pooling='avg'
+    )
+
+    outputs = []
+    for i, layer in enumerate(layers):
+        # Add outputs for each UMAP encoder
+        encoder = tf.keras.models.load_model(join(path, layer, 'encoder'))
+        encoder._name = f'{layer}_encoder'
+        outputs += [encoder(features.model.outputs[i])]
+
+    # Add the logits output
+    outputs += [features.model.outputs[-1]]
+
+    # Build the encoder model for all layers
+    encoder_model = tf.keras.models.Model(
+        inputs=features.model.input,
+        outputs=outputs
+    )
+    return EasyDict(
+        encoder=encoder_model,
+        layers=layers,
+        range={
+            layer: np.load(join(path, layer, 'range_clip.npz'))['range']
+            for layer in layers
+        },
+        clip={
+            layer: np.load(join(path, layer, 'range_clip.npz'))['clip']
+            for layer in layers
+        }
+    )
+
+
 def _load_model_and_saliency(model_path, device=None):
     log.debug("Loading model at {}...".format(model_path))
+    _umap_encoders = None
     if sf.util.torch_available and sf.util.path_to_ext(model_path) == 'zip':
         _model = sf.model.torch.load(model_path)
         _model.eval()
@@ -46,13 +90,14 @@ def _load_model_and_saliency(model_path, device=None):
     elif sf.util.tf_available and sf.util.path_to_ext(model_path) == 'tflite':
         interpreter = tf.lite.Interpreter(model_path)
         _model = interpreter.get_signature_runner()
-        _saliency = sf.grad.SaliencyMap(_model, class_idx=0)  #TODO: auto-update from heatmaps logit
     elif sf.util.tf_available:
         _model = sf.model.tensorflow.load(model_path, method='weights')
-        _saliency = None
+        _saliency = sf.grad.SaliencyMap(_model, class_idx=0)  #TODO: auto-update from heatmaps logit
+        if exists(join(model_path, 'umap_encoders')):
+            _umap_encoders = _load_umap_encoders(join(model_path, 'umap_encoders'), _model)
     else:
         raise ValueError(f"Unable to interpret model {model_path}")
-    return _model, _saliency
+    return _model, _saliency, _umap_encoders
 
 #----------------------------------------------------------------------------
 
@@ -418,6 +463,7 @@ class Workbench(imgui_window.ImguiWindow):
 
     def _draw_menu_bar(self):
         if imgui.begin_main_menu_bar():
+            # --- File --------------------------------------------------------
             if imgui.begin_menu('File', True):
                 imgui.menu_item('Open Project...', 'Ctrl+P')
                 imgui.menu_item('Load Slide...', 'Ctrl+O')
@@ -435,11 +481,19 @@ class Workbench(imgui_window.ImguiWindow):
                     self.close_slide(True)
                 if imgui.menu_item('Close Model')[1]:
                     self.close_model(True)
+
+                # Widgets with "File" menu.
+                for w in self.widgets:
+                    if hasattr(w, 'file_menu_options'):
+                        imgui.separator()
+                        w.file_menu_options()
+
                 imgui.separator()
                 if imgui.menu_item('Exit', 'Ctrl+Q')[1]:
                     self._exit_trigger = True
                 imgui.end_menu()
 
+            # --- View --------------------------------------------------------
             if imgui.begin_menu('View', True):
                 if imgui.menu_item('Fullscreen', 'Ctrl+F')[1]:
                     self.toggle_fullscreen()
@@ -453,11 +507,26 @@ class Workbench(imgui_window.ImguiWindow):
                 if imgui.menu_item('Toggle tile preview')[1]:
                     self._show_tile_preview = not self._show_tile_preview
                 imgui.menu_item('Toggle camera view')
+
+                # Widgets with "View" menu.
+                for w in self.widgets:
+                    if hasattr(w, 'view_menu_options'):
+                        imgui.separator()
+                        w.view_menu_options()
+
                 imgui.end_menu()
 
+            # --- Help --------------------------------------------------------
             if imgui.begin_menu('Help', True):
                 imgui.menu_item('Get Started')
                 imgui.menu_item('Documentation')
+
+                # Widgets with "Help" menu.
+                for w in self.widgets:
+                    if hasattr(w, 'help_menu_options'):
+                        imgui.separator()
+                        w.help_menu_options()
+
                 imgui.separator()
                 imgui.menu_item('Release Notes')
                 imgui.menu_item('Report Issue')
@@ -485,11 +554,6 @@ class Workbench(imgui_window.ImguiWindow):
                     self._wsi_tex_obj = gl_utils.Texture(image=self._wsi_tex_img, bilinear=True, mipmap=True)
                 else:
                     self._wsi_tex_obj.update(self._wsi_tex_img)
-
-        # Render user widgets.
-        for widget in self.widgets:
-            if hasattr(widget, 'render'):
-                widget.render()
 
         # Display rendered (non-transparent) heatmap in widget.
         # Render overlay heatmap.
@@ -854,6 +918,11 @@ class Workbench(imgui_window.ImguiWindow):
                 pred_str = f'{self._predictions[0]:.2f}'
             self._render_prediction_message(pred_str)
 
+        # Render user widgets.
+        for widget in self.widgets:
+            if hasattr(widget, 'render'):
+                widget.render()
+
         # End frame.
         if self._should_close_model:
             self.close_model(True)
@@ -878,6 +947,7 @@ class AsyncRenderer:
         self._model_path    = None
         self._model         = None
         self._saliency      = None
+        self._umap_encoders = None
         self._live_updates  = False
         self.tile_px        = None
         self.extract_px     = None
@@ -956,9 +1026,10 @@ class AsyncRenderer:
             self._model_path = model_path
             if self._renderer_obj is None:
                 self._renderer_obj = renderer.Renderer(device=self.device)
-            self._model, self._saliency = _load_model_and_saliency(self._model_path, device=self.device)
+            self._model, self._saliency, self._umap_encoders = _load_model_and_saliency(self._model_path, device=self.device)
             self._renderer_obj._model = self._model
             self._renderer_obj._saliency = self._saliency
+            self._renderer_obj._umap_encoders = self._umap_encoders
 
     def clear_model(self):
         self._model_path = None
@@ -974,18 +1045,20 @@ class AsyncRenderer:
             device = None
         renderer_obj = renderer.Renderer(device=device)
         if model_path:
-            _model, _saliency = _load_model_and_saliency(model_path, device=device)
+            _model, _saliency, _umap_encoders = _load_model_and_saliency(model_path, device=device)
             renderer_obj._model = _model
             renderer_obj._saliency = _saliency
+            renderer_obj._umap_encoders = _umap_encoders
         cur_args = None
         cur_stamp = None
         while True:
             while args_queue.qsize() > 0:
                 args, stamp = args_queue.get()
                 if 'load_model' in args:
-                    _model, _saliency = _load_model_and_saliency(args['load_model'], device=device)
+                    _model, _saliency, _umap_encoders = _load_model_and_saliency(args['load_model'], device=device)
                     renderer_obj._model = _model
                     renderer_obj._saliency = _saliency
+                    renderer_obj._umap_encoders = _umap_encoders
                 if 'quit' in args:
                     return
             # if ((args != cur_args or stamp != cur_stamp)

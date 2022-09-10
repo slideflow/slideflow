@@ -98,6 +98,12 @@ def _decode_jpeg(img, _model_type):
         return torchvision.io.decode_image(np_data)
 
 
+def _umap_normalize(vector, clip_min, clip_max, norm_min, norm_max):
+    vector = np.clip(vector, clip_min, clip_max)
+    vector -= norm_min
+    vector /= (norm_max - norm_min)
+    return vector
+
 #----------------------------------------------------------------------------
 
 class Renderer:
@@ -117,6 +123,7 @@ class Renderer:
         self.extract_px         = extract_px
         self.tile_px            = tile_px
         self.device             = device
+        self._umap_encoders     = None
 
     @property
     def model_type(self):
@@ -124,6 +131,12 @@ class Renderer:
             return None
         else:
             return model_backend(self._model)
+
+    def process_tf_preds(self, preds):
+        if isinstance(preds, list):
+            return [self.to_numpy(p[0]) for p in preds]
+        else:
+            return self.to_numpy(preds[0])
 
     def to_numpy(self, x):
         if self.model_type in ('tensorflow', 'tflite'):
@@ -201,10 +214,7 @@ class Renderer:
                 preds = preds[0]
         else:
             preds = self._model(img)
-            if isinstance(preds, list):
-                preds = [self.to_numpy(p[0]) for p in preds]
-            else:
-                preds = self.to_numpy(preds[0])
+            preds = self.process_tf_preds(preds)
         return preds, None
 
     def _render_impl(self, res,
@@ -218,12 +228,12 @@ class Renderer:
         use_saliency        = False,
         normalizer          = None,
         viewer              = None,
-        tile_px = None,
-        full_image = None
+        tile_px             = None,
+        full_image          = None,
+        use_umap_encoders   = False
     ):
         if x is None or y is None:
             return
-
         if full_image is not None:
             img = cv2.resize(full_image, (tile_px, tile_px))
             res.image = img
@@ -285,6 +295,7 @@ class Renderer:
                 if self.device is not None:
                     proc_img = proc_img.to(self.device)
 
+
             # Saliency.
             if use_saliency:
                 mask = self._saliency.get(self.to_numpy(proc_img), method=saliency_method)
@@ -297,9 +308,22 @@ class Renderer:
 
             # Show predictions.
             _inference_start = time.time()
-            predictions, uncertainty = self._classify_img(proc_img, use_uncertainty=use_uncertainty)
+            if use_umap_encoders:
+                u = self._umap_encoders
+                encoder_out = u.encoder(tf.expand_dims(proc_img, axis=0))
+                res.umap_coords = {}
+                for i, layer in enumerate(u.layers):
+                    res.umap_coords[layer] = _umap_normalize(
+                        encoder_out[i],
+                        clip_min=u.clip[layer][0],
+                        clip_max=u.clip[layer][1],
+                        norm_min=u.range[layer][0],
+                        norm_max=u.range[layer][1]
+                    )[0]
+                res.predictions = self.process_tf_preds(encoder_out[-1])
+                res.uncertainty = None
+            else:
+                res.predictions, res.uncertainty = self._classify_img(proc_img, use_uncertainty=use_uncertainty)
             res.inference_time = time.time() - _inference_start
-            res.predictions = predictions
-            res.uncertainty = uncertainty
 
 #----------------------------------------------------------------------------

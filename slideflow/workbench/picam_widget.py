@@ -1,11 +1,7 @@
-import ctypes
-import numpy as np
 import imgui
-import multiprocessing as mp
-import multiprocessing.sharedctypes
 from picamera2 import Picamera2
 from picamera2.previews import NullPreview
-from typing import Tuple, Optional
+from typing import Tuple
 
 from .gui_utils import gl_utils, imgui_utils
 from .gui_utils.viewer import Viewer
@@ -166,7 +162,6 @@ class PicamViewer(Viewer):
             off_y = int((max_h - img.shape[0]) / 2)
             h_pos = (self.x_offset + off_x, self.y_offset + off_y)
             self._tex_obj.draw(pos=h_pos, zoom=1, align=0.5, rint=True, anchor='topleft')
-
 
 class PicamWidget:
     def __init__(self, viz):

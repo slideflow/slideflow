@@ -1,8 +1,10 @@
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
+import pickle
 import numpy as np
 import pandas as pd
 import slideflow as sf
+from os.path import join
 from mpl_toolkits.mplot3d import Axes3D
 from pandas.core.frame import DataFrame
 from sklearn.cluster import KMeans
@@ -11,6 +13,7 @@ from slideflow.stats.stats_utils import calculate_centroid, normalize_layout
 from slideflow.util import log
 
 if TYPE_CHECKING:
+    import umap
     from matplotlib.axes import Axes
     from matplotlib.figure import Figure
     from slideflow.model import DatasetFeatures
@@ -26,8 +29,9 @@ class SlideMap:
 
     def __init__(
         self,
-        slides: List[str],
-        cache: Optional[str] = None
+        slides: Optional[List[str]] = None,
+        cache: Optional[str] = None,
+        parametric_umap: bool = False
     ) -> None:
         """Backend for mapping slides into two dimensional space. Can use a
         DatasetFeatures object to map slides according to UMAP of features, or
@@ -38,14 +42,22 @@ class SlideMap:
             cache (str, optional): Path to PKL file to cache activations.
                 Defaults to None (caching disabled).
         """
+        if slides is None and cache is None:
+            raise ValueError("Argument `slides` required if cache not provided")
 
-        self.slides = slides
-        self.cache = cache
-        self.df = None  # type: Optional[DatasetFeatures]
         self.data = None  # type: DataFrame
-        self.map_meta = {}  # type: Dict[str, Any]
+        self.cache = cache
         if self.cache:
-            self.load_cache()
+            if self.load_cache() and slides is None:
+                slides = self.data.slide.unique()
+            elif slides is None:
+                raise ValueError(f"Unable to load from cache: {cache}.")
+        self.slides = slides
+        self.df = None  # type: Optional[DatasetFeatures]
+        self.parametric_umap = parametric_umap
+        self._umap_normalized_range = None
+        self.map_meta = {}  # type: Dict[str, Any]
+
 
     @classmethod
     def from_precalculated(
@@ -55,7 +67,8 @@ class SlideMap:
         slides: Union[np.ndarray, List[str], str],
         tfr_index: Union[np.ndarray, List[int], str],
         data: Optional[DataFrame] = None,
-        cache: Optional[str] = None
+        cache: Optional[str] = None,
+        parametric_umap: bool = False
     ) -> "SlideMap":
         """Initializes map from precalculated coordinates.
 
@@ -108,6 +121,7 @@ class SlideMap:
         obj = cls(obj_data.slide.unique())
         obj.data = obj_data
         obj.cache = cache
+        obj.parametric_umap = parametric_umap
         obj.save_cache()
         return obj
 
@@ -119,6 +133,7 @@ class SlideMap:
         recalculate: bool = False,
         map_slide: Optional[str] = None,
         cache: Optional[str] = None,
+        parametric_umap: bool = False,
         umap_dim: int = 2,
         umap: Optional[Any] = None,
         **umap_kwargs: Any
@@ -153,6 +168,7 @@ class SlideMap:
         obj = cls(slides, cache=cache)
         obj.df = df
         obj.umap = umap  # type: ignore
+        obj.parametric_umap = parametric_umap
         if map_slide:
             obj._calculate_from_slides(
                 method=map_slide,
@@ -523,7 +539,8 @@ class SlideMap:
         if not len(array):
             raise errors.StatsError("Unable to perform UMAP on empty array.")
         if self.umap is None:  # type: ignore
-            self.umap = umap.UMAP(
+            fn = umap.UMAP if not self.parametric_umap else umap.ParametricUMAP
+            self.umap = fn(
                 n_components=dim,
                 verbose=(sf.getLoggingLevel() <= 20),
                 n_neighbors=n_neighbors,
@@ -532,7 +549,10 @@ class SlideMap:
                 **kwargs
             )
         layout = self.umap.fit_transform(array)  # type: ignore
-        return normalize_layout(layout)
+        (normalized,
+         self._umap_normalized_range,
+         self._umap_normalized_clip) = normalize_layout(layout)
+        return normalized
 
     def label_by_uncertainty(self, index: int = 0) -> None:
         """Labels each point with the tile-level uncertainty, if available.
@@ -812,6 +832,40 @@ class SlideMap:
             self.data.to_parquet(path)
             log.info(f"Wrote slide map cache to [green]{path}")
 
+    def save_umap(self, path: str) -> None:
+        """Save cache of UMAP to PKL file.
+
+        Args:
+            path (str, optional): Save cache to this location. If None,
+                will use `self.cache`.
+        """
+        if self.parametric_umap:
+            self.umap.save(path)
+        else:
+            with open(path, 'wb') as f:
+                pickle.dump(self.umap, f)
+                log.info(f"Wrote UMAP cache to [green]{path}")
+
+    def save_encoder(self, path: str) -> None:
+        """Save Parametric UMAP encoder."""
+        if not self.parametric_umap:
+            raise ValueError("SlideMap not built with Parametric UMAP.")
+        self.umap.encoder.save(join(path, 'encoder'))
+        self.save_cache(join(path, 'slidemap.parquet'))
+        np.savez(
+            join(path, 'range_clip.npz'),
+            range=self._umap_normalized_range,
+            clip=self._umap_normalized_clip)
+
+    def load_umap(self, path: str) -> "umap.UMAP":
+        if self.parametric_umap:
+            from umap.parametric_umap import load_ParametricUMAP
+            self.umap = load_ParametricUMAP(path)
+        else:
+            with open(path, 'rb') as f:
+                self.umap = pickle.load(f)
+                log.info(f"Loaded UMAP cache from [green]{path}")
+
     def load_cache(self, path: Optional[str] = None) -> bool:
         """Load coordinates from PKL cache.
 
@@ -828,10 +882,10 @@ class SlideMap:
             raise errors.SlideMapError("No cache set or given.")
         try:
             self.data = pd.read_parquet(path)
-            log.info(f"Loaded UMAP cache from [green]{path}")
+            log.info(f"Loaded slide map cache from [green]{path}")
             return True
         except FileNotFoundError:
-            log.info(f"No UMAP cache found at [green]{path}")
+            log.info(f"No slide map cache found at [green]{path}")
         except Exception:
             log.error(
                 f"Error loading slide map cache at [green]{path}[/], "
