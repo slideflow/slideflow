@@ -157,6 +157,8 @@ class SlideViewer(Viewer):
             full_dy = tl_old[1] - tl_new[1]
             dx = int(full_dx / target_ds)
             dy = int(full_dy / target_ds)
+            full_dx = dx * target_ds
+            full_dy = dy * target_ds
 
             moved_right = dx > 0
             moved_down = dy > 0

@@ -866,6 +866,11 @@ class Workbench(imgui_window.ImguiWindow):
             self.args.viewer = self.viewer
         # ---------------------------------------------------------------------
 
+        # Render user widgets.
+        for widget in self.widgets:
+            if hasattr(widget, 'render'):
+                widget.render()
+
         if self.is_skipping_frames():
             pass
         elif self._defer_rendering > 0:
@@ -917,11 +922,6 @@ class Workbench(imgui_window.ImguiWindow):
             else:
                 pred_str = f'{self._predictions[0]:.2f}'
             self._render_prediction_message(pred_str)
-
-        # Render user widgets.
-        for widget in self.widgets:
-            if hasattr(widget, 'render'):
-                widget.render()
 
         # End frame.
         if self._should_close_model:

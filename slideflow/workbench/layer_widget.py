@@ -74,10 +74,11 @@ class LayerWidget:
                     thickness=1)
 
                 # Plot reference points
+                # Origin is bottom left
                 for c in self.coords[layer_name]:
                     draw_list.add_circle_filled(
                         tx + (c[0] * 300),
-                        ty + (c[1] * 300),
+                        ty + ((1-c[1]) * 300),
                         3,
                         imgui.get_color_u32_rgba(0.35, 0.25, 0.45, 1)
                     )
@@ -87,7 +88,7 @@ class LayerWidget:
                     fc = viz.result.umap_coords[layer_name]
                     draw_list.add_circle_filled(
                         tx + (fc[0] * 300),
-                        ty + (fc[1] * 300),
+                        ty + ((1-fc[1]) * 300),
                         5,
                         imgui.get_color_u32_rgba(1, 0, 0, 1)
                     )

@@ -489,6 +489,7 @@ class SlideMap:
             return (list_cat == idx_cat).sum()
 
         log.info('Matching neighbors...')
+        #TODO: accelerate this step with multiprocessing
         self.data['num_unique_neighbors'] = [
             len(self.data.loc[ind].slide.unique())
             for ind in indices
