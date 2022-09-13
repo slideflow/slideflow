@@ -168,13 +168,11 @@ class PicamWidget:
         self.viz            = viz
         self.um_width       = 800
         self.content_height = 0
+        self.header         = 'Camera'
 
         viewer = PicamViewer(self.um_width, **viz._viewer_kwargs())
         viz.set_viewer(viewer)
         viz._use_model_img_fmt = False
-
-    def collapsing_header(self):
-        return imgui_utils.collapsing_header('Camera', default=True)
 
     @imgui_utils.scoped_by_object_id
     def __call__(self, show=True):

@@ -223,6 +223,9 @@ class Workbench(imgui_window.ImguiWindow):
     def get_default_widgets():
         return []
 
+    def add_to_render_pipeline(self, renderer):
+        self._async_renderer.add_to_render_pipeline(renderer)
+
     def has_live_viewer(self):
         return (self.viewer is not None and self.viewer.live)
 
@@ -607,16 +610,32 @@ class Workbench(imgui_window.ImguiWindow):
             self._control_size += self.heatmap_widget.content_height
 
             # User-defined widgets
-            for widget in self.widgets:
-                if hasattr(widget, 'collapsing_header'):
-                    expanded, _visible = widget.collapsing_header()
+            for header, widgets in self._widgets_by_header():
+                #print("Rendering header {}. Widgets: {}".format(header, widgets))
+                if header:
+                    expanded, _visible = imgui_utils.collapsing_header(header, default=True)
                     self._control_size += (self.font_size + self.spacing * 3)
-                widget(expanded)
-                if hasattr(widget, 'content_height'):
-                    self._control_size += widget.content_height
+                for widget in widgets:
+                    widget(expanded)
+                    if hasattr(widget, 'content_height'):
+                        self._control_size += widget.content_height
 
             self._render_control_pane_contents()
             imgui.end()
+
+    def _widgets_by_header(self):
+
+        def _get_header(w):
+            return None if not hasattr(w, 'header') else w.header
+
+        headers = list(set([
+            _get_header(widget) for widget in self.widgets
+        ]))
+        return [
+            (header, [w for w in self.widgets if _get_header(w) == header])
+            for header in headers
+        ]
+
 
     def _draw_performance_pane(self):
         if self._show_performance:
@@ -631,17 +650,14 @@ class Workbench(imgui_window.ImguiWindow):
             has_raw_image = self._tex_obj is not None and self.tile_px
             has_norm_image = self.model_widget.use_model and self._normalizer is not None and self._norm_tex_obj is not None and self.tile_px
 
-            width = 0
-            height = self.font_size * 2
-            if has_raw_image:
-                height += self.tile_px
-                width += self.tile_px
-            if has_norm_image:
-                width += self.tile_px + self.spacing
-
-            if not width:
+            if not (has_raw_image or has_norm_image):
                 width = self.font_size * 8
                 height = self.font_size * 3
+            else:
+                raw_img_w = 0 if not has_raw_image else self._tex_img.shape[0]
+                norm_img_w = 0 if not has_norm_image else self._norm_tex_img.shape[0]
+                height = self.font_size * 2 + max(raw_img_w, norm_img_w)
+                width = raw_img_w + norm_img_w + self.spacing
 
             imgui.set_next_window_size(width, height)
 
@@ -659,14 +675,14 @@ class Workbench(imgui_window.ImguiWindow):
             dim_color[-1] *= 0.5
             imgui.begin_child('##pred_image', border=False)
             if has_raw_image:
-                imgui.image(self._tex_obj.gl_id, self.tile_px, self.tile_px)
+                imgui.image(self._tex_obj.gl_id, raw_img_w, raw_img_w)
             elif self._model_path is not None:
                 imgui.text_colored('Right click to preview', *dim_color)
             else:
                 imgui.text_colored('No model loaded', *dim_color)
             imgui.same_line()
             if has_norm_image:
-                imgui.image(self._norm_tex_obj.gl_id, self.tile_px, self.tile_px)
+                imgui.image(self._norm_tex_obj.gl_id, norm_img_w, norm_img_w)
             elif self._tex_obj is not None and self.tile_px:
                 imgui.text_colored('Normalizer not used', *dim_color)
             imgui.end_child()
@@ -805,7 +821,6 @@ class Workbench(imgui_window.ImguiWindow):
         self._draw_menu_bar()
         self._draw_control_pane()
         self._draw_performance_pane()
-        self._draw_tile_view()
 
         user_input = self._handle_user_input()
 
@@ -842,6 +857,8 @@ class Workbench(imgui_window.ImguiWindow):
         self.args.use_uncertainty =  (self.has_uq() and self._use_uncertainty)
         self.args.use_saliency = self._use_saliency
         self.args.normalizer = self._normalizer
+        self.args.tile_px = self._model_config['tile_px']
+        self.args.tile_um = self._model_config['tile_um']
 
         # Buffer tile view if using a live viewer.
         if self.has_live_viewer() and self.args.x and self.args.y:
@@ -859,6 +876,7 @@ class Workbench(imgui_window.ImguiWindow):
             self.viewer.y = self.y
             self.args.full_image = self.viewer.tile_view
             self.args.tile_px = self.viewer.tile_px
+            self.args.tile_um = self.viewer.tile_um
 
         if self.has_live_viewer():
             self.args.viewer = None
@@ -884,7 +902,7 @@ class Workbench(imgui_window.ImguiWindow):
                     self._predictions = result.predictions
                     self._uncertainty = result.uncertainty
 
-        # Display input image.
+        # Update input image textures (tile view).
         middle_pos = np.array([self.pane_w + max_w/2, max_h/2])
         if 'image' in self.result:
             if self._tex_img is not self.result.image:
@@ -913,8 +931,14 @@ class Workbench(imgui_window.ImguiWindow):
             tex = text_utils.get_texture(_msg, size=self.font_size, max_width=max_w, max_height=max_h, outline=2)
             tex.draw(pos=middle_pos, align=0.5, rint=True, color=1)
 
+        # Render the tile view.
+        self._draw_tile_view()
+
         # Draw prediction message next to box on main display.
-        if self._use_model and self._predictions is not None and not isinstance(self._predictions, list):
+        if (self._use_model
+           and self._predictions is not None
+           and not isinstance(self._predictions, list)
+           and self.viewer is not None):
             #TODO: support multi-outcome models
             outcomes = self._model_config['outcome_labels']
             if self._model_config['model_type'] == 'categorical':
@@ -951,6 +975,7 @@ class AsyncRenderer:
         self._live_updates  = False
         self.tile_px        = None
         self.extract_px     = None
+        self._addl_render   = []
 
         if sf.util.torch_available:
             import torch
@@ -970,6 +995,15 @@ class AsyncRenderer:
     @property
     def is_async(self):
         return self._is_async
+
+    def add_to_render_pipeline(self, renderer):
+        if self.is_async:
+            raise ValueError("Cannot add to rendering pipeline when in "
+                             "asynchronous mode.")
+        self._addl_render += [renderer]
+        if self._renderer_obj is not None:
+            self._renderer_obj.add_renderer(renderer)
+
 
     def set_async(self, is_async):
         self._is_async = is_async
@@ -996,10 +1030,10 @@ class AsyncRenderer:
         self._args_queue.put([args, self._cur_stamp])
 
     def _set_args_sync(self, **args):
-        #if self._model is None and self._model_path:
-        #    self._model, self._saliency = _load_model_and_saliency(self._model_path, device=self.device)
         if self._renderer_obj is None:
             self._renderer_obj = renderer.Renderer(device=self.device)
+            for renderer in self._addl_render:
+                self._renderer_obj.add_renderer(renderer)
             self._renderer_obj._model = self._model
             self._renderer_obj._saliency = self._saliency
         self._cur_result = self._renderer_obj.render(**args)
@@ -1026,6 +1060,8 @@ class AsyncRenderer:
             self._model_path = model_path
             if self._renderer_obj is None:
                 self._renderer_obj = renderer.Renderer(device=self.device)
+                for _renderer in self._addl_render:
+                    self._renderer_obj.add_renderer(_renderer)
             self._model, self._saliency, self._umap_encoders = _load_model_and_saliency(self._model_path, device=self.device)
             self._renderer_obj._model = self._model
             self._renderer_obj._saliency = self._saliency

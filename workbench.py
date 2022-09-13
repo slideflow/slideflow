@@ -12,6 +12,7 @@ from os.path import dirname, realpath
 @click.option('--low_memory', '-l', is_flag=True, help='Low memory mode.', metavar=bool)
 @click.option('--picam', is_flag=True, help='Enable Picamera2.', metavar=bool)
 @click.option('--activations', '-a', is_flag=True, help='Enable activations viewer.', metavar=bool)
+@click.option('--stylegan', '-g', is_flag=True, help='Enable StyleGAN viewer.', metavar=bool)
 def main(
     slide,
     browse_dir,
@@ -19,7 +20,8 @@ def main(
     project,
     low_memory,
     picam,
-    activations
+    activations,
+    stylegan
 ):
     """Interactive model visualizer.
 
@@ -29,6 +31,21 @@ def main(
         low_memory = False
 
     widgets = Workbench.get_default_widgets()
+
+    if stylegan:
+        from slideflow.gan.stylegan3.viz import latent_widget
+        from slideflow.gan.stylegan3.viz import pickle_widget
+        from slideflow.gan.stylegan3.viz import stylemix_widget
+        from slideflow.gan.stylegan3.viz import trunc_noise_widget
+        from slideflow.gan.stylegan3.viz import equivariance_widget
+
+        widgets += [
+            pickle_widget.PickleWidget,
+            latent_widget.LatentWidget,
+            stylemix_widget.StyleMixingWidget,
+            trunc_noise_widget.TruncationNoiseWidget,
+            equivariance_widget.EquivarianceWidget
+        ]
     if picam:
         from slideflow.workbench.picam_widget import PicamWidget
         widgets += [PicamWidget]
@@ -38,6 +55,13 @@ def main(
 
     viz = Workbench(low_memory=low_memory, widgets=widgets)
     viz.project_widget.search_dirs += [dirname(realpath(__file__))]
+
+    # --- StyleGAN3 -----------------------------------------------------------
+    if stylegan:
+        from slideflow.gan.stylegan3.viz.renderer import Renderer as GANRenderer
+        renderer = GANRenderer(gan_px=512, gan_um=400)
+        viz.add_to_render_pipeline(renderer)
+    # -------------------------------------------------------------------------
 
     if browse_dir is not None:
         viz.slide_widget.search_dirs = [browse_dir]

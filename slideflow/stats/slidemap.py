@@ -427,8 +427,7 @@ class SlideMap:
         ]
         log.info(f"Calculating K-means clustering (n={n_clusters})")
         kmeans = KMeans(n_clusters=n_clusters).fit(activations)
-        labels = kmeans.labels_
-        self.data['cluster'] = labels
+        self.data['cluster'] = kmeans.labels_
 
     def neighbors(
         self,
