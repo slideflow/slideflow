@@ -1181,26 +1181,27 @@ class Dataset:
                 slide_task = pb.add_task("Extracting...", progress_type="slide_progress", total=len(slide_list))
                 pb.start()
                 if buffer:
-                    # Worker to grab slide path from queue and start extraction
-                    def worker():
-                        while not task_finished:
-                            path = q.get()
-                            if path is None:
-                                q.task_done()
-                                break
-                            _tile_extractor(path, **extraction_kwargs)
-                            pb.advance(slide_task)
-                            if buffer:
-                                os.remove(path)
-                            q.task_done()
+                    # Worker to put each slide path into queue
+                    def buffer_worker():
+                        nonlocal task_finished
+                        _fill_queue(slide_list, q, q_size, buffer=buffer)
+                        task_finished = True
 
                     # Start the worker threads
-                    thread = threading.Thread(target=worker)
+                    thread = threading.Thread(target=buffer_worker)
                     thread.start()
 
-                    # Put each slide path into queue
-                    _fill_queue(slide_list, q, q_size, buffer=buffer)
-                    task_finished = True
+                    # Grab slide path from queue and start extraction
+                    while not task_finished:
+                        path = q.get()
+                        if path is None:
+                            q.task_done()
+                            break
+                        _tile_extractor(path, **extraction_kwargs)
+                        pb.advance(slide_task)
+                        if buffer:
+                            os.remove(path)
+                        q.task_done()
                     thread.join()
                 else:
                     for slide in slide_list:
@@ -1222,13 +1223,14 @@ class Dataset:
                                 **kwargs
                             )
                             reports.update({wsi.path: wsi_report})
+                            del wsi
                         except errors.TileCorruptionError:
                             log.error(f'{wsi.path} corrupt; skipping')
                         pb.advance(slide_task)
 
                 if pb:
                     pb.stop()
-                if kwargs['pool'] is not None:
+                if 'pool' in kwargs and kwargs['pool'] is not None:
                     kwargs['pool'].close()
                 if report:
                     log.info('Generating PDF (this may take some time)...', )
@@ -1838,6 +1840,7 @@ class Dataset:
                 counts += [count]
                 pb.advance(otsu_task)
         pb.stop()
+        pool.close()
         return {path: counts[p] for p, path in enumerate(paths)}
 
     def slide_paths(

@@ -1212,15 +1212,16 @@ class _BaseLoader:
             dry_run (bool, optional): Determine tiles that would be extracted,
                 but do not export any images. Defaults to None.
         """
-
         if img_format not in ('png', 'jpg', 'jpeg'):
             raise ValueError(f"Invalid image format {img_format}")
 
+        dry_run = kwargs['dry_run'] if 'dry_run' in kwargs else False
+
         # Make base directories
-        if tfrecord_dir:
+        if tfrecord_dir and not dry_run:
             if not exists(tfrecord_dir):
                 os.makedirs(tfrecord_dir)
-        if tiles_dir:
+        if tiles_dir and not dry_run:
             tiles_dir = os.path.join(tiles_dir, self.name)
             if not os.path.exists(tiles_dir):
                 os.makedirs(tiles_dir)
@@ -1229,14 +1230,14 @@ class _BaseLoader:
         # To be used in case tile extraction is interrupted, so the slide
         # can be flagged for re-extraction
 
-        if tfrecord_dir or tiles_dir:
+        if (tfrecord_dir or tiles_dir) and not dry_run:
             unfinished_marker = join(
                 (tfrecord_dir if tfrecord_dir else tiles_dir),  # type: ignore
                 f'{self.name}.unfinished'
             )
             with open(unfinished_marker, 'w') as marker_file:
                 marker_file.write(' ')
-        if tfrecord_dir:
+        if tfrecord_dir and not dry_run:
             writer = sf.io.TFRecordWriter(join(
                 tfrecord_dir,
                 self.name+".tfrecords"
@@ -1256,7 +1257,6 @@ class _BaseLoader:
         ws_fractions = []
         gs_fractions = []
         num_wrote_to_tfr = 0
-        dry_run = kwargs['dry_run'] if 'dry_run' in kwargs else False
         slidename_bytes = bytes(self.name, 'utf-8')
 
         for index, tile_dict in enumerate(generator_iterator):
@@ -1303,7 +1303,7 @@ class _BaseLoader:
                 )
                 writer.write(record)
                 num_wrote_to_tfr += 1
-        if tfrecord_dir:
+        if tfrecord_dir and not dry_run:
             writer.close()
             if not num_wrote_to_tfr:
                 os.remove(join(tfrecord_dir, self.name+".tfrecords"))
@@ -1311,7 +1311,7 @@ class _BaseLoader:
         if self.pb is None:
             generator_iterator.close()
 
-        if tfrecord_dir or tiles_dir:
+        if (tfrecord_dir or tiles_dir) and not dry_run:
             try:
                 os.remove(unfinished_marker)
             except OSError:
