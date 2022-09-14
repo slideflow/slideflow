@@ -98,6 +98,8 @@ from multiprocessing.dummy import Pool as DPool
 from os.path import basename, dirname, exists, isdir, join
 from queue import Queue
 from random import shuffle
+from tabulate import tabulate
+from pprint import pformat
 from typing import (TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Tuple,
                     Union)
 import numpy as np
@@ -1959,6 +1961,55 @@ class Dataset:
                     outside_roi_writer.write(record_bytes)
             inside_roi_writer.close()
             outside_roi_writer.close()
+
+    def summary(self) -> None:
+        """Print a summary of this dataset."""
+
+        # Get ROI information.
+        patients = self.patients()
+        has_rois = defaultdict(bool)
+        slides_with_roi = {}
+        patients_with_roi = defaultdict(bool)
+        for r in self.rois():
+            s = sf.util.path_to_name(r)
+            with open(r, 'r') as f:
+                has_rois[s] = len(f.read().split('\n')) > 2
+        for sp in self.slide_paths():
+            s = sf.util.path_to_name(sp)
+            slides_with_roi[s] = has_rois[s]
+        for s in self.slides():
+            p = patients[s]
+            if slides_with_roi[s]:
+                patients_with_roi[p] = True
+
+        # Print summary.
+        print("Overview:")
+        table = [("Configuration file:", self._config),
+                ("Tile size (px):",     self.tile_px),
+                ("Tile size (um):",     self.tile_um),
+                ("Slides:",             len(self.slides())),
+                ("Patients:",           len(self.annotations.patient.unique())),
+                ("Slides with ROIs:",   len([s for s in slides_with_roi
+                                             if slides_with_roi[s]])),
+                ("Patients with ROIs:", len([p for p in patients_with_roi
+                                             if patients_with_roi[p]]))]
+        print(tabulate(table, tablefmt='fancy_outline'))
+        print("\nFilters:")
+        table = [("Filters:",           pformat(self.filters)),
+                ("Filter Blank:",       pformat(self.filter_blank)),
+                ("Min Tiles:",          pformat(self.min_tiles))]
+        print(tabulate(table, tablefmt='fancy_grid'))
+        print("\nSources:")
+        if not self.sources:
+            print("<None>")
+        else:
+            for source in self.sources:
+                print(f"\n{source}")
+                d = self.sources[source]
+                print(tabulate(zip(d.keys(), d.values()),
+                               tablefmt="fancy_outline"))
+        print("\nAnnotation columns:")
+        print("<NA>" if self.annotations is None else self.annotations.columns)
 
     def tensorflow(
         self,
