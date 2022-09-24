@@ -1854,7 +1854,8 @@ class WSI(_BaseLoader):
         # Get information about highest level downsample, as we will filter
         # on that layer if downsampling is enabled
         if self.enable_downsample:
-            filter_lev = len(self.slide.level_downsamples) - 1
+            downsamples = np.array(self.slide.level_downsamples)
+            filter_lev = np.max(np.argwhere(downsamples < self.extract_px))
             filter_downsample_factor = self.slide.level_downsamples[filter_lev]
             lev_ds = self.slide.level_downsamples[self.downsample_level]
             filter_downsample_ratio = filter_downsample_factor // lev_ds
