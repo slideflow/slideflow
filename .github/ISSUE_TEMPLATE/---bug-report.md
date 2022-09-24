@@ -26,7 +26,7 @@ Steps to reproduce the behavior:
 
  - Slideflow Version (e.g., 1.0):
  - OS (e.g., Ubuntu):
- - How you installed PyTorch (`pip`, source):
+ - How you installed Slideflow (`pip`, source):
  - Python version:
  - CUDA/cuDNN version:
  - GPU models and configuration:
