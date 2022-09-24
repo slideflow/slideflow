@@ -41,6 +41,22 @@ if sf.util.torch_available:
 
 #----------------------------------------------------------------------------
 
+def stylegan_widgets():
+    from slideflow.gan.stylegan3.viz import latent_widget
+    from slideflow.gan.stylegan3.viz import pickle_widget
+    from slideflow.gan.stylegan3.viz import stylemix_widget
+    from slideflow.gan.stylegan3.viz import trunc_noise_widget
+    from slideflow.gan.stylegan3.viz import equivariance_widget
+    return [
+        pickle_widget.PickleWidget,
+        latent_widget.LatentWidget,
+        stylemix_widget.StyleMixingWidget,
+        trunc_noise_widget.TruncationNoiseWidget,
+        equivariance_widget.EquivarianceWidget
+    ]
+
+#----------------------------------------------------------------------------
+
 def _load_umap_encoders(path, model) -> EasyDict:
     import tensorflow as tf
 
@@ -129,6 +145,7 @@ class Workbench(imgui_window.ImguiWindow):
         self._wsi_tex_img       = None
         self._overlay_tex_img   = None
         self._overlay_tex_obj   = None
+        self._about_tex_obj     = None
         self._predictions       = None
         self._model_path        = None
         self._model_config      = None
@@ -239,6 +256,12 @@ class Workbench(imgui_window.ImguiWindow):
     def get_default_widgets():
         return []
 
+    def center_text(self, text):
+        size = imgui.calc_text_size(text)
+        imgui.text('')
+        imgui.same_line(imgui.get_content_region_max()[0]/2 - size.x/2 + self.spacing)
+        imgui.text(text)
+
     def _about_dialog(self):
         if self._show_about:
             import platform
@@ -246,7 +269,10 @@ class Workbench(imgui_window.ImguiWindow):
             from pyvips.base import version as lv
 
             imgui.open_popup('about_popup')
-            imgui.set_next_window_position(self.content_width/2, self.content_height/2)
+            width = 200
+            height = 315
+            imgui.set_next_window_content_size(width, height)
+            imgui.set_next_window_position(self.content_width/2 - width/2, self.content_height/2 - height/2)
 
             about_text =  f"Version: {sf.__version__}\n"
             about_text += f"Commit: {sf.__gitcommit__}\n"
@@ -256,18 +282,29 @@ class Workbench(imgui_window.ImguiWindow):
             about_text += f"OS: {platform.system()} {platform.release()}\n"
 
             if imgui.begin_popup('about_popup'):
-                imgui.text('Slideflow Workbench')
-                imgui.separator()
-                imgui.text(about_text)
+
+                if self._about_tex_obj is None:
+                    about_img = text_utils.about_image()
+                    self._about_tex_obj = gl_utils.Texture(image=about_img, bilinear=False, mipmap=False)
+                imgui.text('')
+                imgui.text('')
+                imgui.same_line(imgui.get_content_region_max()[0]/2 - 32 + self.spacing)
+                imgui.image(self._about_tex_obj.gl_id, 64, 64)
+
+                imgui.text('')
+                with self.bold_font():
+                    self.center_text('Slideflow Workbench')
+                imgui.text('')
+
+                for line in about_text.split('\n'):
+                    self.center_text(line)
                 imgui.text('')
                 imgui.same_line(self.spacing)
-                with imgui_utils.item_width(self.button_w):
-                    if imgui.button('Copy'):
-                        pyperclip.copy(about_text)
-                imgui.same_line(self.button_w + self.spacing)
-                with imgui_utils.item_width(self.button_w):
-                    if imgui.button('Close'):
-                        self._show_about = False
+                if imgui_utils.button('Copy', width=self.button_w/2):
+                    pyperclip.copy(about_text)
+                imgui.same_line(imgui.get_content_region_max()[0] + self.spacing - self.button_w/2)
+                if imgui_utils.button('Close', width=self.button_w/2):
+                    self._show_about = False
                 imgui.end_popup()
 
     def add_to_render_pipeline(self, renderer):

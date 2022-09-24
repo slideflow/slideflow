@@ -8,6 +8,7 @@
 
 import os
 import glfw
+import contextlib
 import imgui
 import imgui.integrations.glfw
 from imgui.integrations import compute_fb_scale
@@ -23,6 +24,7 @@ class ImguiWindow(glfw_window.GlfwWindow):
     def __init__(self, *, title='ImguiWindow', font=None, font_sizes=range(14,24), **glfw_kwargs):
         if font is None:
             font = text_utils.get_default_font()
+            font_bold = text_utils.get_default_font_bold()
         font_sizes = {int(size) for size in font_sizes}
         super().__init__(title=title, **glfw_kwargs)
 
@@ -30,6 +32,7 @@ class ImguiWindow(glfw_window.GlfwWindow):
         self._imgui_context  = None
         self._imgui_renderer = None
         self._imgui_fonts    = None
+        self._imgui_fonts_bold = None
         self._cur_font_size  = max(font_sizes)
         self._font_scaling   = 2
 
@@ -44,12 +47,14 @@ class ImguiWindow(glfw_window.GlfwWindow):
         imgui.get_io().ini_saving_rate = 0 # Disable creating imgui.ini at runtime.
         imgui.get_io().mouse_drag_threshold = 0 # Improve behavior with imgui_utils.drag_custom().
         self._imgui_fonts = {size: imgui.get_io().fonts.add_font_from_file_ttf(font, size * self._font_scaling) for size in font_sizes}
+        self._imgui_fonts_bold = {size: imgui.get_io().fonts.add_font_from_file_ttf(font_bold, size * self._font_scaling) for size in font_sizes}
         self._imgui_renderer.refresh_font_texture()
         imgui.get_io().font_global_scale = 1 / self._font_scaling
 
     def close(self):
         self.make_context_current()
         self._imgui_fonts = None
+        self._imgui_fonts_bold = None
         if self._imgui_renderer is not None:
             self._imgui_renderer.shutdown()
             self._imgui_renderer = None
@@ -73,6 +78,14 @@ class ImguiWindow(glfw_window.GlfwWindow):
     @property
     def spacing(self):
         return round(self._cur_font_size * 0.4)
+
+    @contextlib.contextmanager
+    def bold_font(self):
+        imgui.pop_font()
+        imgui.push_font(self._imgui_fonts_bold[self._cur_font_size])
+        yield
+        imgui.pop_font()
+        imgui.push_font(self._imgui_fonts[self._cur_font_size])
 
     def set_font_size(self, target): # Applied on next frame.
         self._cur_font_size = min((abs(key - target), key) for key in self._imgui_fonts.keys())[1]

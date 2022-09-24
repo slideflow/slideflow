@@ -22,7 +22,7 @@ class ProjectWidget:
         self.slide_paths    = []
         self.slide_idx      = 0
         self.content_height = 0
-        self._show_welcome  = True
+        self._show_welcome  = False
 
     def add_recent(self, project, ignore_errors=False):
         try:
