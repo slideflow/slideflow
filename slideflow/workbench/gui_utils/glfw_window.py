@@ -239,7 +239,7 @@ class GlfwWindow: # pylint: disable=too-many-public-methods
 
         # Capture frame if requested.
         if self._capture_next_frame:
-            self._captured_frame = gl_utils.read_pixels(self.content_width, self.content_height)
+            self._captured_frame = gl_utils.read_pixels(self.content_frame_width, self.content_frame_height)
             self._capture_next_frame = False
 
         # Update window.

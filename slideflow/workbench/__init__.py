@@ -560,11 +560,15 @@ class Workbench(imgui_window.ImguiWindow):
                     self.load_model(askdirectory(), ignore_errors=True)
                 imgui.separator()
                 if imgui.begin_menu('Export...', True):
-                    imgui.menu_item('Main view')
-                    imgui.menu_item('Tile view')
-                    imgui.menu_item('GUI view')
-                    imgui.menu_item('Heatmap (PNG)')
-                    imgui.menu_item('Heatmap (NPZ)')
+                    if imgui.menu_item('Main view')[1]:
+                        self.capture_widget.save_view()
+                    if imgui.menu_item('Tile view')[1]:
+                        self.capture_widget.save_tile()
+                    if imgui.menu_item('GUI view')[1]:
+                        self.capture_widget.save_gui()
+                    #with imgui_utils.grayed_out():
+                    imgui.menu_item('Heatmap (PNG)', enabled=False)
+                    imgui.menu_item('Heatmap (NPZ)', enabled=False)
                     imgui.end_menu()
                 imgui.separator()
                 if imgui.menu_item('Close Slide')[1]:
@@ -596,7 +600,7 @@ class Workbench(imgui_window.ImguiWindow):
                 imgui.separator()
                 if imgui.menu_item('Toggle tile preview')[1]:
                     self._show_tile_preview = not self._show_tile_preview
-                imgui.menu_item('Toggle camera view')
+                imgui.menu_item('Toggle camera view', enabled=False)
 
                 # Widgets with "View" menu.
                 for w in self.widgets:
@@ -730,13 +734,14 @@ class Workbench(imgui_window.ImguiWindow):
             for header in headers
         ]
 
-
     def _draw_performance_pane(self):
         if self._show_performance:
             _, self._show_performance = imgui.begin('Performance & Capture', closable=True, flags=(imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_COLLAPSE))
             self.performance_widget(True)
             self.capture_widget(True)
             imgui.end()
+        else:
+            self.capture_widget(False)
 
     def _draw_tile_view(self):
         if self._show_tile_preview:
