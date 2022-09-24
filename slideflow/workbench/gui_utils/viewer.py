@@ -1,3 +1,5 @@
+"""Whole-slide imaging viewer for graphical interfaces."""
+
 from typing import Tuple
 from . import gl_utils
 

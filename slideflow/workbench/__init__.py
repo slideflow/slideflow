@@ -227,6 +227,14 @@ class Workbench(imgui_window.ImguiWindow):
     def offset_y(self):
         return self.menu_bar_height
 
+    @property
+    def offset_x_pixels(self):
+        return int(self.offset_x * self.pixel_ratio)
+
+    @property
+    def offset_y_pixels(self):
+        return int(self.offset_y * self.pixel_ratio)
+
     @staticmethod
     def get_default_widgets():
         return []
@@ -343,10 +351,10 @@ class Workbench(imgui_window.ImguiWindow):
 
     def _viewer_kwargs(self):
         return dict(
-            width=self.content_width - self.offset_x,
-            height=self.content_height - self.offset_y,
-            x_offset=self.offset_x,
-            y_offset=self.offset_y,
+            width=self.content_frame_width - self.offset_x_pixels,
+            height=self.content_frame_height - self.offset_y_pixels,
+            x_offset=self.offset_x_pixels,
+            y_offset=self.offset_y_pixels,
             normalizer=(self._normalizer if self._normalize_wsi else None)
         )
 
@@ -658,7 +666,6 @@ class Workbench(imgui_window.ImguiWindow):
 
             # User-defined widgets
             for header, widgets in self._widgets_by_header():
-                #print("Rendering header {}. Widgets: {}".format(header, widgets))
                 if header:
                     expanded, _visible = imgui_utils.collapsing_header(header, default=True)
                     self._control_size += (self.font_size + self.spacing * 3)
@@ -746,8 +753,8 @@ class Workbench(imgui_window.ImguiWindow):
             window_changed (bool): Window size has changed (force refresh).
         """
 
-        max_w = self.content_width - self.offset_x
-        max_h = self.content_height - self.offset_y
+        max_w = self.content_frame_width - self.offset_x_pixels
+        max_h = self.content_frame_height - self.offset_y_pixels
 
         # Update the viewer in response to user input.
         if self.viewer and self.viewer.movable:
@@ -832,19 +839,19 @@ class Workbench(imgui_window.ImguiWindow):
             height=self.content_height - self.offset_y)
         return EasyDict(
             clicking=clicking,
-            cx=cx,
-            cy=cy,
+            cx=int(cx * self.pixel_ratio),
+            cy=int(cy * self.pixel_ratio),
             wheel=wheel,
             dragging=dragging,
-            dx=dx,
-            dy=dy
+            dx=int(dx * self.pixel_ratio),
+            dy=int(dy * self.pixel_ratio)
         )
 
     def _render_prediction_message(self, message):
         """Render a prediction string to below the tile bounding box."""
-        max_w = self.content_width - self.offset_x
-        max_h = self.content_height - self.offset_y
-        tex = text_utils.get_texture(message, size=self.font_size, max_width=max_w, max_height=max_h, outline=2)
+        max_w = self.content_frame_width - self.offset_x_pixels
+        max_h = self.content_frame_height - self.offset_y_pixels
+        tex = text_utils.get_texture(message, size=self.gl_font_size, max_width=max_w, max_height=max_h, outline=2)
         box_w = self.viewer.full_extract_px / self.viewer.view_zoom
         text_pos = np.array([self.box_x + (box_w/2), self.box_y + box_w + self.font_size])
         tex.draw(pos=text_pos, align=0.5, rint=True, color=1)
@@ -859,8 +866,8 @@ class Workbench(imgui_window.ImguiWindow):
         self.label_w = round(self.font_size * 4.5)
         self.menu_bar_height = self.font_size + self.spacing
 
-        max_w = self.content_width - self.offset_x
-        max_h = self.content_height - self.offset_y
+        max_w = self.content_frame_width - self.offset_x_pixels
+        max_h = self.content_frame_height - self.offset_y_pixels
         window_changed = (self._content_width != self.content_width
                           or self._content_height != self.content_height
                           or self._pane_w != self.pane_w)
@@ -884,10 +891,6 @@ class Workbench(imgui_window.ImguiWindow):
             for widget in self.widgets:
                 if hasattr(widget, '_on_window_change'):
                     widget._on_window_change()
-
-        # Render black box behind the controls, if docked
-        if self.pane_w:
-            gl_utils.draw_rect(pos=np.array([0, self.offset_y]), size=np.array([self.offset_x, self.content_height - self.offset_y]), color=0, anchor='center')
 
         # Main display.
         if self.viewer:
@@ -951,7 +954,7 @@ class Workbench(imgui_window.ImguiWindow):
                     self._uncertainty = result.uncertainty
 
         # Update input image textures (tile view).
-        middle_pos = np.array([self.pane_w + max_w/2, max_h/2])
+        middle_pos = np.array([self.offset_x_pixels + max_w/2, max_h/2])
         if 'image' in self.result:
             if self._tex_img is not self.result.image:
                 self._tex_img = self.result.image
@@ -976,7 +979,7 @@ class Workbench(imgui_window.ImguiWindow):
                 self.result.message = str(self.result.error)
         if 'message' in self.result or self.message:
             _msg = self.message if 'message' not in self.result else self.result['message']
-            tex = text_utils.get_texture(_msg, size=self.font_size, max_width=max_w, max_height=max_h, outline=2)
+            tex = text_utils.get_texture(_msg, size=self.gl_font_size, max_width=max_w, max_height=max_h, outline=2)
             tex.draw(pos=middle_pos, align=0.5, rint=True, color=1)
 
         # Render the tile view.

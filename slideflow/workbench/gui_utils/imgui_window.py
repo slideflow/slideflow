@@ -31,6 +31,7 @@ class ImguiWindow(glfw_window.GlfwWindow):
         self._imgui_renderer = None
         self._imgui_fonts    = None
         self._cur_font_size  = max(font_sizes)
+        self._font_scaling   = 2
 
         # Delete leftover imgui.ini to avoid unexpected behavior.
         if os.path.isfile('imgui.ini'):
@@ -42,8 +43,9 @@ class ImguiWindow(glfw_window.GlfwWindow):
         self._attach_glfw_callbacks()
         imgui.get_io().ini_saving_rate = 0 # Disable creating imgui.ini at runtime.
         imgui.get_io().mouse_drag_threshold = 0 # Improve behavior with imgui_utils.drag_custom().
-        self._imgui_fonts = {size: imgui.get_io().fonts.add_font_from_file_ttf(font, size) for size in font_sizes}
+        self._imgui_fonts = {size: imgui.get_io().fonts.add_font_from_file_ttf(font, size * self._font_scaling) for size in font_sizes}
         self._imgui_renderer.refresh_font_texture()
+        imgui.get_io().font_global_scale = 1 / self._font_scaling
 
     def close(self):
         self.make_context_current()
@@ -63,6 +65,10 @@ class ImguiWindow(glfw_window.GlfwWindow):
     @property
     def font_size(self):
         return self._cur_font_size + 2  # Adjustment for DroidSans
+
+    @property
+    def gl_font_size(self):
+        return int(self.font_size * self.pixel_ratio)
 
     @property
     def spacing(self):
