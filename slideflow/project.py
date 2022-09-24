@@ -427,7 +427,6 @@ class Project:
         else:
             outcome_labels = None
 
-        git_commit = sf.util.detect_git_commit()
         model_dir = sf.util.get_new_model_dir(self.eval_dir, model_name)
 
         # Set missing validation keys to NA
@@ -440,7 +439,7 @@ class Project:
             'slideflow_version': sf.__version__,
             'project': self.name,
             'backend': sf.backend(),
-            'git_commit': git_commit,
+            'git_commit': sf.__gitcommit__,
             'model_name': model_name,
             'model_path': model,
             'stage': 'evaluation',
@@ -799,7 +798,6 @@ class Project:
         full_name = s_args.model_name
         if s_args.k is not None:
             full_name += f'-kfold{s_args.k}'
-        git_commit = sf.util.detect_git_commit()
         model_dir = sf.util.get_new_model_dir(self.models_dir, full_name)
 
         # Log model settings and hyperparameters
@@ -807,7 +805,7 @@ class Project:
             'slideflow_version': sf.__version__,
             'project': self.name,
             'backend': sf.backend(),
-            'git_commit': git_commit,
+            'git_commit': sf.__gitcommit__,
             'model_name': s_args.model_name,
             'full_model_name': full_name,
             'stage': 'training',

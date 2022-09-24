@@ -77,7 +77,8 @@ setuptools.setup(
         'imgui',
         'pyopengl',
         'glfw',
-        'saliency'
+        'saliency',
+        'pyperclip'
     ],
     extras_require={
         'tf': [

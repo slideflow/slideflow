@@ -2,10 +2,14 @@ import os
 import time
 import multiprocessing
 import numpy as np
+import webbrowser
+import pyperclip
 import imgui
 import OpenGL.GL as gl
 
 from os.path import join, exists
+from tkinter import Tk
+from tkinter.filedialog import askopenfilename, askdirectory
 from slideflow.workbench.gui_utils import imgui_window
 from slideflow.workbench.gui_utils import imgui_utils
 from slideflow.workbench.gui_utils import gl_utils
@@ -104,6 +108,9 @@ def _load_model_and_saliency(model_path, device=None):
 class Workbench(imgui_window.ImguiWindow):
     def __init__(self, low_memory=False, widgets=None):
 
+        # Initialize TK window in background (for file dialogs)
+        Tk().withdraw()
+
         super().__init__(title=f'Slideflow Workbench')
 
         # Internals.
@@ -146,6 +153,7 @@ class Workbench(imgui_window.ImguiWindow):
         self._should_close_model = False
 
         # Interface.
+        self._show_about        = False
         self._show_control      = True
         self._dock_control      = True
         self._show_performance  = False
@@ -222,6 +230,37 @@ class Workbench(imgui_window.ImguiWindow):
     @staticmethod
     def get_default_widgets():
         return []
+
+    def _about_dialog(self):
+        if self._show_about:
+            import platform
+            import pyvips
+            from pyvips.base import version as lv
+
+            imgui.open_popup('about_popup')
+            imgui.set_next_window_position(self.content_width/2, self.content_height/2)
+
+            about_text =  f"Version: {sf.__version__}\n"
+            about_text += f"Commit: {sf.__gitcommit__}\n"
+            about_text += f"Python: {platform.python_version()}\n"
+            about_text += f"Libvips: {lv(0)}.{lv(1)}.{lv(2)}\n"
+            about_text += f"Pyvips: {pyvips.__version__}\n"
+            about_text += f"OS: {platform.system()} {platform.release()}\n"
+
+            if imgui.begin_popup('about_popup'):
+                imgui.text('Slideflow Workbench')
+                imgui.separator()
+                imgui.text(about_text)
+                imgui.text('')
+                imgui.same_line(self.spacing)
+                with imgui_utils.item_width(self.button_w):
+                    if imgui.button('Copy'):
+                        pyperclip.copy(about_text)
+                imgui.same_line(self.button_w + self.spacing)
+                with imgui_utils.item_width(self.button_w):
+                    if imgui.button('Close'):
+                        self._show_about = False
+                imgui.end_popup()
 
     def add_to_render_pipeline(self, renderer):
         self._async_renderer.add_to_render_pipeline(renderer)
@@ -468,9 +507,12 @@ class Workbench(imgui_window.ImguiWindow):
         if imgui.begin_main_menu_bar():
             # --- File --------------------------------------------------------
             if imgui.begin_menu('File', True):
-                imgui.menu_item('Open Project...', 'Ctrl+P')
-                imgui.menu_item('Load Slide...', 'Ctrl+O')
-                imgui.menu_item('Load Model...', 'Ctrl+M')
+                if imgui.menu_item('Open Project...', 'Ctrl+P')[1]:
+                    self.load_project(askdirectory(), ignore_errors=True)
+                if imgui.menu_item('Open Slide...', 'Ctrl+O')[1]:
+                    self.load_slide(askopenfilename(), ignore_errors=True)
+                if imgui.menu_item('Load Model...', 'Ctrl+M')[1]:
+                    self.load_model(askdirectory(), ignore_errors=True)
                 imgui.separator()
                 if imgui.begin_menu('Export...', True):
                     imgui.menu_item('Main view')
@@ -522,7 +564,8 @@ class Workbench(imgui_window.ImguiWindow):
             # --- Help --------------------------------------------------------
             if imgui.begin_menu('Help', True):
                 imgui.menu_item('Get Started')
-                imgui.menu_item('Documentation')
+                if imgui.menu_item('Documentation')[1]:
+                    webbrowser.open('https://slideflow.dev')
 
                 # Widgets with "Help" menu.
                 for w in self.widgets:
@@ -531,11 +574,15 @@ class Workbench(imgui_window.ImguiWindow):
                         w.help_menu_options()
 
                 imgui.separator()
-                imgui.menu_item('Release Notes')
-                imgui.menu_item('Report Issue')
+                if imgui.menu_item('Release Notes')[1]:
+                    webbrowser.open(join(sf.__github__, 'releases/tag', sf.__version__))
+                if imgui.menu_item('Report Issue')[1]:
+                    webbrowser.open(join(sf.__github__, 'issues'))
                 imgui.separator()
-                imgui.menu_item('View License')
-                imgui.menu_item('About')
+                if imgui.menu_item('View License')[1]:
+                    webbrowser.open(join(sf.__github__, 'blob/master/LICENSE'))
+                if imgui.menu_item('About')[1]:
+                    self._show_about = True
                 imgui.end_menu()
 
             version_text = f'slideflow {sf.__version__}'
@@ -821,6 +868,7 @@ class Workbench(imgui_window.ImguiWindow):
         self._draw_menu_bar()
         self._draw_control_pane()
         self._draw_performance_pane()
+        self._about_dialog()
 
         user_input = self._handle_user_input()
 
@@ -853,12 +901,12 @@ class Workbench(imgui_window.ImguiWindow):
            and 'img_format' in self._model_config
            and self._use_model_img_fmt):
             self.args.img_format = self._model_config['img_format']
+            self.args.tile_px = self._model_config['tile_px']
+            self.args.tile_um = self._model_config['tile_um']
         self.args.use_model = self._use_model
         self.args.use_uncertainty =  (self.has_uq() and self._use_uncertainty)
         self.args.use_saliency = self._use_saliency
         self.args.normalizer = self._normalizer
-        self.args.tile_px = self._model_config['tile_px']
-        self.args.tile_um = self._model_config['tile_um']
 
         # Buffer tile view if using a live viewer.
         if self.has_live_viewer() and self.args.x and self.args.y:
@@ -1032,8 +1080,8 @@ class AsyncRenderer:
     def _set_args_sync(self, **args):
         if self._renderer_obj is None:
             self._renderer_obj = renderer.Renderer(device=self.device)
-            for renderer in self._addl_render:
-                self._renderer_obj.add_renderer(renderer)
+            for _renderer in self._addl_render:
+                self._renderer_obj.add_renderer(_renderer)
             self._renderer_obj._model = self._model
             self._renderer_obj._saliency = self._saliency
         self._cur_result = self._renderer_obj.render(**args)
