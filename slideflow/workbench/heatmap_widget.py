@@ -148,7 +148,7 @@ class HeatmapWidget:
             dim_color[-1] *= 0.5
 
             # Begin heatmap view.
-            width = viz.font_size * 28
+            width = viz.font_size * 20
             height = imgui.get_text_line_height_with_spacing() * 13 + viz.spacing
             imgui.push_style_var(imgui.STYLE_FRAME_PADDING, [0, 0])
             imgui.push_style_color(imgui.COLOR_CHILD_BACKGROUND, *bg_color)

@@ -317,7 +317,7 @@ class SlideWidget:
             dim_color[-1] *= 0.5
 
             # WSI thumbnail ===================================================
-            width = viz.font_size * 28
+            width = viz.font_size * 20
             height = imgui.get_text_line_height_with_spacing() * 12 + viz.spacing
             imgui.push_style_var(imgui.STYLE_FRAME_PADDING, [0, 0])
             imgui.push_style_color(imgui.COLOR_HEADER, 0, 0, 0, 0)

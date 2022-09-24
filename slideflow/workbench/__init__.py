@@ -174,7 +174,7 @@ class Workbench(imgui_window.ImguiWindow):
         self._show_control      = True
         self._dock_control      = True
         self._show_performance  = False
-        self._control_size      = None
+        self._control_size      = 0
         self._show_tile_preview = False
         self._tile_preview_is_new = True
         self._tile_preview_image_is_new = True
@@ -665,15 +665,16 @@ class Workbench(imgui_window.ImguiWindow):
     def _draw_control_pane(self):
         """Draw the control pane with Imgui."""
 
+        _pane_w = self.font_size * 37
         if self._dock_control and self._show_control:
-            self.pane_w = self.font_size * 45
+            self.pane_w = _pane_w
             imgui.set_next_window_position(0, self.menu_bar_height)
             imgui.set_next_window_size(self.pane_w, self.content_height - self.menu_bar_height)
             control_kw = dict(
                 closable=False,
                 flags=(imgui.WINDOW_NO_TITLE_BAR | imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_MOVE))
         else:
-            imgui.set_next_window_size(self.font_size * 45, self._control_size)
+            imgui.set_next_window_size(_pane_w, self._control_size)
             self.pane_w = 0
             control_kw = dict(
                 closable=True,
@@ -684,22 +685,24 @@ class Workbench(imgui_window.ImguiWindow):
             _, self._show_control = imgui.begin('Control Pane', **control_kw)
 
             # Core widgets.
-            self._control_size = self.font_size * 4 + self.spacing * 11
+            header_height = self.font_size + self.spacing * 2
+            self._control_size = self.spacing * 4
             expanded, _visible = imgui_utils.collapsing_header('Slideflow project', default=True)
             self.project_widget(expanded)
-            self._control_size += self.project_widget.content_height
+            self._control_size += self.project_widget.content_height + header_height
 
             expanded, _visible = imgui_utils.collapsing_header('Whole-slide image', default=True)
             self.slide_widget(expanded)
-            self._control_size += self.slide_widget.content_height
+            self._control_size += self.slide_widget.content_height + header_height
 
             expanded, _visible = imgui_utils.collapsing_header('Model & tile predictions', default=True)
             self.model_widget(expanded)
-            self._control_size += self.model_widget.content_height
+            self._control_size += self.model_widget.content_height + header_height
 
-            expanded, _visible = imgui_utils.collapsing_header('Heatmap & slide prediction', default=True)
-            self.heatmap_widget(expanded)
-            self._control_size += self.heatmap_widget.content_height
+            if self._model_config is not None:
+                expanded, _visible = imgui_utils.collapsing_header('Heatmap & slide prediction', default=True)
+                self.heatmap_widget(expanded)
+                self._control_size += self.heatmap_widget.content_height + header_height
 
             # User-defined widgets
             for header, widgets in self._widgets_by_header():
