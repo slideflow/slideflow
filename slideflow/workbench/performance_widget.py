@@ -14,7 +14,7 @@ class PerformanceWidget:
         self.norm_times     = [float('nan')] * 30
         self.predict_times  = [float('nan')] * 30
         self.fps_limit      = 60
-        self.use_vsync      = False
+        self.use_vsync      = True
         self.ignore_jpg     = viz._use_model_img_fmt
         self.low_memory     = viz._low_memory
 
