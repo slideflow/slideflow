@@ -605,9 +605,10 @@ class Workbench(imgui_window.ImguiWindow):
             self.model_widget(expanded)
             self._control_size += self.model_widget.content_height
 
-            expanded, _visible = imgui_utils.collapsing_header('Heatmap & slide prediction', default=True)
-            self.heatmap_widget(expanded)
-            self._control_size += self.heatmap_widget.content_height
+            if self.viewer is not None:
+                expanded, _visible = imgui_utils.collapsing_header('Heatmap & slide prediction', default=True)
+                self.heatmap_widget(expanded)
+                self._control_size += self.heatmap_widget.content_height
 
             # User-defined widgets
             for header, widgets in self._widgets_by_header():
