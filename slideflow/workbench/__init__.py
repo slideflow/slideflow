@@ -2,10 +2,14 @@ import os
 import time
 import multiprocessing
 import numpy as np
+import webbrowser
+import pyperclip
 import imgui
 import OpenGL.GL as gl
 
 from os.path import join, exists
+from tkinter import Tk
+from tkinter.filedialog import askopenfilename, askdirectory
 from slideflow.workbench.gui_utils import imgui_window
 from slideflow.workbench.gui_utils import imgui_utils
 from slideflow.workbench.gui_utils import gl_utils
@@ -34,6 +38,22 @@ if sf.util.tf_available:
         pass
 if sf.util.torch_available:
     import slideflow.model.torch
+
+#----------------------------------------------------------------------------
+
+def stylegan_widgets():
+    from slideflow.gan.stylegan3.viz import latent_widget
+    from slideflow.gan.stylegan3.viz import pickle_widget
+    from slideflow.gan.stylegan3.viz import stylemix_widget
+    from slideflow.gan.stylegan3.viz import trunc_noise_widget
+    from slideflow.gan.stylegan3.viz import equivariance_widget
+    return [
+        pickle_widget.PickleWidget,
+        latent_widget.LatentWidget,
+        stylemix_widget.StyleMixingWidget,
+        trunc_noise_widget.TruncationNoiseWidget,
+        equivariance_widget.EquivarianceWidget
+    ]
 
 #----------------------------------------------------------------------------
 
@@ -104,6 +124,9 @@ def _load_model_and_saliency(model_path, device=None):
 class Workbench(imgui_window.ImguiWindow):
     def __init__(self, low_memory=False, widgets=None):
 
+        # Initialize TK window in background (for file dialogs)
+        Tk().withdraw()
+
         super().__init__(title=f'Slideflow Workbench')
 
         # Internals.
@@ -122,6 +145,7 @@ class Workbench(imgui_window.ImguiWindow):
         self._wsi_tex_img       = None
         self._overlay_tex_img   = None
         self._overlay_tex_obj   = None
+        self._about_tex_obj     = None
         self._predictions       = None
         self._model_path        = None
         self._model_config      = None
@@ -146,10 +170,11 @@ class Workbench(imgui_window.ImguiWindow):
         self._should_close_model = False
 
         # Interface.
+        self._show_about        = False
         self._show_control      = True
         self._dock_control      = True
         self._show_performance  = False
-        self._control_size      = None
+        self._control_size      = 0
         self._show_tile_preview = False
         self._tile_preview_is_new = True
         self._tile_preview_image_is_new = True
@@ -219,9 +244,68 @@ class Workbench(imgui_window.ImguiWindow):
     def offset_y(self):
         return self.menu_bar_height
 
+    @property
+    def offset_x_pixels(self):
+        return int(self.offset_x * self.pixel_ratio)
+
+    @property
+    def offset_y_pixels(self):
+        return int(self.offset_y * self.pixel_ratio)
+
     @staticmethod
     def get_default_widgets():
         return []
+
+    def center_text(self, text):
+        size = imgui.calc_text_size(text)
+        imgui.text('')
+        imgui.same_line(imgui.get_content_region_max()[0]/2 - size.x/2 + self.spacing)
+        imgui.text(text)
+
+    def _about_dialog(self):
+        if self._show_about:
+            import platform
+            import pyvips
+            from pyvips.base import version as lv
+
+            imgui.open_popup('about_popup')
+            width = 200
+            height = 315
+            imgui.set_next_window_content_size(width, height)
+            imgui.set_next_window_position(self.content_width/2 - width/2, self.content_height/2 - height/2)
+
+            about_text =  f"Version: {sf.__version__}\n"
+            about_text += f"Commit: {sf.__gitcommit__}\n"
+            about_text += f"Python: {platform.python_version()}\n"
+            about_text += f"Libvips: {lv(0)}.{lv(1)}.{lv(2)}\n"
+            about_text += f"Pyvips: {pyvips.__version__}\n"
+            about_text += f"OS: {platform.system()} {platform.release()}\n"
+
+            if imgui.begin_popup('about_popup'):
+
+                if self._about_tex_obj is None:
+                    about_img = text_utils.about_image()
+                    self._about_tex_obj = gl_utils.Texture(image=about_img, bilinear=False, mipmap=False)
+                imgui.text('')
+                imgui.text('')
+                imgui.same_line(imgui.get_content_region_max()[0]/2 - 32 + self.spacing)
+                imgui.image(self._about_tex_obj.gl_id, 64, 64)
+
+                imgui.text('')
+                with self.bold_font():
+                    self.center_text('Slideflow Workbench')
+                imgui.text('')
+
+                for line in about_text.split('\n'):
+                    self.center_text(line)
+                imgui.text('')
+                imgui.same_line(self.spacing)
+                if imgui_utils.button('Copy', width=self.button_w/2):
+                    pyperclip.copy(about_text)
+                imgui.same_line(imgui.get_content_region_max()[0] + self.spacing - self.button_w/2)
+                if imgui_utils.button('Close', width=self.button_w/2):
+                    self._show_about = False
+                imgui.end_popup()
 
     def add_to_render_pipeline(self, renderer):
         self._async_renderer.add_to_render_pipeline(renderer)
@@ -304,10 +388,10 @@ class Workbench(imgui_window.ImguiWindow):
 
     def _viewer_kwargs(self):
         return dict(
-            width=self.content_width - self.offset_x,
-            height=self.content_height - self.offset_y,
-            x_offset=self.offset_x,
-            y_offset=self.offset_y,
+            width=self.content_frame_width - self.offset_x_pixels,
+            height=self.content_frame_height - self.offset_y_pixels,
+            x_offset=self.offset_x_pixels,
+            y_offset=self.offset_y_pixels,
             normalizer=(self._normalizer if self._normalize_wsi else None)
         )
 
@@ -468,16 +552,23 @@ class Workbench(imgui_window.ImguiWindow):
         if imgui.begin_main_menu_bar():
             # --- File --------------------------------------------------------
             if imgui.begin_menu('File', True):
-                imgui.menu_item('Open Project...', 'Ctrl+P')
-                imgui.menu_item('Load Slide...', 'Ctrl+O')
-                imgui.menu_item('Load Model...', 'Ctrl+M')
+                if imgui.menu_item('Open Project...', 'Ctrl+P')[1]:
+                    self.load_project(askdirectory(), ignore_errors=True)
+                if imgui.menu_item('Open Slide...', 'Ctrl+O')[1]:
+                    self.load_slide(askopenfilename(), ignore_errors=True)
+                if imgui.menu_item('Load Model...', 'Ctrl+M')[1]:
+                    self.load_model(askdirectory(), ignore_errors=True)
                 imgui.separator()
                 if imgui.begin_menu('Export...', True):
-                    imgui.menu_item('Main view')
-                    imgui.menu_item('Tile view')
-                    imgui.menu_item('GUI view')
-                    imgui.menu_item('Heatmap (PNG)')
-                    imgui.menu_item('Heatmap (NPZ)')
+                    if imgui.menu_item('Main view')[1]:
+                        self.capture_widget.save_view()
+                    if imgui.menu_item('Tile view')[1]:
+                        self.capture_widget.save_tile()
+                    if imgui.menu_item('GUI view')[1]:
+                        self.capture_widget.save_gui()
+                    #with imgui_utils.grayed_out():
+                    imgui.menu_item('Heatmap (PNG)', enabled=False)
+                    imgui.menu_item('Heatmap (NPZ)', enabled=False)
                     imgui.end_menu()
                 imgui.separator()
                 if imgui.menu_item('Close Slide')[1]:
@@ -509,7 +600,7 @@ class Workbench(imgui_window.ImguiWindow):
                 imgui.separator()
                 if imgui.menu_item('Toggle tile preview')[1]:
                     self._show_tile_preview = not self._show_tile_preview
-                imgui.menu_item('Toggle camera view')
+                imgui.menu_item('Toggle camera view', enabled=False)
 
                 # Widgets with "View" menu.
                 for w in self.widgets:
@@ -522,7 +613,8 @@ class Workbench(imgui_window.ImguiWindow):
             # --- Help --------------------------------------------------------
             if imgui.begin_menu('Help', True):
                 imgui.menu_item('Get Started')
-                imgui.menu_item('Documentation')
+                if imgui.menu_item('Documentation')[1]:
+                    webbrowser.open('https://slideflow.dev')
 
                 # Widgets with "Help" menu.
                 for w in self.widgets:
@@ -531,11 +623,15 @@ class Workbench(imgui_window.ImguiWindow):
                         w.help_menu_options()
 
                 imgui.separator()
-                imgui.menu_item('Release Notes')
-                imgui.menu_item('Report Issue')
+                if imgui.menu_item('Release Notes')[1]:
+                    webbrowser.open(join(sf.__github__, 'releases/tag', sf.__version__))
+                if imgui.menu_item('Report Issue')[1]:
+                    webbrowser.open(join(sf.__github__, 'issues'))
                 imgui.separator()
-                imgui.menu_item('View License')
-                imgui.menu_item('About')
+                if imgui.menu_item('View License')[1]:
+                    webbrowser.open(join(sf.__github__, 'blob/master/LICENSE'))
+                if imgui.menu_item('About')[1]:
+                    self._show_about = True
                 imgui.end_menu()
 
             version_text = f'slideflow {sf.__version__}'
@@ -573,15 +669,16 @@ class Workbench(imgui_window.ImguiWindow):
     def _draw_control_pane(self):
         """Draw the control pane with Imgui."""
 
+        _pane_w = self.font_size * 37
         if self._dock_control and self._show_control:
-            self.pane_w = self.font_size * 45
+            self.pane_w = _pane_w
             imgui.set_next_window_position(0, self.menu_bar_height)
             imgui.set_next_window_size(self.pane_w, self.content_height - self.menu_bar_height)
             control_kw = dict(
                 closable=False,
                 flags=(imgui.WINDOW_NO_TITLE_BAR | imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_MOVE))
         else:
-            imgui.set_next_window_size(self.font_size * 45, self._control_size)
+            imgui.set_next_window_size(_pane_w, self._control_size)
             self.pane_w = 0
             control_kw = dict(
                 closable=True,
@@ -592,27 +689,27 @@ class Workbench(imgui_window.ImguiWindow):
             _, self._show_control = imgui.begin('Control Pane', **control_kw)
 
             # Core widgets.
-            self._control_size = self.font_size * 4 + self.spacing * 11
+            header_height = self.font_size + self.spacing * 2
+            self._control_size = self.spacing * 4
             expanded, _visible = imgui_utils.collapsing_header('Slideflow project', default=True)
             self.project_widget(expanded)
-            self._control_size += self.project_widget.content_height
+            self._control_size += self.project_widget.content_height + header_height
 
             expanded, _visible = imgui_utils.collapsing_header('Whole-slide image', default=True)
             self.slide_widget(expanded)
-            self._control_size += self.slide_widget.content_height
+            self._control_size += self.slide_widget.content_height + header_height
 
             expanded, _visible = imgui_utils.collapsing_header('Model & tile predictions', default=True)
             self.model_widget(expanded)
-            self._control_size += self.model_widget.content_height
+            self._control_size += self.model_widget.content_height + header_height
 
-            if self.viewer is not None:
+            if self.viewer is not None and self._model_config is not None:
                 expanded, _visible = imgui_utils.collapsing_header('Heatmap & slide prediction', default=True)
                 self.heatmap_widget(expanded)
-                self._control_size += self.heatmap_widget.content_height
+                self._control_size += self.heatmap_widget.content_height + header_height
 
             # User-defined widgets
             for header, widgets in self._widgets_by_header():
-                #print("Rendering header {}. Widgets: {}".format(header, widgets))
                 if header:
                     expanded, _visible = imgui_utils.collapsing_header(header, default=True)
                     self._control_size += (self.font_size + self.spacing * 3)
@@ -637,13 +734,14 @@ class Workbench(imgui_window.ImguiWindow):
             for header in headers
         ]
 
-
     def _draw_performance_pane(self):
         if self._show_performance:
             _, self._show_performance = imgui.begin('Performance & Capture', closable=True, flags=(imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_COLLAPSE))
             self.performance_widget(True)
             self.capture_widget(True)
             imgui.end()
+        else:
+            self.capture_widget(False)
 
     def _draw_tile_view(self):
         if self._show_tile_preview:
@@ -700,8 +798,8 @@ class Workbench(imgui_window.ImguiWindow):
             window_changed (bool): Window size has changed (force refresh).
         """
 
-        max_w = self.content_width - self.offset_x
-        max_h = self.content_height - self.offset_y
+        max_w = self.content_frame_width - self.offset_x_pixels
+        max_h = self.content_frame_height - self.offset_y_pixels
 
         # Update the viewer in response to user input.
         if self.viewer and self.viewer.movable:
@@ -786,19 +884,19 @@ class Workbench(imgui_window.ImguiWindow):
             height=self.content_height - self.offset_y)
         return EasyDict(
             clicking=clicking,
-            cx=cx,
-            cy=cy,
+            cx=int(cx * self.pixel_ratio),
+            cy=int(cy * self.pixel_ratio),
             wheel=wheel,
             dragging=dragging,
-            dx=dx,
-            dy=dy
+            dx=int(dx * self.pixel_ratio),
+            dy=int(dy * self.pixel_ratio)
         )
 
     def _render_prediction_message(self, message):
         """Render a prediction string to below the tile bounding box."""
-        max_w = self.content_width - self.offset_x
-        max_h = self.content_height - self.offset_y
-        tex = text_utils.get_texture(message, size=self.font_size, max_width=max_w, max_height=max_h, outline=2)
+        max_w = self.content_frame_width - self.offset_x_pixels
+        max_h = self.content_frame_height - self.offset_y_pixels
+        tex = text_utils.get_texture(message, size=self.gl_font_size, max_width=max_w, max_height=max_h, outline=2)
         box_w = self.viewer.full_extract_px / self.viewer.view_zoom
         text_pos = np.array([self.box_x + (box_w/2), self.box_y + box_w + self.font_size])
         tex.draw(pos=text_pos, align=0.5, rint=True, color=1)
@@ -813,8 +911,8 @@ class Workbench(imgui_window.ImguiWindow):
         self.label_w = round(self.font_size * 4.5)
         self.menu_bar_height = self.font_size + self.spacing
 
-        max_w = self.content_width - self.offset_x
-        max_h = self.content_height - self.offset_y
+        max_w = self.content_frame_width - self.offset_x_pixels
+        max_h = self.content_frame_height - self.offset_y_pixels
         window_changed = (self._content_width != self.content_width
                           or self._content_height != self.content_height
                           or self._pane_w != self.pane_w)
@@ -822,6 +920,7 @@ class Workbench(imgui_window.ImguiWindow):
         self._draw_menu_bar()
         self._draw_control_pane()
         self._draw_performance_pane()
+        self._about_dialog()
 
         user_input = self._handle_user_input()
 
@@ -838,10 +937,6 @@ class Workbench(imgui_window.ImguiWindow):
                 if hasattr(widget, '_on_window_change'):
                     widget._on_window_change()
 
-        # Render black box behind the controls, if docked
-        if self.pane_w:
-            gl_utils.draw_rect(pos=np.array([0, self.offset_y]), size=np.array([self.offset_x, self.content_height - self.offset_y]), color=0, anchor='center')
-
         # Main display.
         if self.viewer:
             self._draw_main_view(user_input, window_changed)
@@ -854,12 +949,12 @@ class Workbench(imgui_window.ImguiWindow):
            and 'img_format' in self._model_config
            and self._use_model_img_fmt):
             self.args.img_format = self._model_config['img_format']
+            self.args.tile_px = self._model_config['tile_px']
+            self.args.tile_um = self._model_config['tile_um']
         self.args.use_model = self._use_model
         self.args.use_uncertainty =  (self.has_uq() and self._use_uncertainty)
         self.args.use_saliency = self._use_saliency
         self.args.normalizer = self._normalizer
-        self.args.tile_px = self._model_config['tile_px']
-        self.args.tile_um = self._model_config['tile_um']
 
         # Buffer tile view if using a live viewer.
         if self.has_live_viewer() and self.args.x and self.args.y:
@@ -904,7 +999,7 @@ class Workbench(imgui_window.ImguiWindow):
                     self._uncertainty = result.uncertainty
 
         # Update input image textures (tile view).
-        middle_pos = np.array([self.pane_w + max_w/2, max_h/2])
+        middle_pos = np.array([self.offset_x_pixels + max_w/2, max_h/2])
         if 'image' in self.result:
             if self._tex_img is not self.result.image:
                 self._tex_img = self.result.image
@@ -929,7 +1024,7 @@ class Workbench(imgui_window.ImguiWindow):
                 self.result.message = str(self.result.error)
         if 'message' in self.result or self.message:
             _msg = self.message if 'message' not in self.result else self.result['message']
-            tex = text_utils.get_texture(_msg, size=self.font_size, max_width=max_w, max_height=max_h, outline=2)
+            tex = text_utils.get_texture(_msg, size=self.gl_font_size, max_width=max_w, max_height=max_h, outline=2)
             tex.draw(pos=middle_pos, align=0.5, rint=True, color=1)
 
         # Render the tile view.
@@ -1033,8 +1128,8 @@ class AsyncRenderer:
     def _set_args_sync(self, **args):
         if self._renderer_obj is None:
             self._renderer_obj = renderer.Renderer(device=self.device)
-            for renderer in self._addl_render:
-                self._renderer_obj.add_renderer(renderer)
+            for _renderer in self._addl_render:
+                self._renderer_obj.add_renderer(_renderer)
             self._renderer_obj._model = self._model
             self._renderer_obj._saliency = self._saliency
         self._cur_result = self._renderer_obj.render(**args)

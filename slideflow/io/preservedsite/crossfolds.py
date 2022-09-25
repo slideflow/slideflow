@@ -117,6 +117,7 @@ def _generate_bonmin(
 
     # Solve the equation with bonmin.
     opt = SolverFactory('bonmin', validate=False)
+    opt.options['bonmin.time_limit'] = timelimit
     results = opt.solve(model)
     model.solutions.store_to(results)
 

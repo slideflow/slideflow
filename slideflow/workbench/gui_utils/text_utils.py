@@ -20,7 +20,15 @@ from . import gl_utils
 #----------------------------------------------------------------------------
 
 def get_default_font():
-    return join(dirname(abspath(__file__)), 'DroidSans.ttf') # Open Sans regular
+    return join(dirname(abspath(__file__)), 'DroidSans.ttf')
+
+def get_default_font_bold():
+    return join(dirname(abspath(__file__)), 'DroidSans-Bold.ttf')
+
+#----------------------------------------------------------------------------
+
+def about_image():
+    return PIL.Image.open(join(dirname(abspath(__file__)), 'logo_icon.png'))
 
 #----------------------------------------------------------------------------
 

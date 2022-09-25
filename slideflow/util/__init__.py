@@ -31,13 +31,6 @@ from slideflow.util.colors import *  # noqa F403,F401 - Here for compatibility
 tf_available = importlib.util.find_spec('tensorflow')
 torch_available = importlib.util.find_spec('torch')
 
-# --- Optional imports --------------------------------------------------------
-# git is not needed for pypi distribution
-try:
-    import git
-except ImportError:
-    git = None
-
 # Enable color sequences on Windows
 try:
     import ctypes.windll
@@ -809,17 +802,6 @@ def tfrecord_heatmap(
     del wsi
     del thumb
     return stats
-
-
-def detect_git_commit() -> Optional[str]:
-    if git is not None:
-        try:
-            repo = git.Repo(search_parent_directories=True)
-            return repo.head.object.hexsha
-        except Exception:
-            return None
-    else:
-        return None
 
 
 def get_new_model_dir(root: str, model_name: str) -> str:

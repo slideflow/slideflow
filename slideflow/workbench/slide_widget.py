@@ -1,11 +1,3 @@
-# Copyright (c) 2021, NVIDIA CORPORATION & AFFILIATES.  All rights reserved.
-#
-# NVIDIA CORPORATION and its licensors retain all intellectual property
-# and proprietary rights in and to this software, related documentation
-# and any modifications thereto.  Any use, reproduction, disclosure or
-# distribution of this software and related documentation without an express
-# license agreement from NVIDIA CORPORATION is strictly prohibited.
-
 import os
 import re
 import cv2
@@ -181,7 +173,6 @@ class SlideWidget:
                 target_shape = (int((2000 / overlay.shape[0]) * overlay.shape[1]), 2000)
                 overlay = cv2.resize(overlay, target_shape)
 
-            print(overlay.shape)
             self.viz.overlay = overlay
             self.viz._overlay_wsi_dim = None
             self.viz._overlay_offset_wsi_dim = (0, 0)
@@ -326,7 +317,7 @@ class SlideWidget:
             dim_color[-1] *= 0.5
 
             # WSI thumbnail ===================================================
-            width = viz.font_size * 28
+            width = viz.font_size * 20
             height = imgui.get_text_line_height_with_spacing() * 12 + viz.spacing
             imgui.push_style_var(imgui.STYLE_FRAME_PADDING, [0, 0])
             imgui.push_style_color(imgui.COLOR_HEADER, 0, 0, 0, 0)

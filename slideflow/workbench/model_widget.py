@@ -119,131 +119,136 @@ class ModelWidget:
 
             # Predictions =====================================================
             config = viz._model_config
-            if viz._use_model and viz._predictions is not None and isinstance(viz._predictions, list):
-                for p, _pred_array in enumerate(viz._predictions):
+            if config is not None:
+                if viz._use_model and viz._predictions is not None and isinstance(viz._predictions, list):
+                    for p, _pred_array in enumerate(viz._predictions):
+                        self.content_height += (imgui.get_text_line_height_with_spacing() + viz.spacing)
+                        imgui.text(f'Pred {p}')
+                        imgui.same_line(viz.label_w)
+                        imgui.core.plot_histogram('##pred', array('f', _pred_array), scale_min=0, scale_max=1)
+                        imgui.same_line(viz.label_w + viz.font_size * 30)
+                        if 'outcomes' in config:
+                            outcomes = config['outcomes'][p]
+                        elif 'outcome_label_headers' in config:
+                            outcomes = config['outcome_label_headers'][p]
+                        ol = config['outcome_labels'][outcomes]
+                        pred_str = ol[str(np.argmax(_pred_array))]
+                        if viz._use_uncertainty and viz._uncertainty is not None:
+                            pred_str += " (UQ: {:.4f})".format(viz._uncertainty[p])
+                        imgui.text(pred_str)
+                elif viz._use_model and viz._predictions is not None:
                     self.content_height += (imgui.get_text_line_height_with_spacing() + viz.spacing)
-                    imgui.text(f'Pred {p}')
+                    imgui.text('Prediction')
                     imgui.same_line(viz.label_w)
-                    imgui.core.plot_histogram('##pred', array('f', _pred_array), scale_min=0, scale_max=1)
+                    imgui.core.plot_histogram('##pred', array('f', viz._predictions), scale_min=0, scale_max=1)
                     imgui.same_line(viz.label_w + viz.font_size * 30)
-                    if 'outcomes' in config:
-                        outcomes = config['outcomes'][p]
-                    elif 'outcome_label_headers' in config:
-                        outcomes = config['outcome_label_headers'][p]
-                    ol = config['outcome_labels'][outcomes]
-                    pred_str = ol[str(np.argmax(_pred_array))]
+                    ol = config['outcome_labels']
+                    pred_str = ol[str(np.argmax(viz._predictions))]
                     if viz._use_uncertainty and viz._uncertainty is not None:
-                        pred_str += " (UQ: {:.4f})".format(viz._uncertainty[p])
+                        pred_str += " (UQ: {:.4f})".format(viz._uncertainty)
                     imgui.text(pred_str)
-            elif viz._use_model and viz._predictions is not None:
-                self.content_height += (imgui.get_text_line_height_with_spacing() + viz.spacing)
-                imgui.text('Prediction')
-                imgui.same_line(viz.label_w)
-                imgui.core.plot_histogram('##pred', array('f', viz._predictions), scale_min=0, scale_max=1)
-                imgui.same_line(viz.label_w + viz.font_size * 30)
-                ol = config['outcome_labels']
-                pred_str = ol[str(np.argmax(viz._predictions))]
-                if viz._use_uncertainty and viz._uncertainty is not None:
-                    pred_str += " (UQ: {:.4f})".format(viz._uncertainty)
-                imgui.text(pred_str)
 
-            # Image preview ===================================================
-            width = viz.font_size * 28
-            height = imgui.get_text_line_height_with_spacing() * 11
-            if self.show_preview:
-                imgui.begin_child('##pred_image', width=width, height=height, border=False)
-                if viz._tex_obj is not None and viz.tile_px:
-                    imgui.image(viz._tex_obj.gl_id, viz.tile_px, viz.tile_px)
-                elif viz._model_path is not None:
-                    imgui.text_colored('Right click to preview', *dim_color)
-                else:
-                    imgui.text_colored('No model loaded', *dim_color)
-                imgui.same_line()
-                if self.use_model and viz._normalizer is not None and viz._norm_tex_obj is not None and viz.tile_px:
-                    imgui.image(viz._norm_tex_obj.gl_id, viz.tile_px, viz.tile_px)
-                elif viz._tex_obj is not None and viz.tile_px:
-                    imgui.text_colored('Normalizer not used', *dim_color)
-                imgui.end_child()
-                imgui.same_line()
-
-            # Model info / options ============================================
-            imgui.begin_child('##model_options', width=-1, height=height, border=False)
-
-            # Model properties (sub-child). -----------------------------------
-            if viz._model_config is not None:
-                c = viz._model_config
-                outcomes_list = c['outcome_label_headers'] if 'outcome_label_headers' in c else c['outcomes']
-                if len(outcomes_list) == 1:
-                    outcomes = outcomes_list[0]
-                else:
-                    outcomes = ', '.join(outcomes_list)
-                vals = [
-                    outcomes,
-                    str(c['tile_px']),
-                    str(c['tile_um']),
-                    "<unknown>" if 'img_format' not in c else c['img_format'],
-                    self.backend,
-                    str(c['slideflow_version']),
-                ]
-            else:
-                vals = ["-" for _ in range(6)]
-            rows = [
-                #['Property',     'Value'],
-                ['Outcomes',     vals[0]],
-                ['Tile (px)',    vals[1]],
-                ['Tile (um)',    vals[2]],
-                ['Image format', vals[3]],
-                ['Backend',      vals[4]],
-                ['Version',      vals[5]],
-            ]
-            height = imgui.get_text_line_height_with_spacing() * len(rows) + viz.spacing * 2
-            imgui.begin_child('##model_properties', width=-1, height=height, border=True)
-            for y, cols in enumerate(rows):
-                for x, col in enumerate(cols):
-                    if x != 0:
-                        imgui.same_line(viz.font_size * (6 + (x - 1) * 6))
-                    if x == 0: # or y == 0:
-                        imgui.text_colored(col, *dim_color)
+                # Image preview ===================================================
+                width = viz.font_size * 20
+                height = imgui.get_text_line_height_with_spacing() * 11
+                if self.show_preview:
+                    imgui.begin_child('##pred_image', width=width, height=height, border=False)
+                    if viz._tex_obj is not None and viz.tile_px:
+                        imgui.image(viz._tex_obj.gl_id, viz.tile_px, viz.tile_px)
+                    elif viz._model_path is not None:
+                        imgui.text_colored('Right click to preview', *dim_color)
                     else:
-                        imgui.text(col)
+                        imgui.text_colored('No model loaded', *dim_color)
+                    imgui.same_line()
+                    if self.use_model and viz._normalizer is not None and viz._norm_tex_obj is not None and viz.tile_px:
+                        imgui.image(viz._norm_tex_obj.gl_id, viz.tile_px, viz.tile_px)
+                    elif viz._tex_obj is not None and viz.tile_px:
+                        imgui.text_colored('Normalizer not used', *dim_color)
+                    imgui.end_child()
+                    imgui.same_line()
 
-            with imgui_utils.grayed_out(viz._model_path is None):
-                imgui.same_line(imgui.get_content_region_max()[0] - viz.font_size - viz.spacing * 2)
-                if imgui.button("HP") and self.viz._model_config:
-                    self._show_params = not self._show_params
-            imgui.end_child()
+                # Model info / options ============================================
+                imgui.begin_child('##model_options', width=-1, height=height, border=False)
+
+                # Model properties (sub-child). -----------------------------------
+                if config is not None:
+                    if 'outcome_label_headers' in config:
+                        outcomes_list = config['outcome_label_headers']
+                    else:
+                        outcomes_list = config['outcomes']
+                    if len(outcomes_list) == 1:
+                        outcomes = outcomes_list[0]
+                    else:
+                        outcomes = ', '.join(outcomes_list)
+                    vals = [
+                        outcomes,
+                        str(config['tile_px']),
+                        str(config['tile_um']),
+                        "<unknown>" if 'img_format' not in config else config['img_format'],
+                        self.backend,
+                        str(config['slideflow_version']),
+                    ]
+                else:
+                    vals = ["-" for _ in range(6)]
+                rows = [
+                    #['Property',     'Value'],
+                    ['Outcomes',     vals[0]],
+                    ['Tile (px)',    vals[1]],
+                    ['Tile (um)',    vals[2]],
+                    ['Image format', vals[3]],
+                    ['Backend',      vals[4]],
+                    ['Version',      vals[5]],
+                ]
+                height = imgui.get_text_line_height_with_spacing() * len(rows) + viz.spacing * 2
+                imgui.begin_child('##model_properties', width=-1, height=height, border=True)
+                for y, cols in enumerate(rows):
+                    for x, col in enumerate(cols):
+                        if x != 0:
+                            imgui.same_line(viz.font_size * (6 + (x - 1) * 6))
+                        if x == 0: # or y == 0:
+                            imgui.text_colored(col, *dim_color)
+                        else:
+                            imgui.text(col)
+
+                with imgui_utils.grayed_out(viz._model_path is None):
+                    imgui.same_line(imgui.get_content_region_max()[0] - viz.font_size - viz.spacing * 2)
+                    if imgui.button("HP") and self.viz._model_config:
+                        self._show_params = not self._show_params
+                imgui.end_child()
 
 
-            # -----------------------------------------------------------------
+                # -----------------------------------------------------------------
 
-            imgui.text('Model')
-            imgui.same_line(viz.label_w - viz.font_size)
-
-            with imgui_utils.item_width(viz.font_size * 5), imgui_utils.grayed_out(viz._model_path is None):
-                _clicked, self.use_model = imgui.checkbox('Enable##model', self.use_model)
-                viz._use_model = self.use_model
-
-            with imgui_utils.grayed_out(not viz.has_uq()):
-                imgui.same_line(viz.label_w - viz.font_size + viz.font_size * 5)
-                _clicked, _uq = imgui.checkbox('Enable UQ', self.use_uncertainty)
-                if _clicked and viz.has_uq():
-                    viz._use_uncertainty = self.use_uncertainty = _uq
-
-            # Saliency --------------------------------------------------------
-            if self.show_saliency:
-                imgui.text('Saliency')
+                imgui.text('Model')
                 imgui.same_line(viz.label_w - viz.font_size)
-                with imgui_utils.grayed_out(viz._model_path is None), imgui_utils.item_width(viz.font_size * 5):
-                    _clicked, self.enable_saliency = imgui.checkbox('Enable##saliency', self.enable_saliency)
 
-                imgui.same_line(viz.label_w - viz.font_size + viz.font_size * 5)
-                with imgui_utils.grayed_out(not self.enable_saliency):
-                    _clicked, self.saliency_overlay = imgui.checkbox('Overlay', self.saliency_overlay)
+                with imgui_utils.item_width(viz.font_size * 5), imgui_utils.grayed_out(viz._model_path is None):
+                    _clicked, self.use_model = imgui.checkbox('Enable##model', self.use_model)
+                    viz._use_model = self.use_model
 
-                with imgui_utils.item_width(imgui.get_content_region_max()[0] - 1), imgui_utils.grayed_out(not self.enable_saliency):
-                    _clicked, self.saliency_idx = imgui.combo("##method", self.saliency_idx, self._saliency_methods_names)
+                with imgui_utils.grayed_out(not viz.has_uq()):
+                    imgui.same_line(viz.label_w - viz.font_size + viz.font_size * 5)
+                    _clicked, _uq = imgui.checkbox('Enable UQ', self.use_uncertainty)
+                    if _clicked and viz.has_uq():
+                        viz._use_uncertainty = self.use_uncertainty = _uq
 
-            imgui.end_child()
+                # Saliency --------------------------------------------------------
+                if self.show_saliency:
+                    imgui.text('Saliency')
+                    imgui.same_line(viz.label_w - viz.font_size)
+                    with imgui_utils.grayed_out(viz._model_path is None), imgui_utils.item_width(viz.font_size * 5):
+                        _clicked, self.enable_saliency = imgui.checkbox('Enable##saliency', self.enable_saliency)
+
+                    imgui.same_line(viz.label_w - viz.font_size + viz.font_size * 5)
+                    with imgui_utils.grayed_out(not self.enable_saliency):
+                        _clicked, self.saliency_overlay = imgui.checkbox('Overlay', self.saliency_overlay)
+
+                    with imgui_utils.item_width(imgui.get_content_region_max()[0] - 1), imgui_utils.grayed_out(not self.enable_saliency):
+                        _clicked, self.saliency_idx = imgui.combo("##method", self.saliency_idx, self._saliency_methods_names)
+
+                imgui.end_child()
+            else:
+                self.content_height = imgui.get_text_line_height_with_spacing() + viz.spacing
         else:
             self.content_height = 0
 

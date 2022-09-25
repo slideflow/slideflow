@@ -48,6 +48,21 @@ class CaptureWidget:
         except:
             viz.result.error = renderer.CapturedException()
 
+    def save_tile(self):
+        self.dump_tile = True
+        self.defer_frames = 2
+        self.disabled_time = 0.5
+
+    def save_view(self):
+        self.dump_view = True
+        self.defer_frames = 2
+        self.disabled_time = 0.5
+
+    def save_gui(self):
+        self.dump_gui = True
+        self.defer_frames = 2
+        self.disabled_time = 0.5
+
     @imgui_utils.scoped_by_object_id
     def __call__(self, show=True):
         viz = self.viz
@@ -63,19 +78,13 @@ class CaptureWidget:
                     imgui.set_tooltip(self.path)
                 imgui.same_line()
                 if imgui_utils.button('Save view', width=viz.button_w, enabled=(self.disabled_time == 0 and viz.viewer)):
-                    self.dump_view = True
-                    self.defer_frames = 2
-                    self.disabled_time = 0.5
+                    self.save_view()
                 imgui.same_line()
                 if imgui_utils.button('Save tile', width=viz.button_w, enabled=(self.disabled_time == 0 and 'image' in viz.result)):
-                    self.dump_tile = True
-                    self.defer_frames = 2
-                    self.disabled_time = 0.5
+                    self.save_tile()
                 imgui.same_line()
                 if imgui_utils.button('Save GUI', width=-1, enabled=(self.disabled_time == 0)):
-                    self.dump_gui = True
-                    self.defer_frames = 2
-                    self.disabled_time = 0.5
+                    self.save_gui()
 
         self.disabled_time = max(self.disabled_time - viz.frame_delta, 0)
         if self.defer_frames > 0:
@@ -91,7 +100,7 @@ class CaptureWidget:
         captured_frame = viz.pop_captured_frame()
         if captured_frame is not None:
             if self._crop_next:
-                captured_frame = captured_frame[self.viz.offset_y:, self.viz.offset_x:, :]
+                captured_frame = captured_frame[self.viz.offset_y_pixels:, self.viz.offset_x_pixels:, :]
             self.dump_png(captured_frame)
             self._crop_next = False
 

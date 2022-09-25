@@ -1982,7 +1982,7 @@ class Dataset:
             slides_with_roi[s] = has_rois[s]
         for s in self.slides():
             p = patients[s]
-            if slides_with_roi[s]:
+            if s in slides_with_roi and slides_with_roi[s]:
                 patients_with_roi[p] = True
 
         # Print summary.

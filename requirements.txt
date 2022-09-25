@@ -41,3 +41,4 @@ pyopengl
 glfw
 saliency
 parameterized
+pyperclip

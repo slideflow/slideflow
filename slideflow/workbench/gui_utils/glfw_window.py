@@ -78,6 +78,20 @@ class GlfwWindow: # pylint: disable=too-many-public-methods
         return height
 
     @property
+    def content_frame_width(self):
+        width, _height = glfw.get_framebuffer_size(self._glfw_window)
+        return width
+
+    @property
+    def content_frame_height(self):
+        _width, height = glfw.get_framebuffer_size(self._glfw_window)
+        return height
+
+    @property
+    def pixel_ratio(self):
+        return self.content_frame_width / self.content_width
+
+    @property
     def title_bar_height(self):
         _left, top, _right, _bottom = glfw.get_window_frame_size(self._glfw_window)
         return top
@@ -200,11 +214,11 @@ class GlfwWindow: # pylint: disable=too-many-public-methods
         self.make_context_current()
 
         # Initialize GL state.
-        gl.glViewport(0, 0, self.content_width, self.content_height)
+        gl.glViewport(0, 0, self.content_frame_width, self.content_frame_height)
         gl.glMatrixMode(gl.GL_PROJECTION)
         gl.glLoadIdentity()
         gl.glTranslate(-1, 1, 0)
-        gl.glScale(2 / max(self.content_width, 1), -2 / max(self.content_height, 1), 1)
+        gl.glScale(2 / max(self.content_frame_width, 1), -2 / max(self.content_frame_height, 1), 1)
         gl.glMatrixMode(gl.GL_MODELVIEW)
         gl.glLoadIdentity()
         gl.glEnable(gl.GL_BLEND)
@@ -225,7 +239,7 @@ class GlfwWindow: # pylint: disable=too-many-public-methods
 
         # Capture frame if requested.
         if self._capture_next_frame:
-            self._captured_frame = gl_utils.read_pixels(self.content_width, self.content_height)
+            self._captured_frame = gl_utils.read_pixels(self.content_frame_width, self.content_frame_height)
             self._capture_next_frame = False
 
         # Update window.
