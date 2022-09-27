@@ -10,7 +10,7 @@ import tensorflow as tf
 import torch
 from functools import partial
 from sklearn.decomposition import PCA
-from slideflow.gan.stylegan2.utils import noise_tensor
+from slideflow.gan.stylegan2.stylegan2.utils import noise_tensor
 from slideflow.gan.utils import crop
 from slideflow.util import log
 from tqdm.auto import tqdm

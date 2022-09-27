@@ -42,17 +42,19 @@ if sf.util.torch_available:
 #----------------------------------------------------------------------------
 
 def stylegan_widgets():
-    from slideflow.gan.stylegan3.viz import latent_widget
-    from slideflow.gan.stylegan3.viz import pickle_widget
-    from slideflow.gan.stylegan3.viz import stylemix_widget
-    from slideflow.gan.stylegan3.viz import trunc_noise_widget
-    from slideflow.gan.stylegan3.viz import equivariance_widget
+    from slideflow.gan.stylegan3.stylegan3.viz import latent_widget
+    from slideflow.gan.stylegan3.stylegan3.viz import pickle_widget
+    from slideflow.gan.stylegan3.stylegan3.viz import stylemix_widget
+    from slideflow.gan.stylegan3.stylegan3.viz import classmix_widget
+    from slideflow.gan.stylegan3.stylegan3.viz import trunc_noise_widget
+    from slideflow.gan.stylegan3.stylegan3.viz import equivariance_widget
     return [
         pickle_widget.PickleWidget,
         latent_widget.LatentWidget,
         stylemix_widget.StyleMixingWidget,
+        classmix_widget.ClassMixingWidget,
         trunc_noise_widget.TruncationNoiseWidget,
-        equivariance_widget.EquivarianceWidget
+        equivariance_widget.EquivarianceWidget,
     ]
 
 #----------------------------------------------------------------------------
@@ -553,11 +555,17 @@ class Workbench(imgui_window.ImguiWindow):
             # --- File --------------------------------------------------------
             if imgui.begin_menu('File', True):
                 if imgui.menu_item('Open Project...', 'Ctrl+P')[1]:
-                    self.load_project(askdirectory(), ignore_errors=True)
+                    project_path = askdirectory()
+                    if project_path:
+                        self.load_project(project_path, ignore_errors=True)
                 if imgui.menu_item('Open Slide...', 'Ctrl+O')[1]:
-                    self.load_slide(askopenfilename(), ignore_errors=True)
+                    slide_path = askopenfilename()
+                    if slide_path:
+                        self.load_slide(slide_path, ignore_errors=True)
                 if imgui.menu_item('Load Model...', 'Ctrl+M')[1]:
-                    self.load_model(askdirectory(), ignore_errors=True)
+                    model_path = askdirectory()
+                    if model_path:
+                        self.load_model(model_path, ignore_errors=True)
                 imgui.separator()
                 if imgui.begin_menu('Export...', True):
                     if imgui.menu_item('Main view')[1]:

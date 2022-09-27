@@ -21,7 +21,14 @@ from . import text_utils
 #----------------------------------------------------------------------------
 
 class ImguiWindow(glfw_window.GlfwWindow):
-    def __init__(self, *, title='ImguiWindow', font=None, font_sizes=range(14,24), **glfw_kwargs):
+    def __init__(
+        self,
+        *,
+        title='ImguiWindow',
+        font=None,
+        font_sizes=range(14,24),
+        **glfw_kwargs
+    ):
         if font is None:
             font = text_utils.get_default_font()
             font_bold = text_utils.get_default_font_bold()
@@ -34,7 +41,7 @@ class ImguiWindow(glfw_window.GlfwWindow):
         self._imgui_fonts    = None
         self._imgui_fonts_bold = None
         self._cur_font_size  = max(font_sizes)
-        self._font_scaling   = 2
+        self._font_scaling   = self.pixel_ratio
 
         # Delete leftover imgui.ini to avoid unexpected behavior.
         if os.path.isfile('imgui.ini'):

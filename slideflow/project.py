@@ -1429,9 +1429,9 @@ class Project:
             raise ValueError(f"Unknown method '{model}'. Valid methods "
                              f"include: {', '.join(supported_models)}")
         if model == 'stylegan2':
-            from slideflow.gan import stylegan2 as network
+            from slideflow.gan.stylegan2 import stylegan2 as network
         elif model == 'stylegan3':
-            from slideflow.gan import stylegan3 as network  # type: ignore
+            from slideflow.gan.stylegan3 import stylegan3 as network  # type: ignore
         if metrics is not None:
             log.warn(
                 "StyleGAN2 metrics are not fully implemented for Slideflow."
@@ -1532,7 +1532,7 @@ class Project:
                 ...     target_px=299,
                 ...     target_um=302)
         """
-        from slideflow.gan import stylegan2
+        from slideflow.gan.stylegan2 import stylegan2
 
         stylegan2.generate.generate_images(
             network_pkl,

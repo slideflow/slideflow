@@ -379,7 +379,7 @@ class LocLabelInterleaver(StyleGAN2Interleaver):
         """
 
         label_key = f'{slide}-{loc_x}-{loc_y}'
-        label = torch.tensor(self.df.iloc[self.df.index.get_loc(label_key)])[0]
+        label = torch.tensor(self.df.iloc[self.df.index.get_loc(label_key)].values)[0]
 
         image = whc_to_cwh(image)
         to_return = [image, label]  # type: List[Any]

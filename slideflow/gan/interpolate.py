@@ -10,7 +10,7 @@ import seaborn as sns
 import slideflow as sf
 import torch
 from PIL import Image
-from slideflow.gan.stylegan2 import embedding, utils
+from slideflow.gan.stylegan2.stylegan2 import embedding, utils
 from slideflow.gan.utils import crop
 from slideflow import errors
 from rich.progress import track

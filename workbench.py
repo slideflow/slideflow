@@ -33,7 +33,7 @@ def main(
     widgets = Workbench.get_default_widgets()
     if stylegan:
         from slideflow.workbench import stylegan_widgets
-        widgets += [stylegan_widgets()]
+        widgets += stylegan_widgets()
     if picam:
         from slideflow.workbench.picam_widget import PicamWidget
         widgets += [PicamWidget]
@@ -46,7 +46,7 @@ def main(
 
     # --- StyleGAN3 -----------------------------------------------------------
     if stylegan:
-        from slideflow.gan.stylegan3.viz.renderer import Renderer as GANRenderer
+        from slideflow.gan.stylegan3.stylegan3.viz.renderer import Renderer as GANRenderer
         renderer = GANRenderer(gan_px=512, gan_um=400)
         viz.add_to_render_pipeline(renderer)
     # -------------------------------------------------------------------------
