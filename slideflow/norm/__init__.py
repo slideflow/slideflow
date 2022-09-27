@@ -251,7 +251,7 @@ class StainNormalizer:
                     num_workers=8
                 )
             all_fit_vals = []  # type: ignore
-            pb = Progress()
+            pb = Progress(transient=True)
             task = pb.add_task('Fitting normalizer...', total=dataset.num_tiles)
             pb.start()
             for img_batch, slide in dts:

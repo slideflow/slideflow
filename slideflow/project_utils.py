@@ -66,6 +66,8 @@ def _project_config(
     args['slideflow_version'] = sf.__version__
     if sources is None:
         args['sources'] = []
+    elif isinstance(sources, str):
+        args['sources'] = [sources]
     return args
 
 

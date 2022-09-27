@@ -738,7 +738,7 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
                 self.model,
                 self.cb_args.validation_data,
                 model_type=self.hp.model_type(),
-                uq=bool(self.hp.uq),
+                uq=False,
                 loss=self.hp.get_loss(),
                 steps=self.cb_args.validation_steps,
                 verbosity='quiet',
@@ -2158,6 +2158,7 @@ class Features:
             pool = mp.dummy.Pool(num_threads)
             should_close = True
         else:
+            should_close = False
             pool = None
         generator = slide.build_generator(
             img_format=img_format,
