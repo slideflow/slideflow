@@ -8,6 +8,7 @@ import imgui
 import OpenGL.GL as gl
 
 from os.path import join, exists
+from PIL import Image
 from tkinter import Tk
 from tkinter.filedialog import askopenfilename, askdirectory
 from slideflow.workbench.gui_utils import imgui_window
@@ -574,9 +575,11 @@ class Workbench(imgui_window.ImguiWindow):
                         self.capture_widget.save_tile()
                     if imgui.menu_item('GUI view')[1]:
                         self.capture_widget.save_gui()
-                    #with imgui_utils.grayed_out():
-                    imgui.menu_item('Heatmap (PNG)', enabled=False)
-                    imgui.menu_item('Heatmap (NPZ)', enabled=False)
+                    if imgui.menu_item('Heatmap (PNG)', enabled=(self.rendered_heatmap is not None))[0]:
+                        h_img = Image.fromarray(self.rendered_heatmap)
+                        h_img.resize(np.array(h_img.size) * 16, Image.NEAREST).save(f'{self.heatmap.slide.name}.png')
+                    if imgui.menu_item('Heatmap (NPZ)', enabled=(self.heatmap is not None))[0]:
+                        self.heatmap.save_npz()
                     imgui.end_menu()
                 imgui.separator()
                 if imgui.menu_item('Close Slide')[1]:

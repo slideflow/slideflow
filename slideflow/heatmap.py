@@ -128,6 +128,8 @@ class Heatmap:
         self.num_classes = self.interface.num_logits
         self.num_features = self.interface.num_features
         self.num_uncertainty = self.interface.num_uncertainty
+        self.logits = None
+        self.uncertainty = None
 
         if isinstance(slide, str):
             if stride_div is None:
@@ -312,6 +314,41 @@ class Heatmap:
     def clear_insets(self) -> None:
         """Removes zoom insets."""
         self.insets = []
+
+    def load(self, path: str) -> None:
+        """Load heatmap logits and uncertainty from .npz file.
+
+        Loads logits from 'logits' in .npz file, and uncertainty from
+        'uncertainty' if present, as generated from heatmap.save_npz(). This
+        function is the same as calling heatmap.load_npz().
+
+        Args:
+            path (str, optional): Source .npz file. Must have 'logits' key and
+                optionally 'uncertainty'.
+
+        Returns:
+            None
+        """
+        self.load_npz(path)
+
+    def load_npz(self, path: str) -> None:
+        """Load heatmap logits and uncertainty from .npz file.
+
+        Loads logits from 'logits' in .npz file, and uncertainty from
+        'uncertainty' if present, as generated from heatmap.save_npz(). This
+        function is the same as calling heatmap.load().
+
+        Args:
+            path (str, optional): Source .npz file. Must have 'logits' key and
+                optionally 'uncertainty'.
+
+        Returns:
+            None
+        """
+        npzfile = np.load(path)
+        self.logits = npzfile['logits']
+        if 'uncertainty' in npzfile:
+            self.uncertainty = npzfile['uncertainty']
 
     def plot_thumbnail(
         self,
@@ -507,6 +544,11 @@ class Heatmap:
             roi_color (str): ROI line color. Defaults to 'k' (black).
             linewidth (int): Width of ROI line. Defaults to 5.
         """
+        if self.logits is None:
+            raise errors.HeatmapError(
+                "Cannot plot Heatmap which is not yet generated; generate with "
+                "either heatmap.generate() or Heatmap(..., generate=True)"
+            )
 
         ax = self._prepare_ax(ax)
         implot = self.plot_thumbnail(ax=ax, **thumb_kwargs)
@@ -531,6 +573,27 @@ class Heatmap:
             interpolation=interpolation,
             zorder=10
         )
+
+    def save_npz(self, path: Optional[str] = None) -> None:
+        """Save heatmap logits and uncertainty in .npz format.
+
+        Saves heatmap logits to 'logits' in the .npz file. If uncertainty
+        was calculated, this is saved to 'uncertainty'. A Heatmap instance can
+        load a saved .npz file with heatmap.load().
+
+        Args:
+            path (str, optional): Destination filename for .npz file. Defaults
+                to [slidename].npz
+
+        Returns:
+            None
+        """
+        if path is None:
+            path = f'{self.slide.name}.npz'
+        np_kwargs = dict(logits=self.logits)
+        if self.uq:
+            np_kwargs['uncertainty'] = self.uncertainty
+        np.savez(path, **np_kwargs)
 
     def save(
         self,
@@ -578,7 +641,13 @@ class Heatmap:
         import matplotlib.pyplot as plt
 
         if self.logits is None:
-            raise errors.HeatmapError("Logits not yet calculated.")
+            raise errors.HeatmapError(
+                "Cannot plot Heatmap which is not yet generated; generate with "
+                "either heatmap.generate() or Heatmap(..., generate=True)"
+            )
+
+        # Save heatmaps in .npz format
+        self.save_npz(os.path.join(outdir, f'{self.slide.name}.npz'))
 
         def _savefig(label, bbox_inches='tight', **kwargs):
             plt.savefig(
@@ -780,6 +849,8 @@ class ModelHeatmap(Heatmap):
         self.num_classes = self.interface.num_logits
         self.num_features = self.interface.num_features
         self.num_uncertainty = self.interface.num_uncertainty
+        self.logits = None
+        self.uncertainty = None
 
         if generate:
             self.generate(**generator_kwargs)
