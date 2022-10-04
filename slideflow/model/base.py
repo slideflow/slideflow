@@ -164,6 +164,9 @@ class _ModelParams:
         arg_dict = {arg: getattr(self, arg) for arg in args}
         return json.dumps(arg_dict, indent=2)
 
+    def __eq__(self, other):
+        return self.get_dict() == other.get_dict()
+
     @classmethod
     def from_dict(cls, hp_dict: Dict) -> "_ModelParams":
         obj = cls()
