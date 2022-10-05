@@ -206,7 +206,7 @@ class SlideWidget:
             # Returns boolean grid, where:
             #   True = tile will be extracted
             #   False = tile will be discarded (failed QC)
-            self._filter_grid = np.transpose(self.viz.wsi.grid).astype(np.bool)
+            self._filter_grid = np.transpose(self.viz.wsi.grid).astype(bool)
             self._ws_grid = np.zeros_like(self._filter_grid, dtype=np.float)
             self._gs_grid = np.zeros_like(self._filter_grid, dtype=np.float)
             self.render_to_overlay(self._filter_grid, correct_wsi_dim=True)
@@ -256,16 +256,25 @@ class SlideWidget:
             if self.show_slide_filter:
                 self._render_slide_filter()
 
-    def update_slide_filter(self):
+    def preview_qc_mask(self, mask):
+        assert isinstance(mask, np.ndarray)
+        assert mask.dtype == bool
+        assert len(mask.shape) == 2
+        self.qc_mask = ~mask
+        self.show_slide_filter = True
+        self.update_slide_filter()
+
+    def update_slide_filter(self, method=None):
         if not self.viz.wsi:
             return
-        self.viz.wsi.remove_qc()
         self._join_filter_thread()
 
         # Update the slide QC
         if self.show_slide_filter and self.viz.wsi is not None:
             self.viz.heatmap_widget.show = False
-            self.qc_mask = ~np.asarray(self.viz.wsi.qc(self._qc_methods[self.qc_idx]), dtype=np.bool)
+            if method is not None:
+                self.viz.wsi.remove_qc()
+                self.qc_mask = ~np.asarray(self.viz.wsi.qc(method), dtype=bool)
         else:
             self.qc_mask = None
 
@@ -284,7 +293,7 @@ class SlideWidget:
             # Returns boolean grid, where:
             #   True = tile will be extracted
             #   False = tile will be discarded (failed QC)
-            self._filter_grid = np.transpose(self.viz.wsi.grid).astype(np.bool)
+            self._filter_grid = np.transpose(self.viz.wsi.grid).astype(bool)
             for y in range(self._ws_grid.shape[0]):
                 for x in range(self._ws_grid.shape[1]):
                     ws = self._ws_grid[y][x]
@@ -438,7 +447,7 @@ class SlideWidget:
                 with imgui_utils.item_width(viz.font_size * 8), imgui_utils.grayed_out(not self.show_slide_filter):
                     _qc_method_clicked, self.qc_idx = imgui.combo("##qc_method", self.qc_idx, self._qc_methods_str)
                 if _qc_clicked or _qc_method_clicked:
-                    self.update_slide_filter()
+                    self.update_slide_filter(method=self._qc_methods[self.qc_idx])
 
                 # Normalizing
                 _norm_clicked, self.normalize_wsi = imgui.checkbox('Normalize', self.normalize_wsi)

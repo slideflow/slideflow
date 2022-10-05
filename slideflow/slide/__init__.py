@@ -1007,7 +1007,7 @@ class _BaseLoader:
 
         assert isinstance(mask, np.ndarray)
         assert len(mask.shape) == 2
-        assert mask.dtype == np.bool
+        assert mask.dtype == bool
 
         downsample = self.dimensions[0] / mask.shape[1]
         qc_ratio = 1 / downsample
