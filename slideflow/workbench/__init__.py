@@ -257,7 +257,8 @@ class Workbench(imgui_window.ImguiWindow):
 
     @staticmethod
     def get_default_widgets():
-        return []
+        from slideflow.workbench.layer_widget import LayerWidget
+        return [LayerWidget]
 
     def center_text(self, text):
         size = imgui.calc_text_size(text)
@@ -274,7 +275,7 @@ class Workbench(imgui_window.ImguiWindow):
             imgui.open_popup('about_popup')
             width = 200
             height = 315
-            imgui.set_next_window_content_size(width, height)
+            imgui.set_next_window_content_size(width, 0)
             imgui.set_next_window_position(self.content_width/2 - width/2, self.content_height/2 - height/2)
 
             about_text =  f"Version: {sf.__version__}\n"
@@ -288,7 +289,7 @@ class Workbench(imgui_window.ImguiWindow):
 
                 if self._about_tex_obj is None:
                     about_img = text_utils.about_image()
-                    self._about_tex_obj = gl_utils.Texture(image=about_img, bilinear=False, mipmap=False)
+                    self._about_tex_obj = gl_utils.Texture(image=about_img)
                 imgui.text('')
                 imgui.text('')
                 imgui.same_line(imgui.get_content_region_max()[0]/2 - 32 + self.spacing)
@@ -777,11 +778,11 @@ class Workbench(imgui_window.ImguiWindow):
             imgui.set_next_window_size(width, height)
 
             if self._tile_preview_is_new:
-                imgui.set_next_window_position(self.content_width - width - self.spacing, self.content_height - height - self.spacing)
+                imgui.set_next_window_position(self.content_width - width - self.spacing, self.spacing + self.offset_y_pixels)
                 self._tile_preview_is_new = False
 
             if self._tile_preview_image_is_new and (has_raw_image or has_norm_image):
-                imgui.set_next_window_position(self.content_width - width - self.spacing, self.content_height - height - self.spacing)
+                imgui.set_next_window_position(self.content_width - width - self.spacing, self.spacing + self.offset_y_pixels)
                 self._tile_preview_image_is_new = False
 
             _, self._show_tile_preview = imgui.begin("##tile view", closable=True, flags=(imgui.WINDOW_NO_COLLAPSE | imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_SCROLLBAR))

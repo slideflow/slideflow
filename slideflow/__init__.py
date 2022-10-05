@@ -10,7 +10,7 @@
 
 __author__ = 'James Dolezal'
 __license__ = 'GNU General Public License v3.0'
-__version__ = '1.3.0-dev10'
+__version__ = '1.3.0-dev11'
 __github__ = 'https://github.com/jamesdolezal/slideflow'
 
 try:

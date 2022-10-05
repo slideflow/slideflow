@@ -21,7 +21,7 @@ class LayerWidget:
         if path != self._model_path:
             self._model_path = path
             self.coords = {}
-            if exists(join(path, 'umap_encoders')):
+            if path is not None and exists(join(path, 'umap_encoders')):
                 self._umap_layers = [
                     d for d in os.listdir(join(path, 'umap_encoders'))
                     if os.path.isdir(join(path, 'umap_encoders', d))
@@ -38,7 +38,7 @@ class LayerWidget:
                 self._umap_layers = []
 
     def view_menu_options(self):
-        if imgui.menu_item('Toggle Layer UMAPs')[1]:
+        if imgui.menu_item('Toggle Layer UMAPs', enabled=bool(self._umap_layers))[1]:
             self.show = not self.show
 
     def render(self):
@@ -49,7 +49,7 @@ class LayerWidget:
 
         # --- Draw plot with OpenGL ---------------------------------------
 
-        if self.show:
+        if self.show and self._umap_layers:
             imgui.set_next_window_size(300 * len(self._umap_layers), 350)
             _, self.show = imgui.begin("##layer_plot", closable=True, flags=(imgui.WINDOW_NO_COLLAPSE | imgui.WINDOW_NO_RESIZE))
             _tx, _ty = imgui.get_window_position()

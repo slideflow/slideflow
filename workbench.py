@@ -1,5 +1,5 @@
 import click
-from slideflow.workbench import Workbench, stylegan_widgets
+from slideflow.workbench import Workbench
 from os.path import dirname, realpath
 
 #----------------------------------------------------------------------------
@@ -9,8 +9,7 @@ from os.path import dirname, realpath
 @click.option('--model', '-m', help='Classifier network for categorical predictions.', metavar='PATH')
 @click.option('--project', '-p', help='Slideflow project.', metavar='PATH')
 @click.option('--low_memory', '-l', is_flag=True, help='Low memory mode.', metavar=bool)
-@click.option('--picam', '-c', is_flag=True, help='Enable Picamera2.', metavar=bool)
-@click.option('--activations', '-a', is_flag=True, help='Enable activations viewer.', metavar=bool)
+@click.option('--picam', '-c', is_flag=True, help='Enable Picamera2 view (experimental).', metavar=bool)
 @click.option('--stylegan', '-g', is_flag=True, help='Enable StyleGAN viewer.', metavar=bool)
 def main(
     slide,
@@ -18,7 +17,6 @@ def main(
     project,
     low_memory,
     picam,
-    activations,
     stylegan
 ):
     """
@@ -37,9 +35,6 @@ def main(
     if picam:
         from slideflow.workbench.picam_widget import PicamWidget
         widgets += [PicamWidget]
-    if activations:
-        from slideflow.workbench.layer_widget import LayerWidget
-        widgets += [LayerWidget]
 
     viz = Workbench(low_memory=low_memory, widgets=widgets)
     viz.project_widget.search_dirs += [dirname(realpath(__file__))]
