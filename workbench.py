@@ -11,13 +11,15 @@ from os.path import dirname, realpath
 @click.option('--low_memory', '-l', is_flag=True, help='Low memory mode.', metavar=bool)
 @click.option('--picam', '-c', is_flag=True, help='Enable Picamera2 view (experimental).', metavar=bool)
 @click.option('--stylegan', '-g', is_flag=True, help='Enable StyleGAN viewer.', metavar=bool)
+@click.option('--advanced', '-a', is_flag=True, help='Enable advanced options and widgets.', metavar=bool)
 def main(
     slide,
     model,
     project,
     low_memory,
     picam,
-    stylegan
+    stylegan,
+    advanced
 ):
     """
     Whole-slide image viewer with deep learning model visualization tools.
@@ -31,7 +33,7 @@ def main(
     widgets = Workbench.get_default_widgets()
     if stylegan:
         from slideflow.workbench import stylegan_widgets
-        widgets += stylegan_widgets()
+        widgets += stylegan_widgets(advanced=advanced)
     if picam:
         from slideflow.workbench.picam_widget import PicamWidget
         widgets += [PicamWidget]
@@ -44,6 +46,8 @@ def main(
         from slideflow.gan.stylegan3.stylegan3.viz.renderer import Renderer as GANRenderer
         renderer = GANRenderer(gan_px=512, gan_um=400)
         viz.add_to_render_pipeline(renderer)
+        if advanced:
+            viz._pane_w_div = 45
     # -------------------------------------------------------------------------
 
     # Load model.

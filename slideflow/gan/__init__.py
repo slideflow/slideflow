@@ -2,6 +2,6 @@
 (maintained separately at https://github.com/jamesdolezal/stylegan2-slideflow).
 """
 
-import slideflow.gan.stylegan2.stylegan2
-import slideflow.gan.stylegan3.stylegan3
-from slideflow.gan.interpolate import StyleGAN2Interpolator
+from .stylegan2 import stylegan2
+from .stylegan3 import stylegan3
+from .interpolate import StyleGAN2Interpolator

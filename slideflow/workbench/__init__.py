@@ -42,21 +42,21 @@ if sf.util.torch_available:
 
 #----------------------------------------------------------------------------
 
-def stylegan_widgets():
-    from slideflow.gan.stylegan3.stylegan3.viz import latent_widget
-    from slideflow.gan.stylegan3.stylegan3.viz import pickle_widget
-    from slideflow.gan.stylegan3.stylegan3.viz import stylemix_widget
-    from slideflow.gan.stylegan3.stylegan3.viz import classmix_widget
-    from slideflow.gan.stylegan3.stylegan3.viz import trunc_noise_widget
-    from slideflow.gan.stylegan3.stylegan3.viz import equivariance_widget
-    return [
+def stylegan_widgets(advanced=True):
+    from slideflow.gan.stylegan3.stylegan3.viz import (latent_widget,
+                                                       pickle_widget,
+                                                       stylemix_widget,
+                                                       trunc_noise_widget,
+                                                       equivariance_widget)
+    widgets = [
         pickle_widget.PickleWidget,
         latent_widget.LatentWidget,
         stylemix_widget.StyleMixingWidget,
-        classmix_widget.ClassMixingWidget,
-        trunc_noise_widget.TruncationNoiseWidget,
-        equivariance_widget.EquivarianceWidget,
     ]
+    if advanced:
+        widgets += [trunc_noise_widget.TruncationNoiseWidget,
+                    equivariance_widget.EquivarianceWidget]
+    return widgets
 
 #----------------------------------------------------------------------------
 
@@ -171,6 +171,7 @@ class Workbench(imgui_window.ImguiWindow):
         self._defer_tile_refresh = None
         self._should_close_slide = False
         self._should_close_model = False
+        self._pane_w_div        = 37
 
         # Interface.
         self._show_about        = False
@@ -686,7 +687,7 @@ class Workbench(imgui_window.ImguiWindow):
     def _draw_control_pane(self):
         """Draw the control pane with Imgui."""
 
-        _pane_w = self.font_size * 37
+        _pane_w = self.font_size * self._pane_w_div
         if self._dock_control and self._show_control:
             self.pane_w = _pane_w
             imgui.set_next_window_position(0, self.menu_bar_height)
@@ -741,11 +742,14 @@ class Workbench(imgui_window.ImguiWindow):
     def _widgets_by_header(self):
 
         def _get_header(w):
-            return None if not hasattr(w, 'header') else w.header
+            return '' if not hasattr(w, 'header') else w.header
 
-        headers = list(set([
-            _get_header(widget) for widget in self.widgets
-        ]))
+        headers = []
+        for widget in self.widgets:
+            _widget_header = _get_header(widget)
+            if _widget_header not in headers:
+                headers.append(_widget_header)
+
         return [
             (header, [w for w in self.widgets if _get_header(w) == header])
             for header in headers
@@ -961,13 +965,11 @@ class Workbench(imgui_window.ImguiWindow):
         # --- Render arguments ------------------------------------------------
         self.args.x = self.x
         self.args.y = self.y
-        if (self._model_config is not None
-           and self._use_model
-           and 'img_format' in self._model_config
-           and self._use_model_img_fmt):
-            self.args.img_format = self._model_config['img_format']
+        if (self._model_config is not None and self._use_model):
             self.args.tile_px = self._model_config['tile_px']
             self.args.tile_um = self._model_config['tile_um']
+            if 'img_format' in self._model_config and self._use_model_img_fmt:
+                self.args.img_format = self._model_config['img_format']
         self.args.use_model = self._use_model
         self.args.use_uncertainty =  (self.has_uq() and self._use_uncertainty)
         self.args.use_saliency = self._use_saliency
