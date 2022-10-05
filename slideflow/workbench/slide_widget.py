@@ -107,6 +107,7 @@ class SlideWidget:
             self.user_slide = slide
             self.viz.clear_message(f'Loading {name}...')
             viz.result = EasyDict(error=renderer.CapturedException())
+            self.viz.create_toast(f"Error loading slide {slide}", icon="error")
             if not ignore_errors:
                 raise
 

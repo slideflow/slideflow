@@ -9,6 +9,7 @@
 import functools
 from typing import Optional
 
+import os
 import numpy as np
 import PIL.Image
 import PIL.ImageFont
@@ -28,7 +29,14 @@ def get_default_font_bold():
 #----------------------------------------------------------------------------
 
 def about_image():
-    return PIL.Image.open(join(dirname(abspath(__file__)), 'logo_icon.png'))
+    return PIL.Image.open(join(dirname(abspath(__file__)), 'icons/logo.png'))
+
+def icons():
+    icon_path = join(dirname(abspath(__file__)), 'icons')
+    return {
+        name.split('.')[0]: PIL.Image.open(join(icon_path, name))
+        for name in os.listdir(icon_path)
+    }
 
 #----------------------------------------------------------------------------
 

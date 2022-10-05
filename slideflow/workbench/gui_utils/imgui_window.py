@@ -8,6 +8,7 @@
 
 import os
 import glfw
+import time
 import contextlib
 import imgui
 import imgui.integrations.glfw
@@ -17,6 +18,7 @@ from imgui.integrations.opengl import FixedPipelineRenderer
 from . import glfw_window
 from . import imgui_utils
 from . import text_utils
+from . import gl_utils
 
 #----------------------------------------------------------------------------
 
@@ -26,7 +28,7 @@ class ImguiWindow(glfw_window.GlfwWindow):
         *,
         title='ImguiWindow',
         font=None,
-        font_sizes=range(14,24),
+        font_sizes=range(14,28),
         **glfw_kwargs
     ):
         if font is None:
@@ -42,6 +44,7 @@ class ImguiWindow(glfw_window.GlfwWindow):
         self._imgui_fonts_bold = None
         self._cur_font_size  = max(font_sizes)
         self._font_scaling   = self.pixel_ratio
+        self._toasts         = []
 
         # Delete leftover imgui.ini to avoid unexpected behavior.
         if os.path.isfile('imgui.ini'):
@@ -53,10 +56,16 @@ class ImguiWindow(glfw_window.GlfwWindow):
         self._attach_glfw_callbacks()
         imgui.get_io().ini_saving_rate = 0 # Disable creating imgui.ini at runtime.
         imgui.get_io().mouse_drag_threshold = 0 # Improve behavior with imgui_utils.drag_custom().
-        self._imgui_fonts = {size: imgui.get_io().fonts.add_font_from_file_ttf(font, size * self._font_scaling) for size in font_sizes}
-        self._imgui_fonts_bold = {size: imgui.get_io().fonts.add_font_from_file_ttf(font_bold, size * self._font_scaling) for size in font_sizes}
+        self._imgui_fonts = {size: imgui.get_io().fonts.add_font_from_file_ttf(font, int(size * self._font_scaling)) for size in font_sizes}
+        self._imgui_fonts_bold = {size: imgui.get_io().fonts.add_font_from_file_ttf(font_bold, int(size * self._font_scaling)) for size in font_sizes}
         self._imgui_renderer.refresh_font_texture()
         imgui.get_io().font_global_scale = 1 / self._font_scaling
+
+        # Init icons.
+        self._icon_textures = {
+            name: gl_utils.Texture(image=icon)
+            for name, icon in text_utils.icons().items()
+        }
 
     def close(self):
         self.make_context_current()
@@ -94,6 +103,11 @@ class ImguiWindow(glfw_window.GlfwWindow):
         imgui.pop_font()
         imgui.push_font(self._imgui_fonts[self._cur_font_size])
 
+    def icon(self, name, sameline=False):
+        imgui.image(self._icon_textures[name].gl_id, self.font_size, self.font_size)
+        if sameline:
+            imgui.same_line(self.font_size + self.spacing * 2)
+
     def set_font_size(self, target): # Applied on next frame.
         self._cur_font_size = min((abs(key - target), key) for key in self._imgui_fonts.keys())[1]
 
@@ -111,12 +125,125 @@ class ImguiWindow(glfw_window.GlfwWindow):
         imgui.push_font(self._imgui_fonts[self._cur_font_size])
         imgui_utils.set_default_style(spacing=self.spacing, indent=self.font_size, scrollbar=self.font_size+4)
 
+        # Render toasts.
+        self._render_toasts()
+
     def end_frame(self):
         imgui.pop_font()
         imgui.render()
         imgui.end_frame()
         self._imgui_renderer.render(imgui.get_draw_data())
         super().end_frame()
+
+    def _render_toasts(self, padding=20):
+        _to_del = []
+        _cur_height = 0
+
+        for _id, toast in enumerate(self._toasts):
+            if toast.expired:
+                _to_del.append(toast)
+                continue
+            imgui.push_style_var(imgui.STYLE_ALPHA, toast.alpha)
+            _old_rounding = imgui.get_style().window_rounding
+            imgui.get_style().window_rounding = 5
+
+            _cur_height += toast.height + padding
+            imgui.set_next_window_position(
+                self.content_width - (toast.width + padding),
+                self.content_height - _cur_height,
+            )
+            imgui.set_next_window_size(toast.width, 0)
+
+            # Render with imgui
+            imgui.begin(f'toast{_id}', flags=imgui.WINDOW_NO_TITLE_BAR | imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_SCROLLBAR)
+            if toast.icon:
+                self.icon(toast.icon, sameline=True)
+            if toast.title:
+                imgui.text(toast.title)
+                if toast.message:
+                    imgui.separator()
+            if toast.message:
+                imgui.push_text_wrap_pos()
+                imgui.text(toast.message)
+                imgui.pop_text_wrap_pos()
+            toast._height = imgui.get_window_height()
+            imgui.end()
+            imgui.pop_style_var()
+            imgui.get_style().window_rounding = _old_rounding
+
+        # Remove expired toasts
+        for _expired in _to_del:
+            self._toasts.remove(_expired)
+
+    def create_toast(self, message=None, title=None, icon=None):
+        if message is None and title is None and icon is None:
+            raise ValueError("Must supply either message, title, or icon to "
+                             "create_toast()")
+        self._toasts.append(Toast(
+            message=message,
+            title=title,
+            icon=icon,
+        ))
+
+
+#----------------------------------------------------------------------------
+
+class Toast:
+
+    msg_duration = 4
+    fade_duration = 0.25
+
+    def __init__(self, message, title, icon):
+        if icon and title is None:
+            title = icon.capitalize()
+        self._alpha = 0
+        self._height = None
+        self._default_message_height = 75
+        self._create_time = time.time()
+        self.message = message
+        self.title = title
+        self.icon = icon
+
+    def __str__(self):
+        return "<Toast message={!r}, title={!r}, icon={!r}, alpha={!r}".format(
+            self.message,
+            self.title,
+            self.icon,
+            self.alpha
+        )
+
+    @property
+    def alpha(self):
+        elapsed = time.time() - self._create_time
+        if elapsed < self.fade_duration:
+            return (elapsed / self.fade_duration)
+        elif elapsed < (self.fade_duration + self.msg_duration):
+            return 1
+        elif elapsed < (self.fade_duration * 2 + self.msg_duration):
+            return 1 - ((elapsed - (self.fade_duration + self.msg_duration)) / self.fade_duration)
+        else:
+            return 0
+
+    @property
+    def expired(self):
+        return (time.time() - self._create_time) > (self.msg_duration + self.fade_duration * 2)
+
+    @property
+    def height(self):
+        if self._height:
+            return self._height
+        else:
+            line_height = imgui.get_text_line_height_with_spacing()
+            if self.title and self.message is None:
+                return line_height
+            elif self.title and self.message:
+                return line_height * 1.5 + self._default_message_height
+            else:
+                return self._default_message_height
+
+    @property
+    def width(self):
+        return 400
 
 #----------------------------------------------------------------------------
 # Wrapper class for GlfwRenderer to fix a mouse wheel bug on Linux,

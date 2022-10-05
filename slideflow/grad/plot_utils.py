@@ -43,7 +43,7 @@ def remove_ticks(axis):
 def comparison_plot(
     original: np.ndarray,
     maps: Dict[str, np.ndarray],
-    cmap: Any = plt.cm.gray,
+    cmap: Any = "plt.cm.gray",
     n_rows: int = 3,
     n_cols: int = 3,
 ) -> None:

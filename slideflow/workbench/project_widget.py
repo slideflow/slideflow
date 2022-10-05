@@ -38,6 +38,7 @@ class ProjectWidget:
             imgui.set_next_window_position(self.viz.content_width/2, self.viz.content_height/2)
 
             if imgui.begin_popup('disclaimer_popup'):
+
                 imgui.text('Welcome to Workbench!')
                 imgui.separator()
                 imgui.text('This is an early preview under active development.\n'
@@ -52,6 +53,9 @@ class ProjectWidget:
         viz = self.viz
         viz.clear_result()
         viz.skip_frame() # The input field will change on next frame.
+        if project == '':
+            viz.result = EasyDict(message='No project loaded')
+            return
         try:
             self.cur_project = project
             self.user_project = project
@@ -66,14 +70,13 @@ class ProjectWidget:
             self.slide_paths = self.P.dataset().slide_paths()
             viz.model_widget.search_dirs = [self.P.models_dir]
             viz.slide_widget.project_slides = self.slide_paths
+            self.viz.create_toast(f"Loaded project at {project}", icon="success")
 
         except Exception:
             self.cur_project = None
             self.user_project = project
-            if project == '':
-                viz.result = EasyDict(message='No project loaded')
-            else:
-                viz.result = EasyDict(error=renderer.CapturedException())
+            self.viz.create_toast(f"Unable to load project at {project}", icon="error")
+            viz.result = EasyDict(error=renderer.CapturedException())
             if not ignore_errors:
                 raise
 

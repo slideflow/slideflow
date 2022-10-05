@@ -577,7 +577,7 @@ class Heatmap:
             zorder=10
         )
 
-    def save_npz(self, path: Optional[str] = None) -> None:
+    def save_npz(self, path: Optional[str] = None) -> str:
         """Save heatmap logits and uncertainty in .npz format.
 
         Saves heatmap logits to 'logits' in the .npz file. If uncertainty
@@ -589,7 +589,7 @@ class Heatmap:
                 to [slidename].npz
 
         Returns:
-            None
+            str: Path to .npz file.
         """
         if path is None:
             path = f'{self.slide.name}.npz'
@@ -597,6 +597,7 @@ class Heatmap:
         if self.uq:
             np_kwargs['uncertainty'] = self.uncertainty
         np.savez(path, **np_kwargs)
+        return path
 
     def save(
         self,

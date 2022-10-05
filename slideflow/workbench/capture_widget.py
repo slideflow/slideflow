@@ -44,8 +44,11 @@ class CaptureWidget:
                 pil_image = PIL.Image.fromarray(image[:, :, 0], 'L')
             else:
                 pil_image = PIL.Image.fromarray(image, 'RGB')
-            pil_image.save(os.path.join(self.path, f'{file_id:05d}.png'))
+            dest = os.path.join(self.path, f'{file_id:05d}.png')
+            pil_image.save(dest)
+            self.viz.create_toast(f"Saved captured image to {dest}", icon='success')
         except:
+            self.viz.create_toast(f"An error occurred attempting to save captured image.", icon='error')
             viz.result.error = renderer.CapturedException()
 
     def save_tile(self):

@@ -467,6 +467,8 @@ class Workbench(imgui_window.ImguiWindow):
                 self.viewer.set_tile_px(self.tile_px)
                 self.viewer.set_tile_um(self.tile_um)
 
+            self.create_toast(f"Loaded model at {model}", icon="success")
+
         except Exception as e:
             self.model_widget.cur_model = None
             if model == '':
@@ -474,6 +476,7 @@ class Workbench(imgui_window.ImguiWindow):
                 self.result = EasyDict(message='No model loaded')
             else:
                 log.debug("Exception raised (ignore_errors={}): {}".format(ignore_errors, e))
+                self.create_toast(f"Error loading model at {model}", icon="error")
                 self.result = EasyDict(error=renderer.CapturedException())
             if not ignore_errors:
                 raise
@@ -541,7 +544,7 @@ class Workbench(imgui_window.ImguiWindow):
 
     def _adjust_font_size(self):
         old = self.font_size
-        self.set_font_size(13)
+        self.set_font_size(18)
         if self.font_size != old:
             self.skip_frame() # Layout changed.
 
@@ -578,8 +581,10 @@ class Workbench(imgui_window.ImguiWindow):
                     if imgui.menu_item('Heatmap (PNG)', enabled=(self.rendered_heatmap is not None))[0]:
                         h_img = Image.fromarray(self.rendered_heatmap)
                         h_img.resize(np.array(h_img.size) * 16, Image.NEAREST).save(f'{self.heatmap.slide.name}.png')
+                        self.create_toast(f"Saved heatmap image to {self.heatmap.slide.name}.png", icon='success')
                     if imgui.menu_item('Heatmap (NPZ)', enabled=(self.heatmap is not None))[0]:
-                        self.heatmap.save_npz()
+                        loc = self.heatmap.save_npz()
+                        self.create_toast(f"Saved heatmap .npz to {loc}", icon='success')
                     imgui.end_menu()
                 imgui.separator()
                 if imgui.menu_item('Close Slide')[1]:
