@@ -2036,6 +2036,7 @@ class Features:
             should_close = True
         else:
             pool = None
+            should_close = False
         generator = slide.build_generator(
             shuffle=shuffle,
             show_progress=show_progress,
