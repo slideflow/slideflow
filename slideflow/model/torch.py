@@ -390,7 +390,8 @@ class Trainer:
         config: Dict[str, Any] = None,
         use_neptune: bool = False,
         neptune_api: Optional[str] = None,
-        neptune_workspace: Optional[str] = None
+        neptune_workspace: Optional[str] = None,
+        load_method: str = 'full'
     ):
         """Sets base configuration, preparing model inputs and outputs.
 
@@ -426,6 +427,12 @@ class Trainer:
                 Defaults to None.
             neptune_workspace (str, optional): Neptune workspace.
                 Defaults to None.
+            load_method (str): Loading method to use when reading model.
+                This argument is ignored in the PyTorch backend, as all models
+                are loaded by first building the model with hyperparameters
+                detected in ``params.json``, then loading weights with
+                ``torch.nn.Module.load_state_dict()``. Defaults to
+                'full' (ignored).
         """
         self.hp = hp
         self.outdir = outdir
@@ -1836,7 +1843,8 @@ class Features:
         mixed_precision: bool = True,
         device: Optional[torch.device] = None,
         apply_softmax: bool = True,
-        pooling: Optional[Any] = None
+        pooling: Optional[Any] = None,
+        load_method: str = 'full',
     ):
         """Creates an activations interface from a saved slideflow model which
         outputs feature activations at the designated layers.
@@ -1857,6 +1865,15 @@ class Features:
                 Defaults to torch.device('cuda')
             apply_softmax (bool): Apply softmax transformation to model output.
                 Defaults to True.
+            pooling (Callable or str, optional): PyTorch pooling function to use
+                on feature layers. May be a string ('avg' or 'max') or a
+                callable PyTorch function.
+            load_method (str): Loading method to use when reading model.
+                This argument is ignored in the PyTorch backend, as all models
+                are loaded by first building the model with hyperparameters
+                detected in ``params.json``, then loading weights with
+                ``torch.nn.Module.load_state_dict()``. Defaults to
+                'full' (ignored).
         """
 
         if layers and isinstance(layers, str):
@@ -1922,13 +1939,16 @@ class Features:
                 via 'postconv'. Defaults to 'postconv'.
             include_logits (bool, optional): Include logits in output. Will be
                 returned last. Defaults to False.
+            mixed_precision (bool, optional): Use mixed precision.
+                Defaults to True.
             wsi_normalizer (:class:`slideflow.norm.StainNormalizer`): Stain
                 normalizer to use on whole-slide images. Is not used on
                 individual tile datasets via __call__. Defaults to None.
-            device (:class:`torch.device`, optional): Device for model.
-                Defaults to torch.device('cuda')
             apply_softmax (bool): Apply softmax transformation to model output.
                 Defaults to True.
+            pooling (Callable or str, optional): PyTorch pooling function to use
+                on feature layers. May be a string ('avg' or 'max') or a
+                callable PyTorch function.
         """
         device = next(model.parameters()).device
         obj = cls(None, layers, include_logits, mixed_precision, device)
@@ -2136,7 +2156,13 @@ class Features:
     def _build(self, pooling: Optional[Any] = None) -> None:
         """Builds the interface model that outputs feature activations at the
         designated layers and/or logits. Intermediate layers are returned in
-        the order of layers. Logits are returned last."""
+        the order of layers. Logits are returned last.
+
+        Args:
+            pooling (Callable or str, optional): PyTorch pooling function to use
+                on feature layers. May be a string ('avg' or 'max') or a
+                callable PyTorch function.
+        """
 
         if isinstance(pooling, str):
             if pooling == 'avg':

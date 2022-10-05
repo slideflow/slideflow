@@ -261,7 +261,7 @@ class ModelParams(_base._ModelParams):
             pretrain (str, optional): Pretrained weights to load.
                 Defaults to 'imagenet'.
             load_method (str): Either 'full' or 'weights'. Method to use
-                when loading a model. If 'full', will load the saved model with
+                when loading a Tensorflow model. If 'full', loads the model with
                 ``tf.keras.models.load_model()``. If 'weights', will read the
                 ``params.json``configuration file, build the model architecture,
                 and then load weights from the given model with
@@ -345,7 +345,7 @@ class ModelParams(_base._ModelParams):
             checkpoint (str): Path to checkpoint from which to resume model
                 training. Defaults to None.
             load_method (str): Either 'full' or 'weights'. Method to use
-                when loading a model. If 'full', will load the saved model with
+                when loading a Tensorflow model. If 'full', loads the model with
                 ``tf.keras.models.load_model()``. If 'weights', will read the
                 ``params.json``configuration file, build the model architecture,
                 and then load weights from the given model with
@@ -450,7 +450,7 @@ class ModelParams(_base._ModelParams):
             checkpoint (str): Path to checkpoint from which to resume model
                 training. Defaults to None.
             load_method (str): Either 'full' or 'weights'. Method to use
-                when loading a model. If 'full', will load the saved model with
+                when loading a Tensorflow model. If 'full', loads the model with
                 ``tf.keras.models.load_model()``. If 'weights', will read the
                 ``params.json``configuration file, build the model architecture,
                 and then load weights from the given model with
@@ -559,8 +559,7 @@ class ModelParams(_base._ModelParams):
             checkpoint (str, optional): Path to checkpoint from which to resume
                 model training. Defaults to None.
             load_method (str): Either 'full' or 'weights'. Method to use
-                when loading a pretrained model.
-                If 'full', will load the saved model with
+                when loading a Tensorflow model. If 'full', loads the model with
                 ``tf.keras.models.load_model()``. If 'weights', will read the
                 ``params.json``configuration file, build the model architecture,
                 and then load weights from the given model with
@@ -1030,7 +1029,7 @@ class Trainer:
             allow_tf32 (bool): Allow internal use of Tensorfloat-32 format.
                 Defaults to False.
             load_method (str): Either 'full' or 'weights'. Method to use
-                when loading a model. If 'full', will load the saved model with
+                when loading a Tensorflow model. If 'full', loads the model with
                 ``tf.keras.models.load_model()``. If 'weights', will read the
                 ``params.json``configuration file, build the model architecture,
                 and then load weights from the given model with
@@ -2031,7 +2030,7 @@ class Features:
             include_logits (bool, optional): Include logits in output. Will be
                 returned last. Defaults to False.
             load_method (str): Either 'full' or 'weights'. Method to use
-                when loading a model. If 'full', will load the saved model with
+                when loading a Tensorflow model. If 'full', loads the model with
                 ``tf.keras.models.load_model()``. If 'weights', will read the
                 ``params.json``configuration file, build the model architecture,
                 and then load weights from the given model with

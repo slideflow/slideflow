@@ -346,7 +346,7 @@ class Project:
             input_header (str, optional): Annotation column header to use as
                 additional input. Defaults to None.
             load_method (str): Either 'full' or 'weights'. Method to use
-                when loading a model. If 'full', will load the saved model with
+                when loading a Tensorflow model. If 'full', loads the model with
                 ``tf.keras.models.load_model()``. If 'weights', will read the
                 ``params.json``configuration file, build the model architecture,
                 and then load weights from the given model with
@@ -1037,7 +1037,7 @@ class Project:
             input_header (str, optional): Annotation column header to use as
                 additional input. Defaults to None.
             load_method (str): Either 'full' or 'weights'. Method to use
-                when loading a model. If 'full', will load the saved model with
+                when loading a Tensorflow model. If 'full', loads the model with
                 ``tf.keras.models.load_model()``. If 'weights', will read the
                 ``params.json``configuration file, build the model architecture,
                 and then load weights from the given model with
@@ -2416,7 +2416,7 @@ class Project:
             allow_tf32 (bool): Allow internal use of Tensorfloat-32 format.
                 Defaults to False.
             load_method (str): Either 'full' or 'weights'. Method to use
-                when loading a model. If 'full', will load the saved model with
+                when loading a Tensorflow model. If 'full', loads the model with
                 ``tf.keras.models.load_model()``. If 'weights', will read the
                 ``params.json``configuration file, build the model architecture,
                 and then load weights from the given model with
@@ -2795,7 +2795,7 @@ class Project:
             allow_tf32 (bool): Allow internal use of Tensorfloat-32 format.
                 Defaults to False.
             load_method (str): Either 'full' or 'weights'. Method to use
-                when loading a model. If 'full', will load the saved model with
+                when loading a Tensorflow model. If 'full', loads the model with
                 ``tf.keras.models.load_model()``. If 'weights', will read the
                 ``params.json``configuration file, build the model architecture,
                 and then load weights from the given model with
