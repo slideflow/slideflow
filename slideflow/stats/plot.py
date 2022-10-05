@@ -35,7 +35,7 @@ def combined_roc(
     Returns:
         List[float]:  AUROC for each curve.
     """
-    from matplotlib import pyplot as plt
+    import matplotlib.pyplot as plt
 
     plt.clf()
     plt.title(name)
@@ -74,7 +74,7 @@ def histogram(
         subsample (int, optional): Subsample data. Defaults to 500.
     """
     import seaborn as sns
-    from matplotlib import pyplot as plt
+    import matplotlib.pyplot as plt
 
     # Subsample
     if subsample and y_pred.shape[0] > subsample:
@@ -106,7 +106,7 @@ def prc(
     recall: np.ndarray,
     label: Optional[str] = None
 ):
-    from matplotlib import pyplot as plt
+    import matplotlib.pyplot as plt
     plt.clf()
     plt.title('Precision-Recall Curve')
     plt.plot(precision, recall, 'b', label=label)
@@ -123,7 +123,7 @@ def roc(
     tpr: np.ndarray,
     label: Optional[str] = None
 ):
-    from matplotlib import pyplot as plt
+    import matplotlib.pyplot as plt
     plt.clf()
     plt.title('ROC Curve')
     plt.plot(fpr, tpr, 'b', label=label)
@@ -142,21 +142,22 @@ def scatter(
     name: str = '_plot',
     neptune_run: Optional["neptune.Run"] = None
 ) -> List[float]:
-    """Generate and save scatter plots and calculate R2 for each outcome.
+    """Generate and save scatter plots, and calculate R^2 (coefficient
+    of determination) for each outcome.
 
-        Args:
-            y_true (np.ndarray): 2D array of labels. Observations are in first
-                dimension, second dim is the outcome.
-            y_pred (np.ndarray): 2D array of predictions.
-            data_dir (str): Path to directory in which to save plots.
-            name (str, optional): Label for filename. Defaults to '_plot'.
-            neptune_run (optional): Neptune Run. If provided, will upload plot.
+    Args:
+        y_true (np.ndarray): 2D array of labels. Observations are in first
+            dimension, second dim is the outcome.
+        y_pred (np.ndarray): 2D array of predictions.
+        data_dir (str): Path to directory in which to save plots.
+        name (str, optional): Label for filename. Defaults to '_plot'.
+        neptune_run (optional): Neptune Run. If provided, will upload plot.
 
-        Returns:
-            List[float]:    R squared for each outcome.
+    Returns:
+        List[float]:    R squared for each outcome.
     """
     import seaborn as sns
-    from matplotlib import pyplot as plt
+    import matplotlib.pyplot as plt
 
     if y_true.shape != y_pred.shape:
         m = f"Shape mismatch: y_true {y_true.shape} y_pred: {y_pred.shape}"
@@ -164,18 +165,27 @@ def scatter(
     if y_true.shape[0] < 2:
         raise errors.StatsError("Only one observation provided, need >1")
     r_squared = []
+
+    # Subsample to n=1000 for plotting
+    if y_true.shape[0] > 1000:
+        idx = np.random.choice(range(y_true.shape[0]), 1000)
+        yt_sub = y_true[idx]
+        yp_sub = y_pred[idx]
+    else:
+        yt_sub = y_true
+        yp_sub = y_pred
+
     # Perform scatter for each outcome
     for i in range(y_true.shape[1]):
-        # y = mx + b
-        m, b, r, p_val, err = stats.linregress(y_true[:, i], y_pred[:, i])
-        r_squared += [r ** 2]
+        r_squared += [metrics.r2_score(y_true[:, i], y_pred[:, i])]
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", category=UserWarning)
-            p = sns.jointplot(x=y_true[:, i], y=y_pred[:, i], kind="reg")
+            p = sns.jointplot(x=yt_sub[:, i], y=yp_sub[:, i], kind="reg")
         p.set_axis_labels('y_true', 'y_pred')
         plt.savefig(os.path.join(data_dir, f'Scatter{name}-{i}.png'))
         if neptune_run:
             neptune_run[f'results/graphs/Scatter{name}-{i}'].upload(
                 os.path.join(data_dir, f'Scatter{name}-{i}.png')
             )
+        plt.close()
     return r_squared

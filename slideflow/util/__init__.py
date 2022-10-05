@@ -20,7 +20,6 @@ from packaging import version
 from statistics import mean, median
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
-import matplotlib.colors as mcol
 import numpy as np
 import slideflow as sf
 from slideflow.util import log_utils
@@ -679,6 +678,8 @@ def tfrecord_heatmap(
         (mean, median, above_0, and above_1)
     """
     import matplotlib.pyplot as plt
+    import matplotlib.colors as mcol
+
     slide_name = sf.util.path_to_name(tfrecord)
     loc_dict = sf.io.get_locations_from_tfrecord(tfrecord)
     if tile_dict.keys() != loc_dict.keys():

@@ -60,7 +60,7 @@ class ClassifierMetrics:
         self.ap = metrics.average_precision_score(self.y_true, self.y_pred)
 
     def save_roc(self, outdir, name):
-        from matplotlib import pyplot as plt
+        import matplotlib.pyplot as plt
         auroc_str = 'NA' if not self.auroc else f'{self.auroc:.2f}'
         sf.stats.plot.roc(self.fpr, self.tpr, f'AUC = {auroc_str}')
         full_path = join(outdir, f'{name}.png')
@@ -69,7 +69,7 @@ class ClassifierMetrics:
             self.neptune_run[f'results/graphs/{name}'].upload(full_path)
 
     def save_prc(self, outdir, name):
-        from matplotlib import pyplot as plt
+        import matplotlib.pyplot as plt
         ap_str = 'NA' if not self.ap else f'{self.ap:.2f}'
         sf.stats.plot.prc(self.precision, self.recall, label=f'AP = {ap_str}')
         full_path = join(outdir, f'{name}.png')
@@ -593,7 +593,7 @@ def linear_metrics(
     data_dir: str = '',
     neptune_run: Optional["neptune.Run"] = None
 ) -> Dict[str, List[float]]:
-    """Generates metrics (R-squared) from a set of predictions.
+    """Generates metrics (R^2, coefficient of determination) from predictions.
 
     Args:
         df (pd.DataFrame): Pandas DataFrame containing labels, predictions,

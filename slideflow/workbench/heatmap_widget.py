@@ -2,7 +2,6 @@ import os
 import numpy as np
 import imgui
 import threading
-import matplotlib.pyplot as plt
 from array import array
 from .gui_utils import imgui_utils
 
@@ -11,8 +10,10 @@ import slideflow as sf
 #----------------------------------------------------------------------------
 
 def _apply_cmap(img, cmap):
-        cmap = plt.get_cmap(cmap)
-        return (cmap(img) * 255).astype(np.uint8)
+    import matplotlib.pyplot as plt
+
+    cmap = plt.get_cmap(cmap)
+    return (cmap(img) * 255).astype(np.uint8)
 
 def process_grid(_heatmap, _grid):
     if _heatmap.uq:
@@ -26,6 +27,8 @@ def process_grid(_heatmap, _grid):
 
 class HeatmapWidget:
     def __init__(self, viz):
+        import matplotlib.pyplot as plt
+
         self.viz                    = viz
         self.alpha                  = 0.5
         self.gain                   = 1.0

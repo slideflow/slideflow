@@ -12,7 +12,6 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import cv2
 import numpy as np
-from matplotlib import patches
 from rich.progress import track
 
 import slideflow as sf
@@ -252,6 +251,7 @@ class Mosaic:
                 Defaults to None.
         """
         import matplotlib.pyplot as plt
+        from matplotlib import patches
 
         # Initialize figure
         fig = plt.figure(figsize=figsize)

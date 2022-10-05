@@ -3,7 +3,6 @@ from collections import namedtuple
 from typing import (TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple,
                     Union)
 
-import matplotlib.colors as mcol
 import numpy as np
 import shapely.geometry as sg
 from mpl_toolkits.axes_grid1.inset_locator import mark_inset, zoomed_inset_axes
@@ -482,6 +481,8 @@ class Heatmap:
             roi_color (str): ROI line color. Defaults to 'k' (black).
             linewidth (int): Width of ROI line. Defaults to 5.
         """
+        import matplotlib.colors as mcol
+
         ax = self._prepare_ax(ax)
         implot = self.plot_thumbnail(ax=ax, **thumb_kwargs)
         if heatmap_alpha == 1:
@@ -544,6 +545,8 @@ class Heatmap:
             roi_color (str): ROI line color. Defaults to 'k' (black).
             linewidth (int): Width of ROI line. Defaults to 5.
         """
+        import matplotlib.colors as mcol
+
         if self.logits is None:
             raise errors.HeatmapError(
                 "Cannot plot Heatmap which is not yet generated; generate with "

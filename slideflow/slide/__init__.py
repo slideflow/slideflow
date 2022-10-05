@@ -21,7 +21,6 @@ from types import SimpleNamespace
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import cv2
-import matplotlib.colors as mcol
 import numpy as np
 import pandas as pd
 import rasterio.features
@@ -2583,6 +2582,7 @@ class TMA(_BaseLoader):
                 than subdividing into image tiles. Defaults to False.
             show_progress (bool, optional): Show a progress bar for extraction.
         """
+        import matplotlib.colors as mcol
 
         super().build_generator()
         if yolo:

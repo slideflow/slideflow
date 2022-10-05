@@ -9,7 +9,7 @@ import os
 import shutil
 from os.path import dirname, exists, join
 from types import SimpleNamespace
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union, Callable
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import multiprocessing as mp
@@ -634,6 +634,16 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
         self.results = {'epochs': {}}  # type: Dict[str, Dict]
         self.neptune_run = self.parent.neptune_run
         self.global_step = 0
+
+        # Circumvents buffer overflow error with Python 3.10.
+        # Without this, a buffer overflow error will be encountered when
+        # attempting to make a matplotlib figure (with the tkagg backend)
+        # during model evaluation. I have not yet been able to track down
+        # the root cause.
+        if self.cb_args.using_validation:
+            import matplotlib.pyplot as plt
+            plt.figure()
+            plt.close()
 
     def _metrics_from_dataset(
         self,

@@ -3,10 +3,8 @@
 from typing import (Generator, List, Optional, Tuple, Union,
                     TYPE_CHECKING, Any, Iterable)
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import seaborn as sns
 import slideflow as sf
 import torch
 from PIL import Image
@@ -333,6 +331,8 @@ class StyleGAN2Interpolator:
         Args:
             seeds (int or list(int)): Seeds to display.
         """
+        import matplotlib.pyplot as plt
+
         if not isinstance(seeds, list):
             seeds = [seeds]
         if titles is None:
@@ -572,6 +572,9 @@ class StyleGAN2Interpolator:
         Returns:
             Tuple[List, ...]: Raw images, processed images, and predictions.
         """
+        import matplotlib.pyplot as plt
+        import seaborn as sns
+
         imgs = []
         proc_imgs = []
         preds = []

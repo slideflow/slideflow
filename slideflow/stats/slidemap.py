@@ -647,7 +647,7 @@ class SlideMap:
                 seaborn scatterplot function.
         """
         import seaborn as sns
-        from matplotlib import pyplot as plt
+        import matplotlib.pyplot as plt
 
         # Make plot
         if ax is None:
@@ -725,7 +725,7 @@ class SlideMap:
             fig (matplotlib.figure.Figure, optional): Figure. If not supplied,
                 will prepare a new figure.
         """
-        from matplotlib import pyplot as plt
+        import matplotlib.pyplot as plt
 
         if fig is None:
             fig = plt.figure()
