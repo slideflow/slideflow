@@ -86,7 +86,7 @@ class ProjectWidget:
         recent_projects = [project for project in self.recent_projects if project != self.user_project]
         self.disclaimer()
         if show:
-            self.content_height = viz.font_size + viz.spacing * 2
+            self.content_height = viz.font_size + viz.spacing
             dim_color = list(imgui.get_style().colors[imgui.COLOR_TEXT])
             dim_color[-1] *= 0.5
 

@@ -97,7 +97,7 @@ class ModelWidget:
             imgui.end()
 
         if show:
-            self.content_height = imgui.get_text_line_height_with_spacing() * 12 + viz.spacing * 2
+            self.content_height = imgui.get_text_line_height_with_spacing() * 8 + viz.spacing * 2
             imgui.text('Model')
             imgui.same_line(viz.label_w)
             changed, self.user_model = imgui_utils.input_text('##model', self.user_model, 1024,
@@ -126,13 +126,13 @@ class ModelWidget:
                         imgui.text(f'Pred {p}')
                         imgui.same_line(viz.label_w)
                         imgui.core.plot_histogram('##pred', array('f', _pred_array), scale_min=0, scale_max=1)
-                        imgui.same_line(viz.label_w + viz.font_size * 30)
                         if 'outcomes' in config:
                             outcomes = config['outcomes'][p]
                         elif 'outcome_label_headers' in config:
                             outcomes = config['outcome_label_headers'][p]
                         ol = config['outcome_labels'][outcomes]
                         pred_str = ol[str(np.argmax(_pred_array))]
+                        imgui.same_line(imgui.get_content_region_max()[0] - viz.spacing - imgui.calc_text_size(pred_str).x)
                         if viz._use_uncertainty and viz._uncertainty is not None:
                             pred_str += " (UQ: {:.4f})".format(viz._uncertainty[p])
                         imgui.text(pred_str)
@@ -141,16 +141,16 @@ class ModelWidget:
                     imgui.text('Prediction')
                     imgui.same_line(viz.label_w)
                     imgui.core.plot_histogram('##pred', array('f', viz._predictions), scale_min=0, scale_max=1)
-                    imgui.same_line(viz.label_w + viz.font_size * 30)
                     ol = config['outcome_labels']
                     pred_str = ol[str(np.argmax(viz._predictions))]
                     if viz._use_uncertainty and viz._uncertainty is not None:
                         pred_str += " (UQ: {:.4f})".format(viz._uncertainty)
+                    imgui.same_line(imgui.get_content_region_max()[0] - viz.spacing - imgui.calc_text_size(pred_str).x)
                     imgui.text(pred_str)
 
                 # Image preview ===================================================
                 width = viz.font_size * 20
-                height = imgui.get_text_line_height_with_spacing() * 11
+                height = imgui.get_text_line_height_with_spacing() * 7
                 if self.show_preview:
                     imgui.begin_child('##pred_image', width=width, height=height, border=False)
                     if viz._tex_obj is not None and viz.tile_px:
@@ -200,7 +200,7 @@ class ModelWidget:
                     ['Version',      vals[5]],
                 ]
                 height = imgui.get_text_line_height_with_spacing() * len(rows) + viz.spacing * 2
-                imgui.begin_child('##model_properties', width=-1, height=height, border=True)
+                imgui.begin_child('##model_properties', width=imgui.get_content_region_max()[0] / 2 - viz.spacing, height=height, border=True)
                 for y, cols in enumerate(rows):
                     for x, col in enumerate(cols):
                         if x != 0:
@@ -216,9 +216,10 @@ class ModelWidget:
                         self._show_params = not self._show_params
                 imgui.end_child()
 
-
                 # -----------------------------------------------------------------
 
+                imgui.same_line(imgui.get_content_region_max()[0] / 2 + viz.spacing)
+                imgui.begin_child('##model_settings', width=imgui.get_content_region_max()[0] / 2 - viz.spacing, height=height, border=False)
                 imgui.text('Model')
                 imgui.same_line(viz.label_w - viz.font_size)
 
@@ -243,9 +244,12 @@ class ModelWidget:
                     with imgui_utils.grayed_out(not self.enable_saliency):
                         _clicked, self.saliency_overlay = imgui.checkbox('Overlay', self.saliency_overlay)
 
-                    with imgui_utils.item_width(imgui.get_content_region_max()[0] - 1), imgui_utils.grayed_out(not self.enable_saliency):
+                    imgui.text('')
+                    imgui.same_line(viz.label_w - viz.font_size)
+                    with imgui_utils.item_width(imgui.get_content_region_max()[0] - (viz.label_w - viz.font_size) - 1), imgui_utils.grayed_out(not self.enable_saliency):
                         _clicked, self.saliency_idx = imgui.combo("##method", self.saliency_idx, self._saliency_methods_names)
 
+                imgui.end_child()
                 imgui.end_child()
             else:
                 self.content_height = imgui.get_text_line_height_with_spacing() + viz.spacing

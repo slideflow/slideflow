@@ -96,6 +96,7 @@ class PicamViewer(Viewer):
         self.preview_images = []
         self._picam_tex_obj = None
         self._picam_tex_img = None
+
     def set_um_width(self, um_width):
         self.um_width = um_width
 

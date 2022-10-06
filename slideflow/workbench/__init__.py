@@ -137,6 +137,7 @@ class Workbench(imgui_window.ImguiWindow):
         self._dy                = 0
         self._last_error_print  = None
         self._async_renderer    = AsyncRenderer()
+        self._addl_renderers    = dict()
         self._defer_rendering   = 0
         self._tex_img           = None
         self._tex_obj           = None
@@ -312,8 +313,13 @@ class Workbench(imgui_window.ImguiWindow):
                     self._show_about = False
                 imgui.end_popup()
 
-    def add_to_render_pipeline(self, renderer):
+    def add_to_render_pipeline(self, renderer, name=None):
+        if name is not None:
+            self._addl_renderers[name] = renderer
         self._async_renderer.add_to_render_pipeline(renderer)
+
+    def get_renderer(self, name):
+        return self._addl_renderers[name]
 
     def has_live_viewer(self):
         return (self.viewer is not None and self.viewer.live)
@@ -523,10 +529,15 @@ class Workbench(imgui_window.ImguiWindow):
 
     def clear_result(self):
         self._async_renderer.clear_result()
+        self.result             = EasyDict()
         self._tex_img           = None
+        self._tex_obj           = None
         self._norm_tex_img      = None
+        self._norm_tex_obj      = None
         self._heatmap_tex_img   = None
+        self._heatmap_tex_obj   = None
         self._wsi_tex_img       = None
+        self._wsi_tex_obj       = None
         self.clear_model_results()
         self.clear_overlay()
         if self.viewer:
@@ -687,39 +698,51 @@ class Workbench(imgui_window.ImguiWindow):
     def _draw_control_pane(self):
         """Draw the control pane with Imgui."""
 
-        _pane_w = self.font_size * self._pane_w_div
-        if self._dock_control and self._show_control:
-            self.pane_w = _pane_w
-            imgui.set_next_window_position(0, self.menu_bar_height)
-            imgui.set_next_window_size(self.pane_w, self.content_height - self.menu_bar_height)
-            control_kw = dict(
-                closable=False,
-                flags=(imgui.WINDOW_NO_TITLE_BAR | imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_MOVE))
-        else:
-            imgui.set_next_window_size(_pane_w, self._control_size)
+        has_controls_to_render = (
+            self.P is not None
+            or self.wsi is not None
+            or self._model_path is not None
+            or any(not hasattr(w, 'visible') or w.visible for w in self.widgets)
+        )
+        if not has_controls_to_render:
             self.pane_w = 0
-            control_kw = dict(
-                closable=True,
-                flags=(imgui.WINDOW_NO_COLLAPSE | imgui.WINDOW_ALWAYS_AUTO_RESIZE)
-            )
-
-        if self._show_control:
+        else:
+            _pane_w = self.font_size * self._pane_w_div
+            if self._dock_control and self._show_control:
+                self.pane_w = _pane_w
+                imgui.set_next_window_position(0, self.menu_bar_height)
+                imgui.set_next_window_size(self.pane_w, self.content_height - self.menu_bar_height)
+                control_kw = dict(
+                    closable=False,
+                    flags=(imgui.WINDOW_NO_TITLE_BAR | imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_MOVE))
+            else:
+                imgui.set_next_window_size(_pane_w, self._control_size)
+                self.pane_w = 0
+                control_kw = dict(
+                    closable=True,
+                    flags=(imgui.WINDOW_NO_COLLAPSE | imgui.WINDOW_ALWAYS_AUTO_RESIZE)
+                )
+        if self._show_control and has_controls_to_render:
             _, self._show_control = imgui.begin('Control Pane', **control_kw)
 
             # Core widgets.
             header_height = self.font_size + self.spacing * 2
             self._control_size = self.spacing * 4
-            expanded, _visible = imgui_utils.collapsing_header('Slideflow project', default=True)
-            self.project_widget(expanded)
-            self._control_size += self.project_widget.content_height + header_height
 
-            expanded, _visible = imgui_utils.collapsing_header('Whole-slide image', default=True)
-            self.slide_widget(expanded)
-            self._control_size += self.slide_widget.content_height + header_height
+            if self.P:
+                expanded, _visible = imgui_utils.collapsing_header('Slideflow project', default=True)
+                self.project_widget(expanded)
+                self._control_size += self.project_widget.content_height + header_height
 
-            expanded, _visible = imgui_utils.collapsing_header('Model & tile predictions', default=True)
-            self.model_widget(expanded)
-            self._control_size += self.model_widget.content_height + header_height
+            if self.P or self.wsi:
+                expanded, _visible = imgui_utils.collapsing_header('Whole-slide image', default=True)
+                self.slide_widget(expanded)
+                self._control_size += self.slide_widget.content_height + header_height
+
+            if self.P or self._model_path:
+                expanded, _visible = imgui_utils.collapsing_header('Model & tile predictions', default=True)
+                self.model_widget(expanded)
+                self._control_size += self.model_widget.content_height + header_height
 
             if self.viewer is not None and self._model_config is not None:
                 expanded, _visible = imgui_utils.collapsing_header('Heatmap & slide prediction', default=True)
@@ -730,7 +753,9 @@ class Workbench(imgui_window.ImguiWindow):
             for header, widgets in self._widgets_by_header():
                 if header:
                     expanded, _visible = imgui_utils.collapsing_header(header, default=True)
-                    self._control_size += (self.font_size + self.spacing * 3)
+                    self._control_size += header_height
+                else:
+                    expanded = True
                 for widget in widgets:
                     widget(expanded)
                     if hasattr(widget, 'content_height'):
@@ -738,6 +763,8 @@ class Workbench(imgui_window.ImguiWindow):
 
             self._render_control_pane_contents()
             imgui.end()
+        else:
+            self.result.message = 'Load a slide with File -> "Open Slide..."'
 
     def _widgets_by_header(self):
 
@@ -767,7 +794,7 @@ class Workbench(imgui_window.ImguiWindow):
     def _draw_tile_view(self):
         if self._show_tile_preview:
 
-            has_raw_image = self._tex_obj is not None and self.tile_px
+            has_raw_image = self._tex_obj is not None# and self.tile_px
             has_norm_image = self.model_widget.use_model and self._normalizer is not None and self._norm_tex_obj is not None and self.tile_px
 
             if not (has_raw_image or has_norm_image):
@@ -790,6 +817,7 @@ class Workbench(imgui_window.ImguiWindow):
                 self._tile_preview_image_is_new = False
 
             _, self._show_tile_preview = imgui.begin("##tile view", closable=True, flags=(imgui.WINDOW_NO_COLLAPSE | imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_SCROLLBAR))
+
             # Image preview ===================================================
             dim_color = list(imgui.get_style().colors[imgui.COLOR_TEXT])
             dim_color[-1] *= 0.5

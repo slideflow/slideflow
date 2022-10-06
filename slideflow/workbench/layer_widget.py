@@ -16,6 +16,7 @@ class LayerWidget:
         self._model_path    = None
         self._umap_layers   = []
         self.coords         = dict()
+        self.visible        = False
 
     def refresh_model_path(self, path):
         if path != self._model_path:

@@ -11,7 +11,7 @@ from os.path import dirname, realpath
 @click.option('--low_memory', '-l', is_flag=True, help='Low memory mode.', metavar=bool)
 @click.option('--picam', '-c', is_flag=True, help='Enable Picamera2 view (experimental).', metavar=bool)
 @click.option('--stylegan', '-g', is_flag=True, help='Enable StyleGAN viewer.', metavar=bool)
-@click.option('--advanced', '-a', is_flag=True, help='Enable advanced options and widgets.', metavar=bool)
+@click.option('--advanced', '-a', is_flag=True, help='Enable advanced StyleGAN options.', metavar=bool)
 def main(
     slide,
     model,
@@ -45,7 +45,7 @@ def main(
     if stylegan:
         from slideflow.gan.stylegan3.stylegan3.viz.renderer import Renderer as GANRenderer
         renderer = GANRenderer(gan_px=512, gan_um=400)
-        viz.add_to_render_pipeline(renderer)
+        viz.add_to_render_pipeline(renderer, name='stylegan')
         if advanced:
             viz._pane_w_div = 45
     # -------------------------------------------------------------------------

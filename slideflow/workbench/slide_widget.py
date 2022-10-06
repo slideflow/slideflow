@@ -85,6 +85,8 @@ class SlideWidget:
             viz.result = EasyDict(message='No slide loaded')
             return
         try:
+            if hasattr(viz, 'close_gan'):
+                viz.close_gan()
             name = slide.replace('\\', '/').split('/')[-1]
             self.cur_slide = slide
             self.user_slide = slide
@@ -520,7 +522,7 @@ class SlideWidget:
 
                 imgui.end_child()
             else:
-                self.content_height = imgui.get_text_line_height_with_spacing() + viz.spacing * 3
+                self.content_height = imgui.get_text_line_height_with_spacing() + viz.spacing
         else:
             self.content_height = 0
             # =================================================================
