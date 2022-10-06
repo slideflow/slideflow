@@ -70,8 +70,13 @@ class Heatmap:
                 Defaults to 'auto'.
             batch_size (int, optional): Batch size for calculating predictions.
                 Defaults to 32.
-            num_threads (int, optional): Number of tile worker threads.
-                Defaults to CPU core count.
+            num_threads (int, optional): Number of tile worker threads. Cannot
+                supply both ``num_threads`` (uses thread pool) and
+                ``num_processes`` (uses multiprocessing pool). Defaults to
+                CPU core count.
+            num_processes (int, optional): Number of child processes to spawn
+                for multiprocessing pool. Defaults to None (does not use
+                multiprocessing).
             enable_downsample (bool, optional): Enable the use of downsampled
                 slide image layers. Defaults to True.
             img_format (str, optional): Image format (png, jpg) to use when
@@ -757,8 +762,13 @@ class ModelHeatmap(Heatmap):
                 Defaults to 'auto'.
             batch_size (int, optional): Batch size for calculating predictions.
                 Defaults to 32.
-            num_threads (int, optional): Number of tile worker threads.
-                Defaults to CPU core count.
+            num_threads (int, optional): Number of tile worker threads. Cannot
+                supply both ``num_threads`` (uses thread pool) and
+                ``num_processes`` (uses multiprocessing pool). Defaults to
+                CPU core count.
+            num_processes (int, optional): Number of child processes to spawn
+                for multiprocessing pool. Defaults to None (does not use
+                multiprocessing).
             enable_downsample (bool, optional): Enable the use of downsampled
                 slide image layers. Defaults to True.
             img_format (str, optional): Image format (png, jpg) to use when
