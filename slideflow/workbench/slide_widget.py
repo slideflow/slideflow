@@ -191,7 +191,7 @@ class SlideWidget:
     def _build_filter_grid(self):
         if self.viz.wsi is not None:
             self.viz.set_message(self._rendering_message)
-            mp_key = 'num_threads' if self.viz._low_memory else 'num_processes'
+            mp_key = 'num_threads' if self.viz.low_memory else 'num_processes'
             mp_kw = {mp_key: os.cpu_count()}
             generator = self.viz.wsi.build_generator(
                 img_format='numpy',

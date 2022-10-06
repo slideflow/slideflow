@@ -67,22 +67,6 @@ class ImguiWindow(glfw_window.GlfwWindow):
             for name, icon in text_utils.icons().items()
         }
 
-    def close(self):
-        self.make_context_current()
-        self._imgui_fonts = None
-        self._imgui_fonts_bold = None
-        if self._imgui_renderer is not None:
-            self._imgui_renderer.shutdown()
-            self._imgui_renderer = None
-        if self._imgui_context is not None:
-            #imgui.destroy_context(self._imgui_context) # Commented out to avoid creating imgui.ini at the end.
-            self._imgui_context = None
-        super().close()
-
-    def _glfw_key_callback(self, *args):
-        super()._glfw_key_callback(*args)
-        self._imgui_renderer.keyboard_callback(*args)
-
     @property
     def font_size(self):
         return self._cur_font_size + 2  # Adjustment for DroidSans
@@ -95,45 +79,9 @@ class ImguiWindow(glfw_window.GlfwWindow):
     def spacing(self):
         return round(self._cur_font_size * 0.4)
 
-    @contextlib.contextmanager
-    def bold_font(self):
-        imgui.pop_font()
-        imgui.push_font(self._imgui_fonts_bold[self._cur_font_size])
-        yield
-        imgui.pop_font()
-        imgui.push_font(self._imgui_fonts[self._cur_font_size])
-
-    def icon(self, name, sameline=False):
-        imgui.image(self._icon_textures[name].gl_id, self.font_size, self.font_size)
-        if sameline:
-            imgui.same_line(self.font_size + self.spacing * 2)
-
-    def set_font_size(self, target): # Applied on next frame.
-        self._cur_font_size = min((abs(key - target), key) for key in self._imgui_fonts.keys())[1]
-
-    def begin_frame(self):
-        # Begin glfw frame.
-        super().begin_frame()
-
-        # Process imgui events.
-        self._imgui_renderer.mouse_wheel_multiplier = self._cur_font_size / 10
-        if self.content_width > 0 and self.content_height > 0:
-            self._imgui_renderer.process_inputs()
-
-        # Begin imgui frame.
-        imgui.new_frame()
-        imgui.push_font(self._imgui_fonts[self._cur_font_size])
-        imgui_utils.set_default_style(spacing=self.spacing, indent=self.font_size, scrollbar=self.font_size+4)
-
-        # Render toasts.
-        self._render_toasts()
-
-    def end_frame(self):
-        imgui.pop_font()
-        imgui.render()
-        imgui.end_frame()
-        self._imgui_renderer.render(imgui.get_draw_data())
-        super().end_frame()
+    def _glfw_key_callback(self, *args):
+        super()._glfw_key_callback(*args)
+        self._imgui_renderer.keyboard_callback(*args)
 
     def _render_toasts(self, padding=20):
         _to_del = []
@@ -175,6 +123,49 @@ class ImguiWindow(glfw_window.GlfwWindow):
         for _expired in _to_del:
             self._toasts.remove(_expired)
 
+    def begin_frame(self):
+        # Begin glfw frame.
+        super().begin_frame()
+
+        # Process imgui events.
+        self._imgui_renderer.mouse_wheel_multiplier = self._cur_font_size / 10
+        if self.content_width > 0 and self.content_height > 0:
+            self._imgui_renderer.process_inputs()
+
+        # Begin imgui frame.
+        imgui.new_frame()
+        imgui.push_font(self._imgui_fonts[self._cur_font_size])
+        imgui_utils.set_default_style(spacing=self.spacing, indent=self.font_size, scrollbar=self.font_size+4)
+
+        # Render toasts.
+        self._render_toasts()
+
+    @contextlib.contextmanager
+    def bold_font(self):
+        imgui.pop_font()
+        imgui.push_font(self._imgui_fonts_bold[self._cur_font_size])
+        yield
+        imgui.pop_font()
+        imgui.push_font(self._imgui_fonts[self._cur_font_size])
+
+    def center_text(self, text):
+        size = imgui.calc_text_size(text)
+        imgui.text('')
+        imgui.same_line(imgui.get_content_region_max()[0]/2 - size.x/2 + self.spacing)
+        imgui.text(text)
+
+    def close(self):
+        self.make_context_current()
+        self._imgui_fonts = None
+        self._imgui_fonts_bold = None
+        if self._imgui_renderer is not None:
+            self._imgui_renderer.shutdown()
+            self._imgui_renderer = None
+        if self._imgui_context is not None:
+            #imgui.destroy_context(self._imgui_context) # Commented out to avoid creating imgui.ini at the end.
+            self._imgui_context = None
+        super().close()
+
     def create_toast(self, message=None, title=None, icon=None):
         if message is None and title is None and icon is None:
             raise ValueError("Must supply either message, title, or icon to "
@@ -185,6 +176,20 @@ class ImguiWindow(glfw_window.GlfwWindow):
             icon=icon,
         ))
 
+    def icon(self, name, sameline=False):
+        imgui.image(self._icon_textures[name].gl_id, self.font_size, self.font_size)
+        if sameline:
+            imgui.same_line(self.font_size + self.spacing * 2)
+
+    def end_frame(self):
+        imgui.pop_font()
+        imgui.render()
+        imgui.end_frame()
+        self._imgui_renderer.render(imgui.get_draw_data())
+        super().end_frame()
+
+    def set_font_size(self, target): # Applied on next frame.
+        self._cur_font_size = min((abs(key - target), key) for key in self._imgui_fonts.keys())[1]
 
 #----------------------------------------------------------------------------
 

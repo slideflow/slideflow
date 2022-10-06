@@ -16,7 +16,7 @@ class PerformanceWidget:
         self.fps_limit      = 60
         self.use_vsync      = True
         self.ignore_jpg     = viz._use_model_img_fmt
-        self.low_memory     = viz._low_memory
+        self.low_memory     = viz.low_memory
 
     def timing_text(self, times):
         viz = self.viz

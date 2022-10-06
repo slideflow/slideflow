@@ -99,7 +99,7 @@ class HeatmapWidget:
         viz = self.viz
         self.reset()
         self._button_pressed = True
-        mp_key = 'num_threads' if self.viz._low_memory else 'num_processes'
+        mp_key = 'num_threads' if self.viz.low_memory else 'num_processes'
         mp_kw = {mp_key: os.cpu_count()}
         viz.heatmap = sf.heatmap.ModelHeatmap(
             viz.wsi,
