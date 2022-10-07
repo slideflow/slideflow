@@ -217,7 +217,7 @@ class Workbench(imgui_window.ImguiWindow):
     def _close_model_now(self) -> None:
         """Close the currently loaded model now."""
         self._async_renderer.clear_result()
-        self._use_model   = False
+        self._use_model         = False
         self._use_uncertainty   = False
         self._use_saliency      = False
         self._model_path        = None
@@ -502,6 +502,11 @@ class Workbench(imgui_window.ImguiWindow):
                     self._show_control = not self._show_control
                 if imgui.menu_item('Toggle Performance', 'Ctrl+Shift+P')[1]:
                     self._show_performance = not self._show_performance
+                imgui.separator()
+                if imgui.menu_item('Increase Font Size', 'Ctrl+=')[1]:
+                    self.increase_font_size()
+                if imgui.menu_item('Decrease Font Size', 'Ctrl+-')[1]:
+                    self.decrease_font_size()
                 imgui.separator()
                 if imgui.menu_item('Toggle tile preview')[1]:
                     self._show_tile_preview = not self._show_tile_preview
@@ -990,7 +995,6 @@ class Workbench(imgui_window.ImguiWindow):
             self.close_model(True)
         if self._should_close_slide:
             self.close_slide(True)
-        self._adjust_font_size()
         self.end_frame()
 
     @staticmethod

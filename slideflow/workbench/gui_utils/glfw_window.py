@@ -191,6 +191,12 @@ class GlfwWindow: # pylint: disable=too-many-public-methods
         if self._glfw_window is not None:
             glfw.make_context_current(self._glfw_window)
 
+    def increase_font_size(self):
+        pass
+
+    def decrease_font_size(self):
+        pass
+
     def begin_frame(self):
         # End previous frame.
         if self._drawing_frame:
@@ -274,6 +280,11 @@ class GlfwWindow: # pylint: disable=too-many-public-methods
             self._show_performance = not self._show_performance
         if self._control_down and action == glfw.PRESS and key == glfw.KEY_Q:
             self._exit_trigger = True
+        if self._control_down and action == glfw.PRESS and key == glfw.KEY_EQUAL:
+            self.increase_font_size()
+        if self._control_down and action == glfw.PRESS and key == glfw.KEY_MINUS:
+            self.decrease_font_size()
+
 
     def _glfw_drop_callback(self, _window, paths):
         self._drag_and_drop_paths = paths

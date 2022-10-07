@@ -28,7 +28,7 @@ class ImguiWindow(glfw_window.GlfwWindow):
         *,
         title='ImguiWindow',
         font=None,
-        font_sizes=range(14,28),
+        font_sizes=range(14,36),
         **glfw_kwargs
     ):
         if font is None:
@@ -190,6 +190,22 @@ class ImguiWindow(glfw_window.GlfwWindow):
 
     def set_font_size(self, target): # Applied on next frame.
         self._cur_font_size = min((abs(key - target), key) for key in self._imgui_fonts.keys())[1]
+
+    def increase_font_size(self):
+        available_sizes = sorted(list(self._imgui_fonts.keys()))
+        cur_idx = available_sizes.index(self._cur_font_size)
+        if cur_idx == len(available_sizes) - 1:
+            pass
+        else:
+            self.set_font_size(available_sizes[cur_idx + 1])
+
+    def decrease_font_size(self):
+        available_sizes = sorted(list(self._imgui_fonts.keys()))
+        cur_idx = available_sizes.index(self._cur_font_size)
+        if cur_idx == 0:
+            pass
+        else:
+            self.set_font_size(available_sizes[cur_idx - 1])
 
 #----------------------------------------------------------------------------
 
