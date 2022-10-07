@@ -1177,8 +1177,12 @@ class Dataset:
                     'wsi_kwargs': wsi_kwargs
                 }
 
-                speed_task = pb.add_task("Speed: ", progress_type="speed", total=None)
-                slide_task = pb.add_task("Extracting...", progress_type="slide_progress", total=len(slide_list))
+                speed_task = pb.add_task("Speed: ",
+                                         progress_type="speed",
+                                         total=None)
+                slide_task = pb.add_task("Extracting...",
+                                         progress_type="slide_progress",
+                                         total=len(slide_list))
                 pb.start()
                 if buffer:
                     # Worker to put each slide path into queue

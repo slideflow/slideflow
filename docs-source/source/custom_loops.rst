@@ -1,4 +1,4 @@
-Custom training loops
+Custom Training Loops
 =====================
 
 To use ``*.tfrecords`` from extracted tiles in a custom training loop or entirely separate architecture (such as `StyleGAN2 <https://github.com/jamesdolezal/stylegan2-slideflow>`_ or `YoloV5 <https://github.com/ultralytics/yolov5>`_), Tensorflow ``tf.data.Dataset`` or PyTorch ``torch.utils.data.DataLoader`` objects can be created for easily serving processed images to your custom trainer.

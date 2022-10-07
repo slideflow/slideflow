@@ -453,7 +453,10 @@ class Workbench(imgui_window.ImguiWindow):
                     if slide_path:
                         self.load_slide(slide_path, ignore_errors=True)
                 if imgui.menu_item('Load Model...', 'Ctrl+M')[1]:
-                    model_path = askdirectory()
+                    if sf.backend() == 'tensorflow':
+                        model_path = askdirectory()
+                    else:
+                        model_path = askopenfilename()
                     if model_path:
                         self.load_model(model_path, ignore_errors=True)
                 imgui.separator()

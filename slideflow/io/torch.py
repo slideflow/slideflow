@@ -418,26 +418,19 @@ def multi_slide_loader(
                     Dict[str, List[np.ndarray]]]]]:
     """Create an iterator by reading and merging multiple tfrecord datasets.
 
-    Params:
-    -------
-    paths: list of str
-        List of tfrecord paths.
-
-    indices: dict mapping tfrecord names to index paths.
-        Input index path pattern.
-
-    splits: dict
-        Dictionary of (key, value) pairs, where the key is used to
-        construct the data and index path(s) and the value determines
-        the contribution of each split to the batch.
-
-    infinite: bool, optional, default=True
-        Whether the returned iterator should be infinite or not
+    Args:
+        paths (list of str): List of tfrecord paths.
+        indices (dict): dict mapping tfrecord names to index paths.
+            Input index path pattern.
+        splits (dict):  Dictionary of (key, value) pairs, where the key is used
+            to construct the data and index path(s) and the value determines
+            the contribution of each split to the batch.
+        infinite (bool, optional): Whether the returned iterator should be
+            infinite or not. Defaults to True.
 
     Returns:
-    --------
-    it: iterator
-        A repeating iterator that generates batches of data.
+
+        it (iterator): A repeating iterator that generates batches of data.
     """
     if splits is not None:
         splits_list = splits

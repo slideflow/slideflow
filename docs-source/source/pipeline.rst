@@ -60,6 +60,12 @@ In addition to the above metrics, performance of a trained model can be assessed
 
 Step 6: Mosaic maps
 *******************
-Finally, learned image features can be visualized using dimensionality reduction on model layer activations. A set of image tiles is first provided to your trained model, which calculates activations at a specified intermediate layer. Tile-level activations are then plotted with dimensionality reduction (UMAP), and points on the plot are replaced with image tiles, generating a mosaic map.
+Learned image features can be visualized using dimensionality reduction on model layer activations. A set of image tiles is first provided to your trained model, which calculates activations at a specified intermediate layer. Tile-level activations are then plotted with dimensionality reduction (UMAP), and points on the plot are replaced with image tiles, generating a mosaic map.
 
 .. image:: mosaic_example.png
+
+Step 7: Interactive visualization
+*********************************
+Finally, use a trained model to visualize predictions for whole-slide images with the interactive tool Slideflow Workbench. This powerful whole-slide image viewer includes deep learning tools enabling you to visualize model predictions on whole-slide images, standard JPG/PNG files, real-time camera feeds, and even Generative Adversarial Network (GAN) -generated images.
+
+.. image:: workbench_preview.png

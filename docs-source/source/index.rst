@@ -25,6 +25,7 @@ The ``slideflow`` package includes a ``Project`` class to help coordinate projec
    training
    evaluation
    layer_activations
+   workbench_tools
    custom_loops
    uq
    clam
@@ -48,6 +49,7 @@ The ``slideflow`` package includes a ``Project`` class to help coordinate projec
    slide
    stats
    util
+   workbench
 
 .. toctree::
    :maxdepth: 1

@@ -44,8 +44,7 @@ def main(
     # --- StyleGAN3 -----------------------------------------------------------
     if stylegan:
         from slideflow.gan.stylegan3.stylegan3.viz.renderer import Renderer as GANRenderer
-        renderer = GANRenderer(gan_px=512, gan_um=400)
-        viz.add_to_render_pipeline(renderer, name='stylegan')
+        viz.add_to_render_pipeline(GANRenderer(), name='stylegan')
         if advanced:
             viz._pane_w_div = 45
     # -------------------------------------------------------------------------

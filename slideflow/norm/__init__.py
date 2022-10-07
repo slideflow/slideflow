@@ -38,19 +38,19 @@ implementations are given below:
       - PyTorch backend
     * - macenko
       - 1,295 img/s (**native**)
-      - 142 img/s
+      - 1,265 img/s (**native**)
     * - reinhard
       - 1,536 img/s (**native**)
-      - 1,840 img/s (**native**)
+      - 2,246 img/s (**native**)
     * - reinhard_fast
       - 8,599 img/s (**native**)
-      - 2,590 img/s (**native**)
+      - 2,832 img/s (**native**)
     * - reinhard_mask
       - 1,537 img/s (**native**)
-      - 1,581 img/s
+      - 2,246 img/s
     * - reinhard_fast_mask
       - 7,885 img/s (**native**)
-      - 2,116 img/s
+      - 2,719 img/s
     * - vahadane_spams
       - 0.7 img/s
       - 2.2 img/s

@@ -91,7 +91,10 @@ setuptools.setup(
             'pretrained_models'
         ],
         'dev': [
-            'parameterized'
+            'parameterized',
+            'sphinx',
+            'sphinx-markdown-tables',
+            'sphinxcontrib-video'
         ]
     },
 )

@@ -84,7 +84,7 @@ class PerformanceWidget:
 
         viz.set_fps_limit(self.fps_limit)
         viz.set_vsync(self.use_vsync)
-        viz.set_low_memory(self.low_memory)
+        viz.low_memory = self.low_memory
         viz._use_model_img_fmt = not self.ignore_jpg
 
 #----------------------------------------------------------------------------
