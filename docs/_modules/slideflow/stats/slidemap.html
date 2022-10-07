@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>slideflow.stats.slidemap &mdash; slideflow 1.2.3 documentation</title>
+  <title>slideflow.stats.slidemap &mdash; slideflow 1.3.0-rc0 documentation</title>
   
 
   
@@ -117,7 +117,7 @@
               
               
                 <div class="version">
-                  1.2
+                  1.3
                 </div>
               
             
@@ -151,12 +151,13 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../pipeline.html">Pipeline Overview</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../project_setup.html">Setting up a Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../validation.html">Validation Planning</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../extract_tiles.html">Tile extraction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../extract_tiles.html">Tile Extraction</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../training.html">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../evaluation.html">Evaluation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../layer_activations.html">Features / layer activations</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../custom_loops.html">Custom training loops</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../uq.html">Uncertainty quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../layer_activations.html">Features / Layer Activations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../workbench_tools.html">Workbench: Visualization Tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../custom_loops.html">Custom Training Loops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../uq.html">Uncertainty Quantification</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../clam.html">CLAM</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../troubleshooting.html">Troubleshooting</a></li>
 </ul>
@@ -176,6 +177,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../slide.html">slideflow.slide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../stats.html">slideflow.stats</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../util.html">slideflow.util</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../workbench.html">slideflow.workbench</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
 <ul>
@@ -184,6 +186,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../tutorial3.html">Tutorial 3: Using a custom architecture</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../tutorial4.html">Tutorial 4: Model evaluation &amp; heatmaps</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../tutorial5.html">Tutorial 5: Creating a mosaic map</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorial6.html">Tutorial 6: Custom slide filtering</a></li>
 </ul>
 
             
@@ -257,9 +260,11 @@
   <h1>Source code for slideflow.stats.slidemap</h1><div class="highlight"><pre>
 <span></span><span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">TYPE_CHECKING</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span>
 
+<span class="kn">import</span> <span class="nn">pickle</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
 <span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
+<span class="kn">from</span> <span class="nn">os.path</span> <span class="kn">import</span> <span class="n">join</span>
 <span class="kn">from</span> <span class="nn">mpl_toolkits.mplot3d</span> <span class="kn">import</span> <span class="n">Axes3D</span>
 <span class="kn">from</span> <span class="nn">pandas.core.frame</span> <span class="kn">import</span> <span class="n">DataFrame</span>
 <span class="kn">from</span> <span class="nn">sklearn.cluster</span> <span class="kn">import</span> <span class="n">KMeans</span>
@@ -268,6 +273,7 @@
 <span class="kn">from</span> <span class="nn">slideflow.util</span> <span class="kn">import</span> <span class="n">log</span>
 
 <span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
+    <span class="kn">import</span> <span class="nn">umap</span>
     <span class="kn">from</span> <span class="nn">matplotlib.axes</span> <span class="kn">import</span> <span class="n">Axes</span>
     <span class="kn">from</span> <span class="nn">matplotlib.figure</span> <span class="kn">import</span> <span class="n">Figure</span>
     <span class="kn">from</span> <span class="nn">slideflow.model</span> <span class="kn">import</span> <span class="n">DatasetFeatures</span>
@@ -283,8 +289,9 @@
 
 <div class="viewcode-block" id="SlideMap.__init__"><a class="viewcode-back" href="../../../stats.html#slideflow.SlideMap.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
-        <span class="n">slides</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
-        <span class="n">cache</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">slides</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">cache</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">parametric_umap</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Backend for mapping slides into two dimensional space. Can use a</span>
 <span class="sd">        DatasetFeatures object to map slides according to UMAP of features, or</span>
@@ -295,14 +302,22 @@
 <span class="sd">            cache (str, optional): Path to PKL file to cache activations.</span>
 <span class="sd">                Defaults to None (caching disabled).</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">slides</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">cache</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Argument `slides` required if cache not provided&quot;</span><span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">slides</span> <span class="o">=</span> <span class="n">slides</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">cache</span> <span class="o">=</span> <span class="n">cache</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">df</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># type: Optional[DatasetFeatures]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># type: DataFrame</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">map_meta</span> <span class="o">=</span> <span class="p">{}</span>  <span class="c1"># type: Dict[str, Any]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cache</span> <span class="o">=</span> <span class="n">cache</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cache</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">load_cache</span><span class="p">()</span></div>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_cache</span><span class="p">()</span> <span class="ow">and</span> <span class="n">slides</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">slides</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">unique</span><span class="p">()</span>
+            <span class="k">elif</span> <span class="n">slides</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unable to load from cache: </span><span class="si">{</span><span class="n">cache</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">slides</span> <span class="o">=</span> <span class="n">slides</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">df</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># type: Optional[DatasetFeatures]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">parametric_umap</span> <span class="o">=</span> <span class="n">parametric_umap</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_umap_normalized_range</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">map_meta</span> <span class="o">=</span> <span class="p">{}</span>  <span class="c1"># type: Dict[str, Any]</span></div>
+
 
 <div class="viewcode-block" id="SlideMap.from_precalculated"><a class="viewcode-back" href="../../../stats.html#slideflow.SlideMap.from_precalculated">[docs]</a>    <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">from_precalculated</span><span class="p">(</span>
@@ -312,7 +327,8 @@
         <span class="n">slides</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="nb">str</span><span class="p">],</span>
         <span class="n">tfr_index</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="nb">str</span><span class="p">],</span>
         <span class="n">data</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">DataFrame</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">cache</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">cache</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">parametric_umap</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;SlideMap&quot;</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Initializes map from precalculated coordinates.</span>
 
@@ -365,6 +381,7 @@
         <span class="n">obj</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">(</span><span class="n">obj_data</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">unique</span><span class="p">())</span>
         <span class="n">obj</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">obj_data</span>
         <span class="n">obj</span><span class="o">.</span><span class="n">cache</span> <span class="o">=</span> <span class="n">cache</span>
+        <span class="n">obj</span><span class="o">.</span><span class="n">parametric_umap</span> <span class="o">=</span> <span class="n">parametric_umap</span>
         <span class="n">obj</span><span class="o">.</span><span class="n">save_cache</span><span class="p">()</span>
         <span class="k">return</span> <span class="n">obj</span></div>
 
@@ -376,6 +393,7 @@
         <span class="n">recalculate</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
         <span class="n">map_slide</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">cache</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">parametric_umap</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
         <span class="n">umap_dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">2</span><span class="p">,</span>
         <span class="n">umap</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="o">**</span><span class="n">umap_kwargs</span><span class="p">:</span> <span class="n">Any</span>
@@ -410,6 +428,7 @@
         <span class="n">obj</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">(</span><span class="n">slides</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="n">cache</span><span class="p">)</span>
         <span class="n">obj</span><span class="o">.</span><span class="n">df</span> <span class="o">=</span> <span class="n">df</span>
         <span class="n">obj</span><span class="o">.</span><span class="n">umap</span> <span class="o">=</span> <span class="n">umap</span>  <span class="c1"># type: ignore</span>
+        <span class="n">obj</span><span class="o">.</span><span class="n">parametric_umap</span> <span class="o">=</span> <span class="n">parametric_umap</span>
         <span class="k">if</span> <span class="n">map_slide</span><span class="p">:</span>
             <span class="n">obj</span><span class="o">.</span><span class="n">_calculate_from_slides</span><span class="p">(</span>
                 <span class="n">method</span><span class="o">=</span><span class="n">map_slide</span><span class="p">,</span>
@@ -463,10 +482,11 @@
 
             <span class="c1"># If UMAP already calculated, update predictions</span>
             <span class="c1"># if prediction filter is provided</span>
-            <span class="n">logits</span> <span class="o">=</span> <span class="p">[</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">df</span><span class="o">.</span><span class="n">logits</span><span class="p">[</span><span class="n">row</span><span class="o">.</span><span class="n">slide</span><span class="p">][</span><span class="n">row</span><span class="o">.</span><span class="n">tfr_index</span><span class="p">]</span>
-                <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">row</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">iterrows</span><span class="p">()</span>
-            <span class="p">]</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">df</span><span class="o">.</span><span class="n">logits</span><span class="p">:</span>
+                <span class="n">logits</span> <span class="o">=</span> <span class="p">[</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">df</span><span class="o">.</span><span class="n">logits</span><span class="p">[</span><span class="n">row</span><span class="o">.</span><span class="n">slide</span><span class="p">][</span><span class="n">row</span><span class="o">.</span><span class="n">tfr_index</span><span class="p">]</span>
+                    <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">itertuples</span><span class="p">()</span>
+                <span class="p">]</span>
             <span class="n">predictions</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">logits</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;logits&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">logits</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;predictions&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">([</span><span class="n">p</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">predictions</span><span class="p">])</span>
@@ -483,9 +503,6 @@
         <span class="n">coordinates</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">umap_transform</span><span class="p">(</span><span class="n">node_activations</span><span class="p">,</span> <span class="o">**</span><span class="n">umap_kwargs</span><span class="p">)</span>
 
         <span class="c1"># Assemble dataframe</span>
-        <span class="n">logits</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">df</span><span class="o">.</span><span class="n">logits</span><span class="p">[</span><span class="n">slide</span><span class="p">]</span> <span class="k">for</span> <span class="n">slide</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">slides</span>
-        <span class="p">])</span>
         <span class="n">locations</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">df</span><span class="o">.</span><span class="n">locations</span><span class="p">[</span><span class="n">slide</span><span class="p">]</span> <span class="k">for</span> <span class="n">slide</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">slides</span>
         <span class="p">])</span>
@@ -502,10 +519,16 @@
             <span class="s1">&#39;slide&#39;</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">slides</span><span class="p">),</span>
             <span class="s1">&#39;x&#39;</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">coordinates</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]),</span>
             <span class="s1">&#39;tfr_index&#39;</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">tfrecord_indices</span><span class="p">),</span>
-            <span class="s1">&#39;logits&#39;</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">([</span><span class="n">l</span> <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="n">logits</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">object</span><span class="p">),</span>
-            <span class="s1">&#39;prediction&#39;</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">logits</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)),</span>
             <span class="s1">&#39;location&#39;</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">([</span><span class="n">l</span> <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="n">locations</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">object</span><span class="p">)</span>
         <span class="p">}</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">df</span><span class="o">.</span><span class="n">logits</span><span class="p">:</span>
+            <span class="n">logits</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">df</span><span class="o">.</span><span class="n">logits</span><span class="p">[</span><span class="n">slide</span><span class="p">]</span> <span class="k">for</span> <span class="n">slide</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">slides</span>
+            <span class="p">])</span>
+            <span class="n">data_dict</span><span class="o">.</span><span class="n">update</span><span class="p">({</span>
+                <span class="s1">&#39;prediction&#39;</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">logits</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)),</span>
+                <span class="s1">&#39;logits&#39;</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">([</span><span class="n">l</span> <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="n">logits</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">object</span><span class="p">),</span>
+            <span class="p">})</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">df</span><span class="o">.</span><span class="n">uq</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">df</span><span class="o">.</span><span class="n">uncertainty</span> <span class="o">!=</span> <span class="p">{}:</span>  <span class="c1"># type: ignore</span>
             <span class="n">uncertainty</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">df</span><span class="o">.</span><span class="n">uncertainty</span><span class="p">[</span><span class="n">slide</span><span class="p">]</span> <span class="k">for</span> <span class="n">slide</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">slides</span>
@@ -598,9 +621,6 @@
             <span class="p">)</span>
 
             <span class="c1"># Create dataframe</span>
-            <span class="n">logits</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">df</span><span class="o">.</span><span class="n">logits</span><span class="p">[</span><span class="n">slide</span><span class="p">][</span><span class="n">opt_idx</span><span class="p">[</span><span class="n">slide</span><span class="p">]]</span> <span class="k">for</span> <span class="n">slide</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">slides</span>
-            <span class="p">])</span>
             <span class="n">locations</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">df</span><span class="o">.</span><span class="n">locations</span><span class="p">[</span><span class="n">slide</span><span class="p">][</span><span class="n">opt_idx</span><span class="p">[</span><span class="n">slide</span><span class="p">]]</span> <span class="k">for</span> <span class="n">slide</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">slides</span>
             <span class="p">])</span>
@@ -608,10 +628,16 @@
                 <span class="s1">&#39;slide&#39;</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">slides</span><span class="p">),</span>
                 <span class="s1">&#39;x&#39;</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">coordinates</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]),</span>
                 <span class="s1">&#39;tfr_index&#39;</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">opt_idx</span><span class="p">[</span><span class="n">slide</span><span class="p">]</span> <span class="k">for</span> <span class="n">slide</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">slides</span><span class="p">),</span>
-                <span class="s1">&#39;logits&#39;</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">([</span><span class="n">l</span> <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="n">logits</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">object</span><span class="p">),</span>
-                <span class="s1">&#39;prediction&#39;</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">logits</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)),</span>
                 <span class="s1">&#39;location&#39;</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">([</span><span class="n">l</span> <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="n">locations</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">object</span><span class="p">)</span>
             <span class="p">}</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">df</span><span class="o">.</span><span class="n">logits</span><span class="p">:</span>
+                <span class="n">logits</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">df</span><span class="o">.</span><span class="n">logits</span><span class="p">[</span><span class="n">slide</span><span class="p">][</span><span class="n">opt_idx</span><span class="p">[</span><span class="n">slide</span><span class="p">]]</span> <span class="k">for</span> <span class="n">slide</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">slides</span>
+                <span class="p">])</span>
+                <span class="n">data_dict</span><span class="o">.</span><span class="n">update</span><span class="p">({</span>
+                    <span class="s1">&#39;logits&#39;</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">([</span><span class="n">l</span> <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="n">logits</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">object</span><span class="p">),</span>
+                    <span class="s1">&#39;prediction&#39;</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">logits</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)),</span>
+                <span class="p">})</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">df</span><span class="o">.</span><span class="n">uq</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">df</span><span class="o">.</span><span class="n">uncertainty</span> <span class="o">!=</span> <span class="p">{}:</span>  <span class="c1"># type: ignore</span>
                 <span class="n">uncertainty</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">df</span><span class="o">.</span><span class="n">uncertainty</span><span class="p">[</span><span class="n">slide</span><span class="p">][</span><span class="n">opt_idx</span><span class="p">[</span><span class="n">slide</span><span class="p">]]</span>
@@ -638,7 +664,7 @@
             <span class="p">)</span>
         <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">df</span><span class="o">.</span><span class="n">activations</span><span class="p">[</span><span class="n">row</span><span class="o">.</span><span class="n">slide</span><span class="p">][</span><span class="n">row</span><span class="o">.</span><span class="n">tfr_index</span><span class="p">]</span>
-            <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">row</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">iterrows</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">itertuples</span><span class="p">()</span>
         <span class="p">])</span></div>
 
 <div class="viewcode-block" id="SlideMap.cluster"><a class="viewcode-back" href="../../../stats.html#slideflow.SlideMap.cluster">[docs]</a>    <span class="k">def</span> <span class="nf">cluster</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n_clusters</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
@@ -657,12 +683,11 @@
             <span class="p">)</span>
         <span class="n">activations</span> <span class="o">=</span> <span class="p">[</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">df</span><span class="o">.</span><span class="n">activations</span><span class="p">[</span><span class="n">row</span><span class="o">.</span><span class="n">slide</span><span class="p">][</span><span class="n">row</span><span class="o">.</span><span class="n">tfr_index</span><span class="p">]</span>
-            <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">row</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">iterrows</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">itertuples</span><span class="p">()</span>
         <span class="p">]</span>
         <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Calculating K-means clustering (n=</span><span class="si">{</span><span class="n">n_clusters</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
         <span class="n">kmeans</span> <span class="o">=</span> <span class="n">KMeans</span><span class="p">(</span><span class="n">n_clusters</span><span class="o">=</span><span class="n">n_clusters</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">activations</span><span class="p">)</span>
-        <span class="n">labels</span> <span class="o">=</span> <span class="n">kmeans</span><span class="o">.</span><span class="n">labels_</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;cluster&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">labels</span></div>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;cluster&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">kmeans</span><span class="o">.</span><span class="n">labels_</span></div>
 
 <div class="viewcode-block" id="SlideMap.neighbors"><a class="viewcode-back" href="../../../stats.html#slideflow.SlideMap.neighbors">[docs]</a>    <span class="k">def</span> <span class="nf">neighbors</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
@@ -723,6 +748,7 @@
             <span class="k">return</span> <span class="p">(</span><span class="n">list_cat</span> <span class="o">==</span> <span class="n">idx_cat</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
 
         <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Matching neighbors...&#39;</span><span class="p">)</span>
+        <span class="c1">#TODO: accelerate this step with multiprocessing</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;num_unique_neighbors&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span>
             <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">ind</span><span class="p">]</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">unique</span><span class="p">())</span>
             <span class="k">for</span> <span class="n">ind</span> <span class="ow">in</span> <span class="n">indices</span>
@@ -773,7 +799,8 @@
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">len</span><span class="p">(</span><span class="n">array</span><span class="p">):</span>
             <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">StatsError</span><span class="p">(</span><span class="s2">&quot;Unable to perform UMAP on empty array.&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">umap</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>  <span class="c1"># type: ignore</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">umap</span> <span class="o">=</span> <span class="n">umap</span><span class="o">.</span><span class="n">UMAP</span><span class="p">(</span>
+            <span class="n">fn</span> <span class="o">=</span> <span class="n">umap</span><span class="o">.</span><span class="n">UMAP</span> <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">parametric_umap</span> <span class="k">else</span> <span class="n">umap</span><span class="o">.</span><span class="n">ParametricUMAP</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">umap</span> <span class="o">=</span> <span class="n">fn</span><span class="p">(</span>
                 <span class="n">n_components</span><span class="o">=</span><span class="n">dim</span><span class="p">,</span>
                 <span class="n">verbose</span><span class="o">=</span><span class="p">(</span><span class="n">sf</span><span class="o">.</span><span class="n">getLoggingLevel</span><span class="p">()</span> <span class="o">&lt;=</span> <span class="mi">20</span><span class="p">),</span>
                 <span class="n">n_neighbors</span><span class="o">=</span><span class="n">n_neighbors</span><span class="p">,</span>
@@ -782,7 +809,10 @@
                 <span class="o">**</span><span class="n">kwargs</span>
             <span class="p">)</span>
         <span class="n">layout</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">umap</span><span class="o">.</span><span class="n">fit_transform</span><span class="p">(</span><span class="n">array</span><span class="p">)</span>  <span class="c1"># type: ignore</span>
-        <span class="k">return</span> <span class="n">normalize_layout</span><span class="p">(</span><span class="n">layout</span><span class="p">)</span></div>
+        <span class="p">(</span><span class="n">normalized</span><span class="p">,</span>
+         <span class="bp">self</span><span class="o">.</span><span class="n">_umap_normalized_range</span><span class="p">,</span>
+         <span class="bp">self</span><span class="o">.</span><span class="n">_umap_normalized_clip</span><span class="p">)</span> <span class="o">=</span> <span class="n">normalize_layout</span><span class="p">(</span><span class="n">layout</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">normalized</span></div>
 
 <div class="viewcode-block" id="SlideMap.label_by_uncertainty"><a class="viewcode-back" href="../../../stats.html#slideflow.SlideMap.label_by_uncertainty">[docs]</a>    <span class="k">def</span> <span class="nf">label_by_uncertainty</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Labels each point with the tile-level uncertainty, if available.</span>
@@ -877,7 +907,7 @@
 <span class="sd">                seaborn scatterplot function.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="kn">import</span> <span class="nn">seaborn</span> <span class="k">as</span> <span class="nn">sns</span>
-        <span class="kn">from</span> <span class="nn">matplotlib</span> <span class="kn">import</span> <span class="n">pyplot</span> <span class="k">as</span> <span class="n">plt</span>
+        <span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
 
         <span class="c1"># Make plot</span>
         <span class="k">if</span> <span class="n">ax</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
@@ -899,6 +929,7 @@
             <span class="c1"># Check for categorical labels</span>
             <span class="k">if</span> <span class="p">(</span><span class="n">categorical</span> <span class="ow">is</span> <span class="kc">True</span>
                <span class="ow">or</span> <span class="ow">not</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_numeric</span><span class="p">(</span><span class="n">labels</span><span class="p">,</span> <span class="n">errors</span><span class="o">=</span><span class="s1">&#39;coerce&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">notnull</span><span class="p">()</span><span class="o">.</span><span class="n">all</span><span class="p">()):</span>
+
                 <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Interpreting labels as categorical&quot;</span><span class="p">)</span>
                 <span class="n">scatter_kwargs</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
                     <span class="nb">dict</span><span class="p">(</span><span class="n">hue</span><span class="o">=</span><span class="n">labels</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s1">&#39;category&#39;</span><span class="p">))</span>
@@ -925,9 +956,8 @@
         <span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="o">*</span><span class="p">((</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">ylim</span> <span class="k">else</span> <span class="n">ylim</span><span class="p">))</span>
         <span class="n">ax</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="o">*</span><span class="p">((</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">xlim</span> <span class="k">else</span> <span class="n">xlim</span><span class="p">))</span>
         <span class="k">if</span> <span class="s1">&#39;hue&#39;</span> <span class="ow">in</span> <span class="n">scatter_kwargs</span><span class="p">:</span>
-            <span class="n">umap_2d</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span>
-                <span class="n">loc</span><span class="o">=</span><span class="s1">&#39;center left&#39;</span><span class="p">,</span>
-                <span class="n">bbox_to_anchor</span><span class="o">=</span><span class="p">(</span><span class="mf">1.25</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">),</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span>
+                <span class="n">loc</span><span class="o">=</span><span class="s1">&#39;center right&#39;</span><span class="p">,</span>
                 <span class="n">ncol</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
                 <span class="n">title</span><span class="o">=</span><span class="n">legend</span>
             <span class="p">)</span>
@@ -955,7 +985,7 @@
 <span class="sd">            fig (matplotlib.figure.Figure, optional): Figure. If not supplied,</span>
 <span class="sd">                will prepare a new figure.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="kn">from</span> <span class="nn">matplotlib</span> <span class="kn">import</span> <span class="n">pyplot</span> <span class="k">as</span> <span class="n">plt</span>
+        <span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
 
         <span class="k">if</span> <span class="n">fig</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">fig</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
@@ -976,7 +1006,7 @@
         <span class="k">if</span> <span class="n">z</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">z</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">df</span><span class="o">.</span><span class="n">activations</span><span class="p">[</span><span class="n">row</span><span class="o">.</span><span class="n">slide</span><span class="p">][</span><span class="n">row</span><span class="o">.</span><span class="n">tfr_index</span><span class="p">][</span><span class="n">feature</span><span class="p">]</span>
-                <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">plot_df</span><span class="o">.</span><span class="n">iterrows</span><span class="p">()</span>
+                <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">plot_df</span><span class="o">.</span><span class="n">itertuples</span><span class="p">()</span>
             <span class="p">])</span>
 
         <span class="c1"># Plot tiles on a 3D coordinate space with 2 coordinates from UMAP</span>
@@ -1062,6 +1092,40 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">to_parquet</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
             <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Wrote slide map cache to [green]</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
 
+<div class="viewcode-block" id="SlideMap.save_umap"><a class="viewcode-back" href="../../../stats.html#slideflow.SlideMap.save_umap">[docs]</a>    <span class="k">def</span> <span class="nf">save_umap</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Save cache of UMAP to PKL file.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            path (str, optional): Save cache to this location. If None,</span>
+<span class="sd">                will use `self.cache`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">parametric_umap</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">umap</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                <span class="n">pickle</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">umap</span><span class="p">,</span> <span class="n">f</span><span class="p">)</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Wrote UMAP cache to [green]</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SlideMap.save_encoder"><a class="viewcode-back" href="../../../stats.html#slideflow.SlideMap.save_encoder">[docs]</a>    <span class="k">def</span> <span class="nf">save_encoder</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Save Parametric UMAP encoder.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">parametric_umap</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;SlideMap not built with Parametric UMAP.&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">umap</span><span class="o">.</span><span class="n">encoder</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;encoder&#39;</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">save_cache</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;slidemap.parquet&#39;</span><span class="p">))</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">savez</span><span class="p">(</span>
+            <span class="n">join</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;range_clip.npz&#39;</span><span class="p">),</span>
+            <span class="nb">range</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_umap_normalized_range</span><span class="p">,</span>
+            <span class="n">clip</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_umap_normalized_clip</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">load_umap</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;umap.UMAP&quot;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">parametric_umap</span><span class="p">:</span>
+            <span class="kn">from</span> <span class="nn">umap.parametric_umap</span> <span class="kn">import</span> <span class="n">load_ParametricUMAP</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">umap</span> <span class="o">=</span> <span class="n">load_ParametricUMAP</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">umap</span> <span class="o">=</span> <span class="n">pickle</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Loaded UMAP cache from [green]</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
 <div class="viewcode-block" id="SlideMap.load_cache"><a class="viewcode-back" href="../../../stats.html#slideflow.SlideMap.load_cache">[docs]</a>    <span class="k">def</span> <span class="nf">load_cache</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Load coordinates from PKL cache.</span>
 
@@ -1078,10 +1142,10 @@
             <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">SlideMapError</span><span class="p">(</span><span class="s2">&quot;No cache set or given.&quot;</span><span class="p">)</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_parquet</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
-            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Loaded UMAP cache from [green]</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Loaded slide map cache from [green]</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
             <span class="k">return</span> <span class="kc">True</span>
         <span class="k">except</span> <span class="ne">FileNotFoundError</span><span class="p">:</span>
-            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;No UMAP cache found at [green]</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;No slide map cache found at [green]</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
             <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
                 <span class="sa">f</span><span class="s2">&quot;Error loading slide map cache at [green]</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">[/], &quot;</span>
@@ -1141,6 +1205,7 @@
          <script src="../../../_static/underscore.js"></script>
          <script src="../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
          <script src="../../../_static/doctools.js"></script>
+         <script src="../../../_static/sphinx_highlight.js"></script>
      
 
   

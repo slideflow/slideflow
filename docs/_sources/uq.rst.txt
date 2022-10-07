@@ -1,4 +1,4 @@
-Uncertainty quantification
+Uncertainty Quantification
 ==========================
 
 Several uncertainty quantification (UQ) methods have been developed for deep learning models and tested in digital histopathology, including MC Dropout, deep ensembles, hyper-deep ensembles, and test-time augmentation.

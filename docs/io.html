@@ -6,10 +6,11 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  
+  <meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>slideflow.io &mdash; slideflow 1.2.3 documentation</title>
+  <title>slideflow.io &mdash; slideflow 1.3.0-rc0 documentation</title>
   
 
   
@@ -119,7 +120,7 @@
               
               
                 <div class="version">
-                  1.2
+                  1.3
                 </div>
               
             
@@ -153,12 +154,13 @@
 <li class="toctree-l1"><a class="reference internal" href="pipeline.html">Pipeline Overview</a></li>
 <li class="toctree-l1"><a class="reference internal" href="project_setup.html">Setting up a Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="validation.html">Validation Planning</a></li>
-<li class="toctree-l1"><a class="reference internal" href="extract_tiles.html">Tile extraction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="extract_tiles.html">Tile Extraction</a></li>
 <li class="toctree-l1"><a class="reference internal" href="training.html">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="evaluation.html">Evaluation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="layer_activations.html">Features / layer activations</a></li>
-<li class="toctree-l1"><a class="reference internal" href="custom_loops.html">Custom training loops</a></li>
-<li class="toctree-l1"><a class="reference internal" href="uq.html">Uncertainty quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="layer_activations.html">Features / Layer Activations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="workbench_tools.html">Workbench: Visualization Tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="custom_loops.html">Custom Training Loops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="uq.html">Uncertainty Quantification</a></li>
 <li class="toctree-l1"><a class="reference internal" href="clam.html">CLAM</a></li>
 <li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
 </ul>
@@ -178,6 +180,7 @@
 <li class="toctree-l1"><a class="reference internal" href="slide.html">slideflow.slide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="stats.html">slideflow.stats</a></li>
 <li class="toctree-l1"><a class="reference internal" href="util.html">slideflow.util</a></li>
+<li class="toctree-l1"><a class="reference internal" href="workbench.html">slideflow.workbench</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
 <ul>
@@ -186,6 +189,7 @@
 <li class="toctree-l1"><a class="reference internal" href="tutorial3.html">Tutorial 3: Using a custom architecture</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorial4.html">Tutorial 4: Model evaluation &amp; heatmaps</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorial5.html">Tutorial 5: Creating a mosaic map</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial6.html">Tutorial 6: Custom slide filtering</a></li>
 </ul>
 
             
@@ -258,7 +262,7 @@
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
               
-  <div class="section" id="module-slideflow.io">
+  <section id="module-slideflow.io">
 <span id="slideflow-io"></span><h1>slideflow.io<a class="headerlink" href="#module-slideflow.io" title="Permalink to this heading">¶</a></h1>
 <p>TFRecord reading/writing utilities for both Tensorflow and PyTorch.</p>
 <dl class="py function">
@@ -266,13 +270,13 @@
 <span class="sig-prename descclassname"><span class="pre">slideflow.io.</span></span><span class="sig-name descname"><span class="pre">extract_tiles</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tfrecord</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">destination</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.10)"><span class="pre">None</span></a></span></span><a class="reference internal" href="_modules/slideflow/io.html#extract_tiles"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.io.extract_tiles" title="Permalink to this definition">¶</a></dt>
 <dd><p>Reads and saves images from a TFRecord to a destination folder.</p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>tfrecord</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Path to tfrecord.</p></li>
 <li><p><strong>destination</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Destination path to write loose images.</p></li>
 </ul>
 </dd>
-<dt class="field-even">Returns</dt>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>None</p>
 </dd>
 </dl>
@@ -320,17 +324,17 @@ Assembles all image tiles within subfolders and labels using the provided
 annotation_dict, assuming the subfolder is the slide name. Collects all
 image tiles and exports into a single tfrecord file.</p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>input_directory</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Directory of images.</p></li>
 <li><p><strong>output_directory</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Directory in which to write TFRecord file.</p></li>
 <li><p><strong>filename</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – TFRecord filename (without path).</p></li>
 </ul>
 </dd>
-<dt class="field-even">Returns</dt>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>Number of records written.</p>
 </dd>
-<dt class="field-odd">Return type</dt>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)">int</a></p>
 </dd>
 </dl>
@@ -351,7 +355,7 @@ image tiles and exports into multiple tfrecord files, one for each slide.</p>
 <dd><p>Scans a folder for image tiles, annotates using the provided slide,
 exports into a single tfrecord file.</p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>input_directory</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Directory of images.</p></li>
 <li><p><strong>output_directory</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Directory in which to write TFRecord file.</p></li>
@@ -359,10 +363,10 @@ exports into a single tfrecord file.</p>
 <li><p><strong>slide</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Slide name to assign to records inside TFRecord.</p></li>
 </ul>
 </dd>
-<dt class="field-even">Returns</dt>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>Number of records written.</p>
 </dd>
-<dt class="field-odd">Return type</dt>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)">int</a></p>
 </dd>
 </dl>
@@ -373,10 +377,10 @@ exports into a single tfrecord file.</p>
 <span class="sig-prename descclassname"><span class="pre">slideflow.io.</span></span><span class="sig-name descname"><span class="pre">detect_tfrecord_format</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tfr</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.10)"><span class="pre">Tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.10)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.10)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.10)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/slideflow/io/io_utils.html#detect_tfrecord_format"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.io.detect_tfrecord_format" title="Permalink to this definition">¶</a></dt>
 <dd><p>Detects tfrecord format.</p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>tfr</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Path to tfrecord.</p>
 </dd>
-<dt class="field-even">Returns</dt>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p><p>A tuple containing</p>
 <blockquote>
 <div><p>list(str): List of detected features.</p>
@@ -387,7 +391,7 @@ exports into a single tfrecord file.</p>
 </dl>
 </dd></dl>
 
-</div>
+</section>
 
 
              </article>
@@ -432,7 +436,19 @@ exports into a single tfrecord file.</p>
           <div class="pytorch-right-menu" id="pytorch-right-menu">
             <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
               <ul>
-<li><a class="reference internal" href="#">slideflow.io</a></li>
+<li><a class="reference internal" href="#">slideflow.io</a><ul>
+<li><a class="reference internal" href="#slideflow.io.extract_tiles"><code class="docutils literal notranslate"><span class="pre">extract_tiles()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.io.get_locations_from_tfrecord"><code class="docutils literal notranslate"><span class="pre">get_locations_from_tfrecord()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.io.get_tfrecord_by_index"><code class="docutils literal notranslate"><span class="pre">get_tfrecord_by_index()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.io.get_tfrecord_by_location"><code class="docutils literal notranslate"><span class="pre">get_tfrecord_by_location()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.io.read_tfrecord_length"><code class="docutils literal notranslate"><span class="pre">read_tfrecord_length()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.io.update_manifest_at_dir"><code class="docutils literal notranslate"><span class="pre">update_manifest_at_dir()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.io.write_tfrecords_merge"><code class="docutils literal notranslate"><span class="pre">write_tfrecords_merge()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.io.write_tfrecords_multi"><code class="docutils literal notranslate"><span class="pre">write_tfrecords_multi()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.io.write_tfrecords_single"><code class="docutils literal notranslate"><span class="pre">write_tfrecords_single()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.io.detect_tfrecord_format"><code class="docutils literal notranslate"><span class="pre">detect_tfrecord_format()</span></code></a></li>
+</ul>
+</li>
 </ul>
 
             </div>
@@ -453,6 +469,7 @@ exports into a single tfrecord file.</p>
          <script src="_static/underscore.js"></script>
          <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
          <script src="_static/doctools.js"></script>
+         <script src="_static/sphinx_highlight.js"></script>
      
 
   

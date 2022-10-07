@@ -6,10 +6,11 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  
+  <meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>CLAM &mdash; slideflow 1.2.3 documentation</title>
+  <title>CLAM &mdash; slideflow 1.3.0-rc0 documentation</title>
   
 
   
@@ -32,7 +33,7 @@
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="Troubleshooting" href="troubleshooting.html" />
-    <link rel="prev" title="Uncertainty quantification" href="uq.html" />
+    <link rel="prev" title="Uncertainty Quantification" href="uq.html" />
   <!-- Google Analytics -->
   
   <!-- End Google Analytics -->
@@ -119,7 +120,7 @@
               
               
                 <div class="version">
-                  1.2
+                  1.3
                 </div>
               
             
@@ -153,12 +154,13 @@
 <li class="toctree-l1"><a class="reference internal" href="pipeline.html">Pipeline Overview</a></li>
 <li class="toctree-l1"><a class="reference internal" href="project_setup.html">Setting up a Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="validation.html">Validation Planning</a></li>
-<li class="toctree-l1"><a class="reference internal" href="extract_tiles.html">Tile extraction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="extract_tiles.html">Tile Extraction</a></li>
 <li class="toctree-l1"><a class="reference internal" href="training.html">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="evaluation.html">Evaluation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="layer_activations.html">Features / layer activations</a></li>
-<li class="toctree-l1"><a class="reference internal" href="custom_loops.html">Custom training loops</a></li>
-<li class="toctree-l1"><a class="reference internal" href="uq.html">Uncertainty quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="layer_activations.html">Features / Layer Activations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="workbench_tools.html">Workbench: Visualization Tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="custom_loops.html">Custom Training Loops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="uq.html">Uncertainty Quantification</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">CLAM</a></li>
 <li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
 </ul>
@@ -178,6 +180,7 @@
 <li class="toctree-l1"><a class="reference internal" href="slide.html">slideflow.slide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="stats.html">slideflow.stats</a></li>
 <li class="toctree-l1"><a class="reference internal" href="util.html">slideflow.util</a></li>
+<li class="toctree-l1"><a class="reference internal" href="workbench.html">slideflow.workbench</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
 <ul>
@@ -186,6 +189,7 @@
 <li class="toctree-l1"><a class="reference internal" href="tutorial3.html">Tutorial 3: Using a custom architecture</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorial4.html">Tutorial 4: Model evaluation &amp; heatmaps</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorial5.html">Tutorial 5: Creating a mosaic map</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial6.html">Tutorial 6: Custom slide filtering</a></li>
 </ul>
 
             
@@ -258,10 +262,10 @@
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
               
-  <div class="section" id="clam">
+  <section id="clam">
 <h1>CLAM<a class="headerlink" href="#clam" title="Permalink to this heading">¶</a></h1>
 <p>In addition to standard Tensorflow/Keras model applications, slideflow supports training models with <a class="reference external" href="https://github.com/mahmoodlab/CLAM">CLAM</a>. A slightly modified version of CLAM which supports slideflow dataset and input pipelines is included in <code class="docutils literal notranslate"><span class="pre">slideflow.clam</span></code>.</p>
-<div class="section" id="creating-slide-activations">
+<section id="creating-slide-activations">
 <h2>Creating slide activations<a class="headerlink" href="#creating-slide-activations" title="Permalink to this heading">¶</a></h2>
 <p>The first step in the CLAM pipeline is generating tile-level activations across whole-slide images. Set <code class="docutils literal notranslate"><span class="pre">model</span></code> equal to an imagenet-pretrained model architecture name:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">P</span><span class="o">.</span><span class="n">generate_features_for_clam</span><span class="p">(</span>
@@ -279,11 +283,13 @@
 <span class="p">)</span>
 </pre></div>
 </div>
-</div>
-<div class="section" id="training">
+</section>
+<section id="training">
 <h2>Training<a class="headerlink" href="#training" title="Permalink to this heading">¶</a></h2>
 <p>To train a CLAM model from the saved activations, use <a class="reference internal" href="project.html#slideflow.Project.train_clam" title="slideflow.Project.train_clam"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.Project.train_clam()</span></code></a>. Clam arguments are configured with <code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.clam.get_args()</span></code>:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">dataset</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">dataset</span><span class="p">(</span><span class="n">tile_px</span><span class="o">=</span><span class="mi">299</span><span class="p">,</span> <span class="n">tile_um</span><span class="o">=</span><span class="mi">302</span><span class="p">)</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">slideflow.clam</span>
+
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">dataset</span><span class="p">(</span><span class="n">tile_px</span><span class="o">=</span><span class="mi">299</span><span class="p">,</span> <span class="n">tile_um</span><span class="o">=</span><span class="mi">302</span><span class="p">)</span>
 <span class="n">P</span><span class="o">.</span><span class="n">generate_features_for_clam</span><span class="p">(</span><span class="o">...</span><span class="p">,</span> <span class="n">outdir</span><span class="o">=</span><span class="s1">&#39;/clam/path&#39;</span><span class="p">)</span>
 
 <span class="n">clam_args</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">clam</span><span class="o">.</span><span class="n">get_args</span><span class="p">(</span><span class="n">k</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">bag_loss</span><span class="o">=</span><span class="s1">&#39;svm&#39;</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
@@ -298,8 +304,8 @@
 </pre></div>
 </div>
 <p>The training function will, by default, save heatmaps of the attention layers for each of the validation slides. This behavior can be disabled by passing <code class="docutils literal notranslate"><span class="pre">attention_heatmaps=False</span></code>.</p>
-</div>
-<div class="section" id="evaluation">
+</section>
+<section id="evaluation">
 <h2>Evaluation<a class="headerlink" href="#evaluation" title="Permalink to this heading">¶</a></h2>
 <p>To evaluate a saved CLAM model on an external dataset, first extract features from this dataset, then use the project function <a class="reference internal" href="project.html#slideflow.Project.evaluate_clam" title="slideflow.Project.evaluate_clam"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.Project.evaluate_clam()</span></code></a>:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">P</span><span class="o">.</span><span class="n">generate_features_for_clam</span><span class="p">(</span><span class="o">...</span><span class="p">,</span> <span class="n">outdir</span><span class="o">=</span><span class="s1">&#39;/eval/clam/path&#39;</span><span class="p">)</span>
@@ -313,8 +319,8 @@
 <span class="p">)</span>
 </pre></div>
 </div>
-</div>
-</div>
+</section>
+</section>
 
 
              </article>
@@ -327,7 +333,7 @@
         <a href="troubleshooting.html" class="btn btn-neutral float-right" title="Troubleshooting" accesskey="n" rel="next">Next <img src="_static/images/chevron-right-orange.svg" class="next-page"></a>
       
       
-        <a href="uq.html" class="btn btn-neutral" title="Uncertainty quantification" accesskey="p" rel="prev"><img src="_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
+        <a href="uq.html" class="btn btn-neutral" title="Uncertainty Quantification" accesskey="p" rel="prev"><img src="_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
       
     </div>
   
@@ -385,6 +391,7 @@
          <script src="_static/underscore.js"></script>
          <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
          <script src="_static/doctools.js"></script>
+         <script src="_static/sphinx_highlight.js"></script>
      
 
   

@@ -6,10 +6,11 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  
+  <meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Tutorial 5: Creating a mosaic map &mdash; slideflow 1.2.3 documentation</title>
+  <title>Tutorial 5: Creating a mosaic map &mdash; slideflow 1.3.0-rc0 documentation</title>
   
 
   
@@ -31,6 +32,7 @@
   <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Tutorial 6: Custom slide filtering" href="tutorial6.html" />
     <link rel="prev" title="Tutorial 4: Model evaluation &amp; heatmaps" href="tutorial4.html" />
   <!-- Google Analytics -->
   
@@ -118,7 +120,7 @@
               
               
                 <div class="version">
-                  1.2
+                  1.3
                 </div>
               
             
@@ -152,12 +154,13 @@
 <li class="toctree-l1"><a class="reference internal" href="pipeline.html">Pipeline Overview</a></li>
 <li class="toctree-l1"><a class="reference internal" href="project_setup.html">Setting up a Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="validation.html">Validation Planning</a></li>
-<li class="toctree-l1"><a class="reference internal" href="extract_tiles.html">Tile extraction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="extract_tiles.html">Tile Extraction</a></li>
 <li class="toctree-l1"><a class="reference internal" href="training.html">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="evaluation.html">Evaluation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="layer_activations.html">Features / layer activations</a></li>
-<li class="toctree-l1"><a class="reference internal" href="custom_loops.html">Custom training loops</a></li>
-<li class="toctree-l1"><a class="reference internal" href="uq.html">Uncertainty quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="layer_activations.html">Features / Layer Activations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="workbench_tools.html">Workbench: Visualization Tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="custom_loops.html">Custom Training Loops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="uq.html">Uncertainty Quantification</a></li>
 <li class="toctree-l1"><a class="reference internal" href="clam.html">CLAM</a></li>
 <li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
 </ul>
@@ -177,6 +180,7 @@
 <li class="toctree-l1"><a class="reference internal" href="slide.html">slideflow.slide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="stats.html">slideflow.stats</a></li>
 <li class="toctree-l1"><a class="reference internal" href="util.html">slideflow.util</a></li>
+<li class="toctree-l1"><a class="reference internal" href="workbench.html">slideflow.workbench</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
 <ul class="current">
@@ -185,6 +189,7 @@
 <li class="toctree-l1"><a class="reference internal" href="tutorial3.html">Tutorial 3: Using a custom architecture</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorial4.html">Tutorial 4: Model evaluation &amp; heatmaps</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Tutorial 5: Creating a mosaic map</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial6.html">Tutorial 6: Custom slide filtering</a></li>
 </ul>
 
             
@@ -257,10 +262,10 @@
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
               
-  <div class="section" id="tutorial-5-creating-a-mosaic-map">
+  <section id="tutorial-5-creating-a-mosaic-map">
 <h1>Tutorial 5: Creating a mosaic map<a class="headerlink" href="#tutorial-5-creating-a-mosaic-map" title="Permalink to this heading">¶</a></h1>
 <p>Mosaic maps are useful explainability tools used to describe the landscape of image features a model learned during training. In this tutorial, we will walk through the process of creating a mosaic map, reproducing results similar to what is shown in Figure 5 of <a class="reference external" href="https://arxiv.org/abs/2204.04516">this article by Dolezal et al</a>.</p>
-<div class="section" id="train-a-model">
+<section id="train-a-model">
 <h2>Train a model<a class="headerlink" href="#train-a-model" title="Permalink to this heading">¶</a></h2>
 <p>The first step is to train a model, as described in <a class="reference internal" href="tutorial1.html#tutorial1"><span class="std std-ref">Tutorial 1: Model training (simple)</span></a>. For the purposes of this tutorial, we will assume data has been collected and annotated as described in the referenced manuscript, with models trained to predict lung adenocarcinoma vs. squamous cell carcinoma. We will assume that a project has been initialized at <code class="docutils literal notranslate"><span class="pre">/mnt/data/projects/TCGA_LUNG</span></code> and configured to use whole-slide images from <a class="reference external" href="https://portal.gdc.cancer.gov/">TCGA</a>, with the annotations header <code class="docutils literal notranslate"><span class="pre">'cohort'</span></code> indicating whether a tumor is adenocarcinoma (<code class="docutils literal notranslate"><span class="pre">'LUAD'</span></code>) or squamous (<code class="docutils literal notranslate"><span class="pre">'LUSC'</span></code>). Training models for such a project would look like:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
@@ -295,8 +300,8 @@
 <span class="p">)</span>
 </pre></div>
 </div>
-</div>
-<div class="section" id="locate-a-saved-model">
+</section>
+<section id="locate-a-saved-model">
 <h2>Locate a saved model<a class="headerlink" href="#locate-a-saved-model" title="Permalink to this heading">¶</a></h2>
 <p>Once training is finished, locate the model from the first k-fold split in your project’s model directory. For the Tensorflow backend, the saved model would look like:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>models/
@@ -314,8 +319,8 @@
 ...
 </pre></div>
 </div>
-</div>
-<div class="section" id="generate-layer-activations">
+</section>
+<section id="generate-layer-activations">
 <h2>Generate layer activations<a class="headerlink" href="#generate-layer-activations" title="Permalink to this heading">¶</a></h2>
 <p>The next step is to calculate layer activations for images in the model’s validation dataset. First, let’s find the slides belonging to our model’s validation dataset:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">slideflow.util</span> <span class="kn">import</span> <span class="n">get_slides_from_model_manifest</span>
@@ -354,8 +359,8 @@
 </pre></div>
 </div>
 <p>This function will return an instance of <code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.DatasetFeatures</span></code>, which contains tile-level predictions (in <code class="docutils literal notranslate"><span class="pre">DatasetFeatures.logits</span></code>), tile X,Y locations from their respective slides (in <code class="docutils literal notranslate"><span class="pre">DatasetFeatures.locations</span></code>), layer activations (in <code class="docutils literal notranslate"><span class="pre">DatasetFeatures.activations</span></code>), and uncertainty (if applicable, in <code class="docutils literal notranslate"><span class="pre">DatasetFeatures.uncertainty</span></code>).</p>
-</div>
-<div class="section" id="create-the-mosaic-map">
+</section>
+<section id="create-the-mosaic-map">
 <h2>Create the mosaic map<a class="headerlink" href="#create-the-mosaic-map" title="Permalink to this heading">¶</a></h2>
 <p>From this collection of layer activations, we can generate a mosaic map from this <code class="docutils literal notranslate"><span class="pre">DatasetFeatures</span></code> object. Use <a class="reference internal" href="project.html#slideflow.Project.generate_mosaic" title="slideflow.Project.generate_mosaic"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Project.generate_mosaic()</span></code></a> to create the mosaic. We will use the <code class="docutils literal notranslate"><span class="pre">umap_cache</span></code> argument to cache the UMAP created during mosaic map generation, so it can be reused if necessary.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Generate a mosaic map</span>
@@ -372,8 +377,8 @@
 </pre></div>
 </div>
 <img alt="https://i.imgur.com/kt8O85l.png" src="https://i.imgur.com/kt8O85l.png" />
-</div>
-<div class="section" id="save-corresponding-umaps">
+</section>
+<section id="save-corresponding-umaps">
 <h2>Save corresponding UMAPs<a class="headerlink" href="#save-corresponding-umaps" title="Permalink to this heading">¶</a></h2>
 <p>Now that we have the mosaic generated, we need to create corresponding labeled UMAP plots to aid in interpretability. UMAP plots are stored in <a class="reference internal" href="stats.html#slideflow.SlideMap" title="slideflow.SlideMap"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.SlideMap</span></code></a> objects. A mosaic’s underlying <code class="docutils literal notranslate"><span class="pre">SlideMap</span></code> can be accessed via <code class="docutils literal notranslate"><span class="pre">mosaic.slide_map</span></code>.</p>
 <p>The <a class="reference internal" href="stats.html#slideflow.SlideMap" title="slideflow.SlideMap"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.SlideMap</span></code></a> class provides several functions useful for labeling. To start, we will label the umap according to the raw logits for each tile image. As this is a binary categorical outcome, there will be two logits. We will label the UMAP according to the second logit (id=1), and then save the image to disc.</p>
@@ -419,8 +424,8 @@
 <span class="p">)</span>
 </pre></div>
 </div>
-</div>
-</div>
+</section>
+</section>
 
 
              </article>
@@ -429,6 +434,8 @@
             <footer>
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="tutorial6.html" class="btn btn-neutral float-right" title="Tutorial 6: Custom slide filtering" accesskey="n" rel="next">Next <img src="_static/images/chevron-right-orange.svg" class="next-page"></a>
       
       
         <a href="tutorial4.html" class="btn btn-neutral" title="Tutorial 4: Model evaluation &amp; heatmaps" accesskey="p" rel="prev"><img src="_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
@@ -491,6 +498,7 @@
          <script src="_static/underscore.js"></script>
          <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
          <script src="_static/doctools.js"></script>
+         <script src="_static/sphinx_highlight.js"></script>
      
 
   

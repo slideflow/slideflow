@@ -6,10 +6,11 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  
+  <meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Validation Planning &mdash; slideflow 1.2.3 documentation</title>
+  <title>Validation Planning &mdash; slideflow 1.3.0-rc0 documentation</title>
   
 
   
@@ -31,7 +32,7 @@
   <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Tile extraction" href="extract_tiles.html" />
+    <link rel="next" title="Tile Extraction" href="extract_tiles.html" />
     <link rel="prev" title="Setting up a Project" href="project_setup.html" />
   <!-- Google Analytics -->
   
@@ -119,7 +120,7 @@
               
               
                 <div class="version">
-                  1.2
+                  1.3
                 </div>
               
             
@@ -153,12 +154,13 @@
 <li class="toctree-l1"><a class="reference internal" href="pipeline.html">Pipeline Overview</a></li>
 <li class="toctree-l1"><a class="reference internal" href="project_setup.html">Setting up a Project</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Validation Planning</a></li>
-<li class="toctree-l1"><a class="reference internal" href="extract_tiles.html">Tile extraction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="extract_tiles.html">Tile Extraction</a></li>
 <li class="toctree-l1"><a class="reference internal" href="training.html">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="evaluation.html">Evaluation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="layer_activations.html">Features / layer activations</a></li>
-<li class="toctree-l1"><a class="reference internal" href="custom_loops.html">Custom training loops</a></li>
-<li class="toctree-l1"><a class="reference internal" href="uq.html">Uncertainty quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="layer_activations.html">Features / Layer Activations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="workbench_tools.html">Workbench: Visualization Tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="custom_loops.html">Custom Training Loops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="uq.html">Uncertainty Quantification</a></li>
 <li class="toctree-l1"><a class="reference internal" href="clam.html">CLAM</a></li>
 <li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
 </ul>
@@ -178,6 +180,7 @@
 <li class="toctree-l1"><a class="reference internal" href="slide.html">slideflow.slide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="stats.html">slideflow.stats</a></li>
 <li class="toctree-l1"><a class="reference internal" href="util.html">slideflow.util</a></li>
+<li class="toctree-l1"><a class="reference internal" href="workbench.html">slideflow.workbench</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
 <ul>
@@ -186,6 +189,7 @@
 <li class="toctree-l1"><a class="reference internal" href="tutorial3.html">Tutorial 3: Using a custom architecture</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorial4.html">Tutorial 4: Model evaluation &amp; heatmaps</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorial5.html">Tutorial 5: Creating a mosaic map</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial6.html">Tutorial 6: Custom slide filtering</a></li>
 </ul>
 
             
@@ -258,8 +262,11 @@
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
               
-  <div class="section" id="validation-planning">
+  <section id="validation-planning">
 <span id="id1"></span><h1>Validation Planning<a class="headerlink" href="#validation-planning" title="Permalink to this heading">¶</a></h1>
+<figure class="align-center">
+<a class="reference internal image-reference" href="_images/validation.png"><img alt="_images/validation.png" src="_images/validation.png" style="width: 800px;" /></a>
+</figure>
 <p>An important first step in creating a new project is to determine the validation plan. Three groups of data are required:</p>
 <ol class="arabic simple">
 <li><p><strong>Training data</strong> - data used for learning during training</p></li>
@@ -267,7 +274,7 @@
 <li><p><strong>Evaluation data</strong> - data used for final evaluation once training has completed. Preferably an external cohort.</p></li>
 </ol>
 <p>Validation data is used to assess model performance and generalizability during training. Once the model and parameters have been tuned with training/validation, the final model’s performance is assessed on the held-out evaluation set.</p>
-<div class="section" id="configuring-a-validation-plan">
+<section id="configuring-a-validation-plan">
 <h2>Configuring a validation plan<a class="headerlink" href="#configuring-a-validation-plan" title="Permalink to this heading">¶</a></h2>
 <p>There are several ways you can plan to validate your data. The validation settings available include:</p>
 <ul class="simple">
@@ -276,7 +283,7 @@
 <li><p><strong>k_fold</strong>:  int</p></li>
 </ul>
 <p>The default strategy is <code class="docutils literal notranslate"><span class="pre">'k-fold'</span></code>, with k=3.</p>
-<div class="section" id="validation-strategy">
+<section id="validation-strategy">
 <h3>Validation strategy<a class="headerlink" href="#validation-strategy" title="Permalink to this heading">¶</a></h3>
 <p>The <code class="docutils literal notranslate"><span class="pre">strategy</span></code> option determines how the validation data is selected.</p>
 <p>If <strong>fixed</strong>, a certain percentage of your training data is set aside for testing (determined by <code class="docutils literal notranslate"><span class="pre">fraction</span></code>). The chosen validation subset is saved to a log file and will be re-used for all training iterations.</p>
@@ -289,14 +296,14 @@
 <p>Preserved-site cross-validation requires either <a class="reference external" href="https://www.ibm.com/analytics/cplex-optimizer">CPLEX</a> or <a class="reference external" href="https://anaconda.org/conda-forge/coinbonmin">Pyomo/Bonmin</a>. The original implementation of the preserved-site cross-validation algorithm described by Howard et al can be found <a class="reference external" href="https://github.com/fmhoward/PreservedSiteCV">on GitHub</a>.</p>
 </div>
 <p>If <strong>none</strong>, no validation testing will be performed.</p>
-</div>
-</div>
-<div class="section" id="selecting-an-evaluation-cohort">
+</section>
+</section>
+<section id="selecting-an-evaluation-cohort">
 <h2>Selecting an evaluation cohort<a class="headerlink" href="#selecting-an-evaluation-cohort" title="Permalink to this heading">¶</a></h2>
 <p>Designating an evaluation cohort is done using the project annotations file, with a column indicating whether a slide is set aside for evaluation.
 The training and evaluation functions include a <code class="docutils literal notranslate"><span class="pre">filter</span></code> argument which will allow you to restrict your training or evaluation according to these annotations. This will be discussed in greater detail in subsequent sections.</p>
-</div>
-</div>
+</section>
+</section>
 
 
              </article>
@@ -306,7 +313,7 @@ The training and evaluation functions include a <code class="docutils literal no
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="extract_tiles.html" class="btn btn-neutral float-right" title="Tile extraction" accesskey="n" rel="next">Next <img src="_static/images/chevron-right-orange.svg" class="next-page"></a>
+        <a href="extract_tiles.html" class="btn btn-neutral float-right" title="Tile Extraction" accesskey="n" rel="next">Next <img src="_static/images/chevron-right-orange.svg" class="next-page"></a>
       
       
         <a href="project_setup.html" class="btn btn-neutral" title="Setting up a Project" accesskey="p" rel="prev"><img src="_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
@@ -369,6 +376,7 @@ The training and evaluation functions include a <code class="docutils literal no
          <script src="_static/underscore.js"></script>
          <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
          <script src="_static/doctools.js"></script>
+         <script src="_static/sphinx_highlight.js"></script>
      
 
   

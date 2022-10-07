@@ -6,10 +6,11 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  
+  <meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Tutorial 3: Using a custom architecture &mdash; slideflow 1.2.3 documentation</title>
+  <title>Tutorial 3: Using a custom architecture &mdash; slideflow 1.3.0-rc0 documentation</title>
   
 
   
@@ -119,7 +120,7 @@
               
               
                 <div class="version">
-                  1.2
+                  1.3
                 </div>
               
             
@@ -153,12 +154,13 @@
 <li class="toctree-l1"><a class="reference internal" href="pipeline.html">Pipeline Overview</a></li>
 <li class="toctree-l1"><a class="reference internal" href="project_setup.html">Setting up a Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="validation.html">Validation Planning</a></li>
-<li class="toctree-l1"><a class="reference internal" href="extract_tiles.html">Tile extraction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="extract_tiles.html">Tile Extraction</a></li>
 <li class="toctree-l1"><a class="reference internal" href="training.html">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="evaluation.html">Evaluation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="layer_activations.html">Features / layer activations</a></li>
-<li class="toctree-l1"><a class="reference internal" href="custom_loops.html">Custom training loops</a></li>
-<li class="toctree-l1"><a class="reference internal" href="uq.html">Uncertainty quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="layer_activations.html">Features / Layer Activations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="workbench_tools.html">Workbench: Visualization Tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="custom_loops.html">Custom Training Loops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="uq.html">Uncertainty Quantification</a></li>
 <li class="toctree-l1"><a class="reference internal" href="clam.html">CLAM</a></li>
 <li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
 </ul>
@@ -178,6 +180,7 @@
 <li class="toctree-l1"><a class="reference internal" href="slide.html">slideflow.slide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="stats.html">slideflow.stats</a></li>
 <li class="toctree-l1"><a class="reference internal" href="util.html">slideflow.util</a></li>
+<li class="toctree-l1"><a class="reference internal" href="workbench.html">slideflow.workbench</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
 <ul class="current">
@@ -186,6 +189,7 @@
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Tutorial 3: Using a custom architecture</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorial4.html">Tutorial 4: Model evaluation &amp; heatmaps</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorial5.html">Tutorial 5: Creating a mosaic map</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial6.html">Tutorial 6: Custom slide filtering</a></li>
 </ul>
 
             
@@ -258,10 +262,10 @@
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
               
-  <div class="section" id="tutorial-3-using-a-custom-architecture">
+  <section id="tutorial-3-using-a-custom-architecture">
 <h1>Tutorial 3: Using a custom architecture<a class="headerlink" href="#tutorial-3-using-a-custom-architecture" title="Permalink to this heading">¶</a></h1>
 <p>Out of the box, Slideflow includes support for 21 model architectures in the Tensorflow backend and 17 with the PyTorch backend. In this tutorial, we will demonstrate how to train a custom model architecture (ViT) in either backend.</p>
-<div class="section" id="custom-tensorflow-model">
+<section id="custom-tensorflow-model">
 <h2>Custom Tensorflow model<a class="headerlink" href="#custom-tensorflow-model" title="Permalink to this heading">¶</a></h2>
 <p>Any Tensorflow/Keras model (<code class="xref py py-class docutils literal notranslate"><span class="pre">tf.keras.Model</span></code>) can be trained in Slideflow by setting the <code class="docutils literal notranslate"><span class="pre">model</span></code> parameter of a <code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.ModelParams</span></code> object to a function which initalizes the model.</p>
 <p>First, define the model in a file that can be imported. In this example, we will define a vision transformer (ViT) model in a file <code class="docutils literal notranslate"><span class="pre">vit_tensorflow.py</span></code>:</p>
@@ -469,8 +473,8 @@
 </pre></div>
 </div>
 <p>You can now train the model as described in <a class="reference internal" href="tutorial1.html#tutorial1"><span class="std std-ref">Tutorial 1: Model training (simple)</span></a>.</p>
-</div>
-<div class="section" id="custom-pytorch-model">
+</section>
+<section id="custom-pytorch-model">
 <h2>Custom PyTorch model<a class="headerlink" href="#custom-pytorch-model" title="Permalink to this heading">¶</a></h2>
 <p>The process is very similar when using PyTorch. In this example, instead of defining the architecture in a separate file, we will use an implementation of ViT available via PyPI:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">pip3</span> <span class="n">install</span> <span class="n">vit</span><span class="o">-</span><span class="n">pytorch</span>
@@ -513,8 +517,8 @@
 </pre></div>
 </div>
 <p>You can now train the model as described in <a class="reference internal" href="tutorial1.html#tutorial1"><span class="std std-ref">Tutorial 1: Model training (simple)</span></a>.</p>
-</div>
-</div>
+</section>
+</section>
 
 
              </article>
@@ -584,6 +588,7 @@
          <script src="_static/underscore.js"></script>
          <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
          <script src="_static/doctools.js"></script>
+         <script src="_static/sphinx_highlight.js"></script>
      
 
   

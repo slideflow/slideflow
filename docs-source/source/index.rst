@@ -60,3 +60,4 @@ The ``slideflow`` package includes a ``Project`` class to help coordinate projec
    tutorial3
    tutorial4
    tutorial5
+   tutorial6

@@ -6,10 +6,11 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  
+  <meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Features / layer activations &mdash; slideflow 1.2.3 documentation</title>
+  <title>Features / Layer Activations &mdash; slideflow 1.3.0-rc0 documentation</title>
   
 
   
@@ -31,7 +32,7 @@
   <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Custom training loops" href="custom_loops.html" />
+    <link rel="next" title="Workbench: Visualization Tools" href="workbench_tools.html" />
     <link rel="prev" title="Evaluation" href="evaluation.html" />
   <!-- Google Analytics -->
   
@@ -119,7 +120,7 @@
               
               
                 <div class="version">
-                  1.2
+                  1.3
                 </div>
               
             
@@ -153,12 +154,13 @@
 <li class="toctree-l1"><a class="reference internal" href="pipeline.html">Pipeline Overview</a></li>
 <li class="toctree-l1"><a class="reference internal" href="project_setup.html">Setting up a Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="validation.html">Validation Planning</a></li>
-<li class="toctree-l1"><a class="reference internal" href="extract_tiles.html">Tile extraction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="extract_tiles.html">Tile Extraction</a></li>
 <li class="toctree-l1"><a class="reference internal" href="training.html">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="evaluation.html">Evaluation</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Features / layer activations</a></li>
-<li class="toctree-l1"><a class="reference internal" href="custom_loops.html">Custom training loops</a></li>
-<li class="toctree-l1"><a class="reference internal" href="uq.html">Uncertainty quantification</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Features / Layer Activations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="workbench_tools.html">Workbench: Visualization Tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="custom_loops.html">Custom Training Loops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="uq.html">Uncertainty Quantification</a></li>
 <li class="toctree-l1"><a class="reference internal" href="clam.html">CLAM</a></li>
 <li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
 </ul>
@@ -178,6 +180,7 @@
 <li class="toctree-l1"><a class="reference internal" href="slide.html">slideflow.slide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="stats.html">slideflow.stats</a></li>
 <li class="toctree-l1"><a class="reference internal" href="util.html">slideflow.util</a></li>
+<li class="toctree-l1"><a class="reference internal" href="workbench.html">slideflow.workbench</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
 <ul>
@@ -186,6 +189,7 @@
 <li class="toctree-l1"><a class="reference internal" href="tutorial3.html">Tutorial 3: Using a custom architecture</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorial4.html">Tutorial 4: Model evaluation &amp; heatmaps</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorial5.html">Tutorial 5: Creating a mosaic map</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial6.html">Tutorial 6: Custom slide filtering</a></li>
 </ul>
 
             
@@ -226,7 +230,7 @@
       </li>
 
         
-      <li>Features / layer activations</li>
+      <li>Features / Layer Activations</li>
     
     
       <li class="pytorch-breadcrumbs-aside">
@@ -258,15 +262,15 @@
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
               
-  <div class="section" id="features-layer-activations">
-<h1>Features / layer activations<a class="headerlink" href="#features-layer-activations" title="Permalink to this heading">¶</a></h1>
+  <section id="features-layer-activations">
+<h1>Features / Layer Activations<a class="headerlink" href="#features-layer-activations" title="Permalink to this heading">¶</a></h1>
 <p>Once a model has been fully trained and evaluated, you may use the model to generate features from layer activations to gain better insight into the kinds of image features the model has learned.</p>
-<div class="section" id="working-with-layer-features">
-<h2>Working with Layer Features<a class="headerlink" href="#working-with-layer-features" title="Permalink to this heading">¶</a></h2>
-<p>The <a class="reference internal" href="model.html#slideflow.model.Features" title="slideflow.model.Features"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.model.Features</span></code></a> class generates features on a tile or slide level, and the <code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.DatasetFeatures</span></code> class generates features for an entire dataset.</p>
-<div class="section" id="datasetfeatures">
+<section id="working-with-layer-features">
+<h2>Working with layer features<a class="headerlink" href="#working-with-layer-features" title="Permalink to this heading">¶</a></h2>
+<p>The <a class="reference internal" href="model.html#slideflow.model.Features" title="slideflow.model.Features"><code class="xref py py-class docutils literal notranslate"><span class="pre">Features</span></code></a> class generates features on a tile or slide level, and the <a class="reference internal" href="model.html#slideflow.model.DatasetFeatures" title="slideflow.model.DatasetFeatures"><code class="xref py py-class docutils literal notranslate"><span class="pre">DatasetFeatures</span></code></a> class generates features for an entire dataset.</p>
+<section id="datasetfeatures">
 <h3>DatasetFeatures<a class="headerlink" href="#datasetfeatures" title="Permalink to this heading">¶</a></h3>
-<p>The easiest way to get started with intermediate layer activations is the <code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.DatasetFeatures</span></code> class, which is used to calculate and examine activations across an entire dataset. Instancing the class supervises the calculation and caching of layer activations, which can then be exported, viewed (as a mosaic map), or analyzed with various statistical methods. The project function <a class="reference internal" href="project.html#slideflow.Project.generate_features" title="slideflow.Project.generate_features"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.Project.generate_features()</span></code></a> creates and returns an instance of this class.</p>
+<p>The easiest way to get started with intermediate layer activations is the <a class="reference internal" href="model.html#slideflow.model.DatasetFeatures" title="slideflow.model.DatasetFeatures"><code class="xref py py-class docutils literal notranslate"><span class="pre">DatasetFeatures</span></code></a> class, which is used to calculate and examine activations across an entire dataset. Instancing the class supervises the calculation and caching of layer activations, which can then be exported, viewed (as a mosaic map), or analyzed with various statistical methods. The project function <a class="reference internal" href="project.html#slideflow.Project.generate_features" title="slideflow.Project.generate_features"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.Project.generate_features()</span></code></a> creates and returns an instance of this class.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">features</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">generate_features</span><span class="p">(</span><span class="s1">&#39;/path/to/trained_model&#39;</span><span class="p">)</span>
 </pre></div>
 </div>
@@ -283,22 +287,22 @@
 <span class="p">)</span>
 </pre></div>
 </div>
-<p>Tile-level feature activations for each slide can be accessed directly from <code class="docutils literal notranslate"><span class="pre">slideflow.DatasetFeatures.activations</span></code>, a dict mapping slide names to numpy arrays of shape <code class="docutils literal notranslate"><span class="pre">(num_tiles,</span> <span class="pre">num_features)</span></code>. Logits are stored in <code class="docutils literal notranslate"><span class="pre">slideflow.DatasetFeatures.logits</span></code>, a dict mapping slide names to numpy arrays of shape <code class="docutils literal notranslate"><span class="pre">(num_tiles,</span> <span class="pre">num_logits)</span></code>. Tile-level location data (coordinates from which the tiles were taken from their respective source slides) is stored in <code class="docutils literal notranslate"><span class="pre">slideflow.DatasetFeatures.locations</span></code>, a dict mapping slide names to numpy arrays of shape <code class="docutils literal notranslate"><span class="pre">(num_tiles,</span> <span class="pre">2)</span></code> (<code class="docutils literal notranslate"><span class="pre">x</span></code>, <code class="docutils literal notranslate"><span class="pre">y</span></code>).</p>
-<p>To return the average logits value for each slide (averaged across constituent tiles), use <code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.DatasetFeatures.logits_mean()</span></code>. Similarly, <code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.DatasetFeatures.logits_predict()</span></code> can be used to generate final slide-level logit predictions.</p>
-<p>Features across categories can be statistically compared using <code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.DatasetFeatures.stats()</span></code>, which will calculate and save statistics to a specified directory.</p>
+<p>Tile-level feature activations for each slide can be accessed directly from <code class="docutils literal notranslate"><span class="pre">DatasetFeatures.activations</span></code>, a dict mapping slide names to numpy arrays of shape <code class="docutils literal notranslate"><span class="pre">(num_tiles,</span> <span class="pre">num_features)</span></code>. Logits are stored in <code class="docutils literal notranslate"><span class="pre">DatasetFeatures.logits</span></code>, a dict mapping slide names to numpy arrays of shape <code class="docutils literal notranslate"><span class="pre">(num_tiles,</span> <span class="pre">num_logits)</span></code>. Tile-level location data (coordinates from which the tiles were taken from their respective source slides) is stored in <code class="docutils literal notranslate"><span class="pre">DatasetFeatures.locations</span></code>, a dict mapping slide names to numpy arrays of shape <code class="docutils literal notranslate"><span class="pre">(num_tiles,</span> <span class="pre">2)</span></code> (<code class="docutils literal notranslate"><span class="pre">x</span></code>, <code class="docutils literal notranslate"><span class="pre">y</span></code>).</p>
+<p>To return the average logits value for each slide (averaged across constituent tiles), use <a class="reference internal" href="model.html#slideflow.model.DatasetFeatures.logits_mean" title="slideflow.model.DatasetFeatures.logits_mean"><code class="xref py py-func docutils literal notranslate"><span class="pre">DatasetFeatures.logits_mean()</span></code></a>. Similarly, <a class="reference internal" href="model.html#slideflow.model.DatasetFeatures.logits_predict" title="slideflow.model.DatasetFeatures.logits_predict"><code class="xref py py-func docutils literal notranslate"><span class="pre">DatasetFeatures.logits_predict()</span></code></a> can be used to generate final slide-level logit predictions.</p>
+<p>Features across categories can be statistically compared using <a class="reference internal" href="model.html#slideflow.model.DatasetFeatures.stats" title="slideflow.model.DatasetFeatures.stats"><code class="xref py py-func docutils literal notranslate"><span class="pre">DatasetFeatures.stats()</span></code></a>, which will calculate and save statistics to a specified directory.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">features</span><span class="o">.</span><span class="n">stats</span><span class="p">(</span><span class="s1">&#39;/outdir&#39;</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s1">&#39;mean&#39;</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>To compare layer features across outcome categories and find features which differ significantly across categories, use the <code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.DatasetFeatures.box_plots()</span></code> function. For example, to generate boxplots for the first 100 features:</p>
+<p>To compare layer features across outcome categories and find features which differ significantly across categories, use the <a class="reference internal" href="model.html#slideflow.model.DatasetFeatures.box_plots" title="slideflow.model.DatasetFeatures.box_plots"><code class="xref py py-func docutils literal notranslate"><span class="pre">DatasetFeatures.box_plots()</span></code></a> function. For example, to generate boxplots for the first 100 features:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">features</span><span class="o">.</span><span class="n">box_plots</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">100</span><span class="p">),</span> <span class="s1">&#39;/outdir&#39;</span><span class="p">)</span>
 </pre></div>
 </div>
 <img alt="_images/boxplot_example.png" src="_images/boxplot_example.png" />
-<p>Many other functions are available, as described in the documentation, <code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.DatasetFeatures</span></code>.</p>
-</div>
-<div class="section" id="features">
+<p>Many other functions are available, as described in the documentation, <a class="reference internal" href="model.html#slideflow.model.DatasetFeatures" title="slideflow.model.DatasetFeatures"><code class="xref py py-class docutils literal notranslate"><span class="pre">DatasetFeatures</span></code></a>.</p>
+</section>
+<section id="features">
 <h3>Features<a class="headerlink" href="#features" title="Permalink to this heading">¶</a></h3>
-<p>The <a class="reference internal" href="model.html#slideflow.model.Features" title="slideflow.model.Features"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.model.Features</span></code></a> class can be used to generate layer activations / features for a single batch of images. For example, to calculate features for a batch of images while looping through a dataset:</p>
+<p>The <a class="reference internal" href="model.html#slideflow.model.Features" title="slideflow.model.Features"><code class="xref py py-class docutils literal notranslate"><span class="pre">Features</span></code></a> class can be used to generate layer activations / features for a single batch of images. For example, to calculate features for a batch of images while looping through a dataset:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">slideflow.model</span> <span class="kn">import</span> <span class="n">Features</span>
 
 <span class="n">features</span> <span class="o">=</span> <span class="n">Features</span><span class="p">(</span><span class="n">layer</span><span class="o">=</span><span class="s1">&#39;postconv&#39;</span><span class="p">)</span>
@@ -316,11 +320,11 @@
 <span class="n">feature_grid</span> <span class="o">=</span> <span class="n">interface</span><span class="p">(</span><span class="n">slide</span><span class="p">)</span>
 </pre></div>
 </div>
-</div>
-</div>
-<div class="section" id="mosaic-maps">
+</section>
+</section>
+<section id="mosaic-maps">
 <h2>Mosaic maps<a class="headerlink" href="#mosaic-maps" title="Permalink to this heading">¶</a></h2>
-<p>To visualize the distribution of features across a dataset, a mosaic map can be created from a <code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.DatasetFeatures</span></code> instance. Mosaic maps are generated by using features (layer activations) from a dataset, performing dimensionality reduction (UMAP) on the activations (via <a class="reference internal" href="stats.html#slideflow.SlideMap" title="slideflow.SlideMap"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.SlideMap</span></code></a>), and overlaying tile images onto the UMAP (via <a class="reference internal" href="mosaic.html#slideflow.Mosaic" title="slideflow.Mosaic"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.Mosaic</span></code></a>). By default, the post-convolutional (‘postconv’) layer is used when calculating features, but any combination of other layers can be also be used. The <code class="docutils literal notranslate"><span class="pre">Project</span></code> class has a function which can supervise these steps automatically and save the final figure to the project directory.</p>
+<p>To visualize the distribution of features across a dataset, a mosaic map can be created from a <a class="reference internal" href="model.html#slideflow.model.DatasetFeatures" title="slideflow.model.DatasetFeatures"><code class="xref py py-class docutils literal notranslate"><span class="pre">DatasetFeatures</span></code></a> instance. Mosaic maps are generated by using features (layer activations) from a dataset, performing dimensionality reduction (UMAP) on the activations (via <a class="reference internal" href="stats.html#slideflow.SlideMap" title="slideflow.SlideMap"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.SlideMap</span></code></a>), and overlaying tile images onto the UMAP (via <a class="reference internal" href="mosaic.html#slideflow.Mosaic" title="slideflow.Mosaic"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.Mosaic</span></code></a>). By default, the post-convolutional (‘postconv’) layer is used when calculating features, but any combination of other layers can be also be used. The <code class="docutils literal notranslate"><span class="pre">Project</span></code> class has a function which can supervise these steps automatically and save the final figure to the project directory.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">features</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">generate_features</span><span class="p">(</span><span class="s1">&#39;/path/to/trained_model&#39;</span><span class="p">)</span>
 <span class="n">mosaic</span> <span class="o">=</span> <span class="n">project</span><span class="o">.</span><span class="n">generate_mosaic</span><span class="p">(</span><span class="n">features</span><span class="p">)</span>
 <span class="n">mosaic</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s1">&#39;mosaic.png&#39;</span><span class="p">)</span>
@@ -338,7 +342,7 @@ two categories, mapped to X- and Y-axis (via predict_on_axes).</p>
 </dd>
 </dl>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>df</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.DatasetFeatures</span></code>) – Dataset.</p></li>
 <li><p><strong>dataset</strong> (<a class="reference internal" href="dataset.html#slideflow.Dataset" title="slideflow.dataset.Dataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.dataset.Dataset</span></code></a>, optional) – Dataset
@@ -347,7 +351,7 @@ mosaic for all tfrecords at the tile_px/tile_um matching
 the supplied model, optionally using filters/filter_blank.</p></li>
 </ul>
 </dd>
-<dt class="field-even">Keyword Arguments</dt>
+<dt class="field-even">Keyword Arguments<span class="colon">:</span></dt>
 <dd class="field-even"><ul class="simple">
 <li><p><strong>filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.10)"><em>dict</em></a><em>, </em><em>optional</em>) – Filters dict to use when selecting
 tfrecords. Defaults to None.</p></li>
@@ -386,10 +390,10 @@ Defaults to False.</p></li>
 <li><p><strong>leniency</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.10)"><em>float</em></a>) – UMAP leniency. Defaults to 1.5.</p></li>
 </ul>
 </dd>
-<dt class="field-odd">Returns</dt>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
 <dd class="field-odd"><p>Mosaic object.</p>
 </dd>
-<dt class="field-even">Return type</dt>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
 <dd class="field-even"><p><a class="reference internal" href="mosaic.html#slideflow.Mosaic" title="slideflow.Mosaic"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.Mosaic</span></code></a></p>
 </dd>
 </dl>
@@ -427,8 +431,8 @@ Defaults to False.</p></li>
 </pre></div>
 </div>
 <img alt="_images/3d_umap.png" src="_images/3d_umap.png" />
-</div>
-</div>
+</section>
+</section>
 
 
              </article>
@@ -438,7 +442,7 @@ Defaults to False.</p></li>
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="custom_loops.html" class="btn btn-neutral float-right" title="Custom training loops" accesskey="n" rel="next">Next <img src="_static/images/chevron-right-orange.svg" class="next-page"></a>
+        <a href="workbench_tools.html" class="btn btn-neutral float-right" title="Workbench: Visualization Tools" accesskey="n" rel="next">Next <img src="_static/images/chevron-right-orange.svg" class="next-page"></a>
       
       
         <a href="evaluation.html" class="btn btn-neutral" title="Evaluation" accesskey="p" rel="prev"><img src="_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
@@ -473,8 +477,8 @@ Defaults to False.</p></li>
           <div class="pytorch-right-menu" id="pytorch-right-menu">
             <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
               <ul>
-<li><a class="reference internal" href="#">Features / layer activations</a><ul>
-<li><a class="reference internal" href="#working-with-layer-features">Working with Layer Features</a><ul>
+<li><a class="reference internal" href="#">Features / Layer Activations</a><ul>
+<li><a class="reference internal" href="#working-with-layer-features">Working with layer features</a><ul>
 <li><a class="reference internal" href="#datasetfeatures">DatasetFeatures</a></li>
 <li><a class="reference internal" href="#features">Features</a></li>
 </ul>
@@ -502,6 +506,7 @@ Defaults to False.</p></li>
          <script src="_static/underscore.js"></script>
          <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
          <script src="_static/doctools.js"></script>
+         <script src="_static/sphinx_highlight.js"></script>
      
 
   

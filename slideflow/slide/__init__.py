@@ -993,12 +993,12 @@ class _BaseLoader:
             log.debug(f"Blur burden: {self.blur_burden}")
 
         # Filter coordinates
-        img = self._apply_qc(self.qc_mask, filter_threshold=filter_threshold)
+        img = self.apply_qc_mask(self.qc_mask, filter_threshold=filter_threshold)
         dur = f'(time: {time.time()-starttime:.2f}s)'
         log.debug(f'QC ({method}) complete for slide {self.shortname} {dur}')
         return img
 
-    def _apply_qc(
+    def apply_qc_mask(
         self,
         mask: np.ndarray,
         filter_threshold: float = 0.6,
