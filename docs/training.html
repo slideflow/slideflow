@@ -161,6 +161,7 @@
 <li class="toctree-l1"><a class="reference internal" href="workbench_tools.html">Workbench: Visualization Tools</a></li>
 <li class="toctree-l1"><a class="reference internal" href="custom_loops.html">Custom Training Loops</a></li>
 <li class="toctree-l1"><a class="reference internal" href="uq.html">Uncertainty Quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="stylegan.html">StyleGAN</a></li>
 <li class="toctree-l1"><a class="reference internal" href="clam.html">CLAM</a></li>
 <li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
 </ul>
@@ -278,7 +279,7 @@
 <span class="p">)</span>
 </pre></div>
 </div>
-<p>Use <code class="docutils literal notranslate"><span class="pre">slideflow.Project.create_hp_sweep()</span></code> to prepare a grid-search sweep, saving the configuration to a JSON file. For example, the following would configure a sweep with only two combinations; the first with a learning rate of 0.01, and the second with a learning rate of 0.001:</p>
+<p>Use <a class="reference internal" href="project.html#slideflow.Project.create_hp_sweep" title="slideflow.Project.create_hp_sweep"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Project.create_hp_sweep()</span></code></a> to prepare a grid-search sweep, saving the configuration to a JSON file. For example, the following would configure a sweep with only two combinations; the first with a learning rate of 0.01, and the second with a learning rate of 0.001:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">P</span><span class="o">.</span><span class="n">create_hp_sweep</span><span class="p">(</span>
   <span class="n">filename</span><span class="o">=</span><span class="s1">&#39;sweep.json&#39;</span><span class="p">,</span>
   <span class="n">epochs</span><span class="o">=</span><span class="p">[</span><span class="mi">5</span><span class="p">],</span>
@@ -311,7 +312,7 @@
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">P</span><span class="o">.</span><span class="n">train</span><span class="p">(</span><span class="o">...</span><span class="p">,</span> <span class="n">smac_configspace</span><span class="o">=</span><span class="n">cs</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>Available hyperparameters are listed in the <code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.ModelParams</span></code> documentation.</p>
+<p>Available hyperparameters are listed in the <a class="reference internal" href="model.html#slideflow.model.ModelParams" title="slideflow.model.ModelParams"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.model.ModelParams</span></code></a> documentation.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>If you are using a continuous variable as an outcome measure, be sure to use a linear loss function. Linear loss functions can be viewed in <code class="docutils literal notranslate"><span class="pre">slideflow.model.ModelParams.LinearLossDict</span></code>, and all available loss functions are in <code class="docutils literal notranslate"><span class="pre">slideflow.model.ModelParams.AllLossDict</span></code>.</p>

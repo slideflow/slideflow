@@ -89,6 +89,9 @@ Add a new dataset source to a project with ``Project.add_dataset()``, which will
       tfrecords="/tfrecords/directory"
     )
 
+.. note::
+    See :ref:`dataset` for more information on working with Datasets.
+
 Setting up annotations
 **********************
 

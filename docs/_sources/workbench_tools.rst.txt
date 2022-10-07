@@ -1,3 +1,5 @@
+.. _workbench:
+
 Workbench: Visualization Tools
 ==============================
 

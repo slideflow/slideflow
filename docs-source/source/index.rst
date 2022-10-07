@@ -28,6 +28,7 @@ The ``slideflow`` package includes a ``Project`` class to help coordinate projec
    workbench_tools
    custom_loops
    uq
+   stylegan
    clam
    troubleshooting
 

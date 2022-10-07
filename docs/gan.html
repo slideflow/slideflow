@@ -161,6 +161,7 @@
 <li class="toctree-l1"><a class="reference internal" href="workbench_tools.html">Workbench: Visualization Tools</a></li>
 <li class="toctree-l1"><a class="reference internal" href="custom_loops.html">Custom Training Loops</a></li>
 <li class="toctree-l1"><a class="reference internal" href="uq.html">Uncertainty Quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="stylegan.html">StyleGAN</a></li>
 <li class="toctree-l1"><a class="reference internal" href="clam.html">CLAM</a></li>
 <li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
 </ul>
@@ -266,82 +267,7 @@
 <span id="slideflow-gan"></span><h1>slideflow.gan<a class="headerlink" href="#module-slideflow.gan" title="Permalink to this heading">¶</a></h1>
 <p>Submodule used to interface with the PyTorch implementation of StyleGAN2
 (maintained separately at <a class="reference external" href="https://github.com/jamesdolezal/stylegan2-slideflow">https://github.com/jamesdolezal/stylegan2-slideflow</a>).</p>
-<section id="training-stylegan">
-<h2>Training StyleGAN<a class="headerlink" href="#training-stylegan" title="Permalink to this heading">¶</a></h2>
-<p>The easiest way to train GANs is with <a class="reference internal" href="project.html#slideflow.Project.gan_train" title="slideflow.Project.gan_train"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Project.gan_train()</span></code></a>, which
-supervises training of StyleGAN2/3. Both standard and class-conditional GANs are
-supported. To train a GAN, pass a <a class="reference internal" href="dataset.html#slideflow.Dataset" title="slideflow.Dataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.Dataset</span></code></a>, experiment label,
-and StyleGAN keyword arguments to this function:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
-
-<span class="n">P</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">Project</span><span class="p">(</span><span class="s1">&#39;/project/path&#39;</span><span class="p">)</span>
-<span class="n">dataset</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">dataset</span><span class="p">(</span><span class="n">tile_px</span><span class="o">=</span><span class="mi">512</span><span class="p">,</span> <span class="n">tile_um</span><span class="o">=</span><span class="mi">400</span><span class="p">)</span>
-
-<span class="n">P</span><span class="o">.</span><span class="n">gan_train</span><span class="p">(</span>
-  <span class="n">dataset</span><span class="o">=</span><span class="n">dataset</span><span class="p">,</span>
-  <span class="n">model</span><span class="o">=</span><span class="s1">&#39;stylegan3&#39;</span><span class="p">,</span>
-  <span class="n">cfg</span><span class="o">=</span><span class="s1">&#39;stylegan3-r&#39;</span><span class="p">,</span>
-  <span class="n">exp_label</span><span class="o">=</span><span class="s2">&quot;ExperimentLabel&quot;</span><span class="p">,</span>
-  <span class="n">gpus</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span>
-  <span class="n">batch_size</span><span class="o">=</span><span class="mi">32</span><span class="p">,</span>
-  <span class="o">...</span>
-<span class="p">)</span>
-</pre></div>
-</div>
-<p>To train this as a class-conditional GAN, simply provide a list of categorical
-outcome labels to the <code class="docutils literal notranslate"><span class="pre">outcomes</span></code> argument:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">P</span><span class="o">.</span><span class="n">gan_train</span><span class="p">(</span>
-  <span class="o">...</span><span class="p">,</span>
-  <span class="n">outcomes</span><span class="o">=</span><span class="s1">&#39;er_status&#39;</span>
-<span class="p">)</span>
-</pre></div>
-</div>
-<p>The trained networks will be saved in the <code class="docutils literal notranslate"><span class="pre">gan/</span></code> subfolder in the project directory.</p>
-<p>See the <a class="reference internal" href="project.html#slideflow.Project.gan_train" title="slideflow.Project.gan_train"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Project.gan_train()</span></code></a> documentation for additional
-keyword arguments to customize training.</p>
-</section>
-<section id="generating-images">
-<h2>Generating Images<a class="headerlink" href="#generating-images" title="Permalink to this heading">¶</a></h2>
-<p>Images can be generated from a trained GAN and exported either as loose images
-in PNG or JPG format, or alternatively stored in TFRecords. Images are generated from a list
-of seeds (list of int). Use the <a class="reference internal" href="project.html#slideflow.Project.gan_generate" title="slideflow.Project.gan_generate"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Project.gan_generate()</span></code></a> function
-to generate images, with <code class="docutils literal notranslate"><span class="pre">out</span></code> set to a directory path if exporting loose images,
-or <code class="docutils literal notranslate"><span class="pre">out</span></code> set to a filename ending in <code class="docutils literal notranslate"><span class="pre">.tfrecords</span></code> if saving images in
-TFRecord format:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">network_pkl</span> <span class="o">=</span> <span class="s1">&#39;/path/to/trained/gan.pkl&#39;</span>
-<span class="n">P</span><span class="o">.</span><span class="n">gan_generate</span><span class="p">(</span>
-  <span class="n">network_pkl</span><span class="p">,</span>
-  <span class="n">out</span><span class="o">=</span><span class="s1">&#39;target.tfrecords&#39;</span><span class="p">,</span>
-  <span class="n">seeds</span><span class="o">=</span><span class="nb">range</span><span class="p">(</span><span class="mi">100</span><span class="p">),</span>
-  <span class="o">...</span>
-<span class="p">)</span>
-</pre></div>
-</div>
-<p>The image format is set with the <code class="docutils literal notranslate"><span class="pre">format</span></code> argument:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">P</span><span class="o">.</span><span class="n">gan_generate</span><span class="p">(</span>
-  <span class="o">...</span><span class="p">,</span>
-  <span class="nb">format</span><span class="o">=</span><span class="s1">&#39;jpg&#39;</span><span class="p">,</span>
-<span class="p">)</span>
-</pre></div>
-</div>
-<p>Class index (for class-conditional GANs) is set with <code class="docutils literal notranslate"><span class="pre">class_idx</span></code>:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">P</span><span class="o">.</span><span class="n">gan_generate</span><span class="p">(</span>
-  <span class="o">...</span><span class="p">,</span>
-  <span class="n">class_idx</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
-<span class="p">)</span>
-</pre></div>
-</div>
-<p>Finally, images can be resized after generation to match a target tile size:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">P</span><span class="o">.</span><span class="n">gan_generate</span><span class="p">(</span>
-  <span class="o">...</span><span class="p">,</span>
-  <span class="n">gan_px</span><span class="o">=</span><span class="mi">512</span><span class="p">,</span>
-  <span class="n">gan_um</span><span class="o">=</span><span class="mi">400</span><span class="p">,</span>
-  <span class="n">target_px</span><span class="o">=</span><span class="mi">299</span><span class="p">,</span>
-  <span class="n">target_um</span><span class="o">=</span><span class="mi">302</span><span class="p">,</span>
-<span class="p">)</span>
-</pre></div>
-</div>
-</section>
+<p>See <a class="reference internal" href="stylegan.html#stylegan"><span class="std std-ref">StyleGAN</span></a> for more information on working with GANs.</p>
 <section id="stylegan2-interpolator">
 <h2>StyleGAN2 Interpolator<a class="headerlink" href="#stylegan2-interpolator" title="Permalink to this heading">¶</a></h2>
 <dl class="py class">
@@ -754,8 +680,6 @@ Will crop image to meet this target.</p></li>
             <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
               <ul>
 <li><a class="reference internal" href="#">slideflow.gan</a><ul>
-<li><a class="reference internal" href="#training-stylegan">Training StyleGAN</a></li>
-<li><a class="reference internal" href="#generating-images">Generating Images</a></li>
 <li><a class="reference internal" href="#stylegan2-interpolator">StyleGAN2 Interpolator</a><ul>
 <li><a class="reference internal" href="#slideflow.gan.StyleGAN2Interpolator"><code class="docutils literal notranslate"><span class="pre">StyleGAN2Interpolator</span></code></a><ul>
 <li><a class="reference internal" href="#slideflow.gan.StyleGAN2Interpolator.__init__"><code class="docutils literal notranslate"><span class="pre">StyleGAN2Interpolator.__init__()</span></code></a></li>

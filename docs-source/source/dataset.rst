@@ -3,7 +3,7 @@
 .. _dataset:
 
 slideflow.dataset
-=====================
+==================
 
 The :class:`Dataset` class in this module is used to organize dataset sources, ROI annotations,
 clinical annotations, and dataset processing.

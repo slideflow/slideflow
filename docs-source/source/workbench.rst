@@ -3,7 +3,7 @@
 slideflow.workbench
 =====================
 
-This module contains the Workbench visualization tool.
+This module contains the Workbench visualization tool. See :ref:`workbench` for more information.
 
 .. automodule:: slideflow.workbench
    :members:
