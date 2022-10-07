@@ -12,13 +12,11 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import cv2
 import numpy as np
-from matplotlib import patches
 from rich.progress import track
 
 import slideflow as sf
 from slideflow import errors
 from slideflow.stats import SlideMap, get_centroid_index
-from slideflow.util import Path
 from slideflow.util import log
 from slideflow.stats import get_centroid_index
 
@@ -108,7 +106,7 @@ class Mosaic:
         # First, load UMAP coordinates
         log.info('Loading coordinates and plotting points...')
         self.points = []
-        for i, row in slide_map.data.iterrows():
+        for i, row in enumerate(slide_map.data.itertuples()):
             if tile_meta:
                 meta = tile_meta[row.slide][row.tfr_index]
             else:
@@ -233,8 +231,9 @@ class Mosaic:
         figsize: Tuple[int, int] = (200, 200),
         tile_zoom: int = 15,
         relative_size: bool = False,
-        focus: Optional[List[Path]] = None,
-        focus_slide: Optional[str] = None
+        focus: Optional[List[str]] = None,
+        focus_slide: Optional[str] = None,
+        background: str = '#dfdfdf'
     ) -> None:
         """Initializes figures and places image tiles.
 
@@ -252,11 +251,12 @@ class Mosaic:
                 Defaults to None.
         """
         import matplotlib.pyplot as plt
+        from matplotlib import patches
 
         # Initialize figure
         fig = plt.figure(figsize=figsize)
         ax = fig.add_subplot(111, aspect='equal')
-        ax.set_facecolor('#dfdfdf')
+        ax.set_facecolor(background)
         fig.tight_layout()
         plt.subplots_adjust(
             left=0.02,
@@ -297,7 +297,7 @@ class Mosaic:
         log.info('Placing image tiles...')
         num_placed = 0
         if self.mapping_method == 'strict':
-            for tile in self.GRID:
+            for tile in track(self.GRID):
                 if not len(tile['points']):
                     continue
                 closest_point = tile['nearest_idx']
@@ -390,7 +390,7 @@ class Mosaic:
             self.focus(focus)
         ax.autoscale(enable=True, tight=None)
 
-    def _get_tfrecords_from_slide(self, slide: str) -> Optional[Path]:
+    def _get_tfrecords_from_slide(self, slide: str) -> Optional[str]:
         """Using the internal list of TFRecord paths, returns the path to a
         TFRecord for a given corresponding slide."""
         for tfr in self.tfrecords:
@@ -417,7 +417,7 @@ class Mosaic:
         tile_image_bgr = cv2.imdecode(image_arr, cv2.IMREAD_COLOR)
         return cv2.cvtColor(tile_image_bgr, cv2.COLOR_BGR2RGB)
 
-    def focus(self, tfrecords: Optional[List[Path]]) -> None:
+    def focus(self, tfrecords: Optional[List[str]]) -> None:
         """Highlights certain tiles according to a focus list if list provided,
         or resets highlighting if no tfrecords provided."""
         if tfrecords:
@@ -439,7 +439,7 @@ class Mosaic:
                     continue
                 tile['image'].set_alpha(1)
 
-    def save(self, filename: Path, **kwargs: Any) -> None:
+    def save(self, filename: str, **kwargs: Any) -> None:
         """Saves the mosaic map figure to the given filename.
 
         Args:
@@ -469,7 +469,7 @@ class Mosaic:
         log.info(f'Saved figure to [green]{filename}')
         plt.close()
 
-    def save_report(self, filename: Path) -> None:
+    def save_report(self, filename: str) -> None:
         """Saves a report of which tiles (and their corresponding slide)
             were displayed on the Mosaic map, in CSV format."""
         with open(filename, 'w') as f:

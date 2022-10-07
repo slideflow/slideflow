@@ -2,7 +2,7 @@
 
 import types
 from types import SimpleNamespace
-from typing import Dict, Generator, Iterable, List, Tuple, Union
+from typing import Dict, Generator, Iterable, List, Tuple, Union, Optional
 
 import torch
 import numpy as np
@@ -10,8 +10,9 @@ import slideflow as sf
 from pandas.core.frame import DataFrame
 from scipy.special import softmax
 from slideflow.stats import df_from_pred
+from slideflow.errors import DatasetError
 from slideflow.util import log, ImgBatchSpeedColumn
-from rich.progress import Progress, TimeElapsedColumn
+from rich.progress import Progress, TimeElapsedColumn, SpinnerColumn
 from functools import reduce
 
 
@@ -136,7 +137,7 @@ def enable_dropout(m: torch.nn.Module) -> None:
 def get_uq_predictions(
     img: Union[torch.Tensor, Tuple[torch.Tensor, ...]],
     model: torch.nn.Module,
-    num_outcomes: int,
+    num_outcomes: Optional[int] = None,
     uq_n: int = 30
 ) -> Tuple[Union[torch.Tensor, List[torch.Tensor]],
            Union[torch.Tensor, List[torch.Tensor]],
@@ -185,182 +186,111 @@ def get_uq_predictions(
     return yp_mean, yp_std, num_outcomes
 
 
-
-def _predict_from_model(
+def eval_from_model(
     model: "torch.nn.Module",
     dataset: "torch.utils.data.DataLoader",
     model_type: str,
-    pred_args: SimpleNamespace,
+    torch_args: Optional[SimpleNamespace],
+    uq: bool = False,
     uq_n: int = 30,
-    num_tiles: int = 0,
-    incl_loc: bool = False
-) -> DataFrame:
-    """Generates predictions (y_true, y_pred, tile_to_slide) from
-    a given PyTorch model and dataset.
-
-    Args:
-        model (torch.nn.Module): PyTorch model.
-        dataset (torch.utils.data.DatatLoader): PyTorch dataloader.
-        pred_args (namespace): Namespace containing slide_input,
-            update_corrects, and update_loss functions.
-        model_type (str, optional): 'categorical', 'linear', or 'cph'.
-            If multiple linear outcomes are present, y_true is stacked into
-            a single vector for each image. Defaults to 'categorical'.
-        uq_n (int, optional): Number of forward passes to perform
-            when calculating MC Dropout uncertainty. Defaults to 30.
-
-    Returns:
-        pd.DataFrame
-    """
-
-    # Get predictions and performance metrics
-    log.debug("Generating predictions from torch model")
-    y_pred, tile_to_slides = [], []
-    locations = [] if incl_loc else None
-    y_std = [] if pred_args.uq else None  # type: ignore
-    num_outcomes = 0
-    model.eval()
-    device = torch.device('cuda:0')
-    pb = Progress(
-        *Progress.get_default_columns(),
-        TimeElapsedColumn(),
-        ImgBatchSpeedColumn(dataset.batch_size),
-        transient=sf.getLoggingLevel()>20
-    )
-    task = pb.add_task("Predicting...", total=dataset.num_tiles)
-    pb.start()
-    for batch in dataset:  # TODO: support not needing to supply yt
-
-        # Parse batch
-        if incl_loc:
-            img, yt, slide, loc_x, loc_y = batch
-            locations += [torch.stack([loc_x, loc_y], dim=-1).cpu().numpy()]
-        else:
-            img, yt, slide = batch
-
-        img = img.to(device, non_blocking=True)
-        with torch.cuda.amp.autocast():
-            with torch.no_grad():
-                # Slide-level features
-                if pred_args.num_slide_features:
-                    slide_inp = torch.tensor([
-                        pred_args.slide_input[s] for s in slide
-                    ])
-                    inp = (img, slide_inp.to(device))
-                else:
-                    inp = (img,)  # type: ignore
-                if pred_args.uq:
-                    res, yp_std, num_outcomes = get_uq_predictions(
-                        inp, model, num_outcomes, uq_n
-                    )
-                    if isinstance(yp_std, list):
-                        yp_std = [y.cpu().numpy().copy() for y in yp_std]
-                    else:
-                        yp_std = yp_std.cpu().numpy().copy()
-                    y_std += [yp_std]  # type: ignore
-                else:
-                    res = model(*inp)
-                if isinstance(res, list):
-                    res = [r.cpu().numpy().copy() for r in res]
-                else:
-                    res = res.cpu().numpy().copy()
-                y_pred += [res]
-        tile_to_slides += slide
-        pb.advance(task, img.shape[0])
-    pb.stop()
-
-    # Concatenate predictions for each outcome
-    if type(y_pred[0]) == list:
-        y_pred = [np.concatenate(yp) for yp in zip(*y_pred)]
-        if pred_args.uq:
-            y_std = [np.concatenate(ys) for ys in zip(*y_std)]  # type: ignore
-    else:
-        y_pred = [np.concatenate(y_pred)]
-        if pred_args.uq:
-            y_std = [np.concatenate(y_std)]
-
-    # We will need to enforce softmax encoding for tile-level statistics.
-    if model_type == 'categorical':
-        y_pred = [softmax(yp, axis=1) for yp in y_pred]
-
-    if incl_loc:
-        locations = np.concatenate(locations)
-
-    # Create pandas DataFrame from arrays
-    df = df_from_pred(None, y_pred, y_std, tile_to_slides, locations)
-
-    log.debug("Prediction complete.")
-    return df
-
-
-def _eval_from_model(
-    model: "torch.nn.Module",
-    dataset: "torch.utils.data.DataLoader",
-    model_type: str,
-    pred_args: SimpleNamespace,
-    uq_n: int = 30,
-    num_tiles: int = 0,
-    incl_loc: bool = False
+    steps: Optional[int] = None,
+    pb_label: str = "Evaluating...",
+    verbosity: str = 'full',
+    predict_only: bool = False,
 ) -> Tuple[DataFrame, float, float]:
-    """Generates predictions (y_true, y_pred, tile_to_slide) from
-    a given PyTorch model and dataset.
+    """Evaluates a model from a dataset of (y_true, y_pred, tile_to_slide),
+    returning predictions, accuracy, and loss.
 
     Args:
         model (str): Path to PyTorch model.
         dataset (tf.data.Dataset): PyTorch dataloader.
-        pred_args (namespace): Namespace containing slide_input,
-            update_corrects, and update_loss functions.
         model_type (str, optional): 'categorical', 'linear', or 'cph'. If
             multiple linear outcomes are present, y_true is stacked into a
             single vector for each image. Defaults to 'categorical'.
+        torch_args (namespace): Namespace containing num_slide_features,
+            slide_input, update_corrects, and update_loss functions.
+
+    Keyword args:
+        uq (bool, optional): Perform uncertainty quantification with dropout.
+            Defaults to False.
         uq_n (int, optional): Number of forward passes to perform
             when calculating MC Dropout uncertainty. Defaults to 30.
+        steps (int, optional): Number of steps (batches) of evaluation to
+            perform. If None, uses the full dataset. Defaults to None.
+        pb_label (str, optional): Progress bar label.
+            Defaults to "Predicting..."
+        verbosity (str, optional): Either 'full', 'quiet', or 'silent'.
+            Verbosity for progress bars.
+        predict_only (bool, optional): Only generate predictions without
+            comparisons to y_true. Defaults to False.
 
     Returns:
         pd.DataFrame, accuracy, loss
     """
+    if verbosity not in ('silent', 'quiet', 'full'):
+        raise ValueError(f"Invalid value '{verbosity}' for argument 'verbosity'")
+    if not predict_only and torch_args is None:
+        raise ValueError("Argument `torch_args` must be supplied if evaluating.")
 
-    y_true, y_pred, tile_to_slides = [], [], []
-    locations = [] if incl_loc else None
-    y_std = [] if pred_args.uq else None  # type: ignore
-    corrects = pred_args.running_corrects
-    losses = 0
-    total = 0
-    num_outcomes = 0
-
-    log.debug("Evaluating torch model")
-
+    y_true, y_pred, tile_to_slides, locations, y_std = [], [], [], [], []
+    losses, total, num_outcomes, batch_size = 0, 0, 0, 0
+    corrects, acc, loss = None, None, None
     model.eval()
     device = torch.device('cuda:0')
-    pb = Progress(
-        *Progress.get_default_columns(),
-        TimeElapsedColumn(),
-        ImgBatchSpeedColumn(dataset.batch_size),
-        transient=sf.getLoggingLevel()>20
-    )
-    task = pb.add_task("Evaluating...", total=dataset.num_tiles)
-    pb.start()
-    for batch in dataset:
 
-        # Parse batch
+    if verbosity != 'silent':
+        pb = Progress(SpinnerColumn(), transient=True)
+        pb.add_task(pb_label, total=None)
+        pb.start()
+    for step, batch in enumerate(dataset):
+        if steps is not None and step >= steps:
+            break
+
+        # --- Detect data structure, if this is the first batch ---------------
+        if not batch_size:
+            if len(batch) not in (3, 5):
+                raise IndexError(
+                    "Unexpected number of items returned from dataset batch. "
+                    f"Expected either '3' or '5', got: {len(batch)}")
+
+            incl_loc = (len(batch) == 5)
+            batch_size = batch[0].shape[0]
+            if verbosity != 'silent':
+                pb.stop()
+                pb = Progress(
+                    SpinnerColumn(),
+                    *Progress.get_default_columns(),
+                    TimeElapsedColumn(),
+                    ImgBatchSpeedColumn(),
+                    transient=sf.getLoggingLevel()>20 or verbosity == 'quiet')
+                task = pb.add_task(
+                    pb_label,
+                    total=dataset.num_tiles if not steps else steps*batch_size)  # type: ignore
+                pb.start()
+        # ---------------------------------------------------------------------
+
         if incl_loc:
             img, yt, slide, loc_x, loc_y = batch
             locations += [torch.stack([loc_x, loc_y], dim=-1).cpu().numpy()]
         else:
             img, yt, slide = batch
 
+        if verbosity != 'silent':
+            pb.advance(task, img.shape[0])
+
         img = img.to(device, non_blocking=True)
         with torch.cuda.amp.autocast():
             with torch.no_grad():
                 # Slide-level features
-                if pred_args.num_slide_features:
+                if torch_args is not None and torch_args.num_slide_features:
                     slide_inp = torch.tensor([
-                        pred_args.slide_input[s] for s in slide
+                        torch_args.slide_input[s] for s in slide
                     ])
                     inp = (img, slide_inp.to(device))
                 else:
                     inp = (img,)  # type: ignore
-                if pred_args.uq:
+
+                if uq:
                     res, yp_std, num_outcomes = get_uq_predictions(
                         inp, model, num_outcomes, uq_n
                     )
@@ -371,63 +301,125 @@ def _eval_from_model(
                     y_std += [yp_std]  # type: ignore
                 else:
                     res = model(*inp)
-                corrects = pred_args.update_corrects(res, yt, corrects)
-                losses = pred_args.update_loss(res, yt, losses, img.size(0))
+
+                if not predict_only:
+                    assert torch_args is not None
+                    corrects = torch_args.update_corrects(res, yt, corrects)
+                    losses = torch_args.update_loss(res, yt, losses, img.size(0))
+
                 if isinstance(res, list):
                     res = [r.cpu().numpy().copy() for r in res]
                 else:
                     res = res.cpu().numpy().copy()
+
                 y_pred += [res]
-        if type(yt) == dict:
+
+        if not predict_only and type(yt) == dict:
             y_true += [[yt[f'out-{o}'] for o in range(len(yt))]]
-        else:
+        elif not predict_only:
             yt = yt.detach().numpy().copy()
             y_true += [yt]
         tile_to_slides += slide
         total += img.shape[0]
-        pb.advance(task, img.shape[0])
-    pb.stop()
+
+    if not total:
+        raise DatasetError("Empty dataset, unable to predict/evaluate.")
+    if verbosity != 'silent':
+        pb.stop()
 
     # Concatenate predictions for each outcome.
     if type(y_pred[0]) == list:
         y_pred = [np.concatenate(yp) for yp in zip(*y_pred)]
-        if pred_args.uq:
+        if uq:
             y_std = [np.concatenate(ys) for ys in zip(*y_std)]  # type: ignore
     else:
         y_pred = [np.concatenate(y_pred)]
-        if pred_args.uq:
+        if uq:
             y_std = [np.concatenate(y_std)]
 
     # Concatenate y_true for each outcome
-    if type(y_true[0]) == list:
+    if not predict_only and type(y_true[0]) == list:
         y_true = [np.concatenate(yt) for yt in zip(*y_true)]
 
         # Merge multiple linear outcomes into a single vector
         if model_type == 'linear':
             y_true = [np.stack(y_true, axis=1)]  # type: ignore
-    else:
+    elif not predict_only:
         y_true = [np.concatenate(y_true)]
+    else:
+        y_true = None  # type: ignore
 
     # We will need to enforce softmax encoding for tile-level statistics.
     if model_type == 'categorical':
         y_pred = [softmax(yp, axis=1) for yp in y_pred]
 
     # Calculate final accuracy and loss
-    loss = losses / total
-    if isinstance(corrects, dict):
-        acc = {k: v.cpu().numpy()/total for k, v in corrects.items()}
-    elif isinstance(corrects, (int, float)):
-        acc = corrects / total  # type: ignore
-    else:
-        acc = corrects.cpu().numpy() / total
-    if sf.getLoggingLevel() <= 20:
-        sf.util.clear_console()
+    if not predict_only:
+        loss = losses / total
+        if isinstance(corrects, dict):
+            acc = {k: v.cpu().numpy()/total for k, v in corrects.items()}
+        elif isinstance(corrects, (int, float)):
+            acc = corrects / total  # type: ignore
+        else:
+            assert corrects is not None, "Empty dataset to evaluate/predict."
+            acc = corrects.cpu().numpy() / total
 
-    if incl_loc:
+    if locations != []:
         locations = np.concatenate(locations)
+    else:
+        locations = None  # type: ignore
+    if not uq:
+        y_std = None  # type: ignore
 
     # Create pandas DataFrame from arrays
     df = df_from_pred(y_true, y_pred, y_std, tile_to_slides, locations)
 
     log.debug("Evaluation complete.")
     return df, acc, loss  # type: ignore
+
+
+def predict_from_model(
+    model: "torch.nn.Module",
+    dataset: "torch.utils.data.DataLoader",
+    model_type: str,
+    torch_args: Optional[SimpleNamespace],
+    pb_label: str = "Predicting...",
+    **kwargs,
+) -> DataFrame:
+    """Generates predictions (y_true, y_pred, tile_to_slide) from
+    a given PyTorch model and dataset.
+
+    Args:
+        model (str): Path to PyTorch model.
+        dataset (tf.data.Dataset): PyTorch dataloader.
+        model_type (str, optional): 'categorical', 'linear', or 'cph'. If
+            multiple linear outcomes are present, y_true is stacked into a
+            single vector for each image. Defaults to 'categorical'.
+        torch_args (namespace): Namespace containing num_slide_features
+            and slide_input.
+
+    Keyword args:
+        uq (bool, optional): Perform uncertainty quantification with dropout.
+            Defaults to False.
+        uq_n (int, optional): Number of forward passes to perform
+            when calculating MC Dropout uncertainty. Defaults to 30.
+        steps (int, optional): Number of steps (batches) of evaluation to
+            perform. If None, uses the full dataset. Defaults to None.
+        pb_label (str, optional): Progress bar label.
+            Defaults to "Predicting..."
+        verbosity (str, optional): Either 'full', 'quiet', or 'silent'.
+            Verbosity for progress bars.
+
+    Returns:
+        pd.DataFrame
+    """
+    df, _, _ = eval_from_model(
+        model,
+        dataset,
+        model_type=model_type,
+        torch_args=torch_args,
+        pb_label=pb_label,
+        predict_only=True,
+        **kwargs
+    )
+    return df

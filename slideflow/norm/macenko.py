@@ -148,7 +148,7 @@ class MacenkoNormalizer:
         # the two largest eigenvalues.
         That = ODhat.dot(eigvecs[:, 1:3])
 
-        phi = np.arctan2(That[:, 1],That[:, 0])
+        phi = np.arctan2(That[:, 1], That[:, 0])
 
         minPhi = np.percentile(phi, self.alpha)
         maxPhi = np.percentile(phi, 100 - self.alpha)
@@ -169,7 +169,7 @@ class MacenkoNormalizer:
         C = np.linalg.lstsq(HE, Y, rcond=None)[0]
 
         # Normalize stain concentrations.
-        maxC = np.array([np.percentile(C[0, :], 99), np.percentile(C[1, :],99)])
+        maxC = np.array([np.percentile(C[0, :], 99), np.percentile(C[1, :], 99)])
 
         return HE, maxC, C
 
@@ -197,14 +197,5 @@ class MacenkoNormalizer:
         Inorm = np.multiply(255, np.exp(-HERef.dot(C2)))
         Inorm = np.clip(Inorm, 0, 255)
         Inorm = np.reshape(Inorm.T, (h, w, 3)).astype(np.uint8)
-
-        # Unmix hematoxylin and eosin.
-        H = np.multiply(255, np.exp(np.expand_dims(-HERef[:, 0], axis=1).dot(np.expand_dims(C2[0, :], axis=0))))
-        H = np.clip(H, 0, 255)
-        H = np.reshape(H.T, (h, w, 3)).astype(np.uint8)
-
-        E = np.multiply(255, np.exp(np.expand_dims(-HERef[:, 1], axis=1).dot(np.expand_dims(C2[1, :], axis=0))))
-        E = np.clip(E, 0, 255)
-        E = np.reshape(E.T, (h, w, 3)).astype(np.uint8)
 
         return Inorm

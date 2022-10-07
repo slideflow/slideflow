@@ -6,13 +6,13 @@ slideflow.gan
 .. automodule:: slideflow.gan
    :members:
 
-Training StyleGAN2
+Training StyleGAN
 ------------------
 
 The easiest way to train GANs is with :meth:`slideflow.Project.gan_train`, which
-supervises training of StyleGAN2. Both standard and class-conditional GANs are
+supervises training of StyleGAN2/3. Both standard and class-conditional GANs are
 supported. To train a GAN, pass a :class:`slideflow.Dataset`, experiment label,
-and StyleGAN2 keyword arguments to this function:
+and StyleGAN keyword arguments to this function:
 
 .. code-block:: python
 
@@ -23,6 +23,8 @@ and StyleGAN2 keyword arguments to this function:
 
     P.gan_train(
       dataset=dataset,
+      model='stylegan3',
+      cfg='stylegan3-r',
       exp_label="ExperimentLabel",
       gpus=4,
       batch_size=32,

@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>slideflow.grad.plot_utils &mdash; slideflow 1.2.3 documentation</title>
+  <title>slideflow.grad.plot_utils &mdash; slideflow 1.3.0-rc0 documentation</title>
   
 
   
@@ -117,7 +117,7 @@
               
               
                 <div class="version">
-                  1.2
+                  1.3
                 </div>
               
             
@@ -151,12 +151,13 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../pipeline.html">Pipeline Overview</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../project_setup.html">Setting up a Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../validation.html">Validation Planning</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../extract_tiles.html">Tile extraction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../extract_tiles.html">Tile Extraction</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../training.html">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../evaluation.html">Evaluation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../layer_activations.html">Features / layer activations</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../custom_loops.html">Custom training loops</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../uq.html">Uncertainty quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../layer_activations.html">Features / Layer Activations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../workbench_tools.html">Workbench: Visualization Tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../custom_loops.html">Custom Training Loops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../uq.html">Uncertainty Quantification</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../clam.html">CLAM</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../troubleshooting.html">Troubleshooting</a></li>
 </ul>
@@ -176,6 +177,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../slide.html">slideflow.slide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../stats.html">slideflow.stats</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../util.html">slideflow.util</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../workbench.html">slideflow.workbench</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
 <ul>
@@ -184,6 +186,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../tutorial3.html">Tutorial 3: Using a custom architecture</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../tutorial4.html">Tutorial 4: Model evaluation &amp; heatmaps</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../tutorial5.html">Tutorial 5: Creating a mosaic map</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorial6.html">Tutorial 6: Custom slide filtering</a></li>
 </ul>
 
             
@@ -259,19 +262,23 @@
   <h1>Source code for slideflow.grad.plot_utils</h1><div class="highlight"><pre>
 <span></span><span class="sd">&quot;&quot;&quot;Plotting functions for displaying saliency maps.&quot;&quot;&quot;</span>
 
-<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">TYPE_CHECKING</span>
 
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
-<span class="kn">from</span> <span class="nn">matplotlib</span> <span class="kn">import</span> <span class="n">pyplot</span> <span class="k">as</span> <span class="n">plt</span>
 <span class="kn">from</span> <span class="nn">PIL</span> <span class="kn">import</span> <span class="n">Image</span>
+
+<span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
+    <span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
 
 
 <div class="viewcode-block" id="inferno"><a class="viewcode-back" href="../../../grad.html#slideflow.grad.inferno">[docs]</a><span class="k">def</span> <span class="nf">inferno</span><span class="p">(</span><span class="n">img</span><span class="p">):</span>
+    <span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
     <span class="n">cmap</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">get_cmap</span><span class="p">(</span><span class="s1">&#39;inferno&#39;</span><span class="p">)</span>
     <span class="k">return</span> <span class="p">(</span><span class="n">cmap</span><span class="p">(</span><span class="n">img</span><span class="p">)</span> <span class="o">*</span> <span class="mi">255</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="oranges"><a class="viewcode-back" href="../../../grad.html#slideflow.grad.oranges">[docs]</a><span class="k">def</span> <span class="nf">oranges</span><span class="p">(</span><span class="n">img</span><span class="p">):</span>
+    <span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
     <span class="n">cmap</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">get_cmap</span><span class="p">(</span><span class="s1">&#39;Oranges&#39;</span><span class="p">)</span>
     <span class="k">return</span> <span class="p">(</span><span class="n">cmap</span><span class="p">(</span><span class="n">img</span><span class="p">)</span> <span class="o">*</span> <span class="mi">255</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span></div>
 
@@ -298,7 +305,7 @@
 <div class="viewcode-block" id="comparison_plot"><a class="viewcode-back" href="../../../grad.html#slideflow.grad.comparison_plot">[docs]</a><span class="k">def</span> <span class="nf">comparison_plot</span><span class="p">(</span>
     <span class="n">original</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
     <span class="n">maps</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">],</span>
-    <span class="n">cmap</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">cm</span><span class="o">.</span><span class="n">gray</span><span class="p">,</span>
+    <span class="n">cmap</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="s2">&quot;plt.cm.gray&quot;</span><span class="p">,</span>
     <span class="n">n_rows</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span>
     <span class="n">n_cols</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
@@ -311,6 +318,8 @@
 <span class="sd">        cmap (matplotlib colormap, optional): Colormap for maps.</span>
 <span class="sd">            Defaults to plt.cm.gray.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+
     <span class="n">scale</span> <span class="o">=</span> <span class="mi">5</span>
     <span class="n">ax_idx</span> <span class="o">=</span> <span class="p">[[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_rows</span><span class="p">)</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_cols</span><span class="p">)]</span>
     <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span>
@@ -363,6 +372,7 @@
 <span class="sd">        ValueError: If xlabels is provided and length does not equal raw_imgs.</span>
 <span class="sd">        ValueError: If ylabels is provided and length does not equal raw_imgs.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
 
     <span class="c1"># Error checking</span>
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">raw_imgs</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">processed_imgs</span><span class="p">):</span>
@@ -446,6 +456,7 @@
 <span class="sd">        cmap (str, optional): Colormap for saliency maps.</span>
 <span class="sd">            Defaults to &#39;inferno&#39;.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
 
     <span class="k">def</span> <span class="nf">apply_cmap</span><span class="p">(</span><span class="n">_img</span><span class="p">):</span>
         <span class="n">cmap_fn</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">get_cmap</span><span class="p">(</span><span class="n">cmap</span><span class="p">)</span>
@@ -525,6 +536,7 @@
          <script src="../../../_static/underscore.js"></script>
          <script src="../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
          <script src="../../../_static/doctools.js"></script>
+         <script src="../../../_static/sphinx_highlight.js"></script>
      
 
   

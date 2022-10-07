@@ -2,24 +2,22 @@ import copy
 import csv
 import itertools
 import json
-import logging
 import multiprocessing
+import numpy as np
 import os
 import pickle
+from multiprocessing.managers import DictProxy
 from os.path import basename, exists, join
 from statistics import mean
 from types import SimpleNamespace
 from typing import (TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple,
                     Union)
 
-import numpy as np
-
 import slideflow as sf
 from slideflow import errors, project_utils
 from slideflow.dataset import Dataset
 from slideflow.model import ModelParams
 from slideflow.project_utils import auto_dataset, get_validation_settings
-from slideflow.util import Path
 from slideflow.util import log, path_to_name
 
 if TYPE_CHECKING:
@@ -140,7 +138,7 @@ class Project:
         return self._read_relative_path(self._settings['annotations'])
 
     @annotations.setter
-    def annotations(self, val: Path) -> None:
+    def annotations(self, val: str) -> None:
         if not isinstance(val, str):
             raise errors.ProjectError("'annotations' must be a path.")
         self._settings['annotations'] = val
@@ -151,7 +149,7 @@ class Project:
         return self._read_relative_path(self._settings['dataset_config'])
 
     @dataset_config.setter
-    def dataset_config(self, val: Path) -> None:
+    def dataset_config(self, val: str) -> None:
         if not isinstance(val, str):
             raise errors.ProjectError("'dataset_config' must be path to JSON.")
         self._settings['dataset_config'] = val
@@ -166,7 +164,7 @@ class Project:
             return self._read_relative_path(self._settings['eval_dir'])
 
     @eval_dir.setter
-    def eval_dir(self, val: Path) -> None:
+    def eval_dir(self, val: str) -> None:
         if not isinstance(val, str):
             raise errors.ProjectError("'eval_dir' must be a path")
         self._settings['eval_dir'] = val
@@ -177,7 +175,7 @@ class Project:
         return self._read_relative_path(self._settings['models_dir'])
 
     @models_dir.setter
-    def models_dir(self, val: Path) -> None:
+    def models_dir(self, val: str) -> None:
         if not isinstance(val, str):
             raise errors.ProjectError("'models_dir' must be a path")
         self._settings['models_dir'] = val
@@ -254,7 +252,7 @@ class Project:
         hp: ModelParams,
         outcomes: List[str],
         config: Dict,
-        splits: Path,
+        splits: str,
         eval_k_fold: Optional[int] = None
     ) -> Tuple[Dataset, Dict, Union[Dict, List]]:
         '''Prepares dataset and labels.'''
@@ -312,15 +310,17 @@ class Project:
 
     def _prepare_trainer(
         self,
-        model: Path,
+        model: str,
         dataset: Dataset,
         outcomes: Optional[Union[str, List[str]]] = None,
-        checkpoint: Optional[Path] = None,
+        checkpoint: Optional[str] = None,
         eval_k_fold: Optional[int] = None,
         splits: str = "splits.json",
         max_tiles: int = 0,
         mixed_precision: bool = True,
-        input_header: Optional[Union[str, List[str]]] = None
+        allow_tf32: bool = False,
+        input_header: Optional[Union[str, List[str]]] = None,
+        load_method: str = 'full'
     ) -> Tuple["Trainer", Dataset]:
         """Prepares a :class:`slideflow.model.Trainer` for eval or prediction.
 
@@ -341,8 +341,18 @@ class Project:
                 to evaluate. Defaults to 0 (include all tiles).
             mixed_precision (bool, optional): Enable mixed precision.
                 Defaults to True.
+            allow_tf32 (bool): Allow internal use of Tensorfloat-32 format.
+                Defaults to False.
             input_header (str, optional): Annotation column header to use as
                 additional input. Defaults to None.
+            load_method (str): Either 'full' or 'weights'. Method to use
+                when loading a Tensorflow model. If 'full', loads the model with
+                ``tf.keras.models.load_model()``. If 'weights', will read the
+                ``params.json``configuration file, build the model architecture,
+                and then load weights from the given model with
+                ``Model.load_weights()``. Loading with 'full' may improve
+                compatibility across Slideflow versions. Loading with 'weights'
+                may improve compatibility across hardware & environments.
 
         Returns:
             A tuple containing
@@ -417,7 +427,6 @@ class Project:
         else:
             outcome_labels = None
 
-        git_commit = sf.util.detect_git_commit()
         model_dir = sf.util.get_new_model_dir(self.eval_dir, model_name)
 
         # Set missing validation keys to NA
@@ -430,7 +439,7 @@ class Project:
             'slideflow_version': sf.__version__,
             'project': self.name,
             'backend': sf.backend(),
-            'git_commit': git_commit,
+            'git_commit': sf.__gitcommit__,
             'model_name': model_name,
             'model_path': model,
             'stage': 'evaluation',
@@ -472,12 +481,14 @@ class Project:
             slide_input=slide_inp,
             manifest=dataset.manifest(),
             mixed_precision=mixed_precision,
+            allow_tf32=allow_tf32,
             feature_names=input_header,
             feature_sizes=feature_sizes,
             outcome_names=outcomes,
             use_neptune=self.use_neptune,
             neptune_api=self.neptune_api,
-            neptune_workspace=self.neptune_workspace
+            neptune_workspace=self.neptune_workspace,
+            load_method=load_method
         )
         if isinstance(model, str):
             trainer.load(model)
@@ -505,10 +516,12 @@ class Project:
         min_tiles: int,
         max_tiles: int,
         mixed_precision: bool,
+        allow_tf32: bool,
         splits: str,
-        results_dict: Dict,
+        results_dict: Union[Dict, DictProxy],
         training_kwargs: Dict,
-        balance_headers: Optional[Union[str, List[str]]]
+        balance_headers: Optional[Union[str, List[str]]],
+        **kwargs
     ) -> None:
         '''Trains a model(s) using the specified hyperparameters.
 
@@ -526,6 +539,8 @@ class Project:
             min_tiles (int): Only includes tfrecords with >= min_tiles
             max_tiles (int): Cap maximum tiles per tfrecord.
             mixed_precision (bool): Train with mixed precision.
+            allow_tf32 (bool): Allow internal use of Tensorfloat-32 format.
+                Defaults to False.
             splits (str): Location of splits file for logging/reading splits.
             balance_headers (str, list(str)): Annotation col headers for
                 mini-batch balancing.
@@ -627,10 +642,12 @@ class Project:
             filters=filters,
             training_kwargs=training_kwargs,
             mixed_precision=mixed_precision,
+            allow_tf32=allow_tf32,
             ctx=ctx,
             results_dict=results_dict,
             bal_headers=balance_headers,
-            input_header=input_header
+            input_header=input_header,
+            **kwargs
         )
 
         # --- Train on a specific K-fold --------------------------------------
@@ -684,6 +701,8 @@ class Project:
 
         # --- Set up validation data ------------------------------------------
         manifest = dataset.manifest()
+        from_wsi = ('from_wsi' in s_args.training_kwargs
+                    and s_args.training_kwargs['from_wsi'])
 
         # Use an external validation dataset if supplied
         if val_settings.source:
@@ -728,23 +747,37 @@ class Project:
                 val_fraction=val_settings.fraction,
                 val_k_fold=val_settings.k_fold,
                 k_fold_iter=s_args.k,
-                site_labels=site_labels
+                site_labels=site_labels,
+                from_wsi=from_wsi
             )
 
         # ---- Balance and clip datasets --------------------------------------
         if s_args.bal_headers is None:
             s_args.bal_headers = s_args.outcomes
-        train_dts = train_dts.balance(s_args.bal_headers, hp.training_balance)
-        train_dts = train_dts.clip(s_args.max_tiles)
-        if val_dts:
+        if not from_wsi:
+            train_dts = train_dts.balance(
+                s_args.bal_headers,
+                hp.training_balance,
+            )
+            train_dts = train_dts.clip(s_args.max_tiles)
+        elif hp.training_balance not in ('none', None) or s_args.max_tiles:
+            log.warning("Balancing / clipping is disabled when `from_wsi=True`")
+
+        if val_dts and not from_wsi:
             val_dts = val_dts.balance(
                 s_args.bal_headers,
-                hp.validation_balance
+                hp.validation_balance,
             )
             val_dts = val_dts.clip(s_args.max_tiles)
-        num_train = len(train_dts.tfrecords())
-        num_val = 0 if not val_dts else len(val_dts.tfrecords())
-        log.info(f'Using {num_train} training TFRecords, {num_val} validation')
+
+        if from_wsi:
+            num_train = len(train_dts.slide_paths())
+            num_val = 0 if not val_dts else len(val_dts.slide_paths())
+            log.info(f'Using {num_train} training slides, {num_val} validation')
+        else:
+            num_train = len(train_dts.tfrecords())
+            num_val = 0 if not val_dts else len(val_dts.tfrecords())
+            log.info(f'Using {num_train} training TFRecords, {num_val} validation')
 
         # --- Prepare additional slide-level input ----------------------------
         if s_args.input_header:
@@ -765,7 +798,6 @@ class Project:
         full_name = s_args.model_name
         if s_args.k is not None:
             full_name += f'-kfold{s_args.k}'
-        git_commit = sf.util.detect_git_commit()
         model_dir = sf.util.get_new_model_dir(self.models_dir, full_name)
 
         # Log model settings and hyperparameters
@@ -773,7 +805,7 @@ class Project:
             'slideflow_version': sf.__version__,
             'project': self.name,
             'backend': sf.backend(),
-            'git_commit': git_commit,
+            'git_commit': sf.__gitcommit__,
             'model_name': s_args.model_name,
             'full_model_name': full_name,
             'stage': 'training',
@@ -812,9 +844,11 @@ class Project:
             'slide_input': slide_inp,
             'labels': s_args.labels,
             'mixed_precision': s_args.mixed_precision,
+            'allow_tf32': s_args.allow_tf32,
             'use_neptune': self.use_neptune,
             'neptune_api': self.neptune_api,
             'neptune_workspace': self.neptune_workspace,
+            'load_method': s_args.load_method
         }
         process = s_args.ctx.Process(target=project_utils._train_worker,
                                      args=((train_dts, val_dts),
@@ -864,7 +898,7 @@ class Project:
 
     def create_blank_annotations(
         self,
-        filename: Optional[Path] = None
+        filename: Optional[str] = None
     ) -> None:
         """Creates an empty annotations file.
 
@@ -902,7 +936,7 @@ class Project:
 
     def create_hp_sweep(
         self,
-        filename: Path = 'sweep.json',
+        filename: str = 'sweep.json',
         label: Optional[str] = None,
         **kwargs: Any
     ) -> None:
@@ -951,19 +985,21 @@ class Project:
     @auto_dataset
     def evaluate(
         self,
-        model: Path,
+        model: str,
         outcomes: Union[str, List[str]],
         *,
         dataset: Dataset,
         filters: Optional[Dict] = None,
         filter_blank: Optional[Union[str, List[str]]] = None,
         min_tiles: int = 0,
-        checkpoint: Optional[Path] = None,
+        checkpoint: Optional[str] = None,
         eval_k_fold: Optional[int] = None,
         splits: str = "splits.json",
         max_tiles: int = 0,
         mixed_precision: bool = True,
+        allow_tf32: bool = False,
         input_header: Optional[Union[str, List[str]]] = None,
+        load_method: str = 'full',
         **kwargs: Any
     ) -> Dict:
         """Evaluates a saved model on a given set of tfrecords.
@@ -996,8 +1032,18 @@ class Project:
                 to evaluate. Defaults to 0. If zero, will include all tiles.
             mixed_precision (bool, optional): Enable mixed precision.
                 Defaults to True.
+            allow_tf32 (bool): Allow internal use of Tensorfloat-32 format.
+                Defaults to False.
             input_header (str, optional): Annotation column header to use as
                 additional input. Defaults to None.
+            load_method (str): Either 'full' or 'weights'. Method to use
+                when loading a Tensorflow model. If 'full', loads the model with
+                ``tf.keras.models.load_model()``. If 'weights', will read the
+                ``params.json``configuration file, build the model architecture,
+                and then load weights from the given model with
+                ``Model.load_weights()``. Loading with 'full' may improve
+                compatibility across Slideflow versions. Loading with 'weights'
+                may improve compatibility across hardware & environments.
             save_predictions (bool or str, optional): Save tile, slide, and
                 patient-level predictions at each evaluation. May be 'csv',
                 'feather', or 'parquet'. If False, will not save predictions.
@@ -1018,16 +1064,16 @@ class Project:
             splits=splits,
             max_tiles=max_tiles,
             input_header=input_header,
-            mixed_precision=mixed_precision
+            mixed_precision=mixed_precision,
+            allow_tf32=allow_tf32,
+            load_method=load_method
         )
-        # Perform evaluation
-        log.info(f'Evaluating {len(eval_dts.tfrecords())} tfrecords')
         return trainer.evaluate(eval_dts, **kwargs)
 
     def evaluate_clam(
         self,
         exp_name: str,
-        pt_files: Path,
+        pt_files: str,
         outcomes: Union[str, List[str]],
         tile_px: int,
         tile_um: Union[int, str],
@@ -1276,6 +1322,8 @@ class Project:
                 Defaults to mpp=4 (effective magnification 2.5 X)
             dry_run (bool, optional): Determine tiles that would be extracted,
                 but do not export any images. Defaults to None.
+            max_tiles (int, optional): Only extract this many tiles per slide.
+                Defaults to None.
 
         Returns:
             Dictionary mapping slide paths to each slide's SlideReport
@@ -1298,8 +1346,6 @@ class Project:
         outcomes: Optional[Union[str, List[str]]] = None,
         exp_label: Optional[str] = None,
         mirror: bool = True,
-        augpipe: str = 'bgcfnc',
-        allow_tf32: bool = True,
         metrics: Optional[Union[str, List[str]]] = None,
         dry_run: bool = False,
         **kwargs
@@ -1311,12 +1357,13 @@ class Project:
 
         Keyword Args:
             allow_tf32 (bool): Allow internal use of Tensorflow-32.
-                Defaults to True.
+                Option only available for StyleGAN2. Defaults to True.
             aug (str): Augmentation mode. Options include 'ada',
                 'noaug', 'fixed'. Defaults to 'ada'.
             augpipe (str): Augmentation pipeline. Options include
                 'blit', 'geom', 'color', 'filter', 'noise', 'cutout', 'bg',
-                'bgc', 'bgcfnc'. Defaults to 'bgcfnc'.
+                'bgc', 'bgcfnc'. Only available for StyleGAN2.
+                Defaults to 'bgcfnc'.
             batch (int, optional): Override batch size set by `cfg`.
             cfg (str): StyleGAN2 base configuration. Options include
                 'auto', 'stylegan2', 'paper256', 'paper512', 'paper1024', and
@@ -1377,12 +1424,14 @@ class Project:
                 >>> P.gan_train(..., gpus=4)
         """
         # Validate the method and import the appropriate submodule
-        supported_models = ('stylegan2',)
+        supported_models = ('stylegan2', 'stylegan3')
         if model not in supported_models:
             raise ValueError(f"Unknown method '{model}'. Valid methods "
                              f"include: {', '.join(supported_models)}")
         if model == 'stylegan2':
-            from slideflow.gan import stylegan2 as network
+            from slideflow.gan.stylegan2 import stylegan2 as network
+        elif model == 'stylegan3':
+            from slideflow.gan.stylegan3 import stylegan3 as network  # type: ignore
         if metrics is not None:
             log.warn(
                 "StyleGAN2 metrics are not fully implemented for Slideflow."
@@ -1416,8 +1465,6 @@ class Project:
             slideflow=config_loc,
             cond=(outcomes is not None),
             mirror=mirror,
-            augpipe=augpipe,
-            allow_tf32=allow_tf32,
             metrics=metrics,
             **kwargs)
 
@@ -1485,7 +1532,7 @@ class Project:
                 ...     target_px=299,
                 ...     target_um=302)
         """
-        from slideflow.gan import stylegan2
+        from slideflow.gan.stylegan2 import stylegan2
 
         stylegan2.generate.generate_images(
             network_pkl,
@@ -1497,7 +1544,7 @@ class Project:
     @auto_dataset
     def generate_features(
         self,
-        model: Path,
+        model: str,
         *,
         dataset: Dataset,
         filters: Optional[Dict] = None,
@@ -1698,7 +1745,7 @@ class Project:
     @auto_dataset
     def generate_heatmaps(
         self,
-        model: Path,
+        model: str,
         *,
         dataset: Dataset,
         filters: Optional[Dict] = None,
@@ -2038,7 +2085,7 @@ class Project:
         header_y: str,
         *,
         dataset: Dataset,
-        model: Optional[Path] = None,
+        model: Optional[str] = None,
         outcomes: Optional[Union[str, List[str]]] = None,
         max_tiles: int = 100,
         use_optimal_tile: bool = False,
@@ -2301,7 +2348,7 @@ class Project:
             dataset.update_manifest()
         return dataset
 
-    def load_project(self, path: Path) -> None:
+    def load_project(self, path: str) -> None:
         """Loads a saved and pre-configured project from the specified path."""
 
         # Enable logging
@@ -2313,13 +2360,13 @@ class Project:
     @auto_dataset
     def predict(
         self,
-        model: Path,
+        model: str,
         *,
         dataset: Dataset,
         filters: Optional[Dict] = None,
         filter_blank: Optional[Union[str, List[str]]] = None,
         min_tiles: int = 0,
-        checkpoint: Optional[Path] = None,
+        checkpoint: Optional[str] = None,
         eval_k_fold: Optional[int] = None,
         splits: str = "splits.json",
         max_tiles: int = 0,
@@ -2327,6 +2374,8 @@ class Project:
         format: str = 'csv',
         input_header: Optional[Union[str, List[str]]] = None,
         mixed_precision: bool = True,
+        allow_tf32: bool = False,
+        load_method: str = 'full',
         **kwargs: Any
     ) -> "pd.DataFrame":
         """Evaluates a saved model on a given set of tfrecords.
@@ -2364,6 +2413,16 @@ class Project:
                 additional input. Defaults to None.
             mixed_precision (bool, optional): Enable mixed precision.
                 Defaults to True.
+            allow_tf32 (bool): Allow internal use of Tensorfloat-32 format.
+                Defaults to False.
+            load_method (str): Either 'full' or 'weights'. Method to use
+                when loading a Tensorflow model. If 'full', loads the model with
+                ``tf.keras.models.load_model()``. If 'weights', will read the
+                ``params.json``configuration file, build the model architecture,
+                and then load weights from the given model with
+                ``Model.load_weights()``. Loading with 'full' may improve
+                compatibility across Slideflow versions. Loading with 'weights'
+                may improve compatibility across hardware & environments.
 
         Returns:
             Dictionary of predictions dataframes, with the keys 'tile', 'slide',
@@ -2380,7 +2439,9 @@ class Project:
             splits=splits,
             max_tiles=max_tiles,
             input_header=input_header,
-            mixed_precision=mixed_precision
+            mixed_precision=mixed_precision,
+            allow_tf32=allow_tf32,
+            load_method=load_method
         )
         results = trainer.predict(
             dataset=eval_dts,
@@ -2393,8 +2454,8 @@ class Project:
     @auto_dataset
     def predict_wsi(
         self,
-        model: Path,
-        outdir: Path,
+        model: str,
+        outdir: str,
         *,
         dataset: Dataset,
         filters: Optional[Dict] = None,
@@ -2698,6 +2759,8 @@ class Project:
         max_tiles: int = 0,
         splits: str = "splits.json",
         mixed_precision: bool = True,
+        allow_tf32: bool = False,
+        load_method: str = 'full',
         balance_headers: Optional[Union[str, List[str]]] = None,
         **training_kwargs: Any
     ) -> Dict:
@@ -2729,6 +2792,16 @@ class Project:
                 Defaults to "splits.json".
             mixed_precision (bool, optional): Enable mixed precision.
                 Defaults to True.
+            allow_tf32 (bool): Allow internal use of Tensorfloat-32 format.
+                Defaults to False.
+            load_method (str): Either 'full' or 'weights'. Method to use
+                when loading a Tensorflow model. If 'full', loads the model with
+                ``tf.keras.models.load_model()``. If 'weights', will read the
+                ``params.json``configuration file, build the model architecture,
+                and then load weights from the given model with
+                ``Model.load_weights()``. Loading with 'full' may improve
+                compatibility across Slideflow versions. Loading with 'weights'
+                may improve compatibility across hardware & environments.
             balance_headers (str or list(str)): Annotation header(s) specifying
                 labels on which to perform mini-batch balancing. If performing
                 category-level balancing and this is set to None, will default
@@ -2864,7 +2937,7 @@ class Project:
         # Next, prepare the multiprocessing manager (needed to free VRAM after
         # training and keep track of results)
         manager = multiprocessing.Manager()
-        results_dict = manager.dict()  # type: Dict
+        results_dict = manager.dict()
         ctx = multiprocessing.get_context('spawn')
 
         # === Train with a set of hyperparameters =============================
@@ -2883,10 +2956,12 @@ class Project:
                 min_tiles=min_tiles,
                 max_tiles=max_tiles,
                 mixed_precision=mixed_precision,
+                allow_tf32=allow_tf32,
                 splits=splits,
                 balance_headers=balance_headers,
                 training_kwargs=training_kwargs,
-                results_dict=results_dict
+                results_dict=results_dict,
+                load_method=load_method
             )
         # Print summary of all models
         log.info('Training complete; validation accuracies:')
@@ -2914,7 +2989,7 @@ class Project:
     def train_clam(
         self,
         exp_name: str,
-        pt_files: Path,
+        pt_files: str,
         outcomes: Union[str, List[str]],
         dataset: Dataset,
         train_slides: Union[str, List[str]] = 'auto',

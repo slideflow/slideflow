@@ -11,6 +11,7 @@ from typing import (TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple,
 
 import numpy as np
 import pretrainedmodels
+import multiprocessing as mp
 import slideflow as sf
 import slideflow.util.neptune_utils
 import torchvision
@@ -19,7 +20,7 @@ from slideflow import errors
 from slideflow.model import base as _base
 from slideflow.model import torch_utils
 from slideflow.model.base import log_manifest, no_scope
-from slideflow.util import log, NormFit, Path, ImgBatchSpeedColumn
+from slideflow.util import log, NormFit, ImgBatchSpeedColumn
 from rich.progress import Progress, TimeElapsedColumn
 from packaging import version
 
@@ -325,9 +326,9 @@ class ModelParams(_base._ModelParams):
             if 'image_size' in model_kw:
                 call_kw.update(dict(image_size=self.tile_px))
             if version.parse(torchvision.__version__) >= version.parse("0.13"):
-                call_kw.update(dict(weights=pretrain))
+                call_kw.update(dict(weights=pretrain))  # type: ignore
             else:
-                call_kw.update(dict(pretrained=pretrain))
+                call_kw.update(dict(pretrained=pretrain))  # type: ignore
             _model = model_fn(**call_kw)
 
         # Add final layers to models
@@ -385,10 +386,12 @@ class Trainer:
         feature_names: Optional[List[str]] = None,
         outcome_names: Optional[List[str]] = None,
         mixed_precision: bool = True,
+        allow_tf32: bool = False,
         config: Dict[str, Any] = None,
         use_neptune: bool = False,
         neptune_api: Optional[str] = None,
-        neptune_workspace: Optional[str] = None
+        neptune_workspace: Optional[str] = None,
+        load_method: str = 'full'
     ):
         """Sets base configuration, preparing model inputs and outputs.
 
@@ -414,6 +417,8 @@ class Trainer:
                 "Outcome {X}" for each outcome.
             mixed_precision (bool, optional): Use FP16 mixed precision (rather
                 than FP32). Defaults to True.
+            allow_tf32 (bool): Allow internal use of Tensorfloat-32 format.
+                Defaults to False.
             config (dict, optional): Training configuration dictionary, used
                 for logging and image format verification. Defaults to None.
             use_neptune (bool, optional): Use Neptune API logging.
@@ -422,6 +427,12 @@ class Trainer:
                 Defaults to None.
             neptune_workspace (str, optional): Neptune workspace.
                 Defaults to None.
+            load_method (str): Loading method to use when reading model.
+                This argument is ignored in the PyTorch backend, as all models
+                are loaded by first building the model with hyperparameters
+                detected in ``params.json``, then loading weights with
+                ``torch.nn.Module.load_state_dict()``. Defaults to
+                'full' (ignored).
         """
         self.hp = hp
         self.outdir = outdir
@@ -433,11 +444,17 @@ class Trainer:
         self.inference_model = None  # type: Optional[torch.nn.Module]
         self.mixed_precision = mixed_precision
         self.device = torch.device('cuda:0')
-        self.mid_train_val_dts: Optional[Iterable]
+        self.mid_train_val_dts: Optional[Iterable] = None
         self.loss_fn: torch.nn.modules.loss._Loss
         self.use_tensorboard: bool
         self.writer: SummaryWriter
         self._reset_training_params()
+
+        # Enable or disable Tensorflow-32
+        # Allows PyTorch to internally use tf32 for matmul and convolutions
+        torch.backends.cuda.matmul.allow_tf32 = allow_tf32
+        torch.backends.cudnn.allow_tf32 = allow_tf32  # type: ignore
+        self._allow_tf32 = allow_tf32
 
         # Slide-level input args
         if slide_input:
@@ -708,7 +725,9 @@ class Trainer:
         epoch_results = {}
 
         # Preparations for calculating accuracy/loss in metrics_from_dataset()
-        def update_corrects(pred, labels, running_corrects):
+        def update_corrects(pred, labels, running_corrects=None):
+            if running_corrects is None:
+                running_corrects = self._empty_corrects()
             if self.hp.model_type() == 'categorical':
                 labels = self._labels_to_device(labels, self.device)
                 return self._update_corrects(pred, labels, running_corrects)
@@ -720,15 +739,11 @@ class Trainer:
             loss = self._calculate_loss(pred, labels, self.loss_fn)
             return running_loss + (loss.item() * size)
 
-        _running_corrects = self._empty_corrects()
-        pred_args = types.SimpleNamespace(
-            multi_outcome=(self.num_outcomes > 1),
+        torch_args = types.SimpleNamespace(
             update_corrects=update_corrects,
             update_loss=update_loss,
-            running_corrects=_running_corrects,
             num_slide_features=self.num_slide_features,
             slide_input=self.slide_input,
-            uq=bool(self.hp.uq)
         )
         # Calculate patient/slide/tile metrics (AUC, R-squared, C-index, etc)
         metrics, acc, loss = sf.stats.metrics_from_dataset(
@@ -739,8 +754,8 @@ class Trainer:
             data_dir=self.outdir,
             outcome_names=self.outcome_names,
             neptune_run=self.neptune_run,
-            pred_args=pred_args,
-            incl_loc=True,
+            torch_args=torch_args,
+            uq=bool(self.hp.uq),
             **kwargs
         )
         loss_and_acc = {'loss': loss}
@@ -981,7 +996,7 @@ class Trainer:
         running_val_correct = self._empty_corrects()
 
         for _ in range(self.validation_steps):
-            val_img, val_label, slides, *_ = next(self.mid_train_val_dts)
+            val_img, val_label, slides, *_ = next(self.mid_train_val_dts)  # type:ignore
             val_img = val_img.to(self.device)
 
             with torch.no_grad():
@@ -1102,17 +1117,31 @@ class Trainer:
     def _save_model(self) -> None:
         assert self.model is not None
         name = self.name if self.name else 'trained_model'
-        save_path = os.path.join(self.outdir, f'{name}_epoch{self.epoch}')
+        save_path = os.path.join(self.outdir, f'{name}_epoch{self.epoch}.zip')
         torch.save(self.model.state_dict(), save_path)
         log.info(f"Model saved to [green]{save_path}[/")
+
+    def _close_dataloaders(self):
+        """Close dataloaders, ensuring threads have joined."""
+        del self.mid_train_val_dts
+        for name, d in self.dataloaders.items():
+            if '_dataset' in dir(d):
+                log.debug(f"Closing dataloader {name} via _dataset.close()")
+                d._dataset.close()
+            elif 'dataset' in dir(d):
+                log.debug(f"Closing dataloader {name} via dataset.close()")
+                d.dataset.close()
 
     def _setup_dataloaders(
         self,
         train_dts: Optional["sf.Dataset"],
         val_dts: Optional["sf.Dataset"],
         mid_train_val: bool = False,
-        incl_labels: bool = True
+        incl_labels: bool = True,
+        from_wsi: bool = False,
+        **kwargs
     ) -> None:
+        """Prepare dataloaders from training and validation."""
         interleave_args = types.SimpleNamespace(
             rank=0,
             num_replicas=1,
@@ -1120,10 +1149,12 @@ class Trainer:
             chunk_size=8,
             normalizer=self.normalizer,
             pin_memory=True,
-            num_workers=4,
+            num_workers=4 if not from_wsi else 0,
             onehot=False,
             incl_slidenames=True,
-            device=self.device
+            device=self.device,
+            from_wsi=from_wsi,
+            **kwargs
         )
 
         if train_dts is not None:
@@ -1149,7 +1180,10 @@ class Trainer:
                 **vars(interleave_args)
             )
             # Mid-training validation dataset
-            self.mid_train_val_dts = torch_utils.cycle(self.dataloaders['val'])
+            if mid_train_val:
+                self.mid_train_val_dts = torch_utils.cycle(
+                    self.dataloaders['val']
+                )
             if not self.validate_on_batch:
                 val_log_msg = ''
             else:
@@ -1164,7 +1198,6 @@ class Trainer:
             else:
                 log.debug('Using entire validation set each validation check')
         else:
-            self.mid_train_val_dts = None  # type: ignore
             log.debug('Validation during training: None')
 
     def _training_step(self, pb: Progress) -> None:
@@ -1214,10 +1247,10 @@ class Trainer:
             train_acc, acc_desc = 0, ''  # type: ignore
         self.running_loss += loss.item() * images.size(0)
         _loss = self.running_loss / self.epoch_records
-        pb.update(task_id=0,
+        pb.update(task_id=0,  # type: ignore
                   description=(f'[bold blue]train[/] '
                                f'loss: {_loss:.4f} {acc_desc}'))
-        pb.advance(task_id=0)
+        pb.advance(task_id=0)  # type: ignore
 
         # Log to tensorboard
         if self.use_tensorboard and self.global_step % self.log_frequency == 0:
@@ -1307,7 +1340,9 @@ class Trainer:
         dataset: "sf.Dataset",
         batch_size: Optional[int] = None,
         norm_fit: Optional[NormFit] = None,
-        format: str = 'parquet'
+        format: str = 'parquet',
+        from_wsi: bool = False,
+        roi_method: str = 'auto',
     ) -> "pd.DataFrame":
         """Perform inference on a model, saving predictions.
 
@@ -1322,6 +1357,18 @@ class Trainer:
                 model params (if applicable). Defaults to None.
             format (str, optional): Format in which to save predictions. Either
                 'csv', 'feather', or 'parquet'. Defaults to 'parquet'.
+            from_wsi (bool): Generate predictions from tiles dynamically
+                extracted from whole-slide images, rather than TFRecords.
+                Defaults to False (use TFRecords).
+            roi_method (str): ROI method to use if from_wsi=True (ignored if
+                from_wsi=False).  Either 'inside', 'outside', 'auto', 'ignore'.
+                If 'inside' or 'outside', will extract tiles in/out of an ROI,
+                and raise errors.MissingROIError if an ROI is not available.
+                If 'auto', will extract tiles inside an ROI if available,
+                and across the whole-slide if no ROI is found.
+                If 'ignore', will extract tiles across the whole-slide
+                regardless of whether an ROI is available.
+                Defaults to 'auto'.
 
         Returns:
             pandas.DataFrame of tile-level predictions.
@@ -1343,29 +1390,39 @@ class Trainer:
         self.model.eval()
         self._log_manifest(None, dataset, labels=None)
 
+        if from_wsi:
+            pool = mp.Pool(os.cpu_count() if os.cpu_count() else 8)
+        else:
+            pool = None
         if not batch_size:
             batch_size = self.hp.batch_size
-        self._setup_dataloaders(None, dataset, incl_labels=False)
-        # Generate predictions
+
+        self._setup_dataloaders(
+            train_dts=None,
+            val_dts=dataset,
+            incl_labels=False,
+            from_wsi=from_wsi,
+            roi_method=roi_method,
+            pool=pool,)
+
         log.info('Generating predictions...')
-        pred_args = types.SimpleNamespace(
-            uq=bool(self.hp.uq),
-            multi_outcome=(self.num_outcomes > 1),
+        torch_args = types.SimpleNamespace(
             num_slide_features=self.num_slide_features,
             slide_input=self.slide_input
         )
-        dfs = sf.stats.predict_from_dataset(
+        dfs = sf.stats.predict_dataset(
             model=self.model,
             dataset=self.dataloaders['val'],
             model_type=self._model_type,
-            pred_args=pred_args,
+            torch_args=torch_args,
             outcome_names=self.outcome_names,
-            incl_loc=True
+            uq=bool(self.hp.uq),
         )
-
         # Save predictions
         sf.stats.metrics.save_dfs(dfs, format=format, outdir=self.outdir)
-
+        self._close_dataloaders()
+        if pool is not None:
+            pool.close()
         return dfs
 
     def evaluate(
@@ -1375,7 +1432,9 @@ class Trainer:
         save_predictions: Union[bool, str] = 'parquet',
         reduce_method: str = 'average',
         norm_fit: Optional[NormFit] = None,
-        uq: Union[bool, str] = 'auto'
+        uq: Union[bool, str] = 'auto',
+        from_wsi: bool = False,
+        roi_method: str = 'auto',
     ):
         """Evaluate model, saving metrics and predictions.
 
@@ -1399,6 +1458,18 @@ class Trainer:
                 model params (if applicable). Defaults to None.
             uq (bool or str, optional): Enable UQ estimation (for
                 applicable models). Defaults to 'auto'.
+            from_wsi (bool): Generate predictions from tiles dynamically
+                extracted from whole-slide images, rather than TFRecords.
+                Defaults to False (use TFRecords).
+            roi_method (str): ROI method to use if from_wsi=True (ignored if
+                from_wsi=False).  Either 'inside', 'outside', 'auto', 'ignore'.
+                If 'inside' or 'outside', will extract tiles in/out of an ROI,
+                and raise errors.MissingROIError if an ROI is not available.
+                If 'auto', will extract tiles inside an ROI if available,
+                and across the whole-slide if no ROI is found.
+                If 'ignore', will extract tiles across the whole-slide
+                regardless of whether an ROI is available.
+                Defaults to 'auto'.
 
         Returns:
             Dictionary of evaluation metrics.
@@ -1411,6 +1482,10 @@ class Trainer:
             self.validation_batch_size = batch_size
         if not self.model:
             raise errors.ModelNotLoadedError
+        if from_wsi:
+            pool = mp.Pool(os.cpu_count() if os.cpu_count() else 8)
+        else:
+            pool = None
 
         self._verify_img_format(dataset)
         self._fit_normalizer(norm_fit)
@@ -1419,13 +1494,19 @@ class Trainer:
         self.loss_fn = self.hp.get_loss()
         self._log_manifest(None, dataset)
         self._prepare_neptune_run(dataset, 'eval')
-        self._setup_dataloaders(None, val_dts=dataset)
+        self._setup_dataloaders(
+            train_dts=None,
+            val_dts=dataset,
+            from_wsi=from_wsi,
+            roi_method=roi_method,
+            pool=pool)
 
         # Generate performance metrics
         log.info('Performing evaluation...')
         metrics = self._val_metrics(
             label='eval',
-            reduce_method=reduce_method
+            reduce_method=reduce_method,
+            save_predictions=save_predictions
         )
         results = {'eval': {
             k: v for k, v in metrics.items() if k != 'val_metrics'
@@ -1439,6 +1520,9 @@ class Trainer:
         if self.neptune_run:
             self.neptune_run['eval/results'] = results['eval']
             self.neptune_run.stop()
+        self._close_dataloaders()
+        if pool is not None:
+            pool.close()
         return results
 
     def train(
@@ -1462,7 +1546,9 @@ class Trainer:
         multi_gpu: bool = False,
         norm_fit: Optional[NormFit] = None,
         reduce_method: str = 'average',
-        seed: int = 0
+        seed: int = 0,
+        from_wsi: bool = False,
+        roi_method: str = 'auto',
     ) -> Dict[str, Any]:
         """Builds and trains a model from hyperparameters.
 
@@ -1511,6 +1597,19 @@ class Trainer:
                 average of each logit across tiles. If 'proportion', will convert
                 tile predictions into onehot encoding then reduce by averaging
                 these onehot values. Defaults to 'average'.
+            seed (int): Set numpy random seed. Defaults to 0.
+            from_wsi (bool): Generate predictions from tiles dynamically
+                extracted from whole-slide images, rather than TFRecords.
+                Defaults to False (use TFRecords).
+            roi_method (str): ROI method to use if from_wsi=True (ignored if
+                from_wsi=False).  Either 'inside', 'outside', 'auto', 'ignore'.
+                If 'inside' or 'outside', will extract tiles in/out of an ROI,
+                and raise errors.MissingROIError if an ROI is not available.
+                If 'auto', will extract tiles inside an ROI if available,
+                and across the whole-slide if no ROI is found.
+                If 'ignore', will extract tiles across the whole-slide
+                regardless of whether an ROI is available.
+                Defaults to 'auto'.
 
         Returns:
             Dict:   Nested dict containing metrics for each evaluated epoch.
@@ -1531,13 +1630,13 @@ class Trainer:
         self.use_tensorboard = use_tensorboard
         self.log_frequency = log_frequency
 
+        if from_wsi:
+            pool = mp.Pool(os.cpu_count() if os.cpu_count() else 8)
+        else:
+            pool = None
+
         # Validate early stopping parameters
         self._validate_early_stop()
-
-        # Enable TF32 (should be enabled by default)
-        # Allow PyTorch to internally use tf32 for matmul and convolutions
-        torch.backends.cuda.matmul.allow_tf32 = True
-        torch.backends.cudnn.allow_tf32 = True  # type: ignore
 
         # Fit normalizer to dataset, if applicable
         self._fit_normalizer(norm_fit)
@@ -1584,7 +1683,13 @@ class Trainer:
         self.model = self.model.to(self.device)
 
         # Setup dataloaders
-        self._setup_dataloaders(train_dts, val_dts, mid_train_val=True)
+        self._setup_dataloaders(
+            train_dts=train_dts,
+            val_dts=val_dts,
+            mid_train_val=True,
+            roi_method=roi_method,
+            from_wsi=from_wsi,
+            pool=pool)
 
         # Model parameters and optimizer
         self._prepare_optimizers_and_loss()
@@ -1655,6 +1760,9 @@ class Trainer:
         if self.neptune_run:
             self.neptune_run['sys/tags'].add('training_complete')
             self.neptune_run.stop()
+        self._close_dataloaders()
+        if pool is not None:
+            pool.close()
         return results
 
 
@@ -1729,12 +1837,14 @@ class Features:
 
     def __init__(
         self,
-        path: Optional[Path],
+        path: Optional[str],
         layers: Optional[Union[str, List[str]]] = 'postconv',
         include_logits: bool = False,
         mixed_precision: bool = True,
         device: Optional[torch.device] = None,
-        apply_softmax: bool = True
+        apply_softmax: bool = True,
+        pooling: Optional[Any] = None,
+        load_method: str = 'full',
     ):
         """Creates an activations interface from a saved slideflow model which
         outputs feature activations at the designated layers.
@@ -1755,6 +1865,15 @@ class Features:
                 Defaults to torch.device('cuda')
             apply_softmax (bool): Apply softmax transformation to model output.
                 Defaults to True.
+            pooling (Callable or str, optional): PyTorch pooling function to use
+                on feature layers. May be a string ('avg' or 'max') or a
+                callable PyTorch function.
+            load_method (str): Loading method to use when reading model.
+                This argument is ignored in the PyTorch backend, as all models
+                are loaded by first building the model with hyperparameters
+                detected in ``params.json``, then loading weights with
+                ``torch.nn.Module.load_state_dict()``. Defaults to
+                'full' (ignored).
         """
 
         if layers and isinstance(layers, str):
@@ -1792,7 +1911,7 @@ class Features:
                 self.model_type = self._model.model.__class__.__name__
             else:
                 self.model_type = self._model.__class__.__name__
-            self._build()
+            self._build(pooling=pooling)
 
     @classmethod
     def from_model(
@@ -1803,7 +1922,8 @@ class Features:
         include_logits: bool = False,
         mixed_precision: bool = True,
         wsi_normalizer: Optional["StainNormalizer"] = None,
-        apply_softmax: bool = True
+        apply_softmax: bool = True,
+        pooling: Optional[Any] = None
     ):
         """Creates an activations interface from a loaded slideflow model which
         outputs feature activations at the designated layers.
@@ -1819,13 +1939,16 @@ class Features:
                 via 'postconv'. Defaults to 'postconv'.
             include_logits (bool, optional): Include logits in output. Will be
                 returned last. Defaults to False.
+            mixed_precision (bool, optional): Use mixed precision.
+                Defaults to True.
             wsi_normalizer (:class:`slideflow.norm.StainNormalizer`): Stain
                 normalizer to use on whole-slide images. Is not used on
                 individual tile datasets via __call__. Defaults to None.
-            device (:class:`torch.device`, optional): Device for model.
-                Defaults to torch.device('cuda')
             apply_softmax (bool): Apply softmax transformation to model output.
                 Defaults to True.
+            pooling (Callable or str, optional): PyTorch pooling function to use
+                on feature layers. May be a string ('avg' or 'max') or a
+                callable PyTorch function.
         """
         device = next(model.parameters()).device
         obj = cls(None, layers, include_logits, mixed_precision, device)
@@ -1842,7 +1965,7 @@ class Features:
         obj.tile_px = tile_px
         obj.wsi_normalizer = wsi_normalizer
         obj.apply_softmax = apply_softmax
-        obj._build()
+        obj._build(pooling=pooling)
         return obj
 
     def __call__(
@@ -1865,6 +1988,9 @@ class Features:
         img_format: str = 'auto',
         batch_size: int = 32,
         dtype: type = np.float16,
+        grid: Optional[np.ndarray] = None,
+        shuffle: bool = False,
+        show_progress: bool = True,
         **kwargs
     ) -> Optional[np.ndarray]:
         """Generate activations from slide => activation grid array."""
@@ -1879,12 +2005,23 @@ class Features:
         elif img_format == 'auto':
             assert self.img_format is not None
             img_format = self.img_format
+        if img_format == 'png':  # PNG is lossless; this is equivalent but faster
+            log.debug("Using numpy image format instead of PNG")
+            img_format = 'numpy'
         total_out = self.num_features + self.num_logits
-        zeros_shape = (slide.grid.shape[1], slide.grid.shape[0], total_out)
-        features_grid = np.zeros(zeros_shape, dtype=dtype)
+        if grid is None:
+            features_grid = np.ones((
+                    slide.grid.shape[1],
+                    slide.grid.shape[0],
+                    total_out),
+                dtype=dtype)
+            features_grid *= -1
+        else:
+            assert grid.shape == (slide.grid.shape[1], slide.grid.shape[0], total_out)
+            features_grid = grid
         generator = slide.build_generator(
-            shuffle=False,
-            show_progress=True,
+            shuffle=shuffle,
+            show_progress=show_progress,
             img_format=img_format,
             **kwargs)
         if not generator:
@@ -1899,9 +2036,13 @@ class Features:
             def __iter__(self):
                 for image_dict in generator():
                     img = image_dict['image']
-                    np_data = torch.from_numpy(np.fromstring(img,
-                                                             dtype=np.uint8))
-                    img = torchvision.io.decode_image(np_data)
+                    if img_format not in ('numpy', 'png'):
+                        np_data = torch.from_numpy(
+                            np.fromstring(img, dtype=np.uint8))
+                        img = torchvision.io.decode_image(np_data)
+                    else:
+                        img = torch.from_numpy(img).permute(2, 0, 1)
+
                     if self.parent.wsi_normalizer:
                         img = img.permute(1, 2, 0)  # CWH => WHC
                         img = torch.from_numpy(
@@ -1914,8 +2055,7 @@ class Features:
 
         tile_dataset = torch.utils.data.DataLoader(
             SlideIterator(self),
-            batch_size=batch_size
-        )
+            batch_size=batch_size)
 
         for i, (batch_images, batch_loc) in enumerate(tile_dataset):
             model_out = sf.util.as_list(self._predict(batch_images))
@@ -1993,16 +2133,37 @@ class Features:
             return squeeze(pool(output))
         return output
 
-    def _build(self) -> None:
+    def _build(self, pooling: Optional[Any] = None) -> None:
         """Builds the interface model that outputs feature activations at the
         designated layers and/or logits. Intermediate layers are returned in
-        the order of layers. Logits are returned last."""
+        the order of layers. Logits are returned last.
+
+        Args:
+            pooling (Callable or str, optional): PyTorch pooling function to use
+                on feature layers. May be a string ('avg' or 'max') or a
+                callable PyTorch function.
+        """
+
+        if isinstance(pooling, str):
+            if pooling == 'avg':
+                pooling = lambda x: torch.nn.functional.adaptive_avg_pool2d(x, (1, 1))
+            elif pooling == 'max':
+                pooling = lambda x: torch.nn.functional.adaptive_max_pool2d(x, (1, 1))
+            else:
+                raise ValueError(f"Unrecognized pooling value {pooling}. "
+                                 "Expected 'avg', 'max', or custom Tensor op.")
 
         self.activation = {}
 
+        def squeeze(x):
+            return x.view(x.size(0), -1)
+
         def get_activation(name):
             def hook(model, input, output):
-                self.activation[name] = output.detach()
+                if len(output.shape) == 4 and pooling is not None:
+                    self.activation[name] = squeeze(pooling(output)).detach()
+                else:
+                    self.activation[name] = output.detach()
             return hook
 
         if isinstance(self.layers, list):
@@ -2051,9 +2212,17 @@ def load(path):
     """
     config = sf.util.get_model_config(path)
     hp = ModelParams.from_dict(config['hp'])
+    if len(config['outcomes']) == 1:
+        num_classes = len(list(config['outcome_labels'].keys()))
+    else:
+        num_classes = {
+            outcome: len(list(config['outcome_labels'][outcome].keys()))
+            for outcome in config['outcomes']
+        }
     model = hp.build_model(
-        num_classes=len(list(config['outcome_labels'].keys())),
-        num_slide_features=0 if not config['input_feature_sizes'] else sum(config['input_feature_sizes'])
+        num_classes=num_classes,
+        num_slide_features=0 if not config['input_feature_sizes'] else sum(config['input_feature_sizes']),
+        pretrain=None
     )
     model.load_state_dict(torch.load(path))
     return model

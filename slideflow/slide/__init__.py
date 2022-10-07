@@ -21,7 +21,6 @@ from types import SimpleNamespace
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import cv2
-import matplotlib.colors as mcol
 import numpy as np
 import pandas as pd
 import rasterio.features
@@ -36,7 +35,7 @@ from skimage.color import rgb2gray
 from slideflow import errors
 from slideflow.slide.report import ExtractionPDF  # noqa F401
 from slideflow.slide.report import ExtractionReport, SlideReport
-from slideflow.util import SUPPORTED_FORMATS, Path  # noqa F401
+from slideflow.util import SUPPORTED_FORMATS  # noqa F401
 from slideflow.util import log, path_to_name  # noqa F401
 from rich.progress import Progress
 
@@ -59,6 +58,8 @@ DEFAULT_WHITESPACE_THRESHOLD = 230
 DEFAULT_WHITESPACE_FRACTION = 1.0
 DEFAULT_GRAYSPACE_THRESHOLD = 0.05
 DEFAULT_GRAYSPACE_FRACTION = 0.6
+FORCE_CALCULATE_WHITESPACE = -1
+FORCE_CALCULATE_GRAYSPACE = -1
 
 
 def OPS_LEVEL_HEIGHT(level: int) -> str:
@@ -214,13 +215,9 @@ def _wsi_extraction_worker(
     x_coord = int((x + args.full_extract_px / 2) / args.roi_scale)
     y_coord = int((y + args.full_extract_px / 2) / args.roi_scale)
 
-    # Skip tiles filtered out with QC or ROI
-    if not args.grid[grid_x, grid_y]:
-        return 'skip'
-
     # If downsampling is enabled, read image from highest level
     # to perform filtering; otherwise filter from our target level
-    slide = _VIPSWrapper(args.path, silent=True)
+    slide = args.vips_wrapper(args.path, args.mpp_override, args.vips_cache)
     if args.whitespace_fraction < 1 or args.grayspace_fraction < 1:
         if args.filter_downsample_ratio > 1:
             filter_extract_px = args.extract_px // args.filter_downsample_ratio
@@ -242,7 +239,8 @@ def _wsi_extraction_worker(
                 'more',
                 args.whitespace_threshold
             ).avg() / 255
-            if ws_fraction > args.whitespace_fraction:
+            if (ws_fraction > args.whitespace_fraction
+               and args.whitespace_fraction != FORCE_CALCULATE_WHITESPACE):
                 return None
 
         # Perform grayspace filtering [Libvips]
@@ -252,11 +250,12 @@ def _wsi_extraction_worker(
                 'less',
                 args.grayspace_threshold*255
             ).avg() / 255
-            if gs_fraction > args.grayspace_fraction:
+            if (gs_fraction > args.grayspace_fraction
+               and args.whitespace_fraction != FORCE_CALCULATE_WHITESPACE):
                 return None
 
     # Prepare return dict with WS/GS fraction
-    return_dict = {'loc': [x_coord, y_coord]}
+    return_dict = {'loc': [x_coord, y_coord]}  # type: Dict[str, Any]
     return_dict.update({'grid': [grid_x, grid_y]})
     if args.grayspace_fraction < 1:
         return_dict.update({'gs_fraction': gs_fraction})
@@ -405,16 +404,18 @@ def log_extraction_params(**kwargs) -> None:
 
 
 class _VIPSWrapper:
-    '''Wrapper for VIPS to preserve openslide-like functions.'''
 
-    def __init__(self, path: str, silent: bool = False) -> None:
+    def __init__(
+        self,
+        path: str,
+        mpp: Optional[float] = None,
+        cache_kw: Optional[Dict[str, Any]] = None
+    ) -> None:
+        '''Wrapper for VIPS to preserve openslide-like functions.'''
         self.path = path
-        self.full_image = vips.Image.new_from_file(
-            path,
-            fail=True,
-            access=vips.enums.Access.RANDOM
-        )
-        loaded_image = self.full_image
+        self.cache_kw = cache_kw if cache_kw else {}
+        self.loaded_downsample_levels = {}  # type: Dict[int, "vips.Image"]
+        loaded_image = self.load_downsample_level(0)
 
         # Load image properties
         self.properties = {}
@@ -425,26 +426,29 @@ class _VIPSWrapper:
             int(self.properties[OPS_HEIGHT])
         )
         # If Openslide MPP is not available, try reading from metadata
-        if OPS_MPP_X not in self.properties.keys():
+        if mpp is not None:
+            log.debug(f"Setting MPP to {mpp}")
+            self.properties[OPS_MPP_X] = mpp
+        elif OPS_MPP_X not in self.properties.keys():
             log.debug(
                 "Microns-Per-Pixel (MPP) not found, Searching EXIF"
             )
             try:
                 with Image.open(path) as img:
                     if TIF_EXIF_KEY_MPP in img.tag.keys():
-                        mpp = img.tag[TIF_EXIF_KEY_MPP][0]
+                        _mpp = img.tag[TIF_EXIF_KEY_MPP][0]
                         log.debug(
-                            f"Using MPP {mpp} per EXIF {TIF_EXIF_KEY_MPP}"
+                            f"Using MPP {_mpp} per EXIF {TIF_EXIF_KEY_MPP}"
                         )
-                        self.properties[OPS_MPP_X] = mpp
+                        self.properties[OPS_MPP_X] = _mpp
                     elif (sf.util.path_to_ext(path).lower() == 'svs'
                           and 'image-description' in loaded_image.get_fields()):
                           img_des = loaded_image.get('image-description')
                           _mpp = re.findall(r'(?<=MPP\s\=\s)0\.\d+', img_des)
                           if _mpp is not None:
                             log.debug(
-                                f"Using MPP {_mpp} from 'image-description' for"
-                                "SCN-converted SVS format"
+                                f"Using MPP {_mpp} from 'image-description' for SCN"
+                                "-converted SVS format"
                             )
                             self.properties[OPS_MPP_X] = _mpp[0]
                     elif (sf.util.path_to_ext(path).lower() in ('tif', 'tiff')
@@ -470,16 +474,14 @@ class _VIPSWrapper:
                             f"Missing Microns-Per-Pixel (MPP) for {name}"
                         )
             except AttributeError:
-                self.properties[OPS_MPP_X] = DEFAULT_JPG_MPP
+                mpp = DEFAULT_JPG_MPP
+                log.debug(f"Could not detect microns-per-pixel; using default {mpp}")
+                self.properties[OPS_MPP_X] = mpp
             except UnidentifiedImageError:
                 log.error(
                     f"PIL error; unable to read slide {path_to_name(path)}."
                 )
 
-        # Prepare downsample levels
-        self.loaded_downsample_levels = {
-            0: self.full_image,
-        }
         if OPS_LEVEL_COUNT in self.properties:
             self.level_count = int(self.properties[OPS_LEVEL_COUNT])
             # Calculate level metadata
@@ -505,8 +507,22 @@ class _VIPSWrapper:
         self.level_downsamples = [lev['downsample'] for lev in self.levels]
         self.level_dimensions = [lev['dimensions'] for lev in self.levels]
 
-    def best_level_for_downsample(self, downsample: float) -> int:
-        '''Return best level to match a given desired downsample.'''
+    def best_level_for_downsample(
+        self,
+        downsample: float,
+    ) -> int:
+        '''Return lowest magnification level with a downsample level lower than
+        the given target.
+
+        Args:
+            downsample (float): Ratio of target resolution to resolution
+                at the highest magnification level. The downsample level of the
+                highest magnification layer is equal to 1.
+            levels (list(int), optional): Valid levels to search. Defaults to
+                None (search all levels).
+
+        Returns:
+            int:    Optimal downsample level.'''
         max_downsample = 0
         for d in self.level_downsamples:
             if d < downsample:
@@ -514,8 +530,23 @@ class _VIPSWrapper:
         try:
             max_level = self.level_downsamples.index(max_downsample)
         except Exception:
+            log.debug(f"Error attempting to read level {max_downsample}")
             return 0
         return max_level
+
+    def load_downsample_level(self, level: int) -> "vips.Image":
+        downsampled_image = vips.Image.new_from_file(
+            self.path,
+            level=level,
+            fail=True,
+            access=vips.enums.Access.RANDOM
+        )
+        if self.cache_kw:
+            downsampled_image = downsampled_image.tilecache(**self.cache_kw)
+        self.loaded_downsample_levels.update({
+            level: downsampled_image
+        })
+        return downsampled_image
 
     def get_downsampled_image(self, level: int) -> "vips.Image":
         '''Returns a VIPS image of a given downsample.'''
@@ -523,16 +554,7 @@ class _VIPSWrapper:
             if level in self.loaded_downsample_levels:
                 return self.loaded_downsample_levels[level]
             else:
-                downsampled_image = vips.Image.new_from_file(
-                    self.path,
-                    level=level,
-                    fail=True,
-                    access=vips.enums.Access.RANDOM
-                )
-                self.loaded_downsample_levels.update({
-                    level: downsampled_image
-                })
-                return downsampled_image
+                return self.load_downsample_level(level)
         else:
             return False
 
@@ -542,7 +564,18 @@ class _VIPSWrapper:
         downsample_level: int,
         extract_size: Tuple[int, int]
     ) -> "vips.Image":
-        '''Extracts a region from the image at the given downsample level.'''
+        """Extracts a region from the image at the given downsample level.
+
+        Args:
+            base_level_dim (Tuple[int, int]): Top-left location of the region
+                to extract, using downsample layer coordinates (x, y)
+            downsample_level (int): Downsample level to read.
+            extract_size (Tuple[int, int]): Size of the region to read
+                (width, height) using base layer coordinates.
+
+        Returns:
+            vips.Image: VIPS image.
+        """
         base_level_x, base_level_y = base_level_dim
         extract_width, extract_height = extract_size
         downsample_factor = self.level_downsamples[downsample_level]
@@ -557,14 +590,58 @@ class _VIPSWrapper:
         )
         return region
 
+    def read_from_pyramid(
+        self,
+        top_left: Tuple[int, int],
+        window_size: Tuple[int, int],
+        target_size: Optional[Tuple[int, int]] = None,
+        target_downsample: Optional[float] = None,
+    ) -> "vips.Image":
+        """Reads a region from the image. Performance is accelerated by
+        pyramid downsample layers, if available.
+
+        Args:
+            top_left (Tuple[int, int]): Top-left location of the region to
+                extract, using base layer coordinates (x, y).
+            window_size (Tuple[int, int]): Size of the region to read (width,
+                height) using base layer coordinates.
+            target_size (Tuple[int, int]): Resize the region to this target
+                size (width, height).
+
+        Returns:
+            vips.Image: VIPS image. Dimensions will equal target_size unless
+            the window includes an area of the image which is out of bounds.
+            In this case, the returned image will be cropped.
+        """
+        if target_size is None and target_downsample is None:
+            raise ValueError("Must supply either target_size or "
+                             "target_downsample to read_from_pyramid()")
+        if target_downsample is None:
+            target_downsample = window_size[0] / target_size[0]
+
+        ds_level = self.best_level_for_downsample(target_downsample)
+        image = self.get_downsampled_image(ds_level)
+        resize_factor = self.level_downsamples[ds_level] / target_downsample
+        image = image.resize(resize_factor)
+
+        if target_size is not None:
+            return image.crop(
+                int(top_left[0] / target_downsample),
+                int(top_left[1] / target_downsample),
+                min(target_size[0], image.width),
+                min(target_size[1], image.height)
+            )
+        else:
+            return image
 
 class _JPGslideToVIPS(_VIPSWrapper):
     '''Wrapper for JPG files, which do not possess separate levels, to
     preserve openslide-like functions.'''
 
-    def __init__(self, path: str) -> None:
+    def __init__(self, path: str, mpp: Optional[float] = None, cache_kw = None) -> None:
         self.path = path
         self.full_image = vips.Image.new_from_file(path)
+        self.cache_kw = cache_kw if cache_kw else {}
         if not self.full_image.hasalpha():
             self.full_image = self.full_image.addalpha()
         self.properties = {}
@@ -588,19 +665,23 @@ class _JPGslideToVIPS(_VIPSWrapper):
         self.level_dimensions = [(width, height)]
 
         # MPP data
-        try:
-            with Image.open(path) as img:
-                if TIF_EXIF_KEY_MPP in img.tag.keys():
-                    mpp = img.tag[TIF_EXIF_KEY_MPP][0]
-                    log.info(f"Using MPP {mpp} per EXIF field {TIF_EXIF_KEY_MPP}")
-                    self.properties[OPS_MPP_X] = mpp
-                else:
-                    log.info(f"Setting MPP to default {DEFAULT_JPG_MPP}")
-                    self.properties[OPS_MPP_X] = DEFAULT_JPG_MPP
-        except AttributeError:
-            self.properties[OPS_MPP_X] = DEFAULT_JPG_MPP
-
-
+        if mpp is not None:
+            log.debug(f"Setting MPP to {mpp}")
+            self.properties[OPS_MPP_X] = mpp
+        else:
+            try:
+                with Image.open(path) as img:
+                    exif_data = img.getexif()
+                    if TIF_EXIF_KEY_MPP in exif_data.keys():
+                        _mpp = exif_data[TIF_EXIF_KEY_MPP]
+                        log.debug(f"Using MPP {_mpp} per EXIF field {TIF_EXIF_KEY_MPP}")
+                        self.properties[OPS_MPP_X] = _mpp
+                    else:
+                        raise AttributeError
+            except AttributeError:
+                mpp = DEFAULT_JPG_MPP
+                log.debug(f"Could not detect microns-per-pixel; using default {mpp}")
+                self.properties[OPS_MPP_X] = mpp
 class ROI:
     '''Object container for ROI annotations.'''
 
@@ -641,6 +722,8 @@ class _BaseLoader:
         stride_div: int,
         enable_downsample: bool = True,
         pb: Optional[Progress] = None,
+        mpp: Optional[float] = None,
+        vips_cache: Optional[Dict[str, Any]] = None
     ) -> None:
 
         self.pb = pb
@@ -658,24 +741,17 @@ class _BaseLoader:
         self.roi_scale = 1  # type: float
         self.roi_method = None  # type: Optional[str]
         self.annPolys = []  # type: ignore
-        filetype = sf.util.path_to_ext(path)
+        self.filetype = sf.util.path_to_ext(path)
+        self.__slide = None
+        self._mpp_override = mpp
+        self._vips_cache_kw = vips_cache
 
         # Initiate supported slide reader
         if not os.path.exists(path):
             raise errors.SlideNotFoundError(f"Could not find slide {path}.")
-        if filetype.lower() in sf.util.SUPPORTED_FORMATS:
-            if filetype.lower() in ('jpg', 'jpeg'):
-                self.slide = _JPGslideToVIPS(path)  # type: _VIPSWrapper
-            else:
-                try:
-                    self.slide = _VIPSWrapper(path)
-                except vips.error.Error as e:
-                    raise errors.SlideLoadError(
-                        f"Error loading slide {self.shortname}: {e}"
-                    )
-        else:
+        if self.filetype.lower() not in sf.util.SUPPORTED_FORMATS:
             raise errors.SlideLoadError(
-                f"{self.name}: unsupported filetype '{filetype}'"
+                f"{self.name}: unsupported filetype '{self.filetype}'"
             )
 
         # Collect basic slide information
@@ -737,6 +813,25 @@ class _BaseLoader:
         self.stride = self.extract_px // stride_div
         self.full_stride = self.full_extract_px // stride_div
 
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        # Remove the unpicklable entries.
+        if '__slide' in state:
+            state['__slide'] = None
+        if '_BaseLoader__slide' in state:
+            state['_BaseLoader__slide'] = None
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+
+    @property
+    def _vips_wrapper(self) -> Any:
+        if self.filetype.lower() in ('jpg', 'jpeg'):
+            return _JPGslideToVIPS
+        else:
+            return _VIPSWrapper
+
     @property
     def dimensions(self) -> Tuple[int, int]:
         return self.slide.dimensions
@@ -751,6 +846,22 @@ class _BaseLoader:
             return self.slide.properties[OPS_VENDOR]
         else:
             return None
+
+    @property
+    def slide(self) -> _VIPSWrapper:
+        if self.__slide is not None:
+            return self.__slide
+
+        try:
+            self.__slide = self._vips_wrapper(
+                self.path,
+                self._mpp_override,
+                self._vips_cache_kw)
+            return self.__slide  # type: ignore
+        except vips.error.Error as e:
+            raise errors.SlideLoadError(
+                f"Error loading slide {self.shortname}: {e}"
+            )
 
     def _build_coord(self):
         raise NotImplementedError
@@ -800,7 +911,6 @@ class _BaseLoader:
             raise errors.QCError(f"Unknown QC method {method}")
         starttime = time.time()
 
-        self.qc_mpp = blur_mpp
         self.qc_method = method
 
         # Blur QC must be performed at a set microns-per-pixel rather than
@@ -820,12 +930,11 @@ class _BaseLoader:
             gaussian = skimage.filters.gaussian(img_laplace, sigma=blur_radius)
             blur_mask = gaussian <= blur_threshold
             lev = self.slide.level_count - 1
-            qc_ratio = 1 / self.slide.level_downsamples[lev]
-            qc_ratio = self.mpp / blur_mpp
             self.qc_mask = blur_mask
 
         # Otsu's thresholding can be done on the lowest downsample level
         if method in ('otsu', 'both'):
+            lev = self.slide.level_count - 1
             if self._vips_wrapper == _JPGslideToVIPS:
                 otsu_thumb = vips.Image.new_from_file(self.path, fail=True)
             else:
@@ -833,7 +942,7 @@ class _BaseLoader:
                     self.path,
                     fail=True,
                     access=vips.enums.Access.RANDOM,
-                    level=self.slide.level_count-1
+                    level=lev
                 )
             try:
                 otsu_thumb = vips2numpy(otsu_thumb)
@@ -841,8 +950,6 @@ class _BaseLoader:
                 raise errors.QCError(
                     f"Thumbnail error for slide {self.shortname}, QC failed"
                 )
-            lev = self.slide.level_count-1
-            qc_ratio = 1 / self.slide.level_downsamples[lev]
             if otsu_thumb.shape[-1] == 4:
                 otsu_thumb = otsu_thumb[:, :, :3]
 
@@ -850,12 +957,12 @@ class _BaseLoader:
             if len(self.annPolys):
                 ofact = self.roi_scale / self.slide.level_downsamples[lev]
                 roi_mask = np.zeros((otsu_thumb.shape[0], otsu_thumb.shape[1]))
-                polys = [
+                scaled_polys = [
                     sa.scale(poly, xfact=ofact, yfact=ofact, origin=(0, 0))
                     for poly in self.annPolys
                 ]
                 roi_mask = rasterio.features.rasterize(
-                    polys,
+                    scaled_polys,
                     out_shape=otsu_thumb.shape[:2]
                 )
                 otsu_thumb = cv2.bitwise_or(
@@ -886,19 +993,36 @@ class _BaseLoader:
             log.debug(f"Blur burden: {self.blur_burden}")
 
         # Filter coordinates
-        assert self.qc_mask is not None
+        img = self.apply_qc_mask(self.qc_mask, filter_threshold=filter_threshold)
+        dur = f'(time: {time.time()-starttime:.2f}s)'
+        log.debug(f'QC ({method}) complete for slide {self.shortname} {dur}')
+        return img
+
+    def apply_qc_mask(
+        self,
+        mask: np.ndarray,
+        filter_threshold: float = 0.6,
+    ) -> Image:
+        """Apply custom slide-level QC by filtering grid coordinates."""
+
+        assert isinstance(mask, np.ndarray)
+        assert len(mask.shape) == 2
+        assert mask.dtype == bool
+
+        downsample = self.dimensions[0] / mask.shape[1]
+        qc_ratio = 1 / downsample
         qc_width = int(self.full_extract_px * qc_ratio)
         for i, (x, y, xi, yi) in enumerate(self.coord):  # type: ignore
             qc_x = int(x * qc_ratio)
             qc_y = int(y * qc_ratio)
-            submask = self.qc_mask[qc_y:(qc_y+qc_width), qc_x:(qc_x+qc_width)]
+            submask = mask[qc_y:(qc_y+qc_width), qc_x:(qc_x+qc_width)]
             if np.mean(submask) > filter_threshold:
                 self.grid[xi, yi] = 0
+
+        self.qc_mask = mask
+        self.qc_mpp = self.mpp * downsample
         self.estimated_num_tiles = int(self.grid.sum())
-        img = Image.fromarray(img_as_ubyte(self.qc_mask))
-        dur = f'(time: {time.time()-starttime:.2f}s)'
-        log.debug(f'QC ({method}) complete for slide {self.shortname} {dur}')
-        return img
+        return Image.fromarray(img_as_ubyte(self.qc_mask))
 
     def square_thumb(self, width: int = 512) -> Image.Image:
         '''Returns a square thumbnail of the slide, with black bar borders.
@@ -1040,8 +1164,8 @@ class _BaseLoader:
 
     def extract_tiles(
         self,
-        tfrecord_dir: Optional[Path] = None,
-        tiles_dir: Optional[Path] = None,
+        tfrecord_dir: Optional[str] = None,
+        tiles_dir: Optional[str] = None,
         img_format: str = 'jpg',
         report: bool = True,
         **kwargs
@@ -1087,15 +1211,16 @@ class _BaseLoader:
             dry_run (bool, optional): Determine tiles that would be extracted,
                 but do not export any images. Defaults to None.
         """
-
         if img_format not in ('png', 'jpg', 'jpeg'):
             raise ValueError(f"Invalid image format {img_format}")
 
+        dry_run = kwargs['dry_run'] if 'dry_run' in kwargs else False
+
         # Make base directories
-        if tfrecord_dir:
+        if tfrecord_dir and not dry_run:
             if not exists(tfrecord_dir):
                 os.makedirs(tfrecord_dir)
-        if tiles_dir:
+        if tiles_dir and not dry_run:
             tiles_dir = os.path.join(tiles_dir, self.name)
             if not os.path.exists(tiles_dir):
                 os.makedirs(tiles_dir)
@@ -1104,21 +1229,20 @@ class _BaseLoader:
         # To be used in case tile extraction is interrupted, so the slide
         # can be flagged for re-extraction
 
-        if tfrecord_dir or tiles_dir:
+        if (tfrecord_dir or tiles_dir) and not dry_run:
             unfinished_marker = join(
                 (tfrecord_dir if tfrecord_dir else tiles_dir),  # type: ignore
                 f'{self.name}.unfinished'
             )
             with open(unfinished_marker, 'w') as marker_file:
                 marker_file.write(' ')
-        if tfrecord_dir:
+        if tfrecord_dir and not dry_run:
             writer = sf.io.TFRecordWriter(join(
                 tfrecord_dir,
                 self.name+".tfrecords"
             ))
 
         generator = self.build_generator(
-            show_progress=False,#(self.pb is None),
             img_format=img_format,
             **kwargs
         )
@@ -1132,7 +1256,6 @@ class _BaseLoader:
         ws_fractions = []
         gs_fractions = []
         num_wrote_to_tfr = 0
-        dry_run = kwargs['dry_run'] if 'dry_run' in kwargs else False
         slidename_bytes = bytes(self.name, 'utf-8')
 
         for index, tile_dict in enumerate(generator_iterator):
@@ -1179,7 +1302,7 @@ class _BaseLoader:
                 )
                 writer.write(record)
                 num_wrote_to_tfr += 1
-        if tfrecord_dir:
+        if tfrecord_dir and not dry_run:
             writer.close()
             if not num_wrote_to_tfr:
                 os.remove(join(tfrecord_dir, self.name+".tfrecords"))
@@ -1187,25 +1310,25 @@ class _BaseLoader:
         if self.pb is None:
             generator_iterator.close()
 
-        if tfrecord_dir or tiles_dir:
+        if (tfrecord_dir or tiles_dir) and not dry_run:
             try:
                 os.remove(unfinished_marker)
             except OSError:
                 log.error(f"Unable to mark slide {self.name} as complete")
 
         # Assemble report DataFrame
-        loc_np = np.array(locations)
-        grid_np = np.array(grid_locations)
+        loc_np = np.array(locations, dtype=np.int64)
+        grid_np = np.array(grid_locations, dtype=np.int64)
         df_dict = {
-            'loc_x': loc_np[:, 0],
-            'loc_y': loc_np[:, 1],
-            'grid_x': grid_np[:, 0],
-            'grid_y': grid_np[:, 1]
+            'loc_x': [] if not len(loc_np) else pd.Series(loc_np[:, 0], dtype=int),
+            'loc_y': [] if not len(loc_np) else pd.Series(loc_np[:, 1], dtype=int),
+            'grid_x': [] if not len(grid_np) else pd.Series(grid_np[:, 0], dtype=int),
+            'grid_y': [] if not len(grid_np) else pd.Series(grid_np[:, 1], dtype=int)
         }
         if ws_fractions:
-            df_dict.update({'ws_fraction': ws_fractions})
+            df_dict.update({'ws_fraction': pd.Series(ws_fractions, dtype=float)})
         if gs_fractions:
-            df_dict.update({'gs_fraction': gs_fractions})
+            df_dict.update({'gs_fraction': pd.Series(gs_fractions, dtype=float)})
         df = pd.DataFrame(df_dict)
 
         # Generate extraction report
@@ -1282,12 +1405,14 @@ class WSI(_BaseLoader):
         tile_um: Union[int, str],
         stride_div: int = 1,
         enable_downsample: bool = True,
-        roi_dir: Optional[Path] = None,
+        roi_dir: Optional[str] = None,
         rois: Optional[List[str]] = None,
         roi_method: str = 'auto',
         randomize_origin: bool = False,
         pb: Optional[Progress] = None,
-        silent: bool = False
+        silent: Optional[bool] = None,
+        verbose: bool = True,
+        **kwargs
     ) -> None:
         """Loads slide and ROI(s).
 
@@ -1321,9 +1446,17 @@ class WSI(_BaseLoader):
             pb (:class:`Progress`, optional): Multiprocessing
                 capable Progress instance; will update progress bar during
                 tile extraction if provided.
-            silent (bool, optional): Suppresses warnings about slide skipping
-                if ROIs are missing. Defaults to False.
+            verbose (bool, optional): Controls verbosity of output. If False,
+                suppresses warnings about slide skipping when ROIs are missing.
+                Defaults to True.
+            mpp (float, optional): Override the microns-per-pixel value for
+                the slide. Defaults to None (auto-detects).
         """
+
+        if silent is not None:
+            warnings.warn("Argument `silent` is deprecated since 1.3 and will "
+                          "be removed in 1.4. Please use `verbose` instead.")
+            verbose = bool(not silent)
 
         super().__init__(
             path=path,
@@ -1331,7 +1464,8 @@ class WSI(_BaseLoader):
             tile_um=tile_um,
             stride_div=stride_div,
             enable_downsample=enable_downsample,
-            pb=pb
+            pb=pb,
+            **kwargs
         )
 
         # Initialize calculated variables
@@ -1343,6 +1477,7 @@ class WSI(_BaseLoader):
         self.rois = []  # type: List
         self.roi_method = roi_method
         self.randomize_origin = randomize_origin
+        self.verbose = verbose
 
         # Look in ROI directory if available
         if roi_dir and exists(join(roi_dir, self.name + ".csv")):
@@ -1372,7 +1507,7 @@ class WSI(_BaseLoader):
             # but the roi_method is not set to 'ignore',
             # indicating that this may be user error.
             warn_msg = f"No ROIs provided for {self.name}"
-            if not silent and not (rois is None and roi_dir is None):
+            if verbose and not (rois is None and roi_dir is None):
                 log.warning(warn_msg)
             else:
                 log.debug(warn_msg)
@@ -1382,7 +1517,7 @@ class WSI(_BaseLoader):
             )
         elif not len(self.rois):
             info_msg = f"No ROI for {self.name}, using whole slide."
-            if not silent and roi_method == 'auto':
+            if verbose and roi_method == 'auto':
                 log.info(info_msg)
             else:
                 log.debug(info_msg)
@@ -1452,6 +1587,9 @@ class WSI(_BaseLoader):
             (x, y, grid_x, grid_y),
             SimpleNamespace(
                 full_extract_px=self.full_extract_px,
+                vips_wrapper=self._vips_wrapper,
+                mpp_override=self._mpp_override,
+                vips_cache=self._vips_cache_kw,
                 roi_scale=self.roi_scale,
                 rois=self.rois,
                 grid=self.grid,
@@ -1469,7 +1607,7 @@ class WSI(_BaseLoader):
                 img_format='numpy',
                 yolo=False,
                 draw_roi=False,
-                dry_run=False
+                dry_run=False,
             )
         )
         return image_dict['image']
@@ -1502,18 +1640,43 @@ class WSI(_BaseLoader):
             (self.dimensions[0]+1) - self.full_extract_px,
             self.full_stride
         )
-        self.grid = np.ones((len(x_range), len(y_range)), dtype=np.int32)
+        self.grid = np.ones((len(x_range), len(y_range)), dtype=bool)
 
         # ROI filtering
         if self.roi_method != 'ignore' and self.annPolys is not None:
-            xfact = self.grid.shape[0] / (self.dimensions[0] / self.roi_scale)
-            yfact = self.grid.shape[1] / (self.dimensions[1] / self.roi_scale)
+
+            # Full extraction size and stride
+            full_extract = self.tile_um / self.mpp
+            stride = full_extract / self.stride_div
+
+            # Coverage size of the extracted image tiles
+            xtrim = int(stride * (self.grid.shape[0]))  # type: ignore
+            ytrim = int(stride * (self.grid.shape[1]))  # type: ignore
+
+            # Degree to which the ROIs will need to be scaled
+            # to match the extracted image tile grid
+            xfact = self.grid.shape[0] / (xtrim / self.roi_scale)
+            yfact = self.grid.shape[1] / (ytrim / self.roi_scale)
+
+            # Offset to align the ROI polygons with the image tile grid
+            x_offset = - (full_extract/2 - stride/2)
+            y_offset = - (full_extract/2 - stride/2)
+
+            # Translate and scale the ROI polygons
+            translated = [
+                sa.translate(poly, x_offset/self.roi_scale, y_offset/self.roi_scale)
+                for poly in self.annPolys
+            ]
             scaled = [
                 sa.scale(poly, xfact=xfact, yfact=yfact, origin=(0, 0))
-                for poly in self.annPolys]
+                for poly in translated
+            ]
+
+            # Rasterize polygons to the size of the tile extraction grid
             self.roi_mask = rasterio.features.rasterize(
                 scaled,
-                out_shape=(self.grid.shape[1], self.grid.shape[0])).astype(bool)
+                out_shape=(self.grid.shape[1], self.grid.shape[0]),
+                all_touched=False).astype(bool)
         else:
             self.roi_mask = None
 
@@ -1541,8 +1704,8 @@ class WSI(_BaseLoader):
 
     def extract_tiles(
         self,
-        tfrecord_dir: Optional[Path] = None,
-        tiles_dir: Optional[Path] = None,
+        tfrecord_dir: Optional[str] = None,
+        tiles_dir: Optional[str] = None,
         img_format: str = 'jpg',
         report: bool = True,
         **kwargs: Any
@@ -1607,13 +1770,17 @@ class WSI(_BaseLoader):
         normalizer: str = None,
         normalizer_source: str = None,
         num_threads: Optional[int] = None,
+        num_processes: Optional[int] = None,
         show_progress: bool = False,
         img_format: str = 'numpy',
         full_core: bool = False,
         yolo: bool = False,
         draw_roi: bool = False,
         pool: Optional["mp.pool.Pool"] = None,
-        dry_run: bool = False
+        dry_run: bool = False,
+        lazy_iter: bool = False,
+        shard: Optional[Tuple[int, int]] = None,
+        max_tiles: Optional[int] = None
     ) -> Optional[Callable]:
         """Builds tile generator to extract tiles from this slide.
 
@@ -1645,6 +1812,8 @@ class WSI(_BaseLoader):
                 Defaults to False.
             dry_run (bool, optional): Determine tiles that would be extracted,
                 but do not export any images. Defaults to None.
+            max_tiles (int, optional): Only extract this many tiles per slide.
+                Defaults to None.
 
         Returns:
             dict: Dict with keys 'image' (image data), 'yolo' (optional
@@ -1652,21 +1821,24 @@ class WSI(_BaseLoader):
             width, height)) and 'grid' ((x, y) slide or grid coordinates)
 
         """
+        if (isinstance(num_threads, int)
+           and isinstance(num_processes, int)
+           and num_threads > 1
+           and num_processes > 1):
+            raise ValueError("num_threads and num_processes cannot both be "
+                             "non-zero.")
+        if (shard is not None
+           and (not isinstance(shard, (tuple, list))
+                or len(shard) != 2
+                or any(not isinstance(s, int) for s in shard))):
+            raise ValueError("If shard is provided, it must be a tuple of "
+                             "two int (shard_idx, shard_count)")
+
 
         super().build_generator()
         if self.estimated_num_tiles == 0:
             log.warning(f"No tiles extracted for slide [green]{self.name}")
             return None
-
-        # Detect CPU cores if num_threads not specified
-        if num_threads is None:
-            num_threads = os.cpu_count()
-            if num_threads is None:
-                num_threads = 8
-
-        # Shuffle coordinates to randomize extraction order
-        if shuffle:
-            np.random.shuffle(self.coord)
 
         # Set whitespace / grayspace fraction to defaults if not provided
         if whitespace_fraction is None:
@@ -1681,7 +1853,8 @@ class WSI(_BaseLoader):
         # Get information about highest level downsample, as we will filter
         # on that layer if downsampling is enabled
         if self.enable_downsample:
-            filter_lev = len(self.slide.level_downsamples) - 1
+            downsamples = np.array(self.slide.level_downsamples)
+            filter_lev = np.max(np.argwhere(downsamples < self.extract_px))
             filter_downsample_factor = self.slide.level_downsamples[filter_lev]
             lev_ds = self.slide.level_downsamples[self.downsample_level]
             filter_downsample_ratio = filter_downsample_factor // lev_ds
@@ -1691,6 +1864,9 @@ class WSI(_BaseLoader):
 
         w_args = SimpleNamespace(**{
             'full_extract_px': self.full_extract_px,
+            'vips_wrapper': self._vips_wrapper,
+            'mpp_override': self._mpp_override,
+            'vips_cache': self._vips_cache_kw,
             'roi_scale': self.roi_scale,
             'rois': self.rois,
             'grid': self.grid,
@@ -1716,33 +1892,74 @@ class WSI(_BaseLoader):
         def generator():
             nonlocal pool
             should_close = False
+            n_extracted = 0
+
+            # Skip tiles filtered out with QC or ROI
+            non_roi_coord = self.coord[
+                self.grid[tuple(self.coord[:, 2:4].T)].astype(bool)
+            ]
+            if shard is not None:
+                shard_idx, shard_count = shard
+                sharded_coords = np.array_split(non_roi_coord, shard_count)
+                non_roi_coord = sharded_coords[shard_idx]
+
+            # Shuffle coordinates to randomize extraction order
+            if shuffle:
+                np.random.shuffle(non_roi_coord)
+
+            # Set up worker pool
             if pool is None:
-                if num_threads > 1:
-                    log.debug(f"Building generator with {num_threads} threads")
+                if num_threads is None and num_processes is None:
+                    # ThreadPool used by default due to escalating memory
+                    # requirements when using multiprocessing
+                    log.debug(f"Building generator ThreadPool({num_threads})")
+                    _threads = os.cpu_count() if os.cpu_count() else 8
+                    pool = mp.dummy.Pool(processes=_threads)
+                    should_close = True
+                elif num_threads is not None and num_threads > 1:
+                    log.debug(f"Building generator ThreadPool({num_threads})")
+                    _threads = os.cpu_count() if os.cpu_count() else 8
+                    pool = mp.dummy.Pool(processes=num_threads)
+                    should_close = True
+                elif num_processes is not None and num_processes > 1:
+                    log.debug(f"Building generator with Pool({num_processes})")
                     ctx = mp.get_context('spawn')
-                    pool = ctx.Pool(processes=num_threads)
+                    pool = ctx.Pool(processes=num_processes)
                     should_close = True
                 else:
                     log.debug(f"Building generator without multithreading")
                     def _generator():
-                        for c in self.coord:
+                        for c in non_roi_coord:
                             yield _wsi_extraction_worker(c, args=w_args)
                     i_mapped = _generator()
             else:
                 log.debug("Building generator with a shared pool")
             if show_progress:
-                pbar = Progress(transient=sf.getLoggingLevel()>20)
+                pbar = Progress(transient=sf.getLoggingLevel() > 20)
                 task = pbar.add_task('Extracting...', total=self.estimated_num_tiles)
                 pbar.start()
 
             if pool is not None:
-                i_mapped = pool.imap(
-                    partial(_wsi_extraction_worker, args=w_args),
-                    self.coord
-                )
-            for result in i_mapped:
-                if result == 'skip':
-                    continue
+                if lazy_iter:
+                    if max_tiles:
+                        batch_size = min(pool._processes, max_tiles)
+                    else:
+                        batch_size = pool._processes
+                    batched_coord = sf.util.batch(non_roi_coord, batch_size)
+                    def _generator():
+                        for batch in batched_coord:
+                            yield from pool.imap(
+                                partial(_wsi_extraction_worker, args=w_args),
+                                batch
+                            )
+                    i_mapped = _generator()
+
+                else:
+                    i_mapped = pool.imap(
+                        partial(_wsi_extraction_worker, args=w_args),
+                        non_roi_coord,
+                    )
+            for e, result in enumerate(i_mapped):
                 if show_progress:
                     pbar.advance(task, 1)
                 elif self.pb is not None:
@@ -1751,14 +1968,18 @@ class WSI(_BaseLoader):
                     continue
                 else:
                     yield result
+                    n_extracted += 1
+                    if max_tiles and n_extracted >= max_tiles:
+                        break
             if show_progress:
                 pbar.stop()
             if should_close:
                 pool.close()
             name_msg = f'[green]{self.shortname}[/]'
-            pos = len(self.coord)
-            num_msg = f'({np.sum(self.grid.sum())} tiles of {pos} possible)'
-            log.info(f"Finished tile extraction for {name_msg} {num_msg}")
+            pos = len(non_roi_coord)
+            num_msg = f'({n_extracted} tiles of {pos} possible)'
+            log_fn = log.info if self.verbose else log.debug
+            log_fn(f"Finished tile extraction for {name_msg} {num_msg}")
 
         return generator
 
@@ -1819,7 +2040,7 @@ class WSI(_BaseLoader):
         else:
             return thumb
 
-    def load_csv_roi(self, path: Path) -> int:
+    def load_csv_roi(self, path: str) -> int:
         '''Loads CSV ROI from a given path.'''
 
         roi_dict = {}
@@ -1871,7 +2092,7 @@ class WSI(_BaseLoader):
 
         return len(self.rois)
 
-    def load_json_roi(self, path: Path, scale: int = 10) -> int:
+    def load_json_roi(self, path: str, scale: int = 10) -> int:
         '''Loads ROI from a JSON file.'''
 
         with open(path, "r") as json_file:
@@ -1881,6 +2102,157 @@ class WSI(_BaseLoader):
             self.rois.append(ROI(f"Object{len(self.rois)}"))
             self.rois[-1].add_shape(area_reduced)
         return len(self.rois)
+
+    def tensorflow(
+        self,
+        img_format: str = 'numpy',
+        incl_slidenames: bool = False,
+        incl_loc: Optional[str] = None,
+        shuffle: bool = True,
+        **kwargs
+    ) -> Any:
+        """Create a Tensorflow Dataset which extractes tiles from this slide.
+
+        Args:
+            img_format (str, optional): Image format for returned image tiles.
+                Options include 'png', 'jpg', and 'numpy'. Defaults to 'numpy'.
+            incl_slidenames (bool, optional): Yield slide names for each
+                image tile. Defaults to False.
+            incl_loc (Optional[str], optional): Yield image tile location
+                with each image tile. Options include True, 'coord', or 'grid'.
+                If True or 'coord', will return X/Y coordinates of the tile
+                in the slide's highest magnification layer. If 'grid', returns
+                the grid indices for the tile. Defaults to None.
+            shuffle (bool, optional): Shuffle image tiles. Defaults to True.
+
+        Returns:
+            tf.data.Dataset
+
+        Yields:
+            Iterator[Any]: Items yielded by the Dataset are in dictionary
+            format, with the keys:
+
+            'image_raw':    Contains the image (jpg, png, or numpy)
+            'slide':        Slide name (if ``incl_slidenames=True``)
+            'loc_x'         Image tile x location (if ``incl_loc`` provided)
+            'loc_y'         Image tile y location (if ``incl_loc`` provided)
+        """
+
+        import tensorflow as tf
+
+        def tile_generator():
+            for image_dict in self.build_generator(
+                shuffle=shuffle,
+                show_progress=False,
+                img_format=img_format,
+                **kwargs
+            )():
+                if not (incl_slidenames or incl_loc):
+                    yield image_dict['image']
+                else:
+                    to_return = {
+                        'image_raw': image_dict['image']
+                    }
+                    if incl_slidenames:
+                        to_return['slide'] = self.name
+                    if incl_loc == 'coord' or incl_loc == True:
+                        to_return['loc_x'] = image_dict['loc'][0]
+                        to_return['loc_y'] = image_dict['loc'][1]
+                    if incl_loc == 'grid':
+                        to_return['loc_x'] = image_dict['grid'][0]
+                        to_return['loc_y'] = image_dict['grid'][1]
+                    yield to_return
+
+        # Generate dataset from the generator
+        with tf.name_scope('dataset_input'):
+            # Signatures for imaging data
+            if img_format == 'numpy':
+                image_sig = tf.TensorSpec(
+                    shape=(self.tile_px, self.tile_px, 3),
+                    dtype=tf.uint8
+                )
+            else:
+                image_sig = tf.TensorSpec(shape=(), dtype=tf.string)
+
+            # Rest of the signatures
+            if incl_slidenames or incl_loc:
+                sig = {'image_raw': image_sig}
+                if incl_slidenames:
+                    sig['slide'] = tf.TensorSpec(shape=(), dtype=tf.string)
+                if incl_loc:
+                    sig['loc_x'] = tf.TensorSpec(shape=(), dtype=tf.int32)
+                    sig['loc_y'] = tf.TensorSpec(shape=(), dtype=tf.int32)
+            else:
+                sig = image_sig
+
+            # Assemble dataset
+            dataset = tf.data.Dataset.from_generator(
+                tile_generator,
+                output_signature=sig
+            )
+
+        return dataset
+
+    def torch(
+        self,
+        img_format: str = 'numpy',
+        incl_slidenames: bool = False,
+        incl_loc: Optional[str] = None,
+        shuffle: bool = True,
+        **kwargs
+    ) -> Any:
+        """Create a PyTorch iterator which extractes tiles from this slide.
+
+        Args:
+            img_format (str, optional): Image format for returned image tiles.
+                Options include 'png', 'jpg', and 'numpy'. Defaults to 'numpy'.
+            incl_slidenames (bool, optional): Yield slide names for each
+                image tile. Defaults to False.
+            incl_loc (Optional[str], optional): Yield image tile location
+                with each image tile. Options include True, 'coord', or 'grid'.
+                If True or 'coord', will return X/Y coordinates of the tile
+                in the slide's highest magnification layer. If 'grid', returns
+                the grid indices for the tile. Defaults to None.
+            shuffle (bool, optional): Shuffle image tiles. Defaults to True.
+
+        Returns:
+            An iterator which yields image tiles as Torch tensors.
+
+        Yields:
+            Iterator[Any]: Items yielded by the Dataset are in dictionary
+            format, with the keys:
+
+            'image_raw':    Contains the image as a Tensor (jpg, png, or numpy)
+            'slide':        Slide name (if ``incl_slidenames=True``)
+            'loc_x'         Image tile x location (if ``incl_loc`` provided)
+            'loc_y'         Image tile y location (if ``incl_loc`` provided)
+        """
+        import torch
+
+        def tile_generator():
+            for image_dict in self.build_generator(
+                shuffle=shuffle,
+                show_progress=False,
+                img_format=img_format,
+                **kwargs
+            )():
+                if not (incl_slidenames or incl_loc):
+                    yield torch.from_numpy(image_dict['image'])
+                else:
+                    to_return = {
+                        'image_raw': torch.from_numpy(image_dict['image'])
+                    }
+                    if incl_slidenames:
+                        to_return['slide'] = self.name
+                    if incl_loc == 'coord' or incl_loc == True:
+                        to_return['loc_x'] = image_dict['loc'][0]
+                        to_return['loc_y'] = image_dict['loc'][1]
+                    if incl_loc == 'grid':
+                        to_return['loc_x'] = image_dict['grid'][0]
+                        to_return['loc_y'] = image_dict['grid'][1]
+                    yield to_return
+
+        return tile_generator()
 
 
 class TMA(_BaseLoader):
@@ -1903,8 +2275,9 @@ class TMA(_BaseLoader):
         tile_um: Union[str, int],
         stride_div: int = 1,
         enable_downsample: bool = True,
-        report_dir: Optional[Path] = None,
-        pb: Optional[Progress] = None
+        report_dir: Optional[str] = None,
+        pb: Optional[Progress] = None,
+        **kwargs
     ) -> None:
         '''Initializer.
 
@@ -1921,6 +2294,8 @@ class TMA(_BaseLoader):
             pb (Progress, optional): Progress bar; will update
                 progress bar during tile extraction if provided.
                 Defaults to None.
+            mpp (float, optional): Override the microns-per-pixel value for
+                the slide. Defaults to None (auto-detects).
         '''
         super().__init__(
             path,
@@ -1928,7 +2303,8 @@ class TMA(_BaseLoader):
             tile_um,
             stride_div,
             enable_downsample,
-            pb
+            pb,
+            **kwargs
         )
         self.object_rects = []  # type: List
         self.box_areas = []  # type: List
@@ -2036,7 +2412,7 @@ class TMA(_BaseLoader):
 
         return subtiles
 
-    def _detect_cores(self, report_dir: Optional[Path] = None) -> int:
+    def _detect_cores(self, report_dir: Optional[str] = None) -> int:
         # Prepare annotated image
         assert self.thumb_image is not None
         img_annotated = self.thumb_image.copy()
@@ -2098,8 +2474,8 @@ class TMA(_BaseLoader):
 
     def extract_tiles(
         self,
-        tfrecord_dir: Optional[Path] = None,
-        tiles_dir: Optional[Path] = None,
+        tfrecord_dir: Optional[str] = None,
+        tiles_dir: Optional[str] = None,
         img_format: str = 'jpg',
         report: bool = True,
         **kwargs
@@ -2206,6 +2582,7 @@ class TMA(_BaseLoader):
                 than subdividing into image tiles. Defaults to False.
             show_progress (bool, optional): Show a progress bar for extraction.
         """
+        import matplotlib.colors as mcol
 
         super().build_generator()
         if yolo:

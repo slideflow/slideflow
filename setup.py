@@ -29,13 +29,25 @@ setuptools.setup(
             'gan/stylegan2/torch_utils/ops/upfirdn2d.cpp',
             'gan/stylegan2/torch_utils/ops/upfirdn2d.cu',
             'gan/stylegan2/torch_utils/ops/upfirdn2d.h',
+            'gan/stylegan3/torch_utils/ops/bias_act.cpp',
+            'gan/stylegan3/torch_utils/ops/bias_act.cu',
+            'gan/stylegan3/torch_utils/ops/bias_act.h',
+            'gan/stylegan3/torch_utils/ops/upfirdn2d.cpp',
+            'gan/stylegan3/torch_utils/ops/upfirdn2d.cu',
+            'gan/stylegan3/torch_utils/ops/upfirdn2d.h',
+            'gan/stylegan3/torch_utils/ops/filtered_lrelu.cpp',
+            'gan/stylegan3/torch_utils/ops/filtered_lrelu.cu',
+            'gan/stylegan3/torch_utils/ops/filtered_lrelu.h',
+            'gan/stylegan3/torch_utils/ops/filtered_lrelu_ns.cu',
+            'gan/stylegan3/torch_utils/ops/filtered_lrelu_rd.cu',
+            'gan/stylegan3/torch_utils/ops/filtered_lrelu_wr.cu',
         ],
     },
     python_requires='>=3.7',
     install_requires=[
         'gast>=0.3.3',
         'scipy',
-        'sklearn',
+        'scikit-learn>=1.1',
         'matplotlib>=3.2',
         'imageio',
         'opencv-python',
@@ -49,7 +61,7 @@ setuptools.setup(
         'scikit-image',
         'tqdm',
         'click',
-        'protobuf<3.21',
+        'protobuf<=3.20',
         'tensorboard',
         'crc32c',
         'h5py',
@@ -60,6 +72,29 @@ setuptools.setup(
         'ConfigSpace',
         'pyarrow',
         'ninja',
-        'rich'
+        'rich',
+        'pillow>=6.0.0',
+        'imgui',
+        'pyopengl',
+        'glfw',
+        'saliency',
+        'pyperclip'
     ],
+    extras_require={
+        'tf': [
+            'tensorflow>=2.7,<2.10',
+            'tensorflow_probability'
+        ],
+        'torch': [
+            'torch',
+            'torchvision',
+            'pretrained_models'
+        ],
+        'dev': [
+            'parameterized',
+            'sphinx',
+            'sphinx-markdown-tables',
+            'sphinxcontrib-video'
+        ]
+    },
 )

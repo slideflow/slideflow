@@ -51,7 +51,7 @@ def normalize_layout(
     min_percentile: int = 1,
     max_percentile: int = 99,
     relative_margin: float = 0.1
-) -> np.ndarray:
+) -> Tuple[np.ndarray, Tuple[float, float], Tuple[float, float]]:
     """Removes outliers and scales layout to between [0,1].
 
     Args:
@@ -63,6 +63,10 @@ def normalize_layout(
 
     Returns:
         np.ndarray: layout array, re-scaled and clipped.
+
+        tuple(float, float): Range in original space covered by this layout.
+
+        tuple(float, float): Clipping values (min, max) used for this layout
     """
 
     # Compute percentiles
@@ -74,7 +78,9 @@ def normalize_layout(
     # `clip` broadcasts, `[None]`s added only for readability
     clipped = np.clip(layout, mins, maxs)
     # embed within [0,1] along both axes
-    clipped -= clipped.min(axis=0)
-    clipped /= clipped.max(axis=0)
-    return clipped
+    _min = clipped.min(axis=0)
+    _max = clipped.max(axis=0)
+    clipped -= _min
+    clipped /= (_max - _min)
+    return clipped, (_min, _max), (mins, maxs)
 

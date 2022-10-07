@@ -2,9 +2,9 @@
 
 from __future__ import division
 
-import os
 import cv2
 import numpy as np
+import joblib
 from typing import Dict
 
 import slideflow.norm.utils as ut
@@ -14,7 +14,9 @@ from sklearn.decomposition import DictionaryLearning
 def get_stain_matrix_spams(
     I: np.ndarray,
     threshold: float = 0.8,
-    alpha: float = 0.1
+    alpha: float = 0.1,
+    num_threads: int = 8,
+    fast: bool = False,
 ) -> np.ndarray:
     """Get 2x3 stain matrix. First row H and second row E.
 
@@ -31,18 +33,25 @@ def get_stain_matrix_spams(
     mask = ut.notwhite_mask(I, thresh=threshold).reshape((-1,))
     OD = ut.RGB_to_OD(I).reshape((-1, 3))
     OD = OD[mask]
-
-    dictionary = spams.trainDL(
-        OD.T,
+    spams_kw = dict(
+        numThreads=num_threads,
         K=2,
         lambda1=alpha,
         mode=2,
         modeD=0,
-        posAlpha=True,
-        posD=True,
-        verbose=False
-    ).T
-
+        posD=True)
+    if fast:
+        dictionary = spams.trainDL_Memory(
+            OD.T,
+            **spams_kw
+        ).T
+    else:
+        dictionary = spams.trainDL(
+            OD.T,
+            posAlpha=True,
+            verbose=False,
+            **spams_kw
+        ).T
     if dictionary[0, 0] < dictionary[1, 0]:
         dictionary = dictionary[[1, 0], :]
     dictionary = ut.normalize_rows(dictionary)
@@ -52,7 +61,8 @@ def get_stain_matrix_spams(
 def get_stain_matrix_sklearn(
     I: np.ndarray,
     threshold: float = 0.8,
-    alpha: float = 0.1
+    alpha: float = 0.1,
+    num_threads: int = 8,
 ) -> np.ndarray:
     """Get 2x3 stain matrix. First row H and second row E.
 
@@ -67,8 +77,7 @@ def get_stain_matrix_sklearn(
     mask = ut.notwhite_mask(I, thresh=threshold).reshape((-1,))
     OD = ut.RGB_to_OD(I).reshape((-1, 3))
     OD = OD[mask]
-
-    dl = DictionaryLearning(
+    sklearn_kw = dict(
         n_components=2,
         alpha=alpha,
         transform_alpha=alpha,
@@ -79,6 +88,8 @@ def get_stain_matrix_sklearn(
         max_iter=1000,
         transform_max_iter=1000,
     )
+    with joblib.parallel_backend('threading', n_jobs=num_threads):
+        dl = DictionaryLearning(**sklearn_kw)
     dictionary = dl.fit_transform(X=OD.T).T
 
     if dictionary[0, 0] < dictionary[1, 0]:
@@ -89,7 +100,7 @@ def get_stain_matrix_sklearn(
 
 class VahadaneSklearnNormalizer:
 
-    def __init__(self, threshold: float = 0.93) -> None:
+    def __init__(self, threshold: float = 0.93, num_threads: int = 8) -> None:
         """Vahadane H&E stain normalizer (numpy implementation).
 
         Normalizes an image as defined by:
@@ -105,10 +116,11 @@ class VahadaneSklearnNormalizer:
         extraction.
         """
         self.threshold = threshold
+        self.num_threads = num_threads
         self.set_fit(**ut.fit_presets['vahadane_sklearn']['v1'])  # type: ignore
 
     def get_stain_matrix(self, image: np.ndarray) -> np.ndarray:
-        return get_stain_matrix_sklearn(image)
+        return get_stain_matrix_sklearn(image, num_threads=self.num_threads)
 
     def fit(self, target: np.ndarray) -> np.ndarray:
         """Fit normalizer to a target image.
@@ -174,7 +186,6 @@ class VahadaneSklearnNormalizer:
         Returns:
             np.ndarray: Normalized image.
         """
-
         if self.stain_matrix_target is None:
             raise ValueError("Normalizer has not been fit: call normalizer.fit()")
 
@@ -183,13 +194,14 @@ class VahadaneSklearnNormalizer:
         mask = (I_LAB[:, :, 0] / 255.0 < self.threshold)[:, :, np.newaxis]
         stain_matrix_source = self.get_stain_matrix(I)
         source_concentrations = ut.get_concentrations(I, stain_matrix_source)
-        normalized = (255 * np.exp(-1 * np.dot(source_concentrations, self.stain_matrix_target).reshape(I.shape))).astype(np.uint8)
+        dot_prod = np.dot(source_concentrations, self.stain_matrix_target)
+        normalized = (255 * np.exp(-1 * dot_prod.reshape(I.shape))).astype(np.uint8)
         return np.where(mask, normalized, I)
 
 
 class VahadaneSpamsNormalizer(VahadaneSklearnNormalizer):
 
-    def __init__(self) -> None:
+    def __init__(self, *args, **kwargs) -> None:
         """Vahadane H&E stain normalizer (numpy implementation).
 
         Normalizes an image as defined by:
@@ -203,7 +215,7 @@ class VahadaneSpamsNormalizer(VahadaneSklearnNormalizer):
 
         This normalizer uses the SPAMS library for stain matrix extraction.
         """
-        super().__init__()
+        super().__init__(*args, **kwargs)
         self.set_fit(**ut.fit_presets['vahadane_spams']['v1'])  # type: ignore
 
     def fit_preset(self, preset: str) -> Dict[str, np.ndarray]:
@@ -221,4 +233,4 @@ class VahadaneSpamsNormalizer(VahadaneSklearnNormalizer):
         return _fit
 
     def get_stain_matrix(self, image: np.ndarray) -> np.ndarray:
-        return get_stain_matrix_spams(image)
+        return get_stain_matrix_spams(image, num_threads=self.num_threads)

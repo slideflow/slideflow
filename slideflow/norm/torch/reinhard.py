@@ -25,7 +25,7 @@ def standardize_brightness(I: torch.Tensor) -> torch.Tensor:
     Returns:
         torch.Tensor: Brightness-standardized image (uint8)
     """
-    p = torch.quantile(I.float(), 0.9)
+    p = torch.quantile(I.to(torch.float32), 0.9)
     return torch.clip(I * 255.0 / p, 0, 255).to(torch.uint8)
 
 
@@ -47,7 +47,7 @@ def lab_split(
             torch.Tensor: I3, first channel (uint8).
     """
 
-    I = I.float()
+    I = I.to(torch.float32)
     I /= 255
     I = color.rgb_to_lab(I.permute(0, 3, 1, 2)).permute(0, 2, 3, 1)  # BWHC -> BCWH -> BWHC
     I1, I2, I3 = torch.unbind(I, dim=-1)
@@ -115,7 +115,7 @@ def transform(
     """Normalize an H&E image.
 
     Args:
-        img (torch.Tensor): Batch of uint8 images (W x H x C).
+        img (torch.Tensor): Batch of uint8 images (B x W x H x C).
         tgt_mean (torch.Tensor): Target channel means.
         tgt_std (torch.Tensor): Target channel standard deviations.
 
@@ -128,18 +128,18 @@ def transform(
 
     def norm(_I, _I_mean, _I_std, _tgt_std, _tgt_mean):
         # Equivalent to:
-        #   norm1 = ((I1 - I1_mean) * (tgt_std[0] / I1_std)) + tgt_mean[0]
+        #   norm1 = ((I1 - I1_mean) * (tgt_std / I1_std)) + tgt_mean[0]
         # But supports batches of images
         part1 = _I - _I_mean[:, None, None].expand(_I.shape)
-        part2 = _tgt_std[0] / _I_std
+        part2 = _tgt_std / _I_std
         part3 = part1 * part2[:, None, None].expand(part1.shape)
-        return part3 + _tgt_mean[0]
+        return part3 + _tgt_mean
 
     norm1 = norm(I1, I1_mean, I1_std, tgt_std[0], tgt_mean[0])
     norm2 = norm(I2, I2_mean, I2_std, tgt_std[1], tgt_mean[1])
     norm3 = norm(I3, I3_mean, I3_std, tgt_std[2], tgt_mean[2])
 
-    merged = merge_back(norm1, norm2, norm3).int()
+    merged = merge_back(norm1, norm2, norm3)
     clipped = torch.clip(merged, min=0, max=255).to(torch.uint8)
     return clipped
 
@@ -285,7 +285,6 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
         """
         super().__init__()
         self.set_fit(**ut.fit_presets['reinhard']['v1'])  # type: ignore
-        self.device = torch.device('cuda')
 
     def fit(
         self,

@@ -8,7 +8,7 @@ from rich.progress import Progress
 from slideflow.dataset import Dataset
 from slideflow.io.torch import cwh_to_whc, whc_to_cwh
 from slideflow.norm import StainNormalizer
-from slideflow.norm.torch import reinhard
+from slideflow.norm.torch import reinhard, macenko
 from slideflow.util import detuple, log
 from slideflow import errors
 
@@ -21,6 +21,7 @@ class TorchStainNormalizer(StainNormalizer):
     normalizers = {
         'reinhard': reinhard.ReinhardNormalizer,
         'reinhard_fast': reinhard.ReinhardFastNormalizer,
+        'macenko': macenko.MacenkoNormalizer
     }  # type: Dict
 
     def __init__(
@@ -103,7 +104,7 @@ class TorchStainNormalizer(StainNormalizer):
                 infinite=False
             )
             all_fit_vals = []  # type: ignore
-            pb = Progress()
+            pb = Progress(transient=True)
             task = pb.add_task('Fitting normalizer...', total=dataset.num_tiles)
             pb.start()
             for i, slide in dts:
@@ -217,6 +218,4 @@ class TorchStainNormalizer(StainNormalizer):
         Returns:
             np.ndarray: Normalized image, uint8, W x H x C.
         """
-        return cwh_to_whc(
-            self.n.transform(
-                whc_to_cwh(torch.from_numpy(image)))).numpy()
+        return self.n.transform(torch.from_numpy(image)).numpy()

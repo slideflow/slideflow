@@ -3,14 +3,12 @@
 from typing import (Generator, List, Optional, Tuple, Union,
                     TYPE_CHECKING, Any, Iterable)
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import seaborn as sns
 import slideflow as sf
 import torch
 from PIL import Image
-from slideflow.gan.stylegan2 import embedding, utils
+from slideflow.gan.stylegan2.stylegan2 import embedding, utils
 from slideflow.gan.utils import crop
 from slideflow import errors
 from rich.progress import track
@@ -31,6 +29,8 @@ class StyleGAN2Interpolator:
         gan_px: int,
         target_um: int,
         target_px: int,
+        noise_mode: str = 'const',
+        truncation_psi: int = 1,
         **gan_kwargs
     ) -> None:
         """Coordinates class and embedding interpolation for a trained
@@ -44,13 +44,13 @@ class StyleGAN2Interpolator:
         """
         self.E_G, self.G = embedding.load_embedding_gan(gan_pkl, device)
         self.device = device
-        self.gan_kwargs = gan_kwargs
-        self.embed0, self.embed1 = embedding.get_class_embeddings(
-            self.G,
-            start=start,
-            end=end,
-            device=device
-        )
+        self.gan_kwargs = dict(
+            noise_mode=noise_mode,
+            truncation_psi=truncation_psi,
+            **gan_kwargs)
+        self.embeddings = embedding.get_embeddings(self.G, device=device)
+        self.embed0 = self.embeddings[start]
+        self.embed1 = self.embeddings[end]
         self.features = None  # type: Optional[sf.model.Features]
         self.normalizer = None
         self.target_px = target_px
@@ -166,7 +166,7 @@ class StyleGAN2Interpolator:
         else:
             raise errors.UnrecognizedBackendError
 
-    def z(self, seed: int) -> torch.Tensor:
+    def z(self, seed: Union[int, List[int]]) -> torch.Tensor:
         """Returns a noise tensor for a given seed.
 
         Args:
@@ -175,7 +175,15 @@ class StyleGAN2Interpolator:
         Returns:
             torch.tensor: Noise tensor for the corresponding seed.
         """
-        return utils.noise_tensor(seed, self.E_G.z_dim).to(self.device)  # type: ignore
+        if isinstance(seed, int):
+            return utils.noise_tensor(seed, self.E_G.z_dim).to(self.device)  # type: ignore
+        elif isinstance(seed, list):
+            return torch.stack(
+                [utils.noise_tensor(s, self.E_G.z_dim).to(self.device)
+                 for s in seed],
+                dim=0)
+        else:
+            raise ValueError(f"Unrecognized seed: {seed}")
 
     def set_feature_model(
         self,
@@ -323,6 +331,8 @@ class StyleGAN2Interpolator:
         Args:
             seeds (int or list(int)): Seeds to display.
         """
+        import matplotlib.pyplot as plt
+
         if not isinstance(seeds, list):
             seeds = [seeds]
         if titles is None:
@@ -358,7 +368,7 @@ class StyleGAN2Interpolator:
 
         fig.subplots_adjust(wspace=0.05, hspace=0)
 
-    def generate(self, seed: int, embedding: torch.Tensor) -> torch.Tensor:
+    def generate(self, seed: Union[int, List[int]], embedding: torch.Tensor) -> torch.Tensor:
         """Generate an image from a given embedding.
 
         Args:
@@ -368,7 +378,12 @@ class StyleGAN2Interpolator:
         Returns:
             torch.Tensor: Image (float32, shape=(1, 3, height, width))
         """
-        return self.E_G(self.z(seed), embedding, **self.gan_kwargs)
+        z = self.z(seed)
+        if z.shape[0] == 1 and embedding.shape[0] > 1:
+            z = z.repeat(embedding.shape[0], 1)
+        elif z.shape[0] > 1 and embedding.shape[0] == 1:
+            embedding = embedding.repeat(z.shape[0], 1)
+        return self.E_G(z, embedding, **self.gan_kwargs)
 
     def generate_start(self, seed: int) -> torch.Tensor:
         """Generate an image from the starting class.
@@ -433,7 +448,7 @@ class StyleGAN2Interpolator:
 
     def generate_tf_from_embedding(
         self,
-        seed: int,
+        seed: Union[int, List[int]],
         embedding: torch.Tensor
     ) -> Tuple["tf.Tensor", "tf.Tensor"]:
         """Create a processed Tensorflow image from the GAN output from a given
@@ -450,13 +465,14 @@ class StyleGAN2Interpolator:
 
                 tf.Tensor: Processed resized image, standardized and normalized.
         """
-        import tensorflow as tf
-
         gan_out = self.generate(seed, embedding)
         gan_out = self._crop_and_convert_to_uint8(gan_out)
         gan_out = self._preprocess_from_uint8(gan_out, standardize=False, normalize=True)
         standardized = self._standardize(gan_out)
-        return gan_out[0], standardized[0]
+        if isinstance(seed, list) or (len(embedding.shape) > 1 and embedding.shape[0] > 1):
+            return gan_out, standardized
+        else:
+            return gan_out[0], standardized[0]
 
     def generate_tf_start(self, seed: int) -> Tuple["tf.Tensor", "tf.Tensor"]:
         """Create a processed Tensorflow image from the GAN output of a given
@@ -556,6 +572,9 @@ class StyleGAN2Interpolator:
         Returns:
             Tuple[List, ...]: Raw images, processed images, and predictions.
         """
+        import matplotlib.pyplot as plt
+        import seaborn as sns
+
         imgs = []
         proc_imgs = []
         preds = []

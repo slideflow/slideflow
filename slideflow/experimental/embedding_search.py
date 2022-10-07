@@ -2,15 +2,13 @@
 
 from typing import Iterable, Optional, Tuple
 
-import matplotlib.pyplot as plt
 import numpy as np
-import seaborn as sns
 import slideflow as sf
 import tensorflow as tf
 import torch
 from functools import partial
 from sklearn.decomposition import PCA
-from slideflow.gan.stylegan2.utils import noise_tensor
+from slideflow.gan.stylegan2.stylegan2.utils import noise_tensor
 from slideflow.gan.utils import crop
 from slideflow.util import log
 from tqdm.auto import tqdm
@@ -117,6 +115,9 @@ class EmbeddingSearch:
                 all other PCs during the search as dimensions are added.
             title (str, optional): Title for plot. Defaults to None.
         """
+        import matplotlib.pyplot as plt
+        import seaborn as sns
+
         x = range(len(self.pc_change))
         plt.clf()
         sns.lineplot(x=x, y=self.pc_change, color='r', label='Target PC % Change')

@@ -10,7 +10,6 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import slideflow as sf
 from slideflow import errors
-from slideflow.util import Path
 from slideflow.util import log, relative_path
 
 # Set the tensorflow logger
@@ -67,6 +66,8 @@ def _project_config(
     args['slideflow_version'] = sf.__version__
     if sources is None:
         args['sources'] = []
+    elif isinstance(sources, str):
+        args['sources'] = [sources]
     return args
 
 
@@ -227,7 +228,7 @@ def add_source(
     roi: str,
     tiles: str,
     tfrecords: str,
-    path: Path
+    path: str
 ) -> None:
     """Adds a dataset source to a dataset configuration file.
 
@@ -254,7 +255,7 @@ def add_source(
     log.info(f'Saved dataset source {name} to {path}')
 
 
-def load_sources(path: Path) -> Tuple[Dict, List]:
+def load_sources(path: str) -> Tuple[Dict, List]:
     """Loads datasets configuration dictionaries from a datasets.json file."""
     try:
         sources_data = sf.util.load_json(path)

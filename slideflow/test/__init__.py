@@ -26,7 +26,8 @@ class TestSuite:
         slides: Optional[str] = None,
         buffer: Optional[str] = None,
         verbosity: int = logging.WARNING,
-        reset: bool = False
+        reset: bool = False,
+        tile_px: int = 71,
     ) -> None:
         """Prepare for functional and unit testing testing. Functional tests
         require example slides.
@@ -45,6 +46,7 @@ class TestSuite:
             errors.UnrecognizedBackendError: If the environmental variable
                 SF_BACKEND is something other than  "tensorflow" or "torch".
         """
+        self.tile_px = tile_px
 
         if slides is None:
             print("[yellow]Path to slides not provided, unable to perform"
@@ -103,7 +105,7 @@ class TestSuite:
         self.buffer = buffer
 
         # Rebuild tfrecord indices
-        self.project.dataset(71, 1208).build_index(True)
+        self.project.dataset(self.tile_px, 1208).build_index(True)
 
     def _get_model(self, name: str, epoch: int = 1) -> str:
         assert self.project is not None
@@ -111,12 +113,13 @@ class TestSuite:
             x for x in os.listdir(self.project.models_dir)
             if os.path.isdir(join(self.project.models_dir, x))
         ]
+        tail = '' if sf.backend() == 'tensorflow' else '.zip'
         for run in sorted(prev_run_dirs, reverse=True):
             if run[6:] == name:
                 return join(
                     self.project.models_dir,
                     run,
-                    f'{name}_epoch{epoch}'
+                    f'{name}_epoch{epoch}'+tail,
                 )
         raise OSError(f"Unable to find trained model {name}")
 
@@ -125,7 +128,8 @@ class TestSuite:
         model_type: str,
         sweep: bool = False,
         normalizer: Optional[str] = 'reinhard_fast',
-        uq: bool = False
+        uq: bool = False,
+        balance: Optional[str] = 'patient',
     ) -> sf.ModelParams:
         """Set up hyperparameters.
 
@@ -156,7 +160,7 @@ class TestSuite:
         # Create batch train file
         if sweep:
             self.project.create_hp_sweep(
-                tile_px=71,
+                tile_px=self.tile_px,
                 tile_um=1208,
                 epochs=[1, 3],
                 toplayer_epochs=[0],
@@ -183,7 +187,7 @@ class TestSuite:
 
         # Create single hyperparameter combination
         hp = sf.model.ModelParams(
-            tile_px=71,
+            tile_px=self.tile_px,
             tile_um=1208,
             epochs=1,
             toplayer_epochs=0,
@@ -198,7 +202,7 @@ class TestSuite:
             dropout=0.1,
             l2=1e-4,
             early_stop_patience=0,
-            training_balance='patient',
+            training_balance=balance,
             validation_balance='none',
             uq=uq,
             augment=True
@@ -216,7 +220,7 @@ class TestSuite:
         with TaskWrapper("Testing slide extraction...") as test:
             try:
                 self.project.extract_tiles(
-                    tile_px=71,
+                    tile_px=self.tile_px,
                     tile_um=1208,
                     buffer=self.buffer,
                     source=['TEST'],
@@ -227,7 +231,7 @@ class TestSuite:
                     **kwargs
                 )
                 self.project.extract_tiles(
-                    tile_px=71,
+                    tile_px=self.tile_px,
                     tile_um="2.5x",
                     buffer=self.buffer,
                     source=['TEST'],
@@ -263,6 +267,7 @@ class TestSuite:
                     sf.test.functional.single_thread_normalizer_tester,
                     project=self.project,
                     methods=args,
+                    tile_px=self.tile_px
                 )
                 if not passed:
                     test.fail()
@@ -272,6 +277,7 @@ class TestSuite:
                     sf.test.functional.multi_thread_normalizer_tester,
                     project=self.project,
                     methods=args,
+                    tile_px=self.tile_px
                 )
                 if not passed:
                     test.fail()
@@ -293,7 +299,8 @@ class TestSuite:
                 return
             passed = process_isolate(
                 sf.test.functional.reader_tester,
-                project=self.project
+                project=self.project,
+                tile_px=self.tile_px
             )
             if not passed:
                 test.fail()
@@ -337,6 +344,7 @@ class TestSuite:
         multi_input: bool = True,
         cph: bool = True,
         multi_cph: bool = True,
+        from_wsi: bool = True,
         **train_kwargs
     ) -> None:
         """Test model training using a variety of strategies.
@@ -515,8 +523,28 @@ class TestSuite:
                         test.fail()
                 else:
                     test.skip()
-        else:
-            print("Skipping CPH model testing [current backend is Pytorch]")
+        if from_wsi:
+            # Test training from slides without TFRecords
+            msg = "Training model directly from slides (from_wsi=True)..."
+            with TaskWrapper(msg) as test:
+                try:
+                    hp = self.setup_hp('categorical', sweep=False, balance=None)
+                    results = self.project.train(
+                        exp_label='from_wsi',
+                        outcomes='category1',
+                        val_k=1,
+                        params=hp,
+                        validate_on_batch=10,
+                        steps_per_epoch_override=20,
+                        save_predictions=True,
+                        from_wsi=True,
+                        pretrain=None,
+                        **train_kwargs
+                    )
+                    _assert_valid_results(results)
+                except Exception as e:
+                    log.error(traceback.format_exc())
+                    test.fail()
 
     def test_prediction(self, **predict_kwargs) -> None:
         """Test prediction generation using a previously trained model."""
@@ -657,6 +685,7 @@ class TestSuite:
                 sf.test.functional.activations_tester,
                 project=self.project,
                 model=model,
+                tile_px=self.tile_px,
                 **act_kwargs
             )
             if not passed:
@@ -708,7 +737,7 @@ class TestSuite:
                 test.skip()
             else:
                 try:
-                    dataset = self.project.dataset(71, 1208)
+                    dataset = self.project.dataset(self.tile_px, 1208)
                     self.project.train_clam(
                         'TEST_CLAM',
                         join(self.project.root, 'clam'),
