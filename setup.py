@@ -53,7 +53,7 @@ setuptools.setup(
         'opencv-python',
         'shapely',
         'umap-learn',
-        'seaborn',
+        'seaborn<0.12',
         'pandas',
         'pyvips',
         'fpdf',

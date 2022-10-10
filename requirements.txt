@@ -8,7 +8,7 @@ imageio
 opencv-python
 shapely
 umap-learn
-seaborn
+seaborn<0.12
 pandas
 pyvips>=2.1.11
 fpdf

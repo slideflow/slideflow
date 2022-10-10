@@ -26,7 +26,7 @@ RUN wget https://raw.githubusercontent.com/jamesdolezal/slideflow/1.3.0/pixman_r
 
 # Install slideflow & download scripts
 ENV SF_BACKEND=torch
-RUN pip3 install slideflow==1.3.0 pretrainedmodels && \
+RUN pip3 install "seaborn<0.12" slideflow==1.3.0 pretrainedmodels && \
     wget https://raw.githubusercontent.com/jamesdolezal/slideflow/1.3.0/test.py && \
     wget https://raw.githubusercontent.com/jamesdolezal/slideflow/1.3.0/run_project.py && \
     wget https://raw.githubusercontent.com/jamesdolezal/slideflow/1.3.0/qupath_roi.groovy && \
