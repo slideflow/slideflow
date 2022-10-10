@@ -139,20 +139,20 @@ This code is made available under the GPLv3 License and is available for non-com
 ## Reference
 If you find our work useful for your research, or if you use parts of this code, please consider citing as follows:
 
-James Dolezal, Sara Kochanny, & Frederick Howard. (2022). Slideflow: A Unified Deep Learning Pipeline for Digital Histology (1.1.0). Zenodo. https://doi.org/10.5281/zenodo.5703792
+James Dolezal, Sara Kochanny, & Frederick Howard. (2022). Slideflow: A Unified Deep Learning Pipeline for Digital Histology (1.3.0). Zenodo. https://doi.org/10.5281/zenodo.7183188
 
 ```
-@software{james_dolezal_2022_5703792,
+@software{james_dolezal_2022_7183188,
   author       = {James Dolezal and
                   Sara Kochanny and
                   Frederick Howard},
-  title        = {{Slideflow: A Unified Deep Learning Pipeline for
+  title        = {{Slideflow: A Unified Deep Learning Pipeline for 
                    Digital Histology}},
-  month        = apr,
+  month        = oct,
   year         = 2022,
   publisher    = {Zenodo},
-  version      = {1.1.0},
-  doi          = {10.5281/zenodo.5703792},
-  url          = {https://doi.org/10.5281/zenodo.5703792}
+  version      = {1.3.0},
+  doi          = {10.5281/zenodo.7183188},
+  url          = {https://doi.org/10.5281/zenodo.7183188}
 }
 ```
