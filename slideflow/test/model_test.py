@@ -168,42 +168,42 @@ class TestSlide(unittest.TestCase):
         del model
 
     @unittest.skipIf('tensorflow' not in sys.modules, "Tensorflow not installed")
-    @parameterized.expand(tf_models)
+    @parameterized.expand(tf_models, skip_on_empty=True)
     def test_all_tensorflow_arch_training_notop(self, arch):
         self._test_arch_tensorflow(arch, 'train', include_top=False)
 
     @unittest.skipIf('tensorflow' not in sys.modules, "Tensorflow not installed")
-    @parameterized.expand(tf_models)
+    @parameterized.expand(tf_models, skip_on_empty=True)
     def test_all_tensorflow_arch_training_withtop(self, arch):
         self._test_arch_tensorflow(arch, 'train', include_top=True)
 
     @unittest.skipIf('tensorflow' not in sys.modules, "Tensorflow not installed")
-    @parameterized.expand(tf_models)
+    @parameterized.expand(tf_models, skip_on_empty=True)
     def test_all_tensorflow_arch_eval_notop(self, arch):
         self._test_arch_tensorflow(arch, 'eval', include_top=False)
 
     @unittest.skipIf('tensorflow' not in sys.modules, "Tensorflow not installed")
-    @parameterized.expand(tf_models)
+    @parameterized.expand(tf_models, skip_on_empty=True)
     def test_all_tensorflow_arch_eval_withtop(self, arch):
         self._test_arch_tensorflow(arch, 'eval', include_top=True)
 
     @unittest.skipIf('torch' not in sys.modules, "PyTorch not installed")
-    @parameterized.expand(torch_models)
+    @parameterized.expand(torch_models, skip_on_empty=True)
     def test_all_torch_arch_training_notop(self, arch):
         self._test_arch_torch(arch, 'train', include_top=False)
 
     @unittest.skipIf('torch' not in sys.modules, "PyTorch not installed")
-    @parameterized.expand(torch_models)
+    @parameterized.expand(torch_models, skip_on_empty=True)
     def test_all_torch_arch_training_withtop(self, arch):
         self._test_arch_torch(arch, 'train', include_top=True)
 
     @unittest.skipIf('torch' not in sys.modules, "PyTorch not installed")
-    @parameterized.expand(torch_models)
+    @parameterized.expand(torch_models, skip_on_empty=True)
     def test_all_torch_arch_eval_notop(self, arch):
         self._test_arch_torch(arch, 'eval', include_top=False)
 
     @unittest.skipIf('torch' not in sys.modules, "PyTorch not installed")
-    @parameterized.expand(torch_models)
+    @parameterized.expand(torch_models, skip_on_empty=True)
     def test_all_torch_arch_eval_withtop(self, arch):
         self._test_arch_torch(arch, 'eval', include_top=True)
 

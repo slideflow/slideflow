@@ -61,9 +61,7 @@ def main(
         viz.load_slide(slide)
 
     # Run.
-    while not viz.should_close():
-        viz.draw_frame()
-    viz.close()
+    viz.run()
 
 #----------------------------------------------------------------------------
 

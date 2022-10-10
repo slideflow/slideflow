@@ -160,6 +160,11 @@ class GlfwWindow: # pylint: disable=too-many-public-methods
     def should_close(self):
         return glfw.window_should_close(self._glfw_window) or self._exit_trigger
 
+    def run(self):
+        while not self.should_close():
+            self.draw_frame()
+        self.close()
+
     def skip_frame(self):
         self.skip_frames(1)
 
