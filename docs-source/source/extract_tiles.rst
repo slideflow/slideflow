@@ -63,7 +63,7 @@ Stain normalization
 *******************
 
 .. note::
-    See :py:mod:`slideflow.norm` for more information about stain normalization functions.
+    See :py:mod:`slideflow.norm` for comparisons & benchmarks of stain normalization methods.
 
 .. image:: norm_compare/wsi_norm_compare.jpg
 
