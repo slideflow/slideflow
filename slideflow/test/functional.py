@@ -1,3 +1,4 @@
+import importlib
 import logging
 import os
 from os.path import exists, join
@@ -10,6 +11,8 @@ from slideflow.test.utils import (handle_errors, test_multithread_throughput,
                                   test_throughput)
 from rich import print
 from tqdm import tqdm
+
+spams_loader = importlib.util.find_spec('spams')
 
 if TYPE_CHECKING:
     import multiprocessing
@@ -217,6 +220,9 @@ def single_thread_normalizer_tester(
         raw_img = next(iter(dts))[0].permute(1, 2, 0).numpy()
     Image.fromarray(raw_img).save(join(project.root, 'raw_img.png'))
     for method in methods:
+        if method in ('vahadane', 'vahadane_spams') and spams_loader is None:
+            print("Skipping Vahadane (spams); SPAMS not installed.")
+            continue
         gen_norm = sf.norm.StainNormalizer(method)
         vec_norm = sf.norm.autoselect(method)
         st_msg = '[yellow]SINGLE-thread[/]'
