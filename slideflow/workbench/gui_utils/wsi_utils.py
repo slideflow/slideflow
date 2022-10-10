@@ -2,7 +2,7 @@
 
 import numpy as np
 from typing import Tuple, Optional, TYPE_CHECKING
-from . import gl_utils
+from . import gl_utils, text_utils
 from .viewer import Viewer
 from ..utils import EasyDict
 
@@ -27,6 +27,7 @@ class SlideViewer(Viewer):
         self.wsi            = wsi
         self._tile_px       = wsi.tile_px
         self._tile_um       = wsi.tile_um
+        self.show_scale = True
 
         # Create initial display
         wsi_ratio = self.dimensions[0] / self.dimensions[1]
@@ -41,6 +42,11 @@ class SlideViewer(Viewer):
         self._refresh_view_full()
         self._refresh_rois()
 
+        # Calculate scales
+        self._um_steps = (1000, 500, 400, 250, 200, 100, 50, 30, 20, 10, 5, 3, 2, 1)
+        max_scale_w = 120
+        self._mpp_cutoffs = np.array([um / max_scale_w for um in self._um_steps])
+
     @property
     def dimensions(self) -> Tuple[int, int]:
         return self.wsi.dimensions
@@ -48,6 +54,19 @@ class SlideViewer(Viewer):
     @property
     def full_extract_px(self) -> int:
         return self.wsi.full_extract_px
+
+    @property
+    def mpp(self) -> float:
+        return self.view_zoom * self.wsi.mpp  # type: ignore
+
+    @property
+    def scale_um(self) -> float:
+        if self.mpp < self._mpp_cutoffs.min():
+            return self._um_steps[-1]
+        elif self.mpp > self._mpp_cutoffs.max():
+            return self._um_steps[0]
+        else:
+            return self._um_steps[np.where(self._mpp_cutoffs < self.mpp)[0][0]]
 
     @staticmethod
     def _process_vips(region: "pyvips.Image") -> np.ndarray:
@@ -111,6 +130,29 @@ class SlideViewer(Viewer):
             window_size=window_size,
             target_size=target_size,
         )
+
+    def _draw_scale(self, max_w: int, max_h: int):
+
+        origin_x = self.x_offset + 30
+        origin_y = self.y_offset + max_h - 50
+        scale_w = self.scale_um / self.mpp
+
+        main_pos = np.array([origin_x, origin_y])
+        left_pos = np.array([origin_x, origin_y])
+        right_pos = np.array([origin_x+scale_w, origin_y])
+        text_pos = np.array([origin_x+(scale_w/2), origin_y+20])
+        main_verts = np.array([[0, 0], [scale_w, 0]])
+        edge_verts = np.array([[0, 0], [0, -5]])
+
+        gl_utils.draw_shadowed_line(main_verts, pos=main_pos, linewidth=3, color=0)
+        gl_utils.draw_shadowed_line(main_verts, pos=main_pos, linewidth=1, color=1)
+        gl_utils.draw_shadowed_line(edge_verts, pos=left_pos, linewidth=3, color=0)
+        gl_utils.draw_shadowed_line(edge_verts, pos=left_pos, linewidth=1, color=1)
+        gl_utils.draw_shadowed_line(edge_verts, pos=right_pos, linewidth=3, color=0)
+        gl_utils.draw_shadowed_line(edge_verts, pos=right_pos, linewidth=1, color=1)
+
+        tex = text_utils.get_texture(f"{self.scale_um:.0f} µm", size=18, max_width=max_w, max_height=max_h, outline=2)
+        tex.draw(pos=text_pos, align=0.5, rint=True, color=1)
 
     def _read_from_pyramid(self, **kwargs) -> np.ndarray:
         """Read from the Libvips slide pyramid and convert to numpy array.
@@ -344,6 +386,9 @@ class SlideViewer(Viewer):
             zoom = min(max_w / self._tex_obj.width, max_h / self._tex_obj.height)
             zoom = np.floor(zoom) if zoom >= 1 else zoom
             self._tex_obj.draw(pos=pos, zoom=zoom, align=0.5, rint=True)
+        if self.show_scale:
+            self._draw_scale(max_w, max_h)
+
 
     def set_tile_px(self, tile_px: int):
         if tile_px != self.tile_px:
@@ -364,9 +409,15 @@ class SlideViewer(Viewer):
             dz (float): Amount to zoom.
         """
         wsi_x, wsi_y = self.display_coords_to_wsi_coords(cx, cy, offset=False)
-        self.view_zoom = min(self.view_zoom * dz,
-                                max(self.dimensions[0] / self.width,
-                                    self.dimensions[1] / self.height))
+        new_zoom = min(self.view_zoom * dz,
+                        max(self.dimensions[0] / self.width,
+                            self.dimensions[1] / self.height))
+
+        # Limit maximum zoom level
+        if new_zoom * self.wsi.mpp < 0.01:
+            return
+
+        self.view_zoom = new_zoom
         new_origin = [wsi_x - (cx * self.wsi_window_size[0] / self.width),
                       wsi_y - (cy * self.wsi_window_size[1] / self.height)]
 

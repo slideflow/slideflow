@@ -61,7 +61,7 @@ setuptools.setup(
         'scikit-image',
         'tqdm',
         'click',
-        'protobuf==3.20.2',
+        'protobuf<=3.20.2',
         'tensorboard',
         'crc32c',
         'h5py',

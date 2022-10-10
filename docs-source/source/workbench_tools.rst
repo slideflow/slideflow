@@ -34,11 +34,11 @@ The main viewer is an interactive display for whole-slide images, supporting pan
 
 Tile preview
 ------------
-Right clicking on the main view will establish the location for a focal tile prediction. A tile will be extracted from this location of the whole-slide image at the pixel & micron size appropriate for the loaded model. The tile preview window shows the extracted image tile taken from this location. If the loaded model uses stain normalization, a post-normalization image is also shown on the right. The tile preview window can be hidden by clicking the X in the top right corner, or toggled via the menu item View -> Toggle tile preview.
+Right clicking on the main view will establish the location for a focal tile prediction. A tile will be extracted from this location of the whole-slide image at the pixel & micron size appropriate for the loaded model. The tile preview window shows the extracted image tile taken from this location. If the loaded model uses stain normalization, a post-normalization image is also shown on the right. The tile preview window can be hidden by clicking the X in the top right corner, or toggled via the menu item View -> Show -> Tile Preview.
 
 Control panel
 -------------
-The control panel shows relevant active widgets which contain information and controls for whole-slide images, loaded models, heatmaps, and loaded GANs. Widgets will be automatically hidden when not in use (for example, the model widget will be hidden if a model is not loaded). The control panel is docked by default, but can be undocked with View -> Dock Controls or by pressing Ctrl+Shift+D. The control panel can be hidden with View -> Toggle Controls or by pressing Ctrl+Shift+C.
+The control panel shows relevant active widgets which contain information and controls for whole-slide images, loaded models, heatmaps, and loaded GANs. Widgets will be automatically hidden when not in use (for example, the model widget will be hidden if a model is not loaded). The control panel is docked by default, but can be undocked with View -> Dock Controls or by pressing Ctrl+Shift+D. The control panel can be hidden with View -> Show -> Control Pane or by pressing Ctrl+Shift+C.
 
 Whole-slide images
 ******************
@@ -137,4 +137,4 @@ Performance monitoring
 
 |
 
-Workbench's performance can be monitored with the performance widget, accessed via View -> Toggle Performance, or by pressing Ctrl+Shift+P. This widget displays frametimes for GUI display, image rendering, normalization, and model prediction. This widget can also be used to set a FPS limit (defaults to 60) and vertical sync (enabled by default). Low memory mode can be enabled here; when enabled, heatmaps are calculated with threadpools rather than multiprocessing pools, which decreases memory utilization at the cost of slower heatmap generation.
+Workbench's performance can be monitored with the performance widget, accessed via View -> Show -> Performance, or by pressing Ctrl+Shift+P. This widget displays frametimes for GUI display, image rendering, normalization, and model prediction. This widget can also be used to set a FPS limit (defaults to 60) and vertical sync (enabled by default). Low memory mode can be enabled here; when enabled, heatmaps are calculated with threadpools rather than multiprocessing pools, which decreases memory utilization at the cost of slower heatmap generation.

@@ -395,3 +395,12 @@ def _setup_circle(hole):
     return v.astype('float32')
 
 #----------------------------------------------------------------------------
+
+def draw_shadowed_line(verts, pos, linewidth=1, color=1, mode=gl.GL_LINE_LOOP, anchor='center'):
+    gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_LINE)
+    gl.glLineWidth(linewidth)
+    draw_shape(verts, pos=pos, size=np.array([1, 1], dtype='float32'), color=color, mode=gl.GL_LINE_LOOP, anchor='center')
+    gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_FILL)
+    gl.glLineWidth(1)
+
+#----------------------------------------------------------------------------

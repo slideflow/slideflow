@@ -283,6 +283,8 @@ class GlfwWindow: # pylint: disable=too-many-public-methods
             self._dock_control = not self._dock_control
         if self._control_down and self._shift_down and action == glfw.PRESS and key == glfw.KEY_P:
             self._show_performance = not self._show_performance
+        if self._control_down and self._shift_down and action == glfw.PRESS and key == glfw.KEY_T:
+            self._show_tile_preview = not self._show_tile_preview
         if self._control_down and action == glfw.PRESS and key == glfw.KEY_Q:
             self._exit_trigger = True
         if self._control_down and action == glfw.PRESS and key == glfw.KEY_EQUAL:

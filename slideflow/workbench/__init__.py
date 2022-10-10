@@ -493,24 +493,35 @@ class Workbench(imgui_window.ImguiWindow):
                 imgui.end_menu()
 
             # --- View --------------------------------------------------------
+            has_wsi = self.viewer and isinstance(self.viewer, wsi_utils.SlideViewer)
             if imgui.begin_menu('View', True):
-                if imgui.menu_item('Fullscreen', 'Ctrl+F')[1]:
+                if imgui.menu_item('Fullscreen', 'Ctrl+F')[0]:
                     self.toggle_fullscreen()
-                if imgui.menu_item('Dock Controls', 'Ctrl+Shift+D')[1]:
+                if imgui.menu_item('Dock Controls', 'Ctrl+Shift+D')[0]:
                     self._dock_control = not self._dock_control
-                if imgui.menu_item('Toggle Controls', 'Ctrl+Shift+C')[1]:
-                    self._show_control = not self._show_control
-                if imgui.menu_item('Toggle Performance', 'Ctrl+Shift+P')[1]:
-                    self._show_performance = not self._show_performance
+                imgui.separator()
+
+                # --- Show sub-menu -------------------------------------------
+                if imgui.begin_menu('Show', True):
+                    if imgui.menu_item('Control Pane', 'Ctrl+Shift+C', selected=self._show_control)[0]:
+                        self._show_control = not self._show_control
+                    if imgui.menu_item('Performance', 'Ctrl+Shift+P', selected=self._show_performance)[0]:
+                        self._show_performance = not self._show_performance
+                    if imgui.menu_item('Tile Preview', 'Ctrl+Shift+T', selected=self._show_tile_preview)[0]:
+                        self._show_tile_preview = not self._show_tile_preview
+                    imgui.separator()
+                    if imgui.menu_item('WSI Scale', selected=(has_wsi and self.viewer.show_scale), enabled=has_wsi)[0]:
+                        self.viewer.show_scale = not self.viewer.show_scale
+                    imgui.separator()
+                    imgui.menu_item('Camera View', enabled=False)
+                    imgui.end_menu()
+                # -------------------------------------------------------------
+
                 imgui.separator()
                 if imgui.menu_item('Increase Font Size', 'Ctrl+=')[1]:
                     self.increase_font_size()
                 if imgui.menu_item('Decrease Font Size', 'Ctrl+-')[1]:
                     self.decrease_font_size()
-                imgui.separator()
-                if imgui.menu_item('Toggle tile preview')[1]:
-                    self._show_tile_preview = not self._show_tile_preview
-                imgui.menu_item('Toggle camera view', enabled=False)
 
                 # Widgets with "View" menu.
                 for w in self.widgets:
@@ -522,7 +533,8 @@ class Workbench(imgui_window.ImguiWindow):
 
             # --- Help --------------------------------------------------------
             if imgui.begin_menu('Help', True):
-                imgui.menu_item('Get Started')
+                if imgui.menu_item('Get Started')[1]:
+                    webbrowser.open('https://slideflow.dev/workbench_tools.html')
                 if imgui.menu_item('Documentation')[1]:
                     webbrowser.open('https://slideflow.dev')
 
