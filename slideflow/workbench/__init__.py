@@ -327,7 +327,7 @@ class Workbench(imgui_window.ImguiWindow):
         self._control_size = self.spacing * 4
 
         # Slide widget
-        if self.P or self.wsi:
+        if (self.P or self.wsi) and self._show_control:
             expanded, _visible = imgui_utils.collapsing_header('Whole-slide image', default=True)
         else:
             expanded = False
@@ -335,7 +335,7 @@ class Workbench(imgui_window.ImguiWindow):
         self._control_size += self.slide_widget.content_height + header_height
 
         # Project widget
-        if self.P:
+        if self.P and self._show_control:
             expanded, _visible = imgui_utils.collapsing_header('Project', default=True)
         else:
             expanded = False
@@ -343,7 +343,7 @@ class Workbench(imgui_window.ImguiWindow):
         self._control_size += self.project_widget.content_height + header_height
 
         # Model widget
-        if self.P or self._model_path:
+        if (self.P or self._model_path) and self._show_control:
             expanded, _visible = imgui_utils.collapsing_header('Model & tile predictions', default=True)
         else:
             expanded = False
@@ -351,7 +351,7 @@ class Workbench(imgui_window.ImguiWindow):
         self._control_size += self.model_widget.content_height + header_height
 
         # Heatmap / prediction widget
-        if self.viewer is not None and self._model_config is not None:
+        if self.viewer is not None and self._model_config is not None and self._show_control:
             expanded, _visible = imgui_utils.collapsing_header('Heatmap & slide prediction', default=True)
         else:
             expanded = False
@@ -362,7 +362,7 @@ class Workbench(imgui_window.ImguiWindow):
 
         # User-defined widgets
         for header, widgets in self._widgets_by_header():
-            if header:
+            if header and self._show_control:
                 expanded, _visible = imgui_utils.collapsing_header(header, default=True)
                 self._control_size += header_height
             else:
