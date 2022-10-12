@@ -81,6 +81,8 @@ class SlideWidget:
         self.reset_tile_filter_and_join_thread()
         viz.clear_result()
         viz.skip_frame() # The input field will change on next frame.
+        viz.x = None
+        viz.y = None
         if slide == '':
             viz.result = EasyDict(message='No slide loaded')
             return

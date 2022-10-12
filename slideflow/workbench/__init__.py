@@ -206,6 +206,15 @@ class Workbench(imgui_window.ImguiWindow):
         """Main window offset (y), in pixels."""
         return int(self.offset_y * self.pixel_ratio)
 
+    @property
+    def has_controls_to_render(self):
+        return (
+            self.P is not None
+            or self.wsi is not None
+            or self._model_path is not None
+            or any(not hasattr(w, 'visible') or w.visible for w in self.widgets)
+        )
+
     # --- Internals -----------------------------------------------------------
 
     def _adjust_font_size(self) -> None:
@@ -214,6 +223,11 @@ class Workbench(imgui_window.ImguiWindow):
         self.set_font_size(18)
         if self.font_size != old:
             self.skip_frame() # Layout changed.
+
+    def _clear_textures(self) -> None:
+        for tex in self._tex_to_delete:
+            tex.delete()
+        self._tex_to_delete = []
 
     def _close_model_now(self) -> None:
         """Close the currently loaded model now."""
@@ -241,7 +255,6 @@ class Workbench(imgui_window.ImguiWindow):
         self.x = None
         self.y = None
         self.clear_result()
-        self._wsi_tex_obj = None
         self._async_renderer._live_updates = False
 
     def _draw_about_dialog(self) -> None:
@@ -293,13 +306,7 @@ class Workbench(imgui_window.ImguiWindow):
     def _draw_control_pane(self) -> None:
         """Draw the control pane and widgets."""
 
-        has_controls_to_render = (
-            self.P is not None
-            or self.wsi is not None
-            or self._model_path is not None
-            or any(not hasattr(w, 'visible') or w.visible for w in self.widgets)
-        )
-        if not has_controls_to_render:
+        if not self.has_controls_to_render:
             self.pane_w = 0
         else:
             _pane_w = self.font_size * self._pane_w_div
@@ -319,7 +326,7 @@ class Workbench(imgui_window.ImguiWindow):
                 )
 
         # Hide control pane if there are no widgets to show
-        if self._show_control and has_controls_to_render:
+        if self._show_control and self.has_controls_to_render:
             _, self._show_control = imgui.begin('Control Pane', **control_kw)
 
         # --- Core widgets (always rendered, not always shown) ----------------
@@ -373,11 +380,10 @@ class Workbench(imgui_window.ImguiWindow):
                     self._control_size += widget.content_height
 
         # Render control panel contents, if the control pane is shown.
-        if self._show_control and has_controls_to_render:
-            self._render_control_pane_contents()
+        if self._show_control and self.has_controls_to_render:
             imgui.end()
 
-        if not has_controls_to_render:
+        if not self.has_controls_to_render:
             self.result.message = 'Load a slide with File -> "Open Slide..."'
 
     def _draw_main_view(self, inp: EasyDict, window_changed: bool) -> None:
@@ -704,7 +710,6 @@ class Workbench(imgui_window.ImguiWindow):
                 slide.
             use_rois (bool): Use ROIs from the loaded project, if available.
         """
-
         if self.wsi is None and path is None:
             return
         if path is None:
@@ -844,16 +849,15 @@ class Workbench(imgui_window.ImguiWindow):
 
     def clear_overlay(self) -> None:
         """Remove the currently overlay image."""
-        self._overlay_tex_img   = None
-        self.overlay            = None
+        self._overlay_tex_img = None
+        self.overlay = None
 
     def clear_result(self) -> None:
         """Clear all shown results and images."""
         self.clear_model_results()
         self.clear_overlay()
-        self.result             = EasyDict()
-        self._wsi_tex_img       = None
-        self._wsi_tex_obj       = None
+        self.result = EasyDict()
+        self._wsi_tex_img = None
         if self.viewer:
             self.viewer.clear()
 
@@ -937,6 +941,7 @@ class Workbench(imgui_window.ImguiWindow):
                           or self._content_height != self.content_height
                           or self._pane_w != self.pane_w)
 
+        self._clear_textures()
         self._draw_menu_bar()
         self._draw_control_pane()
         self._draw_performance_pane()
@@ -997,6 +1002,10 @@ class Workbench(imgui_window.ImguiWindow):
         else:
             self.args.viewer = self.viewer
         # ---------------------------------------------------------------------
+
+        # Render control pane contents.
+        if self._show_control and self.has_controls_to_render:
+            self._render_control_pane_contents()
 
         # Render user widgets.
         for widget in self.widgets:
