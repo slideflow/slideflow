@@ -5,6 +5,7 @@ import numpy as np
 import webbrowser
 import pyperclip
 import imgui
+import glfw
 import OpenGL.GL as gl
 
 from typing import List, Any, Optional, Dict, Tuple
@@ -316,48 +317,67 @@ class Workbench(imgui_window.ImguiWindow):
                     closable=True,
                     flags=(imgui.WINDOW_NO_COLLAPSE | imgui.WINDOW_ALWAYS_AUTO_RESIZE)
                 )
+
+        # Hide control pane if there are no widgets to show
         if self._show_control and has_controls_to_render:
             _, self._show_control = imgui.begin('Control Pane', **control_kw)
 
-            # Core widgets.
-            header_height = self.font_size + self.spacing * 2
-            self._control_size = self.spacing * 4
+        # --- Core widgets (always rendered, not always shown) ----------------
+        header_height = self.font_size + self.spacing * 2
+        self._control_size = self.spacing * 4
 
-            if self.P:
-                expanded, _visible = imgui_utils.collapsing_header('Slideflow project', default=True)
-                self.project_widget(expanded)
-                self._control_size += self.project_widget.content_height + header_height
+        # Slide widget
+        if self.P or self.wsi:
+            expanded, _visible = imgui_utils.collapsing_header('Whole-slide image', default=True)
+        else:
+            expanded = False
+        self.slide_widget(expanded and self._show_control)
+        self._control_size += self.slide_widget.content_height + header_height
 
-            if self.P or self.wsi:
-                expanded, _visible = imgui_utils.collapsing_header('Whole-slide image', default=True)
-                self.slide_widget(expanded)
-                self._control_size += self.slide_widget.content_height + header_height
+        # Project widget
+        if self.P:
+            expanded, _visible = imgui_utils.collapsing_header('Project', default=True)
+        else:
+            expanded = False
+        self.project_widget(expanded and self._show_control)
+        self._control_size += self.project_widget.content_height + header_height
 
-            if self.P or self._model_path:
-                expanded, _visible = imgui_utils.collapsing_header('Model & tile predictions', default=True)
-                self.model_widget(expanded)
-                self._control_size += self.model_widget.content_height + header_height
+        # Model widget
+        if self.P or self._model_path:
+            expanded, _visible = imgui_utils.collapsing_header('Model & tile predictions', default=True)
+        else:
+            expanded = False
+        self.model_widget(expanded and self._show_control)
+        self._control_size += self.model_widget.content_height + header_height
 
-            if self.viewer is not None and self._model_config is not None:
-                expanded, _visible = imgui_utils.collapsing_header('Heatmap & slide prediction', default=True)
-                self.heatmap_widget(expanded)
-                self._control_size += self.heatmap_widget.content_height + header_height
+        # Heatmap / prediction widget
+        if self.viewer is not None and self._model_config is not None:
+            expanded, _visible = imgui_utils.collapsing_header('Heatmap & slide prediction', default=True)
+        else:
+            expanded = False
+        self.heatmap_widget(expanded and self._show_control)
+        self._control_size += self.heatmap_widget.content_height + header_height
 
-            # User-defined widgets
-            for header, widgets in self._widgets_by_header():
-                if header:
-                    expanded, _visible = imgui_utils.collapsing_header(header, default=True)
-                    self._control_size += header_height
-                else:
-                    expanded = True
-                for widget in widgets:
-                    widget(expanded)
-                    if hasattr(widget, 'content_height'):
-                        self._control_size += widget.content_height
+        # ---------------------------------------------------------------------
 
+        # User-defined widgets
+        for header, widgets in self._widgets_by_header():
+            if header:
+                expanded, _visible = imgui_utils.collapsing_header(header, default=True)
+                self._control_size += header_height
+            else:
+                expanded = True
+            for widget in widgets:
+                widget(expanded and self._show_control)
+                if hasattr(widget, 'content_height'):
+                    self._control_size += widget.content_height
+
+        # Render control panel contents, if the control pane is shown.
+        if self._show_control and has_controls_to_render:
             self._render_control_pane_contents()
             imgui.end()
-        elif not has_controls_to_render:
+
+        if not has_controls_to_render:
             self.result.message = 'Load a slide with File -> "Open Slide..."'
 
     def _draw_main_view(self, inp: EasyDict, window_changed: bool) -> None:
@@ -445,20 +465,11 @@ class Workbench(imgui_window.ImguiWindow):
             # --- File --------------------------------------------------------
             if imgui.begin_menu('File', True):
                 if imgui.menu_item('Open Project...', 'Ctrl+P')[1]:
-                    project_path = askdirectory()
-                    if project_path:
-                        self.load_project(project_path, ignore_errors=True)
+                    self.ask_load_project()
                 if imgui.menu_item('Open Slide...', 'Ctrl+O')[1]:
-                    slide_path = askopenfilename()
-                    if slide_path:
-                        self.load_slide(slide_path, ignore_errors=True)
+                    self.ask_load_slide()
                 if imgui.menu_item('Load Model...', 'Ctrl+M')[1]:
-                    if sf.backend() == 'tensorflow':
-                        model_path = askdirectory()
-                    else:
-                        model_path = askopenfilename()
-                    if model_path:
-                        self.load_model(model_path, ignore_errors=True)
+                    self.ask_load_model()
                 imgui.separator()
                 if imgui.begin_menu('Export...', True):
                     if imgui.menu_item('Main view')[1]:
@@ -630,6 +641,26 @@ class Workbench(imgui_window.ImguiWindow):
             imgui.same_line()
             imgui.end()
 
+    def _glfw_key_callback(self, _window, key, _scancode, action, _mods):
+        """Callback for handling keyboard input."""
+        super()._glfw_key_callback(_window, key, _scancode, action, _mods)
+        if self._control_down and self._shift_down and action == glfw.PRESS and key == glfw.KEY_C:
+            self._show_control = not self._show_control
+        if self._control_down and self._shift_down and action == glfw.PRESS and key == glfw.KEY_D:
+            self._dock_control = not self._dock_control
+        if self._control_down and self._shift_down and action == glfw.PRESS and key == glfw.KEY_P:
+            self._show_performance = not self._show_performance
+        if self._control_down and self._shift_down and action == glfw.PRESS and key == glfw.KEY_T:
+            self._show_tile_preview = not self._show_tile_preview
+        if self._control_down and action == glfw.PRESS and key == glfw.KEY_Q:
+            self._exit_trigger = True
+        if self._control_down and action == glfw.PRESS and key == glfw.KEY_O:
+            self.ask_load_slide()
+        if self._control_down and not self._shift_down and action == glfw.PRESS and key == glfw.KEY_P:
+            self.ask_load_project()
+        if self._control_down and action == glfw.PRESS and key == glfw.KEY_M:
+            self.ask_load_model()
+
     def _handle_user_input(self):
         """Handle user input to support clicking/dragging the main viewer."""
 
@@ -782,6 +813,34 @@ class Workbench(imgui_window.ImguiWindow):
         if name is not None:
             self._addl_renderers[name] = renderer
         self._async_renderer.add_to_render_pipeline(renderer)
+
+    def ask_load_model(self):
+        """Prompt user for location of a model and load."""
+        if sf.backend() == 'tensorflow':
+            model_path = askdirectory(title="Load model (directory)...")
+        else:
+            model_path = askopenfilename("Load model...", filetypes=[("zip", ".zip"), ("All files", ".*")])
+        if model_path:
+            self.load_model(model_path, ignore_errors=True)
+
+    def ask_load_project(self):
+        """Prompt user for location of a project and load."""
+        project_path = askdirectory(title="Load project (directory)...")
+        if project_path:
+            self.load_project(project_path, ignore_errors=True)
+
+    def ask_load_slide(self):
+        """Prompt user for location of a slide and load."""
+        slide_path = askopenfilename(title="Load slide...", filetypes=[("Aperio ScanScope", ("*.svs", "*.svslide")),
+                                                                       ("Hamamatsu", ("*.ndpi", "*.vms", "*.vmu")),
+                                                                       ("Leica", "*.scn"),
+                                                                       ("MIRAX", "*.mrxs"),
+                                                                       ("Roche, Ventana", "*.bif"),
+                                                                       ("Pyramid TIFF", ("*.tiff", "*.tif")),
+                                                                       ("JPEG", (".jpg", "*.jpeg")),
+                                                                       ("All files", ".*")])
+        if slide_path:
+            self.load_slide(slide_path, ignore_errors=True)
 
     def clear_overlay(self) -> None:
         """Remove the currently overlay image."""

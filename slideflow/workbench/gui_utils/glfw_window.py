@@ -196,12 +196,6 @@ class GlfwWindow: # pylint: disable=too-many-public-methods
         if self._glfw_window is not None:
             glfw.make_context_current(self._glfw_window)
 
-    def increase_font_size(self):
-        pass
-
-    def decrease_font_size(self):
-        pass
-
     def begin_frame(self):
         # End previous frame.
         if self._drawing_frame:
@@ -265,6 +259,7 @@ class GlfwWindow: # pylint: disable=too-many-public-methods
 
     def _glfw_key_callback(self, _window, key, _scancode, action, _mods):
 
+        # Key modifiers
         if action == glfw.PRESS and key in (glfw.KEY_LEFT_CONTROL, glfw.KEY_RIGHT_CONTROL):
             self._control_down = True
         if action == glfw.RELEASE and key in (glfw.KEY_LEFT_CONTROL, glfw.KEY_RIGHT_CONTROL):
@@ -273,20 +268,12 @@ class GlfwWindow: # pylint: disable=too-many-public-methods
             self._shift_down = True
         if action == glfw.RELEASE and key in (glfw.KEY_LEFT_SHIFT, glfw.KEY_RIGHT_SHIFT):
             self._shift_down = False
+
+        # Key combinations
         if action == glfw.PRESS and key == glfw.KEY_ESCAPE:
             self.set_windowed()
         if self._control_down and action == glfw.PRESS and key == glfw.KEY_F:
             self.toggle_fullscreen()
-        if self._control_down and self._shift_down and action == glfw.PRESS and key == glfw.KEY_C:
-            self._show_control = not self._show_control
-        if self._control_down and self._shift_down and action == glfw.PRESS and key == glfw.KEY_D:
-            self._dock_control = not self._dock_control
-        if self._control_down and self._shift_down and action == glfw.PRESS and key == glfw.KEY_P:
-            self._show_performance = not self._show_performance
-        if self._control_down and self._shift_down and action == glfw.PRESS and key == glfw.KEY_T:
-            self._show_tile_preview = not self._show_tile_preview
-        if self._control_down and action == glfw.PRESS and key == glfw.KEY_Q:
-            self._exit_trigger = True
         if self._control_down and action == glfw.PRESS and key == glfw.KEY_EQUAL:
             self.increase_font_size()
         if self._control_down and action == glfw.PRESS and key == glfw.KEY_MINUS:

@@ -79,9 +79,13 @@ class ImguiWindow(glfw_window.GlfwWindow):
     def spacing(self):
         return round(self._cur_font_size * 0.4)
 
-    def _glfw_key_callback(self, *args):
-        super()._glfw_key_callback(*args)
-        self._imgui_renderer.keyboard_callback(*args)
+    def _glfw_key_callback(self, _window, key, _scancode, action, _mods):
+        super()._glfw_key_callback(_window, key, _scancode, action, _mods)
+        self._imgui_renderer.keyboard_callback(_window, key, _scancode, action, _mods)
+        if self._control_down and action == glfw.PRESS and key == glfw.KEY_EQUAL:
+            self.increase_font_size()
+        if self._control_down and action == glfw.PRESS and key == glfw.KEY_MINUS:
+            self.decrease_font_size()
 
     def _render_toasts(self, padding=20):
         _to_del = []
