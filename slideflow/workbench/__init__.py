@@ -327,7 +327,10 @@ class Workbench(imgui_window.ImguiWindow):
 
         # Hide control pane if there are no widgets to show
         if self._show_control and self.has_controls_to_render:
+            drawing_control_pane = True
             _, self._show_control = imgui.begin('Control Pane', **control_kw)
+        else:
+            drawing_control_pane = False
 
         # --- Core widgets (always rendered, not always shown) ----------------
         header_height = self.font_size + self.spacing * 2
@@ -380,7 +383,7 @@ class Workbench(imgui_window.ImguiWindow):
                     self._control_size += widget.content_height
 
         # Render control panel contents, if the control pane is shown.
-        if self._show_control and self.has_controls_to_render:
+        if drawing_control_pane:
             imgui.end()
 
         if not self.has_controls_to_render:
