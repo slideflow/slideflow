@@ -673,6 +673,10 @@ class Workbench(imgui_window.ImguiWindow):
             self.ask_load_model()
         if self._control_down and action == glfw.PRESS and key == glfw.KEY_H:
             self.ask_load_heatmap()
+        if self._control_down and action == glfw.PRESS and key == glfw.KEY_SPACE:
+            self.heatmap_widget.show = True
+        if self._control_down and action == glfw.RELEASE and key == glfw.KEY_SPACE:
+            self.heatmap_widget.show = False
 
     def _handle_user_input(self):
         """Handle user input to support clicking/dragging the main viewer."""

@@ -56,7 +56,6 @@ class HeatmapWidget:
     def _create_heatmap(self):
         viz = self.viz
         self.reset()
-        self._button_pressed = True
         mp_key = 'num_threads' if viz.low_memory else 'num_processes'
         mp_kw = {mp_key: os.cpu_count()}
         viz.heatmap = sf.heatmap.ModelHeatmap(
@@ -74,6 +73,7 @@ class HeatmapWidget:
 
         sw = self.viz.slide_widget
         self._create_heatmap()
+        self._button_pressed = True
         self._generating = True
         self._heatmap_grid, self._heatmap_thread = self.viz.heatmap.generate(
             asynchronous=True,
