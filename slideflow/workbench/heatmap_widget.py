@@ -53,53 +53,11 @@ class HeatmapWidget:
         self._colormaps             = plt.colormaps()
         self._rendering_message     = "Calculating heatmap..."
 
-    def update_transparency(self):
-        if self.viz.rendered_heatmap is not None:
-            alpha_channel = np.full(self.viz.rendered_heatmap.shape[0:2],
-                                    int(self.alpha * 255),
-                                    dtype=np.uint8)
-            self.viz.overlay = np.dstack((self.viz.rendered_heatmap[:, :, 0:3],
-                                                  alpha_channel))
-            full_extract = int(self.viz.wsi.tile_um / self.viz.wsi.mpp)
-            wsi_stride = int(full_extract / self.viz.wsi.stride_div)
-            self.viz._overlay_wsi_dim = (wsi_stride * (self.viz.overlay.shape[1]),
-                                         wsi_stride * (self.viz.overlay.shape[0]))
-            self.viz._overlay_offset_wsi_dim = (full_extract/2 - wsi_stride/2, full_extract/2 - wsi_stride/2)
-
-    def render_heatmap(self):
-        self._old_logits = self.heatmap_logits
-        self._old_uncertainty = self.heatmap_uncertainty
-        if self.viz.heatmap is None:
-            return
-        if self.use_logits:
-            heatmap_arr = self.logits[:, :, self.heatmap_logits]
-            gain = self._logits_gain
-        else:
-            heatmap_arr = self.uncertainty[:, :, self.heatmap_uncertainty]
-            gain = self._uq_gain
-        self.viz.rendered_heatmap = _apply_cmap(heatmap_arr * gain, self._colormaps[self.cmap_idx])[:, :, 0:3]
-        self.update_transparency()
-
-    def reset(self):
-        self.viz.rendered_heatmap   = None
-        self.viz.overlay            = None
-        self.viz.heatmap            = None
-        self._heatmap_sum           = 0
-        self._heatmap_grid          = None
-        self._heatmap_thread        = None
-        self._old_logits            = 0
-        self._old_uncertainty       = 0
-        self.logits                 = None
-        self.uncertainty            = None
-        self._generating            = False
-        self.heatmap_logits         = 0
-        self.heatmap_uncertainty    = 0
-
-    def generate_heatmap(self):
+    def _create_heatmap(self):
         viz = self.viz
         self.reset()
         self._button_pressed = True
-        mp_key = 'num_threads' if self.viz.low_memory else 'num_processes'
+        mp_key = 'num_threads' if viz.low_memory else 'num_processes'
         mp_kw = {mp_key: os.cpu_count()}
         viz.heatmap = sf.heatmap.ModelHeatmap(
             viz.wsi,
@@ -110,16 +68,34 @@ class HeatmapWidget:
             uq=viz.has_uq(),
             **mp_kw
         )
+
+    def generate_heatmap(self):
+        """Create and generate a heatmap asynchronously."""
+
+        sw = self.viz.slide_widget
+        self._create_heatmap()
         self._generating = True
-        self._heatmap_grid, self._heatmap_thread = viz.heatmap.generate(
+        self._heatmap_grid, self._heatmap_thread = self.viz.heatmap.generate(
             asynchronous=True,
-            grayspace_fraction=self.viz.slide_widget.gs_fraction,
-            grayspace_threshold=self.viz.slide_widget.gs_threshold,
-            whitespace_fraction=self.viz.slide_widget.ws_fraction,
-            whitespace_threshold=self.viz.slide_widget.ws_threshold,
+            grayspace_fraction=sw.gs_fraction,
+            grayspace_threshold=sw.gs_threshold,
+            whitespace_fraction=sw.ws_fraction,
+            whitespace_threshold=sw.ws_threshold,
         )
 
+    def load(self, path):
+        """Load a heatmap from a saved *.npz file."""
+
+        if self.viz.heatmap is None:
+            self._create_heatmap()
+        self.viz.heatmap.load(path)
+        self.logits = self.viz.heatmap.logits
+        self.uncertainty = self.viz.heatmap.uncertainty
+        self.render_heatmap()
+
     def refresh_generating_heatmap(self):
+        """Refresh render of the asynchronously generating heatmap."""
+
         if self.viz.heatmap is not None and self._heatmap_grid is not None:
             logits, uncertainty = process_grid(self.viz.heatmap, self._heatmap_grid)
             _sum = np.sum(logits)
@@ -134,6 +110,55 @@ class HeatmapWidget:
             self._button_pressed = False
             self._heatmap_thread = None
             self.viz.clear_message(self._rendering_message)
+
+    def render_heatmap(self):
+        """Render the current heatmap."""
+
+        self._old_logits = self.heatmap_logits
+        self._old_uncertainty = self.heatmap_uncertainty
+        if self.viz.heatmap is None:
+            return
+        if self.use_logits:
+            heatmap_arr = self.logits[:, :, self.heatmap_logits]
+            gain = self._logits_gain
+        else:
+            heatmap_arr = self.uncertainty[:, :, self.heatmap_uncertainty]
+            gain = self._uq_gain
+        self.viz.rendered_heatmap = _apply_cmap(heatmap_arr * gain, self._colormaps[self.cmap_idx])[:, :, 0:3]
+        self.update_transparency()
+
+    def reset(self):
+        """Reset the heatmap display."""
+
+        self.viz.rendered_heatmap   = None
+        self.viz.overlay            = None
+        self.viz.heatmap            = None
+        self._heatmap_sum           = 0
+        self._heatmap_grid          = None
+        self._heatmap_thread        = None
+        self._old_logits            = 0
+        self._old_uncertainty       = 0
+        self.logits                 = None
+        self.uncertainty            = None
+        self._generating            = False
+        self.heatmap_logits         = 0
+        self.heatmap_uncertainty    = 0
+
+    def update_transparency(self):
+        """Update transparency of the heatmap overlay."""
+
+        if self.viz.rendered_heatmap is not None:
+            alpha_channel = np.full(self.viz.rendered_heatmap.shape[0:2],
+                                    int(self.alpha * 255),
+                                    dtype=np.uint8)
+            self.viz.overlay = np.dstack((self.viz.rendered_heatmap[:, :, 0:3],
+                                                  alpha_channel))
+            full_extract = int(self.viz.wsi.tile_um / self.viz.wsi.mpp)
+            wsi_stride = int(full_extract / self.viz.wsi.stride_div)
+            self.viz._overlay_wsi_dim = (wsi_stride * (self.viz.overlay.shape[1]),
+                                         wsi_stride * (self.viz.overlay.shape[0]))
+            self.viz._overlay_offset_wsi_dim = (full_extract/2 - wsi_stride/2, full_extract/2 - wsi_stride/2)
+
 
     @imgui_utils.scoped_by_object_id
     def __call__(self, show=True):

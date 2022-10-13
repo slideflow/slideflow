@@ -479,6 +479,8 @@ class Workbench(imgui_window.ImguiWindow):
                     self.ask_load_slide()
                 if imgui.menu_item('Load Model...', 'Ctrl+M')[1]:
                     self.ask_load_model()
+                if imgui.menu_item('Load Heatmap...', 'Ctrl+H', enabled=self._model_path is not None)[1]:
+                    self.ask_load_heatmap()
                 imgui.separator()
                 if imgui.begin_menu('Export...', True):
                     if imgui.menu_item('Main view')[1]:
@@ -669,6 +671,8 @@ class Workbench(imgui_window.ImguiWindow):
             self.ask_load_project()
         if self._control_down and action == glfw.PRESS and key == glfw.KEY_M:
             self.ask_load_model()
+        if self._control_down and action == glfw.PRESS and key == glfw.KEY_H:
+            self.ask_load_heatmap()
 
     def _handle_user_input(self):
         """Handle user input to support clicking/dragging the main viewer."""
@@ -822,12 +826,18 @@ class Workbench(imgui_window.ImguiWindow):
             self._addl_renderers[name] = renderer
         self._async_renderer.add_to_render_pipeline(renderer)
 
+    def ask_load_heatmap(self):
+        """Prompt user for location of exported heatmap (*.npz) and load."""
+        npz_path = askopenfilename(title="Load heatmap...", filetypes=[("*.npz", "*.npz")])
+        if npz_path:
+            self.load_heatmap(npz_path)
+
     def ask_load_model(self):
         """Prompt user for location of a model and load."""
         if sf.backend() == 'tensorflow':
             model_path = askdirectory(title="Load model (directory)...")
         else:
-            model_path = askopenfilename("Load model...", filetypes=[("zip", ".zip"), ("All files", ".*")])
+            model_path = askopenfilename(title="Load model...", filetypes=[("zip", ".zip"), ("All files", ".*")])
         if model_path:
             self.load_model(model_path, ignore_errors=True)
 
@@ -1101,6 +1111,22 @@ class Workbench(imgui_window.ImguiWindow):
                 and self._model_config is not None
                 and 'uq' in self._model_config['hp']
                 and self._model_config['hp']['uq'])
+
+    def load_heatmap(self, path: str) -> None:
+        """Load a saved heatmap (*.npz).
+
+        Args:
+            path (str): Path to exported heatmap in *.npz format, as generated
+                by Heatmap.save() or Heatmap.save_npz().
+        """
+        try:
+            self.heatmap_widget.load(path)
+            self.create_toast(f"Loaded heatmap at {path}", icon="success")
+
+        except Exception as e:
+            log.debug("Exception raised loading heatmap: {}".format(e))
+            self.create_toast(f"Error loading heatmap at {path}", icon="error")
+
 
     def load_model(self, model: str, ignore_errors: bool = False) -> None:
         """Load the given model.
