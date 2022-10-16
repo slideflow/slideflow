@@ -9,6 +9,8 @@ Slideflow has been tested and is supported on the following systems:
 Software Requirements
 *********************
 
+The following dependencies are required before Slideflow can be installed:
+
 - Python 3.7 - 3.10
 - `OpenSlide <https://openslide.org/download/>`_
 - `Libvips 8.9+ <https://libvips.github.io/libvips/>`_
@@ -29,8 +31,11 @@ Slideflow can be installed either with PyPI or as a Docker container. To install
     # Update to latest pip
     $ pip install --upgrade pip
 
-    # Current stable release
-    $ pip install slideflow
+    # Current stable release, Tensorflow backend
+    $ pip install slideflow[tf]
+
+    # Alternatively, install with PyTorch backend
+    $ pip install slideflow[torch]
 
 Run a Docker container
 **********************

@@ -276,6 +276,7 @@
 </ul>
 <section id="software-requirements">
 <h2>Software Requirements<a class="headerlink" href="#software-requirements" title="Permalink to this heading">¶</a></h2>
+<p>The following dependencies are required before Slideflow can be installed:</p>
 <ul class="simple">
 <li><p>Python 3.7 - 3.10</p></li>
 <li><p><a class="reference external" href="https://openslide.org/download/">OpenSlide</a></p></li>
@@ -296,8 +297,11 @@
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Update to latest pip</span>
 $ pip install --upgrade pip
 
-<span class="c1"># Current stable release</span>
-$ pip install slideflow
+<span class="c1"># Current stable release, Tensorflow backend</span>
+$ pip install slideflow[tf]
+
+<span class="c1"># Alternatively, install with PyTorch backend</span>
+$ pip install slideflow[torch]
 </pre></div>
 </div>
 </section>
