@@ -22,6 +22,8 @@ Software Requirements
 Download with pip
 *****************
 
+Slideflow can be installed either with PyPI or as a Docker container. To install via pip:
+
 .. code-block:: bash
 
     # Update to latest pip
@@ -33,16 +35,16 @@ Download with pip
 Run a Docker container
 **********************
 
-The `Slideflow docker images <https://hub.docker.com/repository/docker/jamesdolezal/slideflow>`_ have been pre-configured with OpenSlide, Libvips, and either PyTorch 1.11 or Tensorflow 2.8. Using a preconfigured `Docker <https://docs.docker.com/install/>`_ container is the easiest way to get started with compatible dependencies and GPU support.
+Alternatively, pre-configured `docker images <https://hub.docker.com/repository/docker/jamesdolezal/slideflow>`_ are available with OpenSlide, Libvips, and either PyTorch 1.11 or Tensorflow 2.8 pre-installed. Using a preconfigured `Docker <https://docs.docker.com/install/>`_ container is the easiest way to get started with compatible dependencies and GPU support.
 
-To install with the Tensorflow 2.8 backend:
+To run a Docker container with the Tensorflow 2.8 backend:
 
 .. code-block:: bash
 
     $ docker pull jamesdolezal/slideflow:latest-tf
     $ docker run -it --gpus all jamesdolezal/slideflow:latest-tf
 
-To install with the PyTorch 1.11 backend:
+To run a Docker container with the PyTorch 1.11 backend:
 
 .. code-block:: bash
 

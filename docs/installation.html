@@ -292,6 +292,7 @@
 </section>
 <section id="download-with-pip">
 <h2>Download with pip<a class="headerlink" href="#download-with-pip" title="Permalink to this heading">¶</a></h2>
+<p>Slideflow can be installed either with PyPI or as a Docker container. To install via pip:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Update to latest pip</span>
 $ pip install --upgrade pip
 
@@ -302,13 +303,13 @@ $ pip install slideflow
 </section>
 <section id="run-a-docker-container">
 <h2>Run a Docker container<a class="headerlink" href="#run-a-docker-container" title="Permalink to this heading">¶</a></h2>
-<p>The <a class="reference external" href="https://hub.docker.com/repository/docker/jamesdolezal/slideflow">Slideflow docker images</a> have been pre-configured with OpenSlide, Libvips, and either PyTorch 1.11 or Tensorflow 2.8. Using a preconfigured <a class="reference external" href="https://docs.docker.com/install/">Docker</a> container is the easiest way to get started with compatible dependencies and GPU support.</p>
-<p>To install with the Tensorflow 2.8 backend:</p>
+<p>Alternatively, <a class="reference external" href="https://hub.docker.com/repository/docker/jamesdolezal/slideflow">docker images</a> are available with OpenSlide, Libvips, and either PyTorch 1.11 or Tensorflow 2.8 pre-installed. Using a preconfigured <a class="reference external" href="https://docs.docker.com/install/">Docker</a> container is the easiest way to get started with compatible dependencies and GPU support.</p>
+<p>To run a Docker container with the Tensorflow 2.8 backend:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ docker pull jamesdolezal/slideflow:latest-tf
 $ docker run -it --gpus all jamesdolezal/slideflow:latest-tf
 </pre></div>
 </div>
-<p>To install with the PyTorch 1.11 backend:</p>
+<p>To run a Docker container with the PyTorch 1.11 backend:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ docker pull jamesdolezal/slideflow:latest-torch
 $ docker run -it --shm-size<span class="o">=</span>2g --gpus all jamesdolezal/slideflow:latest-torch
 </pre></div>
