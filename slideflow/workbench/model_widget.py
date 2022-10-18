@@ -288,10 +288,6 @@ class ModelWidget:
                 self.browse_refocus = False
             imgui.end_popup()
 
-        paths = viz.pop_drag_and_drop_paths()
-        if paths is not None and len(paths) >= 1:
-            self.load(paths[0], ignore_errors=True)
-
         viz._use_saliency = self.enable_saliency
         viz.args.saliency_method = self.saliency_idx
         viz.args.saliency_overlay = self.saliency_overlay

@@ -57,7 +57,7 @@ class TestSuite:
             detected_slides = [
                 sf.util.path_to_name(f)
                 for f in os.listdir(slides)
-                if sf.util.path_to_ext(f).lower() in sf.util.SUPPORTED_FORMATS
+                if sf.util.is_slide(f)
             ][:10]
             if not len(detected_slides):
                 print(f"[yellow]No slides found at {slides}; "

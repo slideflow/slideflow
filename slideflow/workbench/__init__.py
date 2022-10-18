@@ -864,6 +864,15 @@ class Workbench(imgui_window.ImguiWindow):
         if slide_path:
             self.load_slide(slide_path, ignore_errors=True)
 
+    def autoload(self, path, ignore_errors=False):
+        """Automatically load a path, detecting if the path is a slide, model, or project."""
+        if sf.util.is_project(path):
+            self.load_project(path, ignore_errors=ignore_errors)
+        elif sf.util.is_slide(path):
+            self.load_slide(path, ignore_errors=ignore_errors)
+        elif sf.util.is_model(path):
+            self.load_model(path, ignore_errors=ignore_errors)
+
     def clear_overlay(self) -> None:
         """Remove the currently overlay image."""
         self._overlay_tex_img = None
@@ -957,6 +966,11 @@ class Workbench(imgui_window.ImguiWindow):
         window_changed = (self._content_width != self.content_width
                           or self._content_height != self.content_height
                           or self._pane_w != self.pane_w)
+
+        # Process drag-and-drop files
+        paths = self.pop_drag_and_drop_paths()
+        if paths is not None and len(paths) >= 1:
+            self.autoload(paths[0], ignore_errors=True)
 
         self._clear_textures()
         self._draw_menu_bar()
@@ -1130,7 +1144,6 @@ class Workbench(imgui_window.ImguiWindow):
         except Exception as e:
             log.debug("Exception raised loading heatmap: {}".format(e))
             self.create_toast(f"Error loading heatmap at {path}", icon="error")
-
 
     def load_model(self, model: str, ignore_errors: bool = False) -> None:
         """Load the given model.

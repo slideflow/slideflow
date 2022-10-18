@@ -105,7 +105,7 @@ def random_annotations(
         slides = [
             sf.util.path_to_name(f)
             for f in os.listdir(slides_path)
-            if sf.util.path_to_ext(f).lower() in sf.util.SUPPORTED_FORMATS
+            if sf.util.is_slide(f)
         ][:10]
     else:
         slides = [f'slide{i}' for i in range(10)]
@@ -312,11 +312,10 @@ class TestConfig:
         if slides == 'download':
             tcga_slides = get_tcga_slides()
             with TaskWrapper("Downloading slides..."):
-                supported = sf.util.SUPPORTED_FORMATS
                 existing = [
                     sf.util.path_to_name(f)
                     for f in os.listdir(slides_path)
-                    if sf.util.path_to_ext(f).lower() in supported
+                    if sf.util.is_slide(f)
                 ]
                 for slide in [s for s in tcga_slides if s not in existing]:
                     download_from_tcga(
@@ -343,9 +342,9 @@ class TestConfig:
         Returns:
             sf.Project: Test project.
         """
-        if exists(join(path, 'settings.json')) and overwrite:
+        if sf.util.is_project(path) and overwrite:
             shutil.rmtree(path)
-        if exists(join(path, 'settings.json')):
+        if sf.util.is_project(path):
             self.project = sf.Project(path)
         else:
             self.project = sf.Project(path, **self.project_settings)

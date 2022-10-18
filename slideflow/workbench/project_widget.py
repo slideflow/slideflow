@@ -113,8 +113,4 @@ class ProjectWidget:
                     self.load(project, ignore_errors=True)
             imgui.end_popup()
 
-        paths = viz.pop_drag_and_drop_paths()
-        if paths is not None and len(paths) >= 1:
-            self.load(paths[0], ignore_errors=True)
-
 #----------------------------------------------------------------------------

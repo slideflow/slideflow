@@ -80,9 +80,9 @@ class Project:
 
         self.root = root
 
-        if exists(join(root, 'settings.json')) and kwargs:
+        if sf.util.is_project(root) and kwargs:
             raise errors.ProjectError(f"Project already exists at {root}")
-        elif exists(join(root, 'settings.json')):
+        elif sf.util.is_project(root):
             self.load_project(root)
         elif kwargs:
             log.info(f"Creating project at {root}...")
@@ -115,7 +115,7 @@ class Project:
             root (str): Path to project directory.
         """
 
-        if not exists(join(root, 'settings.json')):
+        if not sf.util.is_project(root):
             log.info(f'Setting up new project at "{root}"')
             project_utils.interactive_project_setup(root)
         obj = cls(root, **kwargs)
@@ -1700,8 +1700,8 @@ class Project:
 
             if sf.backend() == 'torch':
                 import torch
-                model = model.to(torch.device('cuda'))
-                model.eval()
+                model = model.to(torch.device('cuda'))  # type: ignore
+                model.eval()  # type: ignore
         elif not exists(model):
             raise ValueError(
                 f"'{model}' is neither a path to a saved model nor the name "
@@ -2352,7 +2352,7 @@ class Project:
         """Loads a saved and pre-configured project from the specified path."""
 
         # Enable logging
-        if exists(join(path, 'settings.json')):
+        if sf.util.is_project(path):
             self._settings = sf.util.load_json(join(path, 'settings.json'))
         else:
             raise errors.ProjectError('Unable to find settings.json.')
