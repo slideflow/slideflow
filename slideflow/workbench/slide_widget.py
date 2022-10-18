@@ -76,16 +76,103 @@ class SlideWidget:
     def _thread_is_running(self):
         return self._filter_thread is not None and self._filter_thread.is_alive()
 
+    # --- Internal ------------------------------------------------------------
+
+    def _filter_thread_worker(self):
+        if self.viz.wsi is not None:
+            self.viz.set_message(self._rendering_message)
+            mp_key = 'num_threads' if self.viz.low_memory else 'num_processes'
+            mp_kw = {mp_key: os.cpu_count()}
+            generator = self.viz.wsi.build_generator(
+                img_format='numpy',
+                grayspace_fraction=sf.slide.FORCE_CALCULATE_GRAYSPACE,
+                grayspace_threshold=self.gs_threshold,
+                whitespace_fraction=sf.slide.FORCE_CALCULATE_WHITESPACE,
+                whitespace_threshold=self.ws_threshold,
+                shuffle=False,
+                dry_run=True,
+                **mp_kw)
+            if not generator:
+                self.viz.clear_message(self._rendering_message)
+                return
+            # Returns boolean grid, where:
+            #   True = tile will be extracted
+            #   False = tile will be discarded (failed QC)
+            self._filter_grid = np.transpose(self.viz.wsi.grid).astype(bool)
+            self._ws_grid = np.zeros_like(self._filter_grid, dtype=np.float)
+            self._gs_grid = np.zeros_like(self._filter_grid, dtype=np.float)
+            self.render_overlay(self._filter_grid, correct_wsi_dim=True)
+            for tile in generator():
+                x = tile['grid'][0]
+                y = tile['grid'][1]
+                gs = tile['gs_fraction']
+                ws = tile['ws_fraction']
+                try:
+                    self._ws_grid[y][x] = ws
+                    self._gs_grid[y][x] = gs
+                    if gs > self.gs_fraction or ws > self.ws_fraction:
+                        self._filter_grid[y][x] = False
+                        self.render_overlay(self._filter_grid, correct_wsi_dim=True)
+                except TypeError:
+                    # Occurs when the _ws_grid is reset, e.g. the slide was re-loaded.
+                    sf.log.debug("Aborting tile filter calculation")
+                    self.viz.clear_message(self._rendering_message)
+                    return
+            self.viz.clear_message(self._rendering_message)
+
+    def _join_filter_thread(self):
+        if self._filter_thread is not None:
+            self._filter_thread.join()
+        self._filter_thread = None
+
+    def _reset_tile_filter_and_join_thread(self):
+        self._join_filter_thread()
+        self.viz._overlay_tex_obj = None
+        self._filter_grid = None
+        self._filter_thread = None
+        self._ws_grid = None
+        self._gs_grid = None
+
+    def _start_filter_thread(self):
+        self._join_filter_thread()
+        self._filter_thread = threading.Thread(target=self._filter_thread_worker)
+        self._filter_thread.start()
+
+    def _refresh_gs_ws(self):
+        self._join_filter_thread()
+        if self._ws_grid is not None:
+            # Returns boolean grid, where:
+            #   True = tile will be extracted
+            #   False = tile will be discarded (failed QC)
+            self._filter_grid = np.transpose(self.viz.wsi.grid).astype(bool)
+            for y in range(self._ws_grid.shape[0]):
+                for x in range(self._ws_grid.shape[1]):
+                    ws = self._ws_grid[y][x]
+                    gs = self._gs_grid[y][x]
+                    if gs > self.gs_fraction or ws > self.ws_fraction:
+                        self._filter_grid[y][x] = False
+            if self.show_tile_filter:
+                self.render_overlay(self._filter_grid, correct_wsi_dim=True)
+
+    # --- Public interface ----------------------------------------------------
+
     def load(self, slide, ignore_errors=False):
+        """Load a slide."""
+
         viz = self.viz
-        self.reset_tile_filter_and_join_thread()
+        if slide == '':
+            viz.result = EasyDict(message='No slide loaded')
+            return
+
+        # Wait until current ops are complete
+        self._reset_tile_filter_and_join_thread()
         viz.clear_result()
         viz.skip_frame() # The input field will change on next frame.
         viz.x = None
         viz.y = None
-        if slide == '':
-            viz.result = EasyDict(message='No slide loaded')
-            return
+
+        # Wrap the entire slide loading function in a try-catch block
+        # to gracefully handle errors without crashing the application
         try:
             if hasattr(viz, 'close_gan'):
                 viz.close_gan()
@@ -93,7 +180,7 @@ class SlideWidget:
             self.cur_slide = slide
             self.user_slide = slide
             self._use_rois = True
-            self.viz.set_message(f'Loading {name}...')
+            viz.set_message(f'Loading {name}...')
             sf.log.debug(f"Loading slide {slide}...")
             viz.defer_rendering()
             viz._reload_wsi(slide, stride=self.stride, use_rois=self._use_rois)
@@ -104,54 +191,33 @@ class SlideWidget:
             hw_ratio = (viz.wsi.dimensions[0] / viz.wsi.dimensions[1])
             max_width = int(min(800 - viz.spacing*2, (800 - viz.spacing*2) / hw_ratio))
             viz.wsi_thumb = np.asarray(viz.wsi.thumb(width=max_width))
-            self.viz.clear_message(f'Loading {name}...')
+            viz.clear_message(f'Loading {name}...')
 
         except Exception:
             self.cur_slide = None
             self.user_slide = slide
-            self.viz.clear_message(f'Loading {name}...')
+            viz.clear_message(f'Loading {name}...')
             viz.result = EasyDict(error=renderer.CapturedException())
-            self.viz.create_toast(f"Error loading slide {slide}", icon="error")
+            viz.create_toast(f"Error loading slide {slide}", icon="error")
             if not ignore_errors:
                 raise
 
-    def _join_filter_thread(self):
-        if self._filter_thread is not None:
-            self._filter_thread.join()
-        self._filter_thread = None
+    def preview_qc_mask(self, mask):
+        assert isinstance(mask, np.ndarray)
+        assert mask.dtype == bool
+        assert len(mask.shape) == 2
+        self.qc_mask = ~mask
+        self.show_slide_filter = True
+        self.update_slide_filter()
 
-    def _start_filter_thread(self):
-        self._join_filter_thread()
-        self._filter_thread = threading.Thread(target=self._build_filter_grid)
-        self._filter_thread.start()
-
-    def _clear_images(self):
+    def render_slide_filter(self):
+        """Render the slide filter (QC) to screen."""
+        self.viz.heatmap_widget.show = False
         self.viz._overlay_tex_obj = None
+        self.viz._overlay_wsi_dim = None
+        self.render_overlay(self.qc_mask, correct_wsi_dim=False)
 
-    def refresh_stride(self):
-        self.reset_tile_filter_and_join_thread()
-        self.viz.clear_overlay()
-        self.show_tile_filter = False
-        self.show_slide_filter = False
-        self.viz._reload_wsi(stride=self.stride, use_rois=self._use_rois)
-
-    def hide_model_normalizer(self):
-        self._normalizer_methods = self._all_normalizer_methods
-        self._normalizer_methods_str = self._all_normalizer_methods_str
-        self.norm_idx = min(self.norm_idx, len(self._normalizer_methods)-1)
-
-    def show_model_normalizer(self):
-        self._normalizer_methods = self._all_normalizer_methods + ['model']
-        self._normalizer_methods_str = self._all_normalizer_methods_str + ['<Model>']
-
-    def change_normalizer(self):
-        method = self._normalizer_methods[self.norm_idx]
-        if method == 'model':
-            self.viz._normalizer = sf.util.get_model_normalizer(self.viz._model_path)
-        else:
-            self.viz._normalizer = sf.norm.autoselect(method, source='v2')
-
-    def render_to_overlay(self, mask, correct_wsi_dim=False):
+    def render_overlay(self, mask, correct_wsi_dim=False):
         """Renders boolean mask as an overlay, where:
 
             True = show tile from slide
@@ -182,91 +248,9 @@ class SlideWidget:
             self.viz._overlay_wsi_dim = None
             self.viz._overlay_offset_wsi_dim = (0, 0)
 
-    def reset_tile_filter_and_join_thread(self):
-        self._join_filter_thread()
-        self._clear_images()
-        self._filter_grid = None
-        self._filter_thread = None
-        self._ws_grid = None
-        self._gs_grid = None
-
-    def _build_filter_grid(self):
-        if self.viz.wsi is not None:
-            self.viz.set_message(self._rendering_message)
-            mp_key = 'num_threads' if self.viz.low_memory else 'num_processes'
-            mp_kw = {mp_key: os.cpu_count()}
-            generator = self.viz.wsi.build_generator(
-                img_format='numpy',
-                grayspace_fraction=sf.slide.FORCE_CALCULATE_GRAYSPACE,
-                grayspace_threshold=self.gs_threshold,
-                whitespace_fraction=sf.slide.FORCE_CALCULATE_WHITESPACE,
-                whitespace_threshold=self.ws_threshold,
-                shuffle=False,
-                dry_run=True,
-                **mp_kw)
-            if not generator:
-                self.viz.clear_message(self._rendering_message)
-                return
-            # Returns boolean grid, where:
-            #   True = tile will be extracted
-            #   False = tile will be discarded (failed QC)
-            self._filter_grid = np.transpose(self.viz.wsi.grid).astype(bool)
-            self._ws_grid = np.zeros_like(self._filter_grid, dtype=np.float)
-            self._gs_grid = np.zeros_like(self._filter_grid, dtype=np.float)
-            self.render_to_overlay(self._filter_grid, correct_wsi_dim=True)
-            for tile in generator():
-                x = tile['grid'][0]
-                y = tile['grid'][1]
-                gs = tile['gs_fraction']
-                ws = tile['ws_fraction']
-                try:
-                    self._ws_grid[y][x] = ws
-                    self._gs_grid[y][x] = gs
-                    if gs > self.gs_fraction or ws > self.ws_fraction:
-                        self._filter_grid[y][x] = False
-                        self.render_to_overlay(self._filter_grid, correct_wsi_dim=True)
-                except TypeError:
-                    # Occurs when the _ws_grid is reset, e.g. the slide was re-loaded.
-                    sf.log.debug("Aborting tile filter calculation")
-                    self.viz.clear_message(self._rendering_message)
-                    return
-            self.viz.clear_message(self._rendering_message)
-
-    def _render_slide_filter(self):
-        """Render the slide filter (QC) to screen."""
-        self.viz.heatmap_widget.show = False
-        self._clear_images()
-        self.viz._overlay_wsi_dim = None
-        self.render_to_overlay(self.qc_mask, correct_wsi_dim=False)
-
-    def _render_tile_filter(self):
-        self.viz.heatmap_widget.show = False
-        self._join_filter_thread()
-        self.render_to_overlay(self._filter_grid, correct_wsi_dim=True)
-
-    def update_tile_filter(self):
-        if self.show_tile_filter:
-            self.viz.heatmap_widget.show = False
-            self._join_filter_thread()
-            self._clear_images()
-            if not self.show_slide_filter:
-                self.viz.overlay = None
-            if self._filter_grid is None and self.viz.wsi is not None:
-                self._start_filter_thread()
-            elif self._filter_grid is not None:
-                self._render_tile_filter()
-        else:
-            self._clear_images()
-            if self.show_slide_filter:
-                self._render_slide_filter()
-
-    def preview_qc_mask(self, mask):
-        assert isinstance(mask, np.ndarray)
-        assert mask.dtype == bool
-        assert len(mask.shape) == 2
-        self.qc_mask = ~mask
-        self.show_slide_filter = True
-        self.update_slide_filter()
+    def show_model_normalizer(self):
+        self._normalizer_methods = self._all_normalizer_methods + ['model']
+        self._normalizer_methods_str = self._all_normalizer_methods_str + ['<Model>']
 
     def update_slide_filter(self, method=None):
         if not self.viz.wsi:
@@ -283,29 +267,32 @@ class SlideWidget:
             self.qc_mask = None
 
         # Update the tile filter since the QC method has changed
-        self.reset_tile_filter_and_join_thread()
+        self._reset_tile_filter_and_join_thread()
         if self.show_tile_filter:
             self.update_tile_filter()
 
         # Render the slide filter
         if self.show_slide_filter and not self.show_tile_filter:
-            self._render_slide_filter()
+            self.render_slide_filter()
 
-    def refresh_gs_ws(self):
-        self._join_filter_thread()
-        if self._ws_grid is not None:
-            # Returns boolean grid, where:
-            #   True = tile will be extracted
-            #   False = tile will be discarded (failed QC)
-            self._filter_grid = np.transpose(self.viz.wsi.grid).astype(bool)
-            for y in range(self._ws_grid.shape[0]):
-                for x in range(self._ws_grid.shape[1]):
-                    ws = self._ws_grid[y][x]
-                    gs = self._gs_grid[y][x]
-                    if gs > self.gs_fraction or ws > self.ws_fraction:
-                        self._filter_grid[y][x] = False
-            if self.show_tile_filter:
-                self.render_to_overlay(self._filter_grid, correct_wsi_dim=True)
+    def update_tile_filter(self):
+        if self.show_tile_filter:
+            self.viz.heatmap_widget.show = False
+            self._join_filter_thread()
+            self.viz._overlay_tex_obj = None
+            if not self.show_slide_filter:
+                self.viz.overlay = None
+            if self._filter_grid is None and self.viz.wsi is not None:
+                self._start_filter_thread()
+            elif self._filter_grid is not None:
+                # Render tile filter
+                self.viz.heatmap_widget.show = False
+                self._join_filter_thread()
+                self.render_overlay(self._filter_grid, correct_wsi_dim=True)
+        else:
+            self.viz._overlay_tex_obj = None
+            if self.show_slide_filter:
+                self.render_slide_filter()
 
     @imgui_utils.scoped_by_object_id
     def __call__(self, show=True):
@@ -441,9 +428,14 @@ class SlideWidget:
                     if _stride_changed:
                         self._capturing_stride = _stride
                     if imgui.is_mouse_released() and self._capturing_stride:
+                        # Refresh stride
                         self.stride = self._capturing_stride
                         self._capturing_stride = None
-                        self.refresh_stride()
+                        self.show_tile_filter = False
+                        self.show_slide_filter = False
+                        self._reset_tile_filter_and_join_thread()
+                        self.viz.clear_overlay()
+                        self.viz._reload_wsi(stride=self.stride, use_rois=self._use_rois)
 
                 # Slide filtering
                 _qc_clicked, self.show_slide_filter = imgui.checkbox('Slide filter', self.show_slide_filter)
@@ -465,7 +457,12 @@ class SlideWidget:
                 with imgui_utils.item_width(viz.font_size * 8), imgui_utils.grayed_out(not self.normalize_wsi):
                     _norm_method_clicked, self.norm_idx = imgui.combo("##norm_method", self.norm_idx, self._normalizer_methods_str)
                 if _norm_clicked or _norm_method_clicked:
-                    self.change_normalizer()
+                    # Update the normalizer
+                    method = self._normalizer_methods[self.norm_idx]
+                    if method == 'model':
+                        self.viz._normalizer = sf.util.get_model_normalizer(self.viz._model_path)
+                    else:
+                        self.viz._normalizer = sf.norm.autoselect(method, source='v2')
                     viz._refresh_view = True
 
                 # Grayspace & whitespace filtering --------------------------------
@@ -508,7 +505,7 @@ class SlideWidget:
                         if _gsf_changed or _wsf_changed:
                             self.gs_fraction = _gs_frac
                             self.ws_fraction = _ws_frac
-                            self.refresh_gs_ws()
+                            self._refresh_gs_ws()
                         if _gst_changed or _wst_changed:
                             self._capturing_ws_thresh = _ws_thresh
                             self._capturing_gs_thresh = _gs_thresh
@@ -517,7 +514,7 @@ class SlideWidget:
                         self.ws_threshold = self._capturing_ws_thresh
                         self._capturing_ws_thresh = None
                         self._capturing_gs_thresh = None
-                        self.reset_tile_filter_and_join_thread()
+                        self._reset_tile_filter_and_join_thread()
                         self.update_tile_filter()
 
                 # -----------------------------------------------------------------
@@ -542,20 +539,5 @@ class SlideWidget:
         paths = viz.pop_drag_and_drop_paths()
         if paths is not None and len(paths) >= 1:
             self.load(paths[0], ignore_errors=True)
-
-    def list_runs_and_slides(self, parents):
-        items = []
-        run_regex = re.compile(r'\d+-.*')
-        slide_regex = re.compile(r'network-snapshot-\d+\.slide')
-        for parent in set(parents):
-            if os.path.isdir(parent):
-                for entry in os.scandir(parent):
-                    if entry.is_dir() and run_regex.fullmatch(entry.name):
-                        items.append(EasyDict(type='run', name=entry.name, path=os.path.join(parent, entry.name)))
-                    if entry.is_file() and slide_regex.fullmatch(entry.name):
-                        items.append(EasyDict(type='slide', name=entry.name, path=os.path.join(parent, entry.name)))
-
-        items = sorted(items, key=lambda item: (item.name.replace('_', ' '), item.path))
-        return items
 
 #----------------------------------------------------------------------------
