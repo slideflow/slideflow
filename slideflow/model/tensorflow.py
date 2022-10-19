@@ -1817,7 +1817,8 @@ class Trainer:
                 # using tensorflow/neural-structured-learning
                 adv_config = nsl.configs.make_adv_reg_config(
                     multiplier=0.2,
-                    adv_step_size=0.05
+                    adv_step_size=0.05,
+                    adv_grad_norm='infinity'
                 )
                 adv_model = nsl.keras.AdversarialRegularization(
                     self.model,
