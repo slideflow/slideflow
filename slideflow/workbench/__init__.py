@@ -133,6 +133,7 @@ class Workbench(imgui_window.ImguiWindow):
         self.box_y              = None
         self.tile_px            = None
         self.tile_um            = None
+        self.tile_zoom          = 1
         self.heatmap            = None
         self.rendered_heatmap   = None
         self.overlay            = None
@@ -523,7 +524,7 @@ class Workbench(imgui_window.ImguiWindow):
                     self._dock_control = not self._dock_control
                 imgui.separator()
 
-                # --- Show sub-menu -------------------------------------------
+                # --- Show sub-men`u -------------------------------------------
                 if imgui.begin_menu('Show', True):
                     if imgui.menu_item('Control Pane', 'Ctrl+Shift+C', selected=self._show_control)[0]:
                         self._show_control = not self._show_control
@@ -544,6 +545,14 @@ class Workbench(imgui_window.ImguiWindow):
                     self.increase_font_size()
                 if imgui.menu_item('Decrease Font Size', 'Ctrl+-')[1]:
                     self.decrease_font_size()
+
+                imgui.separator()
+                if imgui.menu_item('Increase Tile Zoom', 'Ctrl+]')[1]:
+                    self.increase_tile_zoom()
+                if imgui.menu_item('Decrease Tile Zoom', 'Ctrl+[')[1]:
+                    self.decrease_tile_zoom()
+                if imgui.menu_item('Reset Tile Zoom', 'Ctrl+\\')[1]:
+                    self.reset_tile_zoom()
 
                 # Widgets with "View" menu.
                 for w in self.widgets:
@@ -616,8 +625,8 @@ class Workbench(imgui_window.ImguiWindow):
                 width = self.font_size * 8
                 height = self.font_size * 3
             else:
-                raw_img_w = 0 if not has_raw_image else self._tex_img.shape[0]
-                norm_img_w = 0 if not has_norm_image else self._norm_tex_img.shape[0]
+                raw_img_w = 0 if not has_raw_image else self._tex_img.shape[0] * self.tile_zoom
+                norm_img_w = 0 if not has_norm_image else self._norm_tex_img.shape[0] * self.tile_zoom
                 height = self.font_size * 2 + max(raw_img_w, norm_img_w)
                 width = raw_img_w + norm_img_w + self.spacing
 
@@ -677,6 +686,12 @@ class Workbench(imgui_window.ImguiWindow):
             self.heatmap_widget.show = True
         if self._control_down and action == glfw.RELEASE and key == glfw.KEY_SPACE:
             self.heatmap_widget.show = False
+        if self._control_down and action == glfw.PRESS and key == glfw.KEY_LEFT_BRACKET:
+            self.decrease_tile_zoom()
+        if self._control_down and action == glfw.PRESS and key == glfw.KEY_RIGHT_BRACKET:
+            self.increase_tile_zoom()
+        if self._control_down and action == glfw.PRESS and key == glfw.KEY_BACKSLASH:
+            self.reset_tile_zoom()
 
     def _handle_user_input(self):
         """Handle user input to support clicking/dragging the main viewer."""
@@ -1129,6 +1144,18 @@ class Workbench(imgui_window.ImguiWindow):
                 and self._model_config is not None
                 and 'uq' in self._model_config['hp']
                 and self._model_config['hp']['uq'])
+
+    def increase_tile_zoom(self) -> None:
+        """Increase zoom of tile view two-fold."""
+        self.tile_zoom *= 2
+
+    def decrease_tile_zoom(self) -> None:
+        """Decrease zoom of tile view by half."""
+        self.tile_zoom /= 2
+
+    def reset_tile_zoom(self) -> None:
+        """Reset tile zoom level."""
+        self.tile_zoom = 1
 
     def load_heatmap(self, path: str) -> None:
         """Load a saved heatmap (*.npz).
