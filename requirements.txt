@@ -2,13 +2,13 @@ numpy<1.22
 gast>=0.3.3
 tensorflow>=2.7,<2.10
 scipy
-sklearn
+scikit-learn>=1.1
 matplotlib>=3.2
 imageio
 opencv-python
 shapely
 umap-learn
-seaborn
+seaborn<0.12
 pandas
 pyvips>=2.1.11
 fpdf
@@ -22,7 +22,7 @@ gitpython
 scikit-image
 tqdm
 click
-protobuf
+protobuf<=3.20.2
 tensorboard
 crc32c
 h5py
@@ -35,3 +35,10 @@ pyarrow
 ninja
 tensorflow_probability
 rich
+pillow>=6.0.0
+imgui
+pyopengl
+glfw
+saliency
+parameterized
+pyperclip

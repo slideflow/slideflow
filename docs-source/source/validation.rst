@@ -3,6 +3,10 @@
 Validation Planning
 ===================
 
+.. figure:: validation.png
+    :width: 100%
+    :align: center
+
 An important first step in creating a new project is to determine the validation plan. Three groups of data are required:
 
 1) **Training data** - data used for learning during training

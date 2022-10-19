@@ -8,15 +8,16 @@ from slideflow import errors
 
 
 class TestSlide(unittest.TestCase):
-    def __init__(self, testname, path):
+    def __init__(self, testname, path, tile_px=71):
         super().__init__(testname)
         self.wsi_path = path
-        self.kw = dict(tile_px=71, tile_um=1208)
+        self.tile_px = tile_px
+        self.kw = dict(tile_px=tile_px, tile_um=1208)
         self.wsi = sf.WSI(self.wsi_path, roi_method='ignore', **self.kw)
 
     def _assert_is_image(self, img: np.ndarray):
         self.assertTrue(isinstance(img, np.ndarray))
-        self.assertTrue(img.shape == (71, 71, 3))
+        self.assertTrue(img.shape == (self.tile_px, self.tile_px, 3))
         self.assertTrue(img.dtype == np.uint8)
 
     def _assert_is_pil(self, img: Image):
@@ -66,3 +67,8 @@ class TestSlide(unittest.TestCase):
         pool = mp.dummy.Pool(8)
         self._assert_is_pil(self.wsi.preview(show_progress=False, pool=pool))
         pool.close()
+
+# -----------------------------------------------------------------------------
+
+if __name__ == '__main__':
+    unittest.main()

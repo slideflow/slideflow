@@ -38,19 +38,19 @@ implementations are given below:
       - PyTorch backend
     * - macenko
       - 1,295 img/s (**native**)
-      - 142 img/s
+      - 1,265 img/s (**native**)
     * - reinhard
       - 1,536 img/s (**native**)
-      - 1,840 img/s (**native**)
+      - 2,246 img/s (**native**)
     * - reinhard_fast
       - 8,599 img/s (**native**)
-      - 2,590 img/s (**native**)
+      - 2,832 img/s (**native**)
     * - reinhard_mask
       - 1,537 img/s (**native**)
-      - 1,581 img/s
+      - 2,246 img/s
     * - reinhard_fast_mask
       - 7,885 img/s (**native**)
-      - 2,116 img/s
+      - 2,719 img/s
     * - vahadane_spams
       - 0.7 img/s
       - 2.2 img/s
@@ -96,7 +96,7 @@ class StainNormalizer:
         'reinhard_fast': reinhard.ReinhardFastNormalizer,
         'reinhard_mask': reinhard.ReinhardMaskNormalizer,
         'reinhard_fast_mask': reinhard.ReinhardFastMaskNormalizer,
-        'vahadane': vahadane.VahadaneSklearnNormalizer,
+        'vahadane': vahadane.VahadaneSpamsNormalizer,
         'vahadane_sklearn': vahadane.VahadaneSklearnNormalizer,
         'vahadane_spams': vahadane.VahadaneSpamsNormalizer,
         'augment': augment.AugmentNormalizer
@@ -251,7 +251,7 @@ class StainNormalizer:
                     num_workers=8
                 )
             all_fit_vals = []  # type: ignore
-            pb = Progress()
+            pb = Progress(transient=True)
             task = pb.add_task('Fitting normalizer...', total=dataset.num_tiles)
             pb.start()
             for img_batch, slide in dts:
@@ -535,8 +535,10 @@ def autoselect(
     if sf.backend() == 'tensorflow':
         import slideflow.norm.tensorflow
         BackendNormalizer = sf.norm.tensorflow.TensorflowStainNormalizer
+    elif sf.backend() == 'torch' and method == 'macenko':
+        import slideflow.norm.torch
+        BackendNormalizer = sf.norm.torch.TorchStainNormalizer  # type: ignore
     elif sf.backend() == 'torch':
-        log.debug("Not attempting to use PyTorch-native normalizer.")
         BackendNormalizer = StainNormalizer  # type: ignore
     else:
         raise errors.UnrecognizedBackendError

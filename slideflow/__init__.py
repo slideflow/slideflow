@@ -10,13 +10,21 @@
 
 __author__ = 'James Dolezal'
 __license__ = 'GNU General Public License v3.0'
-__version__ = "1.2.4-dev2"
+__version__ = '1.3.1-dev1'
+__github__ = 'https://github.com/jamesdolezal/slideflow'
+
+try:
+    import git
+    __gitcommit__ = git.Repo(search_parent_directories=True).head.object.hexsha
+except Exception:
+    __gitcommit__ = None
+
+# -----------------------------------------------------------------------------
 
 import os
 
 if 'SF_BACKEND' not in os.environ:
     os.environ['SF_BACKEND'] = 'tensorflow'
-
 
 def backend():
     return os.environ['SF_BACKEND']

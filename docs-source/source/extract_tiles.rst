@@ -1,7 +1,11 @@
 .. _filtering:
 
-Tile extraction
+Tile Extraction
 ===============
+
+.. image:: tile_extraction_overview.png
+
+|
 
 The next step is tile extraction using the ``extract_tiles()`` function. The only arguments required are ``tile_px`` and ``tile_um``, which determine the size of the extracted image tiles in pixels and microns, respectively:
 
@@ -55,12 +59,13 @@ ROIs
 
 By default, slides with valid ROIs will only have tiles extracted from within ROIs, and slides without ROIs will have tiles extracted across the whole-slide image. To skip slides that are missing ROIs, set ``roi_method='inside'``. To ignore ROIs entirely and extract tiles from whole-slide images, set ``roi_method='ignore'``. You can alternatively extract *outside* the annotated ROIs with ``roi_method='outside'``.
 
-Stain Normalization
+Stain normalization
 *******************
 
 .. note::
-    See :py:mod:`slideflow.norm` for more information about stain normalization functions.
+    See :py:mod:`slideflow.norm` for comparisons & benchmarks of stain normalization methods.
 
+.. image:: norm_compare/wsi_norm_compare.jpg
 
 Image tiles can undergo digital H&E stain normalization either during tile extraction or in real-time during training. Real-time normalization adds CPU overhead during training and inference but offers greater flexibility, allowing you to test different normalization strategies without re-extracting tiles from your entire dataset.
 
@@ -94,6 +99,10 @@ The normalizer interfaces can also be access directly through :class:`slideflow.
 Background filtering
 ********************
 
+.. image:: otsu.png
+
+|
+
 Slide background can be detected and filtered by two types of methods - **tile-based methods** and **slide-based methods**.
 
 Whitespace and grayspace filtering are two **tile-based methods** that detect the amount of whitespace or grayspace in a given image tile, discarding the tile if the content exceeds a set threshold. Whitespace is calculated using overall brightness for each pixel, then counting the fraction of pixels with a brightness above some threshold. Grayspace is calculated by converting RGB images to the HSV spectrum, then counting the fraction of pixels with a saturation below some threshold. This filtering is performed separately for each tile as it is being extracted. Grayspace filtering is the default background filtering behavior. The arguments ``whitespace_fraction``, ``whitespace_threshold``, ``grayspace_fraction``, and ``grayspace_threshold`` are used for these methods, as described in the documentation for the tile extraction function (:func:`slideflow.Dataset.extract_tiles`).
@@ -102,6 +111,10 @@ Alternatively, Otsu's thresholding is a **slide-based method** that distinguishe
 
 Quality control
 ***************
+
+.. image:: blur.png
+
+|
 
 In addition to background filtering, additional blur-detection quality control can be used to identify artifact (pen marks) or out-of-focus areas. If annotated Regions of Interest (ROIs) are not available for your dataset, blur detection should be enabled in order to ensure that high quality image tiles are extracted. If ROIs *are* available, it may be unnecessary. Blur detection may increase tile extraction time by 50% or more.
 

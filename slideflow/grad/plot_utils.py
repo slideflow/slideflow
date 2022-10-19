@@ -1,18 +1,22 @@
 """Plotting functions for displaying saliency maps."""
 
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, TYPE_CHECKING
 
 import numpy as np
-from matplotlib import pyplot as plt
 from PIL import Image
+
+if TYPE_CHECKING:
+    import matplotlib.pyplot as plt
 
 
 def inferno(img):
+    import matplotlib.pyplot as plt
     cmap = plt.get_cmap('inferno')
     return (cmap(img) * 255).astype(np.uint8)
 
 
 def oranges(img):
+    import matplotlib.pyplot as plt
     cmap = plt.get_cmap('Oranges')
     return (cmap(img) * 255).astype(np.uint8)
 
@@ -39,7 +43,7 @@ def remove_ticks(axis):
 def comparison_plot(
     original: np.ndarray,
     maps: Dict[str, np.ndarray],
-    cmap: Any = plt.cm.gray,
+    cmap: Any = "plt.cm.gray",
     n_rows: int = 3,
     n_cols: int = 3,
 ) -> None:
@@ -52,6 +56,8 @@ def comparison_plot(
         cmap (matplotlib colormap, optional): Colormap for maps.
             Defaults to plt.cm.gray.
     """
+    import matplotlib.pyplot as plt
+
     scale = 5
     ax_idx = [[i, j] for i in range(n_rows) for j in range(n_cols)]
     fig, ax = plt.subplots(
@@ -104,6 +110,7 @@ def multi_plot(
         ValueError: If xlabels is provided and length does not equal raw_imgs.
         ValueError: If ylabels is provided and length does not equal raw_imgs.
     """
+    import matplotlib.pyplot as plt
 
     # Error checking
     if len(raw_imgs) != len(processed_imgs):
@@ -187,6 +194,7 @@ def saliency_map_comparison(
         cmap (str, optional): Colormap for saliency maps.
             Defaults to 'inferno'.
     """
+    import matplotlib.pyplot as plt
 
     def apply_cmap(_img):
         cmap_fn = plt.get_cmap(cmap)

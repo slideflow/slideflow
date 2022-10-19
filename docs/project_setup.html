@@ -6,24 +6,25 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  
+  <meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  
-  <title>Setting up a Project &mdash; slideflow 1.2.3 documentation</title>
-  
 
-  
-  
-  
-  
+  <title>Setting up a Project &mdash; slideflow 1.3.0 documentation</title>
 
-  
 
-  
-  
-    
 
-  
+
+
+
+
+
+
+
+
+
+
+
 
   <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <!-- <link rel="stylesheet" href="_static/pygments.css" type="text/css" /> -->
@@ -34,11 +35,11 @@
     <link rel="next" title="Validation Planning" href="validation.html" />
     <link rel="prev" title="Pipeline Overview" href="pipeline.html" />
   <!-- Google Analytics -->
-  
-  <!-- End Google Analytics -->
-  
 
-  
+  <!-- End Google Analytics -->
+
+
+
   <script src="_static/js/modernizr.min.js"></script>
 
   <!-- Preload the theme fonts -->
@@ -66,6 +67,10 @@
   <script>
     window.dataLayer = window.dataLayer || [];
     function gtag(){dataLayer.push(arguments);}
+    gtag('consent', 'default', {
+      'ad_storage': 'denied',
+      'analytics_storage': 'denied'
+    });
     gtag('js', new Date());
 
     gtag('config', 'G-43E5QNVXH2');
@@ -100,9 +105,9 @@
 
 <body class="pytorch-body">
 
-   
 
-    
+
+
 
     <div class="table-of-contents-link-wrapper">
       <span>Table of Contents</span>
@@ -113,21 +118,21 @@
       <div class="pytorch-side-scroll">
         <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           <div class="pytorch-left-menu-search">
-            
 
-            
-              
-              
+
+
+
+
                 <div class="version">
-                  1.2
+                  1.3
                 </div>
-              
-            
-
-            
 
 
-  
+
+
+
+
+
 
 
 <div role="search">
@@ -138,27 +143,29 @@
   </form>
 </div>
 
-            
+
           </div>
 
-          
-            
-            
-              
-            
-            
+
+
+
+
+
+
               <p class="caption" role="heading"><span class="caption-text">Overview</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="pipeline.html">Pipeline Overview</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Setting up a Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="validation.html">Validation Planning</a></li>
-<li class="toctree-l1"><a class="reference internal" href="extract_tiles.html">Tile extraction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="extract_tiles.html">Tile Extraction</a></li>
 <li class="toctree-l1"><a class="reference internal" href="training.html">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="evaluation.html">Evaluation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="layer_activations.html">Features / layer activations</a></li>
-<li class="toctree-l1"><a class="reference internal" href="custom_loops.html">Custom training loops</a></li>
-<li class="toctree-l1"><a class="reference internal" href="uq.html">Uncertainty quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="layer_activations.html">Features / Layer Activations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="workbench_tools.html">Workbench: Visualization Tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="custom_loops.html">Custom Training Loops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="uq.html">Uncertainty Quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="stylegan.html">StyleGAN</a></li>
 <li class="toctree-l1"><a class="reference internal" href="clam.html">CLAM</a></li>
 <li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
 </ul>
@@ -178,6 +185,7 @@
 <li class="toctree-l1"><a class="reference internal" href="slide.html">slideflow.slide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="stats.html">slideflow.stats</a></li>
 <li class="toctree-l1"><a class="reference internal" href="util.html">slideflow.util</a></li>
+<li class="toctree-l1"><a class="reference internal" href="workbench.html">slideflow.workbench</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
 <ul>
@@ -186,10 +194,11 @@
 <li class="toctree-l1"><a class="reference internal" href="tutorial3.html">Tutorial 3: Using a custom architecture</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorial4.html">Tutorial 4: Model evaluation &amp; heatmaps</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorial5.html">Tutorial 5: Creating a mosaic map</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial6.html">Tutorial 6: Custom slide filtering</a></li>
 </ul>
 
-            
-          
+
+
         </div>
       </div>
     </nav>
@@ -197,7 +206,7 @@
     <div class="pytorch-container">
       <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
         <div class="pytorch-breadcrumbs-wrapper">
-          
+
 
 
 
@@ -216,30 +225,30 @@
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="pytorch-breadcrumbs">
-    
+
       <li>
         <a href="index.html">
-          
+
             Docs
-          
+
         </a> &gt;
       </li>
 
-        
+
       <li>Setting up a Project</li>
-    
-    
+
+
       <li class="pytorch-breadcrumbs-aside">
-        
-            
+
+
             <a href="_sources/project_setup.rst.txt" rel="nofollow"><img src="_static/images/view-page-source-icon.svg"></a>
-          
-        
+
+
       </li>
-    
+
   </ul>
 
-  
+
 </div>
         </div>
 
@@ -251,14 +260,14 @@
       <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
         <div class="pytorch-content-left">
 
-        
-          
+
+
           <div class="rst-content">
-          
+
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
-              
-  <div class="section" id="setting-up-a-project">
+
+  <section id="setting-up-a-project">
 <h1>Setting up a Project<a class="headerlink" href="#setting-up-a-project" title="Permalink to this heading">¶</a></h1>
 <p>The easiest way to use <code class="docutils literal notranslate"><span class="pre">slideflow</span></code> is through the bundled project management class, <a class="reference internal" href="project.html#slideflow.Project" title="slideflow.Project"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.Project</span></code></a>, which supports unified datasets, annotations, and project directory structure for all pipeline functions.</p>
 <p>To initialize a new project, pass keyword arguments to <a class="reference internal" href="project.html#slideflow.Project" title="slideflow.Project"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.Project</span></code></a> with project settings:</p>
@@ -274,10 +283,6 @@
 </div>
 <p>A project will then be initialized at the given directory, with settings saved in a <code class="docutils literal notranslate"><span class="pre">settings.json</span></code> file. Any project settings not provided via keyword arguments will use defaults. Each project will have the following settings:</p>
 <table class="docutils align-default">
-<colgroup>
-<col style="width: 36%" />
-<col style="width: 64%" />
-</colgroup>
 <tbody>
 <tr class="row-odd"><td><p><strong>name</strong></p></td>
 <td><p>Project name.
@@ -318,19 +323,19 @@ Defaults to “./eval”</p></td>
 </pre></div>
 </div>
 <p>where the -p flag is used to designate the path to your project directory. Other available flags can be seen by running <code class="docutils literal notranslate"><span class="pre">python3</span> <span class="pre">run_project.py</span> <span class="pre">--help</span></code>.</p>
-<div class="section" id="configuring-datasets">
+<section id="configuring-datasets">
 <h2>Configuring Datasets<a class="headerlink" href="#configuring-datasets" title="Permalink to this heading">¶</a></h2>
 <p>Once initial project settings are established, you will need to either create or load a dataset configuration, which will specify directory locations for slides, ROIs, tiles, and TFRecords for each group of slides.</p>
 <p>Dataset configurations are saved in a JSON file with the below syntax. Dataset configuration files can be shared and used across multiple projects, or saved locally within a project directory.</p>
-<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
-  <span class="nt">&quot;SOURCE&quot;</span><span class="p">:</span>
-  <span class="p">{</span>
-    <span class="nt">&quot;slides&quot;</span><span class="p">:</span> <span class="s2">&quot;/directory&quot;</span><span class="p">,</span>
-    <span class="nt">&quot;roi&quot;</span><span class="p">:</span> <span class="s2">&quot;/directory&quot;</span><span class="p">,</span>
-    <span class="nt">&quot;tiles&quot;</span><span class="p">:</span> <span class="s2">&quot;/directory&quot;</span><span class="p">,</span>
-    <span class="nt">&quot;tfrecords&quot;</span><span class="p">:</span> <span class="s2">&quot;/directory&quot;</span><span class="p">,</span>
-  <span class="p">}</span>
-<span class="p">}</span>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="nt">&quot;SOURCE&quot;</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="nt">&quot;slides&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/directory&quot;</span><span class="p">,</span><span class="w"></span>
+<span class="w">    </span><span class="nt">&quot;roi&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/directory&quot;</span><span class="p">,</span><span class="w"></span>
+<span class="w">    </span><span class="nt">&quot;tiles&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/directory&quot;</span><span class="p">,</span><span class="w"></span>
+<span class="w">    </span><span class="nt">&quot;tfrecords&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/directory&quot;</span><span class="p">,</span><span class="w"></span>
+<span class="w">  </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
 <p>Add a new dataset source to a project with <code class="docutils literal notranslate"><span class="pre">Project.add_dataset()</span></code>, which will save the dataset in JSON format to the project dataset configuration file.</p>
@@ -343,8 +348,12 @@ Defaults to “./eval”</p></td>
 <span class="p">)</span>
 </pre></div>
 </div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>See <a class="reference internal" href="dataset.html#dataset"><span class="std std-ref">slideflow.dataset</span></a> for more information on working with Datasets.</p>
 </div>
-<div class="section" id="setting-up-annotations">
+</section>
+<section id="setting-up-annotations">
 <h2>Setting up annotations<a class="headerlink" href="#setting-up-annotations" title="Permalink to this heading">¶</a></h2>
 <p>Your annotations file is used to label patients and slides with clinical data and/or other outcome variables that will be used for training. Each line in the annotations file should correspond to a unique slide. Patients may have more than one slide.</p>
 <p>The annotations file may contain any number of columns, but it must contain the following headers at minimum:</p>
@@ -354,12 +363,6 @@ Defaults to “./eval”</p></td>
 </ul>
 <p>An example annotations file is given below:</p>
 <table class="docutils align-default">
-<colgroup>
-<col style="width: 27%" />
-<col style="width: 18%" />
-<col style="width: 13%" />
-<col style="width: 42%" />
-</colgroup>
 <tbody>
 <tr class="row-odd"><td><p><em>patient</em></p></td>
 <td><p><em>category</em></p></td>
@@ -393,8 +396,8 @@ Defaults to “./eval”</p></td>
 </pre></div>
 </div>
 <p>The <code class="docutils literal notranslate"><span class="pre">slide</span></code> column may not need to be explicitly set in the annotations file by the user. Rather, once a dataset has been set up, slideflow will search through the linked slide directories and attempt to match slides to entries in the annotations file using <strong>patient</strong>. Entries that are blank in the <strong>slide</strong> column will be auto-populated with any detected and matching slides, if available.</p>
-</div>
-<div class="section" id="executing-commands">
+</section>
+<section id="executing-commands">
 <span id="execute"></span><h2>Executing commands<a class="headerlink" href="#executing-commands" title="Permalink to this heading">¶</a></h2>
 <p>If you plan to use the <code class="docutils literal notranslate"><span class="pre">run_project.py</span></code> script for your projects, open the <code class="docutils literal notranslate"><span class="pre">actions.py</span></code> file located in the project directory. It should look something like this:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">main</span><span class="p">(</span><span class="n">P</span><span class="p">):</span>
@@ -419,30 +422,30 @@ Defaults to “./eval”</p></td>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ python3 run_project.py -p /path/to/project/directory
 </pre></div>
 </div>
-</div>
-</div>
+</section>
+</section>
 
 
              </article>
-             
+
             </div>
             <footer>
-  
-    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-      
-        <a href="validation.html" class="btn btn-neutral float-right" title="Validation Planning" accesskey="n" rel="next">Next <img src="_static/images/chevron-right-orange.svg" class="next-page"></a>
-      
-      
-        <a href="pipeline.html" class="btn btn-neutral" title="Pipeline Overview" accesskey="p" rel="prev"><img src="_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
-      
-    </div>
-  
 
-  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+
+        <a href="validation.html" class="btn btn-neutral float-right" title="Validation Planning" accesskey="n" rel="next">Next <img src="_static/images/chevron-right-orange.svg" class="next-page"></a>
+
+
+        <a href="pipeline.html" class="btn btn-neutral" title="Pipeline Overview" accesskey="p" rel="prev"><img src="_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
+
+    </div>
+
+
+
 
     <hr>
 
-  
+
 
   <div role="contentinfo">
     <p>
@@ -450,11 +453,11 @@ Defaults to “./eval”</p></td>
 
     </p>
   </div>
-    
+
       <div>
         Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
       </div>
-     
+
 
 </footer>
 
@@ -479,21 +482,22 @@ Defaults to “./eval”</p></td>
       </section>
     </div>
 
-  
 
 
-  
 
-     
+
+
+
        <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
          <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
          <script src="_static/jquery.js"></script>
          <script src="_static/underscore.js"></script>
          <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
          <script src="_static/doctools.js"></script>
-     
+         <script src="_static/sphinx_highlight.js"></script>
 
-  
+
+
 
   <script type="text/javascript" src="_static/js/vendor/popper.min.js"></script>
   <script type="text/javascript" src="_static/js/vendor/bootstrap.min.js"></script>
@@ -504,7 +508,7 @@ Defaults to “./eval”</p></td>
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script> 
+  </script>
 
   <!-- Begin Footer -->
 

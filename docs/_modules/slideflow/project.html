@@ -6,24 +6,24 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  
-  <title>slideflow.project &mdash; slideflow 1.2.3 documentation</title>
-  
 
-  
-  
-  
-  
+  <title>slideflow.project &mdash; slideflow 1.3.0 documentation</title>
 
-  
 
-  
-  
-    
 
-  
+
+
+
+
+
+
+
+
+
+
+
 
   <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
   <!-- <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" /> -->
@@ -32,11 +32,11 @@
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
   <!-- Google Analytics -->
-  
-  <!-- End Google Analytics -->
-  
 
-  
+  <!-- End Google Analytics -->
+
+
+
   <script src="../../_static/js/modernizr.min.js"></script>
 
   <!-- Preload the theme fonts -->
@@ -64,6 +64,10 @@
   <script>
     window.dataLayer = window.dataLayer || [];
     function gtag(){dataLayer.push(arguments);}
+    gtag('consent', 'default', {
+      'ad_storage': 'denied',
+      'analytics_storage': 'denied'
+    });
     gtag('js', new Date());
 
     gtag('config', 'G-43E5QNVXH2');
@@ -98,9 +102,9 @@
 
 <body class="pytorch-body">
 
-   
 
-    
+
+
 
     <div class="table-of-contents-link-wrapper">
       <span>Table of Contents</span>
@@ -111,21 +115,21 @@
       <div class="pytorch-side-scroll">
         <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           <div class="pytorch-left-menu-search">
-            
 
-            
-              
-              
+
+
+
+
                 <div class="version">
-                  1.2
+                  1.3
                 </div>
-              
-            
-
-            
 
 
-  
+
+
+
+
+
 
 
 <div role="search">
@@ -136,27 +140,29 @@
   </form>
 </div>
 
-            
+
           </div>
 
-          
-            
-            
-              
-            
-            
+
+
+
+
+
+
               <p class="caption" role="heading"><span class="caption-text">Overview</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../pipeline.html">Pipeline Overview</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../project_setup.html">Setting up a Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../validation.html">Validation Planning</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../extract_tiles.html">Tile extraction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../extract_tiles.html">Tile Extraction</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../training.html">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../evaluation.html">Evaluation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../layer_activations.html">Features / layer activations</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../custom_loops.html">Custom training loops</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../uq.html">Uncertainty quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../layer_activations.html">Features / Layer Activations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../workbench_tools.html">Workbench: Visualization Tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../custom_loops.html">Custom Training Loops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../uq.html">Uncertainty Quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../stylegan.html">StyleGAN</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../clam.html">CLAM</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../troubleshooting.html">Troubleshooting</a></li>
 </ul>
@@ -176,6 +182,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../slide.html">slideflow.slide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../stats.html">slideflow.stats</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../util.html">slideflow.util</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../workbench.html">slideflow.workbench</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
 <ul>
@@ -184,10 +191,11 @@
 <li class="toctree-l1"><a class="reference internal" href="../../tutorial3.html">Tutorial 3: Using a custom architecture</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../tutorial4.html">Tutorial 4: Model evaluation &amp; heatmaps</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../tutorial5.html">Tutorial 5: Creating a mosaic map</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorial6.html">Tutorial 6: Custom slide filtering</a></li>
 </ul>
 
-            
-          
+
+
         </div>
       </div>
     </nav>
@@ -195,7 +203,7 @@
     <div class="pytorch-container">
       <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
         <div class="pytorch-breadcrumbs-wrapper">
-          
+
 
 
 
@@ -214,28 +222,28 @@
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="pytorch-breadcrumbs">
-    
+
       <li>
         <a href="../../index.html">
-          
+
             Docs
-          
+
         </a> &gt;
       </li>
 
-        
+
           <li><a href="../index.html">Module code</a> &gt;</li>
-        
+
       <li>slideflow.project</li>
-    
-    
+
+
       <li class="pytorch-breadcrumbs-aside">
-        
+
       </li>
-    
+
   </ul>
 
-  
+
 </div>
         </div>
 
@@ -247,36 +255,34 @@
       <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
         <div class="pytorch-content-left">
 
-        
-          
+
+
           <div class="rst-content">
-          
+
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
-              
+
   <h1>Source code for slideflow.project</h1><div class="highlight"><pre>
 <span></span><span class="kn">import</span> <span class="nn">copy</span>
 <span class="kn">import</span> <span class="nn">csv</span>
 <span class="kn">import</span> <span class="nn">itertools</span>
 <span class="kn">import</span> <span class="nn">json</span>
-<span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">import</span> <span class="nn">multiprocessing</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">os</span>
 <span class="kn">import</span> <span class="nn">pickle</span>
+<span class="kn">from</span> <span class="nn">multiprocessing.managers</span> <span class="kn">import</span> <span class="n">DictProxy</span>
 <span class="kn">from</span> <span class="nn">os.path</span> <span class="kn">import</span> <span class="n">basename</span><span class="p">,</span> <span class="n">exists</span><span class="p">,</span> <span class="n">join</span>
 <span class="kn">from</span> <span class="nn">statistics</span> <span class="kn">import</span> <span class="n">mean</span>
 <span class="kn">from</span> <span class="nn">types</span> <span class="kn">import</span> <span class="n">SimpleNamespace</span>
 <span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="p">(</span><span class="n">TYPE_CHECKING</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span>
                     <span class="n">Union</span><span class="p">)</span>
 
-<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
-
 <span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
 <span class="kn">from</span> <span class="nn">slideflow</span> <span class="kn">import</span> <span class="n">errors</span><span class="p">,</span> <span class="n">project_utils</span>
 <span class="kn">from</span> <span class="nn">slideflow.dataset</span> <span class="kn">import</span> <span class="n">Dataset</span>
 <span class="kn">from</span> <span class="nn">slideflow.model</span> <span class="kn">import</span> <span class="n">ModelParams</span>
 <span class="kn">from</span> <span class="nn">slideflow.project_utils</span> <span class="kn">import</span> <span class="n">auto_dataset</span><span class="p">,</span> <span class="n">get_validation_settings</span>
-<span class="kn">from</span> <span class="nn">slideflow.util</span> <span class="kn">import</span> <span class="n">Path</span>
 <span class="kn">from</span> <span class="nn">slideflow.util</span> <span class="kn">import</span> <span class="n">log</span><span class="p">,</span> <span class="n">path_to_name</span>
 
 <span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
@@ -397,7 +403,7 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_read_relative_path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_settings</span><span class="p">[</span><span class="s1">&#39;annotations&#39;</span><span class="p">])</span>
 
     <span class="nd">@annotations</span><span class="o">.</span><span class="n">setter</span>
-    <span class="k">def</span> <span class="nf">annotations</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">:</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">annotations</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
             <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">ProjectError</span><span class="p">(</span><span class="s2">&quot;&#39;annotations&#39; must be a path.&quot;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_settings</span><span class="p">[</span><span class="s1">&#39;annotations&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">val</span>
@@ -408,7 +414,7 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_read_relative_path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_settings</span><span class="p">[</span><span class="s1">&#39;dataset_config&#39;</span><span class="p">])</span>
 
     <span class="nd">@dataset_config</span><span class="o">.</span><span class="n">setter</span>
-    <span class="k">def</span> <span class="nf">dataset_config</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">:</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">dataset_config</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
             <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">ProjectError</span><span class="p">(</span><span class="s2">&quot;&#39;dataset_config&#39; must be path to JSON.&quot;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_settings</span><span class="p">[</span><span class="s1">&#39;dataset_config&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">val</span>
@@ -423,7 +429,7 @@
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_read_relative_path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_settings</span><span class="p">[</span><span class="s1">&#39;eval_dir&#39;</span><span class="p">])</span>
 
     <span class="nd">@eval_dir</span><span class="o">.</span><span class="n">setter</span>
-    <span class="k">def</span> <span class="nf">eval_dir</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">:</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">eval_dir</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
             <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">ProjectError</span><span class="p">(</span><span class="s2">&quot;&#39;eval_dir&#39; must be a path&quot;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_settings</span><span class="p">[</span><span class="s1">&#39;eval_dir&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">val</span>
@@ -434,7 +440,7 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_read_relative_path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_settings</span><span class="p">[</span><span class="s1">&#39;models_dir&#39;</span><span class="p">])</span>
 
     <span class="nd">@models_dir</span><span class="o">.</span><span class="n">setter</span>
-    <span class="k">def</span> <span class="nf">models_dir</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">:</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">models_dir</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
             <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">ProjectError</span><span class="p">(</span><span class="s2">&quot;&#39;models_dir&#39; must be a path&quot;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_settings</span><span class="p">[</span><span class="s1">&#39;models_dir&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">val</span>
@@ -511,7 +517,7 @@
         <span class="n">hp</span><span class="p">:</span> <span class="n">ModelParams</span><span class="p">,</span>
         <span class="n">outcomes</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
         <span class="n">config</span><span class="p">:</span> <span class="n">Dict</span><span class="p">,</span>
-        <span class="n">splits</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span>
+        <span class="n">splits</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
         <span class="n">eval_k_fold</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">Dataset</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Union</span><span class="p">[</span><span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">]]:</span>
         <span class="sd">&#39;&#39;&#39;Prepares dataset and labels.&#39;&#39;&#39;</span>
@@ -569,15 +575,17 @@
 
     <span class="k">def</span> <span class="nf">_prepare_trainer</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
-        <span class="n">model</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span>
+        <span class="n">model</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
         <span class="n">dataset</span><span class="p">:</span> <span class="n">Dataset</span><span class="p">,</span>
         <span class="n">outcomes</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">checkpoint</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Path</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">checkpoint</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">eval_k_fold</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">splits</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;splits.json&quot;</span><span class="p">,</span>
         <span class="n">max_tiles</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
         <span class="n">mixed_precision</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
-        <span class="n">input_header</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">allow_tf32</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">input_header</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">load_method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;full&#39;</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="s2">&quot;Trainer&quot;</span><span class="p">,</span> <span class="n">Dataset</span><span class="p">]:</span>
         <span class="sd">&quot;&quot;&quot;Prepares a :class:`slideflow.model.Trainer` for eval or prediction.</span>
 
@@ -598,8 +606,18 @@
 <span class="sd">                to evaluate. Defaults to 0 (include all tiles).</span>
 <span class="sd">            mixed_precision (bool, optional): Enable mixed precision.</span>
 <span class="sd">                Defaults to True.</span>
+<span class="sd">            allow_tf32 (bool): Allow internal use of Tensorfloat-32 format.</span>
+<span class="sd">                Defaults to False.</span>
 <span class="sd">            input_header (str, optional): Annotation column header to use as</span>
 <span class="sd">                additional input. Defaults to None.</span>
+<span class="sd">            load_method (str): Either &#39;full&#39; or &#39;weights&#39;. Method to use</span>
+<span class="sd">                when loading a Tensorflow model. If &#39;full&#39;, loads the model with</span>
+<span class="sd">                ``tf.keras.models.load_model()``. If &#39;weights&#39;, will read the</span>
+<span class="sd">                ``params.json``configuration file, build the model architecture,</span>
+<span class="sd">                and then load weights from the given model with</span>
+<span class="sd">                ``Model.load_weights()``. Loading with &#39;full&#39; may improve</span>
+<span class="sd">                compatibility across Slideflow versions. Loading with &#39;weights&#39;</span>
+<span class="sd">                may improve compatibility across hardware &amp; environments.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            A tuple containing</span>
@@ -674,7 +692,6 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="n">outcome_labels</span> <span class="o">=</span> <span class="kc">None</span>
 
-        <span class="n">git_commit</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">detect_git_commit</span><span class="p">()</span>
         <span class="n">model_dir</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">get_new_model_dir</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">eval_dir</span><span class="p">,</span> <span class="n">model_name</span><span class="p">)</span>
 
         <span class="c1"># Set missing validation keys to NA</span>
@@ -687,10 +704,11 @@
             <span class="s1">&#39;slideflow_version&#39;</span><span class="p">:</span> <span class="n">sf</span><span class="o">.</span><span class="n">__version__</span><span class="p">,</span>
             <span class="s1">&#39;project&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
             <span class="s1">&#39;backend&#39;</span><span class="p">:</span> <span class="n">sf</span><span class="o">.</span><span class="n">backend</span><span class="p">(),</span>
-            <span class="s1">&#39;git_commit&#39;</span><span class="p">:</span> <span class="n">git_commit</span><span class="p">,</span>
+            <span class="s1">&#39;git_commit&#39;</span><span class="p">:</span> <span class="n">sf</span><span class="o">.</span><span class="n">__gitcommit__</span><span class="p">,</span>
             <span class="s1">&#39;model_name&#39;</span><span class="p">:</span> <span class="n">model_name</span><span class="p">,</span>
             <span class="s1">&#39;model_path&#39;</span><span class="p">:</span> <span class="n">model</span><span class="p">,</span>
             <span class="s1">&#39;stage&#39;</span><span class="p">:</span> <span class="s1">&#39;evaluation&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;img_format&#39;</span><span class="p">:</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;img_format&#39;</span><span class="p">],</span>
             <span class="s1">&#39;tile_px&#39;</span><span class="p">:</span> <span class="n">hp</span><span class="o">.</span><span class="n">tile_px</span><span class="p">,</span>
             <span class="s1">&#39;tile_um&#39;</span><span class="p">:</span> <span class="n">hp</span><span class="o">.</span><span class="n">tile_um</span><span class="p">,</span>
             <span class="s1">&#39;model_type&#39;</span><span class="p">:</span> <span class="n">hp</span><span class="o">.</span><span class="n">model_type</span><span class="p">(),</span>
@@ -728,12 +746,14 @@
             <span class="n">slide_input</span><span class="o">=</span><span class="n">slide_inp</span><span class="p">,</span>
             <span class="n">manifest</span><span class="o">=</span><span class="n">dataset</span><span class="o">.</span><span class="n">manifest</span><span class="p">(),</span>
             <span class="n">mixed_precision</span><span class="o">=</span><span class="n">mixed_precision</span><span class="p">,</span>
+            <span class="n">allow_tf32</span><span class="o">=</span><span class="n">allow_tf32</span><span class="p">,</span>
             <span class="n">feature_names</span><span class="o">=</span><span class="n">input_header</span><span class="p">,</span>
             <span class="n">feature_sizes</span><span class="o">=</span><span class="n">feature_sizes</span><span class="p">,</span>
             <span class="n">outcome_names</span><span class="o">=</span><span class="n">outcomes</span><span class="p">,</span>
             <span class="n">use_neptune</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">use_neptune</span><span class="p">,</span>
             <span class="n">neptune_api</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">neptune_api</span><span class="p">,</span>
-            <span class="n">neptune_workspace</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">neptune_workspace</span>
+            <span class="n">neptune_workspace</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">neptune_workspace</span><span class="p">,</span>
+            <span class="n">load_method</span><span class="o">=</span><span class="n">load_method</span>
         <span class="p">)</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
             <span class="n">trainer</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
@@ -761,10 +781,12 @@
         <span class="n">min_tiles</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
         <span class="n">max_tiles</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
         <span class="n">mixed_precision</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+        <span class="n">allow_tf32</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
         <span class="n">splits</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-        <span class="n">results_dict</span><span class="p">:</span> <span class="n">Dict</span><span class="p">,</span>
+        <span class="n">results_dict</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Dict</span><span class="p">,</span> <span class="n">DictProxy</span><span class="p">],</span>
         <span class="n">training_kwargs</span><span class="p">:</span> <span class="n">Dict</span><span class="p">,</span>
-        <span class="n">balance_headers</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span>
+        <span class="n">balance_headers</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]],</span>
+        <span class="o">**</span><span class="n">kwargs</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&#39;&#39;&#39;Trains a model(s) using the specified hyperparameters.</span>
 
@@ -782,6 +804,8 @@
 <span class="sd">            min_tiles (int): Only includes tfrecords with &gt;= min_tiles</span>
 <span class="sd">            max_tiles (int): Cap maximum tiles per tfrecord.</span>
 <span class="sd">            mixed_precision (bool): Train with mixed precision.</span>
+<span class="sd">            allow_tf32 (bool): Allow internal use of Tensorfloat-32 format.</span>
+<span class="sd">                Defaults to False.</span>
 <span class="sd">            splits (str): Location of splits file for logging/reading splits.</span>
 <span class="sd">            balance_headers (str, list(str)): Annotation col headers for</span>
 <span class="sd">                mini-batch balancing.</span>
@@ -883,10 +907,12 @@
             <span class="n">filters</span><span class="o">=</span><span class="n">filters</span><span class="p">,</span>
             <span class="n">training_kwargs</span><span class="o">=</span><span class="n">training_kwargs</span><span class="p">,</span>
             <span class="n">mixed_precision</span><span class="o">=</span><span class="n">mixed_precision</span><span class="p">,</span>
+            <span class="n">allow_tf32</span><span class="o">=</span><span class="n">allow_tf32</span><span class="p">,</span>
             <span class="n">ctx</span><span class="o">=</span><span class="n">ctx</span><span class="p">,</span>
             <span class="n">results_dict</span><span class="o">=</span><span class="n">results_dict</span><span class="p">,</span>
             <span class="n">bal_headers</span><span class="o">=</span><span class="n">balance_headers</span><span class="p">,</span>
-            <span class="n">input_header</span><span class="o">=</span><span class="n">input_header</span>
+            <span class="n">input_header</span><span class="o">=</span><span class="n">input_header</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">kwargs</span>
         <span class="p">)</span>
 
         <span class="c1"># --- Train on a specific K-fold --------------------------------------</span>
@@ -940,6 +966,8 @@
 
         <span class="c1"># --- Set up validation data ------------------------------------------</span>
         <span class="n">manifest</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">manifest</span><span class="p">()</span>
+        <span class="n">from_wsi</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;from_wsi&#39;</span> <span class="ow">in</span> <span class="n">s_args</span><span class="o">.</span><span class="n">training_kwargs</span>
+                    <span class="ow">and</span> <span class="n">s_args</span><span class="o">.</span><span class="n">training_kwargs</span><span class="p">[</span><span class="s1">&#39;from_wsi&#39;</span><span class="p">])</span>
 
         <span class="c1"># Use an external validation dataset if supplied</span>
         <span class="k">if</span> <span class="n">val_settings</span><span class="o">.</span><span class="n">source</span><span class="p">:</span>
@@ -984,23 +1012,37 @@
                 <span class="n">val_fraction</span><span class="o">=</span><span class="n">val_settings</span><span class="o">.</span><span class="n">fraction</span><span class="p">,</span>
                 <span class="n">val_k_fold</span><span class="o">=</span><span class="n">val_settings</span><span class="o">.</span><span class="n">k_fold</span><span class="p">,</span>
                 <span class="n">k_fold_iter</span><span class="o">=</span><span class="n">s_args</span><span class="o">.</span><span class="n">k</span><span class="p">,</span>
-                <span class="n">site_labels</span><span class="o">=</span><span class="n">site_labels</span>
+                <span class="n">site_labels</span><span class="o">=</span><span class="n">site_labels</span><span class="p">,</span>
+                <span class="n">from_wsi</span><span class="o">=</span><span class="n">from_wsi</span>
             <span class="p">)</span>
 
         <span class="c1"># ---- Balance and clip datasets --------------------------------------</span>
         <span class="k">if</span> <span class="n">s_args</span><span class="o">.</span><span class="n">bal_headers</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">s_args</span><span class="o">.</span><span class="n">bal_headers</span> <span class="o">=</span> <span class="n">s_args</span><span class="o">.</span><span class="n">outcomes</span>
-        <span class="n">train_dts</span> <span class="o">=</span> <span class="n">train_dts</span><span class="o">.</span><span class="n">balance</span><span class="p">(</span><span class="n">s_args</span><span class="o">.</span><span class="n">bal_headers</span><span class="p">,</span> <span class="n">hp</span><span class="o">.</span><span class="n">training_balance</span><span class="p">)</span>
-        <span class="n">train_dts</span> <span class="o">=</span> <span class="n">train_dts</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">s_args</span><span class="o">.</span><span class="n">max_tiles</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">val_dts</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">from_wsi</span><span class="p">:</span>
+            <span class="n">train_dts</span> <span class="o">=</span> <span class="n">train_dts</span><span class="o">.</span><span class="n">balance</span><span class="p">(</span>
+                <span class="n">s_args</span><span class="o">.</span><span class="n">bal_headers</span><span class="p">,</span>
+                <span class="n">hp</span><span class="o">.</span><span class="n">training_balance</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="n">train_dts</span> <span class="o">=</span> <span class="n">train_dts</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">s_args</span><span class="o">.</span><span class="n">max_tiles</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">hp</span><span class="o">.</span><span class="n">training_balance</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;none&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">or</span> <span class="n">s_args</span><span class="o">.</span><span class="n">max_tiles</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Balancing / clipping is disabled when `from_wsi=True`&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">val_dts</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">from_wsi</span><span class="p">:</span>
             <span class="n">val_dts</span> <span class="o">=</span> <span class="n">val_dts</span><span class="o">.</span><span class="n">balance</span><span class="p">(</span>
                 <span class="n">s_args</span><span class="o">.</span><span class="n">bal_headers</span><span class="p">,</span>
-                <span class="n">hp</span><span class="o">.</span><span class="n">validation_balance</span>
+                <span class="n">hp</span><span class="o">.</span><span class="n">validation_balance</span><span class="p">,</span>
             <span class="p">)</span>
             <span class="n">val_dts</span> <span class="o">=</span> <span class="n">val_dts</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">s_args</span><span class="o">.</span><span class="n">max_tiles</span><span class="p">)</span>
-        <span class="n">num_train</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">train_dts</span><span class="o">.</span><span class="n">tfrecords</span><span class="p">())</span>
-        <span class="n">num_val</span> <span class="o">=</span> <span class="mi">0</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">val_dts</span> <span class="k">else</span> <span class="nb">len</span><span class="p">(</span><span class="n">val_dts</span><span class="o">.</span><span class="n">tfrecords</span><span class="p">())</span>
-        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Using </span><span class="si">{</span><span class="n">num_train</span><span class="si">}</span><span class="s1"> training TFRecords, </span><span class="si">{</span><span class="n">num_val</span><span class="si">}</span><span class="s1"> validation&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">from_wsi</span><span class="p">:</span>
+            <span class="n">num_train</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">train_dts</span><span class="o">.</span><span class="n">slide_paths</span><span class="p">())</span>
+            <span class="n">num_val</span> <span class="o">=</span> <span class="mi">0</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">val_dts</span> <span class="k">else</span> <span class="nb">len</span><span class="p">(</span><span class="n">val_dts</span><span class="o">.</span><span class="n">slide_paths</span><span class="p">())</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Using </span><span class="si">{</span><span class="n">num_train</span><span class="si">}</span><span class="s1"> training slides, </span><span class="si">{</span><span class="n">num_val</span><span class="si">}</span><span class="s1"> validation&#39;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">num_train</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">train_dts</span><span class="o">.</span><span class="n">tfrecords</span><span class="p">())</span>
+            <span class="n">num_val</span> <span class="o">=</span> <span class="mi">0</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">val_dts</span> <span class="k">else</span> <span class="nb">len</span><span class="p">(</span><span class="n">val_dts</span><span class="o">.</span><span class="n">tfrecords</span><span class="p">())</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Using </span><span class="si">{</span><span class="n">num_train</span><span class="si">}</span><span class="s1"> training TFRecords, </span><span class="si">{</span><span class="n">num_val</span><span class="si">}</span><span class="s1"> validation&#39;</span><span class="p">)</span>
 
         <span class="c1"># --- Prepare additional slide-level input ----------------------------</span>
         <span class="k">if</span> <span class="n">s_args</span><span class="o">.</span><span class="n">input_header</span><span class="p">:</span>
@@ -1021,7 +1063,6 @@
         <span class="n">full_name</span> <span class="o">=</span> <span class="n">s_args</span><span class="o">.</span><span class="n">model_name</span>
         <span class="k">if</span> <span class="n">s_args</span><span class="o">.</span><span class="n">k</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">full_name</span> <span class="o">+=</span> <span class="sa">f</span><span class="s1">&#39;-kfold</span><span class="si">{</span><span class="n">s_args</span><span class="o">.</span><span class="n">k</span><span class="si">}</span><span class="s1">&#39;</span>
-        <span class="n">git_commit</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">detect_git_commit</span><span class="p">()</span>
         <span class="n">model_dir</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">get_new_model_dir</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">models_dir</span><span class="p">,</span> <span class="n">full_name</span><span class="p">)</span>
 
         <span class="c1"># Log model settings and hyperparameters</span>
@@ -1029,7 +1070,7 @@
             <span class="s1">&#39;slideflow_version&#39;</span><span class="p">:</span> <span class="n">sf</span><span class="o">.</span><span class="n">__version__</span><span class="p">,</span>
             <span class="s1">&#39;project&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
             <span class="s1">&#39;backend&#39;</span><span class="p">:</span> <span class="n">sf</span><span class="o">.</span><span class="n">backend</span><span class="p">(),</span>
-            <span class="s1">&#39;git_commit&#39;</span><span class="p">:</span> <span class="n">git_commit</span><span class="p">,</span>
+            <span class="s1">&#39;git_commit&#39;</span><span class="p">:</span> <span class="n">sf</span><span class="o">.</span><span class="n">__gitcommit__</span><span class="p">,</span>
             <span class="s1">&#39;model_name&#39;</span><span class="p">:</span> <span class="n">s_args</span><span class="o">.</span><span class="n">model_name</span><span class="p">,</span>
             <span class="s1">&#39;full_model_name&#39;</span><span class="p">:</span> <span class="n">full_name</span><span class="p">,</span>
             <span class="s1">&#39;stage&#39;</span><span class="p">:</span> <span class="s1">&#39;training&#39;</span><span class="p">,</span>
@@ -1068,9 +1109,11 @@
             <span class="s1">&#39;slide_input&#39;</span><span class="p">:</span> <span class="n">slide_inp</span><span class="p">,</span>
             <span class="s1">&#39;labels&#39;</span><span class="p">:</span> <span class="n">s_args</span><span class="o">.</span><span class="n">labels</span><span class="p">,</span>
             <span class="s1">&#39;mixed_precision&#39;</span><span class="p">:</span> <span class="n">s_args</span><span class="o">.</span><span class="n">mixed_precision</span><span class="p">,</span>
+            <span class="s1">&#39;allow_tf32&#39;</span><span class="p">:</span> <span class="n">s_args</span><span class="o">.</span><span class="n">allow_tf32</span><span class="p">,</span>
             <span class="s1">&#39;use_neptune&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_neptune</span><span class="p">,</span>
             <span class="s1">&#39;neptune_api&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">neptune_api</span><span class="p">,</span>
             <span class="s1">&#39;neptune_workspace&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">neptune_workspace</span><span class="p">,</span>
+            <span class="s1">&#39;load_method&#39;</span><span class="p">:</span> <span class="n">s_args</span><span class="o">.</span><span class="n">load_method</span>
         <span class="p">}</span>
         <span class="n">process</span> <span class="o">=</span> <span class="n">s_args</span><span class="o">.</span><span class="n">ctx</span><span class="o">.</span><span class="n">Process</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="n">project_utils</span><span class="o">.</span><span class="n">_train_worker</span><span class="p">,</span>
                                      <span class="n">args</span><span class="o">=</span><span class="p">((</span><span class="n">train_dts</span><span class="p">,</span> <span class="n">val_dts</span><span class="p">),</span>
@@ -1120,7 +1163,7 @@
 
 <div class="viewcode-block" id="Project.create_blank_annotations"><a class="viewcode-back" href="../../project.html#slideflow.Project.create_blank_annotations">[docs]</a>    <span class="k">def</span> <span class="nf">create_blank_annotations</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
-        <span class="n">filename</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Path</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">filename</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Creates an empty annotations file.</span>
 
@@ -1158,7 +1201,7 @@
 
 <div class="viewcode-block" id="Project.create_hp_sweep"><a class="viewcode-back" href="../../project.html#slideflow.Project.create_hp_sweep">[docs]</a>    <span class="k">def</span> <span class="nf">create_hp_sweep</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
-        <span class="n">filename</span><span class="p">:</span> <span class="n">Path</span> <span class="o">=</span> <span class="s1">&#39;sweep.json&#39;</span><span class="p">,</span>
+        <span class="n">filename</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;sweep.json&#39;</span><span class="p">,</span>
         <span class="n">label</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Any</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
@@ -1207,19 +1250,21 @@
 <div class="viewcode-block" id="Project.evaluate"><a class="viewcode-back" href="../../project.html#slideflow.Project.evaluate">[docs]</a>    <span class="nd">@auto_dataset</span>
     <span class="k">def</span> <span class="nf">evaluate</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
-        <span class="n">model</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span>
+        <span class="n">model</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
         <span class="n">outcomes</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]],</span>
         <span class="o">*</span><span class="p">,</span>
         <span class="n">dataset</span><span class="p">:</span> <span class="n">Dataset</span><span class="p">,</span>
         <span class="n">filters</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">filter_blank</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">min_tiles</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
-        <span class="n">checkpoint</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Path</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">checkpoint</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">eval_k_fold</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">splits</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;splits.json&quot;</span><span class="p">,</span>
         <span class="n">max_tiles</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
         <span class="n">mixed_precision</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">allow_tf32</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
         <span class="n">input_header</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">load_method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;full&#39;</span><span class="p">,</span>
         <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Any</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Evaluates a saved model on a given set of tfrecords.</span>
@@ -1252,8 +1297,18 @@
 <span class="sd">                to evaluate. Defaults to 0. If zero, will include all tiles.</span>
 <span class="sd">            mixed_precision (bool, optional): Enable mixed precision.</span>
 <span class="sd">                Defaults to True.</span>
+<span class="sd">            allow_tf32 (bool): Allow internal use of Tensorfloat-32 format.</span>
+<span class="sd">                Defaults to False.</span>
 <span class="sd">            input_header (str, optional): Annotation column header to use as</span>
 <span class="sd">                additional input. Defaults to None.</span>
+<span class="sd">            load_method (str): Either &#39;full&#39; or &#39;weights&#39;. Method to use</span>
+<span class="sd">                when loading a Tensorflow model. If &#39;full&#39;, loads the model with</span>
+<span class="sd">                ``tf.keras.models.load_model()``. If &#39;weights&#39;, will read the</span>
+<span class="sd">                ``params.json``configuration file, build the model architecture,</span>
+<span class="sd">                and then load weights from the given model with</span>
+<span class="sd">                ``Model.load_weights()``. Loading with &#39;full&#39; may improve</span>
+<span class="sd">                compatibility across Slideflow versions. Loading with &#39;weights&#39;</span>
+<span class="sd">                may improve compatibility across hardware &amp; environments.</span>
 <span class="sd">            save_predictions (bool or str, optional): Save tile, slide, and</span>
 <span class="sd">                patient-level predictions at each evaluation. May be &#39;csv&#39;,</span>
 <span class="sd">                &#39;feather&#39;, or &#39;parquet&#39;. If False, will not save predictions.</span>
@@ -1274,16 +1329,16 @@
             <span class="n">splits</span><span class="o">=</span><span class="n">splits</span><span class="p">,</span>
             <span class="n">max_tiles</span><span class="o">=</span><span class="n">max_tiles</span><span class="p">,</span>
             <span class="n">input_header</span><span class="o">=</span><span class="n">input_header</span><span class="p">,</span>
-            <span class="n">mixed_precision</span><span class="o">=</span><span class="n">mixed_precision</span>
+            <span class="n">mixed_precision</span><span class="o">=</span><span class="n">mixed_precision</span><span class="p">,</span>
+            <span class="n">allow_tf32</span><span class="o">=</span><span class="n">allow_tf32</span><span class="p">,</span>
+            <span class="n">load_method</span><span class="o">=</span><span class="n">load_method</span>
         <span class="p">)</span>
-        <span class="c1"># Perform evaluation</span>
-        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Evaluating </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">eval_dts</span><span class="o">.</span><span class="n">tfrecords</span><span class="p">())</span><span class="si">}</span><span class="s1"> tfrecords&#39;</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">trainer</span><span class="o">.</span><span class="n">evaluate</span><span class="p">(</span><span class="n">eval_dts</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="Project.evaluate_clam"><a class="viewcode-back" href="../../project.html#slideflow.Project.evaluate_clam">[docs]</a>    <span class="k">def</span> <span class="nf">evaluate_clam</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">exp_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-        <span class="n">pt_files</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span>
+        <span class="n">pt_files</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
         <span class="n">outcomes</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]],</span>
         <span class="n">tile_px</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
         <span class="n">tile_um</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
@@ -1532,6 +1587,8 @@
 <span class="sd">                Defaults to mpp=4 (effective magnification 2.5 X)</span>
 <span class="sd">            dry_run (bool, optional): Determine tiles that would be extracted,</span>
 <span class="sd">                but do not export any images. Defaults to None.</span>
+<span class="sd">            max_tiles (int, optional): Only extract this many tiles per slide.</span>
+<span class="sd">                Defaults to None.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            Dictionary mapping slide paths to each slide&#39;s SlideReport</span>
@@ -1554,8 +1611,6 @@
         <span class="n">outcomes</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">exp_label</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">mirror</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
-        <span class="n">augpipe</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;bgcfnc&#39;</span><span class="p">,</span>
-        <span class="n">allow_tf32</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
         <span class="n">metrics</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">dry_run</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
         <span class="o">**</span><span class="n">kwargs</span>
@@ -1567,12 +1622,13 @@
 
 <span class="sd">        Keyword Args:</span>
 <span class="sd">            allow_tf32 (bool): Allow internal use of Tensorflow-32.</span>
-<span class="sd">                Defaults to True.</span>
+<span class="sd">                Option only available for StyleGAN2. Defaults to True.</span>
 <span class="sd">            aug (str): Augmentation mode. Options include &#39;ada&#39;,</span>
 <span class="sd">                &#39;noaug&#39;, &#39;fixed&#39;. Defaults to &#39;ada&#39;.</span>
 <span class="sd">            augpipe (str): Augmentation pipeline. Options include</span>
 <span class="sd">                &#39;blit&#39;, &#39;geom&#39;, &#39;color&#39;, &#39;filter&#39;, &#39;noise&#39;, &#39;cutout&#39;, &#39;bg&#39;,</span>
-<span class="sd">                &#39;bgc&#39;, &#39;bgcfnc&#39;. Defaults to &#39;bgcfnc&#39;.</span>
+<span class="sd">                &#39;bgc&#39;, &#39;bgcfnc&#39;. Only available for StyleGAN2.</span>
+<span class="sd">                Defaults to &#39;bgcfnc&#39;.</span>
 <span class="sd">            batch (int, optional): Override batch size set by `cfg`.</span>
 <span class="sd">            cfg (str): StyleGAN2 base configuration. Options include</span>
 <span class="sd">                &#39;auto&#39;, &#39;stylegan2&#39;, &#39;paper256&#39;, &#39;paper512&#39;, &#39;paper1024&#39;, and</span>
@@ -1633,12 +1689,14 @@
 <span class="sd">                &gt;&gt;&gt; P.gan_train(..., gpus=4)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c1"># Validate the method and import the appropriate submodule</span>
-        <span class="n">supported_models</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;stylegan2&#39;</span><span class="p">,)</span>
+        <span class="n">supported_models</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;stylegan2&#39;</span><span class="p">,</span> <span class="s1">&#39;stylegan3&#39;</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">model</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">supported_models</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown method &#39;</span><span class="si">{</span><span class="n">model</span><span class="si">}</span><span class="s2">&#39;. Valid methods &quot;</span>
                              <span class="sa">f</span><span class="s2">&quot;include: </span><span class="si">{</span><span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">supported_models</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">model</span> <span class="o">==</span> <span class="s1">&#39;stylegan2&#39;</span><span class="p">:</span>
-            <span class="kn">from</span> <span class="nn">slideflow.gan</span> <span class="kn">import</span> <span class="n">stylegan2</span> <span class="k">as</span> <span class="n">network</span>
+            <span class="kn">from</span> <span class="nn">slideflow.gan.stylegan2</span> <span class="kn">import</span> <span class="n">stylegan2</span> <span class="k">as</span> <span class="n">network</span>
+        <span class="k">elif</span> <span class="n">model</span> <span class="o">==</span> <span class="s1">&#39;stylegan3&#39;</span><span class="p">:</span>
+            <span class="kn">from</span> <span class="nn">slideflow.gan.stylegan3</span> <span class="kn">import</span> <span class="n">stylegan3</span> <span class="k">as</span> <span class="n">network</span>  <span class="c1"># type: ignore</span>
         <span class="k">if</span> <span class="n">metrics</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">log</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
                 <span class="s2">&quot;StyleGAN2 metrics are not fully implemented for Slideflow.&quot;</span>
@@ -1672,8 +1730,6 @@
             <span class="n">slideflow</span><span class="o">=</span><span class="n">config_loc</span><span class="p">,</span>
             <span class="n">cond</span><span class="o">=</span><span class="p">(</span><span class="n">outcomes</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">),</span>
             <span class="n">mirror</span><span class="o">=</span><span class="n">mirror</span><span class="p">,</span>
-            <span class="n">augpipe</span><span class="o">=</span><span class="n">augpipe</span><span class="p">,</span>
-            <span class="n">allow_tf32</span><span class="o">=</span><span class="n">allow_tf32</span><span class="p">,</span>
             <span class="n">metrics</span><span class="o">=</span><span class="n">metrics</span><span class="p">,</span>
             <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
 
@@ -1741,7 +1797,7 @@
 <span class="sd">                ...     target_px=299,</span>
 <span class="sd">                ...     target_um=302)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="kn">from</span> <span class="nn">slideflow.gan</span> <span class="kn">import</span> <span class="n">stylegan2</span>
+        <span class="kn">from</span> <span class="nn">slideflow.gan.stylegan2</span> <span class="kn">import</span> <span class="n">stylegan2</span>
 
         <span class="n">stylegan2</span><span class="o">.</span><span class="n">generate</span><span class="o">.</span><span class="n">generate_images</span><span class="p">(</span>
             <span class="n">network_pkl</span><span class="p">,</span>
@@ -1753,7 +1809,7 @@
 <div class="viewcode-block" id="Project.generate_features"><a class="viewcode-back" href="../../project.html#slideflow.Project.generate_features">[docs]</a>    <span class="nd">@auto_dataset</span>
     <span class="k">def</span> <span class="nf">generate_features</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
-        <span class="n">model</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span>
+        <span class="n">model</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
         <span class="o">*</span><span class="p">,</span>
         <span class="n">dataset</span><span class="p">:</span> <span class="n">Dataset</span><span class="p">,</span>
         <span class="n">filters</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -1906,6 +1962,11 @@
                 <span class="n">num_classes</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
                 <span class="n">pretrain</span><span class="o">=</span><span class="s1">&#39;imagenet&#39;</span>
             <span class="p">)</span>  <span class="c1"># type: ignore</span>
+
+            <span class="k">if</span> <span class="n">sf</span><span class="o">.</span><span class="n">backend</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;torch&#39;</span><span class="p">:</span>
+                <span class="kn">import</span> <span class="nn">torch</span>
+                <span class="n">model</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">device</span><span class="p">(</span><span class="s1">&#39;cuda&#39;</span><span class="p">))</span>
+                <span class="n">model</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
         <span class="k">elif</span> <span class="ow">not</span> <span class="n">exists</span><span class="p">(</span><span class="n">model</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
                 <span class="sa">f</span><span class="s2">&quot;&#39;</span><span class="si">{</span><span class="n">model</span><span class="si">}</span><span class="s2">&#39; is neither a path to a saved model nor the name &quot;</span>
@@ -1949,7 +2010,7 @@
 <div class="viewcode-block" id="Project.generate_heatmaps"><a class="viewcode-back" href="../../project.html#slideflow.Project.generate_heatmaps">[docs]</a>    <span class="nd">@auto_dataset</span>
     <span class="k">def</span> <span class="nf">generate_heatmaps</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
-        <span class="n">model</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span>
+        <span class="n">model</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
         <span class="o">*</span><span class="p">,</span>
         <span class="n">dataset</span><span class="p">:</span> <span class="n">Dataset</span><span class="p">,</span>
         <span class="n">filters</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -1962,6 +2023,7 @@
         <span class="n">num_threads</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">img_format</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;auto&#39;</span><span class="p">,</span>
         <span class="n">skip_completed</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">verbose</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
         <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Any</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Creates predictive heatmap overlays on a set of slides.</span>
@@ -2022,6 +2084,7 @@
 <span class="sd">                color will only reflect predictions of up to three labels.</span>
 <span class="sd">                Example (this would map predictions for label 0 to red, 3 to</span>
 <span class="sd">                green, etc): {&#39;r&#39;: 0, &#39;g&#39;: 3, &#39;b&#39;: 1 }</span>
+<span class="sd">            verbose (bool): Show verbose output. Defaults to True.</span>
 <span class="sd">            vmin (float): Minimimum value to display on heatmap. Defaults to 0.</span>
 <span class="sd">            vcenter (float): Center value for color display on heatmap.</span>
 <span class="sd">                Defaults to 0.5.</span>
@@ -2029,12 +2092,12 @@
 <span class="sd">        &quot;&quot;&quot;</span>
 
         <span class="c1"># Prepare arguments for subprocess</span>
-        <span class="n">heatmap_args</span> <span class="o">=</span> <span class="n">SimpleNamespace</span><span class="p">(</span><span class="o">**</span><span class="nb">locals</span><span class="p">())</span>
-        <span class="k">del</span> <span class="n">heatmap_args</span><span class="o">.</span><span class="n">self</span>
+        <span class="n">args</span> <span class="o">=</span> <span class="n">SimpleNamespace</span><span class="p">(</span><span class="o">**</span><span class="nb">locals</span><span class="p">())</span>
+        <span class="k">del</span> <span class="n">args</span><span class="o">.</span><span class="n">self</span>
 
         <span class="c1"># Prepare dataset</span>
         <span class="n">config</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">get_model_config</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
-        <span class="n">heatmap_args</span><span class="o">.</span><span class="n">rois</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">rois</span><span class="p">()</span>
+        <span class="n">args</span><span class="o">.</span><span class="n">rois</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">rois</span><span class="p">()</span>
 
         <span class="c1"># Set resolution / stride</span>
         <span class="n">resolutions</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;low&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;medium&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;high&#39;</span><span class="p">:</span> <span class="mi">4</span><span class="p">}</span>
@@ -2042,9 +2105,9 @@
             <span class="n">stride_div</span> <span class="o">=</span> <span class="n">resolutions</span><span class="p">[</span><span class="n">resolution</span><span class="p">]</span>
         <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Invalid resolution &#39;</span><span class="si">{</span><span class="n">resolution</span><span class="si">}</span><span class="s2">&#39;.&quot;</span><span class="p">)</span>
-        <span class="n">heatmap_args</span><span class="o">.</span><span class="n">stride_div</span> <span class="o">=</span> <span class="n">stride_div</span>
-        <span class="n">heatmap_args</span><span class="o">.</span><span class="n">verbosity</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbosity</span>
-        <span class="n">heatmap_args</span><span class="o">.</span><span class="n">img_format</span> <span class="o">=</span> <span class="n">img_format</span>
+        <span class="n">args</span><span class="o">.</span><span class="n">stride_div</span> <span class="o">=</span> <span class="n">stride_div</span>
+        <span class="n">args</span><span class="o">.</span><span class="n">verbosity</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbosity</span>  <span class="c1"># Set logging level in subprocess</span>
+        <span class="n">args</span><span class="o">.</span><span class="n">img_format</span> <span class="o">=</span> <span class="n">img_format</span>
 
         <span class="c1"># Attempt to auto-detect supplied model name</span>
         <span class="n">model_name</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
@@ -2055,7 +2118,16 @@
         <span class="n">outdir</span> <span class="o">=</span> <span class="n">outdir</span> <span class="k">if</span> <span class="n">outdir</span> <span class="k">else</span> <span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">root</span><span class="p">,</span> <span class="s1">&#39;heatmaps&#39;</span><span class="p">,</span> <span class="n">model_name</span><span class="p">)</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">exists</span><span class="p">(</span><span class="n">outdir</span><span class="p">):</span>
             <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">outdir</span><span class="p">)</span>
-        <span class="n">heatmap_args</span><span class="o">.</span><span class="n">outdir</span> <span class="o">=</span> <span class="n">outdir</span>
+        <span class="n">args</span><span class="o">.</span><span class="n">outdir</span> <span class="o">=</span> <span class="n">outdir</span>
+
+        <span class="c1"># Verbose output</span>
+        <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+            <span class="n">n_poss_slides</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">dataset</span><span class="o">.</span><span class="n">slides</span><span class="p">())</span>
+            <span class="n">n_slides</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">dataset</span><span class="o">.</span><span class="n">slide_paths</span><span class="p">())</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Generating heatmaps for </span><span class="si">{}</span><span class="s2"> slides.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">n_slides</span><span class="p">))</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Model: [green]</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">model</span><span class="p">))</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Tile px: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;tile_px&#39;</span><span class="p">]))</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Tile um: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;tile_um&#39;</span><span class="p">]))</span>
 
         <span class="c1"># Any function loading a slide must be kept in an isolated process,</span>
         <span class="c1"># as loading &gt;1 slide in a single process causes instability.</span>
@@ -2070,7 +2142,7 @@
 
             <span class="n">ctx</span> <span class="o">=</span> <span class="n">multiprocessing</span><span class="o">.</span><span class="n">get_context</span><span class="p">(</span><span class="s1">&#39;spawn&#39;</span><span class="p">)</span>
             <span class="n">process</span> <span class="o">=</span> <span class="n">ctx</span><span class="o">.</span><span class="n">Process</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="n">project_utils</span><span class="o">.</span><span class="n">_heatmap_worker</span><span class="p">,</span>
-                                  <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">slide</span><span class="p">,</span> <span class="n">heatmap_args</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">))</span>
+                                  <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">slide</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">))</span>
             <span class="n">process</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
             <span class="n">process</span><span class="o">.</span><span class="n">join</span><span class="p">()</span></div>
 
@@ -2278,7 +2350,7 @@
         <span class="n">header_y</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
         <span class="o">*</span><span class="p">,</span>
         <span class="n">dataset</span><span class="p">:</span> <span class="n">Dataset</span><span class="p">,</span>
-        <span class="n">model</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Path</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">model</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">outcomes</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">max_tiles</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">100</span><span class="p">,</span>
         <span class="n">use_optimal_tile</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
@@ -2541,7 +2613,7 @@
             <span class="n">dataset</span><span class="o">.</span><span class="n">update_manifest</span><span class="p">()</span>
         <span class="k">return</span> <span class="n">dataset</span></div>
 
-<div class="viewcode-block" id="Project.load_project"><a class="viewcode-back" href="../../project.html#slideflow.Project.load_project">[docs]</a>    <span class="k">def</span> <span class="nf">load_project</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<div class="viewcode-block" id="Project.load_project"><a class="viewcode-back" href="../../project.html#slideflow.Project.load_project">[docs]</a>    <span class="k">def</span> <span class="nf">load_project</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Loads a saved and pre-configured project from the specified path.&quot;&quot;&quot;</span>
 
         <span class="c1"># Enable logging</span>
@@ -2553,13 +2625,13 @@
 <div class="viewcode-block" id="Project.predict"><a class="viewcode-back" href="../../project.html#slideflow.Project.predict">[docs]</a>    <span class="nd">@auto_dataset</span>
     <span class="k">def</span> <span class="nf">predict</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
-        <span class="n">model</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span>
+        <span class="n">model</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
         <span class="o">*</span><span class="p">,</span>
         <span class="n">dataset</span><span class="p">:</span> <span class="n">Dataset</span><span class="p">,</span>
         <span class="n">filters</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">filter_blank</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">min_tiles</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
-        <span class="n">checkpoint</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Path</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">checkpoint</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">eval_k_fold</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">splits</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;splits.json&quot;</span><span class="p">,</span>
         <span class="n">max_tiles</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
@@ -2567,6 +2639,8 @@
         <span class="nb">format</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;csv&#39;</span><span class="p">,</span>
         <span class="n">input_header</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">mixed_precision</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">allow_tf32</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">load_method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;full&#39;</span><span class="p">,</span>
         <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Any</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;pd.DataFrame&quot;</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Evaluates a saved model on a given set of tfrecords.</span>
@@ -2604,6 +2678,16 @@
 <span class="sd">                additional input. Defaults to None.</span>
 <span class="sd">            mixed_precision (bool, optional): Enable mixed precision.</span>
 <span class="sd">                Defaults to True.</span>
+<span class="sd">            allow_tf32 (bool): Allow internal use of Tensorfloat-32 format.</span>
+<span class="sd">                Defaults to False.</span>
+<span class="sd">            load_method (str): Either &#39;full&#39; or &#39;weights&#39;. Method to use</span>
+<span class="sd">                when loading a Tensorflow model. If &#39;full&#39;, loads the model with</span>
+<span class="sd">                ``tf.keras.models.load_model()``. If &#39;weights&#39;, will read the</span>
+<span class="sd">                ``params.json``configuration file, build the model architecture,</span>
+<span class="sd">                and then load weights from the given model with</span>
+<span class="sd">                ``Model.load_weights()``. Loading with &#39;full&#39; may improve</span>
+<span class="sd">                compatibility across Slideflow versions. Loading with &#39;weights&#39;</span>
+<span class="sd">                may improve compatibility across hardware &amp; environments.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            Dictionary of predictions dataframes, with the keys &#39;tile&#39;, &#39;slide&#39;,</span>
@@ -2620,7 +2704,9 @@
             <span class="n">splits</span><span class="o">=</span><span class="n">splits</span><span class="p">,</span>
             <span class="n">max_tiles</span><span class="o">=</span><span class="n">max_tiles</span><span class="p">,</span>
             <span class="n">input_header</span><span class="o">=</span><span class="n">input_header</span><span class="p">,</span>
-            <span class="n">mixed_precision</span><span class="o">=</span><span class="n">mixed_precision</span>
+            <span class="n">mixed_precision</span><span class="o">=</span><span class="n">mixed_precision</span><span class="p">,</span>
+            <span class="n">allow_tf32</span><span class="o">=</span><span class="n">allow_tf32</span><span class="p">,</span>
+            <span class="n">load_method</span><span class="o">=</span><span class="n">load_method</span>
         <span class="p">)</span>
         <span class="n">results</span> <span class="o">=</span> <span class="n">trainer</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span>
             <span class="n">dataset</span><span class="o">=</span><span class="n">eval_dts</span><span class="p">,</span>
@@ -2633,8 +2719,8 @@
 <div class="viewcode-block" id="Project.predict_wsi"><a class="viewcode-back" href="../../project.html#slideflow.Project.predict_wsi">[docs]</a>    <span class="nd">@auto_dataset</span>
     <span class="k">def</span> <span class="nf">predict_wsi</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
-        <span class="n">model</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span>
-        <span class="n">outdir</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span>
+        <span class="n">model</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">outdir</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
         <span class="o">*</span><span class="p">,</span>
         <span class="n">dataset</span><span class="p">:</span> <span class="n">Dataset</span><span class="p">,</span>
         <span class="n">filters</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -2938,6 +3024,8 @@
         <span class="n">max_tiles</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
         <span class="n">splits</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;splits.json&quot;</span><span class="p">,</span>
         <span class="n">mixed_precision</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">allow_tf32</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">load_method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;full&#39;</span><span class="p">,</span>
         <span class="n">balance_headers</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="o">**</span><span class="n">training_kwargs</span><span class="p">:</span> <span class="n">Any</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
@@ -2969,6 +3057,16 @@
 <span class="sd">                Defaults to &quot;splits.json&quot;.</span>
 <span class="sd">            mixed_precision (bool, optional): Enable mixed precision.</span>
 <span class="sd">                Defaults to True.</span>
+<span class="sd">            allow_tf32 (bool): Allow internal use of Tensorfloat-32 format.</span>
+<span class="sd">                Defaults to False.</span>
+<span class="sd">            load_method (str): Either &#39;full&#39; or &#39;weights&#39;. Method to use</span>
+<span class="sd">                when loading a Tensorflow model. If &#39;full&#39;, loads the model with</span>
+<span class="sd">                ``tf.keras.models.load_model()``. If &#39;weights&#39;, will read the</span>
+<span class="sd">                ``params.json``configuration file, build the model architecture,</span>
+<span class="sd">                and then load weights from the given model with</span>
+<span class="sd">                ``Model.load_weights()``. Loading with &#39;full&#39; may improve</span>
+<span class="sd">                compatibility across Slideflow versions. Loading with &#39;weights&#39;</span>
+<span class="sd">                may improve compatibility across hardware &amp; environments.</span>
 <span class="sd">            balance_headers (str or list(str)): Annotation header(s) specifying</span>
 <span class="sd">                labels on which to perform mini-batch balancing. If performing</span>
 <span class="sd">                category-level balancing and this is set to None, will default</span>
@@ -3104,7 +3202,7 @@
         <span class="c1"># Next, prepare the multiprocessing manager (needed to free VRAM after</span>
         <span class="c1"># training and keep track of results)</span>
         <span class="n">manager</span> <span class="o">=</span> <span class="n">multiprocessing</span><span class="o">.</span><span class="n">Manager</span><span class="p">()</span>
-        <span class="n">results_dict</span> <span class="o">=</span> <span class="n">manager</span><span class="o">.</span><span class="n">dict</span><span class="p">()</span>  <span class="c1"># type: Dict</span>
+        <span class="n">results_dict</span> <span class="o">=</span> <span class="n">manager</span><span class="o">.</span><span class="n">dict</span><span class="p">()</span>
         <span class="n">ctx</span> <span class="o">=</span> <span class="n">multiprocessing</span><span class="o">.</span><span class="n">get_context</span><span class="p">(</span><span class="s1">&#39;spawn&#39;</span><span class="p">)</span>
 
         <span class="c1"># === Train with a set of hyperparameters =============================</span>
@@ -3123,10 +3221,12 @@
                 <span class="n">min_tiles</span><span class="o">=</span><span class="n">min_tiles</span><span class="p">,</span>
                 <span class="n">max_tiles</span><span class="o">=</span><span class="n">max_tiles</span><span class="p">,</span>
                 <span class="n">mixed_precision</span><span class="o">=</span><span class="n">mixed_precision</span><span class="p">,</span>
+                <span class="n">allow_tf32</span><span class="o">=</span><span class="n">allow_tf32</span><span class="p">,</span>
                 <span class="n">splits</span><span class="o">=</span><span class="n">splits</span><span class="p">,</span>
                 <span class="n">balance_headers</span><span class="o">=</span><span class="n">balance_headers</span><span class="p">,</span>
                 <span class="n">training_kwargs</span><span class="o">=</span><span class="n">training_kwargs</span><span class="p">,</span>
-                <span class="n">results_dict</span><span class="o">=</span><span class="n">results_dict</span>
+                <span class="n">results_dict</span><span class="o">=</span><span class="n">results_dict</span><span class="p">,</span>
+                <span class="n">load_method</span><span class="o">=</span><span class="n">load_method</span>
             <span class="p">)</span>
         <span class="c1"># Print summary of all models</span>
         <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Training complete; validation accuracies:&#39;</span><span class="p">)</span>
@@ -3154,7 +3254,7 @@
 <div class="viewcode-block" id="Project.train_clam"><a class="viewcode-back" href="../../project.html#slideflow.Project.train_clam">[docs]</a>    <span class="k">def</span> <span class="nf">train_clam</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">exp_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-        <span class="n">pt_files</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span>
+        <span class="n">pt_files</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
         <span class="n">outcomes</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]],</span>
         <span class="n">dataset</span><span class="p">:</span> <span class="n">Dataset</span><span class="p">,</span>
         <span class="n">train_slides</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="s1">&#39;auto&#39;</span><span class="p">,</span>
@@ -3363,16 +3463,16 @@
 </pre></div>
 
              </article>
-             
+
             </div>
             <footer>
-  
 
-  
+
+
 
     <hr>
 
-  
+
 
   <div role="contentinfo">
     <p>
@@ -3380,11 +3480,11 @@
 
     </p>
   </div>
-    
+
       <div>
         Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
       </div>
-     
+
 
 </footer>
 
@@ -3394,28 +3494,29 @@
         <div class="pytorch-content-right" id="pytorch-content-right">
           <div class="pytorch-right-menu" id="pytorch-right-menu">
             <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
-              
+
             </div>
           </div>
         </div>
       </section>
     </div>
 
-  
 
 
-  
 
-     
+
+
+
        <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
          <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
          <script src="../../_static/jquery.js"></script>
          <script src="../../_static/underscore.js"></script>
          <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
          <script src="../../_static/doctools.js"></script>
-     
+         <script src="../../_static/sphinx_highlight.js"></script>
 
-  
+
+
 
   <script type="text/javascript" src="../../_static/js/vendor/popper.min.js"></script>
   <script type="text/javascript" src="../../_static/js/vendor/bootstrap.min.js"></script>
@@ -3426,7 +3527,7 @@
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script> 
+  </script>
 
   <!-- Begin Footer -->
 

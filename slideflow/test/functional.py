@@ -1,3 +1,4 @@
+import importlib
 import logging
 import os
 from os.path import exists, join
@@ -11,6 +12,8 @@ from slideflow.test.utils import (handle_errors, test_multithread_throughput,
 from rich import print
 from tqdm import tqdm
 
+spams_loader = importlib.util.find_spec('spams')
+
 if TYPE_CHECKING:
     import multiprocessing
 
@@ -21,6 +24,7 @@ def activations_tester(
     verbosity: int,
     passed: "multiprocessing.managers.ValueProxy",
     model: str,
+    tile_px: int,
     **kwargs
 ) -> None:
     """Tests generation of intermediate layer activations.
@@ -30,7 +34,7 @@ def activations_tester(
     sf.setLoggingLevel(verbosity)
 
     # Test activations generation.
-    dataset = project.dataset(71, 1208)
+    dataset = project.dataset(tile_px, 1208)
     test_slide = dataset.slides()[0]
 
     df = project.generate_features(
@@ -124,12 +128,12 @@ def prediction_tester(project, verbosity, passed, **kwargs) -> None:
 
 
 @handle_errors
-def reader_tester(project, verbosity, passed) -> None:
+def reader_tester(project, verbosity, passed, tile_px) -> None:
     """Tests TFRecord reading between backends and ensures identical results.
 
     Function must happen in an isolated process to free GPU memory when done.
     """
-    dataset = project.dataset(71, 1208)
+    dataset = project.dataset(tile_px, 1208)
     tfrecords = dataset.tfrecords()
     batch_size = 128
     assert len(tfrecords)
@@ -195,6 +199,7 @@ def single_thread_normalizer_tester(
     verbosity: int,
     passed: "multiprocessing.managers.ValueProxy",
     methods: Union[List, Tuple],
+    tile_px: int
 ) -> None:
     """Tests all normalization strategies and throughput.
 
@@ -203,7 +208,7 @@ def single_thread_normalizer_tester(
     sf.setLoggingLevel(verbosity)
     if not len(methods):
         methods = sf.norm.StainNormalizer.normalizers  # type: ignore
-    dataset = project.dataset(71, 1208)
+    dataset = project.dataset(tile_px, 1208)
     v = f'[bold]({sf.backend()}-native)[/]'
 
     dts_kw = {'standardize': False, 'infinite': True}
@@ -215,6 +220,9 @@ def single_thread_normalizer_tester(
         raw_img = next(iter(dts))[0].permute(1, 2, 0).numpy()
     Image.fromarray(raw_img).save(join(project.root, 'raw_img.png'))
     for method in methods:
+        if method in ('vahadane', 'vahadane_spams') and spams_loader is None:
+            print("Skipping Vahadane (spams); SPAMS not installed.")
+            continue
         gen_norm = sf.norm.StainNormalizer(method)
         vec_norm = sf.norm.autoselect(method)
         st_msg = '[yellow]SINGLE-thread[/]'
@@ -227,7 +235,6 @@ def single_thread_normalizer_tester(
         dur = f"[blue][{gen_tpt:.1f} img/s][/]"
         print(f"Testing {method} [{st_msg}]... DONE " + dur)
         if type(vec_norm) != type(gen_norm):
-
             # Save example image
             img = Image.fromarray(vec_norm.rgb_to_rgb(raw_img))
             img.save(join(project.root, f'{method}_vectorized.png'))
@@ -243,6 +250,7 @@ def multi_thread_normalizer_tester(
     verbosity: int,
     passed: "multiprocessing.managers.ValueProxy",
     methods: Union[List, Tuple],
+    tile_px: int
 ) -> None:
     """Tests all normalization strategies and throughput.
 
@@ -251,10 +259,13 @@ def multi_thread_normalizer_tester(
     sf.setLoggingLevel(verbosity)
     if not len(methods):
         methods = sf.norm.StainNormalizer.normalizers  # type: ignore
-    dataset = project.dataset(71, 1208)
+    dataset = project.dataset(tile_px, 1208)
     v = f'[bold]({sf.backend()}-native)[/]'
 
     for method in methods:
+        if 'vahadane' in method:
+            print("Skipping Vahadane throughput testing.")
+            continue
         gen_norm = sf.norm.StainNormalizer(method)
         vec_norm = sf.norm.autoselect(method)
         mt_msg = '[magenta]MULTI-thread[/]'

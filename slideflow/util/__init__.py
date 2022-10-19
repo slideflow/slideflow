@@ -12,6 +12,7 @@ from rich.logging import RichHandler
 from rich.highlighter import NullHighlighter
 from rich.panel import Panel
 from rich.console import Console
+from rich.progress import Progress, TextColumn, BarColumn
 from functools import partial
 from glob import glob
 from os.path import dirname, exists, isdir, join
@@ -19,7 +20,6 @@ from packaging import version
 from statistics import mean, median
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
-import matplotlib.colors as mcol
 import numpy as np
 import slideflow as sf
 from slideflow.util import log_utils
@@ -27,12 +27,8 @@ from slideflow import errors
 from slideflow.util import example_pb2
 from slideflow.util.colors import *  # noqa F403,F401 - Here for compatibility
 
-# --- Optional imports --------------------------------------------------------
-# git is not needed for pypi distribution
-try:
-    import git
-except ImportError:
-    git = None
+tf_available = importlib.util.find_spec('tensorflow')
+torch_available = importlib.util.find_spec('torch')
 
 # Enable color sequences on Windows
 try:
@@ -46,7 +42,7 @@ except Exception:
 # --- Global vars -------------------------------------------------------------
 
 SUPPORTED_FORMATS = ['svs', 'tif', 'ndpi', 'vms', 'vmu', 'scn', 'mrxs',
-                     'tiff', 'svslide', 'bif', 'jpg']
+                     'tiff', 'svslide', 'bif', 'jpg', 'jpeg']
 EMPTY_ANNOTATIONS = ['', ' ']
 CPLEX_AVAILABLE = (importlib.util.find_spec('cplex') is not None)
 try:
@@ -62,9 +58,6 @@ else:
 
 
 # --- Commonly used types -----------------------------------------------------
-
-# Path
-Path = Union[str, os.PathLike]
 
 # Outcome labels
 Labels = Union[Dict[str, str], Dict[str, int], Dict[str, List[float]]]
@@ -98,7 +91,7 @@ def addLoggingFileHandler(path):
 
 # Add tqdm-friendly stream handler
 #ch = log_utils.TqdmLoggingHandler()
-ch = RichHandler(markup=True, log_time_format="[%X]", show_path=False, highlighter=NullHighlighter())
+ch = RichHandler(markup=True, log_time_format="[%X]", show_path=False, highlighter=NullHighlighter(), rich_tracebacks=True)
 ch.setFormatter(log_utils.LogFormatter())
 if 'SF_LOGGING_LEVEL' in os.environ:
     try:
@@ -131,7 +124,7 @@ class TileExtractionSpeedColumn(progress.ProgressColumn):
 class ImgBatchSpeedColumn(progress.ProgressColumn):
     """Renders human readable transfer speed."""
 
-    def __init__(self, batch_size, *args, **kwargs):
+    def __init__(self, batch_size=1, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.batch_size = batch_size
 
@@ -144,8 +137,26 @@ class ImgBatchSpeedColumn(progress.ProgressColumn):
         return progress.Text(f"{data_speed}/s", style="progress.data.speed")
 
 
-# --- Slideflow header --------------------------------------------------------
+class TileExtractionProgress(Progress):
+    def get_renderables(self):
+        for task in self.tasks:
+            if task.fields.get("progress_type") == 'speed':
+                self.columns = (
+                    TextColumn("[progress.description]{task.description}"),
+                    TileExtractionSpeedColumn(),)
+            if task.fields.get("progress_type") == 'slide_progress':
+                self.columns = (
+                    TextColumn("[progress.description]{task.description}"),
+                    BarColumn(),
+                    progress.TaskProgressColumn(),
+                    progress.MofNCompleteColumn(),
+                    "●",
+                    progress.TimeRemainingColumn(),
+                )
+            yield self.make_tasks_table([task])
 
+
+# --- Slideflow header --------------------------------------------------------
 
 def header(console=None):
     if console is None:
@@ -160,6 +171,20 @@ def header(console=None):
         justify='center')
 
 # --- Utility functions and classes -------------------------------------------
+
+def model_backend(model):
+    if sf.util.torch_available and 'torch' in sys.modules:
+        import torch
+        if isinstance(model, torch.nn.Module):
+            return 'torch'
+    if sf.util.tf_available and 'tensorflow' in sys.modules:
+        import tensorflow as tf
+        if isinstance(model, tf.keras.Model):
+            return 'tensorflow'
+        from tensorflow.lite.python.interpreter import SignatureRunner
+        if isinstance(model, SignatureRunner):
+            return 'tflite'
+    raise ValueError(f"Unable to interpret model {model}")
 
 def detuple(arg1: Any, args: tuple) -> Any:
     if len(args):
@@ -192,6 +217,30 @@ def is_mag(arg1: str) -> bool:
         return False
     return True
 
+def is_model(path: str) -> bool:
+    """Checks if the given path is a valid Slideflow model."""
+    return is_tensorflow_model(path) or is_torch_model(path)
+
+def is_project(path: str) -> bool:
+    """Checks if the given path is a valid Slideflow project."""
+    return isdir(path) and exists(join(path, 'settings.json'))
+
+def is_slide(path: str) -> bool:
+    """Checks if the given path is a supported slide."""
+    return (os.path.isfile(path)
+            and sf.util.path_to_ext(path).lower() in SUPPORTED_FORMATS)
+
+def is_tensorflow_model(path: str) -> bool:
+    """Checks if the given path is a valid Slideflow/Tensorflow model."""
+    return (isdir(path)
+            and (exists(join(path, 'params.json'))
+                 or exists(join(dirname(path), 'params.json'))))
+
+def is_torch_model(path: str) -> bool:
+    """Checks if the given path is a valid Slideflow/PyTorch model."""
+    return (os.path.isfile(path)
+            and sf.util.path_to_ext(path).lower() == 'zip'
+            and exists(join(dirname(path), 'params.json')))
 
 def assert_is_mag(arg1: str):
     if not isinstance(arg1, str) or not is_mag(arg1):
@@ -253,7 +302,7 @@ def clear_console() -> None:
     sys.stdout.flush()
 
 
-def make_dir(_dir: Path) -> None:
+def make_dir(_dir: str) -> None:
     """Makes a directory if one does not already exist,
     in a manner compatible with multithreading.
     """
@@ -312,7 +361,7 @@ def path_input(
     root: str,
     default: Optional[str] = None,
     create_on_invalid: bool = False,
-    filetype: Optional[Path] = None,
+    filetype: Optional[str] = None,
     verify: bool = True
 ) -> str:
     '''Prompts user for directory input.'''
@@ -367,20 +416,20 @@ def choice_input(prompt, valid_choices, default=None, multi_choice=False,
         return response
 
 
-def load_json(filename: Path) -> Any:
+def load_json(filename: str) -> Any:
     '''Reads JSON data from file.'''
     with open(filename, 'r') as data_file:
         return json.load(data_file)
 
 
-def write_json(data: Any, filename: Path) -> None:
+def write_json(data: Any, filename: str) -> None:
     '''Writes data to JSON file.'''
     with open(filename, "w") as data_file:
         json.dump(data, data_file, indent=1)
 
 
 def get_slides_from_model_manifest(
-    model_path: Path,
+    model_path: str,
     dataset: Optional[str] = None
 ) -> List[str]:
     """Get list of slides from a model manifest.
@@ -417,13 +466,23 @@ def get_slides_from_model_manifest(
     return slides
 
 
-def get_model_config(model_path: Path) -> Dict:
+def get_gan_config(model_path: str) -> Dict:
+    """Loads a GAN training_options.json for an associated network PKL."""
+
+    if exists(join(dirname(model_path), 'training_options.json')):
+        return load_json(join(dirname(model_path), 'training_options.json'))
+    else:
+        raise errors.ModelParamsNotFoundError
+
+
+def get_model_config(model_path: str) -> Dict:
     """Loads model configuration JSON file."""
 
     if exists(join(model_path, 'params.json')):
         config = load_json(join(model_path, 'params.json'))
     elif exists(join(dirname(model_path), 'params.json')):
-        if sf.backend() == 'tensorflow':
+        if not (sf.util.torch_available
+                and sf.util.path_to_ext(model_path) == 'zip'):
             log.warning(
                 "Hyperparameters not in model directory; loading from parent"
                 " directory. Please move params.json into model folder."
@@ -444,7 +503,7 @@ def get_model_config(model_path: Path) -> Dict:
 
 
 def get_model_normalizer(
-    model_path: Path
+    model_path: str
 ) -> Optional["sf.norm.StainNormalizer"]:
     """Loads and fits normalizer using configuration at a model path."""
 
@@ -470,20 +529,14 @@ def get_model_normalizer(
     return normalizer
 
 
-def get_slide_paths(slides_dir: Path) -> List[str]:
+def get_slide_paths(slides_dir: str) -> List[str]:
     '''Get all slide paths from a given directory containing slides.'''
-    slide_list = [
-        i for i in glob(join(slides_dir, '**/*.*'))
-        if path_to_ext(i).lower() in SUPPORTED_FORMATS
-    ]
-    slide_list.extend([
-        i for i in glob(join(slides_dir, '*.*'))
-        if path_to_ext(i).lower() in SUPPORTED_FORMATS
-    ])
+    slide_list = [i for i in glob(join(slides_dir, '**/*.*')) if is_slide(i)]
+    slide_list.extend([i for i in glob(join(slides_dir, '*.*')) if is_slide(i)])
     return slide_list
 
 
-def read_annotations(path: Path) -> Tuple[List[str], List[Dict]]:
+def read_annotations(path: str) -> Tuple[List[str], List[Dict]]:
     '''Read an annotations file.'''
     results = []
     with open(path, 'r') as csv_file:
@@ -504,7 +557,7 @@ def read_annotations(path: Path) -> Tuple[List[str], List[Dict]]:
     return header, results
 
 
-def get_relative_tfrecord_paths(root: Path, directory: str = "") -> List[str]:
+def get_relative_tfrecord_paths(root: str, directory: str = "") -> List[str]:
     '''Returns relative tfrecord paths with respect to the given directory.'''
 
     tfrecords = [
@@ -521,7 +574,7 @@ def get_relative_tfrecord_paths(root: Path, directory: str = "") -> List[str]:
     return tfrecords
 
 
-def contains_nested_subdirs(directory: Path) -> bool:
+def contains_nested_subdirs(directory: str) -> bool:
     subdirs = [
         _dir for _dir in os.listdir(directory)
         if isdir(join(directory, _dir))
@@ -643,6 +696,8 @@ def tfrecord_heatmap(
         (mean, median, above_0, and above_1)
     """
     import matplotlib.pyplot as plt
+    import matplotlib.colors as mcol
+
     slide_name = sf.util.path_to_name(tfrecord)
     loc_dict = sf.io.get_locations_from_tfrecord(tfrecord)
     if tile_dict.keys() != loc_dict.keys():
@@ -768,18 +823,7 @@ def tfrecord_heatmap(
     return stats
 
 
-def detect_git_commit() -> Optional[str]:
-    if git is not None:
-        try:
-            repo = git.Repo(search_parent_directories=True)
-            return repo.head.object.hexsha
-        except Exception:
-            return None
-    else:
-        return None
-
-
-def get_new_model_dir(root: Path, model_name: str) -> str:
+def get_new_model_dir(root: str, model_name: str) -> str:
     prev_run_dirs = [
         x for x in os.listdir(root)
         if isdir(join(root, x))

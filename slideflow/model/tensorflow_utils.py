@@ -2,15 +2,15 @@
 
 import os
 import tempfile
-from types import SimpleNamespace
-from typing import TYPE_CHECKING, Any, Dict, List, Tuple, Union
+from typing import (TYPE_CHECKING, Any, Dict, List, Tuple, Union, Optional,
+                    Callable)
 
 import numpy as np
 import slideflow as sf
 from pandas.core.frame import DataFrame
 from slideflow.stats import df_from_pred
-from slideflow.util import log
-from rich.progress import Progress, TimeElapsedColumn, MofNCompleteColumn
+from slideflow.util import log, ImgBatchSpeedColumn
+from rich.progress import Progress, TimeElapsedColumn, SpinnerColumn
 
 import tensorflow as tf
 
@@ -226,7 +226,7 @@ def add_regularization(
 def get_uq_predictions(
     img: tf.Tensor,
     pred_fn: tf.keras.Model,
-    num_outcomes: int,
+    num_outcomes: Optional[int] = None,
     uq_n: int = 30
 ) -> Tuple[tf.Tensor, tf.Tensor, int]:
     if not num_outcomes:
@@ -256,7 +256,7 @@ def get_uq_predictions(
 
 def unwrap(
     model: tf.keras.models.Model
-):
+) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor]:
     """Unwraps a Tensorflow model built in Slideflow, returning the
     input tensor, post-convolutional output tensor, and final model output
     tensor.
@@ -283,17 +283,30 @@ def unwrap(
     return submodel.inputs, postconv, x
 
 
-def _eval_from_model(
+def flatten(
+    model: tf.keras.models.Model
+) -> tf.keras.models.Model:
+    """Unwrapped then flattens a Tensorflow model."""
+
+    inputs, _, outputs = unwrap(model)
+    return tf.keras.models.Model(inputs=inputs, outputs=outputs)
+
+
+def eval_from_model(
     model: "tf.keras.Model",
     dataset: "tf.data.Dataset",
-    model_type: str,
-    pred_args: SimpleNamespace,
+    model_type: Optional[str],
+    loss: Optional[Callable],
     num_tiles: int = 0,
+    uq: bool = False,
     uq_n: int = 30,
-    incl_loc: bool = False,
+    steps: Optional[int] = None,
+    predict_only: bool = False,
+    pb_label: str = "Evaluating...",
+    verbosity: str = 'full',
 ) -> Tuple[DataFrame, float, float]:
-    """Generates predictions (y_true, y_pred, tile_to_slide) from a given
-    Tensorflow model and dataset.
+    """Evaluates predictions (y_true, y_pred, tile_to_slide) from a given
+    Tensorflow model and dataset, generating predictions, accuracy, and loss.
 
     Args:
         model (str): Path to Tensorflow model.
@@ -301,51 +314,86 @@ def _eval_from_model(
         model_type (str, optional): 'categorical', 'linear', or 'cph'.
             Will not attempt to calculate accuracy for non-categorical models.
             Defaults to 'categorical'.
-        pred_args (namespace): Namespace containing the property `loss` (loss
-            function used to calculate loss) and `uq` (bool, whether to use uq).
+        loss (Callable, optional): Loss function which accepts (y_true, y_pred).
+
+    Keyword args:
         num_tiles (int, optional): Used for progress bar. Defaults to 0.
+        uq (bool, optional): Perform uncertainty quantification with dropout.
+            Defaults to False.
         uq_n (int, optional): Number of per-tile inferences to perform is
             calculating uncertainty via dropout.
+        steps (int, optional): Number of steps (batches) of evaluation to
+            perform. If None, uses the full dataset. Defaults to None.
+        predict_only (bool, optional): Only generate predictions without
+            comparisons to y_true. Defaults to False.
+        pb_label (str, optional): Progress bar label.
+            Defaults to "Evaluating..."
+        verbosity (str, optional): Either 'full', 'quiet', or 'silent'.
+            Verbosity for progress bars.
 
     Returns:
         pd.DataFrame, accuracy, loss
     """
 
+    if verbosity not in ('silent', 'quiet', 'full'):
+        raise ValueError(f"Invalid value '{verbosity}' for argument 'verbosity'")
+
     @tf.function
     def get_predictions(img, training=False):
         return model(img, training=training)
 
-    y_true, y_pred, tile_to_slides = [], [], []
-    locations = [] if incl_loc else None
-    y_std = [] if pred_args.uq else None  # type: ignore
+    y_true, y_pred, tile_to_slides, locations, y_std = [], [], [], [], []
     num_vals, num_batches, num_outcomes, running_loss = 0, 0, 0, 0
+    batch_size = 0
+
     is_cat = (model_type == 'categorical')
     if not is_cat:
         acc = None
 
-    pb = Progress(
-        *Progress.get_default_columns(),
-        TimeElapsedColumn(),
-        MofNCompleteColumn(),
-        transient=sf.getLoggingLevel()>20
-    )
-    task = pb.add_task("Evaluating...", total=num_tiles)
-    pb.start()
-    for batch in dataset:
+    if verbosity != 'silent':
+        pb = Progress(SpinnerColumn(), transient=True)
+        pb.add_task(pb_label, total=None)
+        pb.start()
+    for step, batch in enumerate(dataset):
+        if steps is not None and step >= steps:
+            break
 
-        # Parse dataset batch
+        # --- Detect data structure, if this is the first batch ---------------
+        if not batch_size:
+            if len(batch) not in (3, 5):
+                raise IndexError(
+                    "Unexpected number of items returned from dataset batch. "
+                    f"Expected either '3' or '5', got: {len(batch)}")
+
+            incl_loc = (len(batch) == 5)
+            batch_size = batch[2].shape[0]
+            if verbosity != 'silent':
+                pb.stop()
+                pb = Progress(
+                    SpinnerColumn(),
+                    *Progress.get_default_columns(),
+                    TimeElapsedColumn(),
+                    ImgBatchSpeedColumn(),
+                    transient=sf.getLoggingLevel()>20 or verbosity == 'quiet')
+                task = pb.add_task(
+                    pb_label,
+                    total=num_tiles if not steps else steps*batch_size)
+                pb.start()
+        # ---------------------------------------------------------------------
+
         if incl_loc:
             img, yt, slide, loc_x, loc_y = batch
-            locations += [tf.stack([loc_x, loc_y], axis=-1).numpy()]
+            locations += [tf.stack([loc_x, loc_y], axis=-1).numpy()]  # type: ignore
         else:
             img, yt, slide = batch
 
-        pb.advance(task, slide.shape[0])
+        if verbosity != 'silent':
+            pb.advance(task, slide.shape[0])
         tile_to_slides += [_byte.decode('utf-8') for _byte in slide.numpy()]
         num_vals += slide.shape[0]
         num_batches += 1
 
-        if pred_args.uq:
+        if uq:
             yp, yp_std, num_outcomes = get_uq_predictions(
                 img, get_predictions, num_outcomes, uq_n
             )
@@ -354,26 +402,36 @@ def _eval_from_model(
         else:
             yp = get_predictions(img, training=False)
             y_pred += [yp]
-        if type(yt) == dict:
-            y_true += [[yt[f'out-{o}'].numpy() for o in range(len(yt))]]
-            yt = [yt[f'out-{o}'] for o in range(len(yt))]
-        else:
-            y_true += [yt.numpy()]
-        loss = pred_args.loss(yt, yp)
-        running_loss += tf.math.reduce_sum(loss).numpy() * slide.shape[0]
-    pb.stop()
 
-    if type(y_pred[0]) == list:
+        if not predict_only:
+            if isinstance(yt, dict):
+                y_true += [[yt[f'out-{o}'].numpy() for o in range(len(yt))]]
+                yt = [yt[f'out-{o}'] for o in range(len(yt))]
+                if loss is not None:
+                    loss_val = [loss(yt[i], yp[i]) for i in range(len(yt))]
+                    batch_loss = tf.math.reduce_sum(loss_val).numpy()
+                    running_loss = (((num_vals - slide.shape[0]) * running_loss) + batch_loss) / num_vals
+            else:
+                y_true += [yt.numpy()]
+                if loss is not None:
+                    loss_val = loss(yt, yp)
+                    batch_loss = tf.math.reduce_sum(loss_val).numpy()
+                    running_loss = (((num_vals - slide.shape[0]) * running_loss) + batch_loss) / num_vals
+
+    if verbosity != 'silent':
+        pb.stop()
+
+    if isinstance(y_pred[0], list):
         # Concatenate predictions for each outcome
         y_pred = [np.concatenate(yp) for yp in zip(*y_pred)]
-        if pred_args.uq:
+        if uq:
             y_std = [np.concatenate(ys) for ys in zip(*y_std)]  # type: ignore
     else:
         y_pred = [np.concatenate(y_pred)]
-        if pred_args.uq:
+        if uq:
             y_std = [np.concatenate(y_std)]
 
-    if type(y_true[0]) == list:
+    if not predict_only and isinstance(y_true[0], list):
         # Concatenate y_true for each outcome
         y_true = [np.concatenate(yt) for yt in zip(*y_true)]
         if is_cat:
@@ -381,105 +439,64 @@ def _eval_from_model(
                 np.sum(y_true[i] == np.argmax(y_pred[i], axis=1)) / num_vals
                 for i in range(len(y_true))
             ]
-    else:
+    elif not predict_only:
         y_true = [np.concatenate(y_true)]
         if is_cat:
             acc = np.sum(y_true[0] == np.argmax(y_pred[0], axis=1)) / num_vals
+    else:
+        y_true = None  # type: ignore
 
-    if incl_loc:
+    if locations != []:
         locations = np.concatenate(locations)
+    else:
+        locations = None  # type: ignore
+    if not uq:
+        y_std = None  # type: ignore
 
     # Create pandas DataFrame from arrays
     df = df_from_pred(y_true, y_pred, y_std, tile_to_slides, locations)
 
     # Note that Keras loss during training includes regularization losses,
     # so this loss will not match validation loss calculated during training
-    loss = running_loss / num_vals
     log.debug("Evaluation complete.")
-    return df, acc, loss  # type: ignore
+    return df, acc, running_loss  # type: ignore
 
 
-def _predict_from_model(
+def predict_from_model(
     model: "tf.keras.Model",
     dataset: "tf.data.Dataset",
-    model_type: str,
-    pred_args: SimpleNamespace,
-    num_tiles: int = 0,
-    uq_n: int = 30,
-    incl_loc: bool = False,
+    pb_label: str = "Predicting...",
+    **kwargs
 ) -> DataFrame:
-    """Generates predictions (y_true, y_pred, tile_to_slide) from a given
-    Tensorflow model and dataset.
+    """Generate a DataFrame of predictions from a model.
 
     Args:
         model (str): Path to Tensorflow model.
         dataset (tf.data.Dataset): Tensorflow dataset.
-        model_type (str, optional): 'categorical', 'linear', or 'cph'.
-            Will not attempt to calculate accuracy for non-categorical models.
-            Defaults to 'categorical'.
-        pred_args (namespace): Namespace containing the property `loss`, loss
-            function used to calculate loss.
+
+    Keyword args:
         num_tiles (int, optional): Used for progress bar. Defaults to 0.
+        uq (bool, optional): Perform uncertainty quantification with dropout.
+            Defaults to False.
         uq_n (int, optional): Number of per-tile inferences to perform is
             calculating uncertainty via dropout.
+        steps (int, optional): Number of steps (batches) of evaluation to
+            perform. If None, uses the full dataset. Defaults to None.
+        pb_label (str, optional): Progress bar label.
+            Defaults to "Predicting..."
+        verbosity (str, optional): Either 'full', 'quiet', or 'silent'.
+            Verbosity for progress bars.
 
     Returns:
-        pd.DataFrame, accuracy, loss
+        pd.DataFrame
     """
-
-    @tf.function
-    def get_predictions(img, training=False):
-        return model(img, training=training)
-
-    y_pred, tile_to_slides = [], []
-    locations = [] if incl_loc else None
-    y_std = [] if pred_args.uq else None  # type: ignore
-    num_vals, num_batches, num_outcomes = 0, 0, 0
-
-    pb = Progress(
-        *Progress.get_default_columns(),
-        TimeElapsedColumn(),
-        MofNCompleteColumn(),
-        transient=sf.getLoggingLevel()>20
+    df, _, _ = eval_from_model(
+        model,
+        dataset,
+        model_type=None,
+        loss=None,
+        predict_only=True,
+        pb_label=pb_label,
+        **kwargs
     )
-    task = pb.add_task("Predicting...", total=num_tiles)
-    pb.start()
-    for batch in dataset:  # TODO: support not needing to supply yt
-        if incl_loc:
-            img, yt, slide, loc_x, loc_y = batch
-            locations += [tf.stack([loc_x, loc_y], axis=-1).numpy()]
-        else:
-            img, yt, slide = batch
-        pb.advance(task, slide.shape[0])
-        tile_to_slides += [_bytes.decode('utf-8') for _bytes in slide.numpy()]
-        num_vals += slide.shape[0]
-        num_batches += 1
-        if pred_args.uq:
-            yp_mean, yp_std, num_outcomes = get_uq_predictions(
-                img, get_predictions, num_outcomes, uq_n
-            )
-            y_pred += [yp_mean]
-            y_std += [yp_std]  # type: ignore
-        else:
-            yp = get_predictions(img, training=False)
-            y_pred += [yp]
-    pb.stop()
-
-    if type(y_pred[0]) == list:
-        # Concatenate predictions for each outcome
-        y_pred = [np.concatenate(yp) for yp in zip(*y_pred)]
-        if pred_args.uq:
-            y_std = [np.concatenate(ys) for ys in zip(*y_std)]  # type: ignore
-    else:
-        y_pred = [np.concatenate(y_pred)]
-        if pred_args.uq:
-            y_std = [np.concatenate(y_std)]
-
-    if incl_loc:
-        locations = np.concatenate(locations)
-
-    # Create pandas DataFrame from arrays
-    df = df_from_pred(None, y_pred, y_std, tile_to_slides, locations)
-
-    log.debug("Prediction complete.")
     return df

@@ -84,7 +84,7 @@ overview of the structure of the Dataset class is as follows:
 
 import copy
 import csv
-import multiprocessing
+import multiprocessing as mp
 import os
 import shutil
 import threading
@@ -92,31 +92,74 @@ import time
 import types
 from collections import defaultdict
 from datetime import datetime
+from functools import partial
 from glob import glob
 from multiprocessing.dummy import Pool as DPool
 from os.path import basename, dirname, exists, isdir, join
 from queue import Queue
 from random import shuffle
+from tabulate import tabulate
+from pprint import pformat
 from typing import (TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Tuple,
                     Union)
-
 import numpy as np
 import pandas as pd
 import shapely.geometry as sg
-from rich.progress import track, Progress, TimeElapsedColumn, SpinnerColumn
+from rich.progress import track, Progress
 
 import slideflow as sf
 from slideflow import errors
 from slideflow.model import ModelParams
 from slideflow.slide import WSI, ExtractionReport, SlideReport
-from slideflow.util import (log, Labels, Path, _shortname, path_to_name,
-                            tfrecord2idx, TileExtractionSpeedColumn)
+from slideflow.util import (log, Labels, _shortname, path_to_name,
+                            tfrecord2idx, TileExtractionProgress)
 
 if TYPE_CHECKING:
     import tensorflow as tf
     from torch.utils.data import DataLoader
 
     from slideflow.norm import StainNormalizer
+
+
+def _prepare_slide(
+    path: str,
+    report_dir: Optional[str],
+    tma: bool,
+    wsi_kwargs: Dict,
+    qc: Optional[str],
+    qc_kwargs: Dict,
+) -> Optional[sf.slide._BaseLoader]:
+
+    try:
+        if tma:
+            slide = sf.TMA(
+                path=path,
+                tile_px=wsi_kwargs['tile_px'],
+                tile_um=wsi_kwargs['tile_um'],
+                stride_div=wsi_kwargs['stride_div'],
+                enable_downsample=wsi_kwargs['enable_downsample'],
+                report_dir=report_dir
+            )  # type: sf.slide._BaseLoader
+        else:
+            slide = sf.WSI(path, **wsi_kwargs)
+        if qc:
+            slide.qc(method=qc, **qc_kwargs)
+        return slide
+    except errors.MissingROIError:
+        log.debug(f'Missing ROI for slide {path}; skipping')
+        return None
+    except errors.SlideLoadError as e:
+        log.error(f'Error loading slide {path}: {e}. Skipping')
+        return None
+    except errors.QCError as e:
+        log.error(e)
+        return None
+    except errors.TileCorruptionError:
+        log.error(f'{path} corrupt; skipping')
+        return None
+    except (KeyboardInterrupt, SystemExit) as e:
+        print('Exiting...')
+        raise e
 
 
 def _tile_extractor(
@@ -143,33 +186,24 @@ def _tile_extractor(
         generator_kwargs (dict): Keyword arguments for WSI.extract_tiles()
         qc_kwargs(dict): Keyword arguments for quality control.
     """
-    # Flush console tqdm log handler; improves console readability
-    # when using a progress bar
-    log.handlers[0].flush_line = True  # type: ignore
     try:
         log.debug(f'Extracting tiles for {path_to_name(path)}')
-        if tma:
-            slide = sf.slide.TMA(
-                path=path,
-                tile_px=wsi_kwargs['tile_px'],
-                tile_um=wsi_kwargs['tile_um'],
-                stride_div=wsi_kwargs['stride_div'],
-                enable_downsample=wsi_kwargs['enable_downsample'],
-                report_dir=tfrecord_dir
-            )  # type: sf.slide._BaseLoader
-        else:
-            slide = sf.slide.WSI(path, **wsi_kwargs)
-        # Apply quality control (blur filtering)
-        if qc:
-            slide.qc(method=qc, **qc_kwargs)
-        report = slide.extract_tiles(
-            tfrecord_dir=tfrecord_dir,
-            tiles_dir=tiles_dir,
-            **generator_kwargs
-        )
-        reports.update({path: report})
+        slide = _prepare_slide(
+            path,
+            report_dir=tfrecord_dir,
+            tma=tma,
+            wsi_kwargs=wsi_kwargs,
+            qc=qc,
+            qc_kwargs=qc_kwargs)
+        if slide is not None:
+            report = slide.extract_tiles(
+                tfrecord_dir=tfrecord_dir,
+                tiles_dir=tiles_dir,
+                **generator_kwargs
+            )
+            reports.update({path: report})
     except errors.MissingROIError:
-        log.debug(f'Missing ROI for slide {path}; skipping')
+        log.info(f'Missing ROI for slide {path}; skipping')
     except errors.SlideLoadError as e:
         log.error(f'Error loading slide {path}: {e}. Skipping')
     except errors.QCError as e:
@@ -211,6 +245,11 @@ def _fill_queue(
             q.put(path)
     q.put(None)
     q.join()
+
+
+def _count_otsu_tiles(wsi):
+    wsi.qc('otsu')
+    return wsi.estimated_num_tiles
 
 
 def split_patients_preserved_site(
@@ -398,13 +437,13 @@ class Dataset:
         tile_um: Optional[Union[str, int]],
         filters: Optional[Dict] = None,
         filter_blank: Optional[Union[List[str], str]] = None,
-        annotations: Optional[Union[Path, pd.DataFrame]] = None,
+        annotations: Optional[Union[str, pd.DataFrame]] = None,
         min_tiles: int = 0
     ) -> None:
         """Initializes dataset to organize processed images.
 
         Args:
-            config (Path): Path to dataset configuration.
+            config (str): Path to dataset configuration.
             sources (List[str]): List of dataset sources to include from
                 configuration file.
             tile_px (int): Tile size in pixels.
@@ -415,7 +454,7 @@ class Dataset:
             filter_blank (Optional[Union[List[str], str]], optional): Omit
                 slides that are blank in these annotation columns.
                 Defaults to None.
-            annotations (Optional[Union[Path, pd.DataFrame]], optional): Path
+            annotations (Optional[Union[str, pd.DataFrame]], optional): Path
                 to annotations file or pandas DataFrame with slide-level
                 annotations. Defaults to None.
             min_tiles (int, optional): Only include slides with this
@@ -579,11 +618,11 @@ class Dataset:
                 f"Dataset tile size {d_sz} does not match model {m_sz}"
             )
 
-    def load_annotations(self, annotations: Union[Path, pd.DataFrame]) -> None:
+    def load_annotations(self, annotations: Union[str, pd.DataFrame]) -> None:
         """Loads annotations.
 
         Args:
-            annotations (Union[Path, pd.DataFrame]): Either path to annotations
+            annotations (Union[str, pd.DataFrame]): Either path to annotations
                 in CSV format, or a pandas DataFrame.
 
         Raises:
@@ -647,7 +686,7 @@ class Dataset:
         self,
         headers: Optional[Union[str, List[str]]] = None,
         strategy: Optional[str] = 'category',
-        force: bool = False
+        force: bool = False,
     ) -> "Dataset":
         """Returns a dataset with prob_weights reflecting balancing per tile,
         slide, patient, or category.
@@ -812,16 +851,18 @@ class Dataset:
         strategy: Optional[str] = None,
         headers: Optional[List[str]] = None
     ) -> "Dataset":
-        '''Returns a dataset clipped to either a fixed maximum number of tiles
-        per tfrecord, or to the min number of tiles per patient or category.
+        '''Returns a dataset clipped to a fixed maximum number of tiles
+        per tfrecord and/or to the min number of tiles per patient or category.
 
         Args:
             max_tiles (int, optional): Clip the maximum number of tiles per
-                tfrecord to this number.
+                tfrecord to this number. Defaults to 0 (do not perform
+                tfrecord-level clipping).
             strategy (str, optional): 'slide', 'patient', or 'category'.
                 Clip the maximum number of tiles to the minimum tiles seen
                 across slides, patients, or categories. If 'category', headers
-                must be provided. Defaults to None.
+                must be provided. Defaults to None (do not perform group-level
+                clipping).
             headers (list of str, optional): List of annotation headers to use
                 if clipping by minimum category count (strategy='category').
                 Defaults to None.
@@ -829,15 +870,12 @@ class Dataset:
         Returns:
             clipped :class:`slideflow.dataset.Dataset` object.
         '''
-
         if strategy == 'category' and not headers:
             raise errors.DatasetClipError(
                 "headers must be provided if clip strategy is 'category'."
             )
-        if strategy is None and headers is not None:
-            strategy = 'category'
-        if strategy is None and headers is None and not max_tiles:
-            return self
+        if not max_tiles and strategy is None:
+            return self.unclip()
 
         ret = copy.deepcopy(self)
         manifest = ret.manifest()
@@ -925,7 +963,6 @@ class Dataset:
         tma: bool = False,
         randomize_origin: bool = False,
         buffer: Optional[str] = None,
-        num_workers: int = 1,
         q_size: int = 4,
         qc: Optional[str] = None,
         report: bool = True,
@@ -935,19 +972,19 @@ class Dataset:
         either loose image or in TFRecord binary format.
 
         Args:
-            save_tiles (bool, optional): Save images of extracted tiles to
+            save_tiles (bool): Save images of extracted tiles to
                 project tile directory. Defaults to False.
-            save_tfrecords (bool, optional): Save compressed image data from
+            save_tfrecords (bool): Save compressed image data from
                 extracted tiles into TFRecords in the corresponding TFRecord
                 directory. Defaults to True.
             source (str, optional): Name of dataset source from which to select
                 slides for extraction. Defaults to None. If not provided, will
                 default to all sources in project.
-            stride_div (int, optional): Stride divisor for tile extraction.
+            stride_div (int): Stride divisor for tile extraction.
                 A stride of 1 will extract non-overlapping tiles.
                 A stride_div of 2 will extract overlapping tiles, with a stride
                 equal to 50% of the tile width. Defaults to 1.
-            enable_downsample (bool, optional): Enable downsampling for slides.
+            enable_downsample (bool): Enable downsampling for slides.
                 This may result in corrupted image tiles if downsampled slide
                 layers are corrupted or incomplete. Defaults to True.
             roi_method (str): Either 'inside', 'outside', 'auto', or 'ignore'.
@@ -959,25 +996,23 @@ class Dataset:
                 If 'ignore', will extract tiles across the whole-slide
                 regardless of whether an ROI is available.
                 Defaults to 'auto'.
-            skip_extracted (bool, optional): Skip slides that have already
+            skip_extracted (bool): Skip slides that have already
                 been extracted. Defaults to True.
-            tma (bool, optional): Reads slides as Tumor Micro-Arrays (TMAs),
+            tma (bool): Reads slides as Tumor Micro-Arrays (TMAs),
                 detecting and extracting tumor cores. Defaults to False.
                 Experimental function with limited testing.
-            randomize_origin (bool, optional): Randomize pixel starting
+            randomize_origin (bool): Randomize pixel starting
                 position during extraction. Defaults to False.
             buffer (str, optional): Slides will be copied to this directory
                 before extraction. Defaults to None. Using an SSD or ramdisk
                 buffer vastly improves tile extraction speed.
-            num_workers (int, optional): Extract tiles from this many slides
-                simultaneously. Defaults to 1.
-            q_size (int, optional): Size of queue when using a buffer.
+            q_size (int): Size of queue when using a buffer.
                 Defaults to 4.
             qc (str, optional): 'otsu', 'blur', 'both', or None. Perform blur
                 detection quality control - discarding tiles with detected
                 out-of-focus regions or artifact - and/or otsu's method.
                 Increases tile extraction time. Defaults to None.
-            report (bool, optional): Save a PDF report of tile extraction.
+            report (bool): Save a PDF report of tile extraction.
                 Defaults to True.
 
         Keyword Args:
@@ -1031,9 +1066,6 @@ class Dataset:
             raise errors.DatasetError(
                 'Either save_tiles or save_tfrecords must be true.'
             )
-        if q_size < num_workers:
-            log.warn(f"q_size ({q_size}) < num_workers {num_workers}; "
-                     "some workers will not be used")
         if not self.tile_px or not self.tile_um:
             raise errors.DatasetError(
                 "Dataset tile_px and tile_um must be != 0 to extract tiles"
@@ -1100,74 +1132,29 @@ class Dataset:
             _tail = f"(tile_px={self.tile_px}, tile_um={self.tile_um})"
             log.info(f'Extracting tiles from {len(slide_list)} slides {_tail}')
 
-            # Verify slides and estimate total number of tiles
-            log.info('Verifying slides...')
-            total_tiles = 0
-            for slide_path in track(slide_list,
-                                    description="Verifying slides...",
-                                    transient=True):
-                try:
-                    if tma:
-                        slide = sf.slide.TMA(
-                            slide_path,
-                            self.tile_px,
-                            self.tile_um,
-                            stride_div,
-                        )  # type: sf.slide._BaseLoader
-                    else:
-                        slide = sf.slide.WSI(
-                            slide_path,
-                            self.tile_px,
-                            self.tile_um,
-                            stride_div,
-                            roi_dir=roi_dir,
-                            roi_method=roi_method,
-                            silent=True
-                        )
-                except errors.SlideError as e:
-                    log.debug(f"Skipping {slide_path}")
-                    continue
-                else:
-                    est = slide.estimated_num_tiles  # type: ignore
-                    log.debug(f"Estimated tiles for slide {slide.name}: {est}")
-                    total_tiles += est
-                    del slide
-            log.info(f'Total estimated tiles to extract: {total_tiles}')
-
             # Use multithreading if specified, extracting tiles
             # from all slides in the filtered list
             if len(slide_list):
                 q = Queue()  # type: Queue
                 task_finished = False
-                manager = multiprocessing.Manager()
-                ctx = multiprocessing.get_context('spawn')
-                reports = manager.dict()  # type: dict
+                manager = mp.Manager()
+                # Forking incompatible with some libvips configurations
+                ctx = mp.get_context('spawn')
+                reports = manager.dict()
 
-                # If only one worker, use a single shared multiprocessing pool
-                if num_workers == 1:
-                    # Detect CPU cores if num_threads not specified
-                    if 'num_threads' not in kwargs:
-                        num_threads = os.cpu_count()
-                        if num_threads is None:
-                            num_threads = 8
-                    else:
-                        num_threads = kwargs['num_threads']
-                    log.info(f'Extracting tiles with {num_threads} threads')
-                    if num_threads != 1:
-                        kwargs['pool'] = ctx.Pool(num_threads)
+                # Use a single shared multiprocessing pool
+                if 'num_threads' not in kwargs:
+                    num_threads = os.cpu_count()
+                    if num_threads is None:
+                        num_threads = 8
+                else:
+                    num_threads = kwargs['num_threads']
+                log.info(f'Extracting tiles with {num_threads} threads')
+                if num_threads != 1:
+                    kwargs['pool'] = ctx.Pool(num_threads)
 
                 # Set up the multiprocessing progress bar
-                if total_tiles:
-                    pb = Progress(
-                        SpinnerColumn(),
-                        *Progress.get_default_columns(),
-                        TimeElapsedColumn(),
-                        TileExtractionSpeedColumn()
-                    )
-                    task = pb.add_task("Extracting tiles...", total=total_tiles)
-                    pb.start()
-                else:
-                    pb = None
+                pb = TileExtractionProgress()
 
                 wsi_kwargs = {
                     'tile_px': self.tile_px,
@@ -1190,44 +1177,68 @@ class Dataset:
                     'wsi_kwargs': wsi_kwargs
                 }
 
-                # Worker to grab slide path from queue and start extraction
-                def worker():
+                speed_task = pb.add_task("Speed: ",
+                                         progress_type="speed",
+                                         total=None)
+                slide_task = pb.add_task("Extracting...",
+                                         progress_type="slide_progress",
+                                         total=len(slide_list))
+                pb.start()
+                if buffer:
+                    # Worker to put each slide path into queue
+                    def buffer_worker():
+                        nonlocal task_finished
+                        _fill_queue(slide_list, q, q_size, buffer=buffer)
+                        task_finished = True
+
+                    # Start the worker threads
+                    thread = threading.Thread(target=buffer_worker)
+                    thread.start()
+
+                    # Grab slide path from queue and start extraction
                     while not task_finished:
                         path = q.get()
                         if path is None:
                             q.task_done()
                             break
-                        if num_workers > 1:
-                            process = ctx.Process(target=_tile_extractor,
-                                                  args=(path,),
-                                                  kwargs=extraction_kwargs)
-                            process.start()
-                            process.join()
-                        else:
-                            _tile_extractor(path, **extraction_kwargs)
+                        _tile_extractor(path, **extraction_kwargs)
+                        pb.advance(slide_task)
                         if buffer:
                             os.remove(path)
                         q.task_done()
-
-                # Start the worker threads
-                threads = [
-                    threading.Thread(target=worker) for _ in range(num_workers)
-                ]
-                for thread in threads:
-                    thread.start()
-
-                # Put each slide path into queue
-                _fill_queue(slide_list, q, q_size, buffer=buffer)
-                task_finished = True
-                for thread in threads:
                     thread.join()
+                else:
+                    for slide in slide_list:
+                        wsi = _prepare_slide(
+                            slide,
+                            report_dir=tfrecord_dir,
+                            tma=tma,
+                            wsi_kwargs=wsi_kwargs,
+                            qc=qc,
+                            qc_kwargs=qc_kwargs)
+                        if wsi is None:
+                            pb.advance(slide_task)
+                            continue
+                        try:
+                            log.debug(f'Extracting tiles for {wsi.name}')
+                            wsi_report = wsi.extract_tiles(
+                                tfrecord_dir=tfrecord_dir,
+                                tiles_dir=tiles_dir,
+                                **kwargs
+                            )
+                            reports.update({wsi.path: wsi_report})
+                            del wsi
+                        except errors.TileCorruptionError:
+                            log.error(f'{wsi.path} corrupt; skipping')
+                        pb.advance(slide_task)
+
                 if pb:
                     pb.stop()
-                if kwargs['pool'] is not None:
+                if 'pool' in kwargs and kwargs['pool'] is not None:
                     kwargs['pool'].close()
                 if report:
                     log.info('Generating PDF (this may take some time)...', )
-                    rep_vals = list(reports.values())
+                    rep_vals = list(reports.copy().values())  # type: List[SlideReport]
                     all_reports += rep_vals
                     num_slides = len(slide_list)
                     img_kwargs = defaultdict(lambda: None)  # type: Dict
@@ -1579,10 +1590,10 @@ class Dataset:
         else:
             return results, unique_labels
 
-    def load_indices(self) -> Dict[str, np.ndarray]:
+    def load_indices(self, verbose=False) -> Dict[str, np.ndarray]:
         """Reads TFRecord indices. Needed for PyTorch."""
 
-        pool = DPool(16)
+        pool = DPool(8)
         tfrecords = self.tfrecords()
         indices = {}
 
@@ -1597,10 +1608,8 @@ class Dataset:
                 index = np.loadtxt(index_name, dtype=np.int64)
             return tfr_name, index
 
-        for tfr_name, index in track(pool.imap(load_index, tfrecords),
-                                    description="Loading indices...",
-                                    total=len(tfrecords),
-                                    transient=True):
+        log.debug("Loading indices...")
+        for tfr_name, index in pool.imap(load_index, tfrecords):
             indices[tfr_name] = index
         pool.close()
         return indices
@@ -1750,6 +1759,94 @@ class Dataset:
         slides = self.slides()
         return [r for r in list(set(rois_list)) if path_to_name(r) in slides]
 
+    def slide_manifest(
+        self,
+        roi_method: str = 'auto',
+        stride_div: int = 1,
+        tma: bool = False,
+        source: Optional[str] = None,
+        low_memory: bool = False
+    ) -> Dict[str, int]:
+        """Return a dictionary mapping slide names to estimated number of tiles,
+        using Otsu thresholding for background filtering and the ROI strategy.
+
+        Args:
+            roi_method (str): Either 'inside', 'outside', 'auto', or 'ignore'.
+                Determines how ROIs are used to extract tiles.
+                If 'inside' or 'outside', will extract tiles in/out of an ROI,
+                and skip a slide if an ROI is not available.
+                If 'auto', will extract tiles inside an ROI if available,
+                and across the whole-slide if no ROI is found.
+                If 'ignore', will extract tiles across the whole-slide
+                regardless of whether an ROI is available.
+                Defaults to 'auto'.
+            stride_div (int): Stride divisor for tile extraction.
+                A stride of 1 will extract non-overlapping tiles.
+                A stride_div of 2 will extract overlapping tiles, with a stride
+                equal to 50% of the tile width. Defaults to 1.
+            tma (bool): Slides are in TMA format.
+            source (str, optional): Dataset source name.
+                Defaults to None (using all sources).
+            low_memory (bool): Operate in low-memory mode at the cost of
+                worse performance.
+
+        Returns:
+            Dict[str, int]: Dictionary mapping slide names to number of
+            estimated non-background tiles in the slide.
+        """
+        if self.tile_px is None or self.tile_um is None:
+            raise errors.DatasetError(
+                "tile_px and tile_um must be set to calculate a slide manifest"
+            )
+        paths = self.slide_paths(source=source)
+        pb = Progress(transient=True)
+        read_task = pb.add_task('Reading slides...', total=len(paths))
+        if not low_memory:
+            otsu_task = pb.add_task("Otsu thresholding...", total=len(paths))
+        pb.start()
+        pool = mp.Pool(16 if os.cpu_count is None else os.cpu_count())
+        wsi_list = []
+        to_remove = []
+        counts = []
+        for path in paths:
+            try:
+                if tma:
+                    wsi = sf.TMA(
+                        path,
+                        self.tile_px,
+                        self.tile_um,
+                        stride_div=stride_div,
+                    )
+                else:
+                    wsi = sf.WSI(  # type: ignore
+                        path,
+                        self.tile_px,
+                        self.tile_um,
+                        rois=self.rois(),
+                        stride_div=stride_div,
+                        roi_method=roi_method,
+                        verbose=False)
+                if low_memory:
+                    wsi.qc('otsu')
+                    counts += [wsi.estimated_num_tiles]
+                else:
+                    wsi_list += [wsi]
+                pb.advance(read_task)
+            except errors.SlideLoadError as e:
+                log.error(f"Error reading slide {path}: {e}")
+                to_remove += [path]
+        for path in to_remove:
+            paths.remove(path)
+        pb.update(read_task, total=len(paths))
+        pb.update(otsu_task, total=len(paths))
+        if not low_memory:
+            for count in pool.imap(_count_otsu_tiles, wsi_list):
+                counts += [count]
+                pb.advance(otsu_task)
+        pb.stop()
+        pool.close()
+        return {path: counts[p] for p, path in enumerate(paths)}
+
     def slide_paths(
         self,
         source: Optional[str] = None,
@@ -1802,7 +1899,7 @@ class Dataset:
         slides = ann.slide.unique().tolist()
         return slides
 
-    def split_tfrecords_by_roi(self, destination: Path) -> None:
+    def split_tfrecords_by_roi(self, destination: str) -> None:
         """Split dataset tfrecords into separate tfrecords according to ROI.
 
         Will generate two sets of tfrecords, with identical names: one with
@@ -1872,10 +1969,60 @@ class Dataset:
             inside_roi_writer.close()
             outside_roi_writer.close()
 
+    def summary(self) -> None:
+        """Print a summary of this dataset."""
+
+        # Get ROI information.
+        patients = self.patients()
+        has_rois = defaultdict(bool)
+        slides_with_roi = {}
+        patients_with_roi = defaultdict(bool)
+        for r in self.rois():
+            s = sf.util.path_to_name(r)
+            with open(r, 'r') as f:
+                has_rois[s] = len(f.read().split('\n')) > 2
+        for sp in self.slide_paths():
+            s = sf.util.path_to_name(sp)
+            slides_with_roi[s] = has_rois[s]
+        for s in self.slides():
+            p = patients[s]
+            if s in slides_with_roi and slides_with_roi[s]:
+                patients_with_roi[p] = True
+
+        # Print summary.
+        print("Overview:")
+        table = [("Configuration file:", self._config),
+                ("Tile size (px):",     self.tile_px),
+                ("Tile size (um):",     self.tile_um),
+                ("Slides:",             len(self.slides())),
+                ("Patients:",           len(self.annotations.patient.unique())),
+                ("Slides with ROIs:",   len([s for s in slides_with_roi
+                                             if slides_with_roi[s]])),
+                ("Patients with ROIs:", len([p for p in patients_with_roi
+                                             if patients_with_roi[p]]))]
+        print(tabulate(table, tablefmt='fancy_outline'))
+        print("\nFilters:")
+        table = [("Filters:",           pformat(self.filters)),
+                ("Filter Blank:",       pformat(self.filter_blank)),
+                ("Min Tiles:",          pformat(self.min_tiles))]
+        print(tabulate(table, tablefmt='fancy_grid'))
+        print("\nSources:")
+        if not self.sources:
+            print("<None>")
+        else:
+            for source in self.sources:
+                print(f"\n{source}")
+                d = self.sources[source]
+                print(tabulate(zip(d.keys(), d.values()),
+                               tablefmt="fancy_outline"))
+        print("\nAnnotation columns:")
+        print("<NA>" if self.annotations is None else self.annotations.columns)
+
     def tensorflow(
         self,
         labels: Labels = None,
         batch_size: Optional[int] = None,
+        from_wsi: bool = False,
         **kwargs: Any
     ) -> "tf.data.Dataset":
         """Returns a Tensorflow Dataset object that interleaves tfrecords
@@ -1937,19 +2084,35 @@ class Dataset:
 
         from slideflow.io.tensorflow import interleave
 
-        tfrecords = self.tfrecords()
-        if not tfrecords:
-            raise errors.TFRecordsNotFoundError
-        self.verify_img_format()
         if self.tile_px is None:
             raise errors.DatasetError("tile_px and tile_um must be non-zero"
                                       "to create dataloaders.")
-        return interleave(tfrecords=tfrecords,
+        if self.prob_weights is not None and from_wsi:
+            log.warning("Dataset balancing is disabled when `from_wsi=True`")
+        if self._clip not in (None, {}) and from_wsi:
+            log.warning("Dataset clipping is disabled when `from_wsi=True`")
+
+        if from_wsi:
+            tfrecords = self.slide_paths()
+            kwargs['rois'] = self.rois()
+            kwargs['tile_um'] = self.tile_um
+            kwargs['from_wsi'] = True
+            prob_weights = None
+            clip = None
+        else:
+            tfrecords = self.tfrecords()
+            prob_weights = self.prob_weights
+            clip = self._clip
+            if not tfrecords:
+                raise errors.TFRecordsNotFoundError
+            self.verify_img_format()
+
+        return interleave(paths=tfrecords,
                           labels=labels,
                           img_size=self.tile_px,
                           batch_size=batch_size,
-                          prob_weights=self.prob_weights,
-                          clip=self._clip,
+                          prob_weights=prob_weights,
+                          clip=clip,
                           **kwargs)
 
     def tfrecord_report(
@@ -2106,7 +2269,7 @@ class Dataset:
             return [f for f in filtered
                     if f in manifest and manifest[f]['total'] > 0]
 
-    def tfrecords_by_subfolder(self, subfolder: Path) -> List[str]:
+    def tfrecords_by_subfolder(self, subfolder: str) -> List[str]:
         """Returns a list of all tfrecords in a specific subfolder,
         ignoring filters.
 
@@ -2178,7 +2341,7 @@ class Dataset:
 
     def thumbnails(
         self,
-        outdir: Path,
+        outdir: str,
         size: int = 512,
         roi: bool = False,
         enable_downsample: bool = True
@@ -2243,12 +2406,13 @@ class Dataset:
         model_type: str,
         labels: Dict,
         val_strategy: str,
-        splits: Optional[Path] = None,
+        splits: Optional[str] = None,
         val_fraction: Optional[float] = None,
         val_k_fold: Optional[int] = None,
         k_fold_iter: Optional[int] = None,
         site_labels: Optional[Dict[str, str]] = None,
-        read_only: bool = False
+        read_only: bool = False,
+        from_wsi: bool = False,
     ) -> Tuple["Dataset", "Dataset"]:
         """From a specified subfolder in the project's main TFRecord folder,
         prepare a training set and validation set.
@@ -2322,9 +2486,12 @@ class Dataset:
 
         # Assemble dict of patients linking to list of slides & outcome labels
         # dataset.labels() ensures no duplicate labels for a single patient
-        tfrecord_dir_list = self.tfrecords()
-        if not len(tfrecord_dir_list):
+        tfrecord_dir_list = self.tfrecords() if not from_wsi else self.slide_paths()
+        if not len(tfrecord_dir_list) and not from_wsi:
             raise errors.TFRecordsNotFoundError
+        elif not len(tfrecord_dir_list):
+            raise errors.SlideNotFoundError("No slides found.")
+
         tfrecord_dir_list_names = [
             sf.util.path_to_name(tfr) for tfr in tfrecord_dir_list
         ]
@@ -2560,8 +2727,12 @@ class Dataset:
         training_dts = training_dts.filter(filters={'slide': train_slides})
         val_dts = copy.deepcopy(self)
         val_dts = val_dts.filter(filters={'slide': val_slides})
-        assert(sorted(training_dts.tfrecords()) == sorted(training_tfrecords))
-        assert(sorted(val_dts.tfrecords()) == sorted(val_tfrecords))
+        if not from_wsi:
+            assert(sorted(training_dts.tfrecords()) == sorted(training_tfrecords))
+            assert(sorted(val_dts.tfrecords()) == sorted(val_tfrecords))
+        else:
+            assert(sorted(training_dts.slide_paths()) == sorted(training_tfrecords))
+            assert(sorted(val_dts.slide_paths()) == sorted(val_tfrecords))
         return training_dts, val_dts
 
     def torch(
@@ -2569,6 +2740,7 @@ class Dataset:
         labels: Optional[Dict[str, Any]] = None,
         batch_size: Optional[int] = None,
         rebuild_index: bool = False,
+        from_wsi: bool = False,
         **kwargs: Any
     ) -> "DataLoader":
         """Returns a PyTorch DataLoader object that interleaves tfrecords.
@@ -2628,26 +2800,39 @@ class Dataset:
         if self.tile_px is None:
             raise errors.DatasetError("tile_px and tile_um must be non-zero"
                                       "to create dataloaders.")
-        self.build_index(rebuild_index)
-        tfrecords = self.tfrecords()
-        if not tfrecords:
-            raise errors.TFRecordsNotFoundError
-        self.verify_img_format()
+        if self._clip not in (None, {}) and from_wsi:
+            log.warning("Dataset clipping is disabled when `from_wsi=True`")
+
+        if from_wsi:
+            tfrecords = self.slide_paths()
+            kwargs['rois'] = self.rois()
+            kwargs['tile_um'] = self.tile_um
+            indices = None
+            clip = None
+        else:
+            self.build_index(rebuild_index)
+            tfrecords = self.tfrecords()
+            if not tfrecords:
+                raise errors.TFRecordsNotFoundError
+            self.verify_img_format()
+            _idx_dict = self.load_indices()
+            indices = [_idx_dict[path_to_name(tfr)] for tfr in tfrecords]
+            clip = self._clip
 
         if self.prob_weights:
             prob_weights = [self.prob_weights[tfr] for tfr in tfrecords]
         else:
             prob_weights = None
-        _idx_dict = self.load_indices()
-        indices = [_idx_dict[path_to_name(tfr)] for tfr in tfrecords]
+
         return interleave_dataloader(tfrecords=tfrecords,
                                      img_size=self.tile_px,
                                      batch_size=batch_size,
                                      labels=labels,
                                      num_tiles=self.num_tiles,
                                      prob_weights=prob_weights,
-                                     clip=self._clip,
+                                     clip=clip,
                                      indices=indices,
+                                     from_wsi=from_wsi,
                                      **kwargs)
 
     def unclip(self) -> "Dataset":
@@ -2676,7 +2861,7 @@ class Dataset:
 
     def update_annotations_with_slidenames(
         self,
-        annotations_file: Path
+        annotations_file: str
     ) -> None:
         """Attempts to automatically associate slide names from a directory
         with patients in a given annotations file, skipping any slide names

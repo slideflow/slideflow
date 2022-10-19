@@ -22,8 +22,7 @@ import pandas as pd
 import scipy.stats as stats
 import slideflow as sf
 from slideflow import errors
-from slideflow.util import Labels
-from slideflow.util import log
+from slideflow.util import log, Labels, ImgBatchSpeedColumn
 from rich.progress import track, Progress
 
 if TYPE_CHECKING:
@@ -33,12 +32,12 @@ if TYPE_CHECKING:
 # --- Backend-specific imports ------------------------------------------------
 
 if sf.backend() == 'tensorflow':
-    from slideflow.model.tensorflow import (CPHTrainer, Features,  # noqa F401
+    from slideflow.model.tensorflow import (CPHTrainer, Features, load, # noqa F401
                                             LinearTrainer, ModelParams,
                                             Trainer, UncertaintyInterface)
 elif sf.backend() == 'torch':
-    from slideflow.model.torch import CPHTrainer  # type: ignore  # noqa F401
-    from slideflow.model.torch import (Features, LinearTrainer, ModelParams,
+    from slideflow.model.torch import (CPHTrainer, Features, load, # noqa F401
+                                       LinearTrainer, ModelParams,
                                        Trainer, UncertaintyInterface)
 else:
     raise errors.UnrecognizedBackendError
@@ -75,6 +74,8 @@ def trainer_from_hp(hp: "ModelParams", **kwargs) -> Trainer:
             "Outcome {X}" for each outcome.
         mixed_precision (bool, optional): Use FP16 mixed precision (rather
             than FP32). Defaults to True.
+        allow_tf32 (bool): Allow internal use of Tensorfloat-32 format.
+                Defaults to False.
         config (dict, optional): Training configuration dictionary, used
             for logging. Defaults to None.
         use_neptune (bool, optional): Use Neptune API logging.
@@ -251,7 +252,7 @@ class DatasetFeatures:
         for loaded_slide in loaded_slides:
             if loaded_slide not in self.slides:
                 log.debug(
-                    f'Removing activations from slide {loaded_slide}'
+                    f'Removing activations from slide {loaded_slide} '
                     'slide not in the filtered tfrecords list'
                 )
                 self.remove_slide(loaded_slide)
@@ -265,7 +266,7 @@ class DatasetFeatures:
                 missing += [slide]
         num_loaded = len(self.slides)-len(missing)
         log.debug(
-            f'Loaded activations from {num_loaded}/{len(self.slides)}'
+            f'Loaded activations from {num_loaded}/{len(self.slides)} '
             f'slides ({len(missing)} missing)'
         )
         if missing:
@@ -295,7 +296,8 @@ class DatasetFeatures:
         include_logits: bool = True,
         include_uncertainty: bool = True,
         batch_size: int = 32,
-        cache: Optional[str] = None
+        cache: Optional[str] = None,
+        **kwargs
     ) -> None:
 
         """Calculates activations from a given model, saving to self.activations
@@ -323,7 +325,8 @@ class DatasetFeatures:
         # Load model
         feat_kw = dict(
             layers=layers,
-            include_logits=include_logits
+            include_logits=include_logits,
+            **kwargs
         )
         if self.uq and include_uncertainty:
             combined_model = sf.model.UncertaintyInterface(
@@ -434,7 +437,9 @@ class DatasetFeatures:
         batch_proc_thread = threading.Thread(target=batch_worker, daemon=True)
         batch_proc_thread.start()
 
-        pb = Progress(transient=sf.getLoggingLevel()>20)
+        pb = Progress(*Progress.get_default_columns(),
+                      ImgBatchSpeedColumn(),
+                      transient=sf.getLoggingLevel()>20)
         task = pb.add_task("Generating...", total=estimated_tiles)
         pb.start()
         for batch_img, _, batch_slides, batch_loc_x, batch_loc_y in dataloader:
@@ -702,8 +707,10 @@ class DatasetFeatures:
             self.logits = loaded_pkl[1]
             self.uncertainty = loaded_pkl[2]
             self.locations = loaded_pkl[3]
-            self.num_features = self.activations[self.slides[0]].shape[-1]
-            self.num_logits = self.logits[self.slides[0]].shape[-1]
+            if self.activations:
+                self.num_features = self.activations[self.slides[0]].shape[-1]
+            if self.logits:
+                self.num_logits = self.logits[self.slides[0]].shape[-1]
 
     def stats(
         self,
@@ -774,7 +781,14 @@ class DatasetFeatures:
             # Tile-level ANOVA
             stats_vals = list(self.activations_by_category(f).values())
             with warnings.catch_warnings():
-                warnings.simplefilter("ignore", category=stats.F_onewayConstantInputWarning)
+                if hasattr(stats, "F_onewayConstantInputWarning"):
+                    warnings.simplefilter(
+                        "ignore",
+                        category=stats.F_onewayConstantInputWarning)
+                elif hasattr(stats, "ConstantInputWarning"):
+                    warnings.simplefilter(
+                        "ignore",
+                        category=stats.ConstantInputWarning)
                 fvalue, pvalue = stats.f_oneway(*stats_vals)
                 if not isnan(fvalue) and not isnan(pvalue):
                     tile_stats.update({f: {'f': fvalue,

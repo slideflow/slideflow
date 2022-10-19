@@ -6,24 +6,24 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  
-  <title>slideflow.io.tensorflow &mdash; slideflow 1.2.3 documentation</title>
-  
 
-  
-  
-  
-  
+  <title>slideflow.io.tensorflow &mdash; slideflow 1.3.0 documentation</title>
 
-  
 
-  
-  
-    
 
-  
+
+
+
+
+
+
+
+
+
+
+
 
   <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
   <!-- <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" /> -->
@@ -32,11 +32,11 @@
     <link rel="index" title="Index" href="../../../genindex.html" />
     <link rel="search" title="Search" href="../../../search.html" />
   <!-- Google Analytics -->
-  
-  <!-- End Google Analytics -->
-  
 
-  
+  <!-- End Google Analytics -->
+
+
+
   <script src="../../../_static/js/modernizr.min.js"></script>
 
   <!-- Preload the theme fonts -->
@@ -64,6 +64,10 @@
   <script>
     window.dataLayer = window.dataLayer || [];
     function gtag(){dataLayer.push(arguments);}
+    gtag('consent', 'default', {
+      'ad_storage': 'denied',
+      'analytics_storage': 'denied'
+    });
     gtag('js', new Date());
 
     gtag('config', 'G-43E5QNVXH2');
@@ -98,9 +102,9 @@
 
 <body class="pytorch-body">
 
-   
 
-    
+
+
 
     <div class="table-of-contents-link-wrapper">
       <span>Table of Contents</span>
@@ -111,21 +115,21 @@
       <div class="pytorch-side-scroll">
         <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           <div class="pytorch-left-menu-search">
-            
 
-            
-              
-              
+
+
+
+
                 <div class="version">
-                  1.2
+                  1.3
                 </div>
-              
-            
-
-            
 
 
-  
+
+
+
+
+
 
 
 <div role="search">
@@ -136,27 +140,29 @@
   </form>
 </div>
 
-            
+
           </div>
 
-          
-            
-            
-              
-            
-            
+
+
+
+
+
+
               <p class="caption" role="heading"><span class="caption-text">Overview</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../pipeline.html">Pipeline Overview</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../project_setup.html">Setting up a Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../validation.html">Validation Planning</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../extract_tiles.html">Tile extraction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../extract_tiles.html">Tile Extraction</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../training.html">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../evaluation.html">Evaluation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../layer_activations.html">Features / layer activations</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../custom_loops.html">Custom training loops</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../uq.html">Uncertainty quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../layer_activations.html">Features / Layer Activations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../workbench_tools.html">Workbench: Visualization Tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../custom_loops.html">Custom Training Loops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../uq.html">Uncertainty Quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../stylegan.html">StyleGAN</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../clam.html">CLAM</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../troubleshooting.html">Troubleshooting</a></li>
 </ul>
@@ -176,6 +182,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../slide.html">slideflow.slide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../stats.html">slideflow.stats</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../util.html">slideflow.util</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../workbench.html">slideflow.workbench</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
 <ul>
@@ -184,10 +191,11 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../tutorial3.html">Tutorial 3: Using a custom architecture</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../tutorial4.html">Tutorial 4: Model evaluation &amp; heatmaps</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../tutorial5.html">Tutorial 5: Creating a mosaic map</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorial6.html">Tutorial 6: Custom slide filtering</a></li>
 </ul>
 
-            
-          
+
+
         </div>
       </div>
     </nav>
@@ -195,7 +203,7 @@
     <div class="pytorch-container">
       <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
         <div class="pytorch-breadcrumbs-wrapper">
-          
+
 
 
 
@@ -214,30 +222,30 @@
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="pytorch-breadcrumbs">
-    
+
       <li>
         <a href="../../../index.html">
-          
+
             Docs
-          
+
         </a> &gt;
       </li>
 
-        
+
           <li><a href="../../index.html">Module code</a> &gt;</li>
-        
+
           <li><a href="../io.html">slideflow.io</a> &gt;</li>
-        
+
       <li>slideflow.io.tensorflow</li>
-    
-    
+
+
       <li class="pytorch-breadcrumbs-aside">
-        
+
       </li>
-    
+
   </ul>
 
-  
+
 </div>
         </div>
 
@@ -249,18 +257,19 @@
       <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
         <div class="pytorch-content-left">
 
-        
-          
+
+
           <div class="rst-content">
-          
+
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
-              
+
   <h1>Source code for slideflow.io.tensorflow</h1><div class="highlight"><pre>
 <span></span><span class="kn">import</span> <span class="nn">os</span>
 <span class="kn">import</span> <span class="nn">shutil</span>
 <span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span>
 <span class="kn">from</span> <span class="nn">glob</span> <span class="kn">import</span> <span class="n">glob</span>
+<span class="kn">import</span> <span class="nn">multiprocessing</span> <span class="k">as</span> <span class="nn">mp</span>
 <span class="kn">from</span> <span class="nn">os</span> <span class="kn">import</span> <span class="n">listdir</span>
 <span class="kn">from</span> <span class="nn">os.path</span> <span class="kn">import</span> <span class="n">exists</span><span class="p">,</span> <span class="n">isfile</span><span class="p">,</span> <span class="n">join</span>
 <span class="kn">from</span> <span class="nn">random</span> <span class="kn">import</span> <span class="n">randint</span><span class="p">,</span> <span class="n">shuffle</span>
@@ -274,7 +283,7 @@
 <span class="kn">from</span> <span class="nn">slideflow.io.io_utils</span> <span class="kn">import</span> <span class="n">detect_tfrecord_format</span>
 <span class="kn">from</span> <span class="nn">slideflow.util</span> <span class="kn">import</span> <span class="n">Labels</span>
 <span class="kn">from</span> <span class="nn">slideflow.util</span> <span class="kn">import</span> <span class="n">log</span>
-<span class="kn">from</span> <span class="nn">rich.progress</span> <span class="kn">import</span> <span class="n">track</span>
+<span class="kn">from</span> <span class="nn">rich.progress</span> <span class="kn">import</span> <span class="n">track</span><span class="p">,</span> <span class="n">Progress</span>
 <span class="kn">from</span> <span class="nn">rich</span> <span class="kn">import</span> <span class="nb">print</span> <span class="k">as</span> <span class="n">richprint</span>
 
 <span class="kn">import</span> <span class="nn">tensorflow</span> <span class="k">as</span> <span class="nn">tf</span>
@@ -301,6 +310,11 @@
 <span class="k">def</span> <span class="nf">_int64_feature</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Feature&quot;</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot;Returns an int64_list from a bool / enum / int / uint.&quot;&quot;&quot;</span>
     <span class="k">return</span> <span class="n">tf</span><span class="o">.</span><span class="n">train</span><span class="o">.</span><span class="n">Feature</span><span class="p">(</span><span class="n">int64_list</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">train</span><span class="o">.</span><span class="n">Int64List</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="p">[</span><span class="n">value</span><span class="p">]))</span>
+
+
+<span class="k">def</span> <span class="nf">_apply_otsu</span><span class="p">(</span><span class="n">wsi</span><span class="p">):</span>
+    <span class="n">wsi</span><span class="o">.</span><span class="n">qc</span><span class="p">(</span><span class="s1">&#39;otsu&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">wsi</span>
 
 
 <span class="k">def</span> <span class="nf">read_and_return_record</span><span class="p">(</span>
@@ -616,7 +630,8 @@
 
 
 <div class="viewcode-block" id="interleave"><a class="viewcode-back" href="../../../io_tensorflow.html#slideflow.io.tensorflow.interleave">[docs]</a><span class="k">def</span> <span class="nf">interleave</span><span class="p">(</span>
-    <span class="n">tfrecords</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+    <span class="n">paths</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+    <span class="o">*</span><span class="p">,</span>
     <span class="n">img_size</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
     <span class="n">batch_size</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span>
     <span class="n">prob_weights</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -633,6 +648,10 @@
     <span class="n">num_parallel_reads</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">4</span><span class="p">,</span>
     <span class="n">deterministic</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="n">drop_last</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">from_wsi</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">tile_um</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">rois</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">roi_method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;auto&#39;</span><span class="p">,</span>
     <span class="o">**</span><span class="n">decode_kwargs</span><span class="p">:</span> <span class="n">Any</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterable</span><span class="p">:</span>
 
@@ -641,7 +660,8 @@
 <span class="sd">    Requires manifest for balancing. Assumes TFRecord files are named by slide.</span>
 
 <span class="sd">    Args:</span>
-<span class="sd">        tfrecords (list(str)): List of paths to TFRecord files.</span>
+<span class="sd">        paths (list(str)): List of paths to TFRecord files or whole-slide</span>
+<span class="sd">            images.</span>
 <span class="sd">        img_size (int): Image width in pixels.</span>
 <span class="sd">        batch_size (int): Batch size.</span>
 <span class="sd">        prob_weights (dict, optional): Dict mapping tfrecords to probability of</span>
@@ -686,15 +706,18 @@
 <span class="sd">        drop_last (bool, optional): Drop the last non-full batch.</span>
 <span class="sd">            Defaults to False.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="nb">len</span><span class="p">(</span><span class="n">tfrecords</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">len</span><span class="p">(</span><span class="n">paths</span><span class="p">):</span>
         <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">TFRecordsNotFoundError</span>
+    <span class="n">_path_type</span> <span class="o">=</span> <span class="s2">&quot;slides&quot;</span> <span class="k">if</span> <span class="n">from_wsi</span> <span class="k">else</span> <span class="s2">&quot;tfrecords&quot;</span>
     <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
-        <span class="sa">f</span><span class="s1">&#39;Interleaving </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">tfrecords</span><span class="p">)</span><span class="si">}</span><span class="s1"> tfrecords: infinite=</span><span class="si">{</span><span class="n">infinite</span><span class="si">}</span><span class="s1">, &#39;</span>
-        <span class="sa">f</span><span class="s1">&#39;num_parallel_reads=</span><span class="si">{</span><span class="n">num_parallel_reads</span><span class="si">}</span><span class="s1">&#39;</span>
-    <span class="p">)</span>
+        <span class="sa">f</span><span class="s1">&#39;Interleaving </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">paths</span><span class="p">)</span><span class="si">}</span><span class="s1"> </span><span class="si">{</span><span class="n">_path_type</span><span class="si">}</span><span class="s1">: infinite=</span><span class="si">{</span><span class="n">infinite</span><span class="si">}</span><span class="s1">, &#39;</span>
+        <span class="sa">f</span><span class="s1">&#39;num_parallel_reads=</span><span class="si">{</span><span class="n">num_parallel_reads</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">from_wsi</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">tile_um</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;`tile_um` required for interleave() &quot;</span>
+                         <span class="s2">&quot;if `from_wsi=True`&quot;</span><span class="p">)</span>
+
     <span class="k">if</span> <span class="n">num_shards</span><span class="p">:</span>
         <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;num_shards=</span><span class="si">{</span><span class="n">num_shards</span><span class="si">}</span><span class="s1">, shard_idx=</span><span class="si">{</span><span class="n">shard_idx</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-
     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">labels</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
         <span class="n">label_parser</span> <span class="o">=</span> <span class="n">parser_from_labels</span><span class="p">(</span><span class="n">labels</span><span class="p">)</span>
     <span class="k">elif</span> <span class="n">callable</span><span class="p">(</span><span class="n">labels</span><span class="p">)</span> <span class="ow">or</span> <span class="n">labels</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
@@ -702,36 +725,86 @@
     <span class="k">else</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
             <span class="sa">f</span><span class="s2">&quot;Unrecognized type for labels: </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">labels</span><span class="p">)</span><span class="si">}</span><span class="s2"> (must be dict&quot;</span>
-            <span class="s2">&quot; or function)&quot;</span>
-        <span class="p">)</span>
+            <span class="s2">&quot; or function)&quot;</span><span class="p">)</span>
 
+    <span class="n">datasets</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">weights</span> <span class="o">=</span> <span class="p">[]</span> <span class="k">if</span> <span class="n">prob_weights</span> <span class="k">else</span> <span class="kc">None</span>  <span class="c1"># type: Optional[List]</span>
+
+    <span class="n">pb</span> <span class="o">=</span> <span class="n">Progress</span><span class="p">(</span><span class="n">transient</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">from_wsi</span><span class="p">:</span>
+        <span class="n">read_task</span> <span class="o">=</span> <span class="n">pb</span><span class="o">.</span><span class="n">add_task</span><span class="p">(</span><span class="s1">&#39;Reading slides...&#39;</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">paths</span><span class="p">),</span> <span class="n">visible</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">otsu_task</span> <span class="o">=</span> <span class="n">pb</span><span class="o">.</span><span class="n">add_task</span><span class="p">(</span><span class="s2">&quot;Otsu thresholding...&quot;</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">paths</span><span class="p">),</span> <span class="n">visible</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">interleave_task</span> <span class="o">=</span> <span class="n">pb</span><span class="o">.</span><span class="n">add_task</span><span class="p">(</span><span class="s1">&#39;Interleaving...&#39;</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">paths</span><span class="p">))</span>
+    <span class="n">pb</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
     <span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">device</span><span class="p">(</span><span class="s1">&#39;cpu&#39;</span><span class="p">):</span>
-        <span class="c1"># --- Get the base TFRecord parser, based on the first tfrecord -------</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">incl_loc</span><span class="p">:</span>
-            <span class="n">features_to_return</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;image_raw&#39;</span><span class="p">,</span> <span class="s1">&#39;slide&#39;</span><span class="p">]</span>
+        <span class="n">features_to_return</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;image_raw&#39;</span><span class="p">,</span> <span class="s1">&#39;slide&#39;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">incl_loc</span><span class="p">:</span>
+            <span class="n">features_to_return</span> <span class="o">+=</span> <span class="p">[</span><span class="s1">&#39;loc_x&#39;</span><span class="p">,</span> <span class="s1">&#39;loc_y&#39;</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">from_wsi</span><span class="p">:</span>
+            <span class="k">assert</span> <span class="n">tile_um</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+            <span class="n">pb</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">read_task</span><span class="p">,</span> <span class="n">visible</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">pb</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">otsu_task</span><span class="p">,</span> <span class="n">visible</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+            <span class="k">def</span> <span class="nf">base_parser</span><span class="p">(</span><span class="n">record</span><span class="p">):</span>
+                <span class="k">return</span> <span class="nb">tuple</span><span class="p">([</span><span class="n">record</span><span class="p">[</span><span class="n">f</span><span class="p">]</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">features_to_return</span><span class="p">])</span>
+
+            <span class="c1"># Load slides and apply Otsu&#39;s thresholding</span>
+            <span class="n">pool</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">Pool</span><span class="p">(</span><span class="mi">16</span> <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">cpu_count</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">os</span><span class="o">.</span><span class="n">cpu_count</span><span class="p">())</span>
+            <span class="n">wsi_list</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">to_remove</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">otsu_list</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">path</span> <span class="ow">in</span> <span class="n">paths</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">wsi</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">WSI</span><span class="p">(</span>
+                        <span class="n">path</span><span class="p">,</span>
+                        <span class="n">img_size</span><span class="p">,</span>
+                        <span class="n">tile_um</span><span class="p">,</span>
+                        <span class="n">rois</span><span class="o">=</span><span class="n">rois</span><span class="p">,</span>
+                        <span class="n">roi_method</span><span class="o">=</span><span class="n">roi_method</span><span class="p">,</span>
+                        <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span>
+                    <span class="p">)</span>
+                    <span class="n">wsi_list</span> <span class="o">+=</span> <span class="p">[</span><span class="n">wsi</span><span class="p">]</span>
+                    <span class="n">pb</span><span class="o">.</span><span class="n">advance</span><span class="p">(</span><span class="n">read_task</span><span class="p">)</span>
+                <span class="k">except</span> <span class="n">errors</span><span class="o">.</span><span class="n">SlideLoadError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Error reading slide </span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                    <span class="n">to_remove</span> <span class="o">+=</span> <span class="p">[</span><span class="n">path</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">path</span> <span class="ow">in</span> <span class="n">to_remove</span><span class="p">:</span>
+                <span class="n">paths</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">task</span> <span class="ow">in</span> <span class="p">(</span><span class="n">read_task</span><span class="p">,</span> <span class="n">otsu_task</span><span class="p">,</span> <span class="n">interleave_task</span><span class="p">):</span>
+                <span class="n">pb</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">task</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">paths</span><span class="p">))</span>
+            <span class="k">for</span> <span class="n">wsi</span> <span class="ow">in</span> <span class="n">pool</span><span class="o">.</span><span class="n">imap</span><span class="p">(</span><span class="n">_apply_otsu</span><span class="p">,</span> <span class="n">wsi_list</span><span class="p">):</span>
+                <span class="n">otsu_list</span> <span class="o">+=</span> <span class="p">[</span><span class="n">wsi</span><span class="p">]</span>
+                <span class="n">pb</span><span class="o">.</span><span class="n">advance</span><span class="p">(</span><span class="n">otsu_task</span><span class="p">)</span>
+            <span class="n">est_num_tiles</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">([</span><span class="n">wsi</span><span class="o">.</span><span class="n">estimated_num_tiles</span> <span class="k">for</span> <span class="n">wsi</span> <span class="ow">in</span> <span class="n">otsu_list</span><span class="p">])</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">features_to_return</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;image_raw&#39;</span><span class="p">,</span> <span class="s1">&#39;slide&#39;</span><span class="p">,</span> <span class="s1">&#39;loc_x&#39;</span><span class="p">,</span> <span class="s1">&#39;loc_y&#39;</span><span class="p">]</span>
-        <span class="n">base_parser</span> <span class="o">=</span> <span class="kc">None</span>
-        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">tfrecords</span><span class="p">)):</span>
-            <span class="k">if</span> <span class="n">base_parser</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="k">continue</span>
-            <span class="k">if</span> <span class="n">i</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unable to detect parser, trying again (n=</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">)...&quot;</span><span class="p">)</span>
-            <span class="n">base_parser</span> <span class="o">=</span> <span class="n">get_tfrecord_parser</span><span class="p">(</span>
-                <span class="n">tfrecords</span><span class="p">[</span><span class="n">i</span><span class="p">],</span>
-                <span class="n">features_to_return</span><span class="p">,</span>
-                <span class="n">img_size</span><span class="o">=</span><span class="n">img_size</span><span class="p">,</span>
-                <span class="o">**</span><span class="n">decode_kwargs</span>
-            <span class="p">)</span>
-        <span class="n">datasets</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="n">weights</span> <span class="o">=</span> <span class="p">[]</span> <span class="k">if</span> <span class="n">prob_weights</span> <span class="k">else</span> <span class="kc">None</span>  <span class="c1"># type: Optional[List]</span>
-        <span class="k">for</span> <span class="n">tfr</span> <span class="ow">in</span> <span class="n">track</span><span class="p">(</span><span class="n">tfrecords</span><span class="p">,</span>
-                         <span class="n">description</span><span class="o">=</span><span class="s1">&#39;Interleaving...&#39;</span><span class="p">,</span>
-                         <span class="n">transient</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
-            <span class="n">tf_dts</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">TFRecordDataset</span><span class="p">(</span>
-                <span class="n">tfr</span><span class="p">,</span>
-                <span class="n">num_parallel_reads</span><span class="o">=</span><span class="n">num_parallel_reads</span>
-            <span class="p">)</span>
+            <span class="n">base_parser</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># type: ignore</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">paths</span><span class="p">)):</span>
+                <span class="k">if</span> <span class="n">base_parser</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="k">continue</span>
+                <span class="k">if</span> <span class="n">i</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to get parser, trying again (n=</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">)...&quot;</span><span class="p">)</span>
+                <span class="n">base_parser</span> <span class="o">=</span> <span class="n">get_tfrecord_parser</span><span class="p">(</span>
+                    <span class="n">paths</span><span class="p">[</span><span class="n">i</span><span class="p">],</span>
+                    <span class="n">features_to_return</span><span class="p">,</span>
+                    <span class="n">img_size</span><span class="o">=</span><span class="n">img_size</span><span class="p">,</span>
+                    <span class="o">**</span><span class="n">decode_kwargs</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">t</span><span class="p">,</span> <span class="n">tfr</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">paths</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">from_wsi</span><span class="p">:</span>
+                <span class="n">tf_dts</span> <span class="o">=</span> <span class="n">otsu_list</span><span class="p">[</span><span class="n">t</span><span class="p">]</span><span class="o">.</span><span class="n">tensorflow</span><span class="p">(</span>
+                    <span class="n">pool</span><span class="o">=</span><span class="n">pool</span><span class="p">,</span>
+                    <span class="n">lazy_iter</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                    <span class="n">incl_slidenames</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                    <span class="n">grayspace_fraction</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                    <span class="n">incl_loc</span><span class="o">=</span><span class="n">incl_loc</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="n">tfr</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">path_to_name</span><span class="p">(</span><span class="n">tfr</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">tf_dts</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">TFRecordDataset</span><span class="p">(</span>
+                    <span class="n">tfr</span><span class="p">,</span>
+                    <span class="n">num_parallel_reads</span><span class="o">=</span><span class="n">num_parallel_reads</span>
+                <span class="p">)</span>
             <span class="k">if</span> <span class="n">num_shards</span><span class="p">:</span>
                 <span class="n">tf_dts</span> <span class="o">=</span> <span class="n">tf_dts</span><span class="o">.</span><span class="n">shard</span><span class="p">(</span><span class="n">num_shards</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="n">shard_idx</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">clip</span><span class="p">:</span>
@@ -743,6 +816,8 @@
             <span class="n">datasets</span> <span class="o">+=</span> <span class="p">[</span><span class="n">tf_dts</span><span class="p">]</span>
             <span class="k">if</span> <span class="n">prob_weights</span><span class="p">:</span>
                 <span class="n">weights</span> <span class="o">+=</span> <span class="p">[</span><span class="n">prob_weights</span><span class="p">[</span><span class="n">tfr</span><span class="p">]]</span>  <span class="c1"># type: ignore</span>
+            <span class="n">pb</span><span class="o">.</span><span class="n">advance</span><span class="p">(</span><span class="n">interleave_task</span><span class="p">)</span>
+        <span class="n">pb</span><span class="o">.</span><span class="n">stop</span><span class="p">()</span>
 
         <span class="c1"># ------- Interleave and parse datasets -------------------------------</span>
         <span class="n">sampled_dataset</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">Dataset</span><span class="o">.</span><span class="n">sample_from_datasets</span><span class="p">(</span>
@@ -772,6 +847,10 @@
             <span class="p">)</span>
             <span class="k">if</span> <span class="n">normalizer</span><span class="o">.</span><span class="n">vectorized</span><span class="p">:</span>
                 <span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">unbatch</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">normalizer</span><span class="o">.</span><span class="n">method</span> <span class="o">==</span> <span class="s1">&#39;macenko&#39;</span><span class="p">:</span>
+                <span class="c1"># Drop the images that causes an error, e.g. if eigen</span>
+                <span class="c1"># decomposition is unsuccessful.</span>
+                <span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">experimental</span><span class="o">.</span><span class="n">ignore_errors</span><span class="p">())</span>
 
         <span class="c1"># ------- Standardize and augment images ------------------------------</span>
         <span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">map</span><span class="p">(</span>
@@ -787,7 +866,8 @@
         <span class="k">if</span> <span class="n">batch_size</span><span class="p">:</span>
             <span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">batch</span><span class="p">(</span><span class="n">batch_size</span><span class="p">,</span> <span class="n">drop_remainder</span><span class="o">=</span><span class="n">drop_last</span><span class="p">)</span>
         <span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">prefetch</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">AUTOTUNE</span><span class="p">)</span>
-
+        <span class="k">if</span> <span class="n">from_wsi</span><span class="p">:</span>
+            <span class="n">dataset</span><span class="o">.</span><span class="n">est_num_tiles</span> <span class="o">=</span> <span class="n">est_num_tiles</span>
         <span class="k">return</span> <span class="n">dataset</span></div>
 
 
@@ -976,63 +1056,6 @@
         <span class="k">pass</span></div>
 
 
-<div class="viewcode-block" id="update_tfrecord_dir"><a class="viewcode-back" href="../../../io_tensorflow.html#slideflow.io.tensorflow.update_tfrecord_dir">[docs]</a><span class="k">def</span> <span class="nf">update_tfrecord_dir</span><span class="p">(</span>
-    <span class="n">directory</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-    <span class="n">assign_slide</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
-    <span class="sd">&quot;&quot;&quot;Updates tfrecords in a directory to have new slide names assigned to</span>
-<span class="sd">    all contained records.</span>
-
-<span class="sd">    Args:</span>
-<span class="sd">        directory (str): Directory containing TFRecords to update.</span>
-<span class="sd">        assign_slide (str, optional): Overwrite slide names in all records in</span>
-<span class="sd">            these TFrecord files with this new slide name. Defaults to None.</span>
-
-<span class="sd">    Returns:</span>
-<span class="sd">        int: Number of tfrecords updated.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">log</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;update_tfrecord_dir() is deprecated, use transform_tfrecord()&quot;</span><span class="p">)</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">exists</span><span class="p">(</span><span class="n">directory</span><span class="p">):</span>
-        <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">directory</span><span class="si">}</span><span class="s2"> does not exist; unable to update tfrecords.&quot;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="mi">0</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="n">tfrecord_files</span> <span class="o">=</span> <span class="n">glob</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">directory</span><span class="p">,</span> <span class="s2">&quot;*.tfrecords&quot;</span><span class="p">))</span>
-        <span class="k">for</span> <span class="n">tfr</span> <span class="ow">in</span> <span class="n">tfrecord_files</span><span class="p">:</span>
-            <span class="n">update_tfrecord</span><span class="p">(</span><span class="n">tfr</span><span class="p">,</span> <span class="n">assign_slide</span><span class="p">)</span>
-        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="n">tfrecord_files</span><span class="p">)</span></div>
-
-
-<div class="viewcode-block" id="update_tfrecord"><a class="viewcode-back" href="../../../io_tensorflow.html#slideflow.io.tensorflow.update_tfrecord">[docs]</a><span class="k">def</span> <span class="nf">update_tfrecord</span><span class="p">(</span>
-    <span class="n">tfrecord_file</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-    <span class="n">assign_slide</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-    <span class="sd">&quot;&quot;&quot;Updates a single tfrecord with a new slide name.</span>
-
-<span class="sd">    Args:</span>
-<span class="sd">        tfrecord_file (str): TFrecord to update.</span>
-<span class="sd">        assign_slide (str, optional): Overwrite slide names in all records in</span>
-<span class="sd">            this TFrecord file with this new slide name. Defaults to None.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">log</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;update_tfrecord() is deprecated, use transform_tfrecord()&quot;</span><span class="p">)</span>
-    <span class="n">shutil</span><span class="o">.</span><span class="n">move</span><span class="p">(</span><span class="n">tfrecord_file</span><span class="p">,</span> <span class="n">tfrecord_file</span><span class="o">+</span><span class="s2">&quot;.old&quot;</span><span class="p">)</span>
-    <span class="n">dataset</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">TFRecordDataset</span><span class="p">(</span><span class="n">tfrecord_file</span><span class="o">+</span><span class="s2">&quot;.old&quot;</span><span class="p">)</span>
-    <span class="n">writer</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">TFRecordWriter</span><span class="p">(</span><span class="n">tfrecord_file</span><span class="p">)</span>
-    <span class="n">parser</span> <span class="o">=</span> <span class="n">get_tfrecord_parser</span><span class="p">(</span>
-        <span class="n">tfrecord_file</span><span class="o">+</span><span class="s1">&#39;.old&#39;</span><span class="p">,</span>
-        <span class="n">decode_images</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-        <span class="n">to_numpy</span><span class="o">=</span><span class="kc">True</span>
-    <span class="p">)</span>
-    <span class="k">for</span> <span class="n">record</span> <span class="ow">in</span> <span class="n">dataset</span><span class="p">:</span>
-        <span class="n">slidename</span> <span class="o">=</span> <span class="nb">bytes</span><span class="p">(</span><span class="n">assign_slide</span><span class="p">,</span> <span class="s1">&#39;utf-8&#39;</span><span class="p">)</span> <span class="k">if</span> <span class="n">assign_slide</span> <span class="k">else</span> <span class="kc">None</span>
-        <span class="n">writer</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">read_and_return_record</span><span class="p">(</span>
-            <span class="n">record</span><span class="p">,</span>
-            <span class="n">parser</span><span class="p">,</span>  <span class="c1"># type: ignore</span>
-            <span class="n">assign_slide</span><span class="o">=</span><span class="n">slidename</span>
-        <span class="p">))</span>
-    <span class="n">writer</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
-    <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">tfrecord_file</span><span class="o">+</span><span class="s1">&#39;.old&#39;</span><span class="p">)</span></div>
-
-
 <div class="viewcode-block" id="transform_tfrecord"><a class="viewcode-back" href="../../../io_tensorflow.html#slideflow.io.tensorflow.transform_tfrecord">[docs]</a><span class="k">def</span> <span class="nf">transform_tfrecord</span><span class="p">(</span>
     <span class="n">origin</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">target</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
@@ -1056,6 +1079,7 @@
     <span class="n">parser</span> <span class="o">=</span> <span class="n">get_tfrecord_parser</span><span class="p">(</span>
         <span class="n">origin</span><span class="p">,</span>
         <span class="p">(</span><span class="s1">&#39;slide&#39;</span><span class="p">,</span> <span class="s1">&#39;image_raw&#39;</span><span class="p">,</span> <span class="s1">&#39;loc_x&#39;</span><span class="p">,</span> <span class="s1">&#39;loc_y&#39;</span><span class="p">),</span>
+        <span class="n">decode_images</span><span class="o">=</span><span class="p">(</span><span class="n">hue_shift</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">resize</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">),</span>
         <span class="n">error_if_invalid</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
         <span class="n">to_numpy</span><span class="o">=</span><span class="kc">True</span>
     <span class="p">)</span>
@@ -1119,16 +1143,16 @@
 </pre></div>
 
              </article>
-             
+
             </div>
             <footer>
-  
 
-  
+
+
 
     <hr>
 
-  
+
 
   <div role="contentinfo">
     <p>
@@ -1136,11 +1160,11 @@
 
     </p>
   </div>
-    
+
       <div>
         Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
       </div>
-     
+
 
 </footer>
 
@@ -1150,28 +1174,29 @@
         <div class="pytorch-content-right" id="pytorch-content-right">
           <div class="pytorch-right-menu" id="pytorch-right-menu">
             <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
-              
+
             </div>
           </div>
         </div>
       </section>
     </div>
 
-  
 
 
-  
 
-     
+
+
+
        <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
          <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
          <script src="../../../_static/jquery.js"></script>
          <script src="../../../_static/underscore.js"></script>
          <script src="../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
          <script src="../../../_static/doctools.js"></script>
-     
+         <script src="../../../_static/sphinx_highlight.js"></script>
 
-  
+
+
 
   <script type="text/javascript" src="../../../_static/js/vendor/popper.min.js"></script>
   <script type="text/javascript" src="../../../_static/js/vendor/bootstrap.min.js"></script>
@@ -1182,7 +1207,7 @@
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script> 
+  </script>
 
   <!-- Begin Footer -->
 

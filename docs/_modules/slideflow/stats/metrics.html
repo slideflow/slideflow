@@ -6,24 +6,24 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  
-  <title>slideflow.stats.metrics &mdash; slideflow 1.2.3 documentation</title>
-  
 
-  
-  
-  
-  
+  <title>slideflow.stats.metrics &mdash; slideflow 1.3.0 documentation</title>
 
-  
 
-  
-  
-    
 
-  
+
+
+
+
+
+
+
+
+
+
+
 
   <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
   <!-- <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" /> -->
@@ -32,11 +32,11 @@
     <link rel="index" title="Index" href="../../../genindex.html" />
     <link rel="search" title="Search" href="../../../search.html" />
   <!-- Google Analytics -->
-  
-  <!-- End Google Analytics -->
-  
 
-  
+  <!-- End Google Analytics -->
+
+
+
   <script src="../../../_static/js/modernizr.min.js"></script>
 
   <!-- Preload the theme fonts -->
@@ -64,6 +64,10 @@
   <script>
     window.dataLayer = window.dataLayer || [];
     function gtag(){dataLayer.push(arguments);}
+    gtag('consent', 'default', {
+      'ad_storage': 'denied',
+      'analytics_storage': 'denied'
+    });
     gtag('js', new Date());
 
     gtag('config', 'G-43E5QNVXH2');
@@ -98,9 +102,9 @@
 
 <body class="pytorch-body">
 
-   
 
-    
+
+
 
     <div class="table-of-contents-link-wrapper">
       <span>Table of Contents</span>
@@ -111,21 +115,21 @@
       <div class="pytorch-side-scroll">
         <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           <div class="pytorch-left-menu-search">
-            
 
-            
-              
-              
+
+
+
+
                 <div class="version">
-                  1.2
+                  1.3
                 </div>
-              
-            
-
-            
 
 
-  
+
+
+
+
+
 
 
 <div role="search">
@@ -136,27 +140,29 @@
   </form>
 </div>
 
-            
+
           </div>
 
-          
-            
-            
-              
-            
-            
+
+
+
+
+
+
               <p class="caption" role="heading"><span class="caption-text">Overview</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../pipeline.html">Pipeline Overview</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../project_setup.html">Setting up a Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../validation.html">Validation Planning</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../extract_tiles.html">Tile extraction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../extract_tiles.html">Tile Extraction</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../training.html">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../evaluation.html">Evaluation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../layer_activations.html">Features / layer activations</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../custom_loops.html">Custom training loops</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../uq.html">Uncertainty quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../layer_activations.html">Features / Layer Activations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../workbench_tools.html">Workbench: Visualization Tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../custom_loops.html">Custom Training Loops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../uq.html">Uncertainty Quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../stylegan.html">StyleGAN</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../clam.html">CLAM</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../troubleshooting.html">Troubleshooting</a></li>
 </ul>
@@ -176,6 +182,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../slide.html">slideflow.slide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../stats.html">slideflow.stats</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../util.html">slideflow.util</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../workbench.html">slideflow.workbench</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
 <ul>
@@ -184,10 +191,11 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../tutorial3.html">Tutorial 3: Using a custom architecture</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../tutorial4.html">Tutorial 4: Model evaluation &amp; heatmaps</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../tutorial5.html">Tutorial 5: Creating a mosaic map</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorial6.html">Tutorial 6: Custom slide filtering</a></li>
 </ul>
 
-            
-          
+
+
         </div>
       </div>
     </nav>
@@ -195,7 +203,7 @@
     <div class="pytorch-container">
       <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
         <div class="pytorch-breadcrumbs-wrapper">
-          
+
 
 
 
@@ -214,28 +222,28 @@
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="pytorch-breadcrumbs">
-    
+
       <li>
         <a href="../../../index.html">
-          
+
             Docs
-          
+
         </a> &gt;
       </li>
 
-        
+
           <li><a href="../../index.html">Module code</a> &gt;</li>
-        
+
       <li>slideflow.stats.metrics</li>
-    
-    
+
+
       <li class="pytorch-breadcrumbs-aside">
-        
+
       </li>
-    
+
   </ul>
 
-  
+
 </div>
         </div>
 
@@ -247,20 +255,21 @@
       <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
         <div class="pytorch-content-left">
 
-        
-          
+
+
           <div class="rst-content">
-          
+
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
-              
+
   <h1>Source code for slideflow.stats.metrics</h1><div class="highlight"><pre>
 <span></span><span class="sd">&quot;&quot;&quot;Categorical, linear, and CPH metrics for predictions.&quot;&quot;&quot;</span>
 
 <span class="kn">import</span> <span class="nn">multiprocessing</span> <span class="k">as</span> <span class="nn">mp</span>
 <span class="kn">from</span> <span class="nn">os.path</span> <span class="kn">import</span> <span class="n">join</span>
 <span class="kn">from</span> <span class="nn">types</span> <span class="kn">import</span> <span class="n">SimpleNamespace</span>
-<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">TYPE_CHECKING</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="p">(</span><span class="n">TYPE_CHECKING</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span>
+                    <span class="n">Callable</span><span class="p">)</span>
 
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
@@ -316,16 +325,18 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">ap</span> <span class="o">=</span> <span class="n">metrics</span><span class="o">.</span><span class="n">average_precision_score</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">y_true</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">y_pred</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">save_roc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">outdir</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
-        <span class="kn">from</span> <span class="nn">matplotlib</span> <span class="kn">import</span> <span class="n">pyplot</span> <span class="k">as</span> <span class="n">plt</span>
-        <span class="n">sf</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">plot</span><span class="o">.</span><span class="n">roc</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fpr</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">tpr</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;AUC = </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">auroc</span><span class="si">:</span><span class="s1">.2f</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+        <span class="n">auroc_str</span> <span class="o">=</span> <span class="s1">&#39;NA&#39;</span> <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">auroc</span> <span class="k">else</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">auroc</span><span class="si">:</span><span class="s1">.2f</span><span class="si">}</span><span class="s1">&#39;</span>
+        <span class="n">sf</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">plot</span><span class="o">.</span><span class="n">roc</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fpr</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">tpr</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;AUC = </span><span class="si">{</span><span class="n">auroc_str</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
         <span class="n">full_path</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s1">.png&#39;</span><span class="p">)</span>
         <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">full_path</span><span class="p">)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">neptune_run</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">neptune_run</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;results/graphs/</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">upload</span><span class="p">(</span><span class="n">full_path</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">save_prc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">outdir</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
-        <span class="kn">from</span> <span class="nn">matplotlib</span> <span class="kn">import</span> <span class="n">pyplot</span> <span class="k">as</span> <span class="n">plt</span>
-        <span class="n">sf</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">plot</span><span class="o">.</span><span class="n">prc</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">precision</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">recall</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;AP = </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">ap</span><span class="si">:</span><span class="s1">.2f</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+        <span class="n">ap_str</span> <span class="o">=</span> <span class="s1">&#39;NA&#39;</span> <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">ap</span> <span class="k">else</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">ap</span><span class="si">:</span><span class="s1">.2f</span><span class="si">}</span><span class="s1">&#39;</span>
+        <span class="n">sf</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">plot</span><span class="o">.</span><span class="n">prc</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">precision</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">recall</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;AP = </span><span class="si">{</span><span class="n">ap_str</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
         <span class="n">full_path</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s1">.png&#39;</span><span class="p">)</span>
         <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">full_path</span><span class="p">)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">neptune_run</span><span class="p">:</span>
@@ -510,14 +521,16 @@
         <span class="p">]</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">fit</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">imap</span><span class="p">(</span><span class="n">_generate_tile_roc</span><span class="p">,</span> <span class="n">yt_and_yp</span><span class="p">)):</span>
-                <span class="n">fit</span><span class="o">.</span><span class="n">save_roc</span><span class="p">(</span><span class="n">data_dir</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">label_start</span><span class="si">}{</span><span class="n">outcome</span><span class="si">}</span><span class="s2">_tile_ROC</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-                <span class="n">fit</span><span class="o">.</span><span class="n">save_prc</span><span class="p">(</span><span class="n">data_dir</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">label_start</span><span class="si">}{</span><span class="n">outcome</span><span class="si">}</span><span class="s2">_tile_PRC</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="n">fit</span><span class="o">.</span><span class="n">save_roc</span><span class="p">(</span><span class="n">data_dir</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">label_start</span><span class="si">}{</span><span class="n">outcome</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">level</span><span class="si">}</span><span class="s2">_ROC</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="n">fit</span><span class="o">.</span><span class="n">save_prc</span><span class="p">(</span><span class="n">data_dir</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">label_start</span><span class="si">}{</span><span class="n">outcome</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">level</span><span class="si">}</span><span class="s2">_PRC</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
                 <span class="n">all_auc</span><span class="p">[</span><span class="n">outcome</span><span class="p">]</span> <span class="o">+=</span> <span class="p">[</span><span class="n">fit</span><span class="o">.</span><span class="n">auroc</span><span class="p">]</span>
                 <span class="n">all_ap</span><span class="p">[</span><span class="n">outcome</span><span class="p">]</span> <span class="o">+=</span> <span class="p">[</span><span class="n">fit</span><span class="o">.</span><span class="n">ap</span><span class="p">]</span>
+                <span class="n">auroc_str</span> <span class="o">=</span> <span class="s1">&#39;NA&#39;</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">fit</span><span class="o">.</span><span class="n">auroc</span> <span class="k">else</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">fit</span><span class="o">.</span><span class="n">auroc</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1">&#39;</span>
+                <span class="n">ap_str</span> <span class="o">=</span> <span class="s1">&#39;NA&#39;</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">fit</span><span class="o">.</span><span class="n">ap</span> <span class="k">else</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">fit</span><span class="o">.</span><span class="n">ap</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1">&#39;</span>
+                <span class="n">thresh</span> <span class="o">=</span> <span class="s1">&#39;NA&#39;</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">fit</span><span class="o">.</span><span class="n">opt_thresh</span> <span class="k">else</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">fit</span><span class="o">.</span><span class="n">opt_thresh</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1">&#39;</span>
                 <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
-                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">level</span><span class="si">}</span><span class="s2">-level AUC (cat #</span><span class="si">{</span><span class="n">i</span><span class="si">:</span><span class="s2">&gt;2</span><span class="si">}</span><span class="s2">): </span><span class="si">{</span><span class="n">fit</span><span class="o">.</span><span class="n">auroc</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2"> &quot;</span>
-                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">level</span><span class="si">}</span><span class="s2">-level AP: </span><span class="si">{</span><span class="n">fit</span><span class="o">.</span><span class="n">ap</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2"> (opt. threshold: &quot;</span>
-                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">fit</span><span class="o">.</span><span class="n">opt_thresh</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">)&quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">level</span><span class="si">}</span><span class="s2">-level AUC (cat #</span><span class="si">{</span><span class="n">i</span><span class="si">:</span><span class="s2">&gt;2</span><span class="si">}</span><span class="s2">): </span><span class="si">{</span><span class="n">auroc_str</span><span class="si">}</span><span class="s2"> &quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">level</span><span class="si">}</span><span class="s2">-level AP: </span><span class="si">{</span><span class="n">ap_str</span><span class="si">}</span><span class="s2"> (opt. threshold: </span><span class="si">{</span><span class="n">thresh</span><span class="si">}</span><span class="s2">)&quot;</span>
                 <span class="p">)</span>
         <span class="k">except</span> <span class="ne">ValueError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
             <span class="c1"># Occurs when predictions contain NaN</span>
@@ -596,7 +609,8 @@
             <span class="n">df</span><span class="p">[</span><span class="s1">&#39;time-y_true&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">,</span>
             <span class="n">df</span><span class="p">[[</span><span class="s1">&#39;time-y_pred&#39;</span><span class="p">,</span> <span class="s1">&#39;event-y_true&#39;</span><span class="p">]]</span><span class="o">.</span><span class="n">values</span><span class="p">,</span>
         <span class="p">)</span>
-        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;C-index (</span><span class="si">{</span><span class="n">level</span><span class="si">}</span><span class="s2">-level): </span><span class="si">{</span><span class="n">c_index</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">c_str</span> <span class="o">=</span> <span class="s1">&#39;NA&#39;</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">c_index</span> <span class="k">else</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">c_index</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1">&#39;</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;C-index (</span><span class="si">{</span><span class="n">level</span><span class="si">}</span><span class="s2">-level): </span><span class="si">{</span><span class="n">c_str</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
     <span class="k">except</span> <span class="ne">ZeroDivisionError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
         <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Error calculating concordance index: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="n">c_index</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
@@ -685,17 +699,25 @@
     <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">series</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="eval_from_dataset"><a class="viewcode-back" href="../../../stats.html#slideflow.stats.eval_from_dataset">[docs]</a><span class="k">def</span> <span class="nf">eval_from_dataset</span><span class="p">(</span>
+<span class="k">def</span> <span class="nf">eval_from_dataset</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+        <span class="s2">&quot;`sf.stats.metrics.eval_from_dataset() is deprecated. Please use &quot;</span>
+        <span class="s2">&quot;`sf.stats.metrics.eval_dataset()` instead.&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">eval_dataset</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="eval_dataset"><a class="viewcode-back" href="../../../stats.html#slideflow.stats.eval_dataset">[docs]</a><span class="k">def</span> <span class="nf">eval_dataset</span><span class="p">(</span>
     <span class="n">model</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="s2">&quot;tf.keras.Model&quot;</span><span class="p">,</span> <span class="s2">&quot;torch.nn.Module&quot;</span><span class="p">],</span>
     <span class="n">dataset</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="s2">&quot;tf.data.Dataset&quot;</span><span class="p">,</span> <span class="s2">&quot;torch.utils.data.DataLoader&quot;</span><span class="p">],</span>
     <span class="n">model_type</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-    <span class="n">pred_args</span><span class="p">:</span> <span class="n">SimpleNamespace</span><span class="p">,</span>
     <span class="n">num_tiles</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="n">uq</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="n">uq_n</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">30</span><span class="p">,</span>
     <span class="n">reduce_method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;average&#39;</span><span class="p">,</span>
     <span class="n">patients</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">outcome_names</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">incl_loc</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">loss</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">torch_args</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">SimpleNamespace</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">DataFrame</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]:</span>
     <span class="sd">&quot;&quot;&quot;Generates predictions and accuracy/loss from a given model and dataset.</span>
 
@@ -705,8 +727,6 @@
 <span class="sd">        model_type (str, optional): &#39;categorical&#39;, &#39;linear&#39;, or &#39;cph&#39;.</span>
 <span class="sd">            If multiple linear outcomes are present, y_true is stacked into a</span>
 <span class="sd">            single vector for each image. Defaults to &#39;categorical&#39;.</span>
-<span class="sd">        pred_args (namespace): Namespace containing slide_input,</span>
-<span class="sd">            update_corrects, and update_loss functions.</span>
 <span class="sd">        num_tiles (int, optional): Used for progress bar with Tensorflow.</span>
 <span class="sd">            Defaults to 0.</span>
 <span class="sd">        uq_n (int, optional): Number of forward passes to perform</span>
@@ -721,6 +741,9 @@
 <span class="sd">            names. Required for generating patient-level metrics.</span>
 <span class="sd">        outcome_names (list, optional): List of str, names for outcomes.</span>
 <span class="sd">            Defaults to None (outcomes will not be named).</span>
+<span class="sd">        torch_args (namespace): Used for PyTorch models. Namespace containing</span>
+<span class="sd">            num_slide_features, slide_input, update_corrects, and</span>
+<span class="sd">            update_loss functions.</span>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        pd.DataFrame, accuracy, loss</span>
@@ -731,23 +754,31 @@
             <span class="sa">f</span><span class="s1">&#39;model_type </span><span class="si">{</span><span class="n">model_type</span><span class="si">}</span><span class="s1">&#39;</span>
         <span class="p">)</span>
     <span class="k">if</span> <span class="n">sf</span><span class="o">.</span><span class="n">backend</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;tensorflow&#39;</span><span class="p">:</span>
-        <span class="kn">from</span> <span class="nn">slideflow.model.tensorflow_utils</span> <span class="kn">import</span> <span class="n">_eval_from_model</span>
+        <span class="kn">from</span> <span class="nn">slideflow.model</span> <span class="kn">import</span> <span class="n">tensorflow_utils</span>
+        <span class="n">df</span><span class="p">,</span> <span class="n">acc</span><span class="p">,</span> <span class="n">total_loss</span> <span class="o">=</span> <span class="n">tensorflow_utils</span><span class="o">.</span><span class="n">eval_from_model</span><span class="p">(</span>
+            <span class="n">model</span><span class="p">,</span>
+            <span class="n">dataset</span><span class="p">,</span>
+            <span class="n">model_type</span><span class="p">,</span>
+            <span class="n">loss</span><span class="o">=</span><span class="n">loss</span><span class="p">,</span>
+            <span class="n">num_tiles</span><span class="o">=</span><span class="n">num_tiles</span><span class="p">,</span>
+            <span class="n">uq</span><span class="o">=</span><span class="n">uq</span><span class="p">,</span>
+            <span class="n">uq_n</span><span class="o">=</span><span class="n">uq_n</span><span class="p">,</span>
+        <span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
-        <span class="kn">from</span> <span class="nn">slideflow.model.torch_utils</span> <span class="kn">import</span> <span class="n">_eval_from_model</span>  <span class="c1"># type:ignore</span>
-
-    <span class="n">df</span><span class="p">,</span> <span class="n">acc</span><span class="p">,</span> <span class="n">loss</span> <span class="o">=</span> <span class="n">_eval_from_model</span><span class="p">(</span>
-        <span class="n">model</span><span class="p">,</span>
-        <span class="n">dataset</span><span class="p">,</span>
-        <span class="n">model_type</span><span class="p">,</span>
-        <span class="n">pred_args</span><span class="p">,</span>
-        <span class="n">num_tiles</span><span class="o">=</span><span class="n">num_tiles</span><span class="p">,</span>
-        <span class="n">uq_n</span><span class="o">=</span><span class="n">uq_n</span><span class="p">,</span>
-        <span class="n">incl_loc</span><span class="o">=</span><span class="n">incl_loc</span>
-    <span class="p">)</span>
+        <span class="kn">from</span> <span class="nn">slideflow.model</span> <span class="kn">import</span> <span class="n">torch_utils</span>
+        <span class="n">df</span><span class="p">,</span> <span class="n">acc</span><span class="p">,</span> <span class="n">total_loss</span> <span class="o">=</span> <span class="n">torch_utils</span><span class="o">.</span><span class="n">eval_from_model</span><span class="p">(</span>
+            <span class="n">model</span><span class="p">,</span>
+            <span class="n">dataset</span><span class="p">,</span>
+            <span class="n">model_type</span><span class="p">,</span>
+            <span class="n">torch_args</span><span class="o">=</span><span class="n">torch_args</span><span class="p">,</span>
+            <span class="n">uq</span><span class="o">=</span><span class="n">uq</span><span class="p">,</span>
+            <span class="n">uq_n</span><span class="o">=</span><span class="n">uq_n</span><span class="p">,</span>
+        <span class="p">)</span>
 
     <span class="k">if</span> <span class="n">outcome_names</span> <span class="ow">or</span> <span class="n">model_type</span> <span class="o">==</span> <span class="s1">&#39;cph&#39;</span><span class="p">:</span>
         <span class="n">df</span> <span class="o">=</span> <span class="n">name_columns</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">model_type</span><span class="p">,</span> <span class="n">outcome_names</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">group_reduce</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="n">reduce_method</span><span class="p">,</span> <span class="n">patients</span><span class="o">=</span><span class="n">patients</span><span class="p">),</span> <span class="n">acc</span><span class="p">,</span> <span class="n">loss</span></div>
+    <span class="n">dfs</span> <span class="o">=</span> <span class="n">group_reduce</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="n">reduce_method</span><span class="p">,</span> <span class="n">patients</span><span class="o">=</span><span class="n">patients</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">dfs</span><span class="p">,</span> <span class="n">acc</span><span class="p">,</span> <span class="n">total_loss</span></div>
 
 
 <div class="viewcode-block" id="group_reduce"><a class="viewcode-back" href="../../../stats.html#slideflow.stats.group_reduce">[docs]</a><span class="k">def</span> <span class="nf">group_reduce</span><span class="p">(</span>
@@ -827,7 +858,7 @@
     <span class="n">data_dir</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="p">,</span>
     <span class="n">neptune_run</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="s2">&quot;neptune.Run&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">]]:</span>
-    <span class="sd">&quot;&quot;&quot;Generates metrics (R-squared) from a set of predictions.</span>
+    <span class="sd">&quot;&quot;&quot;Generates metrics (R^2, coefficient of determination) from predictions.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        df (pd.DataFrame): Pandas DataFrame containing labels, predictions,</span>
@@ -874,7 +905,8 @@
 
     <span class="c1"># Show results</span>
     <span class="k">for</span> <span class="n">o</span><span class="p">,</span> <span class="n">r</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">outcome_names</span><span class="p">,</span> <span class="n">r_squared</span><span class="p">):</span>
-        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[green]</span><span class="si">{</span><span class="n">o</span><span class="si">}</span><span class="s2">[/]: R-squared (</span><span class="si">{</span><span class="n">level</span><span class="si">}</span><span class="s2">-level): </span><span class="si">{</span><span class="n">r</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">r_str</span> <span class="o">=</span> <span class="s2">&quot;NA&quot;</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">r</span> <span class="k">else</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">r</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1">&#39;</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[green]</span><span class="si">{</span><span class="n">o</span><span class="si">}</span><span class="s2">[/]: R-squared (</span><span class="si">{</span><span class="n">level</span><span class="si">}</span><span class="s2">-level): </span><span class="si">{</span><span class="n">r_str</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
     <span class="k">return</span> <span class="p">{</span>
         <span class="s1">&#39;r_squared&#39;</span><span class="p">:</span> <span class="n">r_squared</span><span class="p">,</span>
@@ -886,14 +918,15 @@
     <span class="n">model_type</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">patients</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
     <span class="n">dataset</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="s2">&quot;tf.data.Dataset&quot;</span><span class="p">,</span> <span class="s2">&quot;torch.utils.data.DataLoader&quot;</span><span class="p">],</span>
-    <span class="n">pred_args</span><span class="p">:</span> <span class="n">SimpleNamespace</span><span class="p">,</span>
     <span class="n">num_tiles</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
     <span class="n">outcome_names</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">reduce_method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;average&#39;</span><span class="p">,</span>
     <span class="n">label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="p">,</span>
     <span class="n">save_predictions</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="n">data_dir</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="p">,</span>
-    <span class="n">incl_loc</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">uq</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">loss</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">torch_args</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">SimpleNamespace</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="o">**</span><span class="n">kwargs</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">Dict</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]:</span>
 
@@ -905,8 +938,6 @@
 <span class="sd">        model_type (str): &#39;categorical&#39;, &#39;linear&#39;, or &#39;cph&#39;.</span>
 <span class="sd">        patients (dict): Dictionary mapping slidenames to patients.</span>
 <span class="sd">        dataset (tf.data.Dataset or torch.utils.data.DataLoader): Dataset.</span>
-<span class="sd">        pred_args (namespace, optional): Additional arguments to tensorflow and</span>
-<span class="sd">            torch backends.</span>
 <span class="sd">        num_tiles (int, optional): Number of total tiles expected in dataset.</span>
 <span class="sd">            Used for progress bar. Defaults to 0.</span>
 
@@ -932,16 +963,17 @@
 <span class="sd">        metrics [dict], accuracy [float], loss [float]</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">_assert_model_type</span><span class="p">(</span><span class="n">model_type</span><span class="p">)</span>
-    <span class="n">dfs</span><span class="p">,</span> <span class="n">acc</span><span class="p">,</span> <span class="n">loss</span> <span class="o">=</span> <span class="n">eval_from_dataset</span><span class="p">(</span>
+    <span class="n">dfs</span><span class="p">,</span> <span class="n">acc</span><span class="p">,</span> <span class="n">total_loss</span> <span class="o">=</span> <span class="n">eval_dataset</span><span class="p">(</span>
         <span class="n">model</span><span class="p">,</span>
         <span class="n">dataset</span><span class="p">,</span>
         <span class="n">model_type</span><span class="p">,</span>
-        <span class="n">pred_args</span><span class="p">,</span>
+        <span class="n">uq</span><span class="o">=</span><span class="n">uq</span><span class="p">,</span>
+        <span class="n">loss</span><span class="o">=</span><span class="n">loss</span><span class="p">,</span>
         <span class="n">num_tiles</span><span class="o">=</span><span class="n">num_tiles</span><span class="p">,</span>
         <span class="n">patients</span><span class="o">=</span><span class="n">patients</span><span class="p">,</span>
         <span class="n">outcome_names</span><span class="o">=</span><span class="n">outcome_names</span><span class="p">,</span>
         <span class="n">reduce_method</span><span class="o">=</span><span class="n">reduce_method</span><span class="p">,</span>
-        <span class="n">incl_loc</span><span class="o">=</span><span class="n">incl_loc</span>
+        <span class="n">torch_args</span><span class="o">=</span><span class="n">torch_args</span><span class="p">,</span>
     <span class="p">)</span>
 
     <span class="c1"># Save predictions</span>
@@ -972,7 +1004,7 @@
         <span class="n">metrics</span> <span class="o">=</span> <span class="n">metrics_by_level</span><span class="p">(</span><span class="n">cph_metrics</span><span class="p">)</span>
 
     <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Metrics generation complete.&#39;</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">metrics</span><span class="p">,</span> <span class="n">acc</span><span class="p">,</span> <span class="n">loss</span></div>
+    <span class="k">return</span> <span class="n">metrics</span><span class="p">,</span> <span class="n">acc</span><span class="p">,</span> <span class="n">total_loss</span></div>
 
 
 <div class="viewcode-block" id="name_columns"><a class="viewcode-back" href="../../../stats.html#slideflow.stats.name_columns">[docs]</a><span class="k">def</span> <span class="nf">name_columns</span><span class="p">(</span>
@@ -1057,17 +1089,24 @@
     <span class="k">return</span> <span class="n">df</span></div>
 
 
-<div class="viewcode-block" id="predict_from_dataset"><a class="viewcode-back" href="../../../stats.html#slideflow.stats.predict_from_dataset">[docs]</a><span class="k">def</span> <span class="nf">predict_from_dataset</span><span class="p">(</span>
+<span class="k">def</span> <span class="nf">predict_from_dataset</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+        <span class="s2">&quot;`sf.stats.metrics.predict_from_dataset() is deprecated. Please use &quot;</span>
+        <span class="s2">&quot;`sf.stats.metrics.predict_dataset()` instead.&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">predict_dataset</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="predict_dataset"><a class="viewcode-back" href="../../../stats.html#slideflow.stats.predict_dataset">[docs]</a><span class="k">def</span> <span class="nf">predict_dataset</span><span class="p">(</span>
     <span class="n">model</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="s2">&quot;tf.keras.Model&quot;</span><span class="p">,</span> <span class="s2">&quot;torch.nn.Module&quot;</span><span class="p">],</span>
     <span class="n">dataset</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="s2">&quot;tf.data.Dataset&quot;</span><span class="p">,</span> <span class="s2">&quot;torch.utils.data.DataLoader&quot;</span><span class="p">],</span>
     <span class="n">model_type</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-    <span class="n">pred_args</span><span class="p">:</span> <span class="n">SimpleNamespace</span><span class="p">,</span>
     <span class="n">num_tiles</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="n">uq</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="n">uq_n</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">30</span><span class="p">,</span>
     <span class="n">reduce_method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;average&#39;</span><span class="p">,</span>
     <span class="n">patients</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">outcome_names</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">incl_loc</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">torch_args</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">SimpleNamespace</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">DataFrame</span><span class="p">]:</span>
     <span class="sd">&quot;&quot;&quot;Generates predictions from model and dataset.</span>
 
@@ -1077,8 +1116,6 @@
 <span class="sd">        model_type (str, optional): &#39;categorical&#39;, &#39;linear&#39;, or &#39;cph&#39;.</span>
 <span class="sd">            If multiple linear outcomes are present, y_true is stacked into a</span>
 <span class="sd">            single vector for each image. Defaults to &#39;categorical&#39;.</span>
-<span class="sd">        pred_args (namespace): Namespace containing slide_input,</span>
-<span class="sd">            update_corrects, and update_loss functions.</span>
 <span class="sd">        num_tiles (int, optional): Used for progress bar with Tensorflow.</span>
 <span class="sd">            Defaults to 0.</span>
 <span class="sd">        uq_n (int, optional): Number of forward passes to perform</span>
@@ -1093,6 +1130,8 @@
 <span class="sd">            names. Required for generating patient-level metrics.</span>
 <span class="sd">        outcome_names (list, optional): List of str, names for outcomes.</span>
 <span class="sd">            Defaults to None (outcomes will not be named).</span>
+<span class="sd">        torch_args (namespace): Used for PyTorch backend. Namespace containing</span>
+<span class="sd">            num_slide_features and slide_input.</span>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        Dict[str, pd.DataFrame]: Dictionary with keys &#39;tile&#39;, &#39;slide&#39;, and</span>
@@ -1106,19 +1145,24 @@
         <span class="p">)</span>
 
     <span class="k">if</span> <span class="n">sf</span><span class="o">.</span><span class="n">backend</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;tensorflow&#39;</span><span class="p">:</span>
-        <span class="kn">from</span> <span class="nn">slideflow.model.tensorflow_utils</span> <span class="kn">import</span> <span class="n">_predict_from_model</span>
+        <span class="kn">from</span> <span class="nn">slideflow.model</span> <span class="kn">import</span> <span class="n">tensorflow_utils</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">tensorflow_utils</span><span class="o">.</span><span class="n">predict_from_model</span><span class="p">(</span>
+            <span class="n">model</span><span class="p">,</span>
+            <span class="n">dataset</span><span class="p">,</span>
+            <span class="n">num_tiles</span><span class="o">=</span><span class="n">num_tiles</span><span class="p">,</span>
+            <span class="n">uq</span><span class="o">=</span><span class="n">uq</span><span class="p">,</span>
+            <span class="n">uq_n</span><span class="o">=</span><span class="n">uq_n</span><span class="p">,</span>
+        <span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
-        <span class="kn">from</span> <span class="nn">slideflow.model.torch_utils</span> <span class="kn">import</span> <span class="n">_predict_from_model</span>
-
-    <span class="n">df</span> <span class="o">=</span> <span class="n">_predict_from_model</span><span class="p">(</span>
-        <span class="n">model</span><span class="p">,</span>
-        <span class="n">dataset</span><span class="p">,</span>
-        <span class="n">model_type</span><span class="p">,</span>
-        <span class="n">pred_args</span><span class="p">,</span>
-        <span class="n">num_tiles</span><span class="o">=</span><span class="n">num_tiles</span><span class="p">,</span>
-        <span class="n">uq_n</span><span class="o">=</span><span class="n">uq_n</span><span class="p">,</span>
-        <span class="n">incl_loc</span><span class="o">=</span><span class="n">incl_loc</span>
-    <span class="p">)</span>
+        <span class="kn">from</span> <span class="nn">slideflow.model</span> <span class="kn">import</span> <span class="n">torch_utils</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">torch_utils</span><span class="o">.</span><span class="n">predict_from_model</span><span class="p">(</span>
+            <span class="n">model</span><span class="p">,</span>
+            <span class="n">dataset</span><span class="p">,</span>
+            <span class="n">model_type</span><span class="p">,</span>
+            <span class="n">torch_args</span><span class="o">=</span><span class="n">torch_args</span><span class="p">,</span>
+            <span class="n">uq</span><span class="o">=</span><span class="n">uq</span><span class="p">,</span>
+            <span class="n">uq_n</span><span class="o">=</span><span class="n">uq_n</span><span class="p">,</span>
+        <span class="p">)</span>
     <span class="k">if</span> <span class="n">outcome_names</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">model_type</span> <span class="o">==</span> <span class="s1">&#39;cph&#39;</span><span class="p">:</span>
         <span class="n">df</span> <span class="o">=</span> <span class="n">name_columns</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">model_type</span><span class="p">,</span> <span class="n">outcome_names</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">group_reduce</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="n">reduce_method</span><span class="p">,</span> <span class="n">patients</span><span class="o">=</span><span class="n">patients</span><span class="p">)</span></div>
@@ -1149,16 +1193,16 @@
 </pre></div>
 
              </article>
-             
+
             </div>
             <footer>
-  
 
-  
+
+
 
     <hr>
 
-  
+
 
   <div role="contentinfo">
     <p>
@@ -1166,11 +1210,11 @@
 
     </p>
   </div>
-    
+
       <div>
         Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
       </div>
-     
+
 
 </footer>
 
@@ -1180,28 +1224,29 @@
         <div class="pytorch-content-right" id="pytorch-content-right">
           <div class="pytorch-right-menu" id="pytorch-right-menu">
             <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
-              
+
             </div>
           </div>
         </div>
       </section>
     </div>
 
-  
 
 
-  
 
-     
+
+
+
        <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
          <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
          <script src="../../../_static/jquery.js"></script>
          <script src="../../../_static/underscore.js"></script>
          <script src="../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
          <script src="../../../_static/doctools.js"></script>
-     
+         <script src="../../../_static/sphinx_highlight.js"></script>
 
-  
+
+
 
   <script type="text/javascript" src="../../../_static/js/vendor/popper.min.js"></script>
   <script type="text/javascript" src="../../../_static/js/vendor/bootstrap.min.js"></script>
@@ -1212,7 +1257,7 @@
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script> 
+  </script>
 
   <!-- Begin Footer -->
 

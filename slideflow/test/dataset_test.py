@@ -299,6 +299,7 @@ class TestLabels(unittest.TestCase):
             self.assertTrue(all([isinstance(lbl[cat_idx], str) for lbl in labels.values()]))
             self.assertTrue(all([isinstance(lbl, str) for lbl in unique['category1']]))
 
+# -----------------------------------------------------------------------------
 
 if __name__ == '__main__':
     unittest.main()

@@ -9,9 +9,9 @@ class LogFormatter(logging.Formatter):
     LEVEL_FORMATS = {
         logging.DEBUG: f"[dim]{MSG_FORMAT}[/]",
         logging.INFO: MSG_FORMAT,
-        logging.WARNING: MSG_FORMAT,
-        logging.ERROR: MSG_FORMAT,
-        logging.CRITICAL: MSG_FORMAT
+        logging.WARNING: f"[yellow]{MSG_FORMAT}[/]",
+        logging.ERROR: f"[red]{MSG_FORMAT}[/]",
+        logging.CRITICAL: f"[red bold]{MSG_FORMAT}[/]"
     }
 
     def format(self, record):

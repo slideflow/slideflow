@@ -184,7 +184,7 @@ def convert_dtype(
     if not _valid_dtype(dtype):
         raise ValueError(f"Unrecognized dtype {dtype}. Expected: {_valid_str}")
     if not _valid_dtype(img.dtype):
-        raise ValueError(f"Image has unrecognized dtype {dtype}. "
+        raise ValueError(f"Image has unrecognized dtype {img.dtype}. "
                          f"Expected: {_valid_str}")
 
     # --- np.uint8 conversions ------------------------------------------------

@@ -6,24 +6,24 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  
-  <title>slideflow.grad &mdash; slideflow 1.2.3 documentation</title>
-  
 
-  
-  
-  
-  
+  <title>slideflow.grad &mdash; slideflow 1.3.0 documentation</title>
 
-  
 
-  
-  
-    
 
-  
+
+
+
+
+
+
+
+
+
+
+
 
   <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
   <!-- <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" /> -->
@@ -32,11 +32,11 @@
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
   <!-- Google Analytics -->
-  
-  <!-- End Google Analytics -->
-  
 
-  
+  <!-- End Google Analytics -->
+
+
+
   <script src="../../_static/js/modernizr.min.js"></script>
 
   <!-- Preload the theme fonts -->
@@ -64,6 +64,10 @@
   <script>
     window.dataLayer = window.dataLayer || [];
     function gtag(){dataLayer.push(arguments);}
+    gtag('consent', 'default', {
+      'ad_storage': 'denied',
+      'analytics_storage': 'denied'
+    });
     gtag('js', new Date());
 
     gtag('config', 'G-43E5QNVXH2');
@@ -98,9 +102,9 @@
 
 <body class="pytorch-body">
 
-   
 
-    
+
+
 
     <div class="table-of-contents-link-wrapper">
       <span>Table of Contents</span>
@@ -111,21 +115,21 @@
       <div class="pytorch-side-scroll">
         <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           <div class="pytorch-left-menu-search">
-            
 
-            
-              
-              
+
+
+
+
                 <div class="version">
-                  1.2
+                  1.3
                 </div>
-              
-            
-
-            
 
 
-  
+
+
+
+
+
 
 
 <div role="search">
@@ -136,27 +140,29 @@
   </form>
 </div>
 
-            
+
           </div>
 
-          
-            
-            
-              
-            
-            
+
+
+
+
+
+
               <p class="caption" role="heading"><span class="caption-text">Overview</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../pipeline.html">Pipeline Overview</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../project_setup.html">Setting up a Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../validation.html">Validation Planning</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../extract_tiles.html">Tile extraction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../extract_tiles.html">Tile Extraction</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../training.html">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../evaluation.html">Evaluation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../layer_activations.html">Features / layer activations</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../custom_loops.html">Custom training loops</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../uq.html">Uncertainty quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../layer_activations.html">Features / Layer Activations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../workbench_tools.html">Workbench: Visualization Tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../custom_loops.html">Custom Training Loops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../uq.html">Uncertainty Quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../stylegan.html">StyleGAN</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../clam.html">CLAM</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../troubleshooting.html">Troubleshooting</a></li>
 </ul>
@@ -176,6 +182,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../slide.html">slideflow.slide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../stats.html">slideflow.stats</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../util.html">slideflow.util</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../workbench.html">slideflow.workbench</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
 <ul>
@@ -184,10 +191,11 @@
 <li class="toctree-l1"><a class="reference internal" href="../../tutorial3.html">Tutorial 3: Using a custom architecture</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../tutorial4.html">Tutorial 4: Model evaluation &amp; heatmaps</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../tutorial5.html">Tutorial 5: Creating a mosaic map</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorial6.html">Tutorial 6: Custom slide filtering</a></li>
 </ul>
 
-            
-          
+
+
         </div>
       </div>
     </nav>
@@ -195,7 +203,7 @@
     <div class="pytorch-container">
       <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
         <div class="pytorch-breadcrumbs-wrapper">
-          
+
 
 
 
@@ -214,28 +222,28 @@
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="pytorch-breadcrumbs">
-    
+
       <li>
         <a href="../../index.html">
-          
+
             Docs
-          
+
         </a> &gt;
       </li>
 
-        
+
           <li><a href="../index.html">Module code</a> &gt;</li>
-        
+
       <li>slideflow.grad</li>
-    
-    
+
+
       <li class="pytorch-breadcrumbs-aside">
-        
+
       </li>
-    
+
   </ul>
 
-  
+
 </div>
         </div>
 
@@ -247,13 +255,13 @@
       <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
         <div class="pytorch-content-left">
 
-        
-          
+
+
           <div class="rst-content">
-          
+
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
-              
+
   <h1>Source code for slideflow.grad</h1><div class="highlight"><pre>
 <span></span><span class="sd">&quot;&quot;&quot;Submodule for calculating/displaying pixel attribution (saliency maps).&quot;&quot;&quot;</span>
 
@@ -262,11 +270,22 @@
 <span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">saliency.core</span> <span class="k">as</span> <span class="nn">saliency</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span>
 <span class="kn">from</span> <span class="nn">slideflow</span> <span class="kn">import</span> <span class="n">errors</span>
 <span class="kn">from</span> <span class="nn">slideflow.grad.plot_utils</span> <span class="kn">import</span> <span class="p">(</span><span class="n">comparison_plot</span><span class="p">,</span> <span class="n">inferno</span><span class="p">,</span> <span class="n">multi_plot</span><span class="p">,</span>
                                        <span class="n">oranges</span><span class="p">,</span> <span class="n">overlay</span><span class="p">,</span>
                                        <span class="n">saliency_map_comparison</span><span class="p">)</span>
 
+<span class="n">VANILLA</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">VANILLA_SMOOTH</span> <span class="o">=</span> <span class="mi">1</span>
+<span class="n">INTEGRATED_GRADIENTS</span> <span class="o">=</span> <span class="mi">2</span>
+<span class="n">INTEGRATED_GRADIENTS_SMOOTH</span> <span class="o">=</span> <span class="mi">3</span>
+<span class="n">GUIDED_INTEGRATED_GRADIENTS</span> <span class="o">=</span> <span class="mi">4</span>
+<span class="n">GUIDED_INTEGRATED_GRADIENTS_SMOOTH</span> <span class="o">=</span> <span class="mi">5</span>
+<span class="n">BLUR_INTEGRATED_GRADIENTS</span> <span class="o">=</span> <span class="mi">6</span>
+<span class="n">BLUR_INTEGRATED_GRADIENTS_SMOOTH</span> <span class="o">=</span> <span class="mi">7</span>
+<span class="n">XRAI</span> <span class="o">=</span> <span class="mi">8</span>
+<span class="n">XRAI_FAST</span> <span class="o">=</span> <span class="mi">9</span>
 
 <div class="viewcode-block" id="SaliencyMap"><a class="viewcode-back" href="../../grad.html#slideflow.grad.SaliencyMap">[docs]</a><span class="k">class</span> <span class="nc">SaliencyMap</span><span class="p">:</span>
 
@@ -288,7 +307,30 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">blur_ig</span> <span class="o">=</span> <span class="n">saliency</span><span class="o">.</span><span class="n">BlurIG</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">xrai_grads</span> <span class="o">=</span> <span class="n">saliency</span><span class="o">.</span><span class="n">XRAI</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">fast_xrai_params</span> <span class="o">=</span> <span class="n">saliency</span><span class="o">.</span><span class="n">XRAIParameters</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">fast_xrai_params</span><span class="o">.</span><span class="n">algorithm</span> <span class="o">=</span> <span class="s1">&#39;fast&#39;</span></div>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fast_xrai_params</span><span class="o">.</span><span class="n">algorithm</span> <span class="o">=</span> <span class="s1">&#39;fast&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_fn_map</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">VANILLA</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">vanilla</span><span class="p">,</span>
+            <span class="n">VANILLA_SMOOTH</span><span class="p">:</span> <span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">vanilla</span><span class="p">,</span> <span class="n">smooth</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+            <span class="n">INTEGRATED_GRADIENTS</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">integrated_gradients</span><span class="p">,</span>
+            <span class="n">INTEGRATED_GRADIENTS_SMOOTH</span><span class="p">:</span> <span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">integrated_gradients</span><span class="p">,</span> <span class="n">smooth</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+            <span class="n">GUIDED_INTEGRATED_GRADIENTS</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">guided_integrated_gradients</span><span class="p">,</span>
+            <span class="n">GUIDED_INTEGRATED_GRADIENTS_SMOOTH</span><span class="p">:</span> <span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">guided_integrated_gradients</span><span class="p">,</span> <span class="n">smooth</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+            <span class="n">BLUR_INTEGRATED_GRADIENTS</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">blur_integrated_gradients</span><span class="p">,</span>
+            <span class="n">BLUR_INTEGRATED_GRADIENTS_SMOOTH</span><span class="p">:</span> <span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">blur_integrated_gradients</span><span class="p">),</span>
+            <span class="n">XRAI</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">xrai</span><span class="p">,</span>
+            <span class="n">XRAI_FAST</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">xrai_fast</span>
+        <span class="p">}</span></div>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">model_backend</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">model_backend</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">device</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_backend</span> <span class="o">==</span> <span class="s1">&#39;tensorflow&#39;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">next</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">parameters</span><span class="p">())</span><span class="o">.</span><span class="n">device</span>
 
     <span class="k">def</span> <span class="nf">_grad_fn_torch</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
@@ -299,12 +341,12 @@
         <span class="sd">&quot;&quot;&quot;Calculate gradient attribution with PyTorch backend.&quot;&quot;&quot;</span>
         <span class="kn">import</span> <span class="nn">torch</span>
 
-        <span class="n">image</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">requires_grad</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>  <span class="c1"># type: ignore</span>
+        <span class="n">image</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">requires_grad</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>  <span class="c1"># type: ignore</span>
         <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">saliency</span><span class="o">.</span><span class="n">base</span><span class="o">.</span><span class="n">INPUT_OUTPUT_GRADIENTS</span> <span class="ow">in</span> <span class="n">expected_keys</span><span class="p">:</span>  <span class="c1"># type: ignore</span>
             <span class="n">outputs</span> <span class="o">=</span> <span class="n">output</span><span class="p">[:,</span> <span class="bp">self</span><span class="o">.</span><span class="n">class_idx</span><span class="p">]</span>
             <span class="n">grads</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">autograd</span><span class="o">.</span><span class="n">grad</span><span class="p">(</span><span class="n">outputs</span><span class="p">,</span> <span class="n">image</span><span class="p">,</span> <span class="n">grad_outputs</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="n">outputs</span><span class="p">))</span>  <span class="c1"># type: ignore</span>
-            <span class="n">gradients</span> <span class="o">=</span> <span class="n">grads</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+            <span class="n">gradients</span> <span class="o">=</span> <span class="n">grads</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
             <span class="k">return</span> <span class="p">{</span><span class="n">saliency</span><span class="o">.</span><span class="n">base</span><span class="o">.</span><span class="n">INPUT_OUTPUT_GRADIENTS</span><span class="p">:</span> <span class="n">gradients</span><span class="p">}</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="c1"># For Grad-CAM</span>
@@ -338,9 +380,9 @@
         <span class="n">expected_keys</span><span class="p">:</span> <span class="n">Dict</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Calculate gradient attribution.&quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="n">sf</span><span class="o">.</span><span class="n">backend</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;tensorflow&#39;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_backend</span> <span class="o">==</span> <span class="s1">&#39;tensorflow&#39;</span><span class="p">:</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_grad_fn_tf</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">call_model_args</span><span class="p">,</span> <span class="n">expected_keys</span><span class="p">)</span>
-        <span class="k">elif</span> <span class="n">sf</span><span class="o">.</span><span class="n">backend</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;torch&#39;</span><span class="p">:</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_backend</span> <span class="o">==</span> <span class="s1">&#39;torch&#39;</span><span class="p">:</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_grad_fn_torch</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">call_model_args</span><span class="p">,</span> <span class="n">expected_keys</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">UnrecognizedBackendError</span>
@@ -371,7 +413,7 @@
                 <span class="n">kwargs</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;x_baseline&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">_img</span><span class="o">.</span><span class="n">shape</span><span class="p">)})</span>
 
             <span class="n">out</span> <span class="o">=</span> <span class="n">mask_fn</span><span class="p">(</span><span class="n">_img</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_grad_fn</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">sf</span><span class="o">.</span><span class="n">backend</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;torch&#39;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_backend</span> <span class="o">==</span> <span class="s1">&#39;torch&#39;</span><span class="p">:</span>
                 <span class="n">out</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">out</span><span class="p">,</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>  <span class="c1"># CWH -&gt; WHC</span>
             <span class="k">return</span> <span class="n">out</span>
 
@@ -404,6 +446,9 @@
             <span class="s1">&#39;Blur Integrated Gradients&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">blur_integrated_gradients</span><span class="p">(</span><span class="n">img</span><span class="p">),</span>
             <span class="s1">&#39;Blur Integrated Gradients (Smooth)&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">blur_integrated_gradients</span><span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="n">smooth</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
         <span class="p">}</span></div>
+
+    <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">img</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">method</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fn_map</span><span class="p">[</span><span class="n">method</span><span class="p">](</span><span class="n">img</span><span class="p">)</span>
 
 <div class="viewcode-block" id="SaliencyMap.vanilla"><a class="viewcode-back" href="../../grad.html#slideflow.grad.SaliencyMap.vanilla">[docs]</a>    <span class="k">def</span> <span class="nf">vanilla</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
@@ -583,16 +628,16 @@
 </pre></div>
 
              </article>
-             
+
             </div>
             <footer>
-  
 
-  
+
+
 
     <hr>
 
-  
+
 
   <div role="contentinfo">
     <p>
@@ -600,11 +645,11 @@
 
     </p>
   </div>
-    
+
       <div>
         Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
       </div>
-     
+
 
 </footer>
 
@@ -614,28 +659,29 @@
         <div class="pytorch-content-right" id="pytorch-content-right">
           <div class="pytorch-right-menu" id="pytorch-right-menu">
             <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
-              
+
             </div>
           </div>
         </div>
       </section>
     </div>
 
-  
 
 
-  
 
-     
+
+
+
        <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
          <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
          <script src="../../_static/jquery.js"></script>
          <script src="../../_static/underscore.js"></script>
          <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
          <script src="../../_static/doctools.js"></script>
-     
+         <script src="../../_static/sphinx_highlight.js"></script>
 
-  
+
+
 
   <script type="text/javascript" src="../../_static/js/vendor/popper.min.js"></script>
   <script type="text/javascript" src="../../_static/js/vendor/bootstrap.min.js"></script>
@@ -646,7 +692,7 @@
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script> 
+  </script>
 
   <!-- Begin Footer -->
 

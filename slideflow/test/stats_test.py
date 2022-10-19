@@ -290,6 +290,7 @@ class TestMetrics(unittest.TestCase):
             metrics = sf.stats.metrics.cph_metrics(_df, level=level)
             self._assert_cph_metrics(metrics)
 
+# -----------------------------------------------------------------------------# -----------------------------------------------------------------------------
 
 if __name__ == '__main__':
     unittest.main()

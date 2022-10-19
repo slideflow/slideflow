@@ -18,7 +18,7 @@ The first step of model training is configuring a set of model parameters and hy
       ...
     )
 
-Use ``slideflow.Project.create_hp_sweep()`` to prepare a grid-search sweep, saving the configuration to a JSON file. For example, the following would configure a sweep with only two combinations; the first with a learning rate of 0.01, and the second with a learning rate of 0.001:
+Use :meth:`slideflow.Project.create_hp_sweep()` to prepare a grid-search sweep, saving the configuration to a JSON file. For example, the following would configure a sweep with only two combinations; the first with a learning rate of 0.01, and the second with a learning rate of 0.001:
 
 .. code-block:: python
 
@@ -59,7 +59,7 @@ Then, simply replace ``Project.train()`` with :meth:`slideflow.Project.smac_sear
 
     P.train(..., smac_configspace=cs)
 
-Available hyperparameters are listed in the :class:`slideflow.ModelParams` documentation.
+Available hyperparameters are listed in the :class:`slideflow.model.ModelParams` documentation.
 
 .. note::
 

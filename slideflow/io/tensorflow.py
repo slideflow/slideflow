@@ -2,6 +2,7 @@ import os
 import shutil
 from functools import partial
 from glob import glob
+import multiprocessing as mp
 from os import listdir
 from os.path import exists, isfile, join
 from random import randint, shuffle
@@ -15,7 +16,7 @@ from slideflow.io import gaussian
 from slideflow.io.io_utils import detect_tfrecord_format
 from slideflow.util import Labels
 from slideflow.util import log
-from rich.progress import track
+from rich.progress import track, Progress
 from rich import print as richprint
 
 import tensorflow as tf
@@ -42,6 +43,11 @@ def _bytes_feature(value: bytes) -> "Feature":
 def _int64_feature(value: int) -> "Feature":
     """Returns an int64_list from a bool / enum / int / uint."""
     return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
+
+
+def _apply_otsu(wsi):
+    wsi.qc('otsu')
+    return wsi
 
 
 def read_and_return_record(
@@ -357,7 +363,8 @@ def parser_from_labels(labels: Labels) -> Callable:
 
 
 def interleave(
-    tfrecords: List[str],
+    paths: List[str],
+    *,
     img_size: int,
     batch_size: Optional[int],
     prob_weights: Optional[Dict[str, float]] = None,
@@ -374,6 +381,10 @@ def interleave(
     num_parallel_reads: int = 4,
     deterministic: bool = False,
     drop_last: bool = False,
+    from_wsi: bool = False,
+    tile_um: Optional[int] = None,
+    rois: Optional[List[str]] = None,
+    roi_method: str = 'auto',
     **decode_kwargs: Any
 ) -> Iterable:
 
@@ -382,7 +393,8 @@ def interleave(
     Requires manifest for balancing. Assumes TFRecord files are named by slide.
 
     Args:
-        tfrecords (list(str)): List of paths to TFRecord files.
+        paths (list(str)): List of paths to TFRecord files or whole-slide
+            images.
         img_size (int): Image width in pixels.
         batch_size (int): Batch size.
         prob_weights (dict, optional): Dict mapping tfrecords to probability of
@@ -427,15 +439,18 @@ def interleave(
         drop_last (bool, optional): Drop the last non-full batch.
             Defaults to False.
     """
-    if not len(tfrecords):
+    if not len(paths):
         raise errors.TFRecordsNotFoundError
+    _path_type = "slides" if from_wsi else "tfrecords"
     log.debug(
-        f'Interleaving {len(tfrecords)} tfrecords: infinite={infinite}, '
-        f'num_parallel_reads={num_parallel_reads}'
-    )
+        f'Interleaving {len(paths)} {_path_type}: infinite={infinite}, '
+        f'num_parallel_reads={num_parallel_reads}')
+    if from_wsi and not tile_um:
+        raise ValueError("`tile_um` required for interleave() "
+                         "if `from_wsi=True`")
+
     if num_shards:
         log.debug(f'num_shards={num_shards}, shard_idx={shard_idx}')
-
     if isinstance(labels, dict):
         label_parser = parser_from_labels(labels)
     elif callable(labels) or labels is None:
@@ -443,36 +458,86 @@ def interleave(
     else:
         raise ValueError(
             f"Unrecognized type for labels: {type(labels)} (must be dict"
-            " or function)"
-        )
+            " or function)")
 
+    datasets = []
+    weights = [] if prob_weights else None  # type: Optional[List]
+
+    pb = Progress(transient=True)
+    if from_wsi:
+        read_task = pb.add_task('Reading slides...', total=len(paths), visible=False)
+        otsu_task = pb.add_task("Otsu thresholding...", total=len(paths), visible=False)
+    interleave_task = pb.add_task('Interleaving...', total=len(paths))
+    pb.start()
     with tf.device('cpu'):
-        # --- Get the base TFRecord parser, based on the first tfrecord -------
-        if not incl_loc:
-            features_to_return = ['image_raw', 'slide']
+        features_to_return = ['image_raw', 'slide']
+        if incl_loc:
+            features_to_return += ['loc_x', 'loc_y']
+
+        if from_wsi:
+            assert tile_um is not None
+            pb.update(read_task, visible=True)
+            pb.update(otsu_task, visible=True)
+
+            def base_parser(record):
+                return tuple([record[f] for f in features_to_return])
+
+            # Load slides and apply Otsu's thresholding
+            pool = mp.Pool(16 if os.cpu_count is None else os.cpu_count())
+            wsi_list = []
+            to_remove = []
+            otsu_list = []
+            for path in paths:
+                try:
+                    wsi = sf.WSI(
+                        path,
+                        img_size,
+                        tile_um,
+                        rois=rois,
+                        roi_method=roi_method,
+                        verbose=False
+                    )
+                    wsi_list += [wsi]
+                    pb.advance(read_task)
+                except errors.SlideLoadError as e:
+                    log.error(f"Error reading slide {path}: {e}")
+                    to_remove += [path]
+            for path in to_remove:
+                paths.remove(path)
+            for task in (read_task, otsu_task, interleave_task):
+                pb.update(task, total=len(paths))
+            for wsi in pool.imap(_apply_otsu, wsi_list):
+                otsu_list += [wsi]
+                pb.advance(otsu_task)
+            est_num_tiles = sum([wsi.estimated_num_tiles for wsi in otsu_list])
         else:
-            features_to_return = ['image_raw', 'slide', 'loc_x', 'loc_y']
-        base_parser = None
-        for i in range(len(tfrecords)):
-            if base_parser is not None:
-                continue
-            if i > 0:
-                log.debug(f"Unable to detect parser, trying again (n={i})...")
-            base_parser = get_tfrecord_parser(
-                tfrecords[i],
-                features_to_return,
-                img_size=img_size,
-                **decode_kwargs
-            )
-        datasets = []
-        weights = [] if prob_weights else None  # type: Optional[List]
-        for tfr in track(tfrecords,
-                         description='Interleaving...',
-                         transient=True):
-            tf_dts = tf.data.TFRecordDataset(
-                tfr,
-                num_parallel_reads=num_parallel_reads
-            )
+            base_parser = None  # type: ignore
+            for i in range(len(paths)):
+                if base_parser is not None:
+                    continue
+                if i > 0:
+                    log.debug(f"Failed to get parser, trying again (n={i})...")
+                base_parser = get_tfrecord_parser(
+                    paths[i],
+                    features_to_return,
+                    img_size=img_size,
+                    **decode_kwargs)
+
+        for t, tfr in enumerate(paths):
+            if from_wsi:
+                tf_dts = otsu_list[t].tensorflow(
+                    pool=pool,
+                    lazy_iter=True,
+                    incl_slidenames=True,
+                    grayspace_fraction=1,
+                    incl_loc=incl_loc,
+                )
+                tfr = sf.util.path_to_name(tfr)
+            else:
+                tf_dts = tf.data.TFRecordDataset(
+                    tfr,
+                    num_parallel_reads=num_parallel_reads
+                )
             if num_shards:
                 tf_dts = tf_dts.shard(num_shards, index=shard_idx)
             if clip:
@@ -484,6 +549,8 @@ def interleave(
             datasets += [tf_dts]
             if prob_weights:
                 weights += [prob_weights[tfr]]  # type: ignore
+            pb.advance(interleave_task)
+        pb.stop()
 
         # ------- Interleave and parse datasets -------------------------------
         sampled_dataset = tf.data.Dataset.sample_from_datasets(
@@ -513,6 +580,10 @@ def interleave(
             )
             if normalizer.vectorized:
                 dataset = dataset.unbatch()
+            if normalizer.method == 'macenko':
+                # Drop the images that causes an error, e.g. if eigen
+                # decomposition is unsuccessful.
+                dataset = dataset.apply(tf.data.experimental.ignore_errors())
 
         # ------- Standardize and augment images ------------------------------
         dataset = dataset.map(
@@ -528,7 +599,8 @@ def interleave(
         if batch_size:
             dataset = dataset.batch(batch_size, drop_remainder=drop_last)
         dataset = dataset.prefetch(tf.data.AUTOTUNE)
-
+        if from_wsi:
+            dataset.est_num_tiles = est_num_tiles
         return dataset
 
 
@@ -717,63 +789,6 @@ def checkpoint_to_tf_model(models_dir: str, model_name: str) -> None:
         pass
 
 
-def update_tfrecord_dir(
-    directory: str,
-    assign_slide: Optional[str] = None,
-) -> int:
-    """Updates tfrecords in a directory to have new slide names assigned to
-    all contained records.
-
-    Args:
-        directory (str): Directory containing TFRecords to update.
-        assign_slide (str, optional): Overwrite slide names in all records in
-            these TFrecord files with this new slide name. Defaults to None.
-
-    Returns:
-        int: Number of tfrecords updated.
-    """
-    log.warn("update_tfrecord_dir() is deprecated, use transform_tfrecord()")
-    if not exists(directory):
-        log.error(f"{directory} does not exist; unable to update tfrecords.")
-        return 0
-    else:
-        tfrecord_files = glob(join(directory, "*.tfrecords"))
-        for tfr in tfrecord_files:
-            update_tfrecord(tfr, assign_slide)
-        return len(tfrecord_files)
-
-
-def update_tfrecord(
-    tfrecord_file: str,
-    assign_slide: Optional[str] = None
-) -> None:
-    """Updates a single tfrecord with a new slide name.
-
-    Args:
-        tfrecord_file (str): TFrecord to update.
-        assign_slide (str, optional): Overwrite slide names in all records in
-            this TFrecord file with this new slide name. Defaults to None.
-    """
-    log.warn("update_tfrecord() is deprecated, use transform_tfrecord()")
-    shutil.move(tfrecord_file, tfrecord_file+".old")
-    dataset = tf.data.TFRecordDataset(tfrecord_file+".old")
-    writer = tf.io.TFRecordWriter(tfrecord_file)
-    parser = get_tfrecord_parser(
-        tfrecord_file+'.old',
-        decode_images=False,
-        to_numpy=True
-    )
-    for record in dataset:
-        slidename = bytes(assign_slide, 'utf-8') if assign_slide else None
-        writer.write(read_and_return_record(
-            record,
-            parser,  # type: ignore
-            assign_slide=slidename
-        ))
-    writer.close()
-    os.remove(tfrecord_file+'.old')
-
-
 def transform_tfrecord(
     origin: str,
     target: str,
@@ -797,6 +812,7 @@ def transform_tfrecord(
     parser = get_tfrecord_parser(
         origin,
         ('slide', 'image_raw', 'loc_x', 'loc_y'),
+        decode_images=(hue_shift is not None or resize is not None),
         error_if_invalid=False,
         to_numpy=True
     )

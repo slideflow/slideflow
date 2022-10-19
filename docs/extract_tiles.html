@@ -6,24 +6,25 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  
+  <meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  
-  <title>Tile extraction &mdash; slideflow 1.2.3 documentation</title>
-  
 
-  
-  
-  
-  
+  <title>Tile Extraction &mdash; slideflow 1.3.0 documentation</title>
 
-  
 
-  
-  
-    
 
-  
+
+
+
+
+
+
+
+
+
+
+
 
   <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <!-- <link rel="stylesheet" href="_static/pygments.css" type="text/css" /> -->
@@ -34,11 +35,11 @@
     <link rel="next" title="Training" href="training.html" />
     <link rel="prev" title="Validation Planning" href="validation.html" />
   <!-- Google Analytics -->
-  
-  <!-- End Google Analytics -->
-  
 
-  
+  <!-- End Google Analytics -->
+
+
+
   <script src="_static/js/modernizr.min.js"></script>
 
   <!-- Preload the theme fonts -->
@@ -66,6 +67,10 @@
   <script>
     window.dataLayer = window.dataLayer || [];
     function gtag(){dataLayer.push(arguments);}
+    gtag('consent', 'default', {
+      'ad_storage': 'denied',
+      'analytics_storage': 'denied'
+    });
     gtag('js', new Date());
 
     gtag('config', 'G-43E5QNVXH2');
@@ -100,9 +105,9 @@
 
 <body class="pytorch-body">
 
-   
 
-    
+
+
 
     <div class="table-of-contents-link-wrapper">
       <span>Table of Contents</span>
@@ -113,21 +118,21 @@
       <div class="pytorch-side-scroll">
         <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           <div class="pytorch-left-menu-search">
-            
 
-            
-              
-              
+
+
+
+
                 <div class="version">
-                  1.2
+                  1.3
                 </div>
-              
-            
-
-            
 
 
-  
+
+
+
+
+
 
 
 <div role="search">
@@ -138,27 +143,29 @@
   </form>
 </div>
 
-            
+
           </div>
 
-          
-            
-            
-              
-            
-            
+
+
+
+
+
+
               <p class="caption" role="heading"><span class="caption-text">Overview</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="pipeline.html">Pipeline Overview</a></li>
 <li class="toctree-l1"><a class="reference internal" href="project_setup.html">Setting up a Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="validation.html">Validation Planning</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Tile extraction</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Tile Extraction</a></li>
 <li class="toctree-l1"><a class="reference internal" href="training.html">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="evaluation.html">Evaluation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="layer_activations.html">Features / layer activations</a></li>
-<li class="toctree-l1"><a class="reference internal" href="custom_loops.html">Custom training loops</a></li>
-<li class="toctree-l1"><a class="reference internal" href="uq.html">Uncertainty quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="layer_activations.html">Features / Layer Activations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="workbench_tools.html">Workbench: Visualization Tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="custom_loops.html">Custom Training Loops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="uq.html">Uncertainty Quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="stylegan.html">StyleGAN</a></li>
 <li class="toctree-l1"><a class="reference internal" href="clam.html">CLAM</a></li>
 <li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
 </ul>
@@ -178,6 +185,7 @@
 <li class="toctree-l1"><a class="reference internal" href="slide.html">slideflow.slide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="stats.html">slideflow.stats</a></li>
 <li class="toctree-l1"><a class="reference internal" href="util.html">slideflow.util</a></li>
+<li class="toctree-l1"><a class="reference internal" href="workbench.html">slideflow.workbench</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
 <ul>
@@ -186,10 +194,11 @@
 <li class="toctree-l1"><a class="reference internal" href="tutorial3.html">Tutorial 3: Using a custom architecture</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorial4.html">Tutorial 4: Model evaluation &amp; heatmaps</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorial5.html">Tutorial 5: Creating a mosaic map</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial6.html">Tutorial 6: Custom slide filtering</a></li>
 </ul>
 
-            
-          
+
+
         </div>
       </div>
     </nav>
@@ -197,7 +206,7 @@
     <div class="pytorch-container">
       <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
         <div class="pytorch-breadcrumbs-wrapper">
-          
+
 
 
 
@@ -216,30 +225,30 @@
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="pytorch-breadcrumbs">
-    
+
       <li>
         <a href="index.html">
-          
+
             Docs
-          
+
         </a> &gt;
       </li>
 
-        
-      <li>Tile extraction</li>
-    
-    
+
+      <li>Tile Extraction</li>
+
+
       <li class="pytorch-breadcrumbs-aside">
-        
-            
+
+
             <a href="_sources/extract_tiles.rst.txt" rel="nofollow"><img src="_static/images/view-page-source-icon.svg"></a>
-          
-        
+
+
       </li>
-    
+
   </ul>
 
-  
+
 </div>
         </div>
 
@@ -251,15 +260,19 @@
       <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
         <div class="pytorch-content-left">
 
-        
-          
+
+
           <div class="rst-content">
-          
+
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
-              
-  <div class="section" id="tile-extraction">
-<span id="filtering"></span><h1>Tile extraction<a class="headerlink" href="#tile-extraction" title="Permalink to this heading">¶</a></h1>
+
+  <section id="tile-extraction">
+<span id="filtering"></span><h1>Tile Extraction<a class="headerlink" href="#tile-extraction" title="Permalink to this heading">¶</a></h1>
+<img alt="_images/tile_extraction_overview.png" src="_images/tile_extraction_overview.png" />
+<div class="line-block">
+<div class="line"><br /></div>
+</div>
 <p>The next step is tile extraction using the <code class="docutils literal notranslate"><span class="pre">extract_tiles()</span></code> function. The only arguments required are <code class="docutils literal notranslate"><span class="pre">tile_px</span></code> and <code class="docutils literal notranslate"><span class="pre">tile_um</span></code>, which determine the size of the extracted image tiles in pixels and microns, respectively:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">P</span><span class="o">.</span><span class="n">extract_tiles</span><span class="p">(</span><span class="n">tile_px</span><span class="o">=</span><span class="mi">299</span><span class="p">,</span> <span class="n">tile_um</span><span class="o">=</span><span class="mi">302</span><span class="p">)</span>
 </pre></div>
@@ -301,14 +314,14 @@
 <code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.dataset.Dataset.extract_tiles()</span></code> on a
 <a class="reference internal" href="dataset.html#slideflow.Dataset" title="slideflow.dataset.Dataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.dataset.Dataset</span></code></a> directly.</p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>tile_px</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a>) – Size of tiles to extract, in pixels.</p></li>
 <li><p><strong>tile_um</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Size of tiles to extract, in microns (int) or
 magnification (str, e.g. “20x”).</p></li>
 </ul>
 </dd>
-<dt class="field-even">Keyword Arguments</dt>
+<dt class="field-even">Keyword Arguments<span class="colon">:</span></dt>
 <dd class="field-even"><ul class="simple">
 <li><p><strong>save_tiles</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Save tile images in loose format.
 Defaults to False.</p></li>
@@ -389,25 +402,28 @@ magnification level at which quality control is performed.
 Defaults to mpp=4 (effective magnification 2.5 X)</p></li>
 <li><p><strong>dry_run</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Determine tiles that would be extracted,
 but do not export any images. Defaults to None.</p></li>
+<li><p><strong>max_tiles</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Only extract this many tiles per slide.
+Defaults to None.</p></li>
 </ul>
 </dd>
-<dt class="field-odd">Returns</dt>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
 <dd class="field-odd"><p>Dictionary mapping slide paths to each slide’s SlideReport
 (<a class="reference internal" href="slide.html#slideflow.slide.report.SlideReport" title="slideflow.slide.report.SlideReport"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.slide.report.SlideReport</span></code></a>)</p>
 </dd>
 </dl>
 </dd></dl>
 
-<div class="section" id="rois">
+<section id="rois">
 <h2>ROIs<a class="headerlink" href="#rois" title="Permalink to this heading">¶</a></h2>
 <p>By default, slides with valid ROIs will only have tiles extracted from within ROIs, and slides without ROIs will have tiles extracted across the whole-slide image. To skip slides that are missing ROIs, set <code class="docutils literal notranslate"><span class="pre">roi_method='inside'</span></code>. To ignore ROIs entirely and extract tiles from whole-slide images, set <code class="docutils literal notranslate"><span class="pre">roi_method='ignore'</span></code>. You can alternatively extract <em>outside</em> the annotated ROIs with <code class="docutils literal notranslate"><span class="pre">roi_method='outside'</span></code>.</p>
-</div>
-<div class="section" id="stain-normalization">
-<h2>Stain Normalization<a class="headerlink" href="#stain-normalization" title="Permalink to this heading">¶</a></h2>
+</section>
+<section id="stain-normalization">
+<h2>Stain normalization<a class="headerlink" href="#stain-normalization" title="Permalink to this heading">¶</a></h2>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>See <a class="reference internal" href="norm.html#module-slideflow.norm" title="slideflow.norm"><code class="xref py py-mod docutils literal notranslate"><span class="pre">slideflow.norm</span></code></a> for more information about stain normalization functions.</p>
+<p>See <a class="reference internal" href="norm.html#module-slideflow.norm" title="slideflow.norm"><code class="xref py py-mod docutils literal notranslate"><span class="pre">slideflow.norm</span></code></a> for comparisons & benchmarks of stain normalization methods.</p>
 </div>
+<img alt="_images/wsi_norm_compare.jpg" src="_images/wsi_norm_compare.jpg" />
 <p>Image tiles can undergo digital H&amp;E stain normalization either during tile extraction or in real-time during training. Real-time normalization adds CPU overhead during training and inference but offers greater flexibility, allowing you to test different normalization strategies without re-extracting tiles from your entire dataset.</p>
 <p>To normalize tiles during tile extraction, use the <code class="docutils literal notranslate"><span class="pre">normalizer</span></code> and <code class="docutils literal notranslate"><span class="pre">normalizer_source</span></code> arguments; <code class="docutils literal notranslate"><span class="pre">normalizer</span></code> is the name of the algorithm to use. A path to a normalization reference image may optionally be provided through <code class="docutils literal notranslate"><span class="pre">normalizer_source</span></code>. Available stain normalization algorithms include:</p>
 <ul class="simple">
@@ -431,24 +447,32 @@ but do not export any images. Defaults to None.</p></li>
 </div>
 <p>If a normalizer was used during model training, the appropriate information will be stored in the model metadata file, <code class="docutils literal notranslate"><span class="pre">params.json</span></code>, located in the saved model folder. Any Slideflow function that uses this model will then process images using the same normalization strategy.</p>
 <p>The normalizer interfaces can also be access directly through <a class="reference internal" href="norm.html#slideflow.norm.StainNormalizer" title="slideflow.norm.StainNormalizer"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.norm.StainNormalizer</span></code></a>. See <a class="reference internal" href="norm.html#module-slideflow.norm" title="slideflow.norm"><code class="xref py py-mod docutils literal notranslate"><span class="pre">slideflow.norm</span></code></a> for examples and more information.</p>
-</div>
-<div class="section" id="background-filtering">
+</section>
+<section id="background-filtering">
 <h2>Background filtering<a class="headerlink" href="#background-filtering" title="Permalink to this heading">¶</a></h2>
+<img alt="_images/otsu.png" src="_images/otsu.png" />
+<div class="line-block">
+<div class="line"><br /></div>
+</div>
 <p>Slide background can be detected and filtered by two types of methods - <strong>tile-based methods</strong> and <strong>slide-based methods</strong>.</p>
 <p>Whitespace and grayspace filtering are two <strong>tile-based methods</strong> that detect the amount of whitespace or grayspace in a given image tile, discarding the tile if the content exceeds a set threshold. Whitespace is calculated using overall brightness for each pixel, then counting the fraction of pixels with a brightness above some threshold. Grayspace is calculated by converting RGB images to the HSV spectrum, then counting the fraction of pixels with a saturation below some threshold. This filtering is performed separately for each tile as it is being extracted. Grayspace filtering is the default background filtering behavior. The arguments <code class="docutils literal notranslate"><span class="pre">whitespace_fraction</span></code>, <code class="docutils literal notranslate"><span class="pre">whitespace_threshold</span></code>, <code class="docutils literal notranslate"><span class="pre">grayspace_fraction</span></code>, and <code class="docutils literal notranslate"><span class="pre">grayspace_threshold</span></code> are used for these methods, as described in the documentation for the tile extraction function (<a class="reference internal" href="dataset.html#slideflow.Dataset.extract_tiles" title="slideflow.Dataset.extract_tiles"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.Dataset.extract_tiles()</span></code></a>).</p>
 <p>Alternatively, Otsu’s thresholding is a <strong>slide-based method</strong> that distinguishes foreground (tissue) from background (empty slide). Otsu’s thresholding is performed in the HSV colorspace and yields similar results to grayspace filtering. Otsu’s thresholding is ~30% faster than grayspace filtering for slides with accessible downsample layers, but if downsample layers are not stored in a given slide or are inaccessible (e.g. <code class="docutils literal notranslate"><span class="pre">enable_downsample=False</span></code>), grayspace filtering may be faster. To use Otsu’s thresholding, set the argument <code class="docutils literal notranslate"><span class="pre">qc='otsu'</span></code> (and disable grayspace filtering by setting <code class="docutils literal notranslate"><span class="pre">grayspace_threshold=1</span></code>)</p>
-</div>
-<div class="section" id="quality-control">
+</section>
+<section id="quality-control">
 <h2>Quality control<a class="headerlink" href="#quality-control" title="Permalink to this heading">¶</a></h2>
+<img alt="_images/blur.png" src="_images/blur.png" />
+<div class="line-block">
+<div class="line"><br /></div>
+</div>
 <p>In addition to background filtering, additional blur-detection quality control can be used to identify artifact (pen marks) or out-of-focus areas. If annotated Regions of Interest (ROIs) are not available for your dataset, blur detection should be enabled in order to ensure that high quality image tiles are extracted. If ROIs <em>are</em> available, it may be unnecessary. Blur detection may increase tile extraction time by 50% or more.</p>
 <p>To use blur detection QC, set <code class="docutils literal notranslate"><span class="pre">qc='blur'</span></code> (or <code class="docutils literal notranslate"><span class="pre">qc='both'</span></code> if also using Otsu’s thresholding).</p>
 <p>If both Otsu’s thresholding and blur detection are being used, Slideflow will automatically calculate Blur Burden, a metric used to assess the degree to which non-background tiles are either out-of-focus or contain artifact. In the tile extraction PDF report that is generated, the distribution of blur burden for slides in the dataset will be plotted on the first page. The report will contain the number of slides meeting criteria for warning, when the blur burden exceeds 5% for a given slide. A text file containing names of slides with high blur burden will be saved in the exported TFRecords directory. These slides should be manually reviewed to ensure they are of high enough quality to include in the dataset.</p>
-</div>
-<div class="section" id="performance-optimization">
+</section>
+<section id="performance-optimization">
 <h2>Performance optimization<a class="headerlink" href="#performance-optimization" title="Permalink to this heading">¶</a></h2>
 <p>The <code class="docutils literal notranslate"><span class="pre">libvips</span></code> library is used for all slide reading and tile extraction. As tile extraction is heavily reliant on random access reading, significant performance gains can be experienced by either 1) moving all slides to an SSD, or 2) utilizing an SSD or ramdisk buffer (to which slides will be copied prior to extraction). The use of a ramdisk buffer can improve tile extraction speed by 10-fold or greater! To maximize performance, pass the buffer path to the argument <code class="docutils literal notranslate"><span class="pre">buffer</span></code>.</p>
-</div>
-<div class="section" id="extraction-reports">
+</section>
+<section id="extraction-reports">
 <h2>Extraction reports<a class="headerlink" href="#extraction-reports" title="Permalink to this heading">¶</a></h2>
 <p>Once tiles have been extracted, a PDF report will be generated with a summary and sample of tiles extracted from their corresponding slides. An example of such a report is given below. Reviewing this report may enable you to identify data corruption, artifacts with stain normalization, or suboptimal background filtering. The report is saved in the TFRecords directory.</p>
 <img alt="_images/example_report_small.jpg" src="_images/example_report_small.jpg" />
@@ -458,30 +482,30 @@ but do not export any images. Defaults to None.</p></li>
 </pre></div>
 </div>
 <p>You can also generate reports for slides that have not yet been extracted by passing <code class="docutils literal notranslate"><span class="pre">dry_run=True</span></code> to <a class="reference internal" href="dataset.html#slideflow.Dataset.extract_tiles" title="slideflow.Dataset.extract_tiles"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Dataset.extract_tiles()</span></code></a>.</p>
-</div>
-</div>
+</section>
+</section>
 
 
              </article>
-             
+
             </div>
             <footer>
-  
-    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-      
-        <a href="training.html" class="btn btn-neutral float-right" title="Training" accesskey="n" rel="next">Next <img src="_static/images/chevron-right-orange.svg" class="next-page"></a>
-      
-      
-        <a href="validation.html" class="btn btn-neutral" title="Validation Planning" accesskey="p" rel="prev"><img src="_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
-      
-    </div>
-  
 
-  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+
+        <a href="training.html" class="btn btn-neutral float-right" title="Training" accesskey="n" rel="next">Next <img src="_static/images/chevron-right-orange.svg" class="next-page"></a>
+
+
+        <a href="validation.html" class="btn btn-neutral" title="Validation Planning" accesskey="p" rel="prev"><img src="_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
+
+    </div>
+
+
+
 
     <hr>
 
-  
+
 
   <div role="contentinfo">
     <p>
@@ -489,11 +513,11 @@ but do not export any images. Defaults to None.</p></li>
 
     </p>
   </div>
-    
+
       <div>
         Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
       </div>
-     
+
 
 </footer>
 
@@ -504,9 +528,9 @@ but do not export any images. Defaults to None.</p></li>
           <div class="pytorch-right-menu" id="pytorch-right-menu">
             <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
               <ul>
-<li><a class="reference internal" href="#">Tile extraction</a><ul>
+<li><a class="reference internal" href="#">Tile Extraction</a><ul>
 <li><a class="reference internal" href="#rois">ROIs</a></li>
-<li><a class="reference internal" href="#stain-normalization">Stain Normalization</a></li>
+<li><a class="reference internal" href="#stain-normalization">Stain normalization</a></li>
 <li><a class="reference internal" href="#background-filtering">Background filtering</a></li>
 <li><a class="reference internal" href="#quality-control">Quality control</a></li>
 <li><a class="reference internal" href="#performance-optimization">Performance optimization</a></li>
@@ -521,21 +545,22 @@ but do not export any images. Defaults to None.</p></li>
       </section>
     </div>
 
-  
 
 
-  
 
-     
+
+
+
        <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
          <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
          <script src="_static/jquery.js"></script>
          <script src="_static/underscore.js"></script>
          <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
          <script src="_static/doctools.js"></script>
-     
+         <script src="_static/sphinx_highlight.js"></script>
 
-  
+
+
 
   <script type="text/javascript" src="_static/js/vendor/popper.min.js"></script>
   <script type="text/javascript" src="_static/js/vendor/bootstrap.min.js"></script>
@@ -546,7 +571,7 @@ but do not export any images. Defaults to None.</p></li>
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script> 
+  </script>
 
   <!-- Begin Footer -->
 

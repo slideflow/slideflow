@@ -12,6 +12,7 @@ from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
+import multiprocessing as mp
 import slideflow as sf
 import slideflow.model.base as _base
 import slideflow.util.neptune_utils
@@ -19,12 +20,12 @@ from packaging import version
 from slideflow import errors
 from slideflow.model import tensorflow_utils as tf_utils
 from slideflow.model.base import log_manifest, no_scope
-from slideflow.model.tensorflow_utils import unwrap
-from slideflow.util import NormFit, Path
-from slideflow.util import log
+from slideflow.model.tensorflow_utils import unwrap, flatten  # type: ignore
+from slideflow.util import log, NormFit
 
 import tensorflow as tf
 from tensorflow.keras import applications as kapps
+from slideflow.model.tensorflow_utils import eval_from_model
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -250,7 +251,8 @@ class ModelParams(_base._ModelParams):
 
     def _build_base(
         self,
-        pretrain: Optional[str] = 'imagenet'
+        pretrain: Optional[str] = 'imagenet',
+        load_method: str = 'full'
     ) -> tf.keras.Model:
         """"Builds the base image model, from a Keras model core, with the
         appropriate input tensors and identity layers.
@@ -258,6 +260,14 @@ class ModelParams(_base._ModelParams):
         Args:
             pretrain (str, optional): Pretrained weights to load.
                 Defaults to 'imagenet'.
+            load_method (str): Either 'full' or 'weights'. Method to use
+                when loading a Tensorflow model. If 'full', loads the model with
+                ``tf.keras.models.load_model()``. If 'weights', will read the
+                ``params.json``configuration file, build the model architecture,
+                and then load weights from the given model with
+                ``Model.load_weights()``. Loading with 'full' may improve
+                compatibility across Slideflow versions. Loading with 'weights'
+                may improve compatibility across hardware & environments.
 
         Returns:
             tf.keras.Model: Base model.
@@ -267,7 +277,7 @@ class ModelParams(_base._ModelParams):
         if pretrain:
             log.info(f'Using pretraining from [magenta]{pretrain}')
         if pretrain and pretrain != 'imagenet':
-            pretrained_model = tf.keras.models.load_model(pretrain)
+            pretrained_model = load(pretrain, method=load_method)
             try:
                 # This is the tile_image input
                 pretrained_input = pretrained_model.get_layer(name='tile_image').input
@@ -316,7 +326,8 @@ class ModelParams(_base._ModelParams):
         num_slide_features: int = 0,
         activation: str = 'softmax',
         pretrain: str = 'imagenet',
-        checkpoint: Optional[str] = None
+        checkpoint: Optional[str] = None,
+        load_method: str = 'full'
     ) -> tf.keras.Model:
         """Assembles categorical or linear model, using pretraining (imagenet)
         or the base layers of a supplied model.
@@ -333,8 +344,16 @@ class ModelParams(_base._ModelParams):
                 pretraining. Defaults to 'imagenet'.
             checkpoint (str): Path to checkpoint from which to resume model
                 training. Defaults to None.
+            load_method (str): Either 'full' or 'weights'. Method to use
+                when loading a Tensorflow model. If 'full', loads the model with
+                ``tf.keras.models.load_model()``. If 'weights', will read the
+                ``params.json``configuration file, build the model architecture,
+                and then load weights from the given model with
+                ``Model.load_weights()``. Loading with 'full' may improve
+                compatibility across Slideflow versions. Loading with 'weights'
+                may improve compatibility across hardware & environments.
         """
-        tile_image_model, model_inputs = self._build_base(pretrain)
+        tile_image_model, model_inputs = self._build_base(pretrain, load_method)
         if num_slide_features:
             log.debug(f'Model has {num_slide_features} slide input features')
             slide_feature_input_tensor = tf.keras.Input(
@@ -412,7 +431,8 @@ class ModelParams(_base._ModelParams):
         num_classes: Union[int, Dict[Any, int]],
         num_slide_features: int = 1,
         pretrain: Optional[str] = None,
-        checkpoint: Optional[str] = None
+        checkpoint: Optional[str] = None,
+        load_method: str = 'full'
     ) -> tf.keras.Model:
         """Assembles a Cox Proportional Hazards (CPH) model, using pretraining
         (imagenet) or the base layers of a supplied model.
@@ -429,9 +449,17 @@ class ModelParams(_base._ModelParams):
                 pretraining. Defaults to 'imagenet'.
             checkpoint (str): Path to checkpoint from which to resume model
                 training. Defaults to None.
+            load_method (str): Either 'full' or 'weights'. Method to use
+                when loading a Tensorflow model. If 'full', loads the model with
+                ``tf.keras.models.load_model()``. If 'weights', will read the
+                ``params.json``configuration file, build the model architecture,
+                and then load weights from the given model with
+                ``Model.load_weights()``. Loading with 'full' may improve
+                compatibility across Slideflow versions. Loading with 'weights'
+                may improve compatibility across hardware & environments.
         """
         activation = 'linear'
-        tile_image_model, model_inputs = self._build_base(pretrain)
+        tile_image_model, model_inputs = self._build_base(pretrain, load_method)
 
         # Add slide feature input tensors, if there are more slide features
         #    than just the event input tensor for CPH models
@@ -530,6 +558,14 @@ class ModelParams(_base._ModelParams):
                 as pretraining. Defaults to 'imagenet'.
             checkpoint (str, optional): Path to checkpoint from which to resume
                 model training. Defaults to None.
+            load_method (str): Either 'full' or 'weights'. Method to use
+                when loading a Tensorflow model. If 'full', loads the model with
+                ``tf.keras.models.load_model()``. If 'weights', will read the
+                ``params.json``configuration file, build the model architecture,
+                and then load weights from the given model with
+                ``Model.load_weights()``. Loading with 'full' may improve
+                compatibility across Slideflow versions. Loading with 'weights'
+                may improve compatibility across hardware & environments.
         """
 
         assert num_classes is not None or labels is not None
@@ -577,7 +613,6 @@ class ModelParams(_base._ModelParams):
 
 
 class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
-    # TODO: log early stopping batch number, and record
 
     """Prediction and Evaluation Callback used during model training."""
 
@@ -599,24 +634,33 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
         self.neptune_run = self.parent.neptune_run
         self.global_step = 0
 
+        # Circumvents buffer overflow error with Python 3.10.
+        # Without this, a buffer overflow error will be encountered when
+        # attempting to make a matplotlib figure (with the tkagg backend)
+        # during model evaluation. I have not yet been able to track down
+        # the root cause.
+        if self.cb_args.using_validation:
+            import matplotlib.pyplot as plt
+            plt.figure()
+            plt.close()
+
     def _metrics_from_dataset(
         self,
         epoch_label: str,
-        pred_args: SimpleNamespace
     ) -> Tuple[Dict, float, float]:
         return sf.stats.metrics_from_dataset(
             self.model,
             model_type=self.hp.model_type(),
             patients=self.parent.patients,
-            dataset=self.cb_args.validation_data_with_slidenames,
+            dataset=self.cb_args.validation_data,
             outcome_names=self.parent.outcome_names,
             label=epoch_label,
             data_dir=self.parent.outdir,
             num_tiles=self.cb_args.num_val_tiles,
             save_predictions=self.cb_args.save_predictions,
             reduce_method=self.cb_args.reduce_method,
-            pred_args=pred_args,
-            incl_loc=True,
+            loss=self.hp.get_loss(),
+            uq=bool(self.hp.uq),
         )
 
     def on_epoch_end(self, epoch: int, logs={}) -> None:
@@ -699,12 +743,21 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
         if (self.cb_args.using_validation and self.cb_args.validate_on_batch
            and (batch > 0)
            and (batch % self.cb_args.validate_on_batch == 0)):
-            val_metrics = self.model.evaluate(
+            _, acc, loss = eval_from_model(
+                self.model,
                 self.cb_args.validation_data,
-                verbose=0,
+                model_type=self.hp.model_type(),
+                uq=False,
+                loss=self.hp.get_loss(),
                 steps=self.cb_args.validation_steps,
-                return_dict=True
+                verbosity='quiet',
             )
+            val_metrics = {'loss': loss}
+            if isinstance(acc, float):
+                val_metrics['accuracy'] = acc
+            elif acc is not None:
+                val_metrics.update({f'accuracy-{i+1}': acc[i] for i in range(len(acc))})
+
             val_loss = val_metrics['loss']
             self.model.stop_training = False
             if (self.hp.early_stop_method == 'accuracy'
@@ -820,10 +873,7 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
     def evaluate_model(self, logs={}) -> None:
         log.debug("Evaluating model from evaluation callback")
         epoch = self.epoch_count
-        metrics, acc, loss = self._metrics_from_dataset(
-            f'val_epoch{epoch}',
-            SimpleNamespace(loss=self.hp.get_loss(), uq=bool(self.hp.uq))
-        )
+        metrics, acc, loss = self._metrics_from_dataset(f'val_epoch{epoch}')
 
         # Note that Keras loss during training includes regularization losses,
         # so this loss will not match validation loss calculated during training
@@ -943,10 +993,12 @@ class Trainer:
         feature_names: Optional[List[str]] = None,
         outcome_names: Optional[List[str]] = None,
         mixed_precision: bool = True,
+        allow_tf32: bool = False,
         config: Dict[str, Any] = None,
         use_neptune: bool = False,
         neptune_api: Optional[str] = None,
-        neptune_workspace: Optional[str] = None
+        neptune_workspace: Optional[str] = None,
+        load_method: str = 'full'
     ) -> None:
 
         """Sets base configuration, preparing model inputs and outputs.
@@ -974,8 +1026,18 @@ class Trainer:
                 "Outcome {X}" for each outcome.
             mixed_precision (bool, optional): Use FP16 mixed precision (rather
                 than FP32). Defaults to True.
+            allow_tf32 (bool): Allow internal use of Tensorfloat-32 format.
+                Defaults to False.
+            load_method (str): Either 'full' or 'weights'. Method to use
+                when loading a Tensorflow model. If 'full', loads the model with
+                ``tf.keras.models.load_model()``. If 'weights', will read the
+                ``params.json``configuration file, build the model architecture,
+                and then load weights from the given model with
+                ``Model.load_weights()``. Loading with 'full' may improve
+                compatibility across Slideflow versions. Loading with 'weights'
+                may improve compatibility across hardware & environments.
             config (dict, optional): Training configuration dictionary, used
-                for logging. Defaults to None.
+                for logging and image format verification. Defaults to None.
             use_neptune (bool, optional): Use Neptune API logging.
                 Defaults to False
             neptune_api (str, optional): Neptune API token, used for logging.
@@ -983,6 +1045,11 @@ class Trainer:
             neptune_workspace (str, optional): Neptune workspace.
                 Defaults to None.
         """
+
+        if load_method not in ('full', 'weights'):
+            raise ValueError("Unrecognized value for load_method, must be "
+                             "either 'full' or 'weights'.")
+
         self.outdir = outdir
         self.manifest = manifest
         self.tile_px = hp.tile_px
@@ -994,10 +1061,12 @@ class Trainer:
         self.feature_sizes = feature_sizes
         self.num_slide_features = 0 if not feature_sizes else sum(feature_sizes)
         self.mixed_precision = mixed_precision
+        self._allow_tf32 = allow_tf32
         self.name = name
         self.neptune_run = None
         self.annotations_tables = []
         self.eval_callback = _PredictionAndEvaluationCallback  # type: tf.keras.callbacks.Callback
+        self.load_method = load_method
 
         if patients:
             self.patients = patients
@@ -1043,6 +1112,7 @@ class Trainer:
         if self.normalizer:
             log.info(f'Using realtime {self.hp.normalizer} normalization')
 
+        # Mixed precision and Tensorfloat-32
         if self.mixed_precision:
             _policy = 'mixed_float16'
             log.debug(f'Enabling mixed precision ({_policy})')
@@ -1051,6 +1121,7 @@ class Trainer:
             else:
                 policy = tf.keras.mixed_precision.experimental.Policy(_policy)
                 tf.keras.mixed_precision.experimental.set_policy(policy)
+        tf.config.experimental.enable_tensor_float_32_execution(allow_tf32)
 
         # Log parameters
         if config is None:
@@ -1059,8 +1130,9 @@ class Trainer:
                 'hp': self.hp.get_dict(),
                 'backend': sf.backend()
             }
-        self.config = config
         sf.util.write_json(config, join(self.outdir, 'params.json'))
+        self.config = config
+        self.img_format = config['img_format'] if 'img_format' in config else None
 
         # Initialize Neptune
         self.use_neptune = use_neptune
@@ -1158,7 +1230,6 @@ class Trainer:
     def _retrain_top_layers(
         self,
         train_data: tf.data.Dataset,
-        validation_data: tf.data.Dataset,
         steps_per_epoch: int,
         callbacks: tf.keras.callbacks.Callback = None,
         epochs: int = 1
@@ -1167,7 +1238,7 @@ class Trainer:
         log.info('Retraining top layer')
         # Freeze the base layer
         self.model.layers[0].trainable = False
-        val_steps = 200 if validation_data else None
+        #val_steps = 200 if validation_data else None
         self._compile_model()
 
         toplayer_model = self.model.fit(
@@ -1175,8 +1246,6 @@ class Trainer:
             epochs=epochs,
             verbose=(sf.getLoggingLevel() <= 20),
             steps_per_epoch=steps_per_epoch,
-            validation_data=validation_data,
-            validation_steps=val_steps,
             callbacks=callbacks
         )
         # Unfreeze the base layer
@@ -1206,15 +1275,27 @@ class Trainer:
         )
         return vars(args)
 
+    def _verify_img_format(self, dataset: "sf.Dataset") -> None:
+        if self.img_format and not dataset.img_format:
+            log.warning("Unable to verify image format (PNG/JPG) of dataset.")
+        elif self.img_format and dataset.img_format != self.img_format:
+            log.error(
+                "Mismatched image formats. Expected '{}' per model config, "
+                "but dataset has format '{}'.".format(
+                    self.img_format,
+                    dataset.img_format))
+
     def load(self, model: str) -> tf.keras.Model:
-        self.model = tf.keras.models.load_model(model)
+        self.model = load(model, method=self.load_method)
 
     def predict(
         self,
         dataset: "sf.Dataset",
         batch_size: Optional[int] = None,
         norm_fit: Optional[NormFit] = None,
-        format: str = 'parquet'
+        format: str = 'parquet',
+        from_wsi: bool = False,
+        roi_method: str = 'auto',
     ) -> "pd.DataFrame":
         """Perform inference on a model, saving tile-level predictions.
 
@@ -1229,6 +1310,18 @@ class Trainer:
                 model params (if applicable). Defaults to None.
             format (str, optional): Format in which to save predictions. Either
                 'csv', 'feather', or 'parquet'. Defaults to 'parquet'.
+            from_wsi (bool): Generate predictions from tiles dynamically
+                extracted from whole-slide images, rather than TFRecords.
+                Defaults to False (use TFRecords).
+            roi_method (str): ROI method to use if from_wsi=True (ignored if
+                from_wsi=False).  Either 'inside', 'outside', 'auto', 'ignore'.
+                If 'inside' or 'outside', will extract tiles in/out of an ROI,
+                and raise errors.MissingROIError if an ROI is not available.
+                If 'auto', will extract tiles inside an ROI if available,
+                and across the whole-slide if no ROI is found.
+                If 'ignore', will extract tiles across the whole-slide
+                regardless of whether an ROI is available.
+                Defaults to 'auto'.
 
         Returns:
             pandas.DataFrame of tile-level predictions.
@@ -1236,6 +1329,9 @@ class Trainer:
 
         if format not in ('csv', 'feather', 'parquet'):
             raise ValueError(f"Unrecognized format {format}")
+
+        # Verify image format
+        self._verify_img_format(dataset)
 
         # Fit normalizer
         self._fit_normalizer(norm_fit)
@@ -1259,25 +1355,22 @@ class Trainer:
             )
             tf_dts_w_slidenames = dataset.tensorflow(
                 incl_slidenames=True,
-                incl_loc=True,
+                from_wsi=from_wsi,
+                roi_method=roi_method,
                 **interleave_kwargs
             )
         # Generate predictions
         log.info('Generating predictions...')
-        pred_args = SimpleNamespace(uq=bool(self.hp.uq))
-        dfs = sf.stats.predict_from_dataset(
+        dfs = sf.stats.predict_dataset(
             model=self.model,
             dataset=tf_dts_w_slidenames,
             model_type=self._model_type,
-            pred_args=pred_args,
+            uq=bool(self.hp.uq),
             num_tiles=dataset.num_tiles,
             outcome_names=self.outcome_names,
-            incl_loc=True
         )
-
         # Save predictions
         sf.stats.metrics.save_dfs(dfs, format=format, outdir=self.outdir)
-
         return dfs
 
     def evaluate(
@@ -1287,7 +1380,9 @@ class Trainer:
         save_predictions: Union[bool, str] = 'parquet',
         reduce_method: str = 'average',
         norm_fit: Optional[NormFit] = None,
-        uq: Union[bool, str] = 'auto'
+        uq: Union[bool, str] = 'auto',
+        from_wsi: bool = False,
+        roi_method: str = 'auto',
     ) -> Dict[str, Any]:
         """Evaluate model, saving metrics and predictions.
 
@@ -1320,6 +1415,13 @@ class Trainer:
             if not isinstance(uq, bool):
                 raise ValueError(f"Unrecognized value {uq} for uq")
             self.hp.uq = uq
+
+        # Verify image format
+        self._verify_img_format(dataset)
+
+        # Perform evaluation
+        _unit_type = 'slides' if from_wsi else 'tfrecords'
+        log.info(f'Evaluating {len(dataset.tfrecords())} {_unit_type}')
 
         # Fit normalizer
         self._fit_normalizer(norm_fit)
@@ -1358,6 +1460,8 @@ class Trainer:
             tf_dts_w_slidenames = dataset.tensorflow(
                 incl_slidenames=True,
                 incl_loc=True,
+                from_wsi=from_wsi,
+                roi_method=roi_method,
                 **interleave_kwargs
             )
         # Generate performance metrics
@@ -1367,15 +1471,11 @@ class Trainer:
             num_tiles=dataset.num_tiles,
             label='eval'
         )
-        pred_args = SimpleNamespace(
-            loss=self.hp.get_loss(),
-            uq=bool(self.hp.uq)
-        )
         metrics, acc, loss = sf.stats.metrics_from_dataset(
             save_predictions=save_predictions,
-            pred_args=pred_args,
             reduce_method=reduce_method,
-            incl_loc=True,
+            loss=self.hp.get_loss(),
+            uq=bool(self.hp.uq),
             **metric_kwargs
         )
         results = {'eval': {}}  # type: Dict[str, Dict[str, float]]
@@ -1429,6 +1529,8 @@ class Trainer:
         multi_gpu: bool = False,
         reduce_method: str = 'average',
         norm_fit: Optional[NormFit] = None,
+        from_wsi: bool = False,
+        roi_method: str = 'auto',
     ):
         """Builds and trains a model from hyperparameters.
 
@@ -1469,9 +1571,9 @@ class Trainer:
                 model from which to load weights. Defaults to 'imagenet'.
             checkpoint (str, optional): Path to cp.ckpt from which to load
                 weights. Defaults to None.
-            save_checkpoint(bool, optional): Save checkpoints at each epoch.
+            save_checkpoint (bool, optional): Save checkpoints at each epoch.
                 Defaults to True.
-            multi_gpu(bool, optional): Enable multi-GPU training using
+            multi_gpu (bool, optional): Enable multi-GPU training using
                 Tensorflow/Keras MirroredStrategy.
             reduce_method (str, optional): Reduction method for calculating
                 slide-level and patient-level predictions for categorical outcomes.
@@ -1517,10 +1619,15 @@ class Trainer:
             sf.util.write_json(config, config_path)
 
         # Save training / validation manifest
-        val_tfrecords = None if val_dts is None else val_dts.tfrecords()
+        if val_dts is None:
+            val_paths = None
+        elif from_wsi:
+            val_paths = val_dts.slide_paths()
+        else:
+            val_paths = val_dts.tfrecords()
         log_manifest(
             train_dts.tfrecords(),
-            val_tfrecords,
+            val_paths,
             labels=self.labels,
             filename=join(self.outdir, 'slide_manifest.csv')
         )
@@ -1552,7 +1659,7 @@ class Trainer:
             strategy = None
 
         with strategy.scope() if strategy else no_scope():
-            # Build model from ModeLParams
+            # Build model from ModelParams
             if resume_training:
                 self.model = tf.keras.load_model(resume_training)
             else:
@@ -1560,7 +1667,8 @@ class Trainer:
                     labels=self.labels,
                     num_slide_features=self.num_slide_features,
                     pretrain=pretrain,
-                    checkpoint=checkpoint
+                    checkpoint=checkpoint,
+                    load_method=self.load_method
                 )
                 self.model = model
                 tf_utils.log_summary(model, self.neptune_run)
@@ -1569,12 +1677,16 @@ class Trainer:
                 t_kwargs = self._interleave_kwargs(
                     batch_size=self.hp.batch_size,
                     infinite=True,
-                    augment=self.hp.augment
+                    augment=self.hp.augment,
+                    from_wsi=from_wsi,
+                    roi_method=roi_method
                 )
                 train_data = train_dts.tensorflow(drop_last=True, **t_kwargs)
 
             # Set up validation data
-            using_validation = (val_dts and len(val_dts.tfrecords()))
+            using_validation = (val_dts
+                                and (len(val_dts.tfrecords()) if not from_wsi
+                                     else len(val_dts.slide_paths())))
             if using_validation:
                 assert val_dts is not None
                 with tf.name_scope('input'):
@@ -1583,10 +1695,11 @@ class Trainer:
                     v_kwargs = self._interleave_kwargs_val(
                         batch_size=validation_batch_size,
                         infinite=False,
-                        augment=False
+                        augment=False,
+                        from_wsi=from_wsi,
+                        roi_method=roi_method
                     )
-                    val_data = val_dts.tensorflow(**v_kwargs)
-                    val_data_w_slidenames = val_dts.tensorflow(
+                    validation_data = val_dts.tensorflow(
                         incl_slidenames=True,
                         incl_loc=True,
                         drop_last=True,
@@ -1598,21 +1711,23 @@ class Trainer:
                 else:
                     log.debug('Validation during training: at epoch end')
                 if validation_steps:
-                    validation_data_for_training = val_data.repeat()
                     num_samples = validation_steps * self.hp.batch_size
                     log.debug(f'Using {validation_steps} batches ({num_samples}'
                               ' samples) each validation check')
                 else:
-                    validation_data_for_training = val_data
                     log.debug('Using entire validation set each val check')
             else:
                 log.debug('Validation during training: None')
-                validation_data_for_training = None
-                val_data = None
-                val_data_w_slidenames = None
+                validation_data = None
                 validation_steps = 0
 
             # Calculate parameters
+            if from_wsi:
+                train_tiles = train_data.est_num_tiles
+                val_tiles = validation_data.est_num_tiles
+            else:
+                train_tiles = train_dts.num_tiles
+                val_tiles = 0 if val_dts is None else val_dts.num_tiles
             if max(self.hp.epochs) <= starting_epoch:
                 max_epoch = max(self.hp.epochs)
                 log.error(f'Starting epoch ({starting_epoch}) cannot be greater'
@@ -1626,19 +1741,18 @@ class Trainer:
             if steps_per_epoch_override:
                 steps_per_epoch = steps_per_epoch_override
             else:
-                steps_per_epoch = round(train_dts.num_tiles/self.hp.batch_size)
+                steps_per_epoch = round(train_tiles / self.hp.batch_size)
 
             cb_args = SimpleNamespace(
                 starting_epoch=starting_epoch,
                 using_validation=using_validation,
                 validate_on_batch=validate_on_batch,
-                validation_data=val_data,
                 validation_steps=validation_steps,
                 ema_observations=ema_observations,
                 ema_smoothing=ema_smoothing,
                 steps_per_epoch=steps_per_epoch,
-                validation_data_with_slidenames=val_data_w_slidenames,
-                num_val_tiles=(0 if val_dts is None else val_dts.num_tiles),
+                validation_data=validation_data,
+                num_val_tiles=val_tiles,
                 save_predictions=save_predictions,
                 save_model=save_model,
                 results_log=results_log,
@@ -1672,7 +1786,6 @@ class Trainer:
             if self.hp.toplayer_epochs:
                 self._retrain_top_layers(
                     train_data,
-                    validation_data_for_training,
                     steps_per_epoch,
                     callbacks=None,
                     epochs=self.hp.toplayer_epochs
@@ -1687,14 +1800,11 @@ class Trainer:
                     epochs=total_epochs,
                     verbose=(sf.getLoggingLevel() <= 20),
                     initial_epoch=self.hp.toplayer_epochs,
-                    validation_data=validation_data_for_training,
-                    validation_steps=validation_steps,
                     callbacks=callbacks
                 )
             except tf.errors.ResourceExhaustedError as e:
-                log.debug(e)
-                log.error(f"Training failed for [bold]{self.name}[/], "
-                          "GPU memory exceeded.")
+                log.error(f"Training failed for [bold]{self.name}[/]. "
+                          f"Error: \n {e}")
             results = val_callback.results
             if self.use_neptune and self.neptune_run is not None:
                 self.neptune_run['results'] = results['epochs']
@@ -1791,18 +1901,21 @@ class CPHTrainer(LinearTrainer):
                 )
 
     def load(self, model: str) -> tf.keras.Model:
-        custom_objects = {
-            'negative_log_likelihood': tf_utils.negative_log_likelihood,
-            'concordance_index': tf_utils.concordance_index
-        }
-        self.model = tf.keras.models.load_model(
-            model,
-            custom_objects=custom_objects
-        )
-        self.model.compile(
-            loss=tf_utils.negative_log_likelihood,
-            metrics=tf_utils.concordance_index
-        )
+        if self.load_method == 'full':
+            custom_objects = {
+                'negative_log_likelihood': tf_utils.negative_log_likelihood,
+                'concordance_index': tf_utils.concordance_index
+            }
+            self.model = tf.keras.models.load_model(
+                model,
+                custom_objects=custom_objects
+            )
+            self.model.compile(
+                loss=tf_utils.negative_log_likelihood,
+                metrics=tf_utils.concordance_index
+            )
+        else:
+            self.model = load(model, method=self.load_method)
 
     def _compile_model(self) -> None:
         self.model.compile(optimizer=self.hp.get_opt(),
@@ -1897,9 +2010,11 @@ class Features:
 
     def __init__(
         self,
-        path: Optional[Path],
+        path: Optional[str],
         layers: Optional[Union[str, List[str]]] = 'postconv',
-        include_logits: bool = False
+        include_logits: bool = False,
+        load_method: str = 'full',
+        pooling: Optional[Any] = None
     ) -> None:
         """Creates a features interface from a saved slideflow model which
         outputs feature activations at the designated layers.
@@ -1914,6 +2029,14 @@ class Features:
                 via 'postconv'. Defaults to 'postconv'.
             include_logits (bool, optional): Include logits in output. Will be
                 returned last. Defaults to False.
+            load_method (str): Either 'full' or 'weights'. Method to use
+                when loading a Tensorflow model. If 'full', loads the model with
+                ``tf.keras.models.load_model()``. If 'weights', will read the
+                ``params.json``configuration file, build the model architecture,
+                and then load weights from the given model with
+                ``Model.load_weights()``. Loading with 'full' may improve
+                compatibility across Slideflow versions. Loading with 'weights'
+                may improve compatibility across hardware & environments.
         """
         self.path = path
         self.num_logits = 0
@@ -1922,7 +2045,7 @@ class Features:
         self.img_format = None
         log.debug('Setting up Features interface')
         if path is not None:
-            self._model = tf.keras.models.load_model(self.path)
+            self._model = load(self.path, method=load_method)  # type: ignore
             config = sf.util.get_model_config(path)
             if 'img_format' in config:
                 self.img_format = config['img_format']
@@ -1936,7 +2059,7 @@ class Features:
                 else:
                     self.wsi_normalizer.set_fit(**config['norm_fit'])
             self._build(
-                layers=layers, include_logits=include_logits  # type: ignore
+                layers=layers, include_logits=include_logits, pooling=pooling  # type: ignore
             )
 
     @classmethod
@@ -1945,7 +2068,8 @@ class Features:
         model: tf.keras.Model,
         layers: Optional[Union[str, List[str]]] = 'postconv',
         include_logits: bool = False,
-        wsi_normalizer: Optional["StainNormalizer"] = None
+        wsi_normalizer: Optional["StainNormalizer"] = None,
+        pooling: Optional[Any] = None
     ):
         """Creates a features interface from a loaded slideflow model which
         outputs feature activations at the designated layers.
@@ -1968,9 +2092,10 @@ class Features:
         if isinstance(model, tf.keras.models.Model):
             obj._model = model
         else:
-            raise errors.ModelError("Model is not a valid Tensorflow model.")
+            raise errors.ModelError(f"Model {model} is not a valid Tensorflow "
+                                    "model.")
         obj._build(
-            layers=layers, include_logits=include_logits  # type: ignore
+            layers=layers, include_logits=include_logits, pooling=pooling  # type: ignore
         )
         obj.wsi_normalizer = wsi_normalizer
         return obj
@@ -1995,6 +2120,9 @@ class Features:
         img_format: str = 'auto',
         batch_size: int = 32,
         dtype: type = np.float16,
+        grid: Optional[np.ndarray] = None,
+        shuffle: bool = False,
+        show_progress: bool = True,
         **kwargs
     ) -> Optional[np.ndarray]:
         """Generate activations from slide => activation grid array."""
@@ -2009,17 +2137,24 @@ class Features:
         elif img_format == 'auto':
             assert self.img_format is not None
             img_format = self.img_format
+        if img_format == 'png':  # PNG is lossless; this is equivalent but faster
+            log.debug("Using numpy image format instead of PNG")
+            img_format = 'numpy'
         total_out = self.num_features + self.num_logits + self.num_uncertainty
-        features_grid = np.ones((
-                slide.grid.shape[1],
-                slide.grid.shape[0],
-                total_out),
-            dtype=dtype)
-        features_grid *= -1
+        if grid is None:
+            features_grid = np.ones((
+                    slide.grid.shape[1],
+                    slide.grid.shape[0],
+                    total_out),
+                dtype=dtype)
+            features_grid *= -1
+        else:
+            assert grid.shape == (slide.grid.shape[1], slide.grid.shape[0], total_out)
+            features_grid = grid
         generator = slide.build_generator(
-            shuffle=False,
-            show_progress=True,
             img_format=img_format,
+            shuffle=shuffle,
+            show_progress=show_progress,
             **kwargs
         )
         if not generator:
@@ -2034,52 +2169,81 @@ class Features:
                 }
 
         @tf.function
-        def _parse_function(record):
+        def _parse(record):
             image = record['image']
             if img_format.lower() in ('jpg', 'jpeg'):
                 image = tf.image.decode_jpeg(image, channels=3)
-            elif img_format.lower() in ('png',):
-                image = tf.image.decode_png(image, channels=3)
+            image.set_shape([slide.tile_px, slide.tile_px, 3])
             loc = record['grid']
-            if self.wsi_normalizer:
-                image = self.wsi_normalizer.tf_to_tf(image)
+            return image, loc
+
+        @tf.function
+        def _standardize(image, loc):
             parsed_image = tf.image.per_image_standardization(image)
-            parsed_image.set_shape([slide.tile_px, slide.tile_px, 3])
             return parsed_image, loc
 
         # Generate dataset from the generator
         with tf.name_scope('dataset_input'):
             output_signature = {
-                'image': tf.TensorSpec(shape=(), dtype=tf.string),
                 'grid': tf.TensorSpec(shape=(2), dtype=tf.uint32)
             }
+            if img_format.lower() in ('jpg', 'jpeg'):
+                output_signature.update({
+                    'image': tf.TensorSpec(shape=(), dtype=tf.string)
+                })
+            else:
+                output_signature.update({
+                    'image': tf.TensorSpec(shape=(slide.tile_px,
+                                                  slide.tile_px,
+                                                  3),
+                                           dtype=tf.uint8)
+                })
             tile_dataset = tf.data.Dataset.from_generator(
                 tile_generator,
                 output_signature=output_signature
             )
             tile_dataset = tile_dataset.map(
-                _parse_function,
-                num_parallel_calls=8
+                _parse,
+                num_parallel_calls=tf.data.AUTOTUNE,
+                deterministic=True
+            )
+            if self.wsi_normalizer:
+                if self.wsi_normalizer.vectorized:
+                    log.info("Using vectorized normalization")
+                    norm_batch_size = 32 if not batch_size else batch_size
+                    tile_dataset = tile_dataset.batch(norm_batch_size, drop_remainder=False)
+                else:
+                    log.info("Using per-image normalization")
+                tile_dataset = tile_dataset.map(
+                    self.wsi_normalizer.tf_to_tf,
+                    num_parallel_calls=tf.data.AUTOTUNE,
+                    deterministic=True
+                )
+                if self.wsi_normalizer.vectorized:
+                    tile_dataset = tile_dataset.unbatch()
+                if self.wsi_normalizer.method == 'macenko':
+                    # Drop the images that causes an error, e.g. if eigen
+                    # decomposition is unsuccessful.
+                    tile_dataset = tile_dataset.apply(tf.data.experimental.ignore_errors())
+            tile_dataset = tile_dataset.map(
+                _standardize,
+                num_parallel_calls=tf.data.AUTOTUNE,
+                deterministic=True
             )
             tile_dataset = tile_dataset.batch(batch_size, drop_remainder=False)
             tile_dataset = tile_dataset.prefetch(8)
 
-        act_arr = []
-        loc_arr = []
         for i, (batch_images, batch_loc) in enumerate(tile_dataset):
             model_out = self._predict(batch_images)
             if not isinstance(model_out, (list, tuple)):
                 model_out = [model_out]
-            act_arr += [np.concatenate([m.numpy() for m in model_out], axis=-1)]
-            loc_arr += [batch_loc.numpy()]
 
-        act_arr = np.concatenate(act_arr)
-        loc_arr = np.concatenate(loc_arr)
-
-        for i, act in enumerate(act_arr):
-            xi = loc_arr[i][0]
-            yi = loc_arr[i][1]
-            features_grid[yi][xi] = act
+            _act_batch = np.concatenate([m.numpy() for m in model_out], axis=-1)
+            _loc_batch = batch_loc.numpy()
+            for i, act in enumerate(_act_batch):
+                xi = _loc_batch[i][0]
+                yi = _loc_batch[i][1]
+                features_grid[yi][xi] = act
 
         return features_grid
 
@@ -2091,36 +2255,67 @@ class Features:
     def _build(
         self,
         layers: Optional[Union[str, List[str]]],
-        include_logits: bool = True
+        include_logits: bool = True,
+        pooling: Optional[Any] = None
     ) -> None:
         """Builds the interface model that outputs feature activations at the
         designated layers and/or logits. Intermediate layers are returned in
         the order of layers. Logits are returned last."""
+
+        if isinstance(pooling, str):
+            if pooling == 'avg':
+                pooling = tf.keras.layers.GlobalAveragePooling2D
+            elif pooling == 'max':
+                pooling = tf.keras.layers.GlobalMaxPool2D
+            else:
+                raise ValueError(f"Unrecognized pooling value {pooling}. "
+                                 "Expected 'avg', 'max', or Keras layer.")
+
         if layers and not isinstance(layers, list):
             layers = [layers]
         if layers:
+            if 'postconv' in layers:
+                layers[layers.index('postconv')] = 'post_convolution'  # type: ignore
             log.debug(f"Setting up interface to return activations from layers "
                       f"{', '.join(layers)}")
-            other_layers = [la for la in layers if la != 'postconv']
         else:
-            other_layers = []
+            layers = []
+
+        def pool_if_3d(tensor):
+            if pooling is not None and len(tensor.shape) == 4:
+                return pooling()(tensor)
+            else:
+                return tensor
+
+        # Find the desired layers
         outputs = {}
-        if layers:
+        outer_layer_outputs = {
+            self._model.layers[i].name: self._model.layers[i].output
+            for i in range(len(self._model.layers))
+        }
+        core_layer_outputs = {}
+        inner_layers = [la for la in layers if la not in outer_layer_outputs]
+        if inner_layers:
             intermediate_core = tf.keras.models.Model(
                 inputs=self._model.layers[1].input,
                 outputs=[
-                    self._model.layers[1].get_layer(ol).output
-                    for ol in other_layers
+                    pool_if_3d(self._model.layers[1].get_layer(il).output)
+                    for il in inner_layers
                 ]
             )
-            if len(other_layers) > 1:
+            if len(inner_layers) > 1:
                 int_out = intermediate_core(self._model.input)
-                for la, layer in enumerate(other_layers):
-                    outputs[layer] = int_out[la]
-            elif len(other_layers):
-                outputs[other_layers[0]] = intermediate_core(self._model.input)
-            if 'postconv' in layers:
-                outputs['postconv'] = self._model.layers[1].get_output_at(0)
+                for la, layer in enumerate(inner_layers):
+                    core_layer_outputs[layer] = int_out[la]
+            else:
+                outputs[inner_layers[0]] = intermediate_core(self._model.input)
+        for layer in layers:
+            if layer in outer_layer_outputs:
+                outputs[layer] = outer_layer_outputs[layer]
+            elif layer in core_layer_outputs:
+                outputs[layer] = core_layer_outputs[layer]
+
+        # Build a model that outputs the given layers
         outputs_list = [] if not layers else [outputs[la] for la in layers]
         if include_logits:
             outputs_list += [self._model.output]
@@ -2147,11 +2342,19 @@ class Features:
 class UncertaintyInterface(Features):
     def __init__(
         self,
-        path: Path,
-        layers: Optional[Union[str, List[str]]] = None
+        path: Optional[str],
+        layers: Optional[Union[str, List[str]]] = None,
+        load_method: str = 'full',
+        pooling: Optional[Any] = None
     ) -> None:
         log.debug('Setting up UncertaintyInterface')
-        super().__init__(path, layers=layers, include_logits=True)
+        super().__init__(
+            path,
+            layers=layers,
+            include_logits=True,
+            load_method=load_method,
+            pooling=pooling
+        )
         # TODO: As the below to-do suggests, this should be updated
         # for multi-class
         self.num_uncertainty = 1
@@ -2165,13 +2368,20 @@ class UncertaintyInterface(Features):
         model: tf.keras.Model,
         layers: Optional[Union[str, List[str]]] = None,
         wsi_normalizer: Optional["StainNormalizer"] = None,
-    ) -> None:
-        super().from_model(
-            model,
-            layers=layers,
-            include_logits=True,
-            wsi_normalizer=wsi_normalizer
+        pooling: Optional[Any] = None
+    ):
+        obj = cls(None, layers)
+        if isinstance(model, tf.keras.models.Model):
+            obj._model = model
+        else:
+            raise errors.ModelError(f"Model {model} is not a valid Tensorflow "
+                                    "model.")
+        obj._build(
+            layers=layers, include_logits=True, pooling=pooling  # type: ignore
         )
+        obj.wsi_normalizer = wsi_normalizer
+        return obj
+
 
     @tf.function
     def _predict(self, inp):
@@ -2201,3 +2411,45 @@ class UncertaintyInterface(Features):
             return out + [logits, uncertainty]
         else:
             return logits, uncertainty
+
+
+def load(path: str, method: str = 'full'):
+    """Load Tensorflow model from location.
+
+    Args:
+        path (str): Path to saved Tensorflow model.
+        method (str): Method to use when loading the model; either 'full' or
+            'weights'. If 'full', will load the saved model with
+            ``tf.keras.models.load_model()``. If 'weights', will read the
+            ``params.json``configuration file, build the model architecture,
+            and then load weights from the given model with
+            ``Model.load_weights()``. Loading with 'full' may improve
+            compatibility across Slideflow versions. Loading with 'weights'
+            may improve compatibility across hardware & environments.
+
+    Returns:
+        tf.keras.models.Model: Loaded model.
+    """
+    if method not in ('full', 'weights'):
+        raise ValueError(f"Unrecognized method {method}, expected "
+                         "either 'full' or 'weights'")
+    log.debug(f"Loading model with method='{method}'")
+    if method == 'full':
+        return tf.keras.models.load_model(path)
+    else:
+        config = sf.util.get_model_config(path)
+        hp = ModelParams.from_dict(config['hp'])
+        if len(config['outcomes']) == 1:
+            num_classes = len(list(config['outcome_labels'].keys()))
+        else:
+            num_classes = {
+                outcome: len(list(config['outcome_labels'][outcome].keys()))
+                for outcome in config['outcomes']
+            }  # type: ignore
+        model = hp.build_model(  # type: ignore
+            num_classes=num_classes,
+            num_slide_features=0 if not config['input_feature_sizes'] else sum(config['input_feature_sizes']),
+            pretrain=None
+        )
+        model.load_weights(join(path, 'variables/variables'))
+        return model

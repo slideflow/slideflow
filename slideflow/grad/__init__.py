@@ -5,11 +5,22 @@ from typing import Any, Callable, Dict
 import slideflow as sf
 import numpy as np
 import saliency.core as saliency
+from functools import partial
 from slideflow import errors
 from slideflow.grad.plot_utils import (comparison_plot, inferno, multi_plot,
                                        oranges, overlay,
                                        saliency_map_comparison)
 
+VANILLA = 0
+VANILLA_SMOOTH = 1
+INTEGRATED_GRADIENTS = 2
+INTEGRATED_GRADIENTS_SMOOTH = 3
+GUIDED_INTEGRATED_GRADIENTS = 4
+GUIDED_INTEGRATED_GRADIENTS_SMOOTH = 5
+BLUR_INTEGRATED_GRADIENTS = 6
+BLUR_INTEGRATED_GRADIENTS_SMOOTH = 7
+XRAI = 8
+XRAI_FAST = 9
 
 class SaliencyMap:
 
@@ -32,6 +43,29 @@ class SaliencyMap:
         self.xrai_grads = saliency.XRAI()
         self.fast_xrai_params = saliency.XRAIParameters()
         self.fast_xrai_params.algorithm = 'fast'
+        self._fn_map = {
+            VANILLA: self.vanilla,
+            VANILLA_SMOOTH: partial(self.vanilla, smooth=True),
+            INTEGRATED_GRADIENTS: self.integrated_gradients,
+            INTEGRATED_GRADIENTS_SMOOTH: partial(self.integrated_gradients, smooth=True),
+            GUIDED_INTEGRATED_GRADIENTS: self.guided_integrated_gradients,
+            GUIDED_INTEGRATED_GRADIENTS_SMOOTH: partial(self.guided_integrated_gradients, smooth=True),
+            BLUR_INTEGRATED_GRADIENTS: self.blur_integrated_gradients,
+            BLUR_INTEGRATED_GRADIENTS_SMOOTH: partial(self.blur_integrated_gradients),
+            XRAI: self.xrai,
+            XRAI_FAST: self.xrai_fast
+        }
+
+    @property
+    def model_backend(self):
+        return sf.util.model_backend(self.model)
+
+    @property
+    def device(self):
+        if self.model_backend == 'tensorflow':
+            return None
+        else:
+            return next(self.model.parameters()).device
 
     def _grad_fn_torch(
         self,
@@ -42,12 +76,12 @@ class SaliencyMap:
         """Calculate gradient attribution with PyTorch backend."""
         import torch
 
-        image = torch.tensor(image, requires_grad=True).to(torch.float32)  # type: ignore
+        image = torch.tensor(image, requires_grad=True).to(torch.float32).to(self.device)  # type: ignore
         output = self.model(image)
         if saliency.base.INPUT_OUTPUT_GRADIENTS in expected_keys:  # type: ignore
             outputs = output[:, self.class_idx]
             grads = torch.autograd.grad(outputs, image, grad_outputs=torch.ones_like(outputs))  # type: ignore
-            gradients = grads[0].detach().numpy()
+            gradients = grads[0].cpu().detach().numpy()
             return {saliency.base.INPUT_OUTPUT_GRADIENTS: gradients}
         else:
             # For Grad-CAM
@@ -81,9 +115,9 @@ class SaliencyMap:
         expected_keys: Dict = None
     ) -> Any:
         """Calculate gradient attribution."""
-        if sf.backend() == 'tensorflow':
+        if self.model_backend == 'tensorflow':
             return self._grad_fn_tf(image, call_model_args, expected_keys)
-        elif sf.backend() == 'torch':
+        elif self.model_backend == 'torch':
             return self._grad_fn_torch(image, call_model_args, expected_keys)
         else:
             raise errors.UnrecognizedBackendError
@@ -114,7 +148,7 @@ class SaliencyMap:
                 kwargs.update({'x_baseline': np.zeros(_img.shape)})
 
             out = mask_fn(_img, self._grad_fn, **kwargs)
-            if sf.backend() == 'torch':
+            if self.model_backend == 'torch':
                 out = np.transpose(out, (1, 2, 0))  # CWH -> WHC
             return out
 
@@ -147,6 +181,9 @@ class SaliencyMap:
             'Blur Integrated Gradients': self.blur_integrated_gradients(img),
             'Blur Integrated Gradients (Smooth)': self.blur_integrated_gradients(img, smooth=True),
         }
+
+    def get(self, img: np.ndarray, method: int) -> np.ndarray:
+        return self._fn_map[method](img)
 
     def vanilla(
         self,

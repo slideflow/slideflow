@@ -6,24 +6,25 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  
+  <meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  
-  <title>Tutorial 1: Model training (simple) &mdash; slideflow 1.2.3 documentation</title>
-  
 
-  
-  
-  
-  
+  <title>Tutorial 1: Model training (simple) &mdash; slideflow 1.3.0 documentation</title>
 
-  
 
-  
-  
-    
 
-  
+
+
+
+
+
+
+
+
+
+
+
 
   <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <!-- <link rel="stylesheet" href="_static/pygments.css" type="text/css" /> -->
@@ -32,13 +33,13 @@
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="Tutorial 2: Model training (advanced)" href="tutorial2.html" />
-    <link rel="prev" title="slideflow.util" href="util.html" />
+    <link rel="prev" title="slideflow.workbench" href="workbench.html" />
   <!-- Google Analytics -->
-  
-  <!-- End Google Analytics -->
-  
 
-  
+  <!-- End Google Analytics -->
+
+
+
   <script src="_static/js/modernizr.min.js"></script>
 
   <!-- Preload the theme fonts -->
@@ -66,6 +67,10 @@
   <script>
     window.dataLayer = window.dataLayer || [];
     function gtag(){dataLayer.push(arguments);}
+    gtag('consent', 'default', {
+      'ad_storage': 'denied',
+      'analytics_storage': 'denied'
+    });
     gtag('js', new Date());
 
     gtag('config', 'G-43E5QNVXH2');
@@ -100,9 +105,9 @@
 
 <body class="pytorch-body">
 
-   
 
-    
+
+
 
     <div class="table-of-contents-link-wrapper">
       <span>Table of Contents</span>
@@ -113,21 +118,21 @@
       <div class="pytorch-side-scroll">
         <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           <div class="pytorch-left-menu-search">
-            
 
-            
-              
-              
+
+
+
+
                 <div class="version">
-                  1.2
+                  1.3
                 </div>
-              
-            
-
-            
 
 
-  
+
+
+
+
+
 
 
 <div role="search">
@@ -138,27 +143,29 @@
   </form>
 </div>
 
-            
+
           </div>
 
-          
-            
-            
-              
-            
-            
+
+
+
+
+
+
               <p class="caption" role="heading"><span class="caption-text">Overview</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="pipeline.html">Pipeline Overview</a></li>
 <li class="toctree-l1"><a class="reference internal" href="project_setup.html">Setting up a Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="validation.html">Validation Planning</a></li>
-<li class="toctree-l1"><a class="reference internal" href="extract_tiles.html">Tile extraction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="extract_tiles.html">Tile Extraction</a></li>
 <li class="toctree-l1"><a class="reference internal" href="training.html">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="evaluation.html">Evaluation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="layer_activations.html">Features / layer activations</a></li>
-<li class="toctree-l1"><a class="reference internal" href="custom_loops.html">Custom training loops</a></li>
-<li class="toctree-l1"><a class="reference internal" href="uq.html">Uncertainty quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="layer_activations.html">Features / Layer Activations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="workbench_tools.html">Workbench: Visualization Tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="custom_loops.html">Custom Training Loops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="uq.html">Uncertainty Quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="stylegan.html">StyleGAN</a></li>
 <li class="toctree-l1"><a class="reference internal" href="clam.html">CLAM</a></li>
 <li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
 </ul>
@@ -178,6 +185,7 @@
 <li class="toctree-l1"><a class="reference internal" href="slide.html">slideflow.slide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="stats.html">slideflow.stats</a></li>
 <li class="toctree-l1"><a class="reference internal" href="util.html">slideflow.util</a></li>
+<li class="toctree-l1"><a class="reference internal" href="workbench.html">slideflow.workbench</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
 <ul class="current">
@@ -186,10 +194,11 @@
 <li class="toctree-l1"><a class="reference internal" href="tutorial3.html">Tutorial 3: Using a custom architecture</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorial4.html">Tutorial 4: Model evaluation &amp; heatmaps</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorial5.html">Tutorial 5: Creating a mosaic map</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial6.html">Tutorial 6: Custom slide filtering</a></li>
 </ul>
 
-            
-          
+
+
         </div>
       </div>
     </nav>
@@ -197,7 +206,7 @@
     <div class="pytorch-container">
       <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
         <div class="pytorch-breadcrumbs-wrapper">
-          
+
 
 
 
@@ -216,30 +225,30 @@
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="pytorch-breadcrumbs">
-    
+
       <li>
         <a href="index.html">
-          
+
             Docs
-          
+
         </a> &gt;
       </li>
 
-        
+
       <li>Tutorial 1: Model training (simple)</li>
-    
-    
+
+
       <li class="pytorch-breadcrumbs-aside">
-        
-            
+
+
             <a href="_sources/tutorial1.rst.txt" rel="nofollow"><img src="_static/images/view-page-source-icon.svg"></a>
-          
-        
+
+
       </li>
-    
+
   </ul>
 
-  
+
 </div>
         </div>
 
@@ -251,14 +260,14 @@
       <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
         <div class="pytorch-content-left">
 
-        
-          
+
+
           <div class="rst-content">
-          
+
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
-              
-  <div class="section" id="tutorial-1-model-training-simple">
+
+  <section id="tutorial-1-model-training-simple">
 <span id="tutorial1"></span><h1>Tutorial 1: Model training (simple)<a class="headerlink" href="#tutorial-1-model-training-simple" title="Permalink to this heading">¶</a></h1>
 <p>In this first tutorial, we will walk through the steps needed to take an example project from start to finish, using
 the bundled <code class="docutils literal notranslate"><span class="pre">run_project.py</span></code> script to execute pipeline functions. As with all of these tutorials, we will use
@@ -266,7 +275,7 @@ publicly available data from <a class="reference external" href="https://portal.
 we will train a model to predict ER status from breast cancer slides.</p>
 <p>Examples will be given assuming project files are in the directory <code class="docutils literal notranslate"><span class="pre">/home/er_project</span></code> and slides are in
 <code class="docutils literal notranslate"><span class="pre">/home/brca_slides</span></code>, although you will need to customize these paths according to your needs.</p>
-<div class="section" id="project-planning">
+<section id="project-planning">
 <h2>Project Planning<a class="headerlink" href="#project-planning" title="Permalink to this heading">¶</a></h2>
 <p>First, download slides and annotations for the TCGA-BRCA project using the <a class="reference external" href="https://portal.gdc.cancer.gov/legacy-archive/search/f">legacy GDC portal</a>. We should have a total of 1133 diagnostic slides across 1062
 patients. Our outcome of interest is “er_status_by_ihc”, of which 1011 have a documented result (either “Positive”
@@ -278,10 +287,6 @@ or “Negative”), giving us our final patient count of 1011.</p>
 <p>We will then be taken through an interactive prompt asking for project settings. When prompted, use the
 following settings (mostly defaults):</p>
 <table class="docutils align-default">
-<colgroup>
-<col style="width: 36%" />
-<col style="width: 64%" />
-</colgroup>
 <tbody>
 <tr class="row-odd"><td><p><strong>name</strong></p></td>
 <td><p>Breast_ER</p></td>
@@ -306,10 +311,6 @@ following settings (mostly defaults):</p>
 <p>After a blank datasets.json file is created, we will be prompted to add a new dataset source. Use the following
 configuration for the added dataset source:</p>
 <table class="docutils align-default">
-<colgroup>
-<col style="width: 36%" />
-<col style="width: 64%" />
-</colgroup>
 <tbody>
 <tr class="row-odd"><td><p><strong>source</strong></p></td>
 <td><p>BRCA</p></td>
@@ -329,8 +330,8 @@ configuration for the added dataset source:</p>
 </tbody>
 </table>
 <p>For simplicity, we will not be using annotated tumor regions of interest (ROI), instead training on whole-slide images.</p>
-</div>
-<div class="section" id="setting-up-annotations">
+</section>
+<section id="setting-up-annotations">
 <h2>Setting up annotations<a class="headerlink" href="#setting-up-annotations" title="Permalink to this heading">¶</a></h2>
 <p>With our project initialized, we can set up our annotations file. Use the downloaded annotations file to create a new
 CSV file, with a column “patient” indicating patient name (in the case of TCGA, these are in the format
@@ -346,12 +347,6 @@ slideflow will auto-associate slides to patients.</p>
 </div>
 <p>Your annotations file should look something like:</p>
 <table class="docutils align-default">
-<colgroup>
-<col style="width: 26%" />
-<col style="width: 22%" />
-<col style="width: 12%" />
-<col style="width: 39%" />
-</colgroup>
 <tbody>
 <tr class="row-odd"><td><p><em>patient</em></p></td>
 <td><p><em>er_status_by_ihc</em></p></td>
@@ -385,8 +380,8 @@ slideflow will auto-associate slides to patients.</p>
 </tr>
 </tbody>
 </table>
-</div>
-<div class="section" id="tile-extraction">
+</section>
+<section id="tile-extraction">
 <h2>Tile extraction<a class="headerlink" href="#tile-extraction" title="Permalink to this heading">¶</a></h2>
 <p>The next step is to extract tiles from our slides. Find the sample <code class="docutils literal notranslate"><span class="pre">actions.py</span></code> file in the project folder, which we
 will modify and use to execute our pipeline functions. Delete the commented-out examples in this file.</p>
@@ -405,8 +400,8 @@ buffered to an SSD or ramdisk directory by passing a directory to the argument <
 </pre></div>
 </div>
 </div>
-</div>
-<div class="section" id="training">
+</section>
+<section id="training">
 <h2>Training<a class="headerlink" href="#training" title="Permalink to this heading">¶</a></h2>
 <p>After tiles are extracted, the dataset will be ready for training. We will train with a single set of manually defined
 hyperparameters, which we can configure with <a class="reference internal" href="model.html#slideflow.model.ModelParams" title="slideflow.model.ModelParams"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.model.ModelParams</span></code></a>. We will use the
@@ -498,34 +493,30 @@ we will set <code class="docutils literal notranslate"><span class="pre">val_str
 <p>The final training results should should show an average AUROC of around 0.87, with average AP around 0.83. Tile, slide,
 and patient-level receiver operator curves are saved in the model folder, along with precision-recall curves (not shown):</p>
 <table class="docutils align-default">
-<colgroup>
-<col style="width: 50%" />
-<col style="width: 50%" />
-</colgroup>
 <tbody>
-<tr class="row-odd"><td><div class="figure align-default">
+<tr class="row-odd"><td><figure class="align-default">
 <img alt="_images/er_roc_tile.png" src="_images/er_roc_tile.png" />
-</div>
+</figure>
 <p>Tile-level receiver operator curve</p>
 </td>
-<td><div class="figure align-default">
+<td><figure class="align-default">
 <img alt="_images/er_roc_patient.png" src="_images/er_roc_patient.png" />
-</div>
+</figure>
 <p>Patient-level receiver operator curve</p>
 </td>
 </tr>
 </tbody>
 </table>
-</div>
-<div class="section" id="monitoring-with-tensorboard">
+</section>
+<section id="monitoring-with-tensorboard">
 <h2>Monitoring with Tensorboard<a class="headerlink" href="#monitoring-with-tensorboard" title="Permalink to this heading">¶</a></h2>
 <p>Tensorboard-formatted training and validation logs are saved the model directory. To monitor training with Tensorboard:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ tensorboard --logdir<span class="o">=</span>/project_path/models/00001-outcome-HP0
 </pre></div>
 </div>
 <p>Tensorboard can then be accessed by navigating to <code class="docutils literal notranslate"><span class="pre">https://localhost:6006</span></code> in a browser.</p>
-</div>
-<div class="section" id="monitoring-with-neptune">
+</section>
+<section id="monitoring-with-neptune">
 <h2>Monitoring with Neptune<a class="headerlink" href="#monitoring-with-neptune" title="Permalink to this heading">¶</a></h2>
 <p>Experiments can be automatically logged with <a class="reference external" href="https://app.neptune.ai">Neptune.ai</a>. To enable logging, first locate your Neptune API token and workspace ID, and configure the environmental variables <code class="docutils literal notranslate"><span class="pre">NEPTUNE_API_TOKEN</span></code> and <code class="docutils literal notranslate"><span class="pre">NEPTUNE_WORKSPACE</span></code>.</p>
 <p>With the environmental variables set, Neptune logs are enabled either by passing a <code class="docutils literal notranslate"><span class="pre">-n</span></code> flag to the <code class="docutils literal notranslate"><span class="pre">run_project.py</span></code> script:</p>
@@ -536,30 +527,30 @@ and patient-level receiver operator curves are saved in the model folder, along 
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">P</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">Project</span><span class="p">(</span><span class="s1">&#39;/project/path&#39;</span><span class="p">,</span> <span class="n">use_neptune</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </pre></div>
 </div>
-</div>
-</div>
+</section>
+</section>
 
 
              </article>
-             
+
             </div>
             <footer>
-  
-    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-      
-        <a href="tutorial2.html" class="btn btn-neutral float-right" title="Tutorial 2: Model training (advanced)" accesskey="n" rel="next">Next <img src="_static/images/chevron-right-orange.svg" class="next-page"></a>
-      
-      
-        <a href="util.html" class="btn btn-neutral" title="slideflow.util" accesskey="p" rel="prev"><img src="_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
-      
-    </div>
-  
 
-  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+
+        <a href="tutorial2.html" class="btn btn-neutral float-right" title="Tutorial 2: Model training (advanced)" accesskey="n" rel="next">Next <img src="_static/images/chevron-right-orange.svg" class="next-page"></a>
+
+
+        <a href="workbench.html" class="btn btn-neutral" title="slideflow.workbench" accesskey="p" rel="prev"><img src="_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
+
+    </div>
+
+
+
 
     <hr>
 
-  
+
 
   <div role="contentinfo">
     <p>
@@ -567,11 +558,11 @@ and patient-level receiver operator curves are saved in the model folder, along 
 
     </p>
   </div>
-    
+
       <div>
         Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
       </div>
-     
+
 
 </footer>
 
@@ -599,21 +590,22 @@ and patient-level receiver operator curves are saved in the model folder, along 
       </section>
     </div>
 
-  
 
 
-  
 
-     
+
+
+
        <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
          <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
          <script src="_static/jquery.js"></script>
          <script src="_static/underscore.js"></script>
          <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
          <script src="_static/doctools.js"></script>
-     
+         <script src="_static/sphinx_highlight.js"></script>
 
-  
+
+
 
   <script type="text/javascript" src="_static/js/vendor/popper.min.js"></script>
   <script type="text/javascript" src="_static/js/vendor/bootstrap.min.js"></script>
@@ -624,7 +616,7 @@ and patient-level receiver operator curves are saved in the model folder, along 
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script> 
+  </script>
 
   <!-- Begin Footer -->
 

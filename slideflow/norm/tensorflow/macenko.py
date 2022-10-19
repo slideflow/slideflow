@@ -140,15 +140,6 @@ def transform(
     Inorm = tf.experimental.numpy.clip(Inorm, 0, 255)
     Inorm = tf.cast(tf.reshape(tf.transpose(Inorm), (h, w, 3)), tf.uint8)
 
-    # unmix hematoxylin and eosin
-    H = tf.math.multiply(Io, tf.math.exp(dot(tf.expand_dims(-HERef[:, 0], axis=1), tf.expand_dims(C2[0, :], axis=0))))
-    H = tf.experimental.numpy.clip(H, 0, 255)
-    H = tf.cast(tf.reshape(tf.transpose(H), (h, w, 3)), tf.uint8)
-
-    E = tf.math.multiply(Io, tf.math.exp(dot(tf.expand_dims(-HERef[:, 1], axis=1), tf.expand_dims(C2[1, :], axis=0))))
-    E = tf.experimental.numpy.clip(E, 0, 255)
-    E = tf.cast(tf.reshape(tf.transpose(E), (h, w, 3)), tf.uint8)
-
     return Inorm
 
 
@@ -215,10 +206,7 @@ class MacenkoNormalizer:
 
         self.set_fit(**ut.fit_presets['macenko']['v1'])  # type: ignore
 
-    def fit(
-        self,
-        target: tf.Tensor,
-    ) -> Tuple[tf.Tensor, tf.Tensor]:
+    def fit(self, target: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor]:
         """Fit normalizer to a target image.
 
         Calculates the stain matrix and concentrations for the given image,

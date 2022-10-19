@@ -1,7 +1,5 @@
 import os
 import pdb
-
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import torch
@@ -17,12 +15,12 @@ from slideflow.clam.utils.core_utils import Accuracy_Logger
 
 
 def initiate_model(args, ckpt_path):
-	print('Init Model')    
+	print('Init Model')
 	model_dict = {"dropout": args.drop_out, 'n_classes': args.n_classes}
-	
+
 	if args.model_size is not None and args.model_type in ['clam_sb', 'clam_mb']:
 		model_dict.update({"size_arg": args.model_size})
-	
+
 	if args.model_type =='clam_sb':
 		model = CLAM_SB(**model_dict)
 	elif args.model_type =='clam_mb':
@@ -49,7 +47,7 @@ def initiate_model(args, ckpt_path):
 
 def eval(dataset, args, ckpt_path):
 	model = initiate_model(args, ckpt_path)
-	
+
 	print('Init Loaders')
 	loader = get_simple_loader(dataset)
 	patient_results, test_error, auc, df, _ = summary(model, loader, args)
@@ -76,15 +74,15 @@ def summary(model, loader, args):
 			logits, Y_prob, Y_hat, _, results_dict = model(data)
 
 		acc_logger.log(Y_hat, label)
-		
+
 		probs = Y_prob.cpu().numpy()
 
 		all_probs[batch_idx] = probs
 		all_labels[batch_idx] = label.item()
 		all_preds[batch_idx] = Y_hat.item()
-		
+
 		patient_results.update({slide_id: {'slide': np.array(slide_id), 'prob': probs, 'label': label.item()}})
-		
+
 		error = calculate_error(Y_hat, label)
 		test_error += error
 
@@ -95,7 +93,7 @@ def summary(model, loader, args):
 	if len(np.unique(all_labels)) == 1:
 		auc_score = -1
 
-	else: 
+	else:
 		if args.n_classes == 2:
 			auc_score = roc_auc_score(all_labels, all_probs[:, 1])
 		else:

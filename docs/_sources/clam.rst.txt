@@ -33,6 +33,8 @@ To train a CLAM model from the saved activations, use :func:`slideflow.Project.t
 
 .. code-block:: python
 
+    import slideflow.clam
+
     dataset = P.dataset(tile_px=299, tile_um=302)
     P.generate_features_for_clam(..., outdir='/clam/path')
 

@@ -6,24 +6,24 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  
-  <title>slideflow.model.tensorflow &mdash; slideflow 1.2.3 documentation</title>
-  
 
-  
-  
-  
-  
+  <title>slideflow.model.tensorflow &mdash; slideflow 1.3.0 documentation</title>
 
-  
 
-  
-  
-    
 
-  
+
+
+
+
+
+
+
+
+
+
+
 
   <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
   <!-- <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" /> -->
@@ -32,11 +32,11 @@
     <link rel="index" title="Index" href="../../../genindex.html" />
     <link rel="search" title="Search" href="../../../search.html" />
   <!-- Google Analytics -->
-  
-  <!-- End Google Analytics -->
-  
 
-  
+  <!-- End Google Analytics -->
+
+
+
   <script src="../../../_static/js/modernizr.min.js"></script>
 
   <!-- Preload the theme fonts -->
@@ -64,6 +64,10 @@
   <script>
     window.dataLayer = window.dataLayer || [];
     function gtag(){dataLayer.push(arguments);}
+    gtag('consent', 'default', {
+      'ad_storage': 'denied',
+      'analytics_storage': 'denied'
+    });
     gtag('js', new Date());
 
     gtag('config', 'G-43E5QNVXH2');
@@ -98,9 +102,9 @@
 
 <body class="pytorch-body">
 
-   
 
-    
+
+
 
     <div class="table-of-contents-link-wrapper">
       <span>Table of Contents</span>
@@ -111,21 +115,21 @@
       <div class="pytorch-side-scroll">
         <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           <div class="pytorch-left-menu-search">
-            
 
-            
-              
-              
+
+
+
+
                 <div class="version">
-                  1.2
+                  1.3
                 </div>
-              
-            
-
-            
 
 
-  
+
+
+
+
+
 
 
 <div role="search">
@@ -136,27 +140,29 @@
   </form>
 </div>
 
-            
+
           </div>
 
-          
-            
-            
-              
-            
-            
+
+
+
+
+
+
               <p class="caption" role="heading"><span class="caption-text">Overview</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../pipeline.html">Pipeline Overview</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../project_setup.html">Setting up a Project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../validation.html">Validation Planning</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../extract_tiles.html">Tile extraction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../extract_tiles.html">Tile Extraction</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../training.html">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../evaluation.html">Evaluation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../layer_activations.html">Features / layer activations</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../custom_loops.html">Custom training loops</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../uq.html">Uncertainty quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../layer_activations.html">Features / Layer Activations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../workbench_tools.html">Workbench: Visualization Tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../custom_loops.html">Custom Training Loops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../uq.html">Uncertainty Quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../stylegan.html">StyleGAN</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../clam.html">CLAM</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../troubleshooting.html">Troubleshooting</a></li>
 </ul>
@@ -176,6 +182,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../slide.html">slideflow.slide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../stats.html">slideflow.stats</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../util.html">slideflow.util</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../workbench.html">slideflow.workbench</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
 <ul>
@@ -184,10 +191,11 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../tutorial3.html">Tutorial 3: Using a custom architecture</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../tutorial4.html">Tutorial 4: Model evaluation &amp; heatmaps</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../tutorial5.html">Tutorial 5: Creating a mosaic map</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorial6.html">Tutorial 6: Custom slide filtering</a></li>
 </ul>
 
-            
-          
+
+
         </div>
       </div>
     </nav>
@@ -195,7 +203,7 @@
     <div class="pytorch-container">
       <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
         <div class="pytorch-breadcrumbs-wrapper">
-          
+
 
 
 
@@ -214,30 +222,30 @@
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="pytorch-breadcrumbs">
-    
+
       <li>
         <a href="../../../index.html">
-          
+
             Docs
-          
+
         </a> &gt;
       </li>
 
-        
+
           <li><a href="../../index.html">Module code</a> &gt;</li>
-        
+
           <li><a href="../model.html">slideflow.model</a> &gt;</li>
-        
+
       <li>slideflow.model.tensorflow</li>
-    
-    
+
+
       <li class="pytorch-breadcrumbs-aside">
-        
+
       </li>
-    
+
   </ul>
 
-  
+
 </div>
         </div>
 
@@ -249,13 +257,13 @@
       <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
         <div class="pytorch-content-left">
 
-        
-          
+
+
           <div class="rst-content">
-          
+
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
-              
+
   <h1>Source code for slideflow.model.tensorflow</h1><div class="highlight"><pre>
 <span></span><span class="sd">&#39;&#39;&#39;Tensorflow backend for the slideflow.model submodule.&#39;&#39;&#39;</span>
 
@@ -271,6 +279,7 @@
 <span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">TYPE_CHECKING</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span>
 
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">multiprocessing</span> <span class="k">as</span> <span class="nn">mp</span>
 <span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
 <span class="kn">import</span> <span class="nn">slideflow.model.base</span> <span class="k">as</span> <span class="nn">_base</span>
 <span class="kn">import</span> <span class="nn">slideflow.util.neptune_utils</span>
@@ -278,12 +287,12 @@
 <span class="kn">from</span> <span class="nn">slideflow</span> <span class="kn">import</span> <span class="n">errors</span>
 <span class="kn">from</span> <span class="nn">slideflow.model</span> <span class="kn">import</span> <span class="n">tensorflow_utils</span> <span class="k">as</span> <span class="n">tf_utils</span>
 <span class="kn">from</span> <span class="nn">slideflow.model.base</span> <span class="kn">import</span> <span class="n">log_manifest</span><span class="p">,</span> <span class="n">no_scope</span>
-<span class="kn">from</span> <span class="nn">slideflow.model.tensorflow_utils</span> <span class="kn">import</span> <span class="n">unwrap</span>
-<span class="kn">from</span> <span class="nn">slideflow.util</span> <span class="kn">import</span> <span class="n">NormFit</span><span class="p">,</span> <span class="n">Path</span>
-<span class="kn">from</span> <span class="nn">slideflow.util</span> <span class="kn">import</span> <span class="n">log</span>
+<span class="kn">from</span> <span class="nn">slideflow.model.tensorflow_utils</span> <span class="kn">import</span> <span class="n">unwrap</span><span class="p">,</span> <span class="n">flatten</span>  <span class="c1"># type: ignore</span>
+<span class="kn">from</span> <span class="nn">slideflow.util</span> <span class="kn">import</span> <span class="n">log</span><span class="p">,</span> <span class="n">NormFit</span>
 
 <span class="kn">import</span> <span class="nn">tensorflow</span> <span class="k">as</span> <span class="nn">tf</span>
 <span class="kn">from</span> <span class="nn">tensorflow.keras</span> <span class="kn">import</span> <span class="n">applications</span> <span class="k">as</span> <span class="n">kapps</span>
+<span class="kn">from</span> <span class="nn">slideflow.model.tensorflow_utils</span> <span class="kn">import</span> <span class="n">eval_from_model</span>
 
 <span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
     <span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
@@ -321,69 +330,69 @@
         <span class="c1"># &#39;DenseNet&#39;: kapps.DenseNet,</span>
         <span class="c1"># &#39;NASNet&#39;: kapps.NASNet</span>
     <span class="p">}</span>
+    <span class="n">OptDict</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;Adam&#39;</span><span class="p">:</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">optimizers</span><span class="o">.</span><span class="n">Adam</span><span class="p">,</span>
+        <span class="s1">&#39;SGD&#39;</span><span class="p">:</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">optimizers</span><span class="o">.</span><span class="n">SGD</span><span class="p">,</span>
+        <span class="s1">&#39;RMSprop&#39;</span><span class="p">:</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">optimizers</span><span class="o">.</span><span class="n">RMSprop</span><span class="p">,</span>
+        <span class="s1">&#39;Adagrad&#39;</span><span class="p">:</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">optimizers</span><span class="o">.</span><span class="n">Adagrad</span><span class="p">,</span>
+        <span class="s1">&#39;Adadelta&#39;</span><span class="p">:</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">optimizers</span><span class="o">.</span><span class="n">Adadelta</span><span class="p">,</span>
+        <span class="s1">&#39;Adamax&#39;</span><span class="p">:</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">optimizers</span><span class="o">.</span><span class="n">Adamax</span><span class="p">,</span>
+        <span class="s1">&#39;Nadam&#39;</span><span class="p">:</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">optimizers</span><span class="o">.</span><span class="n">Nadam</span>
+    <span class="p">}</span>
+    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">kapps</span><span class="p">,</span> <span class="s1">&#39;EfficientNetV2B0&#39;</span><span class="p">):</span>
+        <span class="n">ModelDict</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;efficientnet_v2b0&#39;</span><span class="p">:</span> <span class="n">kapps</span><span class="o">.</span><span class="n">EfficientNetV2B0</span><span class="p">})</span>
+    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">kapps</span><span class="p">,</span> <span class="s1">&#39;EfficientNetV2B1&#39;</span><span class="p">):</span>
+        <span class="n">ModelDict</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;efficientnet_v2b1&#39;</span><span class="p">:</span> <span class="n">kapps</span><span class="o">.</span><span class="n">EfficientNetV2B1</span><span class="p">})</span>
+    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">kapps</span><span class="p">,</span> <span class="s1">&#39;EfficientNetV2B2&#39;</span><span class="p">):</span>
+        <span class="n">ModelDict</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;efficientnet_v2b2&#39;</span><span class="p">:</span> <span class="n">kapps</span><span class="o">.</span><span class="n">EfficientNetV2B2</span><span class="p">})</span>
+    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">kapps</span><span class="p">,</span> <span class="s1">&#39;EfficientNetV2B3&#39;</span><span class="p">):</span>
+        <span class="n">ModelDict</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;efficientnet_v2b3&#39;</span><span class="p">:</span> <span class="n">kapps</span><span class="o">.</span><span class="n">EfficientNetV2B3</span><span class="p">})</span>
+    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">kapps</span><span class="p">,</span> <span class="s1">&#39;EfficientNetV2S&#39;</span><span class="p">):</span>
+        <span class="n">ModelDict</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;efficientnet_v2s&#39;</span><span class="p">:</span> <span class="n">kapps</span><span class="o">.</span><span class="n">EfficientNetV2S</span><span class="p">})</span>
+    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">kapps</span><span class="p">,</span> <span class="s1">&#39;EfficientNetV2M&#39;</span><span class="p">):</span>
+        <span class="n">ModelDict</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;efficientnet_v2m&#39;</span><span class="p">:</span> <span class="n">kapps</span><span class="o">.</span><span class="n">EfficientNetV2M</span><span class="p">})</span>
+    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">kapps</span><span class="p">,</span> <span class="s1">&#39;EfficientNetV2L&#39;</span><span class="p">):</span>
+        <span class="n">ModelDict</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;efficientnet_v2l&#39;</span><span class="p">:</span> <span class="n">kapps</span><span class="o">.</span><span class="n">EfficientNetV2L</span><span class="p">})</span>
+    <span class="n">LinearLossDict</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="n">loss</span><span class="p">:</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">losses</span><span class="p">,</span> <span class="n">loss</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">loss</span> <span class="ow">in</span> <span class="p">[</span>
+            <span class="s1">&#39;mean_squared_error&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;mean_absolute_error&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;mean_absolute_percentage_error&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;mean_squared_logarithmic_error&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;squared_hinge&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;hinge&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;logcosh&#39;</span>
+        <span class="p">]</span>
+    <span class="p">}</span>
+    <span class="n">LinearLossDict</span><span class="o">.</span><span class="n">update</span><span class="p">({</span>
+        <span class="s1">&#39;negative_log_likelihood&#39;</span><span class="p">:</span> <span class="n">tf_utils</span><span class="o">.</span><span class="n">negative_log_likelihood</span>
+    <span class="p">})</span>
+    <span class="n">AllLossDict</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="n">loss</span><span class="p">:</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">losses</span><span class="p">,</span> <span class="n">loss</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">loss</span> <span class="ow">in</span> <span class="p">[</span>
+            <span class="s1">&#39;mean_squared_error&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;mean_absolute_error&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;mean_absolute_percentage_error&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;mean_squared_logarithmic_error&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;squared_hinge&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;hinge&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;categorical_hinge&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;logcosh&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;huber&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;categorical_crossentropy&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;sparse_categorical_crossentropy&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;binary_crossentropy&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;kullback_leibler_divergence&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;poisson&#39;</span>
+        <span class="p">]</span>
+    <span class="p">}</span>
+    <span class="n">AllLossDict</span><span class="o">.</span><span class="n">update</span><span class="p">({</span>
+        <span class="s1">&#39;batch_loss_crossentropy&#39;</span><span class="p">:</span> <span class="n">tf_utils</span><span class="o">.</span><span class="n">batch_loss_crossentropy</span><span class="p">,</span>
+        <span class="s1">&#39;negative_log_likelihood&#39;</span><span class="p">:</span> <span class="n">tf_utils</span><span class="o">.</span><span class="n">negative_log_likelihood</span>
+    <span class="p">})</span>
 
 <div class="viewcode-block" id="ModelParams.__init__"><a class="viewcode-back" href="../../../model.html#slideflow.model.ModelParams.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">OptDict</span> <span class="o">=</span> <span class="p">{</span>
-            <span class="s1">&#39;Adam&#39;</span><span class="p">:</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">optimizers</span><span class="o">.</span><span class="n">Adam</span><span class="p">,</span>
-            <span class="s1">&#39;SGD&#39;</span><span class="p">:</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">optimizers</span><span class="o">.</span><span class="n">SGD</span><span class="p">,</span>
-            <span class="s1">&#39;RMSprop&#39;</span><span class="p">:</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">optimizers</span><span class="o">.</span><span class="n">RMSprop</span><span class="p">,</span>
-            <span class="s1">&#39;Adagrad&#39;</span><span class="p">:</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">optimizers</span><span class="o">.</span><span class="n">Adagrad</span><span class="p">,</span>
-            <span class="s1">&#39;Adadelta&#39;</span><span class="p">:</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">optimizers</span><span class="o">.</span><span class="n">Adadelta</span><span class="p">,</span>
-            <span class="s1">&#39;Adamax&#39;</span><span class="p">:</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">optimizers</span><span class="o">.</span><span class="n">Adamax</span><span class="p">,</span>
-            <span class="s1">&#39;Nadam&#39;</span><span class="p">:</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">optimizers</span><span class="o">.</span><span class="n">Nadam</span>
-        <span class="p">}</span>
-        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">kapps</span><span class="p">,</span> <span class="s1">&#39;EfficientNetV2B0&#39;</span><span class="p">):</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">ModelDict</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;efficientnet_v2b0&#39;</span><span class="p">:</span> <span class="n">kapps</span><span class="o">.</span><span class="n">EfficientNetV2B0</span><span class="p">})</span>
-        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">kapps</span><span class="p">,</span> <span class="s1">&#39;EfficientNetV2B1&#39;</span><span class="p">):</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">ModelDict</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;efficientnet_v2b1&#39;</span><span class="p">:</span> <span class="n">kapps</span><span class="o">.</span><span class="n">EfficientNetV2B1</span><span class="p">})</span>
-        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">kapps</span><span class="p">,</span> <span class="s1">&#39;EfficientNetV2B2&#39;</span><span class="p">):</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">ModelDict</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;efficientnet_v2b2&#39;</span><span class="p">:</span> <span class="n">kapps</span><span class="o">.</span><span class="n">EfficientNetV2B2</span><span class="p">})</span>
-        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">kapps</span><span class="p">,</span> <span class="s1">&#39;EfficientNetV2B3&#39;</span><span class="p">):</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">ModelDict</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;efficientnet_v2b3&#39;</span><span class="p">:</span> <span class="n">kapps</span><span class="o">.</span><span class="n">EfficientNetV2B3</span><span class="p">})</span>
-        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">kapps</span><span class="p">,</span> <span class="s1">&#39;EfficientNetV2S&#39;</span><span class="p">):</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">ModelDict</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;efficientnet_v2s&#39;</span><span class="p">:</span> <span class="n">kapps</span><span class="o">.</span><span class="n">EfficientNetV2S</span><span class="p">})</span>
-        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">kapps</span><span class="p">,</span> <span class="s1">&#39;EfficientNetV2M&#39;</span><span class="p">):</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">ModelDict</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;efficientnet_v2m&#39;</span><span class="p">:</span> <span class="n">kapps</span><span class="o">.</span><span class="n">EfficientNetV2M</span><span class="p">})</span>
-        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">kapps</span><span class="p">,</span> <span class="s1">&#39;EfficientNetV2L&#39;</span><span class="p">):</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">ModelDict</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;efficientnet_v2l&#39;</span><span class="p">:</span> <span class="n">kapps</span><span class="o">.</span><span class="n">EfficientNetV2L</span><span class="p">})</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">LinearLossDict</span> <span class="o">=</span> <span class="p">{</span>
-            <span class="n">loss</span><span class="p">:</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">losses</span><span class="p">,</span> <span class="n">loss</span><span class="p">)</span>
-            <span class="k">for</span> <span class="n">loss</span> <span class="ow">in</span> <span class="p">[</span>
-                <span class="s1">&#39;mean_squared_error&#39;</span><span class="p">,</span>
-                <span class="s1">&#39;mean_absolute_error&#39;</span><span class="p">,</span>
-                <span class="s1">&#39;mean_absolute_percentage_error&#39;</span><span class="p">,</span>
-                <span class="s1">&#39;mean_squared_logarithmic_error&#39;</span><span class="p">,</span>
-                <span class="s1">&#39;squared_hinge&#39;</span><span class="p">,</span>
-                <span class="s1">&#39;hinge&#39;</span><span class="p">,</span>
-                <span class="s1">&#39;logcosh&#39;</span>
-            <span class="p">]</span>
-        <span class="p">}</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">LinearLossDict</span><span class="o">.</span><span class="n">update</span><span class="p">({</span>
-            <span class="s1">&#39;negative_log_likelihood&#39;</span><span class="p">:</span> <span class="n">tf_utils</span><span class="o">.</span><span class="n">negative_log_likelihood</span>
-        <span class="p">})</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">AllLossDict</span> <span class="o">=</span> <span class="p">{</span>
-            <span class="n">loss</span><span class="p">:</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">losses</span><span class="p">,</span> <span class="n">loss</span><span class="p">)</span>
-            <span class="k">for</span> <span class="n">loss</span> <span class="ow">in</span> <span class="p">[</span>
-                <span class="s1">&#39;mean_squared_error&#39;</span><span class="p">,</span>
-                <span class="s1">&#39;mean_absolute_error&#39;</span><span class="p">,</span>
-                <span class="s1">&#39;mean_absolute_percentage_error&#39;</span><span class="p">,</span>
-                <span class="s1">&#39;mean_squared_logarithmic_error&#39;</span><span class="p">,</span>
-                <span class="s1">&#39;squared_hinge&#39;</span><span class="p">,</span>
-                <span class="s1">&#39;hinge&#39;</span><span class="p">,</span>
-                <span class="s1">&#39;categorical_hinge&#39;</span><span class="p">,</span>
-                <span class="s1">&#39;logcosh&#39;</span><span class="p">,</span>
-                <span class="s1">&#39;huber&#39;</span><span class="p">,</span>
-                <span class="s1">&#39;categorical_crossentropy&#39;</span><span class="p">,</span>
-                <span class="s1">&#39;sparse_categorical_crossentropy&#39;</span><span class="p">,</span>
-                <span class="s1">&#39;binary_crossentropy&#39;</span><span class="p">,</span>
-                <span class="s1">&#39;kullback_leibler_divergence&#39;</span><span class="p">,</span>
-                <span class="s1">&#39;poisson&#39;</span>
-            <span class="p">]</span>
-        <span class="p">}</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">AllLossDict</span><span class="o">.</span><span class="n">update</span><span class="p">({</span>
-            <span class="s1">&#39;batch_loss_crossentropy&#39;</span><span class="p">:</span> <span class="n">tf_utils</span><span class="o">.</span><span class="n">batch_loss_crossentropy</span><span class="p">,</span>
-            <span class="s1">&#39;negative_log_likelihood&#39;</span><span class="p">:</span> <span class="n">tf_utils</span><span class="o">.</span><span class="n">negative_log_likelihood</span>
-        <span class="p">})</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">ModelDict</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
         <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">optimizer</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">OptDict</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
@@ -509,7 +518,8 @@
 
     <span class="k">def</span> <span class="nf">_build_base</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
-        <span class="n">pretrain</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;imagenet&#39;</span>
+        <span class="n">pretrain</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;imagenet&#39;</span><span class="p">,</span>
+        <span class="n">load_method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;full&#39;</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">Model</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;&quot;Builds the base image model, from a Keras model core, with the</span>
 <span class="sd">        appropriate input tensors and identity layers.</span>
@@ -517,6 +527,14 @@
 <span class="sd">        Args:</span>
 <span class="sd">            pretrain (str, optional): Pretrained weights to load.</span>
 <span class="sd">                Defaults to &#39;imagenet&#39;.</span>
+<span class="sd">            load_method (str): Either &#39;full&#39; or &#39;weights&#39;. Method to use</span>
+<span class="sd">                when loading a Tensorflow model. If &#39;full&#39;, loads the model with</span>
+<span class="sd">                ``tf.keras.models.load_model()``. If &#39;weights&#39;, will read the</span>
+<span class="sd">                ``params.json``configuration file, build the model architecture,</span>
+<span class="sd">                and then load weights from the given model with</span>
+<span class="sd">                ``Model.load_weights()``. Loading with &#39;full&#39; may improve</span>
+<span class="sd">                compatibility across Slideflow versions. Loading with &#39;weights&#39;</span>
+<span class="sd">                may improve compatibility across hardware &amp; environments.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            tf.keras.Model: Base model.</span>
@@ -526,7 +544,7 @@
         <span class="k">if</span> <span class="n">pretrain</span><span class="p">:</span>
             <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Using pretraining from [magenta]</span><span class="si">{</span><span class="n">pretrain</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">pretrain</span> <span class="ow">and</span> <span class="n">pretrain</span> <span class="o">!=</span> <span class="s1">&#39;imagenet&#39;</span><span class="p">:</span>
-            <span class="n">pretrained_model</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">load_model</span><span class="p">(</span><span class="n">pretrain</span><span class="p">)</span>
+            <span class="n">pretrained_model</span> <span class="o">=</span> <span class="n">load</span><span class="p">(</span><span class="n">pretrain</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="n">load_method</span><span class="p">)</span>
             <span class="k">try</span><span class="p">:</span>
                 <span class="c1"># This is the tile_image input</span>
                 <span class="n">pretrained_input</span> <span class="o">=</span> <span class="n">pretrained_model</span><span class="o">.</span><span class="n">get_layer</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;tile_image&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">input</span>
@@ -575,7 +593,8 @@
         <span class="n">num_slide_features</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
         <span class="n">activation</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;softmax&#39;</span><span class="p">,</span>
         <span class="n">pretrain</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;imagenet&#39;</span><span class="p">,</span>
-        <span class="n">checkpoint</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">checkpoint</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">load_method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;full&#39;</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">Model</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Assembles categorical or linear model, using pretraining (imagenet)</span>
 <span class="sd">        or the base layers of a supplied model.</span>
@@ -592,8 +611,16 @@
 <span class="sd">                pretraining. Defaults to &#39;imagenet&#39;.</span>
 <span class="sd">            checkpoint (str): Path to checkpoint from which to resume model</span>
 <span class="sd">                training. Defaults to None.</span>
+<span class="sd">            load_method (str): Either &#39;full&#39; or &#39;weights&#39;. Method to use</span>
+<span class="sd">                when loading a Tensorflow model. If &#39;full&#39;, loads the model with</span>
+<span class="sd">                ``tf.keras.models.load_model()``. If &#39;weights&#39;, will read the</span>
+<span class="sd">                ``params.json``configuration file, build the model architecture,</span>
+<span class="sd">                and then load weights from the given model with</span>
+<span class="sd">                ``Model.load_weights()``. Loading with &#39;full&#39; may improve</span>
+<span class="sd">                compatibility across Slideflow versions. Loading with &#39;weights&#39;</span>
+<span class="sd">                may improve compatibility across hardware &amp; environments.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">tile_image_model</span><span class="p">,</span> <span class="n">model_inputs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_base</span><span class="p">(</span><span class="n">pretrain</span><span class="p">)</span>
+        <span class="n">tile_image_model</span><span class="p">,</span> <span class="n">model_inputs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_base</span><span class="p">(</span><span class="n">pretrain</span><span class="p">,</span> <span class="n">load_method</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">num_slide_features</span><span class="p">:</span>
             <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Model has </span><span class="si">{</span><span class="n">num_slide_features</span><span class="si">}</span><span class="s1"> slide input features&#39;</span><span class="p">)</span>
             <span class="n">slide_feature_input_tensor</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">Input</span><span class="p">(</span>
@@ -671,7 +698,8 @@
         <span class="n">num_classes</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="n">Any</span><span class="p">,</span> <span class="nb">int</span><span class="p">]],</span>
         <span class="n">num_slide_features</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
         <span class="n">pretrain</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">checkpoint</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">checkpoint</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">load_method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;full&#39;</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">Model</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Assembles a Cox Proportional Hazards (CPH) model, using pretraining</span>
 <span class="sd">        (imagenet) or the base layers of a supplied model.</span>
@@ -688,9 +716,17 @@
 <span class="sd">                pretraining. Defaults to &#39;imagenet&#39;.</span>
 <span class="sd">            checkpoint (str): Path to checkpoint from which to resume model</span>
 <span class="sd">                training. Defaults to None.</span>
+<span class="sd">            load_method (str): Either &#39;full&#39; or &#39;weights&#39;. Method to use</span>
+<span class="sd">                when loading a Tensorflow model. If &#39;full&#39;, loads the model with</span>
+<span class="sd">                ``tf.keras.models.load_model()``. If &#39;weights&#39;, will read the</span>
+<span class="sd">                ``params.json``configuration file, build the model architecture,</span>
+<span class="sd">                and then load weights from the given model with</span>
+<span class="sd">                ``Model.load_weights()``. Loading with &#39;full&#39; may improve</span>
+<span class="sd">                compatibility across Slideflow versions. Loading with &#39;weights&#39;</span>
+<span class="sd">                may improve compatibility across hardware &amp; environments.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">activation</span> <span class="o">=</span> <span class="s1">&#39;linear&#39;</span>
-        <span class="n">tile_image_model</span><span class="p">,</span> <span class="n">model_inputs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_base</span><span class="p">(</span><span class="n">pretrain</span><span class="p">)</span>
+        <span class="n">tile_image_model</span><span class="p">,</span> <span class="n">model_inputs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_base</span><span class="p">(</span><span class="n">pretrain</span><span class="p">,</span> <span class="n">load_method</span><span class="p">)</span>
 
         <span class="c1"># Add slide feature input tensors, if there are more slide features</span>
         <span class="c1">#    than just the event input tensor for CPH models</span>
@@ -789,6 +825,14 @@
 <span class="sd">                as pretraining. Defaults to &#39;imagenet&#39;.</span>
 <span class="sd">            checkpoint (str, optional): Path to checkpoint from which to resume</span>
 <span class="sd">                model training. Defaults to None.</span>
+<span class="sd">            load_method (str): Either &#39;full&#39; or &#39;weights&#39;. Method to use</span>
+<span class="sd">                when loading a Tensorflow model. If &#39;full&#39;, loads the model with</span>
+<span class="sd">                ``tf.keras.models.load_model()``. If &#39;weights&#39;, will read the</span>
+<span class="sd">                ``params.json``configuration file, build the model architecture,</span>
+<span class="sd">                and then load weights from the given model with</span>
+<span class="sd">                ``Model.load_weights()``. Loading with &#39;full&#39; may improve</span>
+<span class="sd">                compatibility across Slideflow versions. Loading with &#39;weights&#39;</span>
+<span class="sd">                may improve compatibility across hardware &amp; environments.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
         <span class="k">assert</span> <span class="n">num_classes</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">labels</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
@@ -836,7 +880,6 @@
 
 
 <span class="k">class</span> <span class="nc">_PredictionAndEvaluationCallback</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">callbacks</span><span class="o">.</span><span class="n">Callback</span><span class="p">):</span>
-    <span class="c1"># TODO: log early stopping batch number, and record</span>
 
     <span class="sd">&quot;&quot;&quot;Prediction and Evaluation Callback used during model training.&quot;&quot;&quot;</span>
 
@@ -858,24 +901,33 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">neptune_run</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">neptune_run</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">global_step</span> <span class="o">=</span> <span class="mi">0</span>
 
+        <span class="c1"># Circumvents buffer overflow error with Python 3.10.</span>
+        <span class="c1"># Without this, a buffer overflow error will be encountered when</span>
+        <span class="c1"># attempting to make a matplotlib figure (with the tkagg backend)</span>
+        <span class="c1"># during model evaluation. I have not yet been able to track down</span>
+        <span class="c1"># the root cause.</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cb_args</span><span class="o">.</span><span class="n">using_validation</span><span class="p">:</span>
+            <span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
     <span class="k">def</span> <span class="nf">_metrics_from_dataset</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">epoch_label</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-        <span class="n">pred_args</span><span class="p">:</span> <span class="n">SimpleNamespace</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">Dict</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]:</span>
         <span class="k">return</span> <span class="n">sf</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">metrics_from_dataset</span><span class="p">(</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">,</span>
             <span class="n">model_type</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">model_type</span><span class="p">(),</span>
             <span class="n">patients</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">patients</span><span class="p">,</span>
-            <span class="n">dataset</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">cb_args</span><span class="o">.</span><span class="n">validation_data_with_slidenames</span><span class="p">,</span>
+            <span class="n">dataset</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">cb_args</span><span class="o">.</span><span class="n">validation_data</span><span class="p">,</span>
             <span class="n">outcome_names</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">outcome_names</span><span class="p">,</span>
             <span class="n">label</span><span class="o">=</span><span class="n">epoch_label</span><span class="p">,</span>
             <span class="n">data_dir</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">outdir</span><span class="p">,</span>
             <span class="n">num_tiles</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">cb_args</span><span class="o">.</span><span class="n">num_val_tiles</span><span class="p">,</span>
             <span class="n">save_predictions</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">cb_args</span><span class="o">.</span><span class="n">save_predictions</span><span class="p">,</span>
             <span class="n">reduce_method</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">cb_args</span><span class="o">.</span><span class="n">reduce_method</span><span class="p">,</span>
-            <span class="n">pred_args</span><span class="o">=</span><span class="n">pred_args</span><span class="p">,</span>
-            <span class="n">incl_loc</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">loss</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">get_loss</span><span class="p">(),</span>
+            <span class="n">uq</span><span class="o">=</span><span class="nb">bool</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">uq</span><span class="p">),</span>
         <span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">on_epoch_end</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">epoch</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">logs</span><span class="o">=</span><span class="p">{})</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
@@ -958,12 +1010,21 @@
         <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cb_args</span><span class="o">.</span><span class="n">using_validation</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">cb_args</span><span class="o">.</span><span class="n">validate_on_batch</span>
            <span class="ow">and</span> <span class="p">(</span><span class="n">batch</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span>
            <span class="ow">and</span> <span class="p">(</span><span class="n">batch</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">cb_args</span><span class="o">.</span><span class="n">validate_on_batch</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)):</span>
-            <span class="n">val_metrics</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">evaluate</span><span class="p">(</span>
+            <span class="n">_</span><span class="p">,</span> <span class="n">acc</span><span class="p">,</span> <span class="n">loss</span> <span class="o">=</span> <span class="n">eval_from_model</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">,</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">cb_args</span><span class="o">.</span><span class="n">validation_data</span><span class="p">,</span>
-                <span class="n">verbose</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                <span class="n">model_type</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">model_type</span><span class="p">(),</span>
+                <span class="n">uq</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="n">loss</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">get_loss</span><span class="p">(),</span>
                 <span class="n">steps</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">cb_args</span><span class="o">.</span><span class="n">validation_steps</span><span class="p">,</span>
-                <span class="n">return_dict</span><span class="o">=</span><span class="kc">True</span>
+                <span class="n">verbosity</span><span class="o">=</span><span class="s1">&#39;quiet&#39;</span><span class="p">,</span>
             <span class="p">)</span>
+            <span class="n">val_metrics</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;loss&#39;</span><span class="p">:</span> <span class="n">loss</span><span class="p">}</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">acc</span><span class="p">,</span> <span class="nb">float</span><span class="p">):</span>
+                <span class="n">val_metrics</span><span class="p">[</span><span class="s1">&#39;accuracy&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">acc</span>
+            <span class="k">elif</span> <span class="n">acc</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">val_metrics</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="sa">f</span><span class="s1">&#39;accuracy-</span><span class="si">{</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">:</span> <span class="n">acc</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">acc</span><span class="p">))})</span>
+
             <span class="n">val_loss</span> <span class="o">=</span> <span class="n">val_metrics</span><span class="p">[</span><span class="s1">&#39;loss&#39;</span><span class="p">]</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">stop_training</span> <span class="o">=</span> <span class="kc">False</span>
             <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">early_stop_method</span> <span class="o">==</span> <span class="s1">&#39;accuracy&#39;</span>
@@ -1079,10 +1140,7 @@
     <span class="k">def</span> <span class="nf">evaluate_model</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">logs</span><span class="o">=</span><span class="p">{})</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Evaluating model from evaluation callback&quot;</span><span class="p">)</span>
         <span class="n">epoch</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">epoch_count</span>
-        <span class="n">metrics</span><span class="p">,</span> <span class="n">acc</span><span class="p">,</span> <span class="n">loss</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_metrics_from_dataset</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s1">&#39;val_epoch</span><span class="si">{</span><span class="n">epoch</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span>
-            <span class="n">SimpleNamespace</span><span class="p">(</span><span class="n">loss</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">get_loss</span><span class="p">(),</span> <span class="n">uq</span><span class="o">=</span><span class="nb">bool</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">uq</span><span class="p">))</span>
-        <span class="p">)</span>
+        <span class="n">metrics</span><span class="p">,</span> <span class="n">acc</span><span class="p">,</span> <span class="n">loss</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_metrics_from_dataset</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;val_epoch</span><span class="si">{</span><span class="n">epoch</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
 
         <span class="c1"># Note that Keras loss during training includes regularization losses,</span>
         <span class="c1"># so this loss will not match validation loss calculated during training</span>
@@ -1202,10 +1260,12 @@
         <span class="n">feature_names</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">outcome_names</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">mixed_precision</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">allow_tf32</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
         <span class="n">config</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">use_neptune</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
         <span class="n">neptune_api</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">neptune_workspace</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">neptune_workspace</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">load_method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;full&#39;</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 
         <span class="sd">&quot;&quot;&quot;Sets base configuration, preparing model inputs and outputs.</span>
@@ -1233,8 +1293,18 @@
 <span class="sd">                &quot;Outcome {X}&quot; for each outcome.</span>
 <span class="sd">            mixed_precision (bool, optional): Use FP16 mixed precision (rather</span>
 <span class="sd">                than FP32). Defaults to True.</span>
+<span class="sd">            allow_tf32 (bool): Allow internal use of Tensorfloat-32 format.</span>
+<span class="sd">                Defaults to False.</span>
+<span class="sd">            load_method (str): Either &#39;full&#39; or &#39;weights&#39;. Method to use</span>
+<span class="sd">                when loading a Tensorflow model. If &#39;full&#39;, loads the model with</span>
+<span class="sd">                ``tf.keras.models.load_model()``. If &#39;weights&#39;, will read the</span>
+<span class="sd">                ``params.json``configuration file, build the model architecture,</span>
+<span class="sd">                and then load weights from the given model with</span>
+<span class="sd">                ``Model.load_weights()``. Loading with &#39;full&#39; may improve</span>
+<span class="sd">                compatibility across Slideflow versions. Loading with &#39;weights&#39;</span>
+<span class="sd">                may improve compatibility across hardware &amp; environments.</span>
 <span class="sd">            config (dict, optional): Training configuration dictionary, used</span>
-<span class="sd">                for logging. Defaults to None.</span>
+<span class="sd">                for logging and image format verification. Defaults to None.</span>
 <span class="sd">            use_neptune (bool, optional): Use Neptune API logging.</span>
 <span class="sd">                Defaults to False</span>
 <span class="sd">            neptune_api (str, optional): Neptune API token, used for logging.</span>
@@ -1242,6 +1312,11 @@
 <span class="sd">            neptune_workspace (str, optional): Neptune workspace.</span>
 <span class="sd">                Defaults to None.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="n">load_method</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;full&#39;</span><span class="p">,</span> <span class="s1">&#39;weights&#39;</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Unrecognized value for load_method, must be &quot;</span>
+                             <span class="s2">&quot;either &#39;full&#39; or &#39;weights&#39;.&quot;</span><span class="p">)</span>
+
         <span class="bp">self</span><span class="o">.</span><span class="n">outdir</span> <span class="o">=</span> <span class="n">outdir</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">manifest</span> <span class="o">=</span> <span class="n">manifest</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">tile_px</span> <span class="o">=</span> <span class="n">hp</span><span class="o">.</span><span class="n">tile_px</span>
@@ -1253,10 +1328,12 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">feature_sizes</span> <span class="o">=</span> <span class="n">feature_sizes</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">num_slide_features</span> <span class="o">=</span> <span class="mi">0</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">feature_sizes</span> <span class="k">else</span> <span class="nb">sum</span><span class="p">(</span><span class="n">feature_sizes</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">mixed_precision</span> <span class="o">=</span> <span class="n">mixed_precision</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_allow_tf32</span> <span class="o">=</span> <span class="n">allow_tf32</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">neptune_run</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">annotations_tables</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">eval_callback</span> <span class="o">=</span> <span class="n">_PredictionAndEvaluationCallback</span>  <span class="c1"># type: tf.keras.callbacks.Callback</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">load_method</span> <span class="o">=</span> <span class="n">load_method</span>
 
         <span class="k">if</span> <span class="n">patients</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">patients</span> <span class="o">=</span> <span class="n">patients</span>
@@ -1277,7 +1354,7 @@
                 <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">outcome_labels</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
             <span class="p">]</span>
         <span class="n">outcome_names</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">as_list</span><span class="p">(</span><span class="n">outcome_names</span><span class="p">)</span>
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">outcome_names</span><span class="p">)</span> <span class="o">!=</span> <span class="n">outcome_labels</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
+        <span class="k">if</span> <span class="n">labels</span> <span class="ow">and</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">outcome_names</span><span class="p">)</span> <span class="o">!=</span> <span class="n">outcome_labels</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
             <span class="n">num_names</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">outcome_names</span><span class="p">)</span>
             <span class="n">num_outcomes</span> <span class="o">=</span> <span class="n">outcome_labels</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
             <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">ModelError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Size of outcome_names (</span><span class="si">{</span><span class="n">num_names</span><span class="si">}</span><span class="s1">) != &#39;</span>
@@ -1302,6 +1379,7 @@
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">normalizer</span><span class="p">:</span>
             <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Using realtime </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">normalizer</span><span class="si">}</span><span class="s1"> normalization&#39;</span><span class="p">)</span>
 
+        <span class="c1"># Mixed precision and Tensorfloat-32</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mixed_precision</span><span class="p">:</span>
             <span class="n">_policy</span> <span class="o">=</span> <span class="s1">&#39;mixed_float16&#39;</span>
             <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Enabling mixed precision (</span><span class="si">{</span><span class="n">_policy</span><span class="si">}</span><span class="s1">)&#39;</span><span class="p">)</span>
@@ -1310,6 +1388,7 @@
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">policy</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">mixed_precision</span><span class="o">.</span><span class="n">experimental</span><span class="o">.</span><span class="n">Policy</span><span class="p">(</span><span class="n">_policy</span><span class="p">)</span>
                 <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">mixed_precision</span><span class="o">.</span><span class="n">experimental</span><span class="o">.</span><span class="n">set_policy</span><span class="p">(</span><span class="n">policy</span><span class="p">)</span>
+        <span class="n">tf</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">experimental</span><span class="o">.</span><span class="n">enable_tensor_float_32_execution</span><span class="p">(</span><span class="n">allow_tf32</span><span class="p">)</span>
 
         <span class="c1"># Log parameters</span>
         <span class="k">if</span> <span class="n">config</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
@@ -1318,8 +1397,9 @@
                 <span class="s1">&#39;hp&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">get_dict</span><span class="p">(),</span>
                 <span class="s1">&#39;backend&#39;</span><span class="p">:</span> <span class="n">sf</span><span class="o">.</span><span class="n">backend</span><span class="p">()</span>
             <span class="p">}</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">config</span> <span class="o">=</span> <span class="n">config</span>
         <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">write_json</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;params.json&#39;</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">config</span> <span class="o">=</span> <span class="n">config</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">img_format</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;img_format&#39;</span><span class="p">]</span> <span class="k">if</span> <span class="s1">&#39;img_format&#39;</span> <span class="ow">in</span> <span class="n">config</span> <span class="k">else</span> <span class="kc">None</span>
 
         <span class="c1"># Initialize Neptune</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">use_neptune</span> <span class="o">=</span> <span class="n">use_neptune</span>
@@ -1417,7 +1497,6 @@
     <span class="k">def</span> <span class="nf">_retrain_top_layers</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">train_data</span><span class="p">:</span> <span class="n">tf</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">Dataset</span><span class="p">,</span>
-        <span class="n">validation_data</span><span class="p">:</span> <span class="n">tf</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">Dataset</span><span class="p">,</span>
         <span class="n">steps_per_epoch</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
         <span class="n">callbacks</span><span class="p">:</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">callbacks</span><span class="o">.</span><span class="n">Callback</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">epochs</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span>
@@ -1426,7 +1505,7 @@
         <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Retraining top layer&#39;</span><span class="p">)</span>
         <span class="c1"># Freeze the base layer</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">layers</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">trainable</span> <span class="o">=</span> <span class="kc">False</span>
-        <span class="n">val_steps</span> <span class="o">=</span> <span class="mi">200</span> <span class="k">if</span> <span class="n">validation_data</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="c1">#val_steps = 200 if validation_data else None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_compile_model</span><span class="p">()</span>
 
         <span class="n">toplayer_model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span>
@@ -1434,8 +1513,6 @@
             <span class="n">epochs</span><span class="o">=</span><span class="n">epochs</span><span class="p">,</span>
             <span class="n">verbose</span><span class="o">=</span><span class="p">(</span><span class="n">sf</span><span class="o">.</span><span class="n">getLoggingLevel</span><span class="p">()</span> <span class="o">&lt;=</span> <span class="mi">20</span><span class="p">),</span>
             <span class="n">steps_per_epoch</span><span class="o">=</span><span class="n">steps_per_epoch</span><span class="p">,</span>
-            <span class="n">validation_data</span><span class="o">=</span><span class="n">validation_data</span><span class="p">,</span>
-            <span class="n">validation_steps</span><span class="o">=</span><span class="n">val_steps</span><span class="p">,</span>
             <span class="n">callbacks</span><span class="o">=</span><span class="n">callbacks</span>
         <span class="p">)</span>
         <span class="c1"># Unfreeze the base layer</span>
@@ -1465,15 +1542,27 @@
         <span class="p">)</span>
         <span class="k">return</span> <span class="nb">vars</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
 
+    <span class="k">def</span> <span class="nf">_verify_img_format</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataset</span><span class="p">:</span> <span class="s2">&quot;sf.Dataset&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">img_format</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">dataset</span><span class="o">.</span><span class="n">img_format</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Unable to verify image format (PNG/JPG) of dataset.&quot;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">img_format</span> <span class="ow">and</span> <span class="n">dataset</span><span class="o">.</span><span class="n">img_format</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">img_format</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                <span class="s2">&quot;Mismatched image formats. Expected &#39;</span><span class="si">{}</span><span class="s2">&#39; per model config, &quot;</span>
+                <span class="s2">&quot;but dataset has format &#39;</span><span class="si">{}</span><span class="s2">&#39;.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">img_format</span><span class="p">,</span>
+                    <span class="n">dataset</span><span class="o">.</span><span class="n">img_format</span><span class="p">))</span>
+
     <span class="k">def</span> <span class="nf">load</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">Model</span><span class="p">:</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">load_model</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">load</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">load_method</span><span class="p">)</span>
 
 <div class="viewcode-block" id="Trainer.predict"><a class="viewcode-back" href="../../../model.html#slideflow.model.Trainer.predict">[docs]</a>    <span class="k">def</span> <span class="nf">predict</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">dataset</span><span class="p">:</span> <span class="s2">&quot;sf.Dataset&quot;</span><span class="p">,</span>
         <span class="n">batch_size</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">norm_fit</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">NormFit</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="nb">format</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;parquet&#39;</span>
+        <span class="nb">format</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;parquet&#39;</span><span class="p">,</span>
+        <span class="n">from_wsi</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">roi_method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;auto&#39;</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;pd.DataFrame&quot;</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Perform inference on a model, saving tile-level predictions.</span>
 
@@ -1488,6 +1577,18 @@
 <span class="sd">                model params (if applicable). Defaults to None.</span>
 <span class="sd">            format (str, optional): Format in which to save predictions. Either</span>
 <span class="sd">                &#39;csv&#39;, &#39;feather&#39;, or &#39;parquet&#39;. Defaults to &#39;parquet&#39;.</span>
+<span class="sd">            from_wsi (bool): Generate predictions from tiles dynamically</span>
+<span class="sd">                extracted from whole-slide images, rather than TFRecords.</span>
+<span class="sd">                Defaults to False (use TFRecords).</span>
+<span class="sd">            roi_method (str): ROI method to use if from_wsi=True (ignored if</span>
+<span class="sd">                from_wsi=False).  Either &#39;inside&#39;, &#39;outside&#39;, &#39;auto&#39;, &#39;ignore&#39;.</span>
+<span class="sd">                If &#39;inside&#39; or &#39;outside&#39;, will extract tiles in/out of an ROI,</span>
+<span class="sd">                and raise errors.MissingROIError if an ROI is not available.</span>
+<span class="sd">                If &#39;auto&#39;, will extract tiles inside an ROI if available,</span>
+<span class="sd">                and across the whole-slide if no ROI is found.</span>
+<span class="sd">                If &#39;ignore&#39;, will extract tiles across the whole-slide</span>
+<span class="sd">                regardless of whether an ROI is available.</span>
+<span class="sd">                Defaults to &#39;auto&#39;.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            pandas.DataFrame of tile-level predictions.</span>
@@ -1495,6 +1596,9 @@
 
         <span class="k">if</span> <span class="nb">format</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;csv&#39;</span><span class="p">,</span> <span class="s1">&#39;feather&#39;</span><span class="p">,</span> <span class="s1">&#39;parquet&#39;</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unrecognized format </span><span class="si">{</span><span class="nb">format</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Verify image format</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_verify_img_format</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
 
         <span class="c1"># Fit normalizer</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_fit_normalizer</span><span class="p">(</span><span class="n">norm_fit</span><span class="p">)</span>
@@ -1518,25 +1622,22 @@
             <span class="p">)</span>
             <span class="n">tf_dts_w_slidenames</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">tensorflow</span><span class="p">(</span>
                 <span class="n">incl_slidenames</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-                <span class="n">incl_loc</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                <span class="n">from_wsi</span><span class="o">=</span><span class="n">from_wsi</span><span class="p">,</span>
+                <span class="n">roi_method</span><span class="o">=</span><span class="n">roi_method</span><span class="p">,</span>
                 <span class="o">**</span><span class="n">interleave_kwargs</span>
             <span class="p">)</span>
         <span class="c1"># Generate predictions</span>
         <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Generating predictions...&#39;</span><span class="p">)</span>
-        <span class="n">pred_args</span> <span class="o">=</span> <span class="n">SimpleNamespace</span><span class="p">(</span><span class="n">uq</span><span class="o">=</span><span class="nb">bool</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">uq</span><span class="p">))</span>
-        <span class="n">dfs</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">predict_from_dataset</span><span class="p">(</span>
+        <span class="n">dfs</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">predict_dataset</span><span class="p">(</span>
             <span class="n">model</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">,</span>
             <span class="n">dataset</span><span class="o">=</span><span class="n">tf_dts_w_slidenames</span><span class="p">,</span>
             <span class="n">model_type</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_model_type</span><span class="p">,</span>
-            <span class="n">pred_args</span><span class="o">=</span><span class="n">pred_args</span><span class="p">,</span>
+            <span class="n">uq</span><span class="o">=</span><span class="nb">bool</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">uq</span><span class="p">),</span>
             <span class="n">num_tiles</span><span class="o">=</span><span class="n">dataset</span><span class="o">.</span><span class="n">num_tiles</span><span class="p">,</span>
             <span class="n">outcome_names</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">outcome_names</span><span class="p">,</span>
-            <span class="n">incl_loc</span><span class="o">=</span><span class="kc">True</span>
         <span class="p">)</span>
-
         <span class="c1"># Save predictions</span>
         <span class="n">sf</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">metrics</span><span class="o">.</span><span class="n">save_dfs</span><span class="p">(</span><span class="n">dfs</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="nb">format</span><span class="p">,</span> <span class="n">outdir</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">outdir</span><span class="p">)</span>
-
         <span class="k">return</span> <span class="n">dfs</span></div>
 
 <div class="viewcode-block" id="Trainer.evaluate"><a class="viewcode-back" href="../../../model.html#slideflow.model.Trainer.evaluate">[docs]</a>    <span class="k">def</span> <span class="nf">evaluate</span><span class="p">(</span>
@@ -1546,7 +1647,9 @@
         <span class="n">save_predictions</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">bool</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;parquet&#39;</span><span class="p">,</span>
         <span class="n">reduce_method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;average&#39;</span><span class="p">,</span>
         <span class="n">norm_fit</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">NormFit</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">uq</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">bool</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;auto&#39;</span>
+        <span class="n">uq</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">bool</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;auto&#39;</span><span class="p">,</span>
+        <span class="n">from_wsi</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">roi_method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;auto&#39;</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
         <span class="sd">&quot;&quot;&quot;Evaluate model, saving metrics and predictions.</span>
 
@@ -1579,6 +1682,13 @@
             <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">uq</span><span class="p">,</span> <span class="nb">bool</span><span class="p">):</span>
                 <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unrecognized value </span><span class="si">{</span><span class="n">uq</span><span class="si">}</span><span class="s2"> for uq&quot;</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">uq</span> <span class="o">=</span> <span class="n">uq</span>
+
+        <span class="c1"># Verify image format</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_verify_img_format</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
+
+        <span class="c1"># Perform evaluation</span>
+        <span class="n">_unit_type</span> <span class="o">=</span> <span class="s1">&#39;slides&#39;</span> <span class="k">if</span> <span class="n">from_wsi</span> <span class="k">else</span> <span class="s1">&#39;tfrecords&#39;</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Evaluating </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">dataset</span><span class="o">.</span><span class="n">tfrecords</span><span class="p">())</span><span class="si">}</span><span class="s1"> </span><span class="si">{</span><span class="n">_unit_type</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
 
         <span class="c1"># Fit normalizer</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_fit_normalizer</span><span class="p">(</span><span class="n">norm_fit</span><span class="p">)</span>
@@ -1617,6 +1727,8 @@
             <span class="n">tf_dts_w_slidenames</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">tensorflow</span><span class="p">(</span>
                 <span class="n">incl_slidenames</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
                 <span class="n">incl_loc</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                <span class="n">from_wsi</span><span class="o">=</span><span class="n">from_wsi</span><span class="p">,</span>
+                <span class="n">roi_method</span><span class="o">=</span><span class="n">roi_method</span><span class="p">,</span>
                 <span class="o">**</span><span class="n">interleave_kwargs</span>
             <span class="p">)</span>
         <span class="c1"># Generate performance metrics</span>
@@ -1626,15 +1738,11 @@
             <span class="n">num_tiles</span><span class="o">=</span><span class="n">dataset</span><span class="o">.</span><span class="n">num_tiles</span><span class="p">,</span>
             <span class="n">label</span><span class="o">=</span><span class="s1">&#39;eval&#39;</span>
         <span class="p">)</span>
-        <span class="n">pred_args</span> <span class="o">=</span> <span class="n">SimpleNamespace</span><span class="p">(</span>
-            <span class="n">loss</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">get_loss</span><span class="p">(),</span>
-            <span class="n">uq</span><span class="o">=</span><span class="nb">bool</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">uq</span><span class="p">)</span>
-        <span class="p">)</span>
         <span class="n">metrics</span><span class="p">,</span> <span class="n">acc</span><span class="p">,</span> <span class="n">loss</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">metrics_from_dataset</span><span class="p">(</span>
             <span class="n">save_predictions</span><span class="o">=</span><span class="n">save_predictions</span><span class="p">,</span>
-            <span class="n">pred_args</span><span class="o">=</span><span class="n">pred_args</span><span class="p">,</span>
             <span class="n">reduce_method</span><span class="o">=</span><span class="n">reduce_method</span><span class="p">,</span>
-            <span class="n">incl_loc</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">loss</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">get_loss</span><span class="p">(),</span>
+            <span class="n">uq</span><span class="o">=</span><span class="nb">bool</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">uq</span><span class="p">),</span>
             <span class="o">**</span><span class="n">metric_kwargs</span>
         <span class="p">)</span>
         <span class="n">results</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;eval&#39;</span><span class="p">:</span> <span class="p">{}}</span>  <span class="c1"># type: Dict[str, Dict[str, float]]</span>
@@ -1688,6 +1796,8 @@
         <span class="n">multi_gpu</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
         <span class="n">reduce_method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;average&#39;</span><span class="p">,</span>
         <span class="n">norm_fit</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">NormFit</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">from_wsi</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">roi_method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;auto&#39;</span><span class="p">,</span>
     <span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Builds and trains a model from hyperparameters.</span>
 
@@ -1728,9 +1838,9 @@
 <span class="sd">                model from which to load weights. Defaults to &#39;imagenet&#39;.</span>
 <span class="sd">            checkpoint (str, optional): Path to cp.ckpt from which to load</span>
 <span class="sd">                weights. Defaults to None.</span>
-<span class="sd">            save_checkpoint(bool, optional): Save checkpoints at each epoch.</span>
+<span class="sd">            save_checkpoint (bool, optional): Save checkpoints at each epoch.</span>
 <span class="sd">                Defaults to True.</span>
-<span class="sd">            multi_gpu(bool, optional): Enable multi-GPU training using</span>
+<span class="sd">            multi_gpu (bool, optional): Enable multi-GPU training using</span>
 <span class="sd">                Tensorflow/Keras MirroredStrategy.</span>
 <span class="sd">            reduce_method (str, optional): Reduction method for calculating</span>
 <span class="sd">                slide-level and patient-level predictions for categorical outcomes.</span>
@@ -1776,10 +1886,15 @@
             <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">write_json</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">config_path</span><span class="p">)</span>
 
         <span class="c1"># Save training / validation manifest</span>
-        <span class="n">val_tfrecords</span> <span class="o">=</span> <span class="kc">None</span> <span class="k">if</span> <span class="n">val_dts</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">val_dts</span><span class="o">.</span><span class="n">tfrecords</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">val_dts</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">val_paths</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">elif</span> <span class="n">from_wsi</span><span class="p">:</span>
+            <span class="n">val_paths</span> <span class="o">=</span> <span class="n">val_dts</span><span class="o">.</span><span class="n">slide_paths</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">val_paths</span> <span class="o">=</span> <span class="n">val_dts</span><span class="o">.</span><span class="n">tfrecords</span><span class="p">()</span>
         <span class="n">log_manifest</span><span class="p">(</span>
             <span class="n">train_dts</span><span class="o">.</span><span class="n">tfrecords</span><span class="p">(),</span>
-            <span class="n">val_tfrecords</span><span class="p">,</span>
+            <span class="n">val_paths</span><span class="p">,</span>
             <span class="n">labels</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">labels</span><span class="p">,</span>
             <span class="n">filename</span><span class="o">=</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;slide_manifest.csv&#39;</span><span class="p">)</span>
         <span class="p">)</span>
@@ -1811,7 +1926,7 @@
             <span class="n">strategy</span> <span class="o">=</span> <span class="kc">None</span>
 
         <span class="k">with</span> <span class="n">strategy</span><span class="o">.</span><span class="n">scope</span><span class="p">()</span> <span class="k">if</span> <span class="n">strategy</span> <span class="k">else</span> <span class="n">no_scope</span><span class="p">():</span>
-            <span class="c1"># Build model from ModeLParams</span>
+            <span class="c1"># Build model from ModelParams</span>
             <span class="k">if</span> <span class="n">resume_training</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">load_model</span><span class="p">(</span><span class="n">resume_training</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
@@ -1819,7 +1934,8 @@
                     <span class="n">labels</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">labels</span><span class="p">,</span>
                     <span class="n">num_slide_features</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">num_slide_features</span><span class="p">,</span>
                     <span class="n">pretrain</span><span class="o">=</span><span class="n">pretrain</span><span class="p">,</span>
-                    <span class="n">checkpoint</span><span class="o">=</span><span class="n">checkpoint</span>
+                    <span class="n">checkpoint</span><span class="o">=</span><span class="n">checkpoint</span><span class="p">,</span>
+                    <span class="n">load_method</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">load_method</span>
                 <span class="p">)</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">model</span>
                 <span class="n">tf_utils</span><span class="o">.</span><span class="n">log_summary</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">neptune_run</span><span class="p">)</span>
@@ -1828,12 +1944,16 @@
                 <span class="n">t_kwargs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_interleave_kwargs</span><span class="p">(</span>
                     <span class="n">batch_size</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">batch_size</span><span class="p">,</span>
                     <span class="n">infinite</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-                    <span class="n">augment</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">augment</span>
+                    <span class="n">augment</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">augment</span><span class="p">,</span>
+                    <span class="n">from_wsi</span><span class="o">=</span><span class="n">from_wsi</span><span class="p">,</span>
+                    <span class="n">roi_method</span><span class="o">=</span><span class="n">roi_method</span>
                 <span class="p">)</span>
                 <span class="n">train_data</span> <span class="o">=</span> <span class="n">train_dts</span><span class="o">.</span><span class="n">tensorflow</span><span class="p">(</span><span class="n">drop_last</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="o">**</span><span class="n">t_kwargs</span><span class="p">)</span>
 
             <span class="c1"># Set up validation data</span>
-            <span class="n">using_validation</span> <span class="o">=</span> <span class="p">(</span><span class="n">val_dts</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">val_dts</span><span class="o">.</span><span class="n">tfrecords</span><span class="p">()))</span>
+            <span class="n">using_validation</span> <span class="o">=</span> <span class="p">(</span><span class="n">val_dts</span>
+                                <span class="ow">and</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">val_dts</span><span class="o">.</span><span class="n">tfrecords</span><span class="p">())</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">from_wsi</span>
+                                     <span class="k">else</span> <span class="nb">len</span><span class="p">(</span><span class="n">val_dts</span><span class="o">.</span><span class="n">slide_paths</span><span class="p">())))</span>
             <span class="k">if</span> <span class="n">using_validation</span><span class="p">:</span>
                 <span class="k">assert</span> <span class="n">val_dts</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
                 <span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">name_scope</span><span class="p">(</span><span class="s1">&#39;input&#39;</span><span class="p">):</span>
@@ -1842,10 +1962,11 @@
                     <span class="n">v_kwargs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_interleave_kwargs_val</span><span class="p">(</span>
                         <span class="n">batch_size</span><span class="o">=</span><span class="n">validation_batch_size</span><span class="p">,</span>
                         <span class="n">infinite</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-                        <span class="n">augment</span><span class="o">=</span><span class="kc">False</span>
+                        <span class="n">augment</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                        <span class="n">from_wsi</span><span class="o">=</span><span class="n">from_wsi</span><span class="p">,</span>
+                        <span class="n">roi_method</span><span class="o">=</span><span class="n">roi_method</span>
                     <span class="p">)</span>
-                    <span class="n">val_data</span> <span class="o">=</span> <span class="n">val_dts</span><span class="o">.</span><span class="n">tensorflow</span><span class="p">(</span><span class="o">**</span><span class="n">v_kwargs</span><span class="p">)</span>
-                    <span class="n">val_data_w_slidenames</span> <span class="o">=</span> <span class="n">val_dts</span><span class="o">.</span><span class="n">tensorflow</span><span class="p">(</span>
+                    <span class="n">validation_data</span> <span class="o">=</span> <span class="n">val_dts</span><span class="o">.</span><span class="n">tensorflow</span><span class="p">(</span>
                         <span class="n">incl_slidenames</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
                         <span class="n">incl_loc</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
                         <span class="n">drop_last</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
@@ -1857,21 +1978,23 @@
                 <span class="k">else</span><span class="p">:</span>
                     <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Validation during training: at epoch end&#39;</span><span class="p">)</span>
                 <span class="k">if</span> <span class="n">validation_steps</span><span class="p">:</span>
-                    <span class="n">validation_data_for_training</span> <span class="o">=</span> <span class="n">val_data</span><span class="o">.</span><span class="n">repeat</span><span class="p">()</span>
                     <span class="n">num_samples</span> <span class="o">=</span> <span class="n">validation_steps</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">batch_size</span>
                     <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Using </span><span class="si">{</span><span class="n">validation_steps</span><span class="si">}</span><span class="s1"> batches (</span><span class="si">{</span><span class="n">num_samples</span><span class="si">}</span><span class="s1">&#39;</span>
                               <span class="s1">&#39; samples) each validation check&#39;</span><span class="p">)</span>
                 <span class="k">else</span><span class="p">:</span>
-                    <span class="n">validation_data_for_training</span> <span class="o">=</span> <span class="n">val_data</span>
                     <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Using entire validation set each val check&#39;</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Validation during training: None&#39;</span><span class="p">)</span>
-                <span class="n">validation_data_for_training</span> <span class="o">=</span> <span class="kc">None</span>
-                <span class="n">val_data</span> <span class="o">=</span> <span class="kc">None</span>
-                <span class="n">val_data_w_slidenames</span> <span class="o">=</span> <span class="kc">None</span>
+                <span class="n">validation_data</span> <span class="o">=</span> <span class="kc">None</span>
                 <span class="n">validation_steps</span> <span class="o">=</span> <span class="mi">0</span>
 
             <span class="c1"># Calculate parameters</span>
+            <span class="k">if</span> <span class="n">from_wsi</span><span class="p">:</span>
+                <span class="n">train_tiles</span> <span class="o">=</span> <span class="n">train_data</span><span class="o">.</span><span class="n">est_num_tiles</span>
+                <span class="n">val_tiles</span> <span class="o">=</span> <span class="n">validation_data</span><span class="o">.</span><span class="n">est_num_tiles</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">train_tiles</span> <span class="o">=</span> <span class="n">train_dts</span><span class="o">.</span><span class="n">num_tiles</span>
+                <span class="n">val_tiles</span> <span class="o">=</span> <span class="mi">0</span> <span class="k">if</span> <span class="n">val_dts</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">val_dts</span><span class="o">.</span><span class="n">num_tiles</span>
             <span class="k">if</span> <span class="nb">max</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">epochs</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">starting_epoch</span><span class="p">:</span>
                 <span class="n">max_epoch</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">epochs</span><span class="p">)</span>
                 <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Starting epoch (</span><span class="si">{</span><span class="n">starting_epoch</span><span class="si">}</span><span class="s1">) cannot be greater&#39;</span>
@@ -1885,19 +2008,18 @@
             <span class="k">if</span> <span class="n">steps_per_epoch_override</span><span class="p">:</span>
                 <span class="n">steps_per_epoch</span> <span class="o">=</span> <span class="n">steps_per_epoch_override</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="n">steps_per_epoch</span> <span class="o">=</span> <span class="nb">round</span><span class="p">(</span><span class="n">train_dts</span><span class="o">.</span><span class="n">num_tiles</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">batch_size</span><span class="p">)</span>
+                <span class="n">steps_per_epoch</span> <span class="o">=</span> <span class="nb">round</span><span class="p">(</span><span class="n">train_tiles</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">batch_size</span><span class="p">)</span>
 
             <span class="n">cb_args</span> <span class="o">=</span> <span class="n">SimpleNamespace</span><span class="p">(</span>
                 <span class="n">starting_epoch</span><span class="o">=</span><span class="n">starting_epoch</span><span class="p">,</span>
                 <span class="n">using_validation</span><span class="o">=</span><span class="n">using_validation</span><span class="p">,</span>
                 <span class="n">validate_on_batch</span><span class="o">=</span><span class="n">validate_on_batch</span><span class="p">,</span>
-                <span class="n">validation_data</span><span class="o">=</span><span class="n">val_data</span><span class="p">,</span>
                 <span class="n">validation_steps</span><span class="o">=</span><span class="n">validation_steps</span><span class="p">,</span>
                 <span class="n">ema_observations</span><span class="o">=</span><span class="n">ema_observations</span><span class="p">,</span>
                 <span class="n">ema_smoothing</span><span class="o">=</span><span class="n">ema_smoothing</span><span class="p">,</span>
                 <span class="n">steps_per_epoch</span><span class="o">=</span><span class="n">steps_per_epoch</span><span class="p">,</span>
-                <span class="n">validation_data_with_slidenames</span><span class="o">=</span><span class="n">val_data_w_slidenames</span><span class="p">,</span>
-                <span class="n">num_val_tiles</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span> <span class="k">if</span> <span class="n">val_dts</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">val_dts</span><span class="o">.</span><span class="n">num_tiles</span><span class="p">),</span>
+                <span class="n">validation_data</span><span class="o">=</span><span class="n">validation_data</span><span class="p">,</span>
+                <span class="n">num_val_tiles</span><span class="o">=</span><span class="n">val_tiles</span><span class="p">,</span>
                 <span class="n">save_predictions</span><span class="o">=</span><span class="n">save_predictions</span><span class="p">,</span>
                 <span class="n">save_model</span><span class="o">=</span><span class="n">save_model</span><span class="p">,</span>
                 <span class="n">results_log</span><span class="o">=</span><span class="n">results_log</span><span class="p">,</span>
@@ -1931,7 +2053,6 @@
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">toplayer_epochs</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">_retrain_top_layers</span><span class="p">(</span>
                     <span class="n">train_data</span><span class="p">,</span>
-                    <span class="n">validation_data_for_training</span><span class="p">,</span>
                     <span class="n">steps_per_epoch</span><span class="p">,</span>
                     <span class="n">callbacks</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                     <span class="n">epochs</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">toplayer_epochs</span>
@@ -1946,14 +2067,11 @@
                     <span class="n">epochs</span><span class="o">=</span><span class="n">total_epochs</span><span class="p">,</span>
                     <span class="n">verbose</span><span class="o">=</span><span class="p">(</span><span class="n">sf</span><span class="o">.</span><span class="n">getLoggingLevel</span><span class="p">()</span> <span class="o">&lt;=</span> <span class="mi">20</span><span class="p">),</span>
                     <span class="n">initial_epoch</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">toplayer_epochs</span><span class="p">,</span>
-                    <span class="n">validation_data</span><span class="o">=</span><span class="n">validation_data_for_training</span><span class="p">,</span>
-                    <span class="n">validation_steps</span><span class="o">=</span><span class="n">validation_steps</span><span class="p">,</span>
                     <span class="n">callbacks</span><span class="o">=</span><span class="n">callbacks</span>
                 <span class="p">)</span>
             <span class="k">except</span> <span class="n">tf</span><span class="o">.</span><span class="n">errors</span><span class="o">.</span><span class="n">ResourceExhaustedError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
-                <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Training failed for [bold]</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">[/], &quot;</span>
-                          <span class="s2">&quot;GPU memory exceeded.&quot;</span><span class="p">)</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Training failed for [bold]</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">[/]. &quot;</span>
+                          <span class="sa">f</span><span class="s2">&quot;Error: </span><span class="se">\n</span><span class="s2"> </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
             <span class="n">results</span> <span class="o">=</span> <span class="n">val_callback</span><span class="o">.</span><span class="n">results</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_neptune</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">neptune_run</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">neptune_run</span><span class="p">[</span><span class="s1">&#39;results&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">results</span><span class="p">[</span><span class="s1">&#39;epochs&#39;</span><span class="p">]</span>
@@ -2050,18 +2168,21 @@
                 <span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">load</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">Model</span><span class="p">:</span>
-        <span class="n">custom_objects</span> <span class="o">=</span> <span class="p">{</span>
-            <span class="s1">&#39;negative_log_likelihood&#39;</span><span class="p">:</span> <span class="n">tf_utils</span><span class="o">.</span><span class="n">negative_log_likelihood</span><span class="p">,</span>
-            <span class="s1">&#39;concordance_index&#39;</span><span class="p">:</span> <span class="n">tf_utils</span><span class="o">.</span><span class="n">concordance_index</span>
-        <span class="p">}</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">load_model</span><span class="p">(</span>
-            <span class="n">model</span><span class="p">,</span>
-            <span class="n">custom_objects</span><span class="o">=</span><span class="n">custom_objects</span>
-        <span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span>
-            <span class="n">loss</span><span class="o">=</span><span class="n">tf_utils</span><span class="o">.</span><span class="n">negative_log_likelihood</span><span class="p">,</span>
-            <span class="n">metrics</span><span class="o">=</span><span class="n">tf_utils</span><span class="o">.</span><span class="n">concordance_index</span>
-        <span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_method</span> <span class="o">==</span> <span class="s1">&#39;full&#39;</span><span class="p">:</span>
+            <span class="n">custom_objects</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s1">&#39;negative_log_likelihood&#39;</span><span class="p">:</span> <span class="n">tf_utils</span><span class="o">.</span><span class="n">negative_log_likelihood</span><span class="p">,</span>
+                <span class="s1">&#39;concordance_index&#39;</span><span class="p">:</span> <span class="n">tf_utils</span><span class="o">.</span><span class="n">concordance_index</span>
+            <span class="p">}</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">load_model</span><span class="p">(</span>
+                <span class="n">model</span><span class="p">,</span>
+                <span class="n">custom_objects</span><span class="o">=</span><span class="n">custom_objects</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span>
+                <span class="n">loss</span><span class="o">=</span><span class="n">tf_utils</span><span class="o">.</span><span class="n">negative_log_likelihood</span><span class="p">,</span>
+                <span class="n">metrics</span><span class="o">=</span><span class="n">tf_utils</span><span class="o">.</span><span class="n">concordance_index</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">load</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">load_method</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">_compile_model</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="n">optimizer</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">hp</span><span class="o">.</span><span class="n">get_opt</span><span class="p">(),</span>
@@ -2156,9 +2277,11 @@
 
 <div class="viewcode-block" id="Features.__init__"><a class="viewcode-back" href="../../../model.html#slideflow.model.Features.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
-        <span class="n">path</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Path</span><span class="p">],</span>
+        <span class="n">path</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
         <span class="n">layers</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="s1">&#39;postconv&#39;</span><span class="p">,</span>
-        <span class="n">include_logits</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">include_logits</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">load_method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;full&#39;</span><span class="p">,</span>
+        <span class="n">pooling</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Creates a features interface from a saved slideflow model which</span>
 <span class="sd">        outputs feature activations at the designated layers.</span>
@@ -2173,6 +2296,14 @@
 <span class="sd">                via &#39;postconv&#39;. Defaults to &#39;postconv&#39;.</span>
 <span class="sd">            include_logits (bool, optional): Include logits in output. Will be</span>
 <span class="sd">                returned last. Defaults to False.</span>
+<span class="sd">            load_method (str): Either &#39;full&#39; or &#39;weights&#39;. Method to use</span>
+<span class="sd">                when loading a Tensorflow model. If &#39;full&#39;, loads the model with</span>
+<span class="sd">                ``tf.keras.models.load_model()``. If &#39;weights&#39;, will read the</span>
+<span class="sd">                ``params.json``configuration file, build the model architecture,</span>
+<span class="sd">                and then load weights from the given model with</span>
+<span class="sd">                ``Model.load_weights()``. Loading with &#39;full&#39; may improve</span>
+<span class="sd">                compatibility across Slideflow versions. Loading with &#39;weights&#39;</span>
+<span class="sd">                may improve compatibility across hardware &amp; environments.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">path</span> <span class="o">=</span> <span class="n">path</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">num_logits</span> <span class="o">=</span> <span class="mi">0</span>
@@ -2181,7 +2312,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">img_format</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Setting up Features interface&#39;</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_model</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">load_model</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_model</span> <span class="o">=</span> <span class="n">load</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="n">load_method</span><span class="p">)</span>  <span class="c1"># type: ignore</span>
             <span class="n">config</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">get_model_config</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
             <span class="k">if</span> <span class="s1">&#39;img_format&#39;</span> <span class="ow">in</span> <span class="n">config</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">img_format</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;img_format&#39;</span><span class="p">]</span>
@@ -2195,7 +2326,7 @@
                 <span class="k">else</span><span class="p">:</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">wsi_normalizer</span><span class="o">.</span><span class="n">set_fit</span><span class="p">(</span><span class="o">**</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;norm_fit&#39;</span><span class="p">])</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_build</span><span class="p">(</span>
-                <span class="n">layers</span><span class="o">=</span><span class="n">layers</span><span class="p">,</span> <span class="n">include_logits</span><span class="o">=</span><span class="n">include_logits</span>  <span class="c1"># type: ignore</span>
+                <span class="n">layers</span><span class="o">=</span><span class="n">layers</span><span class="p">,</span> <span class="n">include_logits</span><span class="o">=</span><span class="n">include_logits</span><span class="p">,</span> <span class="n">pooling</span><span class="o">=</span><span class="n">pooling</span>  <span class="c1"># type: ignore</span>
             <span class="p">)</span></div>
 
 <div class="viewcode-block" id="Features.from_model"><a class="viewcode-back" href="../../../model.html#slideflow.model.Features.from_model">[docs]</a>    <span class="nd">@classmethod</span>
@@ -2204,7 +2335,8 @@
         <span class="n">model</span><span class="p">:</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">Model</span><span class="p">,</span>
         <span class="n">layers</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="s1">&#39;postconv&#39;</span><span class="p">,</span>
         <span class="n">include_logits</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-        <span class="n">wsi_normalizer</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="s2">&quot;StainNormalizer&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">wsi_normalizer</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="s2">&quot;StainNormalizer&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">pooling</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Creates a features interface from a loaded slideflow model which</span>
 <span class="sd">        outputs feature activations at the designated layers.</span>
@@ -2227,9 +2359,10 @@
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">Model</span><span class="p">):</span>
             <span class="n">obj</span><span class="o">.</span><span class="n">_model</span> <span class="o">=</span> <span class="n">model</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">ModelError</span><span class="p">(</span><span class="s2">&quot;Model is not a valid Tensorflow model.&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">ModelError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Model </span><span class="si">{</span><span class="n">model</span><span class="si">}</span><span class="s2"> is not a valid Tensorflow &quot;</span>
+                                    <span class="s2">&quot;model.&quot;</span><span class="p">)</span>
         <span class="n">obj</span><span class="o">.</span><span class="n">_build</span><span class="p">(</span>
-            <span class="n">layers</span><span class="o">=</span><span class="n">layers</span><span class="p">,</span> <span class="n">include_logits</span><span class="o">=</span><span class="n">include_logits</span>  <span class="c1"># type: ignore</span>
+            <span class="n">layers</span><span class="o">=</span><span class="n">layers</span><span class="p">,</span> <span class="n">include_logits</span><span class="o">=</span><span class="n">include_logits</span><span class="p">,</span> <span class="n">pooling</span><span class="o">=</span><span class="n">pooling</span>  <span class="c1"># type: ignore</span>
         <span class="p">)</span>
         <span class="n">obj</span><span class="o">.</span><span class="n">wsi_normalizer</span> <span class="o">=</span> <span class="n">wsi_normalizer</span>
         <span class="k">return</span> <span class="n">obj</span></div>
@@ -2254,6 +2387,9 @@
         <span class="n">img_format</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;auto&#39;</span><span class="p">,</span>
         <span class="n">batch_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">32</span><span class="p">,</span>
         <span class="n">dtype</span><span class="p">:</span> <span class="nb">type</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">float16</span><span class="p">,</span>
+        <span class="n">grid</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">shuffle</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">show_progress</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
         <span class="o">**</span><span class="n">kwargs</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]:</span>
         <span class="sd">&quot;&quot;&quot;Generate activations from slide =&gt; activation grid array.&quot;&quot;&quot;</span>
@@ -2268,17 +2404,24 @@
         <span class="k">elif</span> <span class="n">img_format</span> <span class="o">==</span> <span class="s1">&#39;auto&#39;</span><span class="p">:</span>
             <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">img_format</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
             <span class="n">img_format</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">img_format</span>
+        <span class="k">if</span> <span class="n">img_format</span> <span class="o">==</span> <span class="s1">&#39;png&#39;</span><span class="p">:</span>  <span class="c1"># PNG is lossless; this is equivalent but faster</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Using numpy image format instead of PNG&quot;</span><span class="p">)</span>
+            <span class="n">img_format</span> <span class="o">=</span> <span class="s1">&#39;numpy&#39;</span>
         <span class="n">total_out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_features</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_logits</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_uncertainty</span>
-        <span class="n">features_grid</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span>
-                <span class="n">slide</span><span class="o">.</span><span class="n">grid</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
-                <span class="n">slide</span><span class="o">.</span><span class="n">grid</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
-                <span class="n">total_out</span><span class="p">),</span>
-            <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
-        <span class="n">features_grid</span> <span class="o">*=</span> <span class="o">-</span><span class="mi">1</span>
+        <span class="k">if</span> <span class="n">grid</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">features_grid</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span>
+                    <span class="n">slide</span><span class="o">.</span><span class="n">grid</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+                    <span class="n">slide</span><span class="o">.</span><span class="n">grid</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                    <span class="n">total_out</span><span class="p">),</span>
+                <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
+            <span class="n">features_grid</span> <span class="o">*=</span> <span class="o">-</span><span class="mi">1</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">assert</span> <span class="n">grid</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="p">(</span><span class="n">slide</span><span class="o">.</span><span class="n">grid</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">slide</span><span class="o">.</span><span class="n">grid</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">total_out</span><span class="p">)</span>
+            <span class="n">features_grid</span> <span class="o">=</span> <span class="n">grid</span>
         <span class="n">generator</span> <span class="o">=</span> <span class="n">slide</span><span class="o">.</span><span class="n">build_generator</span><span class="p">(</span>
-            <span class="n">shuffle</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-            <span class="n">show_progress</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
             <span class="n">img_format</span><span class="o">=</span><span class="n">img_format</span><span class="p">,</span>
+            <span class="n">shuffle</span><span class="o">=</span><span class="n">shuffle</span><span class="p">,</span>
+            <span class="n">show_progress</span><span class="o">=</span><span class="n">show_progress</span><span class="p">,</span>
             <span class="o">**</span><span class="n">kwargs</span>
         <span class="p">)</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">generator</span><span class="p">:</span>
@@ -2293,52 +2436,81 @@
                 <span class="p">}</span>
 
         <span class="nd">@tf</span><span class="o">.</span><span class="n">function</span>
-        <span class="k">def</span> <span class="nf">_parse_function</span><span class="p">(</span><span class="n">record</span><span class="p">):</span>
+        <span class="k">def</span> <span class="nf">_parse</span><span class="p">(</span><span class="n">record</span><span class="p">):</span>
             <span class="n">image</span> <span class="o">=</span> <span class="n">record</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">]</span>
             <span class="k">if</span> <span class="n">img_format</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;jpg&#39;</span><span class="p">,</span> <span class="s1">&#39;jpeg&#39;</span><span class="p">):</span>
                 <span class="n">image</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">decode_jpeg</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">channels</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
-            <span class="k">elif</span> <span class="n">img_format</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;png&#39;</span><span class="p">,):</span>
-                <span class="n">image</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">decode_png</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">channels</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+            <span class="n">image</span><span class="o">.</span><span class="n">set_shape</span><span class="p">([</span><span class="n">slide</span><span class="o">.</span><span class="n">tile_px</span><span class="p">,</span> <span class="n">slide</span><span class="o">.</span><span class="n">tile_px</span><span class="p">,</span> <span class="mi">3</span><span class="p">])</span>
             <span class="n">loc</span> <span class="o">=</span> <span class="n">record</span><span class="p">[</span><span class="s1">&#39;grid&#39;</span><span class="p">]</span>
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">wsi_normalizer</span><span class="p">:</span>
-                <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">wsi_normalizer</span><span class="o">.</span><span class="n">tf_to_tf</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">image</span><span class="p">,</span> <span class="n">loc</span>
+
+        <span class="nd">@tf</span><span class="o">.</span><span class="n">function</span>
+        <span class="k">def</span> <span class="nf">_standardize</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">loc</span><span class="p">):</span>
             <span class="n">parsed_image</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">per_image_standardization</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
-            <span class="n">parsed_image</span><span class="o">.</span><span class="n">set_shape</span><span class="p">([</span><span class="n">slide</span><span class="o">.</span><span class="n">tile_px</span><span class="p">,</span> <span class="n">slide</span><span class="o">.</span><span class="n">tile_px</span><span class="p">,</span> <span class="mi">3</span><span class="p">])</span>
             <span class="k">return</span> <span class="n">parsed_image</span><span class="p">,</span> <span class="n">loc</span>
 
         <span class="c1"># Generate dataset from the generator</span>
         <span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">name_scope</span><span class="p">(</span><span class="s1">&#39;dataset_input&#39;</span><span class="p">):</span>
             <span class="n">output_signature</span> <span class="o">=</span> <span class="p">{</span>
-                <span class="s1">&#39;image&#39;</span><span class="p">:</span> <span class="n">tf</span><span class="o">.</span><span class="n">TensorSpec</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="p">(),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">string</span><span class="p">),</span>
                 <span class="s1">&#39;grid&#39;</span><span class="p">:</span> <span class="n">tf</span><span class="o">.</span><span class="n">TensorSpec</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="mi">2</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">uint32</span><span class="p">)</span>
             <span class="p">}</span>
+            <span class="k">if</span> <span class="n">img_format</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;jpg&#39;</span><span class="p">,</span> <span class="s1">&#39;jpeg&#39;</span><span class="p">):</span>
+                <span class="n">output_signature</span><span class="o">.</span><span class="n">update</span><span class="p">({</span>
+                    <span class="s1">&#39;image&#39;</span><span class="p">:</span> <span class="n">tf</span><span class="o">.</span><span class="n">TensorSpec</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="p">(),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">string</span><span class="p">)</span>
+                <span class="p">})</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">output_signature</span><span class="o">.</span><span class="n">update</span><span class="p">({</span>
+                    <span class="s1">&#39;image&#39;</span><span class="p">:</span> <span class="n">tf</span><span class="o">.</span><span class="n">TensorSpec</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="n">slide</span><span class="o">.</span><span class="n">tile_px</span><span class="p">,</span>
+                                                  <span class="n">slide</span><span class="o">.</span><span class="n">tile_px</span><span class="p">,</span>
+                                                  <span class="mi">3</span><span class="p">),</span>
+                                           <span class="n">dtype</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
+                <span class="p">})</span>
             <span class="n">tile_dataset</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">Dataset</span><span class="o">.</span><span class="n">from_generator</span><span class="p">(</span>
                 <span class="n">tile_generator</span><span class="p">,</span>
                 <span class="n">output_signature</span><span class="o">=</span><span class="n">output_signature</span>
             <span class="p">)</span>
             <span class="n">tile_dataset</span> <span class="o">=</span> <span class="n">tile_dataset</span><span class="o">.</span><span class="n">map</span><span class="p">(</span>
-                <span class="n">_parse_function</span><span class="p">,</span>
-                <span class="n">num_parallel_calls</span><span class="o">=</span><span class="mi">8</span>
+                <span class="n">_parse</span><span class="p">,</span>
+                <span class="n">num_parallel_calls</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">AUTOTUNE</span><span class="p">,</span>
+                <span class="n">deterministic</span><span class="o">=</span><span class="kc">True</span>
+            <span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">wsi_normalizer</span><span class="p">:</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">wsi_normalizer</span><span class="o">.</span><span class="n">vectorized</span><span class="p">:</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Using vectorized normalization&quot;</span><span class="p">)</span>
+                    <span class="n">norm_batch_size</span> <span class="o">=</span> <span class="mi">32</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">batch_size</span> <span class="k">else</span> <span class="n">batch_size</span>
+                    <span class="n">tile_dataset</span> <span class="o">=</span> <span class="n">tile_dataset</span><span class="o">.</span><span class="n">batch</span><span class="p">(</span><span class="n">norm_batch_size</span><span class="p">,</span> <span class="n">drop_remainder</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Using per-image normalization&quot;</span><span class="p">)</span>
+                <span class="n">tile_dataset</span> <span class="o">=</span> <span class="n">tile_dataset</span><span class="o">.</span><span class="n">map</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">wsi_normalizer</span><span class="o">.</span><span class="n">tf_to_tf</span><span class="p">,</span>
+                    <span class="n">num_parallel_calls</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">AUTOTUNE</span><span class="p">,</span>
+                    <span class="n">deterministic</span><span class="o">=</span><span class="kc">True</span>
+                <span class="p">)</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">wsi_normalizer</span><span class="o">.</span><span class="n">vectorized</span><span class="p">:</span>
+                    <span class="n">tile_dataset</span> <span class="o">=</span> <span class="n">tile_dataset</span><span class="o">.</span><span class="n">unbatch</span><span class="p">()</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">wsi_normalizer</span><span class="o">.</span><span class="n">method</span> <span class="o">==</span> <span class="s1">&#39;macenko&#39;</span><span class="p">:</span>
+                    <span class="c1"># Drop the images that causes an error, e.g. if eigen</span>
+                    <span class="c1"># decomposition is unsuccessful.</span>
+                    <span class="n">tile_dataset</span> <span class="o">=</span> <span class="n">tile_dataset</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">experimental</span><span class="o">.</span><span class="n">ignore_errors</span><span class="p">())</span>
+            <span class="n">tile_dataset</span> <span class="o">=</span> <span class="n">tile_dataset</span><span class="o">.</span><span class="n">map</span><span class="p">(</span>
+                <span class="n">_standardize</span><span class="p">,</span>
+                <span class="n">num_parallel_calls</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">AUTOTUNE</span><span class="p">,</span>
+                <span class="n">deterministic</span><span class="o">=</span><span class="kc">True</span>
             <span class="p">)</span>
             <span class="n">tile_dataset</span> <span class="o">=</span> <span class="n">tile_dataset</span><span class="o">.</span><span class="n">batch</span><span class="p">(</span><span class="n">batch_size</span><span class="p">,</span> <span class="n">drop_remainder</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
             <span class="n">tile_dataset</span> <span class="o">=</span> <span class="n">tile_dataset</span><span class="o">.</span><span class="n">prefetch</span><span class="p">(</span><span class="mi">8</span><span class="p">)</span>
 
-        <span class="n">act_arr</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="n">loc_arr</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">batch_images</span><span class="p">,</span> <span class="n">batch_loc</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">tile_dataset</span><span class="p">):</span>
             <span class="n">model_out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_predict</span><span class="p">(</span><span class="n">batch_images</span><span class="p">)</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">model_out</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)):</span>
                 <span class="n">model_out</span> <span class="o">=</span> <span class="p">[</span><span class="n">model_out</span><span class="p">]</span>
-            <span class="n">act_arr</span> <span class="o">+=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">m</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">model_out</span><span class="p">],</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)]</span>
-            <span class="n">loc_arr</span> <span class="o">+=</span> <span class="p">[</span><span class="n">batch_loc</span><span class="o">.</span><span class="n">numpy</span><span class="p">()]</span>
 
-        <span class="n">act_arr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="n">act_arr</span><span class="p">)</span>
-        <span class="n">loc_arr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="n">loc_arr</span><span class="p">)</span>
-
-        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">act</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">act_arr</span><span class="p">):</span>
-            <span class="n">xi</span> <span class="o">=</span> <span class="n">loc_arr</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
-            <span class="n">yi</span> <span class="o">=</span> <span class="n">loc_arr</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span>
-            <span class="n">features_grid</span><span class="p">[</span><span class="n">yi</span><span class="p">][</span><span class="n">xi</span><span class="p">]</span> <span class="o">=</span> <span class="n">act</span>
+            <span class="n">_act_batch</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">m</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">model_out</span><span class="p">],</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">_loc_batch</span> <span class="o">=</span> <span class="n">batch_loc</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">act</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">_act_batch</span><span class="p">):</span>
+                <span class="n">xi</span> <span class="o">=</span> <span class="n">_loc_batch</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+                <span class="n">yi</span> <span class="o">=</span> <span class="n">_loc_batch</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span>
+                <span class="n">features_grid</span><span class="p">[</span><span class="n">yi</span><span class="p">][</span><span class="n">xi</span><span class="p">]</span> <span class="o">=</span> <span class="n">act</span>
 
         <span class="k">return</span> <span class="n">features_grid</span>
 
@@ -2350,36 +2522,67 @@
     <span class="k">def</span> <span class="nf">_build</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">layers</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]],</span>
-        <span class="n">include_logits</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">include_logits</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">pooling</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Builds the interface model that outputs feature activations at the</span>
 <span class="sd">        designated layers and/or logits. Intermediate layers are returned in</span>
 <span class="sd">        the order of layers. Logits are returned last.&quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">pooling</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">pooling</span> <span class="o">==</span> <span class="s1">&#39;avg&#39;</span><span class="p">:</span>
+                <span class="n">pooling</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">layers</span><span class="o">.</span><span class="n">GlobalAveragePooling2D</span>
+            <span class="k">elif</span> <span class="n">pooling</span> <span class="o">==</span> <span class="s1">&#39;max&#39;</span><span class="p">:</span>
+                <span class="n">pooling</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">layers</span><span class="o">.</span><span class="n">GlobalMaxPool2D</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unrecognized pooling value </span><span class="si">{</span><span class="n">pooling</span><span class="si">}</span><span class="s2">. &quot;</span>
+                                 <span class="s2">&quot;Expected &#39;avg&#39;, &#39;max&#39;, or Keras layer.&quot;</span><span class="p">)</span>
+
         <span class="k">if</span> <span class="n">layers</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">layers</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
             <span class="n">layers</span> <span class="o">=</span> <span class="p">[</span><span class="n">layers</span><span class="p">]</span>
         <span class="k">if</span> <span class="n">layers</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s1">&#39;postconv&#39;</span> <span class="ow">in</span> <span class="n">layers</span><span class="p">:</span>
+                <span class="n">layers</span><span class="p">[</span><span class="n">layers</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s1">&#39;postconv&#39;</span><span class="p">)]</span> <span class="o">=</span> <span class="s1">&#39;post_convolution&#39;</span>  <span class="c1"># type: ignore</span>
             <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Setting up interface to return activations from layers &quot;</span>
                       <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">layers</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-            <span class="n">other_layers</span> <span class="o">=</span> <span class="p">[</span><span class="n">la</span> <span class="k">for</span> <span class="n">la</span> <span class="ow">in</span> <span class="n">layers</span> <span class="k">if</span> <span class="n">la</span> <span class="o">!=</span> <span class="s1">&#39;postconv&#39;</span><span class="p">]</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">other_layers</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">layers</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">def</span> <span class="nf">pool_if_3d</span><span class="p">(</span><span class="n">tensor</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">pooling</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">tensor</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">4</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">pooling</span><span class="p">()(</span><span class="n">tensor</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">tensor</span>
+
+        <span class="c1"># Find the desired layers</span>
         <span class="n">outputs</span> <span class="o">=</span> <span class="p">{}</span>
-        <span class="k">if</span> <span class="n">layers</span><span class="p">:</span>
+        <span class="n">outer_layer_outputs</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_model</span><span class="o">.</span><span class="n">layers</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_model</span><span class="o">.</span><span class="n">layers</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">output</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_model</span><span class="o">.</span><span class="n">layers</span><span class="p">))</span>
+        <span class="p">}</span>
+        <span class="n">core_layer_outputs</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">inner_layers</span> <span class="o">=</span> <span class="p">[</span><span class="n">la</span> <span class="k">for</span> <span class="n">la</span> <span class="ow">in</span> <span class="n">layers</span> <span class="k">if</span> <span class="n">la</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">outer_layer_outputs</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">inner_layers</span><span class="p">:</span>
             <span class="n">intermediate_core</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">Model</span><span class="p">(</span>
                 <span class="n">inputs</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_model</span><span class="o">.</span><span class="n">layers</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">input</span><span class="p">,</span>
                 <span class="n">outputs</span><span class="o">=</span><span class="p">[</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">_model</span><span class="o">.</span><span class="n">layers</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">get_layer</span><span class="p">(</span><span class="n">ol</span><span class="p">)</span><span class="o">.</span><span class="n">output</span>
-                    <span class="k">for</span> <span class="n">ol</span> <span class="ow">in</span> <span class="n">other_layers</span>
+                    <span class="n">pool_if_3d</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_model</span><span class="o">.</span><span class="n">layers</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">get_layer</span><span class="p">(</span><span class="n">il</span><span class="p">)</span><span class="o">.</span><span class="n">output</span><span class="p">)</span>
+                    <span class="k">for</span> <span class="n">il</span> <span class="ow">in</span> <span class="n">inner_layers</span>
                 <span class="p">]</span>
             <span class="p">)</span>
-            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">other_layers</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">inner_layers</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
                 <span class="n">int_out</span> <span class="o">=</span> <span class="n">intermediate_core</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_model</span><span class="o">.</span><span class="n">input</span><span class="p">)</span>
-                <span class="k">for</span> <span class="n">la</span><span class="p">,</span> <span class="n">layer</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">other_layers</span><span class="p">):</span>
-                    <span class="n">outputs</span><span class="p">[</span><span class="n">layer</span><span class="p">]</span> <span class="o">=</span> <span class="n">int_out</span><span class="p">[</span><span class="n">la</span><span class="p">]</span>
-            <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">other_layers</span><span class="p">):</span>
-                <span class="n">outputs</span><span class="p">[</span><span class="n">other_layers</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span> <span class="o">=</span> <span class="n">intermediate_core</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_model</span><span class="o">.</span><span class="n">input</span><span class="p">)</span>
-            <span class="k">if</span> <span class="s1">&#39;postconv&#39;</span> <span class="ow">in</span> <span class="n">layers</span><span class="p">:</span>
-                <span class="n">outputs</span><span class="p">[</span><span class="s1">&#39;postconv&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_model</span><span class="o">.</span><span class="n">layers</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">get_output_at</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">la</span><span class="p">,</span> <span class="n">layer</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">inner_layers</span><span class="p">):</span>
+                    <span class="n">core_layer_outputs</span><span class="p">[</span><span class="n">layer</span><span class="p">]</span> <span class="o">=</span> <span class="n">int_out</span><span class="p">[</span><span class="n">la</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">outputs</span><span class="p">[</span><span class="n">inner_layers</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span> <span class="o">=</span> <span class="n">intermediate_core</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_model</span><span class="o">.</span><span class="n">input</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">layer</span> <span class="ow">in</span> <span class="n">layers</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">layer</span> <span class="ow">in</span> <span class="n">outer_layer_outputs</span><span class="p">:</span>
+                <span class="n">outputs</span><span class="p">[</span><span class="n">layer</span><span class="p">]</span> <span class="o">=</span> <span class="n">outer_layer_outputs</span><span class="p">[</span><span class="n">layer</span><span class="p">]</span>
+            <span class="k">elif</span> <span class="n">layer</span> <span class="ow">in</span> <span class="n">core_layer_outputs</span><span class="p">:</span>
+                <span class="n">outputs</span><span class="p">[</span><span class="n">layer</span><span class="p">]</span> <span class="o">=</span> <span class="n">core_layer_outputs</span><span class="p">[</span><span class="n">layer</span><span class="p">]</span>
+
+        <span class="c1"># Build a model that outputs the given layers</span>
         <span class="n">outputs_list</span> <span class="o">=</span> <span class="p">[]</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">layers</span> <span class="k">else</span> <span class="p">[</span><span class="n">outputs</span><span class="p">[</span><span class="n">la</span><span class="p">]</span> <span class="k">for</span> <span class="n">la</span> <span class="ow">in</span> <span class="n">layers</span><span class="p">]</span>
         <span class="k">if</span> <span class="n">include_logits</span><span class="p">:</span>
             <span class="n">outputs_list</span> <span class="o">+=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_model</span><span class="o">.</span><span class="n">output</span><span class="p">]</span>
@@ -2406,11 +2609,19 @@
 <span class="k">class</span> <span class="nc">UncertaintyInterface</span><span class="p">(</span><span class="n">Features</span><span class="p">):</span>
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
-        <span class="n">path</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span>
-        <span class="n">layers</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">path</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+        <span class="n">layers</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">load_method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;full&#39;</span><span class="p">,</span>
+        <span class="n">pooling</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Setting up UncertaintyInterface&#39;</span><span class="p">)</span>
-        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">layers</span><span class="o">=</span><span class="n">layers</span><span class="p">,</span> <span class="n">include_logits</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">path</span><span class="p">,</span>
+            <span class="n">layers</span><span class="o">=</span><span class="n">layers</span><span class="p">,</span>
+            <span class="n">include_logits</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">load_method</span><span class="o">=</span><span class="n">load_method</span><span class="p">,</span>
+            <span class="n">pooling</span><span class="o">=</span><span class="n">pooling</span>
+        <span class="p">)</span>
         <span class="c1"># TODO: As the below to-do suggests, this should be updated</span>
         <span class="c1"># for multi-class</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">num_uncertainty</span> <span class="o">=</span> <span class="mi">1</span>
@@ -2424,13 +2635,20 @@
         <span class="n">model</span><span class="p">:</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">Model</span><span class="p">,</span>
         <span class="n">layers</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">wsi_normalizer</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="s2">&quot;StainNormalizer&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">from_model</span><span class="p">(</span>
-            <span class="n">model</span><span class="p">,</span>
-            <span class="n">layers</span><span class="o">=</span><span class="n">layers</span><span class="p">,</span>
-            <span class="n">include_logits</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-            <span class="n">wsi_normalizer</span><span class="o">=</span><span class="n">wsi_normalizer</span>
+        <span class="n">pooling</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">):</span>
+        <span class="n">obj</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">layers</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">Model</span><span class="p">):</span>
+            <span class="n">obj</span><span class="o">.</span><span class="n">_model</span> <span class="o">=</span> <span class="n">model</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">ModelError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Model </span><span class="si">{</span><span class="n">model</span><span class="si">}</span><span class="s2"> is not a valid Tensorflow &quot;</span>
+                                    <span class="s2">&quot;model.&quot;</span><span class="p">)</span>
+        <span class="n">obj</span><span class="o">.</span><span class="n">_build</span><span class="p">(</span>
+            <span class="n">layers</span><span class="o">=</span><span class="n">layers</span><span class="p">,</span> <span class="n">include_logits</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">pooling</span><span class="o">=</span><span class="n">pooling</span>  <span class="c1"># type: ignore</span>
         <span class="p">)</span>
+        <span class="n">obj</span><span class="o">.</span><span class="n">wsi_normalizer</span> <span class="o">=</span> <span class="n">wsi_normalizer</span>
+        <span class="k">return</span> <span class="n">obj</span>
+
 
     <span class="nd">@tf</span><span class="o">.</span><span class="n">function</span>
     <span class="k">def</span> <span class="nf">_predict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">inp</span><span class="p">):</span>
@@ -2460,19 +2678,61 @@
             <span class="k">return</span> <span class="n">out</span> <span class="o">+</span> <span class="p">[</span><span class="n">logits</span><span class="p">,</span> <span class="n">uncertainty</span><span class="p">]</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">logits</span><span class="p">,</span> <span class="n">uncertainty</span>
+
+
+<span class="k">def</span> <span class="nf">load</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;full&#39;</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Load Tensorflow model from location.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        path (str): Path to saved Tensorflow model.</span>
+<span class="sd">        method (str): Method to use when loading the model; either &#39;full&#39; or</span>
+<span class="sd">            &#39;weights&#39;. If &#39;full&#39;, will load the saved model with</span>
+<span class="sd">            ``tf.keras.models.load_model()``. If &#39;weights&#39;, will read the</span>
+<span class="sd">            ``params.json``configuration file, build the model architecture,</span>
+<span class="sd">            and then load weights from the given model with</span>
+<span class="sd">            ``Model.load_weights()``. Loading with &#39;full&#39; may improve</span>
+<span class="sd">            compatibility across Slideflow versions. Loading with &#39;weights&#39;</span>
+<span class="sd">            may improve compatibility across hardware &amp; environments.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        tf.keras.models.Model: Loaded model.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">method</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;full&#39;</span><span class="p">,</span> <span class="s1">&#39;weights&#39;</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unrecognized method </span><span class="si">{</span><span class="n">method</span><span class="si">}</span><span class="s2">, expected &quot;</span>
+                         <span class="s2">&quot;either &#39;full&#39; or &#39;weights&#39;&quot;</span><span class="p">)</span>
+    <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Loading model with method=&#39;</span><span class="si">{</span><span class="n">method</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">method</span> <span class="o">==</span> <span class="s1">&#39;full&#39;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">load_model</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">config</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">get_model_config</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+        <span class="n">hp</span> <span class="o">=</span> <span class="n">ModelParams</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;hp&#39;</span><span class="p">])</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;outcomes&#39;</span><span class="p">])</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">num_classes</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;outcome_labels&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">num_classes</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="n">outcome</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;outcome_labels&#39;</span><span class="p">][</span><span class="n">outcome</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
+                <span class="k">for</span> <span class="n">outcome</span> <span class="ow">in</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;outcomes&#39;</span><span class="p">]</span>
+            <span class="p">}</span>  <span class="c1"># type: ignore</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="n">hp</span><span class="o">.</span><span class="n">build_model</span><span class="p">(</span>  <span class="c1"># type: ignore</span>
+            <span class="n">num_classes</span><span class="o">=</span><span class="n">num_classes</span><span class="p">,</span>
+            <span class="n">num_slide_features</span><span class="o">=</span><span class="mi">0</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;input_feature_sizes&#39;</span><span class="p">]</span> <span class="k">else</span> <span class="nb">sum</span><span class="p">(</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;input_feature_sizes&#39;</span><span class="p">]),</span>
+            <span class="n">pretrain</span><span class="o">=</span><span class="kc">None</span>
+        <span class="p">)</span>
+        <span class="n">model</span><span class="o">.</span><span class="n">load_weights</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;variables/variables&#39;</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">model</span>
 </pre></div>
 
              </article>
-             
+
             </div>
             <footer>
-  
 
-  
+
+
 
     <hr>
 
-  
+
 
   <div role="contentinfo">
     <p>
@@ -2480,11 +2740,11 @@
 
     </p>
   </div>
-    
+
       <div>
         Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
       </div>
-     
+
 
 </footer>
 
@@ -2494,28 +2754,29 @@
         <div class="pytorch-content-right" id="pytorch-content-right">
           <div class="pytorch-right-menu" id="pytorch-right-menu">
             <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
-              
+
             </div>
           </div>
         </div>
       </section>
     </div>
 
-  
 
 
-  
 
-     
+
+
+
        <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
          <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
          <script src="../../../_static/jquery.js"></script>
          <script src="../../../_static/underscore.js"></script>
          <script src="../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
          <script src="../../../_static/doctools.js"></script>
-     
+         <script src="../../../_static/sphinx_highlight.js"></script>
 
-  
+
+
 
   <script type="text/javascript" src="../../../_static/js/vendor/popper.min.js"></script>
   <script type="text/javascript" src="../../../_static/js/vendor/bootstrap.min.js"></script>
@@ -2526,7 +2787,7 @@
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script> 
+  </script>
 
   <!-- Begin Footer -->
 

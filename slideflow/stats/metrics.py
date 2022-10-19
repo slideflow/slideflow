@@ -3,7 +3,8 @@
 import multiprocessing as mp
 from os.path import join
 from types import SimpleNamespace
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import (TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union,
+                    Callable)
 
 import numpy as np
 import pandas as pd
@@ -59,16 +60,18 @@ class ClassifierMetrics:
         self.ap = metrics.average_precision_score(self.y_true, self.y_pred)
 
     def save_roc(self, outdir, name):
-        from matplotlib import pyplot as plt
-        sf.stats.plot.roc(self.fpr, self.tpr, f'AUC = {self.auroc:.2f}')
+        import matplotlib.pyplot as plt
+        auroc_str = 'NA' if not self.auroc else f'{self.auroc:.2f}'
+        sf.stats.plot.roc(self.fpr, self.tpr, f'AUC = {auroc_str}')
         full_path = join(outdir, f'{name}.png')
         plt.savefig(full_path)
         if self.neptune_run:
             self.neptune_run[f'results/graphs/{name}'].upload(full_path)
 
     def save_prc(self, outdir, name):
-        from matplotlib import pyplot as plt
-        sf.stats.plot.prc(self.precision, self.recall, label=f'AP = {self.ap:.2f}')
+        import matplotlib.pyplot as plt
+        ap_str = 'NA' if not self.ap else f'{self.ap:.2f}'
+        sf.stats.plot.prc(self.precision, self.recall, label=f'AP = {ap_str}')
         full_path = join(outdir, f'{name}.png')
         plt.savefig(full_path)
         if self.neptune_run:
@@ -253,14 +256,16 @@ def categorical_metrics(
         ]
         try:
             for i, fit in enumerate(p.imap(_generate_tile_roc, yt_and_yp)):
-                fit.save_roc(data_dir, f"{label_start}{outcome}_tile_ROC{i}")
-                fit.save_prc(data_dir, f"{label_start}{outcome}_tile_PRC{i}")
+                fit.save_roc(data_dir, f"{label_start}{outcome}_{level}_ROC{i}")
+                fit.save_prc(data_dir, f"{label_start}{outcome}_{level}_PRC{i}")
                 all_auc[outcome] += [fit.auroc]
                 all_ap[outcome] += [fit.ap]
+                auroc_str = 'NA' if not fit.auroc else f'{fit.auroc:.3f}'
+                ap_str = 'NA' if not fit.ap else f'{fit.ap:.3f}'
+                thresh = 'NA' if not fit.opt_thresh else f'{fit.opt_thresh:.3f}'
                 log.info(
-                    f"{level}-level AUC (cat #{i:>2}): {fit.auroc:.3f} "
-                    f"{level}-level AP: {fit.ap:.3f} (opt. threshold: "
-                    f"{fit.opt_thresh:.3f})"
+                    f"{level}-level AUC (cat #{i:>2}): {auroc_str} "
+                    f"{level}-level AP: {ap_str} (opt. threshold: {thresh})"
                 )
         except ValueError as e:
             # Occurs when predictions contain NaN
@@ -339,7 +344,8 @@ def cph_metrics(
             df['time-y_true'].values,
             df[['time-y_pred', 'event-y_true']].values,
         )
-        log.info(f"C-index ({level}-level): {c_index:.3f}")
+        c_str = 'NA' if not c_index else f'{c_index:.3f}'
+        log.info(f"C-index ({level}-level): {c_str}")
     except ZeroDivisionError as e:
         log.error(f"Error calculating concordance index: {e}")
         c_index = -1
@@ -428,17 +434,25 @@ def df_from_pred(
     return pd.DataFrame(series)
 
 
-def eval_from_dataset(
+def eval_from_dataset(*args, **kwargs):
+    log.warning(
+        "`sf.stats.metrics.eval_from_dataset() is deprecated. Please use "
+        "`sf.stats.metrics.eval_dataset()` instead.")
+    return eval_dataset(*args, **kwargs)
+
+
+def eval_dataset(
     model: Union["tf.keras.Model", "torch.nn.Module"],
     dataset: Union["tf.data.Dataset", "torch.utils.data.DataLoader"],
     model_type: str,
-    pred_args: SimpleNamespace,
     num_tiles: int = 0,
+    uq: bool = False,
     uq_n: int = 30,
     reduce_method: str = 'average',
     patients: Optional[Dict[str, str]] = None,
     outcome_names: Optional[List[str]] = None,
-    incl_loc: bool = False,
+    loss: Optional[Callable] = None,
+    torch_args: Optional[SimpleNamespace] = None,
 ) -> Tuple[DataFrame, float, float]:
     """Generates predictions and accuracy/loss from a given model and dataset.
 
@@ -448,8 +462,6 @@ def eval_from_dataset(
         model_type (str, optional): 'categorical', 'linear', or 'cph'.
             If multiple linear outcomes are present, y_true is stacked into a
             single vector for each image. Defaults to 'categorical'.
-        pred_args (namespace): Namespace containing slide_input,
-            update_corrects, and update_loss functions.
         num_tiles (int, optional): Used for progress bar with Tensorflow.
             Defaults to 0.
         uq_n (int, optional): Number of forward passes to perform
@@ -464,6 +476,9 @@ def eval_from_dataset(
             names. Required for generating patient-level metrics.
         outcome_names (list, optional): List of str, names for outcomes.
             Defaults to None (outcomes will not be named).
+        torch_args (namespace): Used for PyTorch models. Namespace containing
+            num_slide_features, slide_input, update_corrects, and
+            update_loss functions.
 
     Returns:
         pd.DataFrame, accuracy, loss
@@ -474,23 +489,31 @@ def eval_from_dataset(
             f'model_type {model_type}'
         )
     if sf.backend() == 'tensorflow':
-        from slideflow.model.tensorflow_utils import _eval_from_model
+        from slideflow.model import tensorflow_utils
+        df, acc, total_loss = tensorflow_utils.eval_from_model(
+            model,
+            dataset,
+            model_type,
+            loss=loss,
+            num_tiles=num_tiles,
+            uq=uq,
+            uq_n=uq_n,
+        )
     else:
-        from slideflow.model.torch_utils import _eval_from_model  # type:ignore
-
-    df, acc, loss = _eval_from_model(
-        model,
-        dataset,
-        model_type,
-        pred_args,
-        num_tiles=num_tiles,
-        uq_n=uq_n,
-        incl_loc=incl_loc
-    )
+        from slideflow.model import torch_utils
+        df, acc, total_loss = torch_utils.eval_from_model(
+            model,
+            dataset,
+            model_type,
+            torch_args=torch_args,
+            uq=uq,
+            uq_n=uq_n,
+        )
 
     if outcome_names or model_type == 'cph':
         df = name_columns(df, model_type, outcome_names)
-    return group_reduce(df, method=reduce_method, patients=patients), acc, loss
+    dfs = group_reduce(df, method=reduce_method, patients=patients)
+    return dfs, acc, total_loss
 
 
 def group_reduce(
@@ -570,7 +593,7 @@ def linear_metrics(
     data_dir: str = '',
     neptune_run: Optional["neptune.Run"] = None
 ) -> Dict[str, List[float]]:
-    """Generates metrics (R-squared) from a set of predictions.
+    """Generates metrics (R^2, coefficient of determination) from predictions.
 
     Args:
         df (pd.DataFrame): Pandas DataFrame containing labels, predictions,
@@ -617,7 +640,8 @@ def linear_metrics(
 
     # Show results
     for o, r in zip(outcome_names, r_squared):
-        log.info(f"[green]{o}[/]: R-squared ({level}-level): {r:.3f}")
+        r_str = "NA" if not r else f'{r:.3f}'
+        log.info(f"[green]{o}[/]: R-squared ({level}-level): {r_str}")
 
     return {
         'r_squared': r_squared,
@@ -629,14 +653,15 @@ def metrics_from_dataset(
     model_type: str,
     patients: Dict[str, str],
     dataset: Union["tf.data.Dataset", "torch.utils.data.DataLoader"],
-    pred_args: SimpleNamespace,
     num_tiles: int = 0,
     outcome_names: Optional[List[str]] = None,
     reduce_method: str = 'average',
     label: str = '',
     save_predictions: Union[str, bool] = False,
     data_dir: str = '',
-    incl_loc: bool = False,
+    uq: bool = False,
+    loss: Optional[Callable] = None,
+    torch_args: Optional[SimpleNamespace] = None,
     **kwargs
 ) -> Tuple[Dict, float, float]:
 
@@ -648,8 +673,6 @@ def metrics_from_dataset(
         model_type (str): 'categorical', 'linear', or 'cph'.
         patients (dict): Dictionary mapping slidenames to patients.
         dataset (tf.data.Dataset or torch.utils.data.DataLoader): Dataset.
-        pred_args (namespace, optional): Additional arguments to tensorflow and
-            torch backends.
         num_tiles (int, optional): Number of total tiles expected in dataset.
             Used for progress bar. Defaults to 0.
 
@@ -675,16 +698,17 @@ def metrics_from_dataset(
         metrics [dict], accuracy [float], loss [float]
     """
     _assert_model_type(model_type)
-    dfs, acc, loss = eval_from_dataset(
+    dfs, acc, total_loss = eval_dataset(
         model,
         dataset,
         model_type,
-        pred_args,
+        uq=uq,
+        loss=loss,
         num_tiles=num_tiles,
         patients=patients,
         outcome_names=outcome_names,
         reduce_method=reduce_method,
-        incl_loc=incl_loc
+        torch_args=torch_args,
     )
 
     # Save predictions
@@ -715,7 +739,7 @@ def metrics_from_dataset(
         metrics = metrics_by_level(cph_metrics)
 
     log.debug(f'Metrics generation complete.')
-    return metrics, acc, loss
+    return metrics, acc, total_loss
 
 
 def name_columns(
@@ -800,17 +824,24 @@ def name_columns(
     return df
 
 
-def predict_from_dataset(
+def predict_from_dataset(*args, **kwargs):
+    log.warning(
+        "`sf.stats.metrics.predict_from_dataset() is deprecated. Please use "
+        "`sf.stats.metrics.predict_dataset()` instead.")
+    return predict_dataset(*args, **kwargs)
+
+
+def predict_dataset(
     model: Union["tf.keras.Model", "torch.nn.Module"],
     dataset: Union["tf.data.Dataset", "torch.utils.data.DataLoader"],
     model_type: str,
-    pred_args: SimpleNamespace,
     num_tiles: int = 0,
+    uq: bool = False,
     uq_n: int = 30,
     reduce_method: str = 'average',
     patients: Optional[Dict[str, str]] = None,
     outcome_names: Optional[List[str]] = None,
-    incl_loc: bool = False,
+    torch_args: Optional[SimpleNamespace] = None,
 ) -> Dict[str, DataFrame]:
     """Generates predictions from model and dataset.
 
@@ -820,8 +851,6 @@ def predict_from_dataset(
         model_type (str, optional): 'categorical', 'linear', or 'cph'.
             If multiple linear outcomes are present, y_true is stacked into a
             single vector for each image. Defaults to 'categorical'.
-        pred_args (namespace): Namespace containing slide_input,
-            update_corrects, and update_loss functions.
         num_tiles (int, optional): Used for progress bar with Tensorflow.
             Defaults to 0.
         uq_n (int, optional): Number of forward passes to perform
@@ -836,6 +865,8 @@ def predict_from_dataset(
             names. Required for generating patient-level metrics.
         outcome_names (list, optional): List of str, names for outcomes.
             Defaults to None (outcomes will not be named).
+        torch_args (namespace): Used for PyTorch backend. Namespace containing
+            num_slide_features and slide_input.
 
     Returns:
         Dict[str, pd.DataFrame]: Dictionary with keys 'tile', 'slide', and
@@ -849,19 +880,24 @@ def predict_from_dataset(
         )
 
     if sf.backend() == 'tensorflow':
-        from slideflow.model.tensorflow_utils import _predict_from_model
+        from slideflow.model import tensorflow_utils
+        df = tensorflow_utils.predict_from_model(
+            model,
+            dataset,
+            num_tiles=num_tiles,
+            uq=uq,
+            uq_n=uq_n,
+        )
     else:
-        from slideflow.model.torch_utils import _predict_from_model
-
-    df = _predict_from_model(
-        model,
-        dataset,
-        model_type,
-        pred_args,
-        num_tiles=num_tiles,
-        uq_n=uq_n,
-        incl_loc=incl_loc
-    )
+        from slideflow.model import torch_utils
+        df = torch_utils.predict_from_model(
+            model,
+            dataset,
+            model_type,
+            torch_args=torch_args,
+            uq=uq,
+            uq_n=uq_n,
+        )
     if outcome_names is not None or model_type == 'cph':
         df = name_columns(df, model_type, outcome_names)
     return group_reduce(df, method=reduce_method, patients=patients)
