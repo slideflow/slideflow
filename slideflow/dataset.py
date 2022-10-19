@@ -2712,7 +2712,8 @@ class Dataset:
                     "At least one patient is in both val and training sets."
                 )
 
-            # Return list of tfrecords
+        # Assemble list of tfrecords
+        if val_strategy != 'none':
             val_tfrecords = [
                 tfr for tfr in tfrecord_dir_list
                 if path_to_name(tfr) in val_slides
@@ -2721,6 +2722,7 @@ class Dataset:
                 tfr for tfr in tfrecord_dir_list
                 if path_to_name(tfr) in train_slides
             ]
+
         assert(len(val_tfrecords) == len(val_slides))
         assert(len(training_tfrecords) == len(train_slides))
         training_dts = copy.deepcopy(self)
