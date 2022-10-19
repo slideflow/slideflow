@@ -23,6 +23,7 @@ from slideflow.model.tensorflow_utils import unwrap
 from slideflow.util import NormFit, Path
 from slideflow.util import colors as col
 from slideflow.util import log
+import neural_structured_learning as nsl
 
 import tensorflow as tf
 from tensorflow.keras import applications as kapps
@@ -1408,6 +1409,20 @@ class Trainer:
 
         return results
 
+    def _convert_dts_to_adv_dict(
+        self, 
+        dataset: tf.data.Dataset,
+        image_input_name: str = 'tile_image',
+        label_input_name: str = 'label'
+    ) -> tf.data.Dataset:
+        """Convert a dataset into the format expected by the adversarial wrapper."""
+
+        def convert_to_dictionaries(image, label):  
+            return {image_input_name: image["tile_image"], label_input_name: label}
+
+        return dataset.map(convert_to_dictionaries)
+           
+
     def train(
         self,
         train_dts: "sf.Dataset",
@@ -1430,6 +1445,7 @@ class Trainer:
         multi_gpu: bool = False,
         reduce_method: str = 'average',
         norm_fit: Optional[NormFit] = None,
+        adversarial: bool = False
     ):
         """Builds and trains a model from hyperparameters.
 
@@ -1648,23 +1664,26 @@ class Trainer:
 
             # Create callbacks for early stopping, checkpoint saving,
             # summaries, and history
-            val_callback = self.eval_callback(self, cb_args)
-            callbacks = [tf.keras.callbacks.History(), val_callback]
-            if save_checkpoints:
-                cp_callback = tf.keras.callbacks.ModelCheckpoint(
-                    os.path.join(self.outdir, 'cp.ckpt'),
-                    save_weights_only=True,
-                    verbose=(sf.getLoggingLevel() <= 20)
-                )
-                callbacks += [cp_callback]
-            if use_tensorboard:
-                tensorboard_callback = tf.keras.callbacks.TensorBoard(
-                    log_dir=self.outdir,
-                    histogram_freq=0,
-                    write_graph=False,
-                    update_freq=log_frequency
-                )
-                callbacks += [tensorboard_callback]
+            if adversarial:
+                callbacks = []
+            else:
+                val_callback = self.eval_callback(self, cb_args)
+                callbacks = [tf.keras.callbacks.History(), val_callback]
+                if save_checkpoints:
+                    cp_callback = tf.keras.callbacks.ModelCheckpoint(
+                        os.path.join(self.outdir, 'cp.ckpt'),
+                        save_weights_only=True,
+                        verbose=(sf.getLoggingLevel() <= 20)
+                    )
+                    callbacks += [cp_callback]
+                if use_tensorboard:
+                    tensorboard_callback = tf.keras.callbacks.TensorBoard(
+                        log_dir=self.outdir,
+                        histogram_freq=0,
+                        write_graph=False,
+                        update_freq=log_frequency
+                    )
+                    callbacks += [tensorboard_callback]
 
             # Retrain top layer only, if using transfer learning and
             # not resuming training
@@ -1678,11 +1697,37 @@ class Trainer:
                     callbacks=None,
                     epochs=self.hp.toplayer_epochs
                 )
+            
+            if adversarial:
+                # Wrap the model with adversarial regularization, 
+                # using tensorflow/neural-structured-learning
+                adv_config = nsl.configs.make_adv_reg_config(
+                    multiplier=0.2,
+                    adv_step_size=0.05
+                )
+                adv_model = nsl.keras.AdversarialRegularization(
+                    self.model,
+                    adv_config=adv_config
+                )
+                adv_model.compile(
+                    optimizer='adam', # Cannot use hp.get_opt(), as this will result in a LossScaleOptimizer wrapping error
+                    loss=self.hp.get_loss(),
+                    metrics=['acc']
+                )
+                # Convert the dataset into the image/label format expected
+                # by the adversarial wrapper
+                train_data = self._convert_dts_to_adv_dict(train_data)
+                _model_to_train = adv_model
+                log.debug("Adversarial wrapping complete.")
+            else:
+                self._compile_model()
+                _model_to_train = self.model
+
             # Train the model
-            self._compile_model()
             log.info('Beginning training')
             try:
-                self.model.fit(
+                print(train_data)
+                _model_to_train.fit(
                     train_data,
                     steps_per_epoch=steps_per_epoch,
                     epochs=total_epochs,
@@ -1692,6 +1737,13 @@ class Trainer:
                     validation_steps=validation_steps,
                     callbacks=callbacks
                 )
+                if adversarial and save_model:    
+                    model_path = os.path.join(
+                        self.outdir,
+                        f'{self.name}_adversarial_epoch{self.epoch_count}'
+                    )
+                    _model_to_train.save(model_path)
+            
             except tf.errors.ResourceExhaustedError as e:
                 log.debug(e)
                 log.error(f"Training failed for {col.bold(self.name)}, "
@@ -1700,7 +1752,6 @@ class Trainer:
             if self.use_neptune and self.neptune_run is not None:
                 self.neptune_run['results'] = results['epochs']
                 self.neptune_run.stop()
-
             return results
 
 
