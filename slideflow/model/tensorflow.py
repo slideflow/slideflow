@@ -1601,6 +1601,8 @@ class Trainer:
                 parameters (e.g. target_means, target_stds) to values
                 (np.ndarray). If not provided, will fit normalizer using
                 model params (if applicable). Defaults to None.
+            adversarial (bool): Train with adversarial regularization, 
+                using neural-structured-learning.
 
         Returns:
             dict: Nested results dict with metrics for each evaluated epoch.
