@@ -34,7 +34,7 @@ and StyleGAN keyword arguments to this function:
       cfg='stylegan3-r',
       exp_label="ExperimentLabel",
       gpus=4,
-      batch_size=32,
+      batch=32,
       ...
     )
 
