@@ -45,6 +45,46 @@ else:
 # -----------------------------------------------------------------------------
 
 
+def is_tensorflow_tensor(arg: Any) -> bool:
+    """Checks if the given object is a Tensorflow Tensor."""
+    if sf.util.tf_available:
+        import tensorflow as tf
+        return isinstance(arg, tf.Tensor)
+    else:
+        return False
+
+
+def is_torch_tensor(arg: Any) -> bool:
+    """Checks if the given object is a Tensorflow Tensor."""
+    if sf.util.torch_available:
+        import torch
+        return isinstance(arg, torch.Tensor)
+    else:
+        return False
+
+
+def is_tensorflow_model(arg: Any) -> bool:
+    """Checks if the object is a Tensorflow Model or path to Tensorflow model."""
+    if isinstance(arg, str):
+        return sf.util.is_tensorflow_model_path(arg)
+    elif sf.util.tf_available:
+        import tensorflow as tf
+        return isinstance(arg, tf.keras.models.Model)
+    else:
+        return False
+
+
+def is_torch_model(arg: Any) -> bool:
+    """Checks if the object is a PyTorch Module or path to PyTorch model."""
+    if isinstance(arg, str):
+        return sf.util.is_torch_model_path(arg)
+    elif sf.util.torch_available:
+        import torch
+        return isinstance(arg, torch.nn.Module)
+    else:
+        return False
+
+
 def trainer_from_hp(hp: "ModelParams", **kwargs) -> Trainer:
     """From the given :class:`slideflow.model.ModelParams` object, returns
     the appropriate instance of :class:`slideflow.model.Model`.
@@ -335,9 +375,9 @@ class DatasetFeatures:
             )
         elif isinstance(model, str):
             combined_model = sf.model.Features(model, **feat_kw)
-        elif sf.backend() == 'tensorflow':
+        elif sf.model.is_tensorflow_model(model):
             combined_model = sf.model.Features.from_model(model, **feat_kw)
-        elif sf.backend() == 'torch':
+        elif sf.model.is_torch_model(model):
             combined_model = sf.model.Features.from_model(
                 model,
                 tile_px=self.tile_px,
@@ -364,19 +404,21 @@ class DatasetFeatures:
             'incl_loc': True,
             'normalizer': self.normalizer
         }
-        if sf.backend() == 'tensorflow':
+        if sf.model.is_tensorflow_model(model):
             dataloader = self.dataset.tensorflow(
                 None,
                 num_parallel_reads=None,
                 deterministic=True,
                 **dataset_kwargs  # type: ignore
             )
-        elif sf.backend() == 'torch':
+        elif sf.model.is_torch_model(model):
             dataloader = self.dataset.torch(
                 None,
                 num_workers=1,
                 **dataset_kwargs  # type: ignore
             )
+        else:
+            raise ValueError(f"Unrecognized model type: {type(model)}")
 
         # Worker to process activations/logits, for more efficient throughput
         q = queue.Queue()  # type: queue.Queue
@@ -388,7 +430,7 @@ class DatasetFeatures:
                     return
                 model_out = sf.util.as_list(model_out)
 
-                if sf.backend() == 'tensorflow':
+                if sf.model.is_tensorflow_model(model):
                     decoded_slides = [
                         bs.decode('utf-8')
                         for bs in batch_slides.numpy()
@@ -401,7 +443,7 @@ class DatasetFeatures:
                         batch_loc[0].numpy(),
                         batch_loc[1].numpy()
                     ], axis=1)
-                elif sf.backend() == 'torch':
+                elif sf.model.is_torch_model(model):
                     decoded_slides = batch_slides
                     model_out = [
                         m.cpu().numpy() if not isinstance(m, list) else m

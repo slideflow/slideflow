@@ -110,7 +110,7 @@ class Heatmap:
         else:
             self.img_format = img_format
 
-        if sf.backend() == 'torch':
+        if sf.util.is_torch_model_path(model):
             int_kw = {'device': device}
         else:
             int_kw = {}

@@ -1738,8 +1738,10 @@ class Dataset:
             tile_px (int): Target pixel size for resizing TFRecord images.
         """
 
-        if sf.backend() == 'torch':
-            raise NotImplementedError("Not implemented for PyTorch backend.")
+        if not sf.util.tf_available:
+            raise NotImplementedError(
+                "Dataset.resize_tfrecords() requires Tensorflow, which is "
+                "not installed.")
 
         log.info(f'Resizing TFRecord tiles to ({tile_px}, {tile_px})')
         tfrecords_list = self.tfrecords()

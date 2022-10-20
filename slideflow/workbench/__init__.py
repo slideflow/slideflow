@@ -524,7 +524,7 @@ class Workbench(imgui_window.ImguiWindow):
                     self._dock_control = not self._dock_control
                 imgui.separator()
 
-                # --- Show sub-men`u -------------------------------------------
+                # --- Show sub-menu -------------------------------------------
                 if imgui.begin_menu('Show', True):
                     if imgui.menu_item('Control Pane', 'Ctrl+Shift+C', selected=self._show_control)[0]:
                         self._show_control = not self._show_control

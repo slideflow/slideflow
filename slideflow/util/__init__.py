@@ -217,30 +217,36 @@ def is_mag(arg1: str) -> bool:
         return False
     return True
 
+
 def is_model(path: str) -> bool:
     """Checks if the given path is a valid Slideflow model."""
-    return is_tensorflow_model(path) or is_torch_model(path)
+    return is_tensorflow_model_path(path) or is_torch_model_path(path)
+
 
 def is_project(path: str) -> bool:
     """Checks if the given path is a valid Slideflow project."""
     return isdir(path) and exists(join(path, 'settings.json'))
+
 
 def is_slide(path: str) -> bool:
     """Checks if the given path is a supported slide."""
     return (os.path.isfile(path)
             and sf.util.path_to_ext(path).lower() in SUPPORTED_FORMATS)
 
-def is_tensorflow_model(path: str) -> bool:
+
+def is_tensorflow_model_path(path: str) -> bool:
     """Checks if the given path is a valid Slideflow/Tensorflow model."""
     return (isdir(path)
             and (exists(join(path, 'params.json'))
                  or exists(join(dirname(path), 'params.json'))))
 
-def is_torch_model(path: str) -> bool:
+
+def is_torch_model_path(path: str) -> bool:
     """Checks if the given path is a valid Slideflow/PyTorch model."""
     return (os.path.isfile(path)
             and sf.util.path_to_ext(path).lower() == 'zip'
             and exists(join(dirname(path), 'params.json')))
+
 
 def assert_is_mag(arg1: str):
     if not isinstance(arg1, str) or not is_mag(arg1):

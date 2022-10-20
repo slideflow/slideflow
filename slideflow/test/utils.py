@@ -105,7 +105,7 @@ def random_annotations(
         slides = [
             sf.util.path_to_name(f)
             for f in os.listdir(slides_path)
-            if sf.util.is_slide(f)
+            if sf.util.is_slide(join(slides_path, f))
         ][:10]
     else:
         slides = [f'slide{i}' for i in range(10)]
@@ -315,7 +315,7 @@ class TestConfig:
                 existing = [
                     sf.util.path_to_name(f)
                     for f in os.listdir(slides_path)
-                    if sf.util.is_slide(f)
+                    if sf.util.is_slide(join(slides_path, f))
                 ]
                 for slide in [s for s in tcga_slides if s not in existing]:
                     download_from_tcga(

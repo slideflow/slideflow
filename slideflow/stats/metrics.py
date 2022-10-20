@@ -488,7 +488,7 @@ def eval_dataset(
             f'Reduction method {reduce_method} incompatible with '
             f'model_type {model_type}'
         )
-    if sf.backend() == 'tensorflow':
+    if sf.model.is_tensorflow_model(model):
         from slideflow.model import tensorflow_utils
         df, acc, total_loss = tensorflow_utils.eval_from_model(
             model,
@@ -879,7 +879,7 @@ def predict_dataset(
             f'model_type {model_type}'
         )
 
-    if sf.backend() == 'tensorflow':
+    if sf.model.is_tensorflow_model(model):
         from slideflow.model import tensorflow_utils
         df = tensorflow_utils.predict_from_model(
             model,
