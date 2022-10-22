@@ -88,7 +88,7 @@ setuptools.setup(
         'torch': [
             'torch',
             'torchvision',
-            'pretrained_models'
+            'pretrainedmodels'
         ],
         'dev': [
             'parameterized',
