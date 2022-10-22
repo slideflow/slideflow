@@ -1,4 +1,4 @@
-import slideflow
+import versioneer
 import setuptools
 
 with open("README.md", "r") as fh:
@@ -6,7 +6,8 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="slideflow",
-    version=slideflow.__version__,
+    version=versioneer.get_version(),
+    cmdclass=versioneer.get_cmdclass(),
     author="James Dolezal",
     author_email="james.dolezal@uchospitals.edu",
     description="Deep learning tools for digital histology",
