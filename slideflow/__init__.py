@@ -8,16 +8,13 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 
+from ._version import get_versions
+
 __author__ = 'James Dolezal'
 __license__ = 'GNU General Public License v3.0'
-__version__ = '1.3.1'
+__version__ = get_versions()['version']
+__gitcommit__ = get_versions()['full-revisionid']
 __github__ = 'https://github.com/jamesdolezal/slideflow'
-
-try:
-    import git
-    __gitcommit__ = git.Repo(search_parent_directories=True).head.object.hexsha
-except Exception:
-    __gitcommit__ = None
 
 # -----------------------------------------------------------------------------
 

@@ -266,13 +266,13 @@ class Workbench(imgui_window.ImguiWindow):
             from pyvips.base import version as lv
 
             imgui.open_popup('about_popup')
-            width = 200
+            version_width = imgui.calc_text_size("Version: " + sf.__version__).x
+            width = max(200, version_width + self.spacing)
             height = 315
             imgui.set_next_window_content_size(width, 0)
             imgui.set_next_window_position(self.content_width/2 - width/2, self.content_height/2 - height/2)
 
             about_text =  f"Version: {sf.__version__}\n"
-            about_text += f"Commit: {sf.__gitcommit__}\n"
             about_text += f"Python: {platform.python_version()}\n"
             about_text += f"Libvips: {lv(0)}.{lv(1)}.{lv(2)}\n"
             about_text += f"Pyvips: {pyvips.__version__}\n"
