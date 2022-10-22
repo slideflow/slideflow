@@ -1342,7 +1342,7 @@ class Project:
         self,
         dataset: Dataset,
         *,
-        model: str = 'stylegan2',
+        model: str = 'stylegan3',
         outcomes: Optional[Union[str, List[str]]] = None,
         exp_label: Optional[str] = None,
         mirror: bool = True,
