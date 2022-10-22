@@ -1,0 +1,1 @@
+python3 adversarial.py -p ~/DATA/PROJECTS/TCGA_BRCA -m /home/prajval/DATA/PROJECTS/TCGA_BRCA/models/00004-histological_type-HP0-kfold1/histological_type-HP0-kfold1_epoch3 -o histological_type --train

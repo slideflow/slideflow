@@ -125,6 +125,7 @@ def process_image(
     *args: Any,
     standardize: bool = False,
     augment: Union[bool, str] = False,
+    tile_px: Optional[int] = None
 ) -> Tuple[Union[Dict, tf.Tensor], ...]:
     """Applies augmentations and/or standardization to an image Tensor."""
 
@@ -189,6 +190,8 @@ def process_image(
         ...
     if standardize:
         image = tf.image.per_image_standardization(image)
+    if tile_px:
+        image.set_shape([tile_px, tile_px, 3])
 
     if isinstance(record, dict):
         to_return = {k: v for k, v in record.items() if k != 'tile_image'}
@@ -590,7 +593,8 @@ def interleave(
             partial(
                 process_image,
                 standardize=standardize,
-                augment=augment
+                augment=augment,
+                tile_px=img_size
             ),
             num_parallel_calls=tf.data.AUTOTUNE,
             deterministic=deterministic

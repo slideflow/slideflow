@@ -1,0 +1,1135 @@
+2022-10-19 13:26:16 [DEBUG] - Verifying slide annotations...
+2022-10-19 13:26:16 [DEBUG] - Verifying tfrecords...
+2022-10-19 13:26:16 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-19 13:26:16 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 0 [471 slides]
+2022-10-19 13:26:16 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 1 [125 slides]
+2022-10-19 13:26:16 [INFO] - Training model [bold]histological_type-HP0[/]...
+2022-10-19 13:26:16 [INFO] - Hyperparameters: {
+  "augment": "xyrj",
+  "batch_size": 64,
+  "drop_images": false,
+  "dropout": 0.2,
+  "early_stop": false,
+  "early_stop_method": "loss",
+  "early_stop_patience": 0,
+  "epochs": [
+    1
+  ],
+  "hidden_layer_width": 500,
+  "hidden_layers": 0,
+  "include_top": true,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0,
+  "learning_rate_decay_steps": 100000,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": null,
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "max",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2022-10-19 13:26:16 [INFO] - Val settings: {
+  "strategy": "none",
+  "k_fold": 3,
+  "k": null,
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2022-10-19 13:26:16 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-19 13:26:16 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 0 [471 slides]
+2022-10-19 13:26:16 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 1 [125 slides]
+2022-10-19 13:26:16 [INFO] - Using 596 training TFRecords, 0 validation
+2022-10-19 13:26:18 [DEBUG] - Spawning training process (PID: 1534606)
+2022-10-19 13:26:18 [DEBUG] - Enabling mixed precision (mixed_float16)
+2022-10-19 13:26:19 [DEBUG] - Not using regularization for base model
+2022-10-19 13:26:19 [DEBUG] - Not using any slide-level input features.
+2022-10-19 13:26:19 [DEBUG] - Not using regularization for dense layers
+2022-10-19 13:26:19 [DEBUG] - Using Batch normalization
+2022-10-19 13:26:19 [DEBUG] - Using softmax activation
+2022-10-19 13:26:19 [DEBUG] - Interleaving 596 tfrecords: infinite=True, num_parallel_reads=4
+2022-10-19 13:26:21 [DEBUG] - Validation during training: None
+2022-10-19 13:26:21 [DEBUG] - Adversarial wrapping complete.
+2022-10-19 13:26:21 [INFO] - Beginning training
+2022-10-19 13:39:24 [DEBUG] - Verifying slide annotations...
+2022-10-19 13:39:24 [DEBUG] - Verifying tfrecords...
+2022-10-19 13:39:24 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-19 13:39:24 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 0 [471 slides]
+2022-10-19 13:39:24 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 1 [125 slides]
+2022-10-19 13:39:24 [INFO] - Training model [bold]histological_type-HP0[/]...
+2022-10-19 13:39:24 [INFO] - Hyperparameters: {
+  "augment": "xyrj",
+  "batch_size": 64,
+  "drop_images": false,
+  "dropout": 0.2,
+  "early_stop": false,
+  "early_stop_method": "loss",
+  "early_stop_patience": 0,
+  "epochs": [
+    1
+  ],
+  "hidden_layer_width": 500,
+  "hidden_layers": 0,
+  "include_top": true,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0,
+  "learning_rate_decay_steps": 100000,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": null,
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "max",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2022-10-19 13:39:24 [INFO] - Val settings: {
+  "strategy": "none",
+  "k_fold": 3,
+  "k": null,
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2022-10-19 13:39:24 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-19 13:39:24 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 0 [471 slides]
+2022-10-19 13:39:24 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 1 [125 slides]
+2022-10-19 13:39:24 [INFO] - Using 596 training TFRecords, 0 validation
+2022-10-19 13:39:26 [DEBUG] - Spawning training process (PID: 1536620)
+2022-10-19 13:39:27 [DEBUG] - Enabling mixed precision (mixed_float16)
+2022-10-19 13:39:27 [DEBUG] - Not using regularization for base model
+2022-10-19 13:39:27 [DEBUG] - Not using any slide-level input features.
+2022-10-19 13:39:27 [DEBUG] - Not using regularization for dense layers
+2022-10-19 13:39:27 [DEBUG] - Using Batch normalization
+2022-10-19 13:39:27 [DEBUG] - Using softmax activation
+2022-10-19 13:39:27 [DEBUG] - Interleaving 596 tfrecords: infinite=True, num_parallel_reads=4
+2022-10-19 13:39:29 [DEBUG] - Validation during training: None
+2022-10-19 13:39:30 [DEBUG] - Adversarial wrapping complete.
+2022-10-19 13:39:30 [INFO] - Beginning training
+2022-10-19 13:40:17 [DEBUG] - Verifying slide annotations...
+2022-10-19 13:40:17 [DEBUG] - Verifying tfrecords...
+2022-10-19 13:40:17 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-19 13:40:17 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 0 [471 slides]
+2022-10-19 13:40:17 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 1 [125 slides]
+2022-10-19 13:40:17 [INFO] - Training model [bold]histological_type-HP0[/]...
+2022-10-19 13:40:17 [INFO] - Hyperparameters: {
+  "augment": "xyrj",
+  "batch_size": 64,
+  "drop_images": false,
+  "dropout": 0.2,
+  "early_stop": false,
+  "early_stop_method": "loss",
+  "early_stop_patience": 0,
+  "epochs": [
+    1
+  ],
+  "hidden_layer_width": 500,
+  "hidden_layers": 0,
+  "include_top": true,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0,
+  "learning_rate_decay_steps": 100000,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": null,
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "max",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2022-10-19 13:40:17 [INFO] - Val settings: {
+  "strategy": "none",
+  "k_fold": 3,
+  "k": null,
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2022-10-19 13:40:17 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-19 13:40:17 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 0 [471 slides]
+2022-10-19 13:40:17 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 1 [125 slides]
+2022-10-19 13:40:17 [INFO] - Using 596 training TFRecords, 0 validation
+2022-10-19 13:40:19 [DEBUG] - Spawning training process (PID: 1537505)
+2022-10-19 13:40:20 [DEBUG] - Enabling mixed precision (mixed_float16)
+2022-10-19 13:40:20 [DEBUG] - Not using regularization for base model
+2022-10-19 13:40:20 [DEBUG] - Not using any slide-level input features.
+2022-10-19 13:40:20 [DEBUG] - Not using regularization for dense layers
+2022-10-19 13:40:20 [DEBUG] - Using Batch normalization
+2022-10-19 13:40:20 [DEBUG] - Using softmax activation
+2022-10-19 13:40:21 [DEBUG] - Interleaving 596 tfrecords: infinite=True, num_parallel_reads=4
+2022-10-19 13:40:23 [DEBUG] - Validation during training: None
+2022-10-19 13:40:23 [DEBUG] - Adversarial wrapping complete.
+2022-10-19 13:40:23 [INFO] - Beginning training
+2022-10-19 13:43:20 [DEBUG] - Verifying slide annotations...
+2022-10-19 13:43:20 [DEBUG] - Verifying tfrecords...
+2022-10-19 13:43:20 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-19 13:43:20 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 0 [471 slides]
+2022-10-19 13:43:20 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 1 [125 slides]
+2022-10-19 13:43:20 [INFO] - Training model [bold]histological_type-HP0[/]...
+2022-10-19 13:43:20 [INFO] - Hyperparameters: {
+  "augment": "xyrj",
+  "batch_size": 64,
+  "drop_images": false,
+  "dropout": 0.2,
+  "early_stop": false,
+  "early_stop_method": "loss",
+  "early_stop_patience": 0,
+  "epochs": [
+    1
+  ],
+  "hidden_layer_width": 500,
+  "hidden_layers": 0,
+  "include_top": true,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0,
+  "learning_rate_decay_steps": 100000,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": null,
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "max",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2022-10-19 13:43:20 [INFO] - Val settings: {
+  "strategy": "none",
+  "k_fold": 3,
+  "k": null,
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2022-10-19 13:43:20 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-19 13:43:20 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 0 [471 slides]
+2022-10-19 13:43:20 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 1 [125 slides]
+2022-10-19 13:43:20 [INFO] - Using 596 training TFRecords, 0 validation
+2022-10-19 13:43:22 [DEBUG] - Spawning training process (PID: 1538624)
+2022-10-19 13:43:22 [DEBUG] - Enabling mixed precision (mixed_float16)
+2022-10-19 13:43:23 [DEBUG] - Not using regularization for base model
+2022-10-19 13:43:23 [DEBUG] - Not using any slide-level input features.
+2022-10-19 13:43:23 [DEBUG] - Not using regularization for dense layers
+2022-10-19 13:43:23 [DEBUG] - Using Batch normalization
+2022-10-19 13:43:23 [DEBUG] - Using softmax activation
+2022-10-19 13:43:23 [DEBUG] - Interleaving 596 tfrecords: infinite=True, num_parallel_reads=4
+2022-10-19 13:43:25 [DEBUG] - Validation during training: None
+2022-10-19 13:43:25 [DEBUG] - Adversarial wrapping complete.
+2022-10-19 13:43:25 [INFO] - Beginning training
+2022-10-19 13:46:01 [DEBUG] - Verifying slide annotations...
+2022-10-19 13:46:01 [DEBUG] - Verifying tfrecords...
+2022-10-19 13:46:01 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-19 13:46:01 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 0 [471 slides]
+2022-10-19 13:46:01 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 1 [125 slides]
+2022-10-19 13:46:01 [INFO] - Training model [bold]histological_type-HP0[/]...
+2022-10-19 13:46:01 [INFO] - Hyperparameters: {
+  "augment": "xyrj",
+  "batch_size": 64,
+  "drop_images": false,
+  "dropout": 0.2,
+  "early_stop": false,
+  "early_stop_method": "loss",
+  "early_stop_patience": 0,
+  "epochs": [
+    1
+  ],
+  "hidden_layer_width": 500,
+  "hidden_layers": 0,
+  "include_top": true,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0,
+  "learning_rate_decay_steps": 100000,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": null,
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "max",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2022-10-19 13:46:01 [INFO] - Val settings: {
+  "strategy": "none",
+  "k_fold": 3,
+  "k": null,
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2022-10-19 13:46:01 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-19 13:46:01 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 0 [471 slides]
+2022-10-19 13:46:01 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 1 [125 slides]
+2022-10-19 13:46:01 [INFO] - Using 596 training TFRecords, 0 validation
+2022-10-19 13:46:03 [DEBUG] - Spawning training process (PID: 1539695)
+2022-10-19 13:46:03 [DEBUG] - Enabling mixed precision (mixed_float16)
+2022-10-19 13:46:04 [DEBUG] - Not using regularization for base model
+2022-10-19 13:46:04 [DEBUG] - Not using any slide-level input features.
+2022-10-19 13:46:04 [DEBUG] - Not using regularization for dense layers
+2022-10-19 13:46:04 [DEBUG] - Using Batch normalization
+2022-10-19 13:46:04 [DEBUG] - Using softmax activation
+2022-10-19 13:46:04 [DEBUG] - Interleaving 596 tfrecords: infinite=True, num_parallel_reads=4
+2022-10-19 13:46:06 [DEBUG] - Validation during training: None
+2022-10-19 13:46:06 [DEBUG] - Adversarial wrapping complete.
+2022-10-19 13:46:06 [INFO] - Beginning training
+2022-10-19 13:46:59 [DEBUG] - Verifying slide annotations...
+2022-10-19 13:46:59 [DEBUG] - Verifying tfrecords...
+2022-10-19 13:46:59 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-19 13:46:59 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 0 [471 slides]
+2022-10-19 13:46:59 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 1 [125 slides]
+2022-10-19 13:46:59 [INFO] - Training model [bold]histological_type-HP0[/]...
+2022-10-19 13:46:59 [INFO] - Hyperparameters: {
+  "augment": "xyrj",
+  "batch_size": 64,
+  "drop_images": false,
+  "dropout": 0.2,
+  "early_stop": false,
+  "early_stop_method": "loss",
+  "early_stop_patience": 0,
+  "epochs": [
+    1
+  ],
+  "hidden_layer_width": 500,
+  "hidden_layers": 0,
+  "include_top": true,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0,
+  "learning_rate_decay_steps": 100000,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": null,
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "max",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2022-10-19 13:46:59 [INFO] - Val settings: {
+  "strategy": "none",
+  "k_fold": 3,
+  "k": null,
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2022-10-19 13:46:59 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-19 13:46:59 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 0 [471 slides]
+2022-10-19 13:46:59 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 1 [125 slides]
+2022-10-19 13:46:59 [INFO] - Using 596 training TFRecords, 0 validation
+2022-10-19 13:47:01 [DEBUG] - Spawning training process (PID: 1540564)
+2022-10-19 13:47:01 [DEBUG] - Enabling mixed precision (mixed_float16)
+2022-10-19 13:47:02 [DEBUG] - Not using regularization for base model
+2022-10-19 13:47:02 [DEBUG] - Not using any slide-level input features.
+2022-10-19 13:47:02 [DEBUG] - Not using regularization for dense layers
+2022-10-19 13:47:02 [DEBUG] - Using Batch normalization
+2022-10-19 13:47:02 [DEBUG] - Using softmax activation
+2022-10-19 13:47:02 [DEBUG] - Interleaving 596 tfrecords: infinite=True, num_parallel_reads=4
+2022-10-19 13:47:04 [DEBUG] - Validation during training: None
+2022-10-19 13:47:04 [DEBUG] - Adversarial wrapping complete.
+2022-10-19 13:47:04 [INFO] - Beginning training
+2022-10-19 13:47:41 [DEBUG] - Verifying slide annotations...
+2022-10-19 13:47:41 [DEBUG] - Verifying tfrecords...
+2022-10-19 13:47:41 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-19 13:47:41 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 0 [471 slides]
+2022-10-19 13:47:41 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 1 [125 slides]
+2022-10-19 13:47:41 [INFO] - Training model [bold]histological_type-HP0[/]...
+2022-10-19 13:47:41 [INFO] - Hyperparameters: {
+  "augment": "xyrj",
+  "batch_size": 64,
+  "drop_images": false,
+  "dropout": 0.2,
+  "early_stop": false,
+  "early_stop_method": "loss",
+  "early_stop_patience": 0,
+  "epochs": [
+    1
+  ],
+  "hidden_layer_width": 500,
+  "hidden_layers": 0,
+  "include_top": true,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0,
+  "learning_rate_decay_steps": 100000,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": null,
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "max",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2022-10-19 13:47:41 [INFO] - Val settings: {
+  "strategy": "none",
+  "k_fold": 3,
+  "k": null,
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2022-10-19 13:47:41 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-19 13:47:41 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 0 [471 slides]
+2022-10-19 13:47:41 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 1 [125 slides]
+2022-10-19 13:47:41 [INFO] - Using 596 training TFRecords, 0 validation
+2022-10-19 13:47:43 [DEBUG] - Spawning training process (PID: 1541393)
+2022-10-19 13:47:43 [DEBUG] - Enabling mixed precision (mixed_float16)
+2022-10-19 13:47:44 [DEBUG] - Not using regularization for base model
+2022-10-19 13:47:44 [DEBUG] - Not using any slide-level input features.
+2022-10-19 13:47:44 [DEBUG] - Not using regularization for dense layers
+2022-10-19 13:47:44 [DEBUG] - Using Batch normalization
+2022-10-19 13:47:44 [DEBUG] - Using softmax activation
+2022-10-19 13:47:44 [DEBUG] - Interleaving 596 tfrecords: infinite=True, num_parallel_reads=4
+2022-10-19 13:47:46 [DEBUG] - Validation during training: None
+2022-10-19 13:47:46 [DEBUG] - Adversarial wrapping complete.
+2022-10-19 13:47:46 [INFO] - Beginning training
+2022-10-21 09:29:56 [DEBUG] - Verifying slide annotations...
+2022-10-21 09:29:56 [DEBUG] - Verifying tfrecords...
+2022-10-21 09:29:56 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-21 09:29:56 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 0 [471 slides]
+2022-10-21 09:29:56 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 1 [125 slides]
+2022-10-21 09:29:56 [INFO] - Training model [bold]histological_type-HP0[/]...
+2022-10-21 09:29:56 [INFO] - Hyperparameters: {
+  "augment": "xyrj",
+  "batch_size": 64,
+  "drop_images": false,
+  "dropout": 0.2,
+  "early_stop": false,
+  "early_stop_method": "loss",
+  "early_stop_patience": 0,
+  "epochs": [
+    1
+  ],
+  "hidden_layer_width": 500,
+  "hidden_layers": 0,
+  "include_top": true,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0,
+  "learning_rate_decay_steps": 100000,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": null,
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "max",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2022-10-21 09:29:56 [INFO] - Val settings: {
+  "strategy": "none",
+  "k_fold": 3,
+  "k": null,
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2022-10-21 09:29:56 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-21 09:29:56 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 0 [471 slides]
+2022-10-21 09:29:56 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 1 [125 slides]
+2022-10-21 09:29:56 [INFO] - Using 596 training TFRecords, 0 validation
+2022-10-21 09:29:58 [DEBUG] - Spawning training process (PID: 1754740)
+2022-10-21 09:29:58 [DEBUG] - Enabling mixed precision (mixed_float16)
+2022-10-21 09:29:58 [DEBUG] - Not using regularization for base model
+2022-10-21 09:29:59 [DEBUG] - Not using any slide-level input features.
+2022-10-21 09:29:59 [DEBUG] - Not using regularization for dense layers
+2022-10-21 09:29:59 [DEBUG] - Using Batch normalization
+2022-10-21 09:29:59 [DEBUG] - Using softmax activation
+2022-10-21 09:29:59 [DEBUG] - Interleaving 596 tfrecords: infinite=True, num_parallel_reads=4
+2022-10-21 09:30:01 [DEBUG] - Validation during training: None
+2022-10-21 09:30:01 [DEBUG] - Adversarial wrapping complete.
+2022-10-21 09:30:01 [INFO] - Beginning training
+2022-10-21 10:44:42 [INFO] - No validation performed.
+2022-10-21 10:44:42 [INFO] - Training complete; validation accuracies:
+2022-10-21 11:02:40 [DEBUG] - Verifying slide annotations...
+2022-10-21 11:02:40 [DEBUG] - Verifying tfrecords...
+2022-10-21 11:02:40 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-21 11:02:40 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 0 [471 slides]
+2022-10-21 11:02:40 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 1 [125 slides]
+2022-10-21 11:02:40 [INFO] - Training model [bold]histological_type-HP0[/]...
+2022-10-21 11:02:40 [INFO] - Hyperparameters: {
+  "augment": "xyrj",
+  "batch_size": 64,
+  "drop_images": false,
+  "dropout": 0.2,
+  "early_stop": false,
+  "early_stop_method": "loss",
+  "early_stop_patience": 0,
+  "epochs": [
+    1
+  ],
+  "hidden_layer_width": 500,
+  "hidden_layers": 0,
+  "include_top": true,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0,
+  "learning_rate_decay_steps": 100000,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": null,
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "max",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2022-10-21 11:02:40 [INFO] - Val settings: {
+  "strategy": "none",
+  "k_fold": 3,
+  "k": null,
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2022-10-21 11:02:40 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-21 11:02:40 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 0 [471 slides]
+2022-10-21 11:02:40 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 1 [125 slides]
+2022-10-21 11:02:40 [INFO] - Using 596 training TFRecords, 0 validation
+2022-10-21 11:02:42 [DEBUG] - Spawning training process (PID: 1773115)
+2022-10-21 11:02:42 [DEBUG] - Enabling mixed precision (mixed_float16)
+2022-10-21 11:02:42 [DEBUG] - Not using regularization for base model
+2022-10-21 11:02:43 [DEBUG] - Not using any slide-level input features.
+2022-10-21 11:02:43 [DEBUG] - Not using regularization for dense layers
+2022-10-21 11:02:43 [DEBUG] - Using Batch normalization
+2022-10-21 11:02:43 [DEBUG] - Using softmax activation
+2022-10-21 11:02:43 [DEBUG] - Interleaving 596 tfrecords: infinite=True, num_parallel_reads=4
+2022-10-21 11:02:45 [DEBUG] - Validation during training: None
+2022-10-21 11:02:45 [DEBUG] - Adversarial wrapping complete.
+2022-10-21 11:02:45 [INFO] - Beginning training
+2022-10-21 11:03:13 [INFO] - No validation performed.
+2022-10-21 11:03:13 [INFO] - Training complete; validation accuracies:
+2022-10-21 11:04:16 [DEBUG] - Verifying slide annotations...
+2022-10-21 11:04:16 [DEBUG] - Verifying tfrecords...
+2022-10-21 11:04:16 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-21 11:04:16 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 0 [471 slides]
+2022-10-21 11:04:16 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 1 [125 slides]
+2022-10-21 11:04:16 [INFO] - Training model [bold]histological_type-HP0[/]...
+2022-10-21 11:04:16 [INFO] - Hyperparameters: {
+  "augment": "xyrj",
+  "batch_size": 64,
+  "drop_images": false,
+  "dropout": 0.2,
+  "early_stop": false,
+  "early_stop_method": "loss",
+  "early_stop_patience": 0,
+  "epochs": [
+    1
+  ],
+  "hidden_layer_width": 500,
+  "hidden_layers": 0,
+  "include_top": true,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0,
+  "learning_rate_decay_steps": 100000,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": null,
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "max",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2022-10-21 11:04:16 [INFO] - Val settings: {
+  "strategy": "none",
+  "k_fold": 3,
+  "k": null,
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2022-10-21 11:04:16 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-21 11:04:16 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 0 [471 slides]
+2022-10-21 11:04:16 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 1 [125 slides]
+2022-10-21 11:04:16 [INFO] - Using 596 training TFRecords, 0 validation
+2022-10-21 11:04:18 [DEBUG] - Spawning training process (PID: 1774037)
+2022-10-21 11:04:18 [DEBUG] - Enabling mixed precision (mixed_float16)
+2022-10-21 11:04:19 [DEBUG] - Not using regularization for base model
+2022-10-21 11:04:19 [DEBUG] - Not using any slide-level input features.
+2022-10-21 11:04:19 [DEBUG] - Not using regularization for dense layers
+2022-10-21 11:04:19 [DEBUG] - Using Batch normalization
+2022-10-21 11:04:19 [DEBUG] - Using softmax activation
+2022-10-21 11:04:19 [DEBUG] - Interleaving 596 tfrecords: infinite=True, num_parallel_reads=4
+2022-10-21 11:04:21 [DEBUG] - Validation during training: None
+2022-10-21 11:04:21 [DEBUG] - Adversarial wrapping complete.
+2022-10-21 11:04:21 [INFO] - Beginning training
+2022-10-21 11:04:48 [INFO] - No validation performed.
+2022-10-21 11:04:48 [INFO] - Training complete; validation accuracies:
+2022-10-21 11:11:52 [DEBUG] - Verifying slide annotations...
+2022-10-21 11:11:52 [DEBUG] - Verifying tfrecords...
+2022-10-21 11:11:52 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-21 11:11:52 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 0 [471 slides]
+2022-10-21 11:11:52 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 1 [125 slides]
+2022-10-21 11:11:52 [INFO] - Training model [bold]histological_type-HP0[/]...
+2022-10-21 11:11:52 [INFO] - Hyperparameters: {
+  "augment": "xyrj",
+  "batch_size": 64,
+  "drop_images": false,
+  "dropout": 0.2,
+  "early_stop": false,
+  "early_stop_method": "loss",
+  "early_stop_patience": 0,
+  "epochs": [
+    1
+  ],
+  "hidden_layer_width": 500,
+  "hidden_layers": 0,
+  "include_top": true,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0,
+  "learning_rate_decay_steps": 100000,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": null,
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "max",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2022-10-21 11:11:52 [INFO] - Val settings: {
+  "strategy": "none",
+  "k_fold": 3,
+  "k": null,
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2022-10-21 11:11:52 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-21 11:11:52 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 0 [471 slides]
+2022-10-21 11:11:52 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 1 [125 slides]
+2022-10-21 11:11:52 [INFO] - Using 596 training TFRecords, 0 validation
+2022-10-21 11:11:54 [DEBUG] - Spawning training process (PID: 1775526)
+2022-10-21 11:11:54 [DEBUG] - Enabling mixed precision (mixed_float16)
+2022-10-21 11:11:55 [DEBUG] - Not using regularization for base model
+2022-10-21 11:11:55 [DEBUG] - Not using any slide-level input features.
+2022-10-21 11:11:55 [DEBUG] - Not using regularization for dense layers
+2022-10-21 11:11:55 [DEBUG] - Using Batch normalization
+2022-10-21 11:11:55 [DEBUG] - Using softmax activation
+2022-10-21 11:11:55 [DEBUG] - Interleaving 596 tfrecords: infinite=True, num_parallel_reads=4
+2022-10-21 11:11:57 [DEBUG] - Validation during training: None
+2022-10-21 11:11:58 [DEBUG] - Adversarial wrapping complete.
+2022-10-21 11:11:58 [INFO] - Beginning training
+2022-10-21 11:12:24 [INFO] - Model saved
+2022-10-21 11:12:26 [INFO] - No validation performed.
+2022-10-21 11:12:26 [INFO] - Training complete; validation accuracies:
+2022-10-21 11:12:29 [DEBUG] - Verifying slide annotations...
+2022-10-21 11:12:29 [DEBUG] - Verifying tfrecords...
+2022-10-21 11:12:29 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-21 11:12:29 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 0 [471 slides]
+2022-10-21 11:12:29 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 1 [125 slides]
+2022-10-21 11:12:29 [INFO] - Training model [bold]histological_type-HP0[/]...
+2022-10-21 11:12:29 [INFO] - Hyperparameters: {
+  "augment": "xyrj",
+  "batch_size": 64,
+  "drop_images": false,
+  "dropout": 0.2,
+  "early_stop": false,
+  "early_stop_method": "loss",
+  "early_stop_patience": 0,
+  "epochs": [
+    1
+  ],
+  "hidden_layer_width": 500,
+  "hidden_layers": 0,
+  "include_top": true,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0,
+  "learning_rate_decay_steps": 100000,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": null,
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "max",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2022-10-21 11:12:29 [INFO] - Val settings: {
+  "strategy": "none",
+  "k_fold": 3,
+  "k": null,
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2022-10-21 11:12:29 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-21 11:12:29 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 0 [471 slides]
+2022-10-21 11:12:29 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 1 [125 slides]
+2022-10-21 11:12:29 [INFO] - Using 596 training TFRecords, 0 validation
+2022-10-21 11:12:31 [DEBUG] - Spawning training process (PID: 1776381)
+2022-10-21 11:12:31 [DEBUG] - Enabling mixed precision (mixed_float16)
+2022-10-21 11:12:32 [DEBUG] - Not using regularization for base model
+2022-10-21 11:12:32 [DEBUG] - Not using any slide-level input features.
+2022-10-21 11:12:32 [DEBUG] - Not using regularization for dense layers
+2022-10-21 11:12:32 [DEBUG] - Using Batch normalization
+2022-10-21 11:12:32 [DEBUG] - Using softmax activation
+2022-10-21 11:12:32 [DEBUG] - Interleaving 596 tfrecords: infinite=True, num_parallel_reads=4
+2022-10-21 11:12:34 [DEBUG] - Validation during training: None
+2022-10-21 11:12:34 [DEBUG] - Adversarial wrapping complete.
+2022-10-21 11:12:34 [INFO] - Beginning training
+2022-10-21 12:34:56 [INFO] - Model saved
+2022-10-21 12:34:58 [INFO] - No validation performed.
+2022-10-21 12:34:58 [INFO] - Training complete; validation accuracies:
+2022-10-21 13:34:25 [DEBUG] - Verifying slide annotations...
+2022-10-21 13:34:25 [DEBUG] - Verifying tfrecords...
+2022-10-21 13:34:25 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-21 13:34:25 [DEBUG] - histological_type Infiltrating Carcinoma NOS assigned 0 [1 slides]
+2022-10-21 13:34:25 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 1 [243 slides]
+2022-10-21 13:34:25 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 2 [64 slides]
+2022-10-21 13:34:25 [DEBUG] - histological_type Medullary Carcinoma assigned 3 [7 slides]
+2022-10-21 13:34:25 [DEBUG] - histological_type Metaplastic Carcinoma assigned 4 [8 slides]
+2022-10-21 13:34:25 [DEBUG] - histological_type Mixed Histology (please specify) assigned 5 [29 slides]
+2022-10-21 13:34:25 [DEBUG] - histological_type Mucinous Carcinoma assigned 6 [21 slides]
+2022-10-21 13:34:25 [DEBUG] - histological_type Other, specify assigned 7 [49 slides]
+2022-10-21 13:34:25 [DEBUG] - histological_type [Not Available] assigned 8 [1 slides]
+2022-10-21 13:34:25 [DEBUG] - Interleaving 410 tfrecords: infinite=False, num_parallel_reads=4
+2022-10-21 13:44:34 [DEBUG] - Verifying slide annotations...
+2022-10-21 13:44:34 [DEBUG] - Verifying tfrecords...
+2022-10-21 13:44:34 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-21 13:44:34 [DEBUG] - histological_type Infiltrating Carcinoma NOS assigned 0 [1 slides]
+2022-10-21 13:44:34 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 1 [243 slides]
+2022-10-21 13:44:34 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 2 [64 slides]
+2022-10-21 13:44:34 [DEBUG] - histological_type Medullary Carcinoma assigned 3 [7 slides]
+2022-10-21 13:44:34 [DEBUG] - histological_type Metaplastic Carcinoma assigned 4 [8 slides]
+2022-10-21 13:44:34 [DEBUG] - histological_type Mixed Histology (please specify) assigned 5 [29 slides]
+2022-10-21 13:44:34 [DEBUG] - histological_type Mucinous Carcinoma assigned 6 [21 slides]
+2022-10-21 13:44:34 [DEBUG] - histological_type Other, specify assigned 7 [49 slides]
+2022-10-21 13:44:34 [DEBUG] - histological_type [Not Available] assigned 8 [1 slides]
+2022-10-21 13:44:34 [DEBUG] - Interleaving 410 tfrecords: infinite=False, num_parallel_reads=4
+2022-10-21 13:45:33 [DEBUG] - Verifying slide annotations...
+2022-10-21 13:45:33 [DEBUG] - Verifying tfrecords...
+2022-10-21 13:45:33 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-21 13:45:33 [DEBUG] - histological_type Infiltrating Carcinoma NOS assigned 0 [1 slides]
+2022-10-21 13:45:33 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 1 [243 slides]
+2022-10-21 13:45:33 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 2 [64 slides]
+2022-10-21 13:45:33 [DEBUG] - histological_type Medullary Carcinoma assigned 3 [7 slides]
+2022-10-21 13:45:33 [DEBUG] - histological_type Metaplastic Carcinoma assigned 4 [8 slides]
+2022-10-21 13:45:33 [DEBUG] - histological_type Mixed Histology (please specify) assigned 5 [29 slides]
+2022-10-21 13:45:33 [DEBUG] - histological_type Mucinous Carcinoma assigned 6 [21 slides]
+2022-10-21 13:45:33 [DEBUG] - histological_type Other, specify assigned 7 [49 slides]
+2022-10-21 13:45:33 [DEBUG] - histological_type [Not Available] assigned 8 [1 slides]
+2022-10-21 13:45:33 [DEBUG] - Interleaving 410 tfrecords: infinite=False, num_parallel_reads=4
+2022-10-21 14:46:11 [DEBUG] - Verifying slide annotations...
+2022-10-21 14:46:11 [DEBUG] - Verifying tfrecords...
+2022-10-21 14:46:11 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-21 14:46:11 [DEBUG] - histological_type Infiltrating Carcinoma NOS assigned 0 [1 slides]
+2022-10-21 14:46:11 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 1 [243 slides]
+2022-10-21 14:46:11 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 2 [64 slides]
+2022-10-21 14:46:11 [DEBUG] - histological_type Medullary Carcinoma assigned 3 [7 slides]
+2022-10-21 14:46:11 [DEBUG] - histological_type Metaplastic Carcinoma assigned 4 [8 slides]
+2022-10-21 14:46:11 [DEBUG] - histological_type Mixed Histology (please specify) assigned 5 [29 slides]
+2022-10-21 14:46:11 [DEBUG] - histological_type Mucinous Carcinoma assigned 6 [21 slides]
+2022-10-21 14:46:11 [DEBUG] - histological_type Other, specify assigned 7 [49 slides]
+2022-10-21 14:46:11 [DEBUG] - histological_type [Not Available] assigned 8 [1 slides]
+2022-10-21 14:46:11 [DEBUG] - Interleaving 410 tfrecords: infinite=False, num_parallel_reads=4
+2022-10-21 15:05:46 [DEBUG] - Verifying slide annotations...
+2022-10-21 15:05:46 [DEBUG] - Verifying tfrecords...
+2022-10-21 15:05:46 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-21 15:05:46 [DEBUG] - histological_type Infiltrating Carcinoma NOS assigned 0 [1 slides]
+2022-10-21 15:05:46 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 1 [243 slides]
+2022-10-21 15:05:46 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 2 [64 slides]
+2022-10-21 15:05:46 [DEBUG] - histological_type Medullary Carcinoma assigned 3 [7 slides]
+2022-10-21 15:05:46 [DEBUG] - histological_type Metaplastic Carcinoma assigned 4 [8 slides]
+2022-10-21 15:05:46 [DEBUG] - histological_type Mixed Histology (please specify) assigned 5 [29 slides]
+2022-10-21 15:05:46 [DEBUG] - histological_type Mucinous Carcinoma assigned 6 [21 slides]
+2022-10-21 15:05:46 [DEBUG] - histological_type Other, specify assigned 7 [49 slides]
+2022-10-21 15:05:46 [DEBUG] - histological_type [Not Available] assigned 8 [1 slides]
+2022-10-21 15:05:46 [DEBUG] - Interleaving 410 tfrecords: infinite=False, num_parallel_reads=4
+2022-10-21 15:06:06 [DEBUG] - Verifying slide annotations...
+2022-10-21 15:06:06 [DEBUG] - Verifying tfrecords...
+2022-10-21 15:06:06 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-21 15:06:06 [DEBUG] - histological_type Infiltrating Carcinoma NOS assigned 0 [1 slides]
+2022-10-21 15:06:06 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 1 [243 slides]
+2022-10-21 15:06:06 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 2 [64 slides]
+2022-10-21 15:06:06 [DEBUG] - histological_type Medullary Carcinoma assigned 3 [7 slides]
+2022-10-21 15:06:06 [DEBUG] - histological_type Metaplastic Carcinoma assigned 4 [8 slides]
+2022-10-21 15:06:06 [DEBUG] - histological_type Mixed Histology (please specify) assigned 5 [29 slides]
+2022-10-21 15:06:06 [DEBUG] - histological_type Mucinous Carcinoma assigned 6 [21 slides]
+2022-10-21 15:06:06 [DEBUG] - histological_type Other, specify assigned 7 [49 slides]
+2022-10-21 15:06:06 [DEBUG] - histological_type [Not Available] assigned 8 [1 slides]
+2022-10-21 15:06:06 [DEBUG] - Interleaving 410 tfrecords: infinite=False, num_parallel_reads=4
+2022-10-21 16:19:55 [DEBUG] - Verifying slide annotations...
+2022-10-21 16:19:55 [DEBUG] - Verifying tfrecords...
+2022-10-21 16:19:55 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-21 16:19:55 [DEBUG] - histological_type Infiltrating Carcinoma NOS assigned 0 [1 slides]
+2022-10-21 16:19:55 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 1 [243 slides]
+2022-10-21 16:19:55 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 2 [64 slides]
+2022-10-21 16:19:55 [DEBUG] - histological_type Medullary Carcinoma assigned 3 [7 slides]
+2022-10-21 16:19:55 [DEBUG] - histological_type Metaplastic Carcinoma assigned 4 [8 slides]
+2022-10-21 16:19:55 [DEBUG] - histological_type Mixed Histology (please specify) assigned 5 [29 slides]
+2022-10-21 16:19:55 [DEBUG] - histological_type Mucinous Carcinoma assigned 6 [21 slides]
+2022-10-21 16:19:55 [DEBUG] - histological_type Other, specify assigned 7 [49 slides]
+2022-10-21 16:19:55 [DEBUG] - histological_type [Not Available] assigned 8 [1 slides]
+2022-10-21 16:19:55 [DEBUG] - Interleaving 410 tfrecords: infinite=False, num_parallel_reads=4
+2022-10-21 16:21:38 [DEBUG] - Verifying slide annotations...
+2022-10-21 16:21:38 [DEBUG] - Verifying tfrecords...
+2022-10-21 16:21:38 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-21 16:21:38 [DEBUG] - histological_type Infiltrating Carcinoma NOS assigned 0 [1 slides]
+2022-10-21 16:21:38 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 1 [243 slides]
+2022-10-21 16:21:38 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 2 [64 slides]
+2022-10-21 16:21:38 [DEBUG] - histological_type Medullary Carcinoma assigned 3 [7 slides]
+2022-10-21 16:21:38 [DEBUG] - histological_type Metaplastic Carcinoma assigned 4 [8 slides]
+2022-10-21 16:21:38 [DEBUG] - histological_type Mixed Histology (please specify) assigned 5 [29 slides]
+2022-10-21 16:21:38 [DEBUG] - histological_type Mucinous Carcinoma assigned 6 [21 slides]
+2022-10-21 16:21:38 [DEBUG] - histological_type Other, specify assigned 7 [49 slides]
+2022-10-21 16:21:38 [DEBUG] - histological_type [Not Available] assigned 8 [1 slides]
+2022-10-21 16:21:38 [DEBUG] - Interleaving 410 tfrecords: infinite=False, num_parallel_reads=4
+2022-10-21 16:22:44 [DEBUG] - Verifying slide annotations...
+2022-10-21 16:22:44 [DEBUG] - Verifying tfrecords...
+2022-10-21 16:22:44 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-21 16:22:44 [DEBUG] - histological_type Infiltrating Carcinoma NOS assigned 0 [1 slides]
+2022-10-21 16:22:44 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 1 [243 slides]
+2022-10-21 16:22:44 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 2 [64 slides]
+2022-10-21 16:22:44 [DEBUG] - histological_type Medullary Carcinoma assigned 3 [7 slides]
+2022-10-21 16:22:44 [DEBUG] - histological_type Metaplastic Carcinoma assigned 4 [8 slides]
+2022-10-21 16:22:44 [DEBUG] - histological_type Mixed Histology (please specify) assigned 5 [29 slides]
+2022-10-21 16:22:44 [DEBUG] - histological_type Mucinous Carcinoma assigned 6 [21 slides]
+2022-10-21 16:22:44 [DEBUG] - histological_type Other, specify assigned 7 [49 slides]
+2022-10-21 16:22:44 [DEBUG] - histological_type [Not Available] assigned 8 [1 slides]
+2022-10-21 16:22:44 [DEBUG] - Interleaving 410 tfrecords: infinite=False, num_parallel_reads=4
+2022-10-21 16:24:09 [DEBUG] - Verifying slide annotations...
+2022-10-21 16:24:09 [DEBUG] - Verifying tfrecords...
+2022-10-21 16:24:09 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-21 16:24:09 [DEBUG] - histological_type Infiltrating Carcinoma NOS assigned 0 [1 slides]
+2022-10-21 16:24:09 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 1 [243 slides]
+2022-10-21 16:24:09 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 2 [64 slides]
+2022-10-21 16:24:09 [DEBUG] - histological_type Medullary Carcinoma assigned 3 [7 slides]
+2022-10-21 16:24:09 [DEBUG] - histological_type Metaplastic Carcinoma assigned 4 [8 slides]
+2022-10-21 16:24:09 [DEBUG] - histological_type Mixed Histology (please specify) assigned 5 [29 slides]
+2022-10-21 16:24:09 [DEBUG] - histological_type Mucinous Carcinoma assigned 6 [21 slides]
+2022-10-21 16:24:09 [DEBUG] - histological_type Other, specify assigned 7 [49 slides]
+2022-10-21 16:24:09 [DEBUG] - histological_type [Not Available] assigned 8 [1 slides]
+2022-10-21 16:24:09 [DEBUG] - Interleaving 410 tfrecords: infinite=False, num_parallel_reads=4
+2022-10-21 16:24:44 [DEBUG] - Verifying slide annotations...
+2022-10-21 16:24:44 [DEBUG] - Verifying tfrecords...
+2022-10-21 16:24:44 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-21 16:24:44 [DEBUG] - histological_type Infiltrating Carcinoma NOS assigned 0 [1 slides]
+2022-10-21 16:24:44 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 1 [243 slides]
+2022-10-21 16:24:44 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 2 [64 slides]
+2022-10-21 16:24:44 [DEBUG] - histological_type Medullary Carcinoma assigned 3 [7 slides]
+2022-10-21 16:24:44 [DEBUG] - histological_type Metaplastic Carcinoma assigned 4 [8 slides]
+2022-10-21 16:24:44 [DEBUG] - histological_type Mixed Histology (please specify) assigned 5 [29 slides]
+2022-10-21 16:24:44 [DEBUG] - histological_type Mucinous Carcinoma assigned 6 [21 slides]
+2022-10-21 16:24:44 [DEBUG] - histological_type Other, specify assigned 7 [49 slides]
+2022-10-21 16:24:44 [DEBUG] - histological_type [Not Available] assigned 8 [1 slides]
+2022-10-21 16:24:44 [DEBUG] - Interleaving 410 tfrecords: infinite=False, num_parallel_reads=4
+2022-10-22 14:27:55 [DEBUG] - Verifying slide annotations...
+2022-10-22 14:27:55 [DEBUG] - Verifying tfrecords...
+2022-10-22 14:27:55 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-22 14:27:55 [DEBUG] - histological_type Infiltrating Carcinoma NOS assigned 0 [1 slides]
+2022-10-22 14:27:55 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 1 [243 slides]
+2022-10-22 14:27:55 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 2 [64 slides]
+2022-10-22 14:27:55 [DEBUG] - histological_type Medullary Carcinoma assigned 3 [7 slides]
+2022-10-22 14:27:55 [DEBUG] - histological_type Metaplastic Carcinoma assigned 4 [8 slides]
+2022-10-22 14:27:55 [DEBUG] - histological_type Mixed Histology (please specify) assigned 5 [29 slides]
+2022-10-22 14:27:55 [DEBUG] - histological_type Mucinous Carcinoma assigned 6 [21 slides]
+2022-10-22 14:27:55 [DEBUG] - histological_type Other, specify assigned 7 [49 slides]
+2022-10-22 14:27:55 [DEBUG] - histological_type [Not Available] assigned 8 [1 slides]
+2022-10-22 14:27:55 [DEBUG] - Interleaving 410 tfrecords: infinite=False, num_parallel_reads=4
+2022-10-22 14:37:21 [DEBUG] - Verifying slide annotations...
+2022-10-22 14:37:21 [DEBUG] - Verifying tfrecords...
+2022-10-22 14:37:21 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-22 14:37:21 [DEBUG] - histological_type Infiltrating Carcinoma NOS assigned 0 [1 slides]
+2022-10-22 14:37:21 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 1 [243 slides]
+2022-10-22 14:37:21 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 2 [64 slides]
+2022-10-22 14:37:21 [DEBUG] - histological_type Medullary Carcinoma assigned 3 [7 slides]
+2022-10-22 14:37:21 [DEBUG] - histological_type Metaplastic Carcinoma assigned 4 [8 slides]
+2022-10-22 14:37:21 [DEBUG] - histological_type Mixed Histology (please specify) assigned 5 [29 slides]
+2022-10-22 14:37:21 [DEBUG] - histological_type Mucinous Carcinoma assigned 6 [21 slides]
+2022-10-22 14:37:21 [DEBUG] - histological_type Other, specify assigned 7 [49 slides]
+2022-10-22 14:37:21 [DEBUG] - histological_type [Not Available] assigned 8 [1 slides]
+2022-10-22 14:37:21 [DEBUG] - Interleaving 410 tfrecords: infinite=False, num_parallel_reads=4
+2022-10-22 14:51:49 [DEBUG] - Verifying slide annotations...
+2022-10-22 14:51:49 [DEBUG] - Verifying tfrecords...
+2022-10-22 14:51:49 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-22 14:51:49 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 0 [471 slides]
+2022-10-22 14:51:49 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 1 [125 slides]
+2022-10-22 14:51:49 [INFO] - Training model [bold]histological_type-HP0[/]...
+2022-10-22 14:51:49 [INFO] - Hyperparameters: {
+  "augment": "xyrj",
+  "batch_size": 64,
+  "drop_images": false,
+  "dropout": 0.2,
+  "early_stop": false,
+  "early_stop_method": "loss",
+  "early_stop_patience": 0,
+  "epochs": [
+    1
+  ],
+  "hidden_layer_width": 500,
+  "hidden_layers": 0,
+  "include_top": true,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0,
+  "learning_rate_decay_steps": 100000,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": null,
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "max",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2022-10-22 14:51:49 [INFO] - Val settings: {
+  "strategy": "none",
+  "k_fold": 3,
+  "k": null,
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2022-10-22 14:51:49 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-22 14:51:49 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 0 [471 slides]
+2022-10-22 14:51:49 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 1 [125 slides]
+2022-10-22 14:51:49 [INFO] - Using 596 training TFRecords, 0 validation
+2022-10-22 14:51:51 [DEBUG] - Spawning training process (PID: 1933831)
+2022-10-22 14:51:51 [DEBUG] - Enabling mixed precision (mixed_float16)
+2022-10-22 14:51:52 [DEBUG] - Not using regularization for base model
+2022-10-22 14:51:52 [DEBUG] - Not using any slide-level input features.
+2022-10-22 14:51:52 [DEBUG] - Not using regularization for dense layers
+2022-10-22 14:51:52 [DEBUG] - Using Batch normalization
+2022-10-22 14:51:52 [DEBUG] - Using softmax activation
+2022-10-22 14:51:52 [DEBUG] - Interleaving 596 tfrecords: infinite=True, num_parallel_reads=4
+2022-10-22 14:51:54 [DEBUG] - Validation during training: None
+2022-10-22 14:51:54 [DEBUG] - Adversarial wrapping complete.
+2022-10-22 14:51:54 [INFO] - Beginning training
+2022-10-22 14:57:33 [DEBUG] - Verifying slide annotations...
+2022-10-22 14:57:33 [DEBUG] - Verifying tfrecords...
+2022-10-22 14:57:33 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-22 14:57:33 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 0 [471 slides]
+2022-10-22 14:57:33 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 1 [125 slides]
+2022-10-22 14:57:33 [INFO] - Training model [bold]histological_type-HP0[/]...
+2022-10-22 14:57:33 [INFO] - Hyperparameters: {
+  "augment": "xyrj",
+  "batch_size": 64,
+  "drop_images": false,
+  "dropout": 0.2,
+  "early_stop": false,
+  "early_stop_method": "loss",
+  "early_stop_patience": 0,
+  "epochs": [
+    1
+  ],
+  "hidden_layer_width": 500,
+  "hidden_layers": 0,
+  "include_top": true,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0,
+  "learning_rate_decay_steps": 100000,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": null,
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "max",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2022-10-22 14:57:33 [INFO] - Val settings: {
+  "strategy": "none",
+  "k_fold": 3,
+  "k": null,
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2022-10-22 14:57:33 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-22 14:57:33 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 0 [471 slides]
+2022-10-22 14:57:33 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 1 [125 slides]
+2022-10-22 14:57:33 [INFO] - Using 596 training TFRecords, 0 validation
+2022-10-22 14:57:42 [DEBUG] - Verifying slide annotations...
+2022-10-22 14:57:42 [DEBUG] - Verifying tfrecords...
+2022-10-22 14:57:42 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-22 14:57:42 [DEBUG] - histological_type Infiltrating Carcinoma NOS assigned 0 [1 slides]
+2022-10-22 14:57:42 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 1 [243 slides]
+2022-10-22 14:57:42 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 2 [64 slides]
+2022-10-22 14:57:42 [DEBUG] - histological_type Medullary Carcinoma assigned 3 [7 slides]
+2022-10-22 14:57:42 [DEBUG] - histological_type Metaplastic Carcinoma assigned 4 [8 slides]
+2022-10-22 14:57:42 [DEBUG] - histological_type Mixed Histology (please specify) assigned 5 [29 slides]
+2022-10-22 14:57:42 [DEBUG] - histological_type Mucinous Carcinoma assigned 6 [21 slides]
+2022-10-22 14:57:42 [DEBUG] - histological_type Other, specify assigned 7 [49 slides]
+2022-10-22 14:57:42 [DEBUG] - histological_type [Not Available] assigned 8 [1 slides]
+2022-10-22 14:57:43 [DEBUG] - Interleaving 410 tfrecords: infinite=False, num_parallel_reads=4
