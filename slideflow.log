@@ -1133,3 +1133,237 @@
 2022-10-22 14:57:42 [DEBUG] - histological_type Other, specify assigned 7 [49 slides]
 2022-10-22 14:57:42 [DEBUG] - histological_type [Not Available] assigned 8 [1 slides]
 2022-10-22 14:57:43 [DEBUG] - Interleaving 410 tfrecords: infinite=False, num_parallel_reads=4
+2022-10-25 14:56:09 [DEBUG] - Verifying slide annotations...
+2022-10-25 14:56:09 [DEBUG] - Verifying tfrecords...
+2022-10-25 14:56:09 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-25 14:56:09 [DEBUG] - histological_type Infiltrating Carcinoma NOS assigned 0 [1 slides]
+2022-10-25 14:56:09 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 1 [243 slides]
+2022-10-25 14:56:09 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 2 [64 slides]
+2022-10-25 14:56:09 [DEBUG] - histological_type Medullary Carcinoma assigned 3 [7 slides]
+2022-10-25 14:56:09 [DEBUG] - histological_type Metaplastic Carcinoma assigned 4 [8 slides]
+2022-10-25 14:56:09 [DEBUG] - histological_type Mixed Histology (please specify) assigned 5 [29 slides]
+2022-10-25 14:56:09 [DEBUG] - histological_type Mucinous Carcinoma assigned 6 [21 slides]
+2022-10-25 14:56:09 [DEBUG] - histological_type Other, specify assigned 7 [49 slides]
+2022-10-25 14:56:09 [DEBUG] - histological_type [Not Available] assigned 8 [1 slides]
+2022-10-25 14:56:09 [DEBUG] - Interleaving 410 tfrecords: infinite=False, num_parallel_reads=4
+2022-10-25 14:59:03 [DEBUG] - Verifying slide annotations...
+2022-10-25 14:59:03 [DEBUG] - Verifying tfrecords...
+2022-10-25 14:59:03 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-25 14:59:03 [DEBUG] - histological_type Infiltrating Carcinoma NOS assigned 0 [1 slides]
+2022-10-25 14:59:03 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 1 [243 slides]
+2022-10-25 14:59:03 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 2 [64 slides]
+2022-10-25 14:59:03 [DEBUG] - histological_type Medullary Carcinoma assigned 3 [7 slides]
+2022-10-25 14:59:03 [DEBUG] - histological_type Metaplastic Carcinoma assigned 4 [8 slides]
+2022-10-25 14:59:03 [DEBUG] - histological_type Mixed Histology (please specify) assigned 5 [29 slides]
+2022-10-25 14:59:03 [DEBUG] - histological_type Mucinous Carcinoma assigned 6 [21 slides]
+2022-10-25 14:59:03 [DEBUG] - histological_type Other, specify assigned 7 [49 slides]
+2022-10-25 14:59:03 [DEBUG] - histological_type [Not Available] assigned 8 [1 slides]
+2022-10-25 14:59:03 [DEBUG] - Interleaving 410 tfrecords: infinite=False, num_parallel_reads=4
+2022-10-25 15:06:29 [DEBUG] - Verifying slide annotations...
+2022-10-25 15:06:29 [DEBUG] - Verifying tfrecords...
+2022-10-25 15:06:29 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-25 15:06:29 [DEBUG] - histological_type Infiltrating Carcinoma NOS assigned 0 [1 slides]
+2022-10-25 15:06:29 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 1 [243 slides]
+2022-10-25 15:06:29 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 2 [64 slides]
+2022-10-25 15:06:29 [DEBUG] - histological_type Medullary Carcinoma assigned 3 [7 slides]
+2022-10-25 15:06:29 [DEBUG] - histological_type Metaplastic Carcinoma assigned 4 [8 slides]
+2022-10-25 15:06:29 [DEBUG] - histological_type Mixed Histology (please specify) assigned 5 [29 slides]
+2022-10-25 15:06:29 [DEBUG] - histological_type Mucinous Carcinoma assigned 6 [21 slides]
+2022-10-25 15:06:29 [DEBUG] - histological_type Other, specify assigned 7 [49 slides]
+2022-10-25 15:06:29 [DEBUG] - histological_type [Not Available] assigned 8 [1 slides]
+2022-10-25 15:06:29 [DEBUG] - Interleaving 410 tfrecords: infinite=False, num_parallel_reads=4
+2022-10-25 15:17:54 [DEBUG] - Verifying slide annotations...
+2022-10-25 15:17:54 [DEBUG] - Verifying tfrecords...
+2022-10-25 15:17:54 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-25 15:17:54 [DEBUG] - histological_type Infiltrating Carcinoma NOS assigned 0 [1 slides]
+2022-10-25 15:17:54 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 1 [243 slides]
+2022-10-25 15:17:54 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 2 [64 slides]
+2022-10-25 15:17:54 [DEBUG] - histological_type Medullary Carcinoma assigned 3 [7 slides]
+2022-10-25 15:17:54 [DEBUG] - histological_type Metaplastic Carcinoma assigned 4 [8 slides]
+2022-10-25 15:17:54 [DEBUG] - histological_type Mixed Histology (please specify) assigned 5 [29 slides]
+2022-10-25 15:17:54 [DEBUG] - histological_type Mucinous Carcinoma assigned 6 [21 slides]
+2022-10-25 15:17:54 [DEBUG] - histological_type Other, specify assigned 7 [49 slides]
+2022-10-25 15:17:54 [DEBUG] - histological_type [Not Available] assigned 8 [1 slides]
+2022-10-25 15:17:54 [DEBUG] - Interleaving 410 tfrecords: infinite=False, num_parallel_reads=4
+2022-10-25 15:27:26 [DEBUG] - Verifying slide annotations...
+2022-10-25 15:27:26 [DEBUG] - Verifying tfrecords...
+2022-10-25 15:27:26 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-25 15:27:26 [DEBUG] - histological_type Infiltrating Carcinoma NOS assigned 0 [1 slides]
+2022-10-25 15:27:26 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 1 [243 slides]
+2022-10-25 15:27:26 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 2 [64 slides]
+2022-10-25 15:27:26 [DEBUG] - histological_type Medullary Carcinoma assigned 3 [7 slides]
+2022-10-25 15:27:26 [DEBUG] - histological_type Metaplastic Carcinoma assigned 4 [8 slides]
+2022-10-25 15:27:26 [DEBUG] - histological_type Mixed Histology (please specify) assigned 5 [29 slides]
+2022-10-25 15:27:26 [DEBUG] - histological_type Mucinous Carcinoma assigned 6 [21 slides]
+2022-10-25 15:27:26 [DEBUG] - histological_type Other, specify assigned 7 [49 slides]
+2022-10-25 15:27:26 [DEBUG] - histological_type [Not Available] assigned 8 [1 slides]
+2022-10-25 15:27:26 [DEBUG] - Interleaving 410 tfrecords: infinite=False, num_parallel_reads=4
+2022-10-25 15:29:57 [DEBUG] - Verifying slide annotations...
+2022-10-25 15:29:57 [DEBUG] - Verifying tfrecords...
+2022-10-25 15:29:57 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-25 15:29:57 [DEBUG] - histological_type Infiltrating Carcinoma NOS assigned 0 [1 slides]
+2022-10-25 15:29:57 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 1 [243 slides]
+2022-10-25 15:29:57 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 2 [64 slides]
+2022-10-25 15:29:57 [DEBUG] - histological_type Medullary Carcinoma assigned 3 [7 slides]
+2022-10-25 15:29:57 [DEBUG] - histological_type Metaplastic Carcinoma assigned 4 [8 slides]
+2022-10-25 15:29:57 [DEBUG] - histological_type Mixed Histology (please specify) assigned 5 [29 slides]
+2022-10-25 15:29:57 [DEBUG] - histological_type Mucinous Carcinoma assigned 6 [21 slides]
+2022-10-25 15:29:57 [DEBUG] - histological_type Other, specify assigned 7 [49 slides]
+2022-10-25 15:29:57 [DEBUG] - histological_type [Not Available] assigned 8 [1 slides]
+2022-10-25 15:29:57 [DEBUG] - Interleaving 410 tfrecords: infinite=False, num_parallel_reads=4
+2022-10-25 15:35:56 [DEBUG] - Verifying slide annotations...
+2022-10-25 15:35:56 [DEBUG] - Verifying tfrecords...
+2022-10-25 15:35:56 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-25 15:35:56 [DEBUG] - histological_type Infiltrating Carcinoma NOS assigned 0 [1 slides]
+2022-10-25 15:35:56 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 1 [243 slides]
+2022-10-25 15:35:56 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 2 [64 slides]
+2022-10-25 15:35:56 [DEBUG] - histological_type Medullary Carcinoma assigned 3 [7 slides]
+2022-10-25 15:35:56 [DEBUG] - histological_type Metaplastic Carcinoma assigned 4 [8 slides]
+2022-10-25 15:35:56 [DEBUG] - histological_type Mixed Histology (please specify) assigned 5 [29 slides]
+2022-10-25 15:35:56 [DEBUG] - histological_type Mucinous Carcinoma assigned 6 [21 slides]
+2022-10-25 15:35:56 [DEBUG] - histological_type Other, specify assigned 7 [49 slides]
+2022-10-25 15:35:56 [DEBUG] - histological_type [Not Available] assigned 8 [1 slides]
+2022-10-25 15:35:56 [DEBUG] - Interleaving 410 tfrecords: infinite=False, num_parallel_reads=4
+2022-10-25 15:36:17 [DEBUG] - Verifying slide annotations...
+2022-10-25 15:36:17 [DEBUG] - Verifying tfrecords...
+2022-10-25 15:36:17 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-25 15:36:17 [DEBUG] - histological_type Infiltrating Carcinoma NOS assigned 0 [1 slides]
+2022-10-25 15:36:17 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 1 [243 slides]
+2022-10-25 15:36:17 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 2 [64 slides]
+2022-10-25 15:36:17 [DEBUG] - histological_type Medullary Carcinoma assigned 3 [7 slides]
+2022-10-25 15:36:17 [DEBUG] - histological_type Metaplastic Carcinoma assigned 4 [8 slides]
+2022-10-25 15:36:17 [DEBUG] - histological_type Mixed Histology (please specify) assigned 5 [29 slides]
+2022-10-25 15:36:17 [DEBUG] - histological_type Mucinous Carcinoma assigned 6 [21 slides]
+2022-10-25 15:36:17 [DEBUG] - histological_type Other, specify assigned 7 [49 slides]
+2022-10-25 15:36:17 [DEBUG] - histological_type [Not Available] assigned 8 [1 slides]
+2022-10-25 15:36:17 [DEBUG] - Interleaving 410 tfrecords: infinite=False, num_parallel_reads=4
+2022-10-25 15:36:56 [DEBUG] - Verifying slide annotations...
+2022-10-25 15:36:56 [DEBUG] - Verifying tfrecords...
+2022-10-25 15:36:56 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-25 15:36:56 [DEBUG] - histological_type Infiltrating Carcinoma NOS assigned 0 [1 slides]
+2022-10-25 15:36:56 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 1 [243 slides]
+2022-10-25 15:36:56 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 2 [64 slides]
+2022-10-25 15:36:56 [DEBUG] - histological_type Medullary Carcinoma assigned 3 [7 slides]
+2022-10-25 15:36:56 [DEBUG] - histological_type Metaplastic Carcinoma assigned 4 [8 slides]
+2022-10-25 15:36:56 [DEBUG] - histological_type Mixed Histology (please specify) assigned 5 [29 slides]
+2022-10-25 15:36:56 [DEBUG] - histological_type Mucinous Carcinoma assigned 6 [21 slides]
+2022-10-25 15:36:56 [DEBUG] - histological_type Other, specify assigned 7 [49 slides]
+2022-10-25 15:36:56 [DEBUG] - histological_type [Not Available] assigned 8 [1 slides]
+2022-10-25 15:36:56 [DEBUG] - Interleaving 410 tfrecords: infinite=False, num_parallel_reads=4
+2022-10-25 15:37:19 [DEBUG] - Verifying slide annotations...
+2022-10-25 15:37:19 [DEBUG] - Verifying tfrecords...
+2022-10-25 15:37:19 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-25 15:37:19 [DEBUG] - histological_type Infiltrating Carcinoma NOS assigned 0 [1 slides]
+2022-10-25 15:37:19 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 1 [243 slides]
+2022-10-25 15:37:19 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 2 [64 slides]
+2022-10-25 15:37:19 [DEBUG] - histological_type Medullary Carcinoma assigned 3 [7 slides]
+2022-10-25 15:37:19 [DEBUG] - histological_type Metaplastic Carcinoma assigned 4 [8 slides]
+2022-10-25 15:37:19 [DEBUG] - histological_type Mixed Histology (please specify) assigned 5 [29 slides]
+2022-10-25 15:37:19 [DEBUG] - histological_type Mucinous Carcinoma assigned 6 [21 slides]
+2022-10-25 15:37:19 [DEBUG] - histological_type Other, specify assigned 7 [49 slides]
+2022-10-25 15:37:19 [DEBUG] - histological_type [Not Available] assigned 8 [1 slides]
+2022-10-25 15:37:19 [DEBUG] - Interleaving 410 tfrecords: infinite=False, num_parallel_reads=4
+2022-10-25 15:40:36 [DEBUG] - Verifying slide annotations...
+2022-10-25 15:40:36 [DEBUG] - Verifying tfrecords...
+2022-10-25 15:40:37 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-25 15:40:37 [DEBUG] - histological_type Infiltrating Carcinoma NOS assigned 0 [1 slides]
+2022-10-25 15:40:37 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 1 [243 slides]
+2022-10-25 15:40:37 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 2 [64 slides]
+2022-10-25 15:40:37 [DEBUG] - histological_type Medullary Carcinoma assigned 3 [7 slides]
+2022-10-25 15:40:37 [DEBUG] - histological_type Metaplastic Carcinoma assigned 4 [8 slides]
+2022-10-25 15:40:37 [DEBUG] - histological_type Mixed Histology (please specify) assigned 5 [29 slides]
+2022-10-25 15:40:37 [DEBUG] - histological_type Mucinous Carcinoma assigned 6 [21 slides]
+2022-10-25 15:40:37 [DEBUG] - histological_type Other, specify assigned 7 [49 slides]
+2022-10-25 15:40:37 [DEBUG] - histological_type [Not Available] assigned 8 [1 slides]
+2022-10-25 15:40:37 [DEBUG] - Interleaving 410 tfrecords: infinite=False, num_parallel_reads=4
+2022-10-25 15:43:56 [DEBUG] - Verifying slide annotations...
+2022-10-25 15:43:56 [DEBUG] - Verifying tfrecords...
+2022-10-25 15:43:56 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-25 15:43:56 [DEBUG] - histological_type Infiltrating Carcinoma NOS assigned 0 [1 slides]
+2022-10-25 15:43:56 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 1 [243 slides]
+2022-10-25 15:43:56 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 2 [64 slides]
+2022-10-25 15:43:56 [DEBUG] - histological_type Medullary Carcinoma assigned 3 [7 slides]
+2022-10-25 15:43:56 [DEBUG] - histological_type Metaplastic Carcinoma assigned 4 [8 slides]
+2022-10-25 15:43:56 [DEBUG] - histological_type Mixed Histology (please specify) assigned 5 [29 slides]
+2022-10-25 15:43:56 [DEBUG] - histological_type Mucinous Carcinoma assigned 6 [21 slides]
+2022-10-25 15:43:56 [DEBUG] - histological_type Other, specify assigned 7 [49 slides]
+2022-10-25 15:43:56 [DEBUG] - histological_type [Not Available] assigned 8 [1 slides]
+2022-10-25 15:43:56 [DEBUG] - Interleaving 410 tfrecords: infinite=False, num_parallel_reads=4
+2022-10-25 15:44:33 [DEBUG] - Verifying slide annotations...
+2022-10-25 15:44:33 [DEBUG] - Verifying tfrecords...
+2022-10-25 15:44:33 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-25 15:44:33 [DEBUG] - histological_type Infiltrating Carcinoma NOS assigned 0 [1 slides]
+2022-10-25 15:44:33 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 1 [243 slides]
+2022-10-25 15:44:33 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 2 [64 slides]
+2022-10-25 15:44:33 [DEBUG] - histological_type Medullary Carcinoma assigned 3 [7 slides]
+2022-10-25 15:44:33 [DEBUG] - histological_type Metaplastic Carcinoma assigned 4 [8 slides]
+2022-10-25 15:44:33 [DEBUG] - histological_type Mixed Histology (please specify) assigned 5 [29 slides]
+2022-10-25 15:44:33 [DEBUG] - histological_type Mucinous Carcinoma assigned 6 [21 slides]
+2022-10-25 15:44:33 [DEBUG] - histological_type Other, specify assigned 7 [49 slides]
+2022-10-25 15:44:33 [DEBUG] - histological_type [Not Available] assigned 8 [1 slides]
+2022-10-25 15:44:33 [DEBUG] - Interleaving 410 tfrecords: infinite=False, num_parallel_reads=4
+2022-10-25 15:47:51 [DEBUG] - Verifying slide annotations...
+2022-10-25 15:47:51 [DEBUG] - Verifying tfrecords...
+2022-10-25 15:47:51 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-25 15:47:51 [DEBUG] - histological_type Infiltrating Carcinoma NOS assigned 0 [1 slides]
+2022-10-25 15:47:51 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 1 [243 slides]
+2022-10-25 15:47:51 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 2 [64 slides]
+2022-10-25 15:47:51 [DEBUG] - histological_type Medullary Carcinoma assigned 3 [7 slides]
+2022-10-25 15:47:51 [DEBUG] - histological_type Metaplastic Carcinoma assigned 4 [8 slides]
+2022-10-25 15:47:51 [DEBUG] - histological_type Mixed Histology (please specify) assigned 5 [29 slides]
+2022-10-25 15:47:51 [DEBUG] - histological_type Mucinous Carcinoma assigned 6 [21 slides]
+2022-10-25 15:47:51 [DEBUG] - histological_type Other, specify assigned 7 [49 slides]
+2022-10-25 15:47:51 [DEBUG] - histological_type [Not Available] assigned 8 [1 slides]
+2022-10-25 15:47:51 [DEBUG] - Interleaving 410 tfrecords: infinite=False, num_parallel_reads=4
+2022-10-25 15:49:11 [DEBUG] - Verifying slide annotations...
+2022-10-25 15:49:11 [DEBUG] - Verifying tfrecords...
+2022-10-25 15:49:11 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-25 15:49:11 [DEBUG] - histological_type Infiltrating Carcinoma NOS assigned 0 [1 slides]
+2022-10-25 15:49:11 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 1 [243 slides]
+2022-10-25 15:49:11 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 2 [64 slides]
+2022-10-25 15:49:11 [DEBUG] - histological_type Medullary Carcinoma assigned 3 [7 slides]
+2022-10-25 15:49:11 [DEBUG] - histological_type Metaplastic Carcinoma assigned 4 [8 slides]
+2022-10-25 15:49:11 [DEBUG] - histological_type Mixed Histology (please specify) assigned 5 [29 slides]
+2022-10-25 15:49:11 [DEBUG] - histological_type Mucinous Carcinoma assigned 6 [21 slides]
+2022-10-25 15:49:11 [DEBUG] - histological_type Other, specify assigned 7 [49 slides]
+2022-10-25 15:49:11 [DEBUG] - histological_type [Not Available] assigned 8 [1 slides]
+2022-10-25 15:49:11 [DEBUG] - Interleaving 410 tfrecords: infinite=False, num_parallel_reads=4
+2022-10-25 15:50:20 [DEBUG] - Verifying slide annotations...
+2022-10-25 15:50:20 [DEBUG] - Verifying tfrecords...
+2022-10-25 15:50:20 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-25 15:50:20 [DEBUG] - histological_type Infiltrating Carcinoma NOS assigned 0 [1 slides]
+2022-10-25 15:50:20 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 1 [243 slides]
+2022-10-25 15:50:20 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 2 [64 slides]
+2022-10-25 15:50:20 [DEBUG] - histological_type Medullary Carcinoma assigned 3 [7 slides]
+2022-10-25 15:50:20 [DEBUG] - histological_type Metaplastic Carcinoma assigned 4 [8 slides]
+2022-10-25 15:50:20 [DEBUG] - histological_type Mixed Histology (please specify) assigned 5 [29 slides]
+2022-10-25 15:50:20 [DEBUG] - histological_type Mucinous Carcinoma assigned 6 [21 slides]
+2022-10-25 15:50:20 [DEBUG] - histological_type Other, specify assigned 7 [49 slides]
+2022-10-25 15:50:20 [DEBUG] - histological_type [Not Available] assigned 8 [1 slides]
+2022-10-25 15:50:20 [DEBUG] - Interleaving 410 tfrecords: infinite=False, num_parallel_reads=4
+2022-10-25 16:43:57 [DEBUG] - Verifying slide annotations...
+2022-10-25 16:43:57 [DEBUG] - Verifying tfrecords...
+2022-10-25 16:43:57 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-25 16:43:57 [DEBUG] - histological_type Infiltrating Carcinoma NOS assigned 0 [1 slides]
+2022-10-25 16:43:57 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 1 [243 slides]
+2022-10-25 16:43:57 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 2 [64 slides]
+2022-10-25 16:43:57 [DEBUG] - histological_type Medullary Carcinoma assigned 3 [7 slides]
+2022-10-25 16:43:57 [DEBUG] - histological_type Metaplastic Carcinoma assigned 4 [8 slides]
+2022-10-25 16:43:57 [DEBUG] - histological_type Mixed Histology (please specify) assigned 5 [29 slides]
+2022-10-25 16:43:57 [DEBUG] - histological_type Mucinous Carcinoma assigned 6 [21 slides]
+2022-10-25 16:43:57 [DEBUG] - histological_type Other, specify assigned 7 [49 slides]
+2022-10-25 16:43:57 [DEBUG] - histological_type [Not Available] assigned 8 [1 slides]
+2022-10-25 16:43:57 [DEBUG] - Interleaving 410 tfrecords: infinite=False, num_parallel_reads=4
+2022-10-25 16:44:35 [DEBUG] - Verifying slide annotations...
+2022-10-25 16:44:35 [DEBUG] - Verifying tfrecords...
+2022-10-25 16:44:35 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-25 16:44:35 [DEBUG] - histological_type Infiltrating Carcinoma NOS assigned 0 [1 slides]
+2022-10-25 16:44:35 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 1 [243 slides]
+2022-10-25 16:44:35 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 2 [64 slides]
+2022-10-25 16:44:35 [DEBUG] - histological_type Medullary Carcinoma assigned 3 [7 slides]
+2022-10-25 16:44:35 [DEBUG] - histological_type Metaplastic Carcinoma assigned 4 [8 slides]
+2022-10-25 16:44:35 [DEBUG] - histological_type Mixed Histology (please specify) assigned 5 [29 slides]
+2022-10-25 16:44:35 [DEBUG] - histological_type Mucinous Carcinoma assigned 6 [21 slides]
+2022-10-25 16:44:35 [DEBUG] - histological_type Other, specify assigned 7 [49 slides]
+2022-10-25 16:44:35 [DEBUG] - histological_type [Not Available] assigned 8 [1 slides]
+2022-10-25 16:44:35 [DEBUG] - Interleaving 410 tfrecords: infinite=False, num_parallel_reads=4

@@ -19,6 +19,21 @@ def _convert_dts_to_adv_dict(
 
         return dataset.map(convert_to_dictionaries)
 
+def _convert_to_dict( 
+        batch_images, 
+        batch_labels,
+        batch_slide,
+        image_input_name: str = 'tile_image',
+        label_input_name: str = 'label',
+        slide_input_name: str = 'slide'
+    ):
+        """Convert a dataset into the format expected by the adversarial wrapper."""
+        
+        def convert_to_dictionaries(image, label, slide):  
+            return {image_input_name: image, label_input_name: label, slide_input_name: slide}
+
+        return (convert_to_dictionaries(batch_images,batch_labels,batch_slide))
+
 @click.command()
 @click.option('--project', '-p', required=True, help='Slideflow project', metavar='PATH')
 @click.option('--outcome', '-o', required=True, help='Outcome label for training', metavar=str)
@@ -125,55 +140,74 @@ def main(
             unc = []
             slide_label = []
             i=0
-            a = _convert_dts_to_adv_dict(tf_dts)
-            batch_pred = adv_model.predict(a)
-            # for batch_images, batch_labels, batch_slide in tf_dts:
-
-            #     batch_images = tf.convert_to_tensor(batch_images)
-            #     a = convert_to_dictionaries(batch_images, batch_labels)
-            #     batch_pred = model.evaluate(a)
-
-            #     pred_mean = tf.stack(batch_pred, axis = 0)      
-            #     pred.append(tf.reduce_mean(pred_mean, axis=0).numpy().tolist()) 
-
-            #     pred_std = tf.stack(batch_pred, axis = 0)  
-            #     unc.append(tf.math.reduce_std(pred_std, axis=0).numpy().tolist())
-                
-            #     # slide_label.append(batch_slide) 
-                
-            #     i = i+1
-            #     if i>3:
-            #         break
-            # print(pred, unc) #, slide_label)   
-            print(batch_pred)  
-            print(type(batch_pred))      
-
-            with open("/home/prajval/DATA/PROJECTS/TCGA_BRCA/output.txt", "a") as f:
-                print(batch_pred, file=f)     
-                                
             
-            print("Start 4")
-            # slide_label = np.array(slide_label, dtype=object)
-            # slide_label = np.concatenate(slide_label, axis=0)
-            # df_slide = pd.DataFrame(data = slide_label,
-            #               columns = ["slide"])
-
+            '''# a = _convert_dts_to_adv_dict(tf_dts)
+            # batch_pred = adv_model.predict(a)
+            print(batch_pred)  
+            print(type(batch_pred)) 
             pred = np.array(batch_pred)#, dtype=object)
             print(pred.shape)
             # pred = np.concatenate(pred, axis=0)
             df_pred = pd.DataFrame(data = pred,
+                          columns = ["histological_type-y_pred0", "histological_type-y_pred1"])'''
+
+
+            for batch_images, batch_labels, batch_slide in tf_dts:
+                
+                # batch_images = tf.convert_to_tensor(batch_images)
+                
+                a = _convert_to_dict(batch_images, batch_labels, batch_slide)
+                batch_pred = adv_model.predict(a)
+
+                pred_mean = tf.stack(batch_pred, axis = 0)      
+                pred.append(tf.reduce_mean(pred_mean, axis=0).numpy().tolist()) 
+
+                pred_std = tf.stack(batch_pred, axis = 0)  
+                unc.append(tf.math.reduce_std(pred_std, axis=0).numpy().tolist())
+                
+                slide_label.append(a["slide"]) 
+                
+                i = i+1
+                if i>10:
+                    break           
+
+            # print(pred, unc, slide_label)               
+            
+            print("Start 4")
+            slide_label = np.array(slide_label, dtype=object)
+            # slide_label = np.concatenate(slide_label, axis=0)
+            df_slide = pd.DataFrame(data = slide_label,
+                          columns = ["slide"])
+
+            # # pred = np.array(batch_pred)#, dtype=object)
+            # # print(pred.shape)
+            # # # pred = np.concatenate(pred, axis=0)
+            # # df_pred = pd.DataFrame(data = pred,
+            # #               columns = ["histological_type-y_pred0", "histological_type-y_pred1"])
+
+            pred = np.array(pred, dtype=object)
+            # pred = np.concatenate(pred, axis=0)
+            df_pred = pd.DataFrame(data = pred,
                           columns = ["histological_type-y_pred0", "histological_type-y_pred1"])
 
-            # unc = np.array(unc, dtype=object)
+            unc = np.array(unc, dtype=object)
             # unc = np.concatenate(unc, axis=0)
-            # df_unc = pd.DataFrame(data = unc,
-            #               columns = ["histological_type-uncertainty0", "histological_type-uncertainty1"])
+            df_unc = pd.DataFrame(data = unc,
+                          columns = ["histological_type-uncertainty0", "histological_type-uncertainty1"])
 
-            # df = pd.concat([df_slide, df_pred, df_unc], axis=1)
-            # print(df)
+            df = pd.concat([df_slide, df_pred, df_unc], axis=1)
+            print(df)
 
-            df_pred.to_csv("/home/prajval/DATA/PROJECTS/TCGA_BRCA/ensemble_predictions_advrsarial_BRCA1.csv")       
+            df.to_csv("/home/prajval/DATA/PROJECTS/TCGA_BRCA/ensemble_predictions_advrsarial_BRCA1.csv") 
     
 if __name__ == '__main__':
     mp.freeze_support()
     main()
+
+
+    # print(batch_images)
+    # print(type(batch_images))
+    # print(batch_labels)
+    # print(type(batch_labels))
+    # print(batch_slide)
+    # print(type(batch_slide))
