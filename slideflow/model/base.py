@@ -186,7 +186,7 @@ class _ModelParams:
             self.ModelDict.update(m)
             self._model = model_name
         elif isinstance(m, str):
-            assert m in self.ModelDict
+            assert m in self.ModelDict or m.startswith('timm_')
             self._model = m
         else:
             self.ModelDict.update({'custom': m})
@@ -206,7 +206,8 @@ class _ModelParams:
             'OptDict',
             'ModelDict',
             'LinearLossDict',
-            'AllLossDict'
+            'AllLossDict',
+            'get_model_loader'
         ]
         args = [
             arg for arg in dir(self)

@@ -7,7 +7,7 @@ import types
 from collections import defaultdict
 from os.path import join
 from typing import (TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple,
-                    Union)
+                    Union, Callable)
 
 import numpy as np
 import pretrainedmodels
@@ -130,7 +130,10 @@ class ModelWrapper(torch.nn.Module):
                 self.model.fc = torch.nn.Identity()
             elif hasattr(self.model, 'out_features'):
                 num_ftrs = self.model.out_features
+            elif hasattr(self.model, 'head'):
+                num_ftrs = self.model.head.out_features
             else:
+                print(self.model)
                 raise errors.ModelError("Unable to find last linear layer for "
                                         f"model {model.__class__.__name__}")
         else:
@@ -270,7 +273,7 @@ class ModelParams(_base._ModelParams):
             'CosineEmbedding': torch.nn.CosineEmbeddingLoss,
         }
         super().__init__(loss=loss, **kwargs)
-        assert self.model in self.ModelDict.keys()
+        assert self.model in self.ModelDict.keys() or self.model.startswith('timm_')
         assert self.optimizer in self.OptDict.keys()
         assert self.loss in self.AllLossDict
         if isinstance(self.augment, str) and 'b' in self.augment:
@@ -282,6 +285,7 @@ class ModelParams(_base._ModelParams):
                      "classifier loss will be included during training "
                      "starting in version 1.3")
 
+
     def get_opt(self, params_to_update: Iterable) -> torch.optim.Optimizer:
         return self.OptDict[self.optimizer](
             params_to_update,
@@ -291,6 +295,23 @@ class ModelParams(_base._ModelParams):
 
     def get_loss(self) -> torch.nn.modules.loss._Loss:
         return self.AllLossDict[self.loss]()
+
+    def get_model_loader(self, model: str) -> Callable:
+        if model in self.ModelDict:
+            return self.ModelDict[model]
+        elif model.startswith('timm_'):
+
+            def loader(**kwargs):
+                try:
+                    import timm
+                except ImportError:
+                    raise ImportError(f"Unable to load model {model}; "
+                                      "timm package not installed.")
+                return timm.create_model(model[5:], **kwargs)
+
+            return loader
+        else:
+            raise ValueError(f"Model {model} not found.")
 
     def build_model(
         self,
@@ -317,13 +338,13 @@ class ModelParams(_base._ModelParams):
 
         # Build base model
         if self.model in ('xception', 'nasnet_large'):
-            _model = self.ModelDict[self.model](
+            _model = self.get_model_loader(self.model)(
                 num_classes=1000,
                 pretrained=pretrain
             )
         else:
             # Compatibility logic for prior versions of PyTorch
-            model_fn = self.ModelDict[self.model]
+            model_fn = self.get_model_loader(self.model)
             model_fn_sig = inspect.signature(model_fn)
             model_kw = [
                 param.name
