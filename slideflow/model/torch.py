@@ -307,6 +307,14 @@ class ModelParams(_base._ModelParams):
         if not isinstance(num_classes, dict):
             num_classes = {'out-0': num_classes}
 
+        # Prepare custom model pretraining
+        if (pretrain is not None
+          and sf.util.path_to_ext(pretrain).lower() == 'zip'):
+           _pretrained = pretrain
+           pretrain = None
+        else:
+            _pretrained = None
+
         # Build base model
         if self.model in ('xception', 'nasnet_large'):
             _model = self.ModelDict[self.model](
@@ -345,6 +353,8 @@ class ModelParams(_base._ModelParams):
             dropout=self.dropout,
             include_top=self.include_top
         )
+        if _pretrained is not None:
+            lazy_load_pretrained(model, _pretrained)
         if checkpoint is not None:
             model.load_state_dict(torch.load(checkpoint))
         return model
@@ -2201,7 +2211,7 @@ class UncertaintyInterface(Features):
         raise NotImplementedError
 
 
-def load(path):
+def load(path: str) -> torch.nn.Module:
     """Load PyTorch model from location.
 
     Args:
@@ -2226,3 +2236,36 @@ def load(path):
     )
     model.load_state_dict(torch.load(path))
     return model
+
+
+def lazy_load_pretrained(
+    module: torch.nn.Module,
+    to_load: str
+) -> None:
+    """Loads pretrained model weights into an existing module, ignoring
+    incompatible Tensors.
+
+    Args:
+        module (torch.nn.Module): Destination module for weights.
+        to_load (str, torch.nn.Module): Module with weights to load. Either
+            path to PyTorch Slideflow model, or an existing PyTorch module.
+
+    Returns:
+        None
+    """
+    # Get state dictionaries
+    current_model_dict = module.state_dict()
+    if isinstance(to_load, str):
+        loaded_state_dict = torch.load(to_load)
+    else:
+        loaded_state_dict = to_load.state_dict()
+
+    # Only transfer valid states
+    new_state_dict = {k:v if v.size()==current_model_dict[k].size()
+                          else  current_model_dict[k]
+                      for k,v in zip(current_model_dict.keys(),
+                                     loaded_state_dict.values())}
+    n_states = len(list(new_state_dict.keys()))
+    log.info(f"Loaded {n_states} Tensor states from "
+             f"pretrained model [green] {to_load}")
+    module.load_state_dict(new_state_dict, strict=False)
