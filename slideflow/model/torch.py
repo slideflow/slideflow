@@ -321,6 +321,7 @@ class ModelParams(_base._ModelParams):
         pretrain: Optional[str] = None,
         checkpoint: Optional[str] = None
     ) -> torch.nn.Module:
+
         assert num_classes is not None or labels is not None
         if num_classes is None:
             assert labels is not None
@@ -329,8 +330,9 @@ class ModelParams(_base._ModelParams):
             num_classes = {'out-0': num_classes}
 
         # Prepare custom model pretraining
-        if (pretrain is not None
-          and sf.util.path_to_ext(pretrain).lower() == 'zip'):
+        log.info(f"Using pretraining: [green]{pretrain}")
+        if (isinstance(pretrain, str)
+           and sf.util.path_to_ext(pretrain).lower() == 'zip'):
            _pretrained = pretrain
            pretrain = None
         else:
@@ -354,7 +356,8 @@ class ModelParams(_base._ModelParams):
             call_kw = {}
             if 'image_size' in model_kw:
                 call_kw.update(dict(image_size=self.tile_px))
-            if version.parse(torchvision.__version__) >= version.parse("0.13"):
+            if (version.parse(torchvision.__version__) >= version.parse("0.13")
+               and not self.model.startswith('timm_')):
                 call_kw.update(dict(weights=pretrain))  # type: ignore
             else:
                 call_kw.update(dict(pretrained=pretrain))  # type: ignore
