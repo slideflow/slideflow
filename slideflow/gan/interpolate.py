@@ -7,11 +7,14 @@ import numpy as np
 import pandas as pd
 import slideflow as sf
 import torch
+import json
+from os.path import join, dirname, exists
 from PIL import Image
 from slideflow.gan.stylegan2.stylegan2 import embedding, utils
 from slideflow.gan.utils import crop
 from slideflow import errors
 from rich.progress import track
+from tqdm import tqdm
 from functools import partial
 
 if TYPE_CHECKING:
@@ -25,10 +28,10 @@ class StyleGAN2Interpolator:
         start: int,
         end: int,
         device: torch.device,
-        gan_um: int,
-        gan_px: int,
         target_um: int,
         target_px: int,
+        gan_um: Optional[int] = None,
+        gan_px: Optional[int] = None,
         noise_mode: str = 'const',
         truncation_psi: int = 1,
         **gan_kwargs
@@ -42,6 +45,27 @@ class StyleGAN2Interpolator:
             end (int): Ending class index.
             device (torch.device): Torch device.
         """
+
+        training_options = join(dirname(gan_pkl), 'training_options.json')
+        if exists(training_options):
+            with open(training_options, 'r') as f:
+                opt = json.load(f)
+            if 'slideflow_kwargs' in opt:
+                _gan_px = opt['slideflow_kwargs']['tile_px']
+                _gan_um = opt['slideflow_kwargs']['tile_um']
+                if gan_px != gan_px or _gan_um != _gan_um:
+                    sf.log.warn("Provided GAN tile size (gan_px={}, gan_um={}) does "
+                                "not match training_options.json (gan_px={}, "
+                                "gan_um={})".format(gan_px, gan_um, _gan_px, _gan_um))
+                if gan_px is None:
+                    gan_px = _gan_px
+                if gan_um is None:
+                    gan_um = _gan_um
+        if gan_px is None or gan_um is None:
+            raise ValueError("Unable to auto-detect gan_px/gan_um from "
+                             "training_options.json. Must be set with gan_um "
+                             "and gan_px.")
+
         self.E_G, self.G = embedding.load_embedding_gan(gan_pkl, device)
         self.device = device
         self.gan_kwargs = dict(
@@ -188,7 +212,8 @@ class StyleGAN2Interpolator:
     def set_feature_model(
         self,
         path: str,
-        layers: Union[str, List[str]] = 'postconv'
+        layers: Union[str, List[str]] = 'postconv',
+        **kwargs
     ) -> None:
         """Configures a classifier model to be used for generating features
         and predictions during interpolation.
@@ -199,7 +224,11 @@ class StyleGAN2Interpolator:
                 calculate activations for interpolated images.
                 Defaults to 'postconv'.
         """
-        self.features = sf.model.Features(path, layers=layers, include_logits=True)
+        self.features = sf.model.Features(
+            path,
+            layers=layers,
+            include_logits=True,
+            **kwargs)
         self.normalizer = self.features.wsi_normalizer  # type: ignore
 
     def seed_search(
@@ -230,7 +259,7 @@ class StyleGAN2Interpolator:
 
         predictions = {0: [], 1: []}  # type: ignore
         features = {0: [], 1: []}  # type: ignore
-        swap_labels = []
+        concordance = []
         img_seeds = []
 
         # --- GAN-Classifier pipeline ---------------------------------------------
@@ -252,14 +281,12 @@ class StyleGAN2Interpolator:
         # Calculate classifier features for GAN images created from seeds.
         # Calculation happens in batches to improve computational efficiency.
         # noise + embedding -> GAN -> Classifier -> Predictions, Features
-        pb = track(total=len(seeds))
         seeds_and_embeddings = zip(
             sf.util.batch(seeds, batch_size),
             gan_embed0_dts,
             gan_embed1_dts
         )
-        for (seed_batch, embed0_batch, embed1_batch) in seeds_and_embeddings:
-
+        for (seed_batch, embed0_batch, embed1_batch) in tqdm(seeds_and_embeddings, total=int(len(seeds) / batch_size)):
             features0, pred0 = self.features(embed0_batch)
             features1, pred1 = self.features(embed1_batch)
 
@@ -292,22 +319,20 @@ class StyleGAN2Interpolator:
                     if (pred0[i] < -0.5) and (pred1[i] > 0.5):
                         # Strong class swapping.
                         tail = " **"
-                        swap_labels += ['strong_swap']
+                        concordance += ['strong']
                     else:
                         # Weak class swapping.
                         tail = " *"
-                        swap_labels += ['weak_swap']
+                        concordance += ['weak']
                 elif (pred0[i] > 0) and (pred1[i] < 0):
                     # Predictions are oppositve of what is expected.
                     tail = " (!)"
-                    swap_labels += ['no_swap']
+                    concordance += ['none']
                 else:
                     tail = ""
-                    swap_labels += ['no_swap']
+                    concordance += ['none']
                 if verbose:
                     print(f"Seed {seed_batch[i]:<6}: {pred0[i]:.2f}\t{pred1[i]:.2f}{tail}")
-            pb.update(len(seed_batch))
-        pb.close()
 
         # Convert to dataframe.
         df = pd.DataFrame({
@@ -316,7 +341,7 @@ class StyleGAN2Interpolator:
             'pred_end': pd.Series(predictions[1]),
             'features_start': pd.Series(features[0]).astype(object),
             'features_end': pd.Series(features[1]).astype(object),
-            'class_swap': pd.Series(swap_labels),
+            'concordance': pd.Series(concordance),
         })
         return df
 
