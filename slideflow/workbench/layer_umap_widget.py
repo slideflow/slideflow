@@ -8,7 +8,7 @@ from .gui_utils import imgui_utils
 
 #----------------------------------------------------------------------------
 
-class LayerWidget:
+class LayerUMAPWidget:
     def __init__(self, viz):
         self.viz            = viz
         self.show           = True

@@ -696,7 +696,7 @@ class Workbench(imgui_window.ImguiWindow):
     def _handle_user_input(self):
         """Handle user input to support clicking/dragging the main viewer."""
 
-        # Detect mouse dragging in the thumbnail display.
+        # Detect right mouse click in the main display.
         clicking, cx, cy, wheel = imgui_utils.click_hidden_window(
             '##result_area',
             x=self.offset_x,
@@ -704,6 +704,7 @@ class Workbench(imgui_window.ImguiWindow):
             width=self.content_width - self.offset_x,
             height=self.content_height - self.offset_y,
             mouse_idx=1)
+        # Detect dragging with left mouse in the main display.
         dragging, dx, dy = imgui_utils.drag_hidden_window(
             '##result_area',
             x=self.offset_x,
@@ -712,10 +713,10 @@ class Workbench(imgui_window.ImguiWindow):
             height=self.content_height - self.offset_y)
         return EasyDict(
             clicking=clicking,
+            dragging=dragging,
+            wheel=wheel,
             cx=int(cx * self.pixel_ratio),
             cy=int(cy * self.pixel_ratio),
-            wheel=wheel,
-            dragging=dragging,
             dx=int(dx * self.pixel_ratio),
             dy=int(dy * self.pixel_ratio)
         )
@@ -887,6 +888,11 @@ class Workbench(imgui_window.ImguiWindow):
             self.load_slide(path, ignore_errors=ignore_errors)
         elif sf.util.is_model(path):
             self.load_model(path, ignore_errors=ignore_errors)
+        else:
+            # See if any widgets implement a drag_and_drop_hook() method
+            for widget in self.widgets:
+                if hasattr(widget, 'drag_and_drop_hook'):
+                    widget.drag_and_drop_hook(path)
 
     def clear_overlay(self) -> None:
         """Remove the currently overlay image."""
@@ -1127,8 +1133,8 @@ class Workbench(imgui_window.ImguiWindow):
     def get_default_widgets() -> List[Any]:
         """Returns a list of the default non-mandatory widgets."""
 
-        from slideflow.workbench.layer_widget import LayerWidget
-        return [LayerWidget]
+        from slideflow.workbench.layer_umap_widget import LayerUMAPWidget
+        return [LayerUMAPWidget]
 
     def get_renderer(self, name: str) -> Any:
         """Check for the given additional renderer in the rendering pipeline."""
