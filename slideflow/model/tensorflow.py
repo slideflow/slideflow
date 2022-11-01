@@ -1853,7 +1853,7 @@ class Trainer:
                 if adversarial and save_model:    
                     model_path = os.path.join(
                         self.outdir,
-                        f'{self.name}_adversarial_epoch'#{self.epoch_count}'
+                        f'{self.name}_adversarial_epoch_{self.epoch_count}'
                     )
                     _model_to_train.save(model_path)
                     log.info('Model saved')

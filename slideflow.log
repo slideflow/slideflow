@@ -1367,3 +1367,1131 @@
 2022-10-25 16:44:35 [DEBUG] - histological_type Other, specify assigned 7 [49 slides]
 2022-10-25 16:44:35 [DEBUG] - histological_type [Not Available] assigned 8 [1 slides]
 2022-10-25 16:44:35 [DEBUG] - Interleaving 410 tfrecords: infinite=False, num_parallel_reads=4
+2022-10-26 11:54:50 [DEBUG] - Verifying slide annotations...
+2022-10-26 11:54:50 [DEBUG] - Verifying tfrecords...
+2022-10-26 11:54:50 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-26 11:54:50 [DEBUG] - histological_type Infiltrating Carcinoma NOS assigned 0 [1 slides]
+2022-10-26 11:54:50 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 1 [804 slides]
+2022-10-26 11:54:50 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 2 [206 slides]
+2022-10-26 11:54:50 [DEBUG] - histological_type Medullary Carcinoma assigned 3 [7 slides]
+2022-10-26 11:54:50 [DEBUG] - histological_type Metaplastic Carcinoma assigned 4 [8 slides]
+2022-10-26 11:54:50 [DEBUG] - histological_type Mixed Histology (please specify) assigned 5 [29 slides]
+2022-10-26 11:54:50 [DEBUG] - histological_type Mucinous Carcinoma assigned 6 [21 slides]
+2022-10-26 11:54:50 [DEBUG] - histological_type Other, specify assigned 7 [49 slides]
+2022-10-26 11:54:50 [DEBUG] - histological_type [Not Available] assigned 8 [1 slides]
+2022-10-26 11:54:50 [DEBUG] - Interleaving 1006 tfrecords: infinite=False, num_parallel_reads=4
+2022-10-26 11:55:42 [DEBUG] - Verifying slide annotations...
+2022-10-26 11:55:42 [DEBUG] - Verifying tfrecords...
+2022-10-26 11:55:42 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-26 11:55:42 [DEBUG] - histological_type Infiltrating Carcinoma NOS assigned 0 [1 slides]
+2022-10-26 11:55:42 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 1 [804 slides]
+2022-10-26 11:55:42 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 2 [206 slides]
+2022-10-26 11:55:42 [DEBUG] - histological_type Medullary Carcinoma assigned 3 [7 slides]
+2022-10-26 11:55:42 [DEBUG] - histological_type Metaplastic Carcinoma assigned 4 [8 slides]
+2022-10-26 11:55:42 [DEBUG] - histological_type Mixed Histology (please specify) assigned 5 [29 slides]
+2022-10-26 11:55:42 [DEBUG] - histological_type Mucinous Carcinoma assigned 6 [21 slides]
+2022-10-26 11:55:42 [DEBUG] - histological_type Other, specify assigned 7 [49 slides]
+2022-10-26 11:55:42 [DEBUG] - histological_type [Not Available] assigned 8 [1 slides]
+2022-10-26 11:55:42 [DEBUG] - Interleaving 1006 tfrecords: infinite=False, num_parallel_reads=4
+2022-10-26 13:21:27 [DEBUG] - Verifying slide annotations...
+2022-10-26 13:21:27 [DEBUG] - Verifying tfrecords...
+2022-10-26 13:21:27 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-26 13:21:27 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 0 [471 slides]
+2022-10-26 13:21:27 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 1 [125 slides]
+2022-10-26 13:21:27 [INFO] - Training model [bold]histological_type-HP0[/]...
+2022-10-26 13:21:27 [INFO] - Hyperparameters: {
+  "augment": "xyrj",
+  "batch_size": 64,
+  "drop_images": false,
+  "dropout": 0.2,
+  "early_stop": false,
+  "early_stop_method": "loss",
+  "early_stop_patience": 0,
+  "epochs": [
+    1
+  ],
+  "hidden_layer_width": 500,
+  "hidden_layers": 0,
+  "include_top": true,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0,
+  "learning_rate_decay_steps": 100000,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": null,
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "max",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2022-10-26 13:21:27 [INFO] - Val settings: {
+  "strategy": "none",
+  "k_fold": 3,
+  "k": null,
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2022-10-26 13:21:27 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-26 13:21:27 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 0 [471 slides]
+2022-10-26 13:21:27 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 1 [125 slides]
+2022-10-26 13:21:27 [INFO] - Using 596 training TFRecords, 0 validation
+2022-10-26 13:21:29 [DEBUG] - Spawning training process (PID: 68995)
+2022-10-26 13:21:29 [DEBUG] - Enabling mixed precision (mixed_float16)
+2022-10-26 13:21:30 [DEBUG] - Not using regularization for base model
+2022-10-26 13:21:30 [DEBUG] - Not using any slide-level input features.
+2022-10-26 13:21:30 [DEBUG] - Not using regularization for dense layers
+2022-10-26 13:21:30 [DEBUG] - Using Batch normalization
+2022-10-26 13:21:30 [DEBUG] - Using softmax activation
+2022-10-26 13:21:30 [DEBUG] - Interleaving 596 tfrecords: infinite=True, num_parallel_reads=4
+2022-10-26 13:21:32 [DEBUG] - Validation during training: None
+2022-10-26 13:21:32 [DEBUG] - Adversarial wrapping complete.
+2022-10-26 13:21:32 [INFO] - Beginning training
+2022-10-26 14:37:19 [INFO] - Model saved
+2022-10-26 14:37:21 [INFO] - No validation performed.
+2022-10-26 14:37:21 [INFO] - Training complete; validation accuracies:
+2022-10-27 00:48:24 [DEBUG] - Verifying slide annotations...
+2022-10-27 00:48:24 [DEBUG] - Verifying tfrecords...
+2022-10-27 00:48:24 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-27 00:48:24 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 0 [471 slides]
+2022-10-27 00:48:24 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 1 [125 slides]
+2022-10-27 00:48:24 [INFO] - Training model [bold]histological_type-HP0[/]...
+2022-10-27 00:48:24 [INFO] - Hyperparameters: {
+  "augment": "xyrj",
+  "batch_size": 64,
+  "drop_images": false,
+  "dropout": 0.2,
+  "early_stop": false,
+  "early_stop_method": "loss",
+  "early_stop_patience": 0,
+  "epochs": [
+    1
+  ],
+  "hidden_layer_width": 500,
+  "hidden_layers": 0,
+  "include_top": true,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0,
+  "learning_rate_decay_steps": 100000,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": null,
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "max",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2022-10-27 00:48:24 [INFO] - Val settings: {
+  "strategy": "none",
+  "k_fold": 3,
+  "k": null,
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2022-10-27 00:48:24 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-27 00:48:24 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 0 [471 slides]
+2022-10-27 00:48:24 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 1 [125 slides]
+2022-10-27 00:48:24 [INFO] - Using 596 training TFRecords, 0 validation
+2022-10-27 00:48:26 [DEBUG] - Spawning training process (PID: 90160)
+2022-10-27 00:48:27 [DEBUG] - Enabling mixed precision (mixed_float16)
+2022-10-27 00:48:27 [DEBUG] - Not using regularization for base model
+2022-10-27 00:48:27 [DEBUG] - Not using any slide-level input features.
+2022-10-27 00:48:27 [DEBUG] - Not using regularization for dense layers
+2022-10-27 00:48:27 [DEBUG] - Using Batch normalization
+2022-10-27 00:48:27 [DEBUG] - Using softmax activation
+2022-10-27 00:48:27 [DEBUG] - Interleaving 596 tfrecords: infinite=True, num_parallel_reads=4
+2022-10-27 00:48:30 [DEBUG] - Validation during training: None
+2022-10-27 00:48:30 [DEBUG] - Adversarial wrapping complete.
+2022-10-27 00:48:30 [INFO] - Beginning training
+2022-10-27 02:06:33 [INFO] - Model saved
+2022-10-27 02:06:35 [INFO] - No validation performed.
+2022-10-27 02:06:35 [INFO] - Training complete; validation accuracies:
+2022-10-27 02:11:28 [DEBUG] - Verifying slide annotations...
+2022-10-27 02:11:28 [DEBUG] - Verifying tfrecords...
+2022-10-27 02:11:28 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-27 02:11:28 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 0 [471 slides]
+2022-10-27 02:11:28 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 1 [125 slides]
+2022-10-27 02:11:28 [INFO] - Training model [bold]histological_type-HP0[/]...
+2022-10-27 02:11:28 [INFO] - Hyperparameters: {
+  "augment": "xyrj",
+  "batch_size": 64,
+  "drop_images": false,
+  "dropout": 0.2,
+  "early_stop": false,
+  "early_stop_method": "loss",
+  "early_stop_patience": 0,
+  "epochs": [
+    1
+  ],
+  "hidden_layer_width": 500,
+  "hidden_layers": 0,
+  "include_top": true,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0,
+  "learning_rate_decay_steps": 100000,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": null,
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "max",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2022-10-27 02:11:28 [INFO] - Val settings: {
+  "strategy": "none",
+  "k_fold": 3,
+  "k": null,
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2022-10-27 02:11:28 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-27 02:11:28 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 0 [471 slides]
+2022-10-27 02:11:28 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 1 [125 slides]
+2022-10-27 02:11:28 [INFO] - Using 596 training TFRecords, 0 validation
+2022-10-27 02:11:30 [DEBUG] - Spawning training process (PID: 94630)
+2022-10-27 02:11:30 [DEBUG] - Enabling mixed precision (mixed_float16)
+2022-10-27 02:11:31 [DEBUG] - Not using regularization for base model
+2022-10-27 02:11:31 [DEBUG] - Not using any slide-level input features.
+2022-10-27 02:11:31 [DEBUG] - Not using regularization for dense layers
+2022-10-27 02:11:31 [DEBUG] - Using Batch normalization
+2022-10-27 02:11:31 [DEBUG] - Using softmax activation
+2022-10-27 02:11:31 [DEBUG] - Interleaving 596 tfrecords: infinite=True, num_parallel_reads=4
+2022-10-27 02:11:33 [DEBUG] - Validation during training: None
+2022-10-27 02:11:33 [DEBUG] - Adversarial wrapping complete.
+2022-10-27 02:11:33 [INFO] - Beginning training
+2022-10-27 03:24:54 [INFO] - Model saved
+2022-10-27 03:24:55 [INFO] - No validation performed.
+2022-10-27 03:24:55 [INFO] - Training complete; validation accuracies:
+2022-10-27 11:43:00 [DEBUG] - Verifying slide annotations...
+2022-10-27 11:43:00 [DEBUG] - Verifying tfrecords...
+2022-10-27 11:43:00 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-27 11:43:00 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 0 [471 slides]
+2022-10-27 11:43:00 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 1 [125 slides]
+2022-10-27 11:43:00 [INFO] - Training model [bold]histological_type-HP0[/]...
+2022-10-27 11:43:00 [INFO] - Hyperparameters: {
+  "augment": "xyrj",
+  "batch_size": 64,
+  "drop_images": false,
+  "dropout": 0.2,
+  "early_stop": false,
+  "early_stop_method": "loss",
+  "early_stop_patience": 0,
+  "epochs": [
+    1
+  ],
+  "hidden_layer_width": 500,
+  "hidden_layers": 0,
+  "include_top": true,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0,
+  "learning_rate_decay_steps": 100000,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": null,
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "max",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2022-10-27 11:43:00 [INFO] - Val settings: {
+  "strategy": "none",
+  "k_fold": 3,
+  "k": null,
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2022-10-27 11:43:00 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-27 11:43:00 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 0 [471 slides]
+2022-10-27 11:43:00 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 1 [125 slides]
+2022-10-27 11:43:00 [INFO] - Using 596 training TFRecords, 0 validation
+2022-10-27 11:43:02 [DEBUG] - Spawning training process (PID: 106035)
+2022-10-27 11:43:02 [DEBUG] - Enabling mixed precision (mixed_float16)
+2022-10-27 11:43:03 [DEBUG] - Not using regularization for base model
+2022-10-27 11:43:03 [DEBUG] - Not using any slide-level input features.
+2022-10-27 11:43:03 [DEBUG] - Not using regularization for dense layers
+2022-10-27 11:43:03 [DEBUG] - Using Batch normalization
+2022-10-27 11:43:03 [DEBUG] - Using softmax activation
+2022-10-27 11:43:03 [DEBUG] - Interleaving 596 tfrecords: infinite=True, num_parallel_reads=4
+2022-10-27 11:43:05 [DEBUG] - Validation during training: None
+2022-10-27 11:43:05 [DEBUG] - Adversarial wrapping complete.
+2022-10-27 11:43:05 [INFO] - Beginning training
+2022-10-27 12:57:00 [INFO] - Model saved
+2022-10-27 12:57:02 [INFO] - No validation performed.
+2022-10-27 12:57:02 [INFO] - Training complete; validation accuracies:
+2022-10-27 16:25:11 [DEBUG] - Verifying slide annotations...
+2022-10-27 16:25:11 [DEBUG] - Verifying tfrecords...
+2022-10-27 16:25:11 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-27 16:25:11 [DEBUG] - histological_type Infiltrating Carcinoma NOS assigned 0 [1 slides]
+2022-10-27 16:25:11 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 1 [243 slides]
+2022-10-27 16:25:11 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 2 [64 slides]
+2022-10-27 16:25:11 [DEBUG] - histological_type Medullary Carcinoma assigned 3 [7 slides]
+2022-10-27 16:25:11 [DEBUG] - histological_type Metaplastic Carcinoma assigned 4 [8 slides]
+2022-10-27 16:25:11 [DEBUG] - histological_type Mixed Histology (please specify) assigned 5 [29 slides]
+2022-10-27 16:25:11 [DEBUG] - histological_type Mucinous Carcinoma assigned 6 [21 slides]
+2022-10-27 16:25:11 [DEBUG] - histological_type Other, specify assigned 7 [49 slides]
+2022-10-27 16:25:11 [DEBUG] - histological_type [Not Available] assigned 8 [1 slides]
+2022-10-27 16:25:11 [DEBUG] - Interleaving 410 tfrecords: infinite=False, num_parallel_reads=4
+2022-10-27 16:26:03 [DEBUG] - Verifying slide annotations...
+2022-10-27 16:26:03 [DEBUG] - Verifying tfrecords...
+2022-10-27 16:26:03 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-27 16:26:03 [DEBUG] - histological_type Infiltrating Carcinoma NOS assigned 0 [1 slides]
+2022-10-27 16:26:03 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 1 [243 slides]
+2022-10-27 16:26:03 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 2 [64 slides]
+2022-10-27 16:26:03 [DEBUG] - histological_type Medullary Carcinoma assigned 3 [7 slides]
+2022-10-27 16:26:03 [DEBUG] - histological_type Metaplastic Carcinoma assigned 4 [8 slides]
+2022-10-27 16:26:03 [DEBUG] - histological_type Mixed Histology (please specify) assigned 5 [29 slides]
+2022-10-27 16:26:03 [DEBUG] - histological_type Mucinous Carcinoma assigned 6 [21 slides]
+2022-10-27 16:26:03 [DEBUG] - histological_type Other, specify assigned 7 [49 slides]
+2022-10-27 16:26:03 [DEBUG] - histological_type [Not Available] assigned 8 [1 slides]
+2022-10-27 16:26:03 [DEBUG] - Interleaving 410 tfrecords: infinite=False, num_parallel_reads=4
+2022-10-27 16:27:13 [DEBUG] - Verifying slide annotations...
+2022-10-27 16:27:13 [DEBUG] - Verifying tfrecords...
+2022-10-27 16:27:13 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-27 16:27:13 [DEBUG] - histological_type Infiltrating Carcinoma NOS assigned 0 [1 slides]
+2022-10-27 16:27:13 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 1 [243 slides]
+2022-10-27 16:27:13 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 2 [64 slides]
+2022-10-27 16:27:13 [DEBUG] - histological_type Medullary Carcinoma assigned 3 [7 slides]
+2022-10-27 16:27:13 [DEBUG] - histological_type Metaplastic Carcinoma assigned 4 [8 slides]
+2022-10-27 16:27:13 [DEBUG] - histological_type Mixed Histology (please specify) assigned 5 [29 slides]
+2022-10-27 16:27:13 [DEBUG] - histological_type Mucinous Carcinoma assigned 6 [21 slides]
+2022-10-27 16:27:13 [DEBUG] - histological_type Other, specify assigned 7 [49 slides]
+2022-10-27 16:27:13 [DEBUG] - histological_type [Not Available] assigned 8 [1 slides]
+2022-10-27 16:27:13 [DEBUG] - Interleaving 410 tfrecords: infinite=False, num_parallel_reads=4
+2022-10-27 16:29:39 [DEBUG] - Verifying slide annotations...
+2022-10-27 16:29:39 [DEBUG] - Verifying tfrecords...
+2022-10-27 16:29:39 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-27 16:29:39 [DEBUG] - histological_type Infiltrating Carcinoma NOS assigned 0 [1 slides]
+2022-10-27 16:29:39 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 1 [243 slides]
+2022-10-27 16:29:39 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 2 [64 slides]
+2022-10-27 16:29:39 [DEBUG] - histological_type Medullary Carcinoma assigned 3 [7 slides]
+2022-10-27 16:29:39 [DEBUG] - histological_type Metaplastic Carcinoma assigned 4 [8 slides]
+2022-10-27 16:29:39 [DEBUG] - histological_type Mixed Histology (please specify) assigned 5 [29 slides]
+2022-10-27 16:29:39 [DEBUG] - histological_type Mucinous Carcinoma assigned 6 [21 slides]
+2022-10-27 16:29:39 [DEBUG] - histological_type Other, specify assigned 7 [49 slides]
+2022-10-27 16:29:39 [DEBUG] - histological_type [Not Available] assigned 8 [1 slides]
+2022-10-27 16:29:39 [DEBUG] - Interleaving 410 tfrecords: infinite=False, num_parallel_reads=4
+2022-10-27 16:30:33 [DEBUG] - Verifying slide annotations...
+2022-10-27 16:30:33 [DEBUG] - Verifying tfrecords...
+2022-10-27 16:30:33 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-27 16:30:33 [DEBUG] - histological_type Infiltrating Carcinoma NOS assigned 0 [1 slides]
+2022-10-27 16:30:33 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 1 [243 slides]
+2022-10-27 16:30:33 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 2 [64 slides]
+2022-10-27 16:30:33 [DEBUG] - histological_type Medullary Carcinoma assigned 3 [7 slides]
+2022-10-27 16:30:33 [DEBUG] - histological_type Metaplastic Carcinoma assigned 4 [8 slides]
+2022-10-27 16:30:33 [DEBUG] - histological_type Mixed Histology (please specify) assigned 5 [29 slides]
+2022-10-27 16:30:33 [DEBUG] - histological_type Mucinous Carcinoma assigned 6 [21 slides]
+2022-10-27 16:30:33 [DEBUG] - histological_type Other, specify assigned 7 [49 slides]
+2022-10-27 16:30:33 [DEBUG] - histological_type [Not Available] assigned 8 [1 slides]
+2022-10-27 16:30:33 [DEBUG] - Interleaving 410 tfrecords: infinite=False, num_parallel_reads=4
+2022-10-27 16:31:25 [DEBUG] - Verifying slide annotations...
+2022-10-27 16:31:25 [DEBUG] - Verifying tfrecords...
+2022-10-27 16:31:25 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-27 16:31:25 [DEBUG] - histological_type Infiltrating Carcinoma NOS assigned 0 [1 slides]
+2022-10-27 16:31:25 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 1 [243 slides]
+2022-10-27 16:31:25 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 2 [64 slides]
+2022-10-27 16:31:25 [DEBUG] - histological_type Medullary Carcinoma assigned 3 [7 slides]
+2022-10-27 16:31:25 [DEBUG] - histological_type Metaplastic Carcinoma assigned 4 [8 slides]
+2022-10-27 16:31:25 [DEBUG] - histological_type Mixed Histology (please specify) assigned 5 [29 slides]
+2022-10-27 16:31:25 [DEBUG] - histological_type Mucinous Carcinoma assigned 6 [21 slides]
+2022-10-27 16:31:25 [DEBUG] - histological_type Other, specify assigned 7 [49 slides]
+2022-10-27 16:31:25 [DEBUG] - histological_type [Not Available] assigned 8 [1 slides]
+2022-10-27 16:31:25 [DEBUG] - Interleaving 410 tfrecords: infinite=False, num_parallel_reads=4
+2022-10-27 16:35:30 [DEBUG] - Verifying slide annotations...
+2022-10-27 16:35:30 [DEBUG] - Verifying tfrecords...
+2022-10-27 16:35:30 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-27 16:35:30 [DEBUG] - histological_type Infiltrating Carcinoma NOS assigned 0 [1 slides]
+2022-10-27 16:35:30 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 1 [243 slides]
+2022-10-27 16:35:30 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 2 [64 slides]
+2022-10-27 16:35:30 [DEBUG] - histological_type Medullary Carcinoma assigned 3 [7 slides]
+2022-10-27 16:35:30 [DEBUG] - histological_type Metaplastic Carcinoma assigned 4 [8 slides]
+2022-10-27 16:35:30 [DEBUG] - histological_type Mixed Histology (please specify) assigned 5 [29 slides]
+2022-10-27 16:35:30 [DEBUG] - histological_type Mucinous Carcinoma assigned 6 [21 slides]
+2022-10-27 16:35:30 [DEBUG] - histological_type Other, specify assigned 7 [49 slides]
+2022-10-27 16:35:30 [DEBUG] - histological_type [Not Available] assigned 8 [1 slides]
+2022-10-27 16:35:30 [DEBUG] - Interleaving 410 tfrecords: infinite=False, num_parallel_reads=4
+2022-10-27 16:38:08 [DEBUG] - Verifying slide annotations...
+2022-10-27 16:38:08 [DEBUG] - Verifying tfrecords...
+2022-10-27 16:38:08 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-27 16:38:08 [DEBUG] - histological_type Infiltrating Carcinoma NOS assigned 0 [1 slides]
+2022-10-27 16:38:08 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 1 [243 slides]
+2022-10-27 16:38:08 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 2 [64 slides]
+2022-10-27 16:38:08 [DEBUG] - histological_type Medullary Carcinoma assigned 3 [7 slides]
+2022-10-27 16:38:08 [DEBUG] - histological_type Metaplastic Carcinoma assigned 4 [8 slides]
+2022-10-27 16:38:08 [DEBUG] - histological_type Mixed Histology (please specify) assigned 5 [29 slides]
+2022-10-27 16:38:08 [DEBUG] - histological_type Mucinous Carcinoma assigned 6 [21 slides]
+2022-10-27 16:38:08 [DEBUG] - histological_type Other, specify assigned 7 [49 slides]
+2022-10-27 16:38:08 [DEBUG] - histological_type [Not Available] assigned 8 [1 slides]
+2022-10-27 16:38:08 [DEBUG] - Interleaving 410 tfrecords: infinite=False, num_parallel_reads=4
+2022-10-27 16:46:22 [DEBUG] - Verifying slide annotations...
+2022-10-27 16:46:22 [DEBUG] - Verifying tfrecords...
+2022-10-27 16:46:22 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-27 16:46:22 [DEBUG] - histological_type Infiltrating Carcinoma NOS assigned 0 [1 slides]
+2022-10-27 16:46:22 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 1 [243 slides]
+2022-10-27 16:46:22 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 2 [64 slides]
+2022-10-27 16:46:22 [DEBUG] - histological_type Medullary Carcinoma assigned 3 [7 slides]
+2022-10-27 16:46:22 [DEBUG] - histological_type Metaplastic Carcinoma assigned 4 [8 slides]
+2022-10-27 16:46:22 [DEBUG] - histological_type Mixed Histology (please specify) assigned 5 [29 slides]
+2022-10-27 16:46:22 [DEBUG] - histological_type Mucinous Carcinoma assigned 6 [21 slides]
+2022-10-27 16:46:22 [DEBUG] - histological_type Other, specify assigned 7 [49 slides]
+2022-10-27 16:46:22 [DEBUG] - histological_type [Not Available] assigned 8 [1 slides]
+2022-10-27 16:46:22 [DEBUG] - Interleaving 410 tfrecords: infinite=False, num_parallel_reads=4
+2022-10-28 10:26:48 [DEBUG] - Verifying slide annotations...
+2022-10-28 10:26:48 [DEBUG] - Verifying tfrecords...
+2022-10-28 10:26:48 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-28 10:26:48 [DEBUG] - histological_type Infiltrating Carcinoma NOS assigned 0 [1 slides]
+2022-10-28 10:26:48 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 1 [804 slides]
+2022-10-28 10:26:48 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 2 [206 slides]
+2022-10-28 10:26:48 [DEBUG] - histological_type Medullary Carcinoma assigned 3 [7 slides]
+2022-10-28 10:26:48 [DEBUG] - histological_type Metaplastic Carcinoma assigned 4 [8 slides]
+2022-10-28 10:26:48 [DEBUG] - histological_type Mixed Histology (please specify) assigned 5 [29 slides]
+2022-10-28 10:26:48 [DEBUG] - histological_type Mucinous Carcinoma assigned 6 [21 slides]
+2022-10-28 10:26:48 [DEBUG] - histological_type Other, specify assigned 7 [49 slides]
+2022-10-28 10:26:48 [DEBUG] - histological_type [Not Available] assigned 8 [1 slides]
+2022-10-28 10:27:14 [DEBUG] - Verifying slide annotations...
+2022-10-28 10:27:14 [DEBUG] - Verifying tfrecords...
+2022-10-28 10:27:14 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-28 10:27:14 [DEBUG] - histological_type Infiltrating Carcinoma NOS assigned 0 [1 slides]
+2022-10-28 10:27:14 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 1 [804 slides]
+2022-10-28 10:27:14 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 2 [206 slides]
+2022-10-28 10:27:14 [DEBUG] - histological_type Medullary Carcinoma assigned 3 [7 slides]
+2022-10-28 10:27:14 [DEBUG] - histological_type Metaplastic Carcinoma assigned 4 [8 slides]
+2022-10-28 10:27:14 [DEBUG] - histological_type Mixed Histology (please specify) assigned 5 [29 slides]
+2022-10-28 10:27:14 [DEBUG] - histological_type Mucinous Carcinoma assigned 6 [21 slides]
+2022-10-28 10:27:14 [DEBUG] - histological_type Other, specify assigned 7 [49 slides]
+2022-10-28 10:27:14 [DEBUG] - histological_type [Not Available] assigned 8 [1 slides]
+2022-10-28 10:27:48 [DEBUG] - Verifying slide annotations...
+2022-10-28 10:27:48 [DEBUG] - Verifying tfrecords...
+2022-10-28 10:27:48 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-28 10:27:48 [DEBUG] - histological_type Infiltrating Carcinoma NOS assigned 0 [1 slides]
+2022-10-28 10:27:48 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 1 [804 slides]
+2022-10-28 10:27:48 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 2 [206 slides]
+2022-10-28 10:27:48 [DEBUG] - histological_type Medullary Carcinoma assigned 3 [7 slides]
+2022-10-28 10:27:48 [DEBUG] - histological_type Metaplastic Carcinoma assigned 4 [8 slides]
+2022-10-28 10:27:48 [DEBUG] - histological_type Mixed Histology (please specify) assigned 5 [29 slides]
+2022-10-28 10:27:48 [DEBUG] - histological_type Mucinous Carcinoma assigned 6 [21 slides]
+2022-10-28 10:27:48 [DEBUG] - histological_type Other, specify assigned 7 [49 slides]
+2022-10-28 10:27:48 [DEBUG] - histological_type [Not Available] assigned 8 [1 slides]
+2022-10-28 10:27:51 [DEBUG] - Verifying slide annotations...
+2022-10-28 10:27:51 [DEBUG] - Verifying tfrecords...
+2022-10-28 10:27:51 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-28 10:27:51 [DEBUG] - histological_type Infiltrating Carcinoma NOS assigned 0 [1 slides]
+2022-10-28 10:27:51 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 1 [804 slides]
+2022-10-28 10:27:51 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 2 [206 slides]
+2022-10-28 10:27:51 [DEBUG] - histological_type Medullary Carcinoma assigned 3 [7 slides]
+2022-10-28 10:27:51 [DEBUG] - histological_type Metaplastic Carcinoma assigned 4 [8 slides]
+2022-10-28 10:27:51 [DEBUG] - histological_type Mixed Histology (please specify) assigned 5 [29 slides]
+2022-10-28 10:27:51 [DEBUG] - histological_type Mucinous Carcinoma assigned 6 [21 slides]
+2022-10-28 10:27:51 [DEBUG] - histological_type Other, specify assigned 7 [49 slides]
+2022-10-28 10:27:51 [DEBUG] - histological_type [Not Available] assigned 8 [1 slides]
+2022-10-28 10:32:07 [DEBUG] - Verifying slide annotations...
+2022-10-28 10:32:07 [DEBUG] - Verifying tfrecords...
+2022-10-28 10:32:07 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-28 10:32:07 [DEBUG] - histological_type Infiltrating Carcinoma NOS assigned 0 [1 slides]
+2022-10-28 10:32:07 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 1 [804 slides]
+2022-10-28 10:32:07 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 2 [206 slides]
+2022-10-28 10:32:07 [DEBUG] - histological_type Medullary Carcinoma assigned 3 [7 slides]
+2022-10-28 10:32:07 [DEBUG] - histological_type Metaplastic Carcinoma assigned 4 [8 slides]
+2022-10-28 10:32:07 [DEBUG] - histological_type Mixed Histology (please specify) assigned 5 [29 slides]
+2022-10-28 10:32:07 [DEBUG] - histological_type Mucinous Carcinoma assigned 6 [21 slides]
+2022-10-28 10:32:07 [DEBUG] - histological_type Other, specify assigned 7 [49 slides]
+2022-10-28 10:32:07 [DEBUG] - histological_type [Not Available] assigned 8 [1 slides]
+2022-10-28 10:36:48 [DEBUG] - Verifying slide annotations...
+2022-10-28 10:36:48 [DEBUG] - Verifying tfrecords...
+2022-10-28 10:36:48 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-28 10:36:48 [DEBUG] - histological_type Infiltrating Carcinoma NOS assigned 0 [1 slides]
+2022-10-28 10:36:48 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 1 [804 slides]
+2022-10-28 10:36:48 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 2 [206 slides]
+2022-10-28 10:36:48 [DEBUG] - histological_type Medullary Carcinoma assigned 3 [7 slides]
+2022-10-28 10:36:48 [DEBUG] - histological_type Metaplastic Carcinoma assigned 4 [8 slides]
+2022-10-28 10:36:48 [DEBUG] - histological_type Mixed Histology (please specify) assigned 5 [29 slides]
+2022-10-28 10:36:48 [DEBUG] - histological_type Mucinous Carcinoma assigned 6 [21 slides]
+2022-10-28 10:36:48 [DEBUG] - histological_type Other, specify assigned 7 [49 slides]
+2022-10-28 10:36:48 [DEBUG] - histological_type [Not Available] assigned 8 [1 slides]
+2022-10-28 10:42:16 [DEBUG] - Verifying slide annotations...
+2022-10-28 10:42:16 [DEBUG] - Verifying tfrecords...
+2022-10-28 10:42:16 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-28 10:42:16 [DEBUG] - histological_type Infiltrating Carcinoma NOS assigned 0 [1 slides]
+2022-10-28 10:42:16 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 1 [804 slides]
+2022-10-28 10:42:16 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 2 [206 slides]
+2022-10-28 10:42:16 [DEBUG] - histological_type Medullary Carcinoma assigned 3 [7 slides]
+2022-10-28 10:42:16 [DEBUG] - histological_type Metaplastic Carcinoma assigned 4 [8 slides]
+2022-10-28 10:42:16 [DEBUG] - histological_type Mixed Histology (please specify) assigned 5 [29 slides]
+2022-10-28 10:42:16 [DEBUG] - histological_type Mucinous Carcinoma assigned 6 [21 slides]
+2022-10-28 10:42:16 [DEBUG] - histological_type Other, specify assigned 7 [49 slides]
+2022-10-28 10:42:16 [DEBUG] - histological_type [Not Available] assigned 8 [1 slides]
+2022-10-28 13:26:19 [INFO] - Training model [bold]cohort-HP0[/] (k-fold #1)...
+2022-10-28 13:26:19 [INFO] - Hyperparameters: {
+  "augment": "xyrjb",
+  "batch_size": 128,
+  "drop_images": false,
+  "dropout": 0.1,
+  "early_stop": true,
+  "early_stop_method": "accuracy",
+  "early_stop_patience": 0,
+  "epochs": [
+    1
+  ],
+  "hidden_layer_width": 1024,
+  "hidden_layers": 2,
+  "include_top": false,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0.98,
+  "learning_rate_decay_steps": 512,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": "reinhard_fast",
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "avg",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": true,
+  "validation_balance": "none"
+}
+2022-10-28 13:26:19 [INFO] - Val settings: {
+  "strategy": "k-fold",
+  "k_fold": 3,
+  "k": [
+    1
+  ],
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2022-10-28 13:26:19 [INFO] - Using k-fold validation split detected at [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/splits.json[/] (ID: 1)
+2022-10-28 13:26:19 [INFO] - Using 627 training TFRecords, 314 validation
+2022-10-28 13:26:22 [INFO] - Using realtime reinhard_fast normalization
+2022-10-28 13:26:24 [INFO] - Using vectorized normalization
+2022-10-28 13:26:27 [INFO] - Using vectorized normalization
+2022-10-28 13:26:27 [INFO] - Beginning training
+2022-10-28 13:27:45 [INFO] - Training model [bold]cohort-HP0[/] (k-fold #1)...
+2022-10-28 13:27:45 [INFO] - Hyperparameters: {
+  "augment": "xyrjb",
+  "batch_size": 128,
+  "drop_images": false,
+  "dropout": 0.1,
+  "early_stop": true,
+  "early_stop_method": "accuracy",
+  "early_stop_patience": 0,
+  "epochs": [
+    1
+  ],
+  "hidden_layer_width": 1024,
+  "hidden_layers": 2,
+  "include_top": false,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0.98,
+  "learning_rate_decay_steps": 512,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": "reinhard_fast",
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "avg",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": true,
+  "validation_balance": "none"
+}
+2022-10-28 13:27:45 [INFO] - Val settings: {
+  "strategy": "k-fold",
+  "k_fold": 3,
+  "k": [
+    1
+  ],
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2022-10-28 13:27:45 [INFO] - Using k-fold validation split detected at [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/splits.json[/] (ID: 1)
+2022-10-28 13:27:45 [INFO] - Using 627 training TFRecords, 314 validation
+2022-10-28 13:27:48 [INFO] - Using realtime reinhard_fast normalization
+2022-10-28 13:27:50 [INFO] - Using vectorized normalization
+2022-10-28 13:27:53 [INFO] - Using vectorized normalization
+2022-10-28 13:27:53 [INFO] - Beginning training
+2022-10-28 14:37:03 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00000-cohort-HP0-kfold1/cohort-HP0-kfold1_epoch1
+2022-10-28 17:39:04 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2022-10-28 17:39:04 [INFO] - tile-level AUC (cat # 0): 0.847 tile-level AP: 0.848 (opt. threshold: 0.665)
+2022-10-28 17:39:04 [INFO] - tile-level AUC (cat # 1): 0.847 tile-level AP: 0.851 (opt. threshold: 0.335)
+2022-10-28 17:39:04 [INFO] - Category 0 acc: 86.4% (179401/207725)
+2022-10-28 17:39:04 [INFO] - Category 1 acc: 61.2% (130261/212755)
+2022-10-28 17:39:04 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2022-10-28 17:39:04 [INFO] - slide-level AUC (cat # 0): 0.960 slide-level AP: 0.957 (opt. threshold: 0.655)
+2022-10-28 17:39:04 [INFO] - slide-level AUC (cat # 1): 0.960 slide-level AP: 0.966 (opt. threshold: 0.346)
+2022-10-28 17:39:04 [INFO] - Category 0 acc: 98.7% (154/156)
+2022-10-28 17:39:04 [INFO] - Category 1 acc: 72.2% (114/158)
+2022-10-28 17:39:04 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2022-10-28 17:39:04 [INFO] - patient-level AUC (cat # 0): 0.960 patient-level AP: 0.957 (opt. threshold: 0.655)
+2022-10-28 17:39:04 [INFO] - patient-level AUC (cat # 1): 0.960 patient-level AP: 0.966 (opt. threshold: 0.346)
+2022-10-28 17:39:04 [INFO] - Category 0 acc: 98.7% (154/156)
+2022-10-28 17:39:04 [INFO] - Category 1 acc: 72.2% (114/158)
+2022-10-28 17:39:04 [INFO] - Validation metrics: {
+    "accuracy": 0.7364488203957382,
+    "loss": 0.5237752436230706
+}
+2022-10-28 17:39:07 [INFO] - Training results saved: [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/results_log.csv
+2022-10-28 17:39:07 [INFO] - Training complete; validation accuracies:
+2022-10-28 18:57:24 [INFO] - Predicting model results
+2022-10-28 18:57:24 [INFO] - Using realtime reinhard_fast normalization
+2022-10-28 18:57:31 [INFO] - Using vectorized normalization
+2022-10-28 18:57:32 [INFO] - Generating predictions...
+2022-10-29 15:29:03 [DEBUG] - Verifying slide annotations...
+2022-10-29 15:29:03 [DEBUG] - Verifying tfrecords...
+2022-10-29 15:29:03 [DEBUG] - Interpreting column "cohort" as continuous
+2022-10-29 15:29:03 [DEBUG] - cohort LUAD assigned 0 [467 slides]
+2022-10-29 15:29:03 [DEBUG] - cohort LUSC assigned 1 [474 slides]
+2022-10-29 15:35:40 [DEBUG] - Verifying slide annotations...
+2022-10-29 15:35:40 [DEBUG] - Verifying tfrecords...
+2022-10-29 15:35:40 [DEBUG] - Interpreting column "cohort" as continuous
+2022-10-29 15:35:40 [DEBUG] - cohort LUAD assigned 0 [467 slides]
+2022-10-29 15:35:40 [DEBUG] - cohort LUSC assigned 1 [474 slides]
+2022-10-29 16:31:51 [INFO] - Training model [bold]cohort-HP0[/] (k-fold #1)...
+2022-10-29 16:31:51 [INFO] - Hyperparameters: {
+  "augment": "xyrjb",
+  "batch_size": 128,
+  "drop_images": false,
+  "dropout": 0.1,
+  "early_stop": true,
+  "early_stop_method": "accuracy",
+  "early_stop_patience": 0,
+  "epochs": [
+    1
+  ],
+  "hidden_layer_width": 1024,
+  "hidden_layers": 2,
+  "include_top": false,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0.98,
+  "learning_rate_decay_steps": 512,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": "reinhard_fast",
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "avg",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2022-10-29 16:31:51 [INFO] - Val settings: {
+  "strategy": "k-fold",
+  "k_fold": 3,
+  "k": [
+    1
+  ],
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2022-10-29 16:31:51 [INFO] - Using k-fold validation split detected at [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/splits.json[/] (ID: 1)
+2022-10-29 16:31:51 [INFO] - Using 627 training TFRecords, 314 validation
+2022-10-29 16:31:54 [INFO] - Using realtime reinhard_fast normalization
+2022-10-29 16:31:56 [INFO] - Using vectorized normalization
+2022-10-29 16:31:59 [INFO] - Using vectorized normalization
+2022-10-29 16:31:59 [INFO] - Beginning training
+2022-10-29 17:41:52 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00001-cohort-HP0-kfold1/cohort-HP0-kfold1_epoch1
+2022-10-29 17:50:55 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2022-10-29 17:50:55 [INFO] - tile-level AUC (cat # 0): 0.856 tile-level AP: 0.856 (opt. threshold: 0.510)
+2022-10-29 17:50:55 [INFO] - tile-level AUC (cat # 1): 0.856 tile-level AP: 0.864 (opt. threshold: 0.490)
+2022-10-29 17:50:55 [INFO] - Category 0 acc: 77.1% (160214/207725)
+2022-10-29 17:50:55 [INFO] - Category 1 acc: 75.4% (160408/212755)
+2022-10-29 17:50:55 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2022-10-29 17:50:55 [INFO] - slide-level AUC (cat # 0): 0.963 slide-level AP: 0.964 (opt. threshold: 0.427)
+2022-10-29 17:50:55 [INFO] - slide-level AUC (cat # 1): 0.963 slide-level AP: 0.959 (opt. threshold: 0.577)
+2022-10-29 17:50:55 [INFO] - Category 0 acc: 91.0% (142/156)
+2022-10-29 17:50:55 [INFO] - Category 1 acc: 91.8% (145/158)
+2022-10-29 17:50:55 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2022-10-29 17:50:55 [INFO] - patient-level AUC (cat # 0): 0.963 patient-level AP: 0.964 (opt. threshold: 0.427)
+2022-10-29 17:50:55 [INFO] - patient-level AUC (cat # 1): 0.963 patient-level AP: 0.959 (opt. threshold: 0.577)
+2022-10-29 17:50:55 [INFO] - Category 0 acc: 91.0% (142/156)
+2022-10-29 17:50:55 [INFO] - Category 1 acc: 91.8% (145/158)
+2022-10-29 17:50:55 [INFO] - Validation metrics: {
+    "accuracy": 0.7625142694063927,
+    "loss": 0.4642138895923146
+}
+2022-10-29 17:50:58 [INFO] - Training results saved: [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/results_log.csv
+2022-10-29 17:50:58 [INFO] - Training complete; validation accuracies:
+2022-10-29 17:50:58 [INFO] - Training model [bold]cohort-HP0[/] (k-fold #1)...
+2022-10-29 17:50:58 [INFO] - Hyperparameters: {
+  "augment": "xyrjb",
+  "batch_size": 128,
+  "drop_images": false,
+  "dropout": 0.1,
+  "early_stop": true,
+  "early_stop_method": "accuracy",
+  "early_stop_patience": 0,
+  "epochs": [
+    1
+  ],
+  "hidden_layer_width": 1024,
+  "hidden_layers": 2,
+  "include_top": false,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0.98,
+  "learning_rate_decay_steps": 512,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": "reinhard_fast",
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "avg",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2022-10-29 17:50:58 [INFO] - Val settings: {
+  "strategy": "k-fold",
+  "k_fold": 3,
+  "k": [
+    1
+  ],
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2022-10-29 17:50:58 [INFO] - Using k-fold validation split detected at [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/splits.json[/] (ID: 1)
+2022-10-29 17:50:58 [INFO] - Using 627 training TFRecords, 314 validation
+2022-10-29 17:51:01 [INFO] - Using realtime reinhard_fast normalization
+2022-10-29 17:51:04 [INFO] - Using vectorized normalization
+2022-10-29 17:51:06 [INFO] - Using vectorized normalization
+2022-10-29 17:51:06 [INFO] - Beginning training
+2022-10-29 18:59:32 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00002-cohort-HP0-kfold1/cohort-HP0-kfold1_epoch1
+2022-10-29 19:08:34 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2022-10-29 19:08:35 [INFO] - tile-level AUC (cat # 0): 0.849 tile-level AP: 0.847 (opt. threshold: 0.386)
+2022-10-29 19:08:35 [INFO] - tile-level AUC (cat # 1): 0.849 tile-level AP: 0.853 (opt. threshold: 0.614)
+2022-10-29 19:08:35 [INFO] - Category 0 acc: 66.5% (138098/207725)
+2022-10-29 19:08:35 [INFO] - Category 1 acc: 83.6% (177893/212755)
+2022-10-29 19:08:35 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2022-10-29 19:08:35 [INFO] - slide-level AUC (cat # 0): 0.951 slide-level AP: 0.955 (opt. threshold: 0.363)
+2022-10-29 19:08:35 [INFO] - slide-level AUC (cat # 1): 0.951 slide-level AP: 0.939 (opt. threshold: 0.638)
+2022-10-29 19:08:35 [INFO] - Category 0 acc: 78.2% (122/156)
+2022-10-29 19:08:35 [INFO] - Category 1 acc: 94.3% (149/158)
+2022-10-29 19:08:35 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2022-10-29 19:08:35 [INFO] - patient-level AUC (cat # 0): 0.951 patient-level AP: 0.955 (opt. threshold: 0.363)
+2022-10-29 19:08:35 [INFO] - patient-level AUC (cat # 1): 0.951 patient-level AP: 0.939 (opt. threshold: 0.638)
+2022-10-29 19:08:35 [INFO] - Category 0 acc: 78.2% (122/156)
+2022-10-29 19:08:35 [INFO] - Category 1 acc: 94.3% (149/158)
+2022-10-29 19:08:35 [INFO] - Validation metrics: {
+    "accuracy": 0.7515006659056317,
+    "loss": 0.5099038964900059
+}
+2022-10-29 19:08:38 [INFO] - Training results saved: [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/results_log.csv
+2022-10-29 19:08:38 [INFO] - Training complete; validation accuracies:
+2022-10-29 19:08:38 [INFO] - Training model [bold]cohort-HP0[/] (k-fold #1)...
+2022-10-29 19:08:38 [INFO] - Hyperparameters: {
+  "augment": "xyrjb",
+  "batch_size": 128,
+  "drop_images": false,
+  "dropout": 0.1,
+  "early_stop": true,
+  "early_stop_method": "accuracy",
+  "early_stop_patience": 0,
+  "epochs": [
+    1
+  ],
+  "hidden_layer_width": 1024,
+  "hidden_layers": 2,
+  "include_top": false,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0.98,
+  "learning_rate_decay_steps": 512,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": "reinhard_fast",
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "avg",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2022-10-29 19:08:38 [INFO] - Val settings: {
+  "strategy": "k-fold",
+  "k_fold": 3,
+  "k": [
+    1
+  ],
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2022-10-29 19:08:38 [INFO] - Using k-fold validation split detected at [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/splits.json[/] (ID: 1)
+2022-10-29 19:08:38 [INFO] - Using 627 training TFRecords, 314 validation
+2022-10-29 19:08:41 [INFO] - Using realtime reinhard_fast normalization
+2022-10-29 19:08:43 [INFO] - Using vectorized normalization
+2022-10-29 19:08:46 [INFO] - Using vectorized normalization
+2022-10-29 19:08:46 [INFO] - Beginning training
+2022-10-29 20:18:14 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00003-cohort-HP0-kfold1/cohort-HP0-kfold1_epoch1
+2022-10-29 20:27:25 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2022-10-29 20:27:26 [INFO] - tile-level AUC (cat # 0): 0.847 tile-level AP: 0.855 (opt. threshold: 0.187)
+2022-10-29 20:27:26 [INFO] - tile-level AUC (cat # 1): 0.847 tile-level AP: 0.843 (opt. threshold: 0.813)
+2022-10-29 20:27:26 [INFO] - Category 0 acc: 47.5% (98679/207725)
+2022-10-29 20:27:26 [INFO] - Category 1 acc: 94.9% (201971/212755)
+2022-10-29 20:27:26 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2022-10-29 20:27:26 [INFO] - slide-level AUC (cat # 0): 0.959 slide-level AP: 0.967 (opt. threshold: 0.243)
+2022-10-29 20:27:26 [INFO] - slide-level AUC (cat # 1): 0.959 slide-level AP: 0.948 (opt. threshold: 0.763)
+2022-10-29 20:27:26 [INFO] - Category 0 acc: 51.9% (81/156)
+2022-10-29 20:27:26 [INFO] - Category 1 acc: 100.0% (158/158)
+2022-10-29 20:27:26 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2022-10-29 20:27:26 [INFO] - patient-level AUC (cat # 0): 0.959 patient-level AP: 0.967 (opt. threshold: 0.243)
+2022-10-29 20:27:26 [INFO] - patient-level AUC (cat # 1): 0.959 patient-level AP: 0.948 (opt. threshold: 0.763)
+2022-10-29 20:27:26 [INFO] - Category 0 acc: 51.9% (81/156)
+2022-10-29 20:27:26 [INFO] - Category 1 acc: 100.0% (158/158)
+2022-10-29 20:27:26 [INFO] - Validation metrics: {
+    "accuracy": 0.7150161719939118,
+    "loss": 0.6352056622051587
+}
+2022-10-29 20:27:29 [INFO] - Training results saved: [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/results_log.csv
+2022-10-29 20:27:29 [INFO] - Training complete; validation accuracies:
+2022-10-29 20:27:29 [INFO] - Training model [bold]cohort-HP0[/] (k-fold #1)...
+2022-10-29 20:27:29 [INFO] - Hyperparameters: {
+  "augment": "xyrjb",
+  "batch_size": 128,
+  "drop_images": false,
+  "dropout": 0.1,
+  "early_stop": true,
+  "early_stop_method": "accuracy",
+  "early_stop_patience": 0,
+  "epochs": [
+    1
+  ],
+  "hidden_layer_width": 1024,
+  "hidden_layers": 2,
+  "include_top": false,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0.98,
+  "learning_rate_decay_steps": 512,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": "reinhard_fast",
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "avg",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2022-10-29 20:27:29 [INFO] - Val settings: {
+  "strategy": "k-fold",
+  "k_fold": 3,
+  "k": [
+    1
+  ],
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2022-10-29 20:27:29 [INFO] - Using k-fold validation split detected at [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/splits.json[/] (ID: 1)
+2022-10-29 20:27:29 [INFO] - Using 627 training TFRecords, 314 validation
+2022-10-29 20:27:32 [INFO] - Using realtime reinhard_fast normalization
+2022-10-29 20:27:34 [INFO] - Using vectorized normalization
+2022-10-29 20:27:37 [INFO] - Using vectorized normalization
+2022-10-29 20:27:37 [INFO] - Beginning training
+2022-10-29 21:36:31 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00004-cohort-HP0-kfold1/cohort-HP0-kfold1_epoch1
+2022-10-29 21:45:39 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2022-10-29 21:45:39 [INFO] - tile-level AUC (cat # 0): 0.864 tile-level AP: 0.867 (opt. threshold: 0.440)
+2022-10-29 21:45:39 [INFO] - tile-level AUC (cat # 1): 0.864 tile-level AP: 0.865 (opt. threshold: 0.560)
+2022-10-29 21:45:39 [INFO] - Category 0 acc: 70.5% (146537/207725)
+2022-10-29 21:45:39 [INFO] - Category 1 acc: 83.7% (178028/212755)
+2022-10-29 21:45:39 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2022-10-29 21:45:39 [INFO] - slide-level AUC (cat # 0): 0.967 slide-level AP: 0.968 (opt. threshold: 0.420)
+2022-10-29 21:45:39 [INFO] - slide-level AUC (cat # 1): 0.967 slide-level AP: 0.963 (opt. threshold: 0.583)
+2022-10-29 21:45:39 [INFO] - Category 0 acc: 83.3% (130/156)
+2022-10-29 21:45:39 [INFO] - Category 1 acc: 94.3% (149/158)
+2022-10-29 21:45:39 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2022-10-29 21:45:40 [INFO] - patient-level AUC (cat # 0): 0.967 patient-level AP: 0.968 (opt. threshold: 0.420)
+2022-10-29 21:45:40 [INFO] - patient-level AUC (cat # 1): 0.967 patient-level AP: 0.963 (opt. threshold: 0.583)
+2022-10-29 21:45:40 [INFO] - Category 0 acc: 83.3% (130/156)
+2022-10-29 21:45:40 [INFO] - Category 1 acc: 94.3% (149/158)
+2022-10-29 21:45:40 [INFO] - Validation metrics: {
+    "accuracy": 0.7718916476407914,
+    "loss": 0.4639306368167362
+}
+2022-10-29 21:45:43 [INFO] - Training results saved: [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/results_log.csv
+2022-10-29 21:45:43 [INFO] - Training complete; validation accuracies:
+2022-10-29 21:45:43 [INFO] - Training model [bold]cohort-HP0[/] (k-fold #1)...
+2022-10-29 21:45:43 [INFO] - Hyperparameters: {
+  "augment": "xyrjb",
+  "batch_size": 128,
+  "drop_images": false,
+  "dropout": 0.1,
+  "early_stop": true,
+  "early_stop_method": "accuracy",
+  "early_stop_patience": 0,
+  "epochs": [
+    1
+  ],
+  "hidden_layer_width": 1024,
+  "hidden_layers": 2,
+  "include_top": false,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0.98,
+  "learning_rate_decay_steps": 512,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": "reinhard_fast",
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "avg",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2022-10-29 21:45:43 [INFO] - Val settings: {
+  "strategy": "k-fold",
+  "k_fold": 3,
+  "k": [
+    1
+  ],
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2022-10-29 21:45:43 [INFO] - Using k-fold validation split detected at [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/splits.json[/] (ID: 1)
+2022-10-29 21:45:43 [INFO] - Using 627 training TFRecords, 314 validation
+2022-10-29 21:45:45 [INFO] - Using realtime reinhard_fast normalization
+2022-10-29 21:45:48 [INFO] - Using vectorized normalization
+2022-10-29 21:45:50 [INFO] - Using vectorized normalization
+2022-10-29 21:45:51 [INFO] - Beginning training
+2022-10-29 22:54:44 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00005-cohort-HP0-kfold1/cohort-HP0-kfold1_epoch1
+2022-10-29 23:03:54 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2022-10-29 23:03:54 [INFO] - tile-level AUC (cat # 0): 0.864 tile-level AP: 0.867 (opt. threshold: 0.623)
+2022-10-29 23:03:54 [INFO] - tile-level AUC (cat # 1): 0.864 tile-level AP: 0.863 (opt. threshold: 0.377)
+2022-10-29 23:03:54 [INFO] - Category 0 acc: 86.1% (178804/207725)
+2022-10-29 23:03:54 [INFO] - Category 1 acc: 65.9% (140191/212755)
+2022-10-29 23:03:54 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2022-10-29 23:03:54 [INFO] - slide-level AUC (cat # 0): 0.972 slide-level AP: 0.975 (opt. threshold: 0.560)
+2022-10-29 23:03:54 [INFO] - slide-level AUC (cat # 1): 0.972 slide-level AP: 0.968 (opt. threshold: 0.444)
+2022-10-29 23:03:54 [INFO] - Category 0 acc: 98.1% (153/156)
+2022-10-29 23:03:54 [INFO] - Category 1 acc: 77.2% (122/158)
+2022-10-29 23:03:54 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2022-10-29 23:03:54 [INFO] - patient-level AUC (cat # 0): 0.972 patient-level AP: 0.975 (opt. threshold: 0.560)
+2022-10-29 23:03:54 [INFO] - patient-level AUC (cat # 1): 0.972 patient-level AP: 0.968 (opt. threshold: 0.444)
+2022-10-29 23:03:54 [INFO] - Category 0 acc: 98.1% (153/156)
+2022-10-29 23:03:54 [INFO] - Category 1 acc: 77.2% (122/158)
+2022-10-29 23:03:54 [INFO] - Validation metrics: {
+    "accuracy": 0.7586448820395738,
+    "loss": 0.4902795901445493
+}
+2022-10-29 23:03:57 [INFO] - Training results saved: [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/results_log.csv
+2022-10-29 23:03:57 [INFO] - Training complete; validation accuracies:
+2022-10-31 15:04:23 [DEBUG] - Verifying slide annotations...
+2022-10-31 15:04:23 [DEBUG] - Verifying tfrecords...
+2022-10-31 15:04:23 [DEBUG] - Interpreting column "histological_type" as continuous
+2022-10-31 15:04:23 [DEBUG] - histological_type Infiltrating Carcinoma NOS assigned 0 [1 slides]
+2022-10-31 15:04:23 [DEBUG] - histological_type Infiltrating Ductal Carcinoma assigned 1 [804 slides]
+2022-10-31 15:04:23 [DEBUG] - histological_type Infiltrating Lobular Carcinoma assigned 2 [206 slides]
+2022-10-31 15:04:23 [DEBUG] - histological_type Medullary Carcinoma assigned 3 [7 slides]
+2022-10-31 15:04:23 [DEBUG] - histological_type Metaplastic Carcinoma assigned 4 [8 slides]
+2022-10-31 15:04:23 [DEBUG] - histological_type Mixed Histology (please specify) assigned 5 [29 slides]
+2022-10-31 15:04:23 [DEBUG] - histological_type Mucinous Carcinoma assigned 6 [21 slides]
+2022-10-31 15:04:23 [DEBUG] - histological_type Other, specify assigned 7 [49 slides]
+2022-10-31 15:04:23 [DEBUG] - histological_type [Not Available] assigned 8 [1 slides]
+2022-10-31 15:04:42 [DEBUG] - Verifying slide annotations...
+2022-10-31 15:04:42 [DEBUG] - Verifying tfrecords...
+2022-10-31 15:05:05 [DEBUG] - Verifying slide annotations...
+2022-10-31 15:05:05 [DEBUG] - Verifying tfrecords...
+2022-10-31 15:05:05 [DEBUG] - Interpreting column "cohort" as continuous
+2022-10-31 15:05:05 [DEBUG] - cohort LUAD assigned 0 [467 slides]
+2022-10-31 15:05:05 [DEBUG] - cohort LUSC assigned 1 [474 slides]
+2022-10-31 15:27:57 [DEBUG] - Verifying slide annotations...
+2022-10-31 15:27:57 [DEBUG] - Verifying tfrecords...
+2022-10-31 15:27:57 [DEBUG] - Interpreting column "cohort" as continuous
+2022-10-31 15:27:57 [DEBUG] - cohort LUAD assigned 0 [467 slides]
+2022-10-31 15:27:57 [DEBUG] - cohort LUSC assigned 1 [474 slides]
+2022-10-31 15:41:11 [INFO] - Predicting model results
+2022-10-31 15:41:11 [INFO] - Using realtime reinhard_fast normalization
+2022-10-31 15:41:17 [INFO] - Using vectorized normalization
+2022-10-31 15:41:18 [INFO] - Generating predictions...
+2022-10-31 16:03:31 [INFO] - Predicting model results
+2022-10-31 16:03:31 [INFO] - Using realtime reinhard_fast normalization
+2022-10-31 16:03:38 [INFO] - Using vectorized normalization
+2022-10-31 16:03:38 [INFO] - Generating predictions...
+2022-10-31 16:26:34 [INFO] - Predicting model results
+2022-10-31 16:26:34 [INFO] - Using realtime reinhard_fast normalization
+2022-10-31 16:26:41 [INFO] - Using vectorized normalization
+2022-10-31 16:26:41 [INFO] - Generating predictions...
+2022-10-31 16:49:37 [INFO] - Predicting model results
+2022-10-31 16:49:37 [INFO] - Using realtime reinhard_fast normalization
+2022-10-31 16:49:44 [INFO] - Using vectorized normalization
+2022-10-31 16:49:44 [INFO] - Generating predictions...
+2022-10-31 17:11:57 [INFO] - Predicting model results
+2022-10-31 17:11:57 [INFO] - Using realtime reinhard_fast normalization
+2022-10-31 17:12:04 [INFO] - Using vectorized normalization
+2022-10-31 17:12:04 [INFO] - Generating predictions...
+2022-10-31 17:40:21 [DEBUG] - Verifying slide annotations...
+2022-10-31 17:40:21 [DEBUG] - Verifying tfrecords...
+2022-10-31 17:40:21 [DEBUG] - Interpreting column "cohort" as continuous
+2022-10-31 17:40:21 [DEBUG] - cohort LUAD assigned 0 [467 slides]
+2022-10-31 17:40:21 [DEBUG] - cohort LUSC assigned 1 [474 slides]
+2022-10-31 17:42:34 [DEBUG] - Verifying slide annotations...
+2022-10-31 17:42:34 [DEBUG] - Verifying tfrecords...
+2022-10-31 17:42:34 [DEBUG] - Interpreting column "cohort" as continuous
+2022-10-31 17:42:34 [DEBUG] - cohort LUAD assigned 0 [467 slides]
+2022-10-31 17:42:34 [DEBUG] - cohort LUSC assigned 1 [474 slides]
+2022-11-01 13:09:34 [INFO] - Predicting model results
+2022-11-01 13:09:34 [INFO] - Using realtime reinhard_fast normalization
+2022-11-01 13:09:39 [INFO] - Using vectorized normalization
+2022-11-01 13:09:40 [INFO] - Generating predictions...
+2022-11-01 13:17:10 [INFO] - Predicting model results
+2022-11-01 13:17:10 [INFO] - Using realtime reinhard_fast normalization
+2022-11-01 13:17:15 [INFO] - Using vectorized normalization
+2022-11-01 13:17:15 [INFO] - Generating predictions...
+2022-11-01 13:24:46 [INFO] - Predicting model results
+2022-11-01 13:24:46 [INFO] - Using realtime reinhard_fast normalization
+2022-11-01 13:24:51 [INFO] - Using vectorized normalization
+2022-11-01 13:24:51 [INFO] - Generating predictions...
+2022-11-01 13:32:20 [INFO] - Predicting model results
+2022-11-01 13:32:20 [INFO] - Using realtime reinhard_fast normalization
+2022-11-01 13:32:25 [INFO] - Using vectorized normalization
+2022-11-01 13:32:25 [INFO] - Generating predictions...
+2022-11-01 13:40:46 [INFO] - Predicting model results
+2022-11-01 13:40:46 [INFO] - Using realtime reinhard_fast normalization
+2022-11-01 13:40:52 [INFO] - Using vectorized normalization
+2022-11-01 13:40:52 [INFO] - Generating predictions...
+2022-11-01 13:50:18 [DEBUG] - Verifying slide annotations...
+2022-11-01 13:50:18 [DEBUG] - Verifying tfrecords...
+2022-11-01 13:50:18 [DEBUG] - Interpreting column "cohort" as continuous
+2022-11-01 13:50:18 [DEBUG] - cohort LUAD assigned 0 [467 slides]
+2022-11-01 13:50:18 [DEBUG] - cohort LUSC assigned 1 [474 slides]
