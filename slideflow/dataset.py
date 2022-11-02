@@ -1568,7 +1568,7 @@ class Dataset:
                 dup_vals = pt_assign[pt_assign[:, 0] == pt][:, 1]
                 dups = ", ".join([str(d) for d in dup_vals])
                 log.error(
-                    f"{pt} has multiple labels (header {header}): {dups}"
+                    f'Patient "{pt}" has multiple labels (header {header}): {dups}'
                 )
 
             # Assemble results dictionary
