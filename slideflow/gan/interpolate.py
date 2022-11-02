@@ -590,6 +590,7 @@ class StyleGAN2Interpolator:
         self,
         seed: int,
         steps: int = 100,
+        outcome_idx: int = 0,
     ) -> Tuple[List, ...]:
         """Interpolates between starting and ending classes for a seed,
         recording raw images, processed images, and predictions.
@@ -626,7 +627,7 @@ class StyleGAN2Interpolator:
                 if sf.backend() == 'torch':
                     pred = pred.cpu()
                 pred = pred.numpy()
-                preds += [pred[0][0]]
+                preds += [pred[0][outcome_idx]]
             imgs += [img]
             proc_imgs += [processed_img[0]]
 
