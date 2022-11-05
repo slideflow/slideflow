@@ -15,7 +15,7 @@ Slideflow has been used by:
 - [Dolezal et al](https://www.nature.com/articles/s41379-020-00724-3), _Modern Pathology_, 2020
 - [Rosenberg et al](https://ascopubs.org/doi/10.1200/JCO.2020.38.15_suppl.e23529), _Journal of Clinical Oncology_ [abstract], 2020
 - [Howard et al](https://www.nature.com/articles/s41467-021-24698-1), _Nature Communications_, 2021
-- [Dolezal et al](https://arxiv.org/abs/2204.04516) _Nature Communications_ (in press), 2022
+- [Dolezal et al](https://www.nature.com/articles/s41467-022-34025-x) _Nature Communications_, 2022
 - [Storozuk et al](https://www.nature.com/articles/s41379-022-01039-1.pdf), _Modern Pathology_ [abstract], 2022
 - [Partin et al](https://arxiv.org/abs/2204.11678) [arXiv], 2022
 - [Dolezal et al](https://ascopubs.org/doi/abs/10.1200/JCO.2022.40.16_suppl.8549) [abstract], 2022
