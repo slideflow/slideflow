@@ -13,6 +13,7 @@ from functools import wraps
 from os.path import exists, join
 from typing import Any, Callable, Dict, List, Optional
 from rich.progress import Progress, TimeElapsedColumn, SpinnerColumn
+from tqdm import tqdm
 
 import requests
 import slideflow as sf
@@ -61,41 +62,47 @@ def get_tcga_slides() -> Dict[str, str]:
         'TCGA-EL-A3CO-01Z-00-DX1.7BF5F004-E7E6-4320-BA89-39D05657BBCB'
     ]
     uuids = [
-        '0b0b560d-f3e7-4103-9b1b-d4981e00c0e7',
-        '0eeb9df4-4cb0-4075-9e18-3861dea2ba05',
-        '0c376805-5f09-4687-8e29-ad36b2171577',
-        '1af4e340-38d3-4589-8a7b-6be3f207bc06',
-        '0d0e4ddf-749c-44ba-aea9-989732e79d8d',
-        '0c5592d5-b51c-406a-9dd5-72778e982f13',
-        '0d78b583-ecf2-45f4-95a4-dc61057be898',
-        '1a4242c5-495d-46f2-b87d-050acc6cef44',
-        '1bcfd879-c48b-4232-b6a7-ff1337be9914',
-        '0ac4f9a9-32f8-40b5-be0e-52ceeef7dbbf'
+        'b7d2f2de-bb30-425d-9bf3-4a621cdacb3e',
+        '5d5da119-4a4b-4c2c-a071-7c230bbe15ea',
+        'd2401115-b490-46c9-a679-a6a80adc7119',
+        '284dbe84-5899-4f5e-a402-1aca8410b513',
+        '024f49af-ada4-4682-80b1-7135eb33ebd2',
+        'e5efae78-c235-4269-aa33-4b1e8dc0ac53',
+        '951cd1b9-1b43-4118-91ef-6496722a74eb',
+        'c0024a2a-ab58-4162-b4bc-787b08e23a74',
+        'bca43d2b-4809-488c-af55-5c734939601c',
+        'd1778916-4bdc-4c67-bb8f-63417212a62f',
     ]
     return dict(zip(slides, uuids))
 
 
-def download_from_tcga(uuid: str, dest: str, message: str = '') -> None:
-    params = {'ids': [uuid]}
-    data_endpt = "https://api.gdc.cancer.gov/data"
+def download_from_tcga(
+    uuid: str,
+    dest: str,
+    message: str = 'Downloading...'
+) -> None:
+    """Download a file from TCGA (GDC) by UUID."""
+    data_endpt = f"https://api.gdc.cancer.gov/data/"
     response = requests.post(
         data_endpt,
-        data=json.dumps(params),
+        data=json.dumps({'ids': [uuid]}),
         headers={"Content-Type": "application/json"},
         stream=True
     )
     response_head_cd = response.headers["Content-Disposition"]
     block_size = 4096
+    block_per_mb = block_size / 1000000
     file_size = int(response.headers.get('Content-Length', ''))
-    pb = Progress()
-    task = pb.add_task(message, total=file_size)
-    pb.start()
     file_name = join(dest, re.findall("filename=(.+)", response_head_cd)[0])
+    pbar = tqdm(desc=message,
+                total=file_size / 1000000, unit='MB',
+                bar_format="{desc}: {percentage:3.0f}%|{bar}| "
+                           "{n:.2f}/{total:.2f} [{elapsed}<{remaining}] "
+                           "{rate_fmt}{postfix}")
     with open(file_name, "wb") as output_file:
         for chunk in response.iter_content(chunk_size=block_size):
             output_file.write(chunk)
-            pb.advance(task, block_size)
-    pb.stop()
+            pbar.update(block_per_mb)
 
 
 def random_annotations(
