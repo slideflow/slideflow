@@ -93,17 +93,24 @@ def download_from_tcga(
     block_size = 4096
     block_per_mb = block_size / 1000000
     file_size = int(response.headers.get('Content-Length', ''))
+    file_size_mb = file_size / 1000000
+    running_total_mb = 0
     file_name = join(dest, re.findall("filename=(.+)", response_head_cd)[0])
     pbar = tqdm(desc=message,
-                total=file_size / 1000000, unit='MB',
+                total=file_size_mb, unit='MB',
                 bar_format="{desc}: {percentage:3.0f}%|{bar}| "
                            "{n:.2f}/{total:.2f} [{elapsed}<{remaining}] "
                            "{rate_fmt}{postfix}")
+
     with open(file_name, "wb") as output_file:
         for chunk in response.iter_content(chunk_size=block_size):
             output_file.write(chunk)
-            pbar.update(block_per_mb)
-
+            if block_per_mb + running_total_mb < file_size_mb:
+                running_total_mb += block_per_mb
+                pbar.update(block_per_mb)
+            else:
+                running_total_mb += file_size_mb - running_total_mb
+                pbar.update(file_size_mb - running_total_mb)
 
 def random_annotations(
     slides_path: Optional[str] = None
