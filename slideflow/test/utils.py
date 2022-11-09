@@ -1,10 +1,8 @@
 import csv
-import json
 import logging
 import multiprocessing
 import os
 import random
-import re
 import shutil
 import sys
 import time
@@ -13,12 +11,10 @@ from functools import wraps
 from os.path import exists, join
 from typing import Any, Callable, Dict, List, Optional
 from rich.progress import Progress, TimeElapsedColumn, SpinnerColumn
-from tqdm import tqdm
 
-import requests
 import slideflow as sf
 from slideflow.util import colors as col
-from slideflow.util import log, ImgBatchSpeedColumn
+from slideflow.util import log, ImgBatchSpeedColumn, download_from_tcga
 
 
 def process_isolate(func: Callable, project: sf.Project, **kwargs) -> bool:
@@ -75,42 +71,6 @@ def get_tcga_slides() -> Dict[str, str]:
     ]
     return dict(zip(slides, uuids))
 
-
-def download_from_tcga(
-    uuid: str,
-    dest: str,
-    message: str = 'Downloading...'
-) -> None:
-    """Download a file from TCGA (GDC) by UUID."""
-    data_endpt = f"https://api.gdc.cancer.gov/data/"
-    response = requests.post(
-        data_endpt,
-        data=json.dumps({'ids': [uuid]}),
-        headers={"Content-Type": "application/json"},
-        stream=True
-    )
-    response_head_cd = response.headers["Content-Disposition"]
-    block_size = 4096
-    block_per_mb = block_size / 1000000
-    file_size = int(response.headers.get('Content-Length', ''))
-    file_size_mb = file_size / 1000000
-    running_total_mb = 0
-    file_name = join(dest, re.findall("filename=(.+)", response_head_cd)[0])
-    pbar = tqdm(desc=message,
-                total=file_size_mb, unit='MB',
-                bar_format="{desc}: {percentage:3.0f}%|{bar}| "
-                           "{n:.2f}/{total:.2f} [{elapsed}<{remaining}] "
-                           "{rate_fmt}{postfix}")
-
-    with open(file_name, "wb") as output_file:
-        for chunk in response.iter_content(chunk_size=block_size):
-            output_file.write(chunk)
-            if block_per_mb + running_total_mb < file_size_mb:
-                running_total_mb += block_per_mb
-                pbar.update(block_per_mb)
-            else:
-                running_total_mb += file_size_mb - running_total_mb
-                pbar.update(file_size_mb - running_total_mb)
 
 def random_annotations(
     slides_path: Optional[str] = None
