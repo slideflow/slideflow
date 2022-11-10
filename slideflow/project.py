@@ -850,15 +850,24 @@ class Project:
             'neptune_workspace': self.neptune_workspace,
             'load_method': s_args.load_method
         }
-        process = s_args.ctx.Process(target=project_utils._train_worker,
-                                     args=((train_dts, val_dts),
-                                           model_kwargs,
-                                           s_args.training_kwargs,
-                                           s_args.results_dict,
-                                           self.verbosity))
-        process.start()
-        log.debug(f'Spawning training process (PID: {process.pid})')
-        process.join()
+        if hp.model != 'custom':
+            process = s_args.ctx.Process(target=project_utils._train_worker,
+                                        args=((train_dts, val_dts),
+                                            model_kwargs,
+                                            s_args.training_kwargs,
+                                            s_args.results_dict,
+                                            self.verbosity))
+            process.start()
+            log.debug(f'Spawning training process (PID: {process.pid})')
+            process.join()
+        else:
+            project_utils._train_worker(
+                (train_dts, val_dts),
+                model_kwargs,
+                s_args.training_kwargs,
+                s_args.results_dict,
+                self.verbosity
+            )
 
     def add_source(
         self,
