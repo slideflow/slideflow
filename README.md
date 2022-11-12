@@ -37,12 +37,16 @@ Full documentation with example tutorials can be found at [slideflow.dev](https:
 Please see the [Version 1.3.2 Release Notes](https://github.com/jamesdolezal/slideflow/releases/tag/1.3.2) for a summary of the latest updates and fixes in the latest release.
 
 ## Installation
-Slideflow can be installed either with PyPI or as a Docker container. To install via pip:
+Slideflow can be installed with PyPI, as a Docker container, or run from source. 
+
+### Method 1: Install via pip
 
 ```
 pip3 install --upgrade setuptools pip wheel
 pip3 install slideflow
 ```
+
+### Method 2: Docker image
 
 Alternatively, pre-configured [docker images](https://hub.docker.com/repository/docker/jamesdolezal/slideflow) are available with OpenSlide/Libvips and the latest version of either Tensorflow and PyTorch. To install with the Tensorflow backend:
 
@@ -56,6 +60,19 @@ To install with the PyTorch backend:
 ```
 docker pull jamesdolezal/slideflow:latest-torch
 docker run -it --shm-size=2g --gpus all jamesdolezal/slideflow:latest-torch
+```
+
+### Method 3: From source
+
+To run from source, clone this repository, install the conda development environment, and build a wheel:
+
+```
+git clone https://github.com/jamesdolezal/slideflow
+cd slideflow
+conda env create -f environment.yml
+conda activate slideflow
+python setup.py bdist_wheel
+pip install dist/slideflow*
 ```
 
 ## Getting started
