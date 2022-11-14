@@ -1841,7 +1841,6 @@ class Trainer:
             # Train the model
             log.info('Beginning training')
             try:
-                print(train_data)
                 _model_to_train.fit(
                     train_data,
                     steps_per_epoch=steps_per_epoch,
@@ -1857,6 +1856,8 @@ class Trainer:
                     )
                     _model_to_train.save(model_path)
                     log.info('Model saved')
+                    results = {}
+                    return results
                     
             except tf.errors.ResourceExhaustedError as e:
                 log.error(f"Training failed for [bold]{self.name}[/]. "
