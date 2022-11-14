@@ -1,4 +1,4 @@
-import slideflow
+import versioneer
 import setuptools
 
 with open("README.md", "r") as fh:
@@ -6,7 +6,8 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="slideflow",
-    version=slideflow.__version__,
+    version=versioneer.get_version(),
+    cmdclass=versioneer.get_cmdclass(),
     author="James Dolezal",
     author_email="james.dolezal@uchospitals.edu",
     description="Deep learning tools for digital histology",
@@ -23,24 +24,31 @@ setuptools.setup(
         'slideflow': [
             'norm/norm_tile.jpg',
             'slide/slideflow-logo-name-small.jpg',
-            'gan/stylegan2/torch_utils/ops/bias_act.cpp',
-            'gan/stylegan2/torch_utils/ops/bias_act.cu',
-            'gan/stylegan2/torch_utils/ops/bias_act.h',
-            'gan/stylegan2/torch_utils/ops/upfirdn2d.cpp',
-            'gan/stylegan2/torch_utils/ops/upfirdn2d.cu',
-            'gan/stylegan2/torch_utils/ops/upfirdn2d.h',
-            'gan/stylegan3/torch_utils/ops/bias_act.cpp',
-            'gan/stylegan3/torch_utils/ops/bias_act.cu',
-            'gan/stylegan3/torch_utils/ops/bias_act.h',
-            'gan/stylegan3/torch_utils/ops/upfirdn2d.cpp',
-            'gan/stylegan3/torch_utils/ops/upfirdn2d.cu',
-            'gan/stylegan3/torch_utils/ops/upfirdn2d.h',
-            'gan/stylegan3/torch_utils/ops/filtered_lrelu.cpp',
-            'gan/stylegan3/torch_utils/ops/filtered_lrelu.cu',
-            'gan/stylegan3/torch_utils/ops/filtered_lrelu.h',
-            'gan/stylegan3/torch_utils/ops/filtered_lrelu_ns.cu',
-            'gan/stylegan3/torch_utils/ops/filtered_lrelu_rd.cu',
-            'gan/stylegan3/torch_utils/ops/filtered_lrelu_wr.cu',
+            'workbench/gui_utils/DroidSans.ttf',
+            'workbench/gui_utils/DroidSans-Bold.ttf',
+            'workbench/gui_utils/icons/error.png',
+            'workbench/gui_utils/icons/info.png',
+            'workbench/gui_utils/icons/logo.png',
+            'workbench/gui_utils/icons/success.png',
+            'workbench/gui_utils/icons/warn.png',
+            'gan/stylegan2/stylegan2/torch_utils/ops/bias_act.cpp',
+            'gan/stylegan2/stylegan2/torch_utils/ops/bias_act.cu',
+            'gan/stylegan2/stylegan2/torch_utils/ops/bias_act.h',
+            'gan/stylegan2/stylegan2/torch_utils/ops/upfirdn2d.cpp',
+            'gan/stylegan2/stylegan2/torch_utils/ops/upfirdn2d.cu',
+            'gan/stylegan2/stylegan2/torch_utils/ops/upfirdn2d.h',
+            'gan/stylegan3/stylegan3/torch_utils/ops/bias_act.cpp',
+            'gan/stylegan3/stylegan3/torch_utils/ops/bias_act.cu',
+            'gan/stylegan3/stylegan3/torch_utils/ops/bias_act.h',
+            'gan/stylegan3/stylegan3/torch_utils/ops/upfirdn2d.cpp',
+            'gan/stylegan3/stylegan3/torch_utils/ops/upfirdn2d.cu',
+            'gan/stylegan3/stylegan3/torch_utils/ops/upfirdn2d.h',
+            'gan/stylegan3/stylegan3/torch_utils/ops/filtered_lrelu.cpp',
+            'gan/stylegan3/stylegan3/torch_utils/ops/filtered_lrelu.cu',
+            'gan/stylegan3/stylegan3/torch_utils/ops/filtered_lrelu.h',
+            'gan/stylegan3/stylegan3/torch_utils/ops/filtered_lrelu_ns.cu',
+            'gan/stylegan3/stylegan3/torch_utils/ops/filtered_lrelu_rd.cu',
+            'gan/stylegan3/stylegan3/torch_utils/ops/filtered_lrelu_wr.cu',
         ],
     },
     python_requires='>=3.7',
@@ -88,7 +96,7 @@ setuptools.setup(
         'torch': [
             'torch',
             'torchvision',
-            'pretrained_models'
+            'pretrainedmodels'
         ],
         'dev': [
             'parameterized',

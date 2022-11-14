@@ -33,7 +33,9 @@ def main(
     widgets = Workbench.get_default_widgets()
     if stylegan:
         from slideflow.workbench import stylegan_widgets
+        from slideflow.workbench.seed_map_widget import SeedMapWidget
         widgets += stylegan_widgets(advanced=advanced)
+        widgets += [SeedMapWidget]
     if picam:
         from slideflow.workbench.picam_widget import PicamWidget
         widgets += [PicamWidget]

@@ -32,7 +32,11 @@ class CaptureWidget:
         try:
             _height, _width, channels = image.shape
             assert channels in [1, 3]
-            assert image.dtype == np.uint8
+            if image.dtype != np.uint8:
+                try:
+                    image = image.numpy()
+                except Exception:
+                    raise ValueError(f'Expected type np.uint8, got {image.dtype}')
             os.makedirs(self.path, exist_ok=True)
             file_id = 0
             for entry in os.scandir(self.path):

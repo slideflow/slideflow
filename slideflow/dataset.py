@@ -1568,7 +1568,7 @@ class Dataset:
                 dup_vals = pt_assign[pt_assign[:, 0] == pt][:, 1]
                 dups = ", ".join([str(d) for d in dup_vals])
                 log.error(
-                    f"{pt} has multiple labels (header {header}): {dups}"
+                    f'Patient "{pt}" has multiple labels (header {header}): {dups}'
                 )
 
             # Assemble results dictionary
@@ -1738,8 +1738,10 @@ class Dataset:
             tile_px (int): Target pixel size for resizing TFRecord images.
         """
 
-        if sf.backend() == 'torch':
-            raise NotImplementedError("Not implemented for PyTorch backend.")
+        if not sf.util.tf_available:
+            raise NotImplementedError(
+                "Dataset.resize_tfrecords() requires Tensorflow, which is "
+                "not installed.")
 
         log.info(f'Resizing TFRecord tiles to ({tile_px}, {tile_px})')
         tfrecords_list = self.tfrecords()
@@ -2712,7 +2714,8 @@ class Dataset:
                     "At least one patient is in both val and training sets."
                 )
 
-            # Return list of tfrecords
+        # Assemble list of tfrecords
+        if val_strategy != 'none':
             val_tfrecords = [
                 tfr for tfr in tfrecord_dir_list
                 if path_to_name(tfr) in val_slides
@@ -2721,6 +2724,7 @@ class Dataset:
                 tfr for tfr in tfrecord_dir_list
                 if path_to_name(tfr) in train_slides
             ]
+
         assert(len(val_tfrecords) == len(val_slides))
         assert(len(training_tfrecords) == len(train_slides))
         training_dts = copy.deepcopy(self)

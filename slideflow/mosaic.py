@@ -315,7 +315,7 @@ class Mosaic:
                     self.mapped_tiles[tfr] += [tfr_idx]
                 else:
                     self.mapped_tiles[tfr] = [tfr_idx]
-                if sf.backend() == 'tensorflow':
+                if sf.model.is_tensorflow_tensor(tile_image):
                     tile_image = tile_image.numpy()
                 tile_image = self._decode_image_string(tile_image)
                 tile_alpha, num_slide, num_other = float(1), 0, 0
@@ -367,7 +367,7 @@ class Mosaic:
                     self.mapped_tiles.update({
                         point['tfrecord']: point['tfrecord_index']
                     })
-                    if sf.backend() == 'tensorflow':
+                    if sf.model.is_tensorflow_tensor(tile_image):
                         tile_image = tile_image.numpy()
                     tile_image = self._decode_image_string(tile_image)
                     extent = [

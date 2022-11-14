@@ -15,7 +15,7 @@ Slideflow has been used by:
 - [Dolezal et al](https://www.nature.com/articles/s41379-020-00724-3), _Modern Pathology_, 2020
 - [Rosenberg et al](https://ascopubs.org/doi/10.1200/JCO.2020.38.15_suppl.e23529), _Journal of Clinical Oncology_ [abstract], 2020
 - [Howard et al](https://www.nature.com/articles/s41467-021-24698-1), _Nature Communications_, 2021
-- [Dolezal et al](https://arxiv.org/abs/2204.04516) [arXiv], 2022
+- [Dolezal et al](https://www.nature.com/articles/s41467-022-34025-x) _Nature Communications_, 2022
 - [Storozuk et al](https://www.nature.com/articles/s41379-022-01039-1.pdf), _Modern Pathology_ [abstract], 2022
 - [Partin et al](https://arxiv.org/abs/2204.11678) [arXiv], 2022
 - [Dolezal et al](https://ascopubs.org/doi/abs/10.1200/JCO.2022.40.16_suppl.8549) [abstract], 2022
@@ -33,16 +33,20 @@ Full documentation with example tutorials can be found at [slideflow.dev](https:
   - [CPLEX](https://www.ibm.com/docs/en/icos/12.10.0?topic=v12100-installing-cplex-optimization-studio) 20.1.0 with [Python API](https://www.ibm.com/docs/en/icos/12.10.0?topic=cplex-setting-up-python-api)
   - _or_ [Pyomo](http://www.pyomo.org/installation) with [Bonmin](https://anaconda.org/conda-forge/coinbonmin) solver
 
-## Updates (1.3.0)
-Please see the [Version 1.3.0 Release Notes](https://github.com/jamesdolezal/slideflow/releases/tag/1.3.0) for a summary of the latest updates and fixes in the latest release.
+## Updates (1.3.2)
+Please see the [Version 1.3.2 Release Notes](https://github.com/jamesdolezal/slideflow/releases/tag/1.3.2) for a summary of the latest updates and fixes in the latest release.
 
 ## Installation
-Slideflow can be installed either with PyPI or as a Docker container. To install via pip:
+Slideflow can be installed with PyPI, as a Docker container, or run from source. 
+
+### Method 1: Install via pip
 
 ```
 pip3 install --upgrade setuptools pip wheel
 pip3 install slideflow
 ```
+
+### Method 2: Docker image
 
 Alternatively, pre-configured [docker images](https://hub.docker.com/repository/docker/jamesdolezal/slideflow) are available with OpenSlide/Libvips and the latest version of either Tensorflow and PyTorch. To install with the Tensorflow backend:
 
@@ -56,6 +60,19 @@ To install with the PyTorch backend:
 ```
 docker pull jamesdolezal/slideflow:latest-torch
 docker run -it --shm-size=2g --gpus all jamesdolezal/slideflow:latest-torch
+```
+
+### Method 3: From source
+
+To run from source, clone this repository, install the conda development environment, and build a wheel:
+
+```
+git clone https://github.com/jamesdolezal/slideflow
+cd slideflow
+conda env create -f environment.yml
+conda activate slideflow
+python setup.py bdist_wheel
+pip install dist/slideflow*
 ```
 
 ## Getting started

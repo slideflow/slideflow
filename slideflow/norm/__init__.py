@@ -255,7 +255,7 @@ class StainNormalizer:
             task = pb.add_task('Fitting normalizer...', total=dataset.num_tiles)
             pb.start()
             for img_batch, slide in dts:
-                if sf.backend() == 'torch':
+                if sf.model.is_torch_tensor(img_batch):
                     img_batch = img_batch.permute(0, 2, 3, 1)  # BCWH -> BWHC
 
                 mapped = pool.imap(lambda x: self.n.fit(x.numpy()), img_batch)

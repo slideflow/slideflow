@@ -7,7 +7,7 @@ import types
 from collections import defaultdict
 from os.path import join
 from typing import (TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple,
-                    Union)
+                    Union, Callable)
 
 import numpy as np
 import pretrainedmodels
@@ -130,7 +130,10 @@ class ModelWrapper(torch.nn.Module):
                 self.model.fc = torch.nn.Identity()
             elif hasattr(self.model, 'out_features'):
                 num_ftrs = self.model.out_features
+            elif hasattr(self.model, 'head'):
+                num_ftrs = self.model.head.out_features
             else:
+                print(self.model)
                 raise errors.ModelError("Unable to find last linear layer for "
                                         f"model {model.__class__.__name__}")
         else:
@@ -270,7 +273,7 @@ class ModelParams(_base._ModelParams):
             'CosineEmbedding': torch.nn.CosineEmbeddingLoss,
         }
         super().__init__(loss=loss, **kwargs)
-        assert self.model in self.ModelDict.keys()
+        assert self.model in self.ModelDict.keys() or self.model.startswith('timm_')
         assert self.optimizer in self.OptDict.keys()
         assert self.loss in self.AllLossDict
         if isinstance(self.augment, str) and 'b' in self.augment:
@@ -282,6 +285,7 @@ class ModelParams(_base._ModelParams):
                      "classifier loss will be included during training "
                      "starting in version 1.3")
 
+
     def get_opt(self, params_to_update: Iterable) -> torch.optim.Optimizer:
         return self.OptDict[self.optimizer](
             params_to_update,
@@ -292,6 +296,23 @@ class ModelParams(_base._ModelParams):
     def get_loss(self) -> torch.nn.modules.loss._Loss:
         return self.AllLossDict[self.loss]()
 
+    def get_model_loader(self, model: str) -> Callable:
+        if model in self.ModelDict:
+            return self.ModelDict[model]
+        elif model.startswith('timm_'):
+
+            def loader(**kwargs):
+                try:
+                    import timm
+                except ImportError:
+                    raise ImportError(f"Unable to load model {model}; "
+                                      "timm package not installed.")
+                return timm.create_model(model[5:], **kwargs)
+
+            return loader
+        else:
+            raise ValueError(f"Model {model} not found.")
+
     def build_model(
         self,
         labels: Optional[Dict] = None,
@@ -300,6 +321,7 @@ class ModelParams(_base._ModelParams):
         pretrain: Optional[str] = None,
         checkpoint: Optional[str] = None
     ) -> torch.nn.Module:
+
         assert num_classes is not None or labels is not None
         if num_classes is None:
             assert labels is not None
@@ -307,15 +329,24 @@ class ModelParams(_base._ModelParams):
         if not isinstance(num_classes, dict):
             num_classes = {'out-0': num_classes}
 
+        # Prepare custom model pretraining
+        log.info(f"Using pretraining: [green]{pretrain}")
+        if (isinstance(pretrain, str)
+           and sf.util.path_to_ext(pretrain).lower() == 'zip'):
+           _pretrained = pretrain
+           pretrain = None
+        else:
+            _pretrained = None
+
         # Build base model
         if self.model in ('xception', 'nasnet_large'):
-            _model = self.ModelDict[self.model](
+            _model = self.get_model_loader(self.model)(
                 num_classes=1000,
                 pretrained=pretrain
             )
         else:
             # Compatibility logic for prior versions of PyTorch
-            model_fn = self.ModelDict[self.model]
+            model_fn = self.get_model_loader(self.model)
             model_fn_sig = inspect.signature(model_fn)
             model_kw = [
                 param.name
@@ -325,7 +356,8 @@ class ModelParams(_base._ModelParams):
             call_kw = {}
             if 'image_size' in model_kw:
                 call_kw.update(dict(image_size=self.tile_px))
-            if version.parse(torchvision.__version__) >= version.parse("0.13"):
+            if (version.parse(torchvision.__version__) >= version.parse("0.13")
+               and not self.model.startswith('timm_')):
                 call_kw.update(dict(weights=pretrain))  # type: ignore
             else:
                 call_kw.update(dict(pretrained=pretrain))  # type: ignore
@@ -345,6 +377,8 @@ class ModelParams(_base._ModelParams):
             dropout=self.dropout,
             include_top=self.include_top
         )
+        if _pretrained is not None:
+            lazy_load_pretrained(model, _pretrained)
         if checkpoint is not None:
             model.load_state_dict(torch.load(checkpoint))
         return model
@@ -2201,7 +2235,7 @@ class UncertaintyInterface(Features):
         raise NotImplementedError
 
 
-def load(path):
+def load(path: str) -> torch.nn.Module:
     """Load PyTorch model from location.
 
     Args:
@@ -2226,3 +2260,36 @@ def load(path):
     )
     model.load_state_dict(torch.load(path))
     return model
+
+
+def lazy_load_pretrained(
+    module: torch.nn.Module,
+    to_load: str
+) -> None:
+    """Loads pretrained model weights into an existing module, ignoring
+    incompatible Tensors.
+
+    Args:
+        module (torch.nn.Module): Destination module for weights.
+        to_load (str, torch.nn.Module): Module with weights to load. Either
+            path to PyTorch Slideflow model, or an existing PyTorch module.
+
+    Returns:
+        None
+    """
+    # Get state dictionaries
+    current_model_dict = module.state_dict()
+    if isinstance(to_load, str):
+        loaded_state_dict = torch.load(to_load)
+    else:
+        loaded_state_dict = to_load.state_dict()
+
+    # Only transfer valid states
+    new_state_dict = {k:v if v.size()==current_model_dict[k].size()
+                          else  current_model_dict[k]
+                      for k,v in zip(current_model_dict.keys(),
+                                     loaded_state_dict.values())}
+    n_states = len(list(new_state_dict.keys()))
+    log.info(f"Loaded {n_states} Tensor states from "
+             f"pretrained model [green] {to_load}")
+    module.load_state_dict(new_state_dict, strict=False)

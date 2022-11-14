@@ -7,6 +7,7 @@ import os
 import re
 import shutil
 import sys
+import requests
 from rich import progress
 from rich.logging import RichHandler
 from rich.highlighter import NullHighlighter
@@ -18,6 +19,7 @@ from glob import glob
 from os.path import dirname, exists, isdir, join
 from packaging import version
 from statistics import mean, median
+from tqdm import tqdm
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
 import numpy as np
@@ -170,6 +172,45 @@ def header(console=None):
               border_style='purple'),
         justify='center')
 
+
+# --- Data download functions -------------------------------------------------
+
+def download_from_tcga(
+    uuid: str,
+    dest: str,
+    message: str = 'Downloading...'
+) -> None:
+    """Download a file from TCGA (GDC) by UUID."""
+    data_endpt = f"https://api.gdc.cancer.gov/data/"
+    response = requests.post(
+        data_endpt,
+        data=json.dumps({'ids': [uuid]}),
+        headers={"Content-Type": "application/json"},
+        stream=True
+    )
+    response_head_cd = response.headers["Content-Disposition"]
+    block_size = 4096
+    block_per_mb = block_size / 1000000
+    file_size = int(response.headers.get('Content-Length', ''))
+    file_size_mb = file_size / 1000000
+    running_total_mb = 0
+    file_name = join(dest, re.findall("filename=(.+)", response_head_cd)[0])
+    pbar = tqdm(desc=message,
+                total=file_size_mb, unit='MB',
+                bar_format="{desc}: {percentage:3.0f}%|{bar}| "
+                           "{n:.2f}/{total:.2f} [{elapsed}<{remaining}] "
+                           "{rate_fmt}{postfix}")
+
+    with open(file_name, "wb") as output_file:
+        for chunk in response.iter_content(chunk_size=block_size):
+            output_file.write(chunk)
+            if block_per_mb + running_total_mb < file_size_mb:
+                running_total_mb += block_per_mb  # type: ignore
+                pbar.update(block_per_mb)
+            else:
+                running_total_mb += file_size_mb - running_total_mb  # type: ignore
+                pbar.update(file_size_mb - running_total_mb)
+
 # --- Utility functions and classes -------------------------------------------
 
 def model_backend(model):
@@ -217,30 +258,36 @@ def is_mag(arg1: str) -> bool:
         return False
     return True
 
+
 def is_model(path: str) -> bool:
     """Checks if the given path is a valid Slideflow model."""
-    return is_tensorflow_model(path) or is_torch_model(path)
+    return is_tensorflow_model_path(path) or is_torch_model_path(path)
+
 
 def is_project(path: str) -> bool:
     """Checks if the given path is a valid Slideflow project."""
     return isdir(path) and exists(join(path, 'settings.json'))
+
 
 def is_slide(path: str) -> bool:
     """Checks if the given path is a supported slide."""
     return (os.path.isfile(path)
             and sf.util.path_to_ext(path).lower() in SUPPORTED_FORMATS)
 
-def is_tensorflow_model(path: str) -> bool:
+
+def is_tensorflow_model_path(path: str) -> bool:
     """Checks if the given path is a valid Slideflow/Tensorflow model."""
     return (isdir(path)
             and (exists(join(path, 'params.json'))
                  or exists(join(dirname(path), 'params.json'))))
 
-def is_torch_model(path: str) -> bool:
+
+def is_torch_model_path(path: str) -> bool:
     """Checks if the given path is a valid Slideflow/PyTorch model."""
     return (os.path.isfile(path)
             and sf.util.path_to_ext(path).lower() == 'zip'
             and exists(join(dirname(path), 'params.json')))
+
 
 def assert_is_mag(arg1: str):
     if not isinstance(arg1, str) or not is_mag(arg1):

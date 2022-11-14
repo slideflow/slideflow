@@ -133,6 +133,7 @@ class Workbench(imgui_window.ImguiWindow):
         self.box_y              = None
         self.tile_px            = None
         self.tile_um            = None
+        self.tile_zoom          = 1
         self.heatmap            = None
         self.rendered_heatmap   = None
         self.overlay            = None
@@ -265,13 +266,13 @@ class Workbench(imgui_window.ImguiWindow):
             from pyvips.base import version as lv
 
             imgui.open_popup('about_popup')
-            width = 200
+            version_width = imgui.calc_text_size("Version: " + sf.__version__).x
+            width = max(200, version_width + self.spacing)
             height = 315
             imgui.set_next_window_content_size(width, 0)
             imgui.set_next_window_position(self.content_width/2 - width/2, self.content_height/2 - height/2)
 
             about_text =  f"Version: {sf.__version__}\n"
-            about_text += f"Commit: {sf.__gitcommit__}\n"
             about_text += f"Python: {platform.python_version()}\n"
             about_text += f"Libvips: {lv(0)}.{lv(1)}.{lv(2)}\n"
             about_text += f"Pyvips: {pyvips.__version__}\n"
@@ -545,6 +546,14 @@ class Workbench(imgui_window.ImguiWindow):
                 if imgui.menu_item('Decrease Font Size', 'Ctrl+-')[1]:
                     self.decrease_font_size()
 
+                imgui.separator()
+                if imgui.menu_item('Increase Tile Zoom', 'Ctrl+]')[1]:
+                    self.increase_tile_zoom()
+                if imgui.menu_item('Decrease Tile Zoom', 'Ctrl+[')[1]:
+                    self.decrease_tile_zoom()
+                if imgui.menu_item('Reset Tile Zoom', 'Ctrl+\\')[1]:
+                    self.reset_tile_zoom()
+
                 # Widgets with "View" menu.
                 for w in self.widgets:
                     if hasattr(w, 'view_menu_options'):
@@ -616,8 +625,8 @@ class Workbench(imgui_window.ImguiWindow):
                 width = self.font_size * 8
                 height = self.font_size * 3
             else:
-                raw_img_w = 0 if not has_raw_image else self._tex_img.shape[0]
-                norm_img_w = 0 if not has_norm_image else self._norm_tex_img.shape[0]
+                raw_img_w = 0 if not has_raw_image else self._tex_img.shape[0] * self.tile_zoom
+                norm_img_w = 0 if not has_norm_image else self._norm_tex_img.shape[0] * self.tile_zoom
                 height = self.font_size * 2 + max(raw_img_w, norm_img_w)
                 width = raw_img_w + norm_img_w + self.spacing
 
@@ -677,11 +686,17 @@ class Workbench(imgui_window.ImguiWindow):
             self.heatmap_widget.show = True
         if self._control_down and action == glfw.RELEASE and key == glfw.KEY_SPACE:
             self.heatmap_widget.show = False
+        if self._control_down and action == glfw.PRESS and key == glfw.KEY_LEFT_BRACKET:
+            self.decrease_tile_zoom()
+        if self._control_down and action == glfw.PRESS and key == glfw.KEY_RIGHT_BRACKET:
+            self.increase_tile_zoom()
+        if self._control_down and action == glfw.PRESS and key == glfw.KEY_BACKSLASH:
+            self.reset_tile_zoom()
 
     def _handle_user_input(self):
         """Handle user input to support clicking/dragging the main viewer."""
 
-        # Detect mouse dragging in the thumbnail display.
+        # Detect right mouse click in the main display.
         clicking, cx, cy, wheel = imgui_utils.click_hidden_window(
             '##result_area',
             x=self.offset_x,
@@ -689,6 +704,7 @@ class Workbench(imgui_window.ImguiWindow):
             width=self.content_width - self.offset_x,
             height=self.content_height - self.offset_y,
             mouse_idx=1)
+        # Detect dragging with left mouse in the main display.
         dragging, dx, dy = imgui_utils.drag_hidden_window(
             '##result_area',
             x=self.offset_x,
@@ -697,10 +713,10 @@ class Workbench(imgui_window.ImguiWindow):
             height=self.content_height - self.offset_y)
         return EasyDict(
             clicking=clicking,
+            dragging=dragging,
+            wheel=wheel,
             cx=int(cx * self.pixel_ratio),
             cy=int(cy * self.pixel_ratio),
-            wheel=wheel,
-            dragging=dragging,
             dx=int(dx * self.pixel_ratio),
             dy=int(dy * self.pixel_ratio)
         )
@@ -872,6 +888,11 @@ class Workbench(imgui_window.ImguiWindow):
             self.load_slide(path, ignore_errors=ignore_errors)
         elif sf.util.is_model(path):
             self.load_model(path, ignore_errors=ignore_errors)
+        else:
+            # See if any widgets implement a drag_and_drop_hook() method
+            for widget in self.widgets:
+                if hasattr(widget, 'drag_and_drop_hook'):
+                    widget.drag_and_drop_hook(path)
 
     def clear_overlay(self) -> None:
         """Remove the currently overlay image."""
@@ -1112,8 +1133,8 @@ class Workbench(imgui_window.ImguiWindow):
     def get_default_widgets() -> List[Any]:
         """Returns a list of the default non-mandatory widgets."""
 
-        from slideflow.workbench.layer_widget import LayerWidget
-        return [LayerWidget]
+        from slideflow.workbench.layer_umap_widget import LayerUMAPWidget
+        return [LayerUMAPWidget]
 
     def get_renderer(self, name: str) -> Any:
         """Check for the given additional renderer in the rendering pipeline."""
@@ -1129,6 +1150,18 @@ class Workbench(imgui_window.ImguiWindow):
                 and self._model_config is not None
                 and 'uq' in self._model_config['hp']
                 and self._model_config['hp']['uq'])
+
+    def increase_tile_zoom(self) -> None:
+        """Increase zoom of tile view two-fold."""
+        self.tile_zoom *= 2
+
+    def decrease_tile_zoom(self) -> None:
+        """Decrease zoom of tile view by half."""
+        self.tile_zoom /= 2
+
+    def reset_tile_zoom(self) -> None:
+        """Reset tile zoom level."""
+        self.tile_zoom = 1
 
     def load_heatmap(self, path: str) -> None:
         """Load a saved heatmap (*.npz).
