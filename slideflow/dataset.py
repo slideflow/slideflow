@@ -90,15 +90,15 @@ import shutil
 import threading
 import time
 import types
+import tempfile
 from collections import defaultdict
 from datetime import datetime
-from functools import partial
 from glob import glob
 from multiprocessing.dummy import Pool as DPool
 from os.path import basename, dirname, exists, isdir, join
 from queue import Queue
 from random import shuffle
-from tabulate import tabulate
+from tabulate import tabulate  # type: ignore[import]
 from pprint import pformat
 from typing import (TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Tuple,
                     Union)
@@ -106,6 +106,7 @@ import numpy as np
 import pandas as pd
 import shapely.geometry as sg
 from rich.progress import track, Progress
+from tqdm import tqdm
 
 import slideflow as sf
 from slideflow import errors
@@ -831,6 +832,79 @@ class Dataset:
                       transient=True):
             pass
         pool.close()
+
+    def check_duplicates(
+        self,
+        dataset: Optional["Dataset"] = None,
+        px: int = 64,
+        mse_thresh: int = 100
+    ) -> List[Tuple[str, str]]:
+        """Checks for duplicate slides by comparing slide thumbnails.
+
+        Args:
+            dataset (`slideflow.dataset.Dataset`, optional): Also check for
+                duplicate slides between this dataset and the provided dataset.
+            px (int): Pixel size at which to compare thumbnails. Defaults to 64.
+            mse_thresh (int): MSE threshold below which an image pair is
+                considered duplicate. Defaults to 100.
+
+        Returns:
+            List[str], optional: List of path pairs of possibly duplicate slides.
+        """
+        import cv2
+
+        thumbs = {}
+        dups = []
+
+        def mse(imageA, imageB):
+            """Calulate the mean squared error between two image matrices."""
+            err = np.sum((imageA.astype("float") - imageB.astype("float")) ** 2)
+            err /= float(imageA.shape[0] * imageA.shape[1])
+            return err
+
+        def img_from_path(path):
+            """Read and resize an image."""
+            img = cv2.imdecode(
+                np.fromfile(path, dtype=np.uint8),
+                cv2.IMREAD_UNCHANGED)
+            img = img[..., 0:3]
+            return cv2.resize(img, dsize=(px, px), interpolation=cv2.INTER_CUBIC)
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            os.makedirs(join(temp_dir, 'this_dataset'))
+            self.thumbnails(join(temp_dir, 'this_dataset'))
+            if dataset:
+                os.makedirs(join(temp_dir, 'other_dataset'))
+                dataset.thumbnails(join(temp_dir, 'other_dataset'))
+            for subdir in os.listdir(temp_dir):
+                files = os.listdir(join(temp_dir, subdir))
+                for filename in tqdm(files, desc="Scanning for duplicates..."):
+                    if dataset and subdir == 'other_dataset':
+                        wsi_path = dataset.find_slide(slide=path_to_name(filename))
+                    else:
+                        wsi_path = self.find_slide(slide=path_to_name(filename))
+                    assert wsi_path is not None
+                    img = img_from_path(join(temp_dir, subdir, filename))
+                    thumbs[wsi_path] = img
+
+                    # Check if this thumbnail has a duplicate
+                    for existing_img in thumbs:
+                        if wsi_path != existing_img:
+                            img2 = thumbs[existing_img]
+                            img_mse = mse(img, img2)
+                            if img_mse < mse_thresh:
+                                tqdm.write('Possible duplicates: '
+                                           '{} and {} (MSE: {})'.format(
+                                    wsi_path,
+                                    existing_img,
+                                    mse(img, img2)
+                                ))
+                                dups += [(wsi_path, existing_img)]
+        if not dups:
+            log.info("No duplicates found.")
+        else:
+            log.info(f"{len(dups)} possible duplicates found.")
+        return dups
 
     def clear_filters(self) -> "Dataset":
         """Returns a dataset with all filters cleared.
@@ -1992,12 +2066,16 @@ class Dataset:
                 patients_with_roi[p] = True
 
         # Print summary.
+        if self.annotations is not None:
+            num_patients = len(self.annotations.patient.unique())
+        else:
+            num_patients = 0
         print("Overview:")
         table = [("Configuration file:", self._config),
                 ("Tile size (px):",     self.tile_px),
                 ("Tile size (um):",     self.tile_um),
                 ("Slides:",             len(self.slides())),
-                ("Patients:",           len(self.annotations.patient.unique())),
+                ("Patients:",           num_patients),
                 ("Slides with ROIs:",   len([s for s in slides_with_roi
                                              if slides_with_roi[s]])),
                 ("Patients with ROIs:", len([p for p in patients_with_roi
@@ -2369,12 +2447,11 @@ class Dataset:
                 embedded in the slide file, downsampling is permitted to
                 accelerate thumbnail calculation.
         """
-        log.info('Generating thumbnails...')
         slide_list = self.slide_paths()
         rois = self.rois()
         log.info(f'Saving thumbnails to [green]{outdir}')
-        for slide_path in slide_list:
-            log.info(f'Working on [green]{path_to_name(slide_path)}[/]...')
+        for slide_path in tqdm(slide_list, desc="Generating thumbnails..."):
+            log.debug(f'Working on [green]{path_to_name(slide_path)}[/]...')
             try:
                 whole_slide = WSI(slide_path,
                                   tile_px=1000,
@@ -2382,7 +2459,7 @@ class Dataset:
                                   stride_div=1,
                                   enable_downsample=enable_downsample,
                                   rois=rois,
-                                  roi_method='inside' if roi else 'auto')
+                                  verbose=False)
             except errors.MissingROIError:
                 log.info(f"Skipping {whole_slide.name}; missing ROI")
             except Exception as e:
