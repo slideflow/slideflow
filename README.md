@@ -20,6 +20,7 @@ Slideflow has been used by:
 - [Partin et al](https://arxiv.org/abs/2204.11678) [arXiv], 2022
 - [Dolezal et al](https://ascopubs.org/doi/abs/10.1200/JCO.2022.40.16_suppl.8549) [abstract], 2022
 - [Howard et al](https://www.biorxiv.org/content/10.1101/2022.07.07.499039v1) [bioRxiv], 2022
+- [Dolezal et al](https://arxiv.org/abs/2211.06522) [arXiv], 2022
 
 Full documentation with example tutorials can be found at [slideflow.dev](https://www.slideflow.dev/).
 
