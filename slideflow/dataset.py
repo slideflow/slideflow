@@ -2385,6 +2385,8 @@ class Dataset:
                                   roi_method='inside' if roi else 'auto')
             except errors.MissingROIError:
                 log.info(f"Skipping {whole_slide.name}; missing ROI")
+            except Exception as e:
+                log.error(f"Error generating thumbnail for {whole_slide.name}: {e}")
             if roi:
                 thumb = whole_slide.thumb(rois=True)
             else:
