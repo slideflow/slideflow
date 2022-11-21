@@ -25,7 +25,7 @@ class SeedMapWidget:
         self._random_seeds  = None
 
     def refresh_model_path(self):
-        if hasattr(self.viz, 'pkl') and self._pkl != self.viz.pkl:
+        if hasattr(self.viz, 'pkl') and self._pkl != self.viz.pkl and self._pkl:
             self._pkl = self.viz.pkl
             self.coords = {}
             seed_maps_dir = join(dirname(self._pkl), 'seed_maps')
