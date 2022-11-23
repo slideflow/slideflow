@@ -34,8 +34,8 @@ Full documentation with example tutorials can be found at [slideflow.dev](https:
   - [CPLEX](https://www.ibm.com/docs/en/icos/12.10.0?topic=v12100-installing-cplex-optimization-studio) 20.1.0 with [Python API](https://www.ibm.com/docs/en/icos/12.10.0?topic=cplex-setting-up-python-api)
   - _or_ [Pyomo](http://www.pyomo.org/installation) with [Bonmin](https://anaconda.org/conda-forge/coinbonmin) solver
 
-## Updates (1.3.2)
-Please see the [Version 1.3.2 Release Notes](https://github.com/jamesdolezal/slideflow/releases/tag/1.3.2) for a summary of the latest updates and fixes in the latest release.
+## Updates (1.3.3)
+Please see the [Version 1.3.3 Release Notes](https://github.com/jamesdolezal/slideflow/releases/tag/1.3.3) for a summary of the latest updates and fixes in the latest release.
 
 ## Installation
 Slideflow can be installed with PyPI, as a Docker container, or run from source. 
