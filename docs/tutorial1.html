@@ -425,7 +425,7 @@ to only include patients with documented ER status (otherwise a blank “” wou
 
     <span class="c1"># Train with 5-fold cross-validation</span>
     <span class="n">P</span><span class="o">.</span><span class="n">train</span><span class="p">(</span>
-        <span class="s1">&#39;ER_status&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;er_status_by_ihc&#39;</span><span class="p">,</span>
         <span class="n">params</span><span class="o">=</span><span class="n">hp</span><span class="p">,</span>
         <span class="n">val_k_fold</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
         <span class="n">filters</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;dataset&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;train&#39;</span><span class="p">],</span>
@@ -441,7 +441,7 @@ we will set <code class="docutils literal notranslate"><span class="pre">val_str
 
     <span class="c1"># Train across the entire training dataset</span>
     <span class="n">P</span><span class="o">.</span><span class="n">train</span><span class="p">(</span>
-        <span class="s1">&#39;ER_status&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;er_status_by_ihc&#39;</span><span class="p">,</span>
         <span class="n">params</span><span class="o">=</span><span class="n">hp</span><span class="p">,</span>
         <span class="n">val_strategy</span><span class="o">=</span><span class="s1">&#39;none&#39;</span><span class="p">,</span>
         <span class="n">filters</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;dataset&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;train&#39;</span><span class="p">],</span>
@@ -466,7 +466,7 @@ we will set <code class="docutils literal notranslate"><span class="pre">val_str
 
     <span class="c1"># Train with 5-fold cross-validation</span>
     <span class="n">P</span><span class="o">.</span><span class="n">train</span><span class="p">(</span>
-        <span class="s1">&#39;ER_status&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;er_status_by_ihc&#39;</span><span class="p">,</span>
         <span class="n">params</span><span class="o">=</span><span class="n">hp</span><span class="p">,</span>
         <span class="n">val_k_fold</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
         <span class="n">filters</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;dataset&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;train&#39;</span><span class="p">],</span>
@@ -475,7 +475,7 @@ we will set <code class="docutils literal notranslate"><span class="pre">val_str
 
     <span class="c1"># Train across the entire training dataset</span>
     <span class="n">P</span><span class="o">.</span><span class="n">train</span><span class="p">(</span>
-        <span class="s1">&#39;ER_status&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;er_status_by_ihc&#39;</span><span class="p">,</span>
         <span class="n">params</span><span class="o">=</span><span class="n">hp</span><span class="p">,</span>
         <span class="n">val_strategy</span><span class="o">=</span><span class="s1">&#39;none&#39;</span><span class="p">,</span>
         <span class="n">filters</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;dataset&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;train&#39;</span><span class="p">],</span>
