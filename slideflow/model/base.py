@@ -19,6 +19,7 @@ class _ModelParams:
 
     ModelDict = {}  # type: Dict
     LinearLossDict = {}  # type: Dict
+    AllLossDict = {}  # type: Dict
 
     def __init__(
         self,
@@ -29,7 +30,7 @@ class _ModelParams:
         toplayer_epochs: int = 0,
         model: str = 'xception',
         pooling: str = 'max',
-        loss: str = 'sparse_categorical_crossentropy',
+        loss: Union[str, Dict] = 'sparse_categorical_crossentropy',
         learning_rate: float = 0.0001,
         learning_rate_decay: float = 0,
         learning_rate_decay_steps: float = 100000,
@@ -192,6 +193,22 @@ class _ModelParams:
             self.ModelDict.update({'custom': m})
             self._model = 'custom'
 
+    @property
+    def loss(self) -> str:
+        return self._loss
+    
+    @loss.setter
+    def loss(self, l: Union[str, Dict])  -> None:
+        if isinstance(l, dict):
+            assert l['type'] in ('cph', 'linear', 'category')
+            loss_name = 'custom_' + l['type']
+            loss_function = l['fun']
+            self.AllLossDict.update({loss_name: loss_function})
+            self._loss = loss_name
+        elif isinstance(l, str):
+            assert l in self.AllLossDict
+            self._loss = l
+
     def _get_args(self) -> List[str]:
         to_ignore = [
             'get_opt',
@@ -347,7 +364,10 @@ class _ModelParams:
 
     def model_type(self) -> str:
         """Returns either 'linear', 'categorical', or 'cph' depending on the loss type."""
-        if self.loss == 'negative_log_likelihood':
+        #check if loss is custom_[type] and returns type
+        if (self.loss[:6] == 'custom'):
+            return self.loss[7:]
+        elif self.loss == 'negative_log_likelihood':
             return 'cph'
         elif self.loss in self.LinearLossDict:
             return 'linear'
