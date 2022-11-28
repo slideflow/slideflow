@@ -2,11 +2,14 @@ import unittest
 import sys
 import numpy as np
 import slideflow as sf
+from packaging import version
 from parameterized import parameterized
 from slideflow.util import log
 
 try:
     import tensorflow as tf
+    if version.parse(tf.__version__) < version.parse("2.0"):
+        raise ImportError
 
     gpus = tf.config.experimental.list_physical_devices('GPU')
     for gpu in gpus:

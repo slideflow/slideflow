@@ -11,17 +11,16 @@ import cv2
 
 try:
     import tensorflow as tf
-except ImportError:
-    pass
-else:
     import slideflow.norm.tensorflow as tf_norm
+except ImportError:
+    tf_norm = None
 
 try:
     import torch
-except ImportError:
-    pass
-else:
     import slideflow.norm.torch as torch_norm
+except ImportError:
+    torch_norm = None
+
 
 spams_loader = importlib.util.find_spec('spams')
 
@@ -262,7 +261,7 @@ class TestSlide(unittest.TestCase):
         self._test_vahadane_fit_to_path(norm)
         self._test_vahadane_set_fit(norm)
 
-    @unittest.skipIf('tensorflow' not in sys.modules, "Tensorflow not installed")
+    @unittest.skipIf('tf_norm' is None, "Tensorflow not imported")
     def test_reinhard_tensorflow(self):
         norm = tf_norm.StainNormalizer('reinhard')
         self._test_transforms(norm)
@@ -270,7 +269,7 @@ class TestSlide(unittest.TestCase):
         self._test_reinhard_fit_to_path(norm)
         self._test_reinhard_set_fit(norm)
 
-    @unittest.skipIf('tensorflow' not in sys.modules, "Tensorflow not installed")
+    @unittest.skipIf('tf_norm' is None, "Tensorflow not imported")
     def test_reinhard_fast_tensorflow(self):
         norm = tf_norm.StainNormalizer('reinhard_fast')
         self._test_transforms(norm)
@@ -278,7 +277,7 @@ class TestSlide(unittest.TestCase):
         self._test_reinhard_fit_to_path(norm)
         self._test_reinhard_set_fit(norm)
 
-    @unittest.skipIf('tensorflow' not in sys.modules, "Tensorflow not installed")
+    @unittest.skipIf('tf_norm' is None, "Tensorflow not imported")
     def test_reinhard_mask_tensorflow(self):
         norm = tf_norm.StainNormalizer('reinhard_mask')
         self._test_transforms(norm)
@@ -286,7 +285,7 @@ class TestSlide(unittest.TestCase):
         self._test_reinhard_fit_to_path(norm)
         self._test_reinhard_set_fit(norm)
 
-    @unittest.skipIf('tensorflow' not in sys.modules, "Tensorflow not installed")
+    @unittest.skipIf('tf_norm' is None, "Tensorflow not imported")
     def test_reinhard_fast_mask_tensorflow(self):
         norm = tf_norm.StainNormalizer('reinhard_fast_mask')
         self._test_transforms(norm)
@@ -294,7 +293,7 @@ class TestSlide(unittest.TestCase):
         self._test_reinhard_fit_to_path(norm)
         self._test_reinhard_set_fit(norm)
 
-    @unittest.skipIf('tensorflow' not in sys.modules, "Tensorflow not installed")
+    @unittest.skipIf('tf_norm' is None, "Tensorflow not imported")
     def test_macenko_tensorflow(self):
         norm = tf_norm.StainNormalizer('macenko')
         self._test_transforms(norm)
@@ -302,7 +301,7 @@ class TestSlide(unittest.TestCase):
         self._test_macenko_fit_to_path(norm)
         self._test_macenko_set_fit(norm)
 
-    @unittest.skipIf('torch' not in sys.modules, "Torch not installed")
+    @unittest.skipIf('torch_norm' is None, "Torch not imported")
     def test_reinhard_torch(self):
         norm = torch_norm.StainNormalizer('reinhard')
         self._test_transforms(norm)
@@ -310,7 +309,7 @@ class TestSlide(unittest.TestCase):
         self._test_reinhard_fit_to_path(norm)
         self._test_reinhard_set_fit(norm)
 
-    @unittest.skipIf('torch' not in sys.modules, "Torch not installed")
+    @unittest.skipIf('torch_norm' is None, "Torch not imported")
     def test_reinhard_fast_torch(self):
         norm = torch_norm.StainNormalizer('reinhard_fast')
         self._test_transforms(norm)
