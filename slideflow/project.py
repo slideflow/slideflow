@@ -1763,7 +1763,7 @@ class Project:
         outdir: Optional[str] = None,
         resolution: str = 'low',
         batch_size: int = 32,
-        roi_method: str = 'inside',
+        roi_method: str = 'auto',
         num_threads: Optional[int] = None,
         img_format: str = 'auto',
         skip_completed: bool = False,
