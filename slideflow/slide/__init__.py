@@ -892,6 +892,7 @@ class _BaseLoader:
 
     def remove_qc(self) -> None:
         self._build_coord()
+        self.qc_masks = []
         log.debug(f'QC removed from slide {self.shortname}')
 
     def qc(
@@ -902,7 +903,7 @@ class _BaseLoader:
         blur_threshold: float = 0.02,
         filter_threshold: float = 0.6,
         blur_mpp: float = 4
-    ) -> Image.Image:
+    ) -> Optional[Image.Image]:
         """Applies quality control to a slide, performing filtering based on
         a whole-slide image thumbnail.
 
@@ -944,9 +945,11 @@ class _BaseLoader:
             method = [method]
 
         starttime = time.time()
+        img = None
         for qc in method:
             mask = qc(self)
-            img = self.apply_qc_mask(mask, filter_threshold=filter_threshold)
+            if mask is not None:
+                img = self.apply_qc_mask(mask, filter_threshold=filter_threshold)
         dur = f'(time: {time.time()-starttime:.2f}s)'
         log.debug(f'QC ({method}) complete for slide {self.shortname} {dur}')
         return img

@@ -265,7 +265,13 @@ class ExtractionReport:
                 pdf.cell(20, 4, m, ln=1)
             pdf.set_y(y+1)
             pdf.set_font('Arial')
-            for m in (meta.tile_px, meta.tile_um, meta.qc, meta.total_slides,
+            if isinstance(meta.qc, list):
+                qc = f"{len(meta.qc)} total"
+            elif isinstance(meta.qc, str):
+                qc = meta.qc
+            else:
+                qc = f"1 total"
+            for m in (meta.tile_px, meta.tile_um, qc, meta.total_slides,
                       meta.roi_method, meta.slides_skipped, meta.stride):
                 pdf.cell(30)
                 pdf.cell(20, 4, str(m), ln=1)
