@@ -196,14 +196,20 @@ class _ModelParams:
     @property
     def loss(self) -> str:
         return self._loss
-    
+
     @loss.setter
     def loss(self, l: Union[str, Dict])  -> None:
         if isinstance(l, dict):
-            assert l['type'] in ('cph', 'linear', 'categorical')
+            # Verify that the custom loss dictionary provided is valid.
+            valid_loss_types = ('cph', 'linear', 'categorical')
+            if 'type' not in l or 'fn' not in l:
+                raise ValueError("If supplying a custom loss, dictionary must "
+                                 "have the keys 'type' and 'fn'.")
+            if l['type'] not in valid_loss_types:
+                raise ValueError("Custom loss type must be one of: ",
+                                 ', '.join(valid_loss_types))
             loss_name = 'custom_' + l['type']
-            loss_function = l['fun']
-            self.AllLossDict.update({loss_name: loss_function})
+            self.AllLossDict.update({loss_name: l['fn']})
             self._loss = loss_name
         elif isinstance(l, str):
             assert l in self.AllLossDict
@@ -365,7 +371,7 @@ class _ModelParams:
     def model_type(self) -> str:
         """Returns either 'linear', 'categorical', or 'cph' depending on the loss type."""
         #check if loss is custom_[type] and returns type
-        if (self.loss[:6] == 'custom'):
+        if self.loss.startswith('custom'):
             return self.loss[7:]
         elif self.loss == 'negative_log_likelihood':
             return 'cph'

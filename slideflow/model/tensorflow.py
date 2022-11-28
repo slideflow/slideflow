@@ -604,7 +604,10 @@ class ModelParams(_base._ModelParams):
 
     def model_type(self) -> str:
         """Returns 'linear', 'categorical', or 'cph', reflecting the loss."""
-        if self.loss == 'negative_log_likelihood':
+        #check if loss is custom_[type] and returns type
+        if self.loss.startswith('custom'):
+            return self.loss[7:]
+        elif self.loss == 'negative_log_likelihood':
             return 'cph'
         elif self.loss in self.LinearLossDict:
             return 'linear'
