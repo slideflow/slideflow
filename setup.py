@@ -86,7 +86,8 @@ setuptools.setup(
         'pyopengl',
         'glfw',
         'saliency',
-        'pyperclip'
+        'pyperclip',
+        'requests'
     ],
     extras_require={
         'tf': [
