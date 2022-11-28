@@ -200,7 +200,7 @@ class _ModelParams:
     @loss.setter
     def loss(self, l: Union[str, Dict])  -> None:
         if isinstance(l, dict):
-            assert l['type'] in ('cph', 'linear', 'category')
+            assert l['type'] in ('cph', 'linear', 'categorical')
             loss_name = 'custom_' + l['type']
             loss_function = l['fun']
             self.AllLossDict.update({loss_name: loss_function})
