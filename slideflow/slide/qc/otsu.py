@@ -38,7 +38,7 @@ class Otsu:
             level = wsi.slide.level_count - 1
         else:
             level = self.level
-        if wsi._vips_wrapper == sf.slide._JPGslideToVIPS:
+        if wsi._slide_reader == sf.slide._JPGVIPSReader:
             thumb = vips.Image.new_from_file(wsi.path, fail=True)
         else:
             thumb = vips.Image.new_from_file(
