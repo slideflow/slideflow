@@ -29,9 +29,9 @@ import shapely.affinity as sa
 import skimage
 import skimage.filters
 import slideflow as sf
+import slideflow.slide.qc
 from PIL import Image, ImageDraw, UnidentifiedImageError
 from skimage import img_as_ubyte
-from skimage.color import rgb2gray
 from slideflow import errors
 from slideflow.slide.report import ExtractionPDF  # noqa F401
 from slideflow.slide.report import ExtractionReport, SlideReport
@@ -734,9 +734,8 @@ class _BaseLoader:
         self.thumb_image = None  # type: Optional[Image.Image]
         self.stride_div = stride_div
         self.path = path
-        self.qc_mask = None
+        self.qc_masks = []
         self.qc_mpp = None  # type: Optional[float]
-        self.qc_method = None  # type: Optional[str]
         self.blur_burden = None  # type: Optional[float]
         self.roi_scale = 1  # type: float
         self.roi_method = None  # type: Optional[str]
@@ -863,6 +862,23 @@ class _BaseLoader:
                 f"Error loading slide {self.shortname}: {e}"
             )
 
+    @property
+    def qc_mask(self) -> Optional[np.ndarray]:
+        """Returns union of all QC masks."""
+        if not self.qc_masks:
+            return None
+        elif len(self.qc_masks) == 1:
+            return self.qc_masks[0]
+        else:
+            _, smallest = min((m.shape[0], idx)
+                               for (idx, m) in enumerate(self.qc_masks))
+            shape = self.qc_masks[smallest].shape
+            mask = skimage.transform.resize(self.qc_masks[0], shape).astype(bool)
+            for _next in self.qc_masks[1:]:
+                _next = skimage.transform.resize(_next, shape).astype(bool)
+                mask = np.logical_or(mask, _next)
+            return mask
+
     def _build_coord(self):
         raise NotImplementedError
 
@@ -876,17 +892,18 @@ class _BaseLoader:
 
     def remove_qc(self) -> None:
         self._build_coord()
-        self.qc_method = None
+        self.qc_masks = []
         log.debug(f'QC removed from slide {self.shortname}')
 
     def qc(
         self,
-        method: str,
+        method: Union[str, Callable, List[Callable]],
+        *,
         blur_radius: int = 3,
         blur_threshold: float = 0.02,
         filter_threshold: float = 0.6,
         blur_mpp: float = 4
-    ) -> Image.Image:
+    ) -> Optional[Image.Image]:
         """Applies quality control to a slide, performing filtering based on
         a whole-slide image thumbnail.
 
@@ -896,104 +913,43 @@ class _BaseLoader:
         'both' applies both methods of filtering.
 
         Args:
-            method (str): Quality control method, 'blur', 'otsu', or 'both'.
-            blur_radius (int, optional): Blur radius.
-            blur_threshold (float, optional): Blur threshold.
-            filter_threshold (float, optional): Percent of a tile detected as
+            method (str, Callable, list(Callable)): Quality control method(s).
+                If a string, may be 'blur', 'otsu', or 'both'.
+                If a callable (or list of callables), each must accept a sf.WSI
+                object and return a np.ndarray (dtype=np.bool).
+            blur_radius (int, optional): Blur radius. Only used if method is
+                'blur' or 'both'.
+            blur_threshold (float, optional): Blur threshold. Only used if
+                method is 'blur' or 'both.'
+            filter_threshold (float): Percent of a tile detected as
                 background that will trigger a tile to be discarded.
                 Defaults to 0.6.
             blur_mpp (float, optional): Size of WSI thumbnail on which to
                 perform blur QC, in microns-per-pixel. Defaults to 4
-                (equivalent magnification = 2.5 X).
+                (equivalent magnification = 2.5 X). Only used if method is
+                'blur' or 'both'.
+
+        Returns:
+            Image: Image of applied QC mask.
         """
-
-        if method not in ('blur', 'otsu', 'both'):
+        if isinstance(method, str) and method == 'otsu':
+            method = sf.slide.qc.Otsu()
+        elif isinstance(method, str) and method == 'blur':
+            method = sf.slide.qc.Gaussian(mpp=blur_mpp, sigma=blur_radius, threshold=blur_threshold)
+        elif isinstance(method, str) and method == 'both':
+            method = [sf.slide.qc.Otsu(),
+                      sf.slide.qc.Gaussian(mpp=blur_mpp, sigma=blur_radius, threshold=blur_threshold)]
+        elif isinstance(method, str):
             raise errors.QCError(f"Unknown QC method {method}")
+        if not isinstance(method, list):
+            method = [method]
+
         starttime = time.time()
-
-        self.qc_method = method
-
-        # Blur QC must be performed at a set microns-per-pixel rather than
-        # downsample level, as blur detection is much for sensitive to
-        # effective magnification than Otsu's thresholding
-        if method in ('blur', 'both'):
-            thumb = self.thumb(mpp=blur_mpp)
-            if thumb is None:
-                raise errors.QCError(
-                    f"Thumbnail error for slide {self.shortname}, QC failed"
-                )
-            thumb = np.array(thumb)
-            if thumb.shape[-1] == 4:
-                thumb = thumb[:, :, :3]
-            gray = rgb2gray(thumb)
-            img_laplace = np.abs(skimage.filters.laplace(gray))
-            gaussian = skimage.filters.gaussian(img_laplace, sigma=blur_radius)
-            blur_mask = gaussian <= blur_threshold
-            lev = self.slide.level_count - 1
-            self.qc_mask = blur_mask
-
-        # Otsu's thresholding can be done on the lowest downsample level
-        if method in ('otsu', 'both'):
-            lev = self.slide.level_count - 1
-            if self._vips_wrapper == _JPGslideToVIPS:
-                otsu_thumb = vips.Image.new_from_file(self.path, fail=True)
-            else:
-                otsu_thumb = vips.Image.new_from_file(
-                    self.path,
-                    fail=True,
-                    access=vips.enums.Access.RANDOM,
-                    level=lev
-                )
-            try:
-                otsu_thumb = vips2numpy(otsu_thumb)
-            except vips.error.Error:
-                raise errors.QCError(
-                    f"Thumbnail error for slide {self.shortname}, QC failed"
-                )
-            if otsu_thumb.shape[-1] == 4:
-                otsu_thumb = otsu_thumb[:, :, :3]
-
-            # Only apply Otsu thresholding within ROI, if present
-            if len(self.annPolys):
-                ofact = self.roi_scale / self.slide.level_downsamples[lev]
-                roi_mask = np.zeros((otsu_thumb.shape[0], otsu_thumb.shape[1]))
-                scaled_polys = [
-                    sa.scale(poly, xfact=ofact, yfact=ofact, origin=(0, 0))
-                    for poly in self.annPolys
-                ]
-                roi_mask = rasterio.features.rasterize(
-                    scaled_polys,
-                    out_shape=otsu_thumb.shape[:2]
-                )
-                otsu_thumb = cv2.bitwise_or(
-                    otsu_thumb,
-                    otsu_thumb,
-                    mask=roi_mask.astype(np.uint8)
-                )
-            hsv_img = cv2.cvtColor(otsu_thumb, cv2.COLOR_RGB2HSV)
-            img_med = cv2.medianBlur(hsv_img[:, :, 1], 7)
-            flags = cv2.THRESH_OTSU+cv2.THRESH_BINARY_INV
-            _, otsu_mask = cv2.threshold(img_med, 0, 255, flags)
-            otsu_mask = otsu_mask.astype(bool)
-            self.qc_mask = otsu_mask
-
-        # If performing both, ensure the mask sizes are equivalent (shrinks to
-        # the size of the smaller mask - Otsu)
-        if method == 'both':
-            blur_mask = skimage.transform.resize(blur_mask, otsu_mask.shape)
-            blur_mask = blur_mask.astype(bool)
-            self.qc_mask = np.logical_or(blur_mask, otsu_mask)
-            blur = np.count_nonzero(
-                np.logical_and(
-                    blur_mask,
-                    np.logical_xor(blur_mask, otsu_mask)
-                )
-            )
-            self.blur_burden = blur / (blur_mask.shape[0] * blur_mask.shape[1])
-            log.debug(f"Blur burden: {self.blur_burden}")
-
-        # Filter coordinates
-        img = self.apply_qc_mask(self.qc_mask, filter_threshold=filter_threshold)
+        img = None
+        for qc in method:
+            mask = qc(self)
+            if mask is not None:
+                img = self.apply_qc_mask(mask, filter_threshold=filter_threshold)
         dur = f'(time: {time.time()-starttime:.2f}s)'
         log.debug(f'QC ({method}) complete for slide {self.shortname} {dur}')
         return img
@@ -1003,8 +959,17 @@ class _BaseLoader:
         mask: np.ndarray,
         filter_threshold: float = 0.6,
     ) -> Image:
-        """Apply custom slide-level QC by filtering grid coordinates."""
+        """Apply custom slide-level QC by filtering grid coordinates.
 
+        Args:
+            mask (np.ndarray): Boolean QC mask.
+            filter_threshold (float): Percent of a tile detected as
+                background that will trigger a tile to be discarded.
+                Defaults to 0.6.
+
+        Returns:
+            Image: Image of applied QC mask.
+        """
         assert isinstance(mask, np.ndarray)
         assert len(mask.shape) == 2
         assert mask.dtype == bool
@@ -1019,7 +984,7 @@ class _BaseLoader:
             if np.mean(submask) > filter_threshold:
                 self.grid[xi, yi] = 0
 
-        self.qc_mask = mask
+        self.qc_masks.append(mask)
         self.qc_mpp = self.mpp * downsample
         self.estimated_num_tiles = int(self.grid.sum())
         return Image.fromarray(img_as_ubyte(self.qc_mask))
