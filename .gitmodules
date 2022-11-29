@@ -5,3 +5,6 @@
 [submodule "slideflow/gan/stylegan3"]
 	path = slideflow/gan/stylegan3
 	url = https://github.com/jamesdolezal/stylegan3-slideflow.git
+[submodule "slideflow/slide/qc/deepfocus"]
+	path = slideflow/slide/qc/deepfocus
+	url = https://github.com/jamesdolezal/deepfocus

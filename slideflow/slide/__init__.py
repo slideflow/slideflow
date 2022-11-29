@@ -897,6 +897,7 @@ class _BaseLoader:
     def qc(
         self,
         method: Union[str, Callable, List[Callable]],
+        *,
         blur_radius: int = 3,
         blur_threshold: float = 0.02,
         filter_threshold: float = 0.6,
