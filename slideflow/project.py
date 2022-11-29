@@ -850,7 +850,8 @@ class Project:
             'neptune_workspace': self.neptune_workspace,
             'load_method': s_args.load_method
         }
-        if hp.model != 'custom':
+        if hp.model != 'custom' and not hp.loss.startswith('custom'):
+            # Do not use process isolation if using a custom model or loss
             process = s_args.ctx.Process(target=project_utils._train_worker,
                                         args=((train_dts, val_dts),
                                             model_kwargs,
