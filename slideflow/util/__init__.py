@@ -224,7 +224,7 @@ def get_gdc_manifest() -> pd.DataFrame:
     manifest = join(sf_cache, 'gdc_manifest.tsv')
     if not exists(manifest):
         tar = 'gdc_manifest.tar.xz'
-        r = requests.get(f'https://raw.githubusercontent.com/jamesdolezal/slideflow/dev/{tar}')
+        r = requests.get(f'https://raw.githubusercontent.com/jamesdolezal/slideflow/1.4.0/datasets/{tar}')
         open(join(sf_cache, tar), 'wb').write(r.content)
         tarfile.open(join(sf_cache, tar)).extractall(sf_cache)
         os.remove(join(sf_cache, tar))
