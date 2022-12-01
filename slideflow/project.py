@@ -521,6 +521,7 @@ class Project:
         results_dict: Union[Dict, DictProxy],
         training_kwargs: Dict,
         balance_headers: Optional[Union[str, List[str]]],
+        process_isolate: bool = False,
         **kwargs
     ) -> None:
         '''Trains a model(s) using the specified hyperparameters.
@@ -647,6 +648,7 @@ class Project:
             results_dict=results_dict,
             bal_headers=balance_headers,
             input_header=input_header,
+            process_isolate=process_isolate,
             **kwargs
         )
 
@@ -850,8 +852,7 @@ class Project:
             'neptune_workspace': self.neptune_workspace,
             'load_method': s_args.load_method
         }
-        if hp.model != 'custom' and not hp.loss.startswith('custom'):
-            # Do not use process isolation if using a custom model or loss
+        if s_args.process_isolate:
             process = s_args.ctx.Process(target=project_utils._train_worker,
                                         args=((train_dts, val_dts),
                                             model_kwargs,
@@ -2772,6 +2773,7 @@ class Project:
         allow_tf32: bool = False,
         load_method: str = 'full',
         balance_headers: Optional[Union[str, List[str]]] = None,
+        process_isolate: bool = False,
         **training_kwargs: Any
     ) -> Dict:
         """Train model(s) using a given set of parameters, outcomes, and inputs.
@@ -2971,7 +2973,8 @@ class Project:
                 balance_headers=balance_headers,
                 training_kwargs=training_kwargs,
                 results_dict=results_dict,
-                load_method=load_method
+                load_method=load_method,
+                process_isolate=process_isolate
             )
         # Print summary of all models
         log.info('Training complete; validation accuracies:')

@@ -5,6 +5,7 @@ from __future__ import absolute_import, division, print_function
 import atexit
 import inspect
 import json
+import logging
 import os
 import shutil
 from os.path import dirname, exists, join
@@ -26,6 +27,18 @@ from slideflow.util import log, NormFit
 import tensorflow as tf
 from tensorflow.keras import applications as kapps
 from slideflow.model.tensorflow_utils import eval_from_model
+
+# Set the tensorflow logger
+if sf.getLoggingLevel() == logging.DEBUG:
+    logging.getLogger('tensorflow').setLevel(logging.DEBUG)
+    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '0'
+else:
+    logging.getLogger('tensorflow').setLevel(logging.ERROR)
+    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+
+gpus = tf.config.experimental.list_physical_devices('GPU')
+for gpu in gpus:
+    tf.config.experimental.set_memory_growth(gpu, True)
 
 if TYPE_CHECKING:
     import pandas as pd
