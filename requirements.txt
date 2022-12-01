@@ -43,3 +43,4 @@ saliency
 parameterized
 pyperclip
 requests
+cucim

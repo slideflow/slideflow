@@ -87,7 +87,8 @@ setuptools.setup(
         'glfw',
         'saliency',
         'pyperclip',
-        'requests'
+        'requests',
+        'cucim'
     ],
     extras_require={
         'tf': [
