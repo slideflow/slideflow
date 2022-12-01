@@ -1,0 +1,4 @@
+{
+    "name": "TCGA_THCA",
+    "annotations": "./thyroid_labels.csv"
+}

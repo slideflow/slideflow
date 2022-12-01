@@ -280,13 +280,14 @@ class ExtractionReport:
             pdf.set_y(y+1)
             pdf.set_font('Arial', style='B', size=10)
             for m in ('G.S. fraction', 'G.S. threshold', 'W.S. fraction',
-                      'W.S. threshold', 'Normalizer', 'Format'):
+                      'W.S. threshold', 'Normalizer', 'Format', 'Backend'):
                 pdf.cell(45)
                 pdf.cell(20, 4, m, ln=1)
             pdf.set_y(y+1)
             pdf.set_font('Arial')
             for m in (meta.gs_frac, meta.gs_thresh, meta.ws_frac,
-                      meta.ws_thresh, meta.normalizer, meta.img_format):
+                      meta.ws_thresh, meta.normalizer, meta.img_format,
+                      sf.slide_backend()):
                 pdf.cell(75)
                 pdf.cell(20, 4, str(m), ln=1)
 
