@@ -88,7 +88,7 @@ setuptools.setup(
         'saliency',
         'pyperclip',
         'requests',
-        'cucim',
+        'parameterized',
     ],
     extras_require={
         'tf': [
@@ -101,10 +101,12 @@ setuptools.setup(
             'pretrainedmodels'
         ],
         'dev': [
-            'parameterized',
             'sphinx',
             'sphinx-markdown-tables',
             'sphinxcontrib-video'
+        ],
+        'cucim': [
+            'cucim'
         ]
     },
 )

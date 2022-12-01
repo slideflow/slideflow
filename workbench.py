@@ -1,9 +1,6 @@
 import click
 from slideflow.workbench import Workbench
 from os.path import dirname, realpath
-from slideflow.workbench import stylegan_widgets
-from slideflow.workbench.seed_map_widget import SeedMapWidget
-from slideflow.gan.stylegan3.stylegan3.viz.renderer import Renderer as GANRenderer
 
 #----------------------------------------------------------------------------
 
@@ -12,6 +9,7 @@ from slideflow.gan.stylegan3.stylegan3.viz.renderer import Renderer as GANRender
 @click.option('--model', '-m', help='Classifier network for categorical predictions.', metavar='PATH')
 @click.option('--project', '-p', help='Slideflow project.', metavar='PATH')
 @click.option('--low_memory', '-l', is_flag=True, help='Low memory mode.', metavar=bool)
+@click.option('--stylegan', '-g', is_flag=True, help='Enable StyleGAN support (requires PyTorch).', metavar=bool)
 @click.option('--picam', '-c', is_flag=True, help='Enable Picamera2 view (experimental).', metavar=bool)
 @click.option('--advanced', '-a', is_flag=True, help='Enable advanced StyleGAN options.', metavar=bool)
 def main(
@@ -19,6 +17,7 @@ def main(
     model,
     project,
     low_memory,
+    stylegan,
     picam,
     advanced
 ):
@@ -32,8 +31,13 @@ def main(
 
     # Load widgets
     widgets = Workbench.get_default_widgets()
-    widgets += stylegan_widgets(advanced=advanced)
-    widgets += [SeedMapWidget]
+    if stylegan:
+        from slideflow.workbench import stylegan_widgets
+        from slideflow.workbench.seed_map_widget import SeedMapWidget
+        from slideflow.gan.stylegan3.stylegan3.viz.renderer import Renderer as GANRenderer
+        widgets += stylegan_widgets(advanced=advanced)
+        widgets += [SeedMapWidget]
+
     if picam:
         from slideflow.workbench.picam_widget import PicamWidget
         widgets += [PicamWidget]
@@ -42,9 +46,10 @@ def main(
     viz.project_widget.search_dirs += [dirname(realpath(__file__))]
 
     # --- StyleGAN3 -----------------------------------------------------------
-    viz.add_to_render_pipeline(GANRenderer(), name='stylegan')
-    if advanced:
-        viz._pane_w_div = 45
+    if stylegan:
+        viz.add_to_render_pipeline(GANRenderer(), name='stylegan')
+        if advanced:
+            viz._pane_w_div = 45
     # -------------------------------------------------------------------------
 
     # Load model.

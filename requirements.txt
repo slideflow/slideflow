@@ -44,3 +44,4 @@ parameterized
 pyperclip
 requests
 cucim
+versioneer

@@ -299,13 +299,13 @@
 pip install --upgrade pip wheel
 
 <span class="c1"># Current stable release, Tensorflow backend</span>
-pip install slideflow<span class="o">[</span>tf<span class="o">]</span> cupy-cuda11x
+pip install slideflow<span class="o">[</span>tf<span class="o">]</span> cucim cupy-cuda11x
 
 <span class="c1"># Alternatively, install with PyTorch backend</span>
-pip install slideflow<span class="o">[</span>torch<span class="o">]</span> cupy-cuda11x
+pip install slideflow<span class="o">[</span>torch<span class="o">]</span> cucim cupy-cuda11x
 </pre></div>
 </div>
-<p>The <code class="docutils literal notranslate"><span class="pre">cupy</span></code> package name depends on the installed CUDA version; <a class="reference external" href="https://docs.cupy.dev/en/stable/install.html#installing-cupy">see here</a> for installation instructions. <code class="docutils literal notranslate"><span class="pre">cupy</span></code> is not required if using Libvips.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">cupy</span></code> package name depends on the installed CUDA version; <a class="reference external" href="https://docs.cupy.dev/en/stable/install.html#installing-cupy">see here</a> for installation instructions. <code class="docutils literal notranslate"><span class="pre">cucim</span></code> and <code class="docutils literal notranslate"><span class="pre">cupy</span></code> are not required if using Libvips.</p>
 </section>
 <section id="run-a-docker-container">
 <h2>Run a Docker container<a class="headerlink" href="#run-a-docker-container" title="Permalink to this heading">¶</a></h2>
