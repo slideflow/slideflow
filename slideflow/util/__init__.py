@@ -160,7 +160,7 @@ class TileExtractionProgress(Progress):
 
 # --- Slideflow header --------------------------------------------------------
 
-def header(console=None):
+def about(console=None):
     if console is None:
         console = Console()
     col1 = 'yellow' if sf.backend() == 'tensorflow' else 'purple'

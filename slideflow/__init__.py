@@ -60,7 +60,7 @@ def slide_backend():
 # -----------------------------------------------------------------------------
 
 # Import logging functions required for other submodules
-from slideflow.util import getLoggingLevel, log, setLoggingLevel, header
+from slideflow.util import getLoggingLevel, log, setLoggingLevel, about
 
 ...
 from slideflow import io, model, norm, stats
