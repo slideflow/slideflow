@@ -80,7 +80,7 @@ class SlideViewer(Viewer):
         """
         if region.bands == 4:
             region = region.flatten()
-        return sf.slide.vips2numpy(region)
+        return sf.slide.backends.vips.vips2numpy(region)
 
     def _calculate_view_params(
         self,
@@ -154,8 +154,91 @@ class SlideViewer(Viewer):
         tex = text_utils.get_texture(f"{self.scale_um:.0f} µm", size=18, max_width=max_w, max_height=max_h, outline=2)
         tex.draw(pos=text_pos, align=0.5, rint=True, color=1)
 
+    def _fast_refresh_cucim(self, new_view, p, view_params):
+        # Fill in parts of the missing image
+        if p.moved_right and p.full_dx:
+            new_horizontal = self.wsi.slide.read_from_pyramid(
+                top_left=(int(p.tl_new[0]), int(p.tl_new[1])),
+                window_size=(p.full_dx, view_params.window_size[1]),
+                target_size=(p.dx, view_params.target_size[1]),
+                convert='numpy',
+                flatten=True
+            )
+            new_view[:, None:p.dx, :] = new_horizontal
+        if p.moved_down and p.full_dy:
+            new_vertical = self.wsi.slide.read_from_pyramid(
+                top_left=(int(p.tl_new[0]), int(p.tl_new[1])),
+                window_size=(view_params.window_size[0], p.full_dy),
+                target_size=(view_params.target_size[0], p.dy),
+                convert='numpy',
+                flatten=True
+            )
+            new_view[None:p.dy, :, :] = new_vertical
+        if p.moved_left and p.full_dx:
+            new_horizontal = self.wsi.slide.read_from_pyramid(
+                top_left=(int(p.tl_new[0] + view_params.window_size[0] + p.full_dx), int(p.tl_new[1])),
+                window_size=(-p.full_dx, view_params.window_size[1]),
+                target_size=(-p.dx, view_params.target_size[1]),
+                convert='numpy',
+                flatten=True
+            )
+            new_view[:, view_params.target_size[0]+p.dx:None, :] = new_horizontal
+        if p.moved_up and p.full_dy:
+            new_vertical = self.wsi.slide.read_from_pyramid(
+                top_left=(int(p.tl_new[0]), int(p.tl_new[1] + view_params.window_size[1] + p.full_dy)),
+                window_size=(view_params.window_size[0], -p.full_dy),
+                target_size=(view_params.target_size[0], -p.dy),
+                convert='numpy',
+                flatten=True
+            )
+            new_view[view_params.target_size[1]+p.dy:None, :, :] = new_vertical
+        return new_view
+
+    def _fast_refresh_libvips(self, new_view, p, view_params):
+        # Libvips processing
+        ds_level = self.wsi.slide.best_level_for_downsample(p.target_ds)
+        region = self.wsi.slide.get_downsampled_image(ds_level)
+        resize_factor = self.wsi.slide.level_downsamples[ds_level] / p.target_ds
+        region = region.resize(resize_factor)
+
+        # Fill in parts of the missing image
+        if p.moved_right and p.full_dx:
+            new_horizontal = region.crop(
+                int(p.tl_new[0] / p.target_ds),
+                int(p.tl_new[1] / p.target_ds),
+                p.dx,
+                view_params.target_size[1])
+            new_horizontal = self._process_vips(new_horizontal)
+            new_view[:, None:p.dx, :] = new_horizontal
+        if p.moved_down and p.full_dy:
+            new_vertical = region.crop(
+                int(p.tl_new[0] / p.target_ds),
+                int(p.tl_new[1] / p.target_ds),
+                view_params.target_size[0],
+                p.dy)
+            new_vertical = self._process_vips(new_vertical)
+            new_view[None:p.dy, :, :] = new_vertical
+        if p.moved_left and p.full_dx:
+            new_horizontal = region.crop(
+                int((p.tl_new[0] + view_params.window_size[0] + p.full_dx) / p.target_ds),
+                int(p.tl_new[1] / p.target_ds),
+                -p.dx,
+                view_params.target_size[1])
+            new_horizontal = self._process_vips(new_horizontal)
+            new_view[:, view_params.target_size[0]+p.dx:None, :] = new_horizontal
+        if p.moved_up and p.full_dy:
+            new_vertical = region.crop(
+                int(p.tl_new[0] / p.target_ds),
+                int((p.tl_new[1] + view_params.window_size[1] + p.full_dy) / p.target_ds),
+                view_params.target_size[0],
+                -p.dy)
+            new_vertical = self._process_vips(new_vertical)
+            new_view[view_params.target_size[1]+p.dy:None, :, :] = new_vertical
+
+        return new_view
+
     def _read_from_pyramid(self, **kwargs) -> np.ndarray:
-        """Read from the Libvips slide pyramid and convert to numpy array.
+        """Read from the whole-slide image pyramid and convert to numpy array.
 
         Keyword args:
             top_left (Tuple[int, int]): Top-left location of the region to
@@ -168,8 +251,7 @@ class SlideViewer(Viewer):
         Returns:
             Numpy image (uint8)
         """
-        region = self.wsi.slide.read_from_pyramid(**kwargs)
-        return self._process_vips(region)
+        return self.wsi.slide.read_from_pyramid(convert='numpy', flatten=True, **kwargs)
 
     def _refresh_view_fast(self, view_params: EasyDict) -> None:
         """Refresh the slide viewer with the given view parameters.
@@ -186,88 +268,55 @@ class SlideViewer(Viewer):
            or self._normalizer):
             self._refresh_view_full(view_params)
         else:
-
-            tl_old = self.view_params.top_left
-            tl_new = view_params.top_left
-            target_ds = view_params.window_size[0] / view_params.target_size[0]
             new_view = np.zeros_like(self.view)
+            p = EasyDict() # Parameters for view
+            p.tl_old = self.view_params.top_left
+            p.tl_new = view_params.top_left
+            p.target_ds = view_params.window_size[0] / view_params.target_size[0]
 
             def end(x):
                 return -x if x else None
 
-            full_dx = tl_old[0] - tl_new[0]
-            full_dy = tl_old[1] - tl_new[1]
-            dx = int(full_dx / target_ds)
-            dy = int(full_dy / target_ds)
-            full_dx = dx * target_ds
-            full_dy = dy * target_ds
-
-            moved_right = dx > 0
-            moved_down = dy > 0
-            moved_left = dx < 0
-            moved_up = dy < 0
+            p.full_dx = p.tl_old[0] - p.tl_new[0]
+            p.full_dy = p.tl_old[1] - p.tl_new[1]
+            p.dx = int(p.full_dx / p.target_ds)
+            p.dy = int(p.full_dy / p.target_ds)
+            p.full_dx = int(np.round(p.dx * p.target_ds))
+            p.full_dy = int(np.round(p.dy * p.target_ds))
 
             # Check for movement
-            if moved_down:
-                old_y_start, old_y_end = None, end(dy)
-                new_y_start, new_y_end = dy, None
-            elif moved_up:
-                old_y_start, old_y_end = -dy, None
-                new_y_start, new_y_end = None, end(-dy)
+            p.moved_right = p.dx > 0
+            p.moved_down = p.dy > 0
+            p.moved_left = p.dx < 0
+            p.moved_up = p.dy < 0
+            if p.moved_down:
+                old_y_start, old_y_end = None, end(p.dy)
+                new_y_start, new_y_end = p.dy, None
+            elif p.moved_up:
+                old_y_start, old_y_end = -p.dy, None
+                new_y_start, new_y_end = None, end(-p.dy)
             else:
                 old_y_start, old_y_end, new_y_start, new_y_end = None, None, None, None
-            if moved_right:
-                old_x_start, old_x_end = None, end(dx)
-                new_x_start, new_x_end = dx, None
-            elif moved_left:
-                old_x_start, old_x_end = -dx, None
-                new_x_start, new_x_end = None, end(-dx)
+            if p.moved_right:
+                old_x_start, old_x_end = None, end(p.dx)
+                new_x_start, new_x_end = p.dx, None
+            elif p.moved_left:
+                old_x_start, old_x_end = -p.dx, None
+                new_x_start, new_x_end = None, end(-p.dx)
             else:
                 old_x_start, old_x_end, new_x_start, new_x_end = None, None, None, None
 
             # Keep what we can from the old image
             old_slice = self.view[old_y_start:old_y_end, old_x_start:old_x_end, :]
             new_view[new_y_start:new_y_end, new_x_start:new_x_end, :] = old_slice
-
-            # Libvips processing
-            ds_level = self.wsi.slide.best_level_for_downsample(target_ds)
-            region = self.wsi.slide.get_downsampled_image(ds_level)
-            resize_factor = self.wsi.slide.level_downsamples[ds_level] / target_ds
-            region = region.resize(resize_factor)
-
-            # Fill in parts of the missing image
-            if moved_right:
-                new_horizontal = region.crop(
-                    int(tl_new[0] / target_ds),
-                    int(tl_new[1] / target_ds),
-                    dx,
-                    view_params.target_size[1])
-                new_horizontal = self._process_vips(new_horizontal)
-                new_view[:, None:dx, :] = new_horizontal
-            if moved_down:
-                new_vertical = region.crop(
-                    int(tl_new[0] / target_ds),
-                    int(tl_new[1] / target_ds),
-                    view_params.target_size[0],
-                    dy)
-                new_vertical = self._process_vips(new_vertical)
-                new_view[None:dy, :, :] = new_vertical
-            if moved_left:
-                new_horizontal = region.crop(
-                    int((tl_new[0] + view_params.window_size[0] + full_dx) / target_ds),
-                    int(tl_new[1] / target_ds),
-                    -dx,
-                    view_params.target_size[1])
-                new_horizontal = self._process_vips(new_horizontal)
-                new_view[:, view_params.target_size[0]+dx:None, :] = new_horizontal
-            if moved_up:
-                new_vertical = region.crop(
-                    int(tl_new[0] / target_ds),
-                    int((tl_new[1] + view_params.window_size[1] + full_dy) / target_ds),
-                    view_params.target_size[0],
-                    -dy)
-                new_vertical = self._process_vips(new_vertical)
-                new_view[view_params.target_size[1]+dy:None, :, :] = new_vertical
+            if sf.slide_backend() == 'libvips':
+                new_view = self._fast_refresh_libvips(new_view, p=p, view_params=view_params)
+            elif sf.slide_backend() == 'cucim':
+                new_view = self._fast_refresh_cucim(new_view, p=p, view_params=view_params)
+            else:
+                raise ValueError("Unrecognized slide backend {}".format(
+                    sf.slide_backend()
+                ))
 
             # Finalize
             self.view = new_view
@@ -332,29 +381,36 @@ class SlideViewer(Viewer):
         allow_errors: bool = True
     ) -> np.ndarray:
 
-        decode_jpeg = img_format is not None and img_format.lower() in ('jpg', 'jpeg')
+        # Determine destination format
+        if img_format and img_format.lower() not in ('jpg', 'jpeg', 'png'):
+            raise ValueError(f"Unknown image format {img_format}")
+        elif img_format is None or img_format.lower() == 'png':
+            convert = 'numpy'
+        else:
+            convert = img_format
+
+        # Calculate resizing
+        if int(self.wsi.tile_px) != int(self.wsi.extract_px):
+            resize_factor = self.wsi.tile_px/self.wsi.extract_px
+        else:
+            resize_factor = None
+
+        # Read region from the slide
         try:
-            region = self.wsi.slide.read_region(
+            return self.wsi.slide.read_region(
                 (x, y),
                 self.wsi.downsample_level,
-                (self.wsi.extract_px, self.wsi.extract_px)
+                (self.wsi.extract_px, self.wsi.extract_px),
+                convert=convert,
+                flatten=True,
+                resize_factor = resize_factor
             )
-        except pyvips.error.Error:
+        except Exception as e:
             if allow_errors:
-                print(f"Tile coordinates {x}, {y} are out of bounds, skipping")
+                print(f"Tile coordinates {x}, {y} are out of bounds, skipping: {e}")
                 return None
             else:
                 raise
-        if region.bands == 4:
-            region = region.flatten()  # removes alpha
-        if int(self.wsi.tile_px) != int(self.wsi.extract_px):
-            region = region.resize(self.wsi.tile_px/self.wsi.extract_px)
-        if decode_jpeg:
-            return region.jpegsave_buffer()
-        elif img_format in ('png', None):
-            return sf.slide.vips2numpy(region)
-        else:
-            raise ValueError(f"Unknown image format {img_format}")
 
     def late_render(self):
         self._render_rois()

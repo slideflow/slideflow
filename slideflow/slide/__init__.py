@@ -4,9 +4,7 @@ images or stored in the binary format TFRecords, with or without augmentation.''
 
 from __future__ import absolute_import, division, print_function
 
-import re
 import csv
-import io
 import json
 import multiprocessing as mp
 import os
@@ -39,15 +37,7 @@ from slideflow.util import log, path_to_name  # noqa F401
 from .report import ExtractionPDF  # noqa F401
 from .report import ExtractionReport, SlideReport
 from .utils import *
-from .readers.vips import (vips2numpy, vips_resize, vips_thumbnail,
-                           _VIPSReader, _JPGVIPSReader)
-
-
-if TYPE_CHECKING:
-    try:
-        import pyvips as vips
-    except Exception:
-        pass
+from .backends import tile_worker, wsi_reader
 
 warnings.simplefilter('ignore', Image.DecompressionBombWarning)
 Image.MAX_IMAGE_PIXELS = 100000000000
@@ -88,217 +78,6 @@ def _convert_img_to_format(image: np.ndarray, img_format: str) -> str:
         )[1].tostring()
     else:
         raise ValueError(f"Unknown image format {img_format}")
-
-
-def _draw_roi(
-    img: Union[np.ndarray, str],
-    coords: List[int]
-) -> np.ndarray:
-    """Draw ROIs on image.
-
-    Args:
-        img (Union[np.ndarray, str]): Image.
-        coords (List[List[int]]): ROI coordinates.
-
-    Returns:
-        np.ndarray: Image as numpy array.
-    """
-    annPolys = [sg.Polygon(b) for b in coords]
-    if isinstance(img, np.ndarray):
-        annotated_img = Image.fromarray(img)
-    elif isinstance(img, str):
-        annotated_img = Image.open(io.BytesIO(img))  # type: ignore
-    draw = ImageDraw.Draw(annotated_img)
-    for poly in annPolys:
-        x, y = poly.exterior.coords.xy
-        zipped = list(zip(x.tolist(), y.tolist()))
-        draw.line(zipped, joint='curve', fill='red', width=5)
-    return np.asarray(annotated_img)
-
-
-def _roi_coords_from_image(
-    c: List[int],
-    args: SimpleNamespace
-) -> Tuple[List[int], List[np.ndarray], List[List[int]]]:
-    # Scale ROI according to downsample level
-    extract_scale = (args.extract_px / args.full_extract_px)
-
-    # Scale ROI according to image resizing
-    resize_scale = (args.tile_px / args.extract_px)
-
-    def proc_ann(ann):
-        # Scale to full image size
-        coord = ann.coordinates
-        # Offset coordinates to extraction window
-        coord = np.add(coord, np.array([-1 * c[0], -1 * c[1]]))
-        # Rescale according to downsampling and resizing
-        coord = np.multiply(coord, (extract_scale * resize_scale))
-        return coord
-
-    # Filter out ROIs not in this tile
-    coords = []
-    ll = np.array([0, 0])
-    ur = np.array([args.tile_px, args.tile_px])
-    for roi in args.rois:
-        coord = proc_ann(roi)
-        idx = np.all(np.logical_and(ll <= coord, coord <= ur), axis=1)
-        coords_in_tile = coord[idx]
-        if len(coords_in_tile) > 3:
-            coords += [coords_in_tile]
-
-    # Convert ROI to bounding box that fits within tile
-    boxes = []
-    yolo_anns = []
-    for coord in coords:
-        max_vals = np.max(coord, axis=0)
-        min_vals = np.min(coord, axis=0)
-        max_x = min(max_vals[0], args.tile_px)
-        max_y = min(max_vals[1], args.tile_px)
-        min_x = max(min_vals[0], 0)
-        min_y = max(0, min_vals[1])
-        width = (max_x - min_x) / args.tile_px
-        height = (max_y - min_y) / args.tile_px
-        x_center = ((max_x + min_x) / 2) / args.tile_px
-        y_center = ((max_y + min_y) / 2) / args.tile_px
-        yolo_anns += [[x_center, y_center, width, height]]
-        boxes += [np.array([
-            [min_x, min_y],
-            [min_x, max_y],
-            [max_x, max_y],
-            [max_x, min_y]
-        ])]
-    return coords, boxes, yolo_anns
-
-
-def _wsi_extraction_worker(
-    c: List[int],
-    args: SimpleNamespace
-) -> Optional[Union[str, Dict]]:
-    '''Multiprocessing worker for WSI. Extracts tile at given coordinates.'''
-
-    x, y, grid_x, grid_y = c
-    x_coord = int((x + args.full_extract_px / 2) / args.roi_scale)
-    y_coord = int((y + args.full_extract_px / 2) / args.roi_scale)
-
-    # If downsampling is enabled, read image from highest level
-    # to perform filtering; otherwise filter from our target level
-    slide = args.vips_wrapper(args.path, args.mpp_override, args.vips_cache)
-    if args.whitespace_fraction < 1 or args.grayspace_fraction < 1:
-        if args.filter_downsample_ratio > 1:
-            filter_extract_px = args.extract_px // args.filter_downsample_ratio
-            filter_region = slide.read_region(
-                (x, y),
-                args.filter_downsample_level,
-                (filter_extract_px, filter_extract_px)
-            )
-        else:
-            # Read the region and resize to target size
-            filter_region = slide.read_region(
-                (x, y),
-                args.downsample_level,
-                (args.extract_px, args.extract_px)
-            )
-        # Perform whitespace filtering [Libvips]
-        if args.whitespace_fraction < 1:
-            ws_fraction = filter_region.bandmean().relational_const(
-                'more',
-                args.whitespace_threshold
-            ).avg() / 255
-            if (ws_fraction > args.whitespace_fraction
-               and args.whitespace_fraction != FORCE_CALCULATE_WHITESPACE):
-                return None
-
-        # Perform grayspace filtering [Libvips]
-        if args.grayspace_fraction < 1:
-            hsv_region = filter_region.sRGB2HSV()
-            gs_fraction = hsv_region[1].relational_const(
-                'less',
-                args.grayspace_threshold*255
-            ).avg() / 255
-            if (gs_fraction > args.grayspace_fraction
-               and args.whitespace_fraction != FORCE_CALCULATE_WHITESPACE):
-                return None
-
-    # Prepare return dict with WS/GS fraction
-    return_dict = {'loc': [x_coord, y_coord]}  # type: Dict[str, Any]
-    return_dict.update({'grid': [grid_x, grid_y]})
-    if args.grayspace_fraction < 1:
-        return_dict.update({'gs_fraction': gs_fraction})
-    if args.whitespace_fraction < 1:
-        return_dict.update({'ws_fraction': ws_fraction})
-
-    # If dry run, return without the image
-    if args.dry_run:
-        return_dict.update({'loc': [x_coord, y_coord]})
-        return return_dict
-
-    # Normalizer
-    if not args.normalizer:
-        normalizer = None
-    else:
-        normalizer = sf.norm.autoselect(
-            method=args.normalizer,
-            source=args.normalizer_source
-        )
-
-    # Read the target downsample region now, if we were
-    # filtering at a different level
-    region = slide.read_region(
-        (x, y),
-        args.downsample_level,
-        (args.extract_px, args.extract_px)
-    )
-    if region.bands == 4:
-        region = region.flatten()  # removes alpha
-    if int(args.tile_px) != int(args.extract_px):
-        region = region.resize(args.tile_px/args.extract_px)
-    assert(region.width == region.height == args.tile_px)
-
-    if args.img_format != 'numpy':
-        if args.img_format == 'png':
-            image = region.pngsave_buffer()
-        elif args.img_format in ('jpg', 'jpeg'):
-            image = region.jpegsave_buffer()
-        else:
-            raise ValueError(f"Unknown image format {args.img_format}")
-
-        # Apply normalization
-        if normalizer:
-            try:
-                if args.img_format == 'png':
-                    image = normalizer.png_to_png(image)
-                elif args.img_format in ('jpg', 'jpeg'):
-                    image = normalizer.jpeg_to_jpeg(image)
-                else:
-                    raise ValueError(f"Unknown image format {args.img_format}")
-            except Exception:
-                # The image could not be normalized,
-                # which happens when a tile is primarily one solid color
-                return None
-    else:
-        # Read regions into memory and convert to numpy arrays
-        image = vips2numpy(region)
-
-        # Apply normalization
-        if normalizer:
-            try:
-                image = normalizer.rgb_to_rgb(image)
-            except Exception:
-                # The image could not be normalized,
-                # which happens when a tile is primarily one solid color
-                return None
-
-    # Include ROI / bounding box processing.
-    # Used to visualize ROIs on extracted tiles, or to generate YoloV5 labels.
-    if args.yolo or args.draw_roi:
-        coords, boxes, yolo_anns = _roi_coords_from_image(c, args)
-    if args.draw_roi:
-        image = _draw_roi(image, coords)
-
-    return_dict.update({'image': image})
-    if args.yolo:
-        return_dict.update({'yolo': yolo_anns})
-    return return_dict
 
 
 def log_extraction_params(**kwargs) -> None:
@@ -375,7 +154,7 @@ class _BaseLoader:
         enable_downsample: bool = True,
         pb: Optional[Progress] = None,
         mpp: Optional[float] = None,
-        vips_cache: Optional[Dict[str, Any]] = None
+        **reader_kwargs
     ) -> None:
 
         self.pb = pb
@@ -395,7 +174,7 @@ class _BaseLoader:
         self.filetype = sf.util.path_to_ext(path)
         self.__slide = None
         self._mpp_override = mpp
-        self._vips_cache_kw = vips_cache
+        self._reader_kwargs = reader_kwargs
 
         # Initiate supported slide reader
         if not os.path.exists(path):
@@ -407,7 +186,7 @@ class _BaseLoader:
 
         # Collect basic slide information
         try:
-            self.mpp = float(self.slide.properties[OPS_MPP_X])
+            self.mpp = float(self.slide.mpp)
         except KeyError:
             raise errors.SlideLoadError(
                 f"Slide [green]{self.name}[/] missing MPP ({OPS_MPP_X})"
@@ -477,13 +256,6 @@ class _BaseLoader:
         self.__dict__.update(state)
 
     @property
-    def _slide_reader(self) -> Any:
-        if self.filetype.lower() in ('jpg', 'jpeg'):
-            return _JPGVIPSReader
-        else:
-            return _VIPSReader
-
-    @property
     def dimensions(self) -> Tuple[int, int]:
         return self.slide.dimensions
 
@@ -499,15 +271,14 @@ class _BaseLoader:
             return None
 
     @property
-    def slide(self) -> Union[_JPGVIPSReader, _VIPSReader]:
+    def slide(self) -> Union["_JPGReader", "_SlideReader"]:
         if self.__slide is not None:
             return self.__slide
-
         try:
-            self.__slide = self._slide_reader(
+            self.__slide = wsi_reader(
                 self.path,
                 self._mpp_override,
-                self._vips_cache_kw)
+                **self._reader_kwargs)
             return self.__slide  # type: ignore
         except Exception as e:
             raise errors.SlideLoadError(
@@ -716,10 +487,7 @@ class _BaseLoader:
         else:
             thumb_kw = dict(level=self.slide.level_count-1, width=width)
 
-        np_thumb = vips_thumbnail(
-            self.path,
-            leica_scn=(self.vendor and self.vendor == 'leica'),
-            **thumb_kw)
+        np_thumb = self.slide.thumbnail(**thumb_kw)
         image = Image.fromarray(np_thumb).resize((width, height))
 
         if coords:
@@ -1188,13 +956,12 @@ class WSI(_BaseLoader):
             return None
 
         # Extract the numpy image at this grid location.
-        image_dict = _wsi_extraction_worker(
+        image_dict = tile_worker(
             (x, y, grid_x, grid_y),
             SimpleNamespace(
                 full_extract_px=self.full_extract_px,
-                vips_wrapper=self._slide_reader,
                 mpp_override=self._mpp_override,
-                vips_cache=self._vips_cache_kw,
+                reader_kwargs=self._reader_kwargs,
                 roi_scale=self.roi_scale,
                 rois=self.rois,
                 grid=self.grid,
@@ -1469,9 +1236,8 @@ class WSI(_BaseLoader):
 
         w_args = SimpleNamespace(**{
             'full_extract_px': self.full_extract_px,
-            'vips_wrapper': self._slide_reader,
             'mpp_override': self._mpp_override,
-            'vips_cache': self._vips_cache_kw,
+            'reader_kwargs': self._reader_kwargs,
             'roi_scale': self.roi_scale,
             'rois': self.rois,
             'grid': self.grid,
@@ -1535,7 +1301,7 @@ class WSI(_BaseLoader):
                     log.debug(f"Building generator without multithreading")
                     def _generator():
                         for c in non_roi_coord:
-                            yield _wsi_extraction_worker(c, args=w_args)
+                            yield tile_worker(c, args=w_args)
                     i_mapped = _generator()
             else:
                 log.debug("Building generator with a shared pool")
@@ -1554,14 +1320,14 @@ class WSI(_BaseLoader):
                     def _generator():
                         for batch in batched_coord:
                             yield from pool.imap(
-                                partial(_wsi_extraction_worker, args=w_args),
+                                partial(tile_worker, args=w_args),
                                 batch
                             )
                     i_mapped = _generator()
 
                 else:
                     i_mapped = pool.imap(
-                        partial(_wsi_extraction_worker, args=w_args),
+                        partial(tile_worker, args=w_args),
                         non_roi_coord,
                     )
             for e, result in enumerate(i_mapped):
@@ -1956,9 +1722,10 @@ class TMA(_BaseLoader):
         region = self.slide.read_region(
             (region_x_min, region_y_min),
             self.downsample_level,
-            (region_width, region_height)
+            (region_width, region_height),
+            to_numpy=True
         )
-        extracted = vips2numpy(region)[:, :, :-1]
+        extracted = region[:, :, :-1]
         relative_box = ((box - [region_x_min, region_y_min])
                         / self.downsample_factor)
 

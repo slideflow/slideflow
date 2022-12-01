@@ -483,7 +483,11 @@ def interleave(
                 return tuple([record[f] for f in features_to_return])
 
             # Load slides and apply Otsu's thresholding
-            pool = mp.Pool(16 if os.cpu_count is None else os.cpu_count())
+            ctx = mp.get_context('spawn')
+            if sf.slide_backend() == 'cucim':
+                pool = ctx.Pool(8 if os.cpu_count is None else os.cpu_count())
+            else:
+                pool = ctx.Pool(16 if os.cpu_count is None else os.cpu_count())
             wsi_list = []
             to_remove = []
             otsu_list = []
