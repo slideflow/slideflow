@@ -88,12 +88,12 @@ setuptools.setup(
         'saliency',
         'pyperclip',
         'requests',
-        'cucim'
+        'cucim',
     ],
     extras_require={
         'tf': [
             'tensorflow>=2.7,<2.10',
-            'tensorflow_probability'
+            'tensorflow_probability<0.18'
         ],
         'torch': [
             'torch',
