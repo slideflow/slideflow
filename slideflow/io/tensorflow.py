@@ -385,6 +385,7 @@ def interleave(
     tile_um: Optional[int] = None,
     rois: Optional[List[str]] = None,
     roi_method: str = 'auto',
+    pool: Optional["mp.pool.Pool"] = None,
     **decode_kwargs: Any
 ) -> Iterable:
 
@@ -483,7 +484,10 @@ def interleave(
                 return tuple([record[f] for f in features_to_return])
 
             # Load slides and apply Otsu's thresholding
-            pool = mp.Pool(16 if os.cpu_count is None else os.cpu_count())
+            if pool is None and sf.slide_backend() == 'cucim':
+                pool = mp.Pool(8 if os.cpu_count is None else os.cpu_count())
+            elif pool is None:
+                pool = mp.dummy.Pool(16 if os.cpu_count is None else os.cpu_count())
             wsi_list = []
             to_remove = []
             otsu_list = []

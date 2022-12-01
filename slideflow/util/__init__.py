@@ -163,11 +163,13 @@ class TileExtractionProgress(Progress):
 def header(console=None):
     if console is None:
         console = Console()
-    color = 'yellow' if sf.backend() == 'tensorflow' else 'purple'
+    col1 = 'yellow' if sf.backend() == 'tensorflow' else 'purple'
+    col2 = 'green' if sf.slide_backend() == 'cucim' else 'cyan'
     console.print(
         Panel(f"[white bold]Slideflow[/]"
               f"\nVersion: {sf.__version__}"
-              f"\nBackend: [{color}]{sf.backend()}[/]"
+              f"\nBackend: [{col1}]{sf.backend()}[/]"
+              f"\nSlide Backend: [{col2}]{sf.slide_backend()}[/]"
               "\n[blue]https://slideflow.dev[/]",
               border_style='purple'),
         justify='center')

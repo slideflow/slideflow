@@ -1,14 +1,10 @@
 '''This module includes tools to convolutionally section whole slide images
 into tiles. These tessellated tiles can be exported as PNG or JPG as raw
-images or stored in the binary format TFRecords, with or without augmentation.
-
-Requires: libvips (https://libvips.github.io/libvips/).'''
+images or stored in the binary format TFRecords, with or without augmentation.'''
 
 from __future__ import absolute_import, division, print_function
 
-import re
 import csv
-import io
 import json
 import multiprocessing as mp
 import os
@@ -18,7 +14,8 @@ import warnings
 from functools import partial
 from os.path import exists, join
 from types import SimpleNamespace
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import (Any, Callable, Dict, List, Optional, Tuple, Union,
+                    TYPE_CHECKING)
 
 import cv2
 import numpy as np
@@ -30,62 +27,20 @@ import skimage
 import skimage.filters
 import slideflow as sf
 import slideflow.slide.qc
-from PIL import Image, ImageDraw, UnidentifiedImageError
+from PIL import Image, ImageDraw
+from rich.progress import Progress
 from skimage import img_as_ubyte
 from slideflow import errors
-from slideflow.slide.report import ExtractionPDF  # noqa F401
-from slideflow.slide.report import ExtractionReport, SlideReport
 from slideflow.util import SUPPORTED_FORMATS  # noqa F401
 from slideflow.util import log, path_to_name  # noqa F401
-from rich.progress import Progress
 
-try:
-    import pyvips as vips
-except (ModuleNotFoundError, OSError) as e:
-    log.error("Unable to load vips; slide processing will be unavailable. "
-              f"Error raised: {e}")
+from .report import ExtractionPDF  # noqa F401
+from .report import ExtractionReport, SlideReport
+from .utils import *
+from .backends import tile_worker, wsi_reader
 
 warnings.simplefilter('ignore', Image.DecompressionBombWarning)
 Image.MAX_IMAGE_PIXELS = 100000000000
-DEFAULT_JPG_MPP = 1
-OPS_LEVEL_COUNT = 'openslide.level-count'
-OPS_MPP_X = 'openslide.mpp-x'
-OPS_VENDOR = 'openslide.vendor'
-TIF_EXIF_KEY_MPP = 65326
-OPS_WIDTH = 'width'
-OPS_HEIGHT = 'height'
-DEFAULT_WHITESPACE_THRESHOLD = 230
-DEFAULT_WHITESPACE_FRACTION = 1.0
-DEFAULT_GRAYSPACE_THRESHOLD = 0.05
-DEFAULT_GRAYSPACE_FRACTION = 0.6
-FORCE_CALCULATE_WHITESPACE = -1
-FORCE_CALCULATE_GRAYSPACE = -1
-
-
-def OPS_LEVEL_HEIGHT(level: int) -> str:
-    return f'openslide.level[{level}].height'
-
-
-def OPS_LEVEL_WIDTH(level: int) -> str:
-    return f'openslide.level[{level}].width'
-
-
-def OPS_LEVEL_DOWNSAMPLE(level: int) -> str:
-    return f'openslide.level[{level}].downsample'
-
-
-VIPS_FORMAT_TO_DTYPE = {
-    'uchar': np.uint8,
-    'char': np.int8,
-    'ushort': np.uint16,
-    'short': np.int16,
-    'uint': np.uint32,
-    'int': np.int32,
-    'float': np.float32,
-    'double': np.float64,
-    'complex': np.complex64,
-    'dpcomplex': np.complex128,
-}
 
 
 def _update_kw_with_defaults(kwargs) -> Dict:
@@ -125,251 +80,6 @@ def _convert_img_to_format(image: np.ndarray, img_format: str) -> str:
         raise ValueError(f"Unknown image format {img_format}")
 
 
-def _draw_roi(
-    img: Union[np.ndarray, str],
-    coords: List[int]
-) -> np.ndarray:
-    """Draw ROIs on image.
-
-    Args:
-        img (Union[np.ndarray, str]): Image.
-        coords (List[List[int]]): ROI coordinates.
-
-    Returns:
-        np.ndarray: Image as numpy array.
-    """
-    annPolys = [sg.Polygon(b) for b in coords]
-    if isinstance(img, np.ndarray):
-        annotated_img = Image.fromarray(img)
-    elif isinstance(img, str):
-        annotated_img = Image.open(io.BytesIO(img))  # type: ignore
-    draw = ImageDraw.Draw(annotated_img)
-    for poly in annPolys:
-        x, y = poly.exterior.coords.xy
-        zipped = list(zip(x.tolist(), y.tolist()))
-        draw.line(zipped, joint='curve', fill='red', width=5)
-    return np.asarray(annotated_img)
-
-
-def _roi_coords_from_image(
-    c: List[int],
-    args: SimpleNamespace
-) -> Tuple[List[int], List[np.ndarray], List[List[int]]]:
-    # Scale ROI according to downsample level
-    extract_scale = (args.extract_px / args.full_extract_px)
-
-    # Scale ROI according to image resizing
-    resize_scale = (args.tile_px / args.extract_px)
-
-    def proc_ann(ann):
-        # Scale to full image size
-        coord = ann.coordinates
-        # Offset coordinates to extraction window
-        coord = np.add(coord, np.array([-1 * c[0], -1 * c[1]]))
-        # Rescale according to downsampling and resizing
-        coord = np.multiply(coord, (extract_scale * resize_scale))
-        return coord
-
-    # Filter out ROIs not in this tile
-    coords = []
-    ll = np.array([0, 0])
-    ur = np.array([args.tile_px, args.tile_px])
-    for roi in args.rois:
-        coord = proc_ann(roi)
-        idx = np.all(np.logical_and(ll <= coord, coord <= ur), axis=1)
-        coords_in_tile = coord[idx]
-        if len(coords_in_tile) > 3:
-            coords += [coords_in_tile]
-
-    # Convert ROI to bounding box that fits within tile
-    boxes = []
-    yolo_anns = []
-    for coord in coords:
-        max_vals = np.max(coord, axis=0)
-        min_vals = np.min(coord, axis=0)
-        max_x = min(max_vals[0], args.tile_px)
-        max_y = min(max_vals[1], args.tile_px)
-        min_x = max(min_vals[0], 0)
-        min_y = max(0, min_vals[1])
-        width = (max_x - min_x) / args.tile_px
-        height = (max_y - min_y) / args.tile_px
-        x_center = ((max_x + min_x) / 2) / args.tile_px
-        y_center = ((max_y + min_y) / 2) / args.tile_px
-        yolo_anns += [[x_center, y_center, width, height]]
-        boxes += [np.array([
-            [min_x, min_y],
-            [min_x, max_y],
-            [max_x, max_y],
-            [max_x, min_y]
-        ])]
-    return coords, boxes, yolo_anns
-
-
-def _wsi_extraction_worker(
-    c: List[int],
-    args: SimpleNamespace
-) -> Optional[Union[str, Dict]]:
-    '''Multiprocessing worker for WSI. Extracts tile at given coordinates.'''
-
-    x, y, grid_x, grid_y = c
-    x_coord = int((x + args.full_extract_px / 2) / args.roi_scale)
-    y_coord = int((y + args.full_extract_px / 2) / args.roi_scale)
-
-    # If downsampling is enabled, read image from highest level
-    # to perform filtering; otherwise filter from our target level
-    slide = args.vips_wrapper(args.path, args.mpp_override, args.vips_cache)
-    if args.whitespace_fraction < 1 or args.grayspace_fraction < 1:
-        if args.filter_downsample_ratio > 1:
-            filter_extract_px = args.extract_px // args.filter_downsample_ratio
-            filter_region = slide.read_region(
-                (x, y),
-                args.filter_downsample_level,
-                (filter_extract_px, filter_extract_px)
-            )
-        else:
-            # Read the region and resize to target size
-            filter_region = slide.read_region(
-                (x, y),
-                args.downsample_level,
-                (args.extract_px, args.extract_px)
-            )
-        # Perform whitespace filtering [Libvips]
-        if args.whitespace_fraction < 1:
-            ws_fraction = filter_region.bandmean().relational_const(
-                'more',
-                args.whitespace_threshold
-            ).avg() / 255
-            if (ws_fraction > args.whitespace_fraction
-               and args.whitespace_fraction != FORCE_CALCULATE_WHITESPACE):
-                return None
-
-        # Perform grayspace filtering [Libvips]
-        if args.grayspace_fraction < 1:
-            hsv_region = filter_region.sRGB2HSV()
-            gs_fraction = hsv_region[1].relational_const(
-                'less',
-                args.grayspace_threshold*255
-            ).avg() / 255
-            if (gs_fraction > args.grayspace_fraction
-               and args.whitespace_fraction != FORCE_CALCULATE_WHITESPACE):
-                return None
-
-    # Prepare return dict with WS/GS fraction
-    return_dict = {'loc': [x_coord, y_coord]}  # type: Dict[str, Any]
-    return_dict.update({'grid': [grid_x, grid_y]})
-    if args.grayspace_fraction < 1:
-        return_dict.update({'gs_fraction': gs_fraction})
-    if args.whitespace_fraction < 1:
-        return_dict.update({'ws_fraction': ws_fraction})
-
-    # If dry run, return without the image
-    if args.dry_run:
-        return_dict.update({'loc': [x_coord, y_coord]})
-        return return_dict
-
-    # Normalizer
-    if not args.normalizer:
-        normalizer = None
-    else:
-        normalizer = sf.norm.autoselect(
-            method=args.normalizer,
-            source=args.normalizer_source
-        )
-
-    # Read the target downsample region now, if we were
-    # filtering at a different level
-    region = slide.read_region(
-        (x, y),
-        args.downsample_level,
-        (args.extract_px, args.extract_px)
-    )
-    if region.bands == 4:
-        region = region.flatten()  # removes alpha
-    if int(args.tile_px) != int(args.extract_px):
-        region = region.resize(args.tile_px/args.extract_px)
-    assert(region.width == region.height == args.tile_px)
-
-    if args.img_format != 'numpy':
-        if args.img_format == 'png':
-            image = region.pngsave_buffer()
-        elif args.img_format in ('jpg', 'jpeg'):
-            image = region.jpegsave_buffer()
-        else:
-            raise ValueError(f"Unknown image format {args.img_format}")
-
-        # Apply normalization
-        if normalizer:
-            try:
-                if args.img_format == 'png':
-                    image = normalizer.png_to_png(image)
-                elif args.img_format in ('jpg', 'jpeg'):
-                    image = normalizer.jpeg_to_jpeg(image)
-                else:
-                    raise ValueError(f"Unknown image format {args.img_format}")
-            except Exception:
-                # The image could not be normalized,
-                # which happens when a tile is primarily one solid color
-                return None
-    else:
-        # Read regions into memory and convert to numpy arrays
-        image = vips2numpy(region)
-
-        # Apply normalization
-        if normalizer:
-            try:
-                image = normalizer.rgb_to_rgb(image)
-            except Exception:
-                # The image could not be normalized,
-                # which happens when a tile is primarily one solid color
-                return None
-
-    # Include ROI / bounding box processing.
-    # Used to visualize ROIs on extracted tiles, or to generate YoloV5 labels.
-    if args.yolo or args.draw_roi:
-        coords, boxes, yolo_anns = _roi_coords_from_image(c, args)
-    if args.draw_roi:
-        image = _draw_roi(image, coords)
-
-    return_dict.update({'image': image})
-    if args.yolo:
-        return_dict.update({'yolo': yolo_anns})
-    return return_dict
-
-
-def vips2numpy(vi: "vips.Image") -> np.ndarray:
-    '''Converts a VIPS image into a numpy array'''
-    return np.ndarray(buffer=vi.write_to_memory(),
-                      dtype=VIPS_FORMAT_TO_DTYPE[vi.format],
-                      shape=[vi.height, vi.width, vi.bands])
-
-
-def vips_resize(
-    img: np.ndarray,
-    crop_width: int,
-    target_px: int
-) -> np.ndarray:
-    """Resizes and crops an image using libvips.resize()
-
-    Args:
-        img (np.ndarray): Image.
-        crop_width (int): Height/width of image crop (before resize).
-        target_px (int): Target size of final image after resizing.
-
-    Returns:
-        np.ndarray: Resized image.
-    """
-    img_data = np.ascontiguousarray(img).data
-    vips_image = vips.Image.new_from_memory(
-        img_data,
-        crop_width,
-        crop_width,
-        bands=3,
-        format="uchar"
-    )
-    vips_image = vips_image.resize(target_px/crop_width)
-    return vips2numpy(vips_image)
-
-
 def log_extraction_params(**kwargs) -> None:
     '''Logs tile extraction parameters.'''
 
@@ -403,285 +113,6 @@ def log_extraction_params(**kwargs) -> None:
         log.debug(f'Grayspace defined as HSV avg < {gs_t} {excl}')
 
 
-class _VIPSWrapper:
-
-    def __init__(
-        self,
-        path: str,
-        mpp: Optional[float] = None,
-        cache_kw: Optional[Dict[str, Any]] = None
-    ) -> None:
-        '''Wrapper for VIPS to preserve openslide-like functions.'''
-        self.path = path
-        self.cache_kw = cache_kw if cache_kw else {}
-        self.loaded_downsample_levels = {}  # type: Dict[int, "vips.Image"]
-        loaded_image = self.load_downsample_level(0)
-
-        # Load image properties
-        self.properties = {}
-        for field in loaded_image.get_fields():
-            self.properties.update({field: loaded_image.get(field)})
-        self.dimensions = (
-            int(self.properties[OPS_WIDTH]),
-            int(self.properties[OPS_HEIGHT])
-        )
-        # If Openslide MPP is not available, try reading from metadata
-        if mpp is not None:
-            log.debug(f"Setting MPP to {mpp}")
-            self.properties[OPS_MPP_X] = mpp
-        elif OPS_MPP_X not in self.properties.keys():
-            log.debug(
-                "Microns-Per-Pixel (MPP) not found, Searching EXIF"
-            )
-            try:
-                with Image.open(path) as img:
-                    if TIF_EXIF_KEY_MPP in img.tag.keys():
-                        _mpp = img.tag[TIF_EXIF_KEY_MPP][0]
-                        log.debug(
-                            f"Using MPP {_mpp} per EXIF {TIF_EXIF_KEY_MPP}"
-                        )
-                        self.properties[OPS_MPP_X] = _mpp
-                    elif (sf.util.path_to_ext(path).lower() == 'svs'
-                          and 'image-description' in loaded_image.get_fields()):
-                          img_des = loaded_image.get('image-description')
-                          _mpp = re.findall(r'(?<=MPP\s\=\s)0\.\d+', img_des)
-                          if _mpp is not None:
-                            log.debug(
-                                f"Using MPP {_mpp} from 'image-description' for SCN"
-                                "-converted SVS format"
-                            )
-                            self.properties[OPS_MPP_X] = _mpp[0]
-                    elif (sf.util.path_to_ext(path).lower() in ('tif', 'tiff')
-                          and 'xres' in loaded_image.get_fields()):
-                        xres = loaded_image.get('xres')  # 4000.0
-                        if (xres == 4000.0
-                           and loaded_image.get('resolution-unit') == 'cm'):
-                            # xres = xres # though resolution from tiffinfo
-                            # says 40000 pixels/cm, for some reason the xres
-                            # val is 4000.0, so multipley by 10.
-                            # Convert from pixels/cm to cm/pixels, then convert
-                            # to microns by multiplying by 1000
-                            mpp_x = (1/xres) * 1000
-                            self.properties[OPS_MPP_X] = str(mpp_x)
-                            log.debug(
-                                f"Using MPP {mpp_x} per TIFF 'xres' field"
-                                f" {loaded_image.get('xres')} and "
-                                f"{loaded_image.get('resolution-unit')}"
-                            )
-                    else:
-                        name = path_to_name(path)
-                        log.warning(
-                            f"Missing Microns-Per-Pixel (MPP) for {name}"
-                        )
-            except AttributeError:
-                mpp = DEFAULT_JPG_MPP
-                log.debug(f"Could not detect microns-per-pixel; using default {mpp}")
-                self.properties[OPS_MPP_X] = mpp
-            except UnidentifiedImageError:
-                log.error(
-                    f"PIL error; unable to read slide {path_to_name(path)}."
-                )
-
-        if OPS_LEVEL_COUNT in self.properties:
-            self.level_count = int(self.properties[OPS_LEVEL_COUNT])
-            # Calculate level metadata
-            self.levels = []   # type: List[Dict[str, Any]]
-            for lev in range(self.level_count):
-                width = int(loaded_image.get(OPS_LEVEL_WIDTH(lev)))
-                height = int(loaded_image.get(OPS_LEVEL_HEIGHT(lev)))
-                downsample = float(loaded_image.get(OPS_LEVEL_DOWNSAMPLE(lev)))
-                self.levels += [{
-                    'dimensions': (width, height),
-                    'width': width,
-                    'height': height,
-                    'downsample': downsample
-                }]
-        else:
-            self.level_count = 1
-            self.levels = [{
-                    'dimensions': self.dimensions,
-                    'width': self.dimensions[0],
-                    'height': self.dimensions[1],
-                    'downsample': 1
-                }]
-        self.level_downsamples = [lev['downsample'] for lev in self.levels]
-        self.level_dimensions = [lev['dimensions'] for lev in self.levels]
-
-    def best_level_for_downsample(
-        self,
-        downsample: float,
-    ) -> int:
-        '''Return lowest magnification level with a downsample level lower than
-        the given target.
-
-        Args:
-            downsample (float): Ratio of target resolution to resolution
-                at the highest magnification level. The downsample level of the
-                highest magnification layer is equal to 1.
-            levels (list(int), optional): Valid levels to search. Defaults to
-                None (search all levels).
-
-        Returns:
-            int:    Optimal downsample level.'''
-        max_downsample = 0
-        for d in self.level_downsamples:
-            if d < downsample:
-                max_downsample = d
-        try:
-            max_level = self.level_downsamples.index(max_downsample)
-        except Exception:
-            log.debug(f"Error attempting to read level {max_downsample}")
-            return 0
-        return max_level
-
-    def load_downsample_level(self, level: int) -> "vips.Image":
-        downsampled_image = vips.Image.new_from_file(
-            self.path,
-            level=level,
-            fail=True,
-            access=vips.enums.Access.RANDOM
-        )
-        if self.cache_kw:
-            downsampled_image = downsampled_image.tilecache(**self.cache_kw)
-        self.loaded_downsample_levels.update({
-            level: downsampled_image
-        })
-        return downsampled_image
-
-    def get_downsampled_image(self, level: int) -> "vips.Image":
-        '''Returns a VIPS image of a given downsample.'''
-        if level in range(len(self.levels)):
-            if level in self.loaded_downsample_levels:
-                return self.loaded_downsample_levels[level]
-            else:
-                return self.load_downsample_level(level)
-        else:
-            return False
-
-    def read_region(
-        self,
-        base_level_dim: Tuple[int, int],
-        downsample_level: int,
-        extract_size: Tuple[int, int]
-    ) -> "vips.Image":
-        """Extracts a region from the image at the given downsample level.
-
-        Args:
-            base_level_dim (Tuple[int, int]): Top-left location of the region
-                to extract, using downsample layer coordinates (x, y)
-            downsample_level (int): Downsample level to read.
-            extract_size (Tuple[int, int]): Size of the region to read
-                (width, height) using base layer coordinates.
-
-        Returns:
-            vips.Image: VIPS image.
-        """
-        base_level_x, base_level_y = base_level_dim
-        extract_width, extract_height = extract_size
-        downsample_factor = self.level_downsamples[downsample_level]
-        downsample_x = int(base_level_x / downsample_factor)
-        downsample_y = int(base_level_y / downsample_factor)
-        image = self.get_downsampled_image(downsample_level)
-        region = image.crop(
-            downsample_x,
-            downsample_y,
-            extract_width,
-            extract_height
-        )
-        return region
-
-    def read_from_pyramid(
-        self,
-        top_left: Tuple[int, int],
-        window_size: Tuple[int, int],
-        target_size: Optional[Tuple[int, int]] = None,
-        target_downsample: Optional[float] = None,
-    ) -> "vips.Image":
-        """Reads a region from the image. Performance is accelerated by
-        pyramid downsample layers, if available.
-
-        Args:
-            top_left (Tuple[int, int]): Top-left location of the region to
-                extract, using base layer coordinates (x, y).
-            window_size (Tuple[int, int]): Size of the region to read (width,
-                height) using base layer coordinates.
-            target_size (Tuple[int, int]): Resize the region to this target
-                size (width, height).
-
-        Returns:
-            vips.Image: VIPS image. Dimensions will equal target_size unless
-            the window includes an area of the image which is out of bounds.
-            In this case, the returned image will be cropped.
-        """
-        if target_size is None and target_downsample is None:
-            raise ValueError("Must supply either target_size or "
-                             "target_downsample to read_from_pyramid()")
-        if target_downsample is None:
-            target_downsample = window_size[0] / target_size[0]
-
-        ds_level = self.best_level_for_downsample(target_downsample)
-        image = self.get_downsampled_image(ds_level)
-        resize_factor = self.level_downsamples[ds_level] / target_downsample
-        image = image.resize(resize_factor)
-
-        if target_size is not None:
-            return image.crop(
-                int(top_left[0] / target_downsample),
-                int(top_left[1] / target_downsample),
-                min(target_size[0], image.width),
-                min(target_size[1], image.height)
-            )
-        else:
-            return image
-
-class _JPGslideToVIPS(_VIPSWrapper):
-    '''Wrapper for JPG files, which do not possess separate levels, to
-    preserve openslide-like functions.'''
-
-    def __init__(self, path: str, mpp: Optional[float] = None, cache_kw = None) -> None:
-        self.path = path
-        self.full_image = vips.Image.new_from_file(path)
-        self.cache_kw = cache_kw if cache_kw else {}
-        if not self.full_image.hasalpha():
-            self.full_image = self.full_image.addalpha()
-        self.properties = {}
-        for field in self.full_image.get_fields():
-            self.properties.update({field: self.full_image.get(field)})
-        width = int(self.properties[OPS_WIDTH])
-        height = int(self.properties[OPS_HEIGHT])
-        self.dimensions = (width, height)
-        self.level_count = 1
-        self.loaded_downsample_levels = {
-            0: self.full_image
-        }
-        # Calculate level metadata
-        self.levels = [{
-            'dimensions': (width, height),
-            'width': width,
-            'height': height,
-            'downsample': 1,
-        }]
-        self.level_downsamples = [1]
-        self.level_dimensions = [(width, height)]
-
-        # MPP data
-        if mpp is not None:
-            log.debug(f"Setting MPP to {mpp}")
-            self.properties[OPS_MPP_X] = mpp
-        else:
-            try:
-                with Image.open(path) as img:
-                    exif_data = img.getexif()
-                    if TIF_EXIF_KEY_MPP in exif_data.keys():
-                        _mpp = exif_data[TIF_EXIF_KEY_MPP]
-                        log.debug(f"Using MPP {_mpp} per EXIF field {TIF_EXIF_KEY_MPP}")
-                        self.properties[OPS_MPP_X] = _mpp
-                    else:
-                        raise AttributeError
-            except AttributeError:
-                mpp = DEFAULT_JPG_MPP
-                log.debug(f"Could not detect microns-per-pixel; using default {mpp}")
-                self.properties[OPS_MPP_X] = mpp
 class ROI:
     '''Object container for ROI annotations.'''
 
@@ -723,7 +154,7 @@ class _BaseLoader:
         enable_downsample: bool = True,
         pb: Optional[Progress] = None,
         mpp: Optional[float] = None,
-        vips_cache: Optional[Dict[str, Any]] = None
+        **reader_kwargs
     ) -> None:
 
         self.pb = pb
@@ -743,7 +174,7 @@ class _BaseLoader:
         self.filetype = sf.util.path_to_ext(path)
         self.__slide = None
         self._mpp_override = mpp
-        self._vips_cache_kw = vips_cache
+        self._reader_kwargs = reader_kwargs
 
         # Initiate supported slide reader
         if not os.path.exists(path):
@@ -755,7 +186,7 @@ class _BaseLoader:
 
         # Collect basic slide information
         try:
-            self.mpp = float(self.slide.properties[OPS_MPP_X])
+            self.mpp = float(self.slide.mpp)
         except KeyError:
             raise errors.SlideLoadError(
                 f"Slide [green]{self.name}[/] missing MPP ({OPS_MPP_X})"
@@ -825,13 +256,6 @@ class _BaseLoader:
         self.__dict__.update(state)
 
     @property
-    def _vips_wrapper(self) -> Any:
-        if self.filetype.lower() in ('jpg', 'jpeg'):
-            return _JPGslideToVIPS
-        else:
-            return _VIPSWrapper
-
-    @property
     def dimensions(self) -> Tuple[int, int]:
         return self.slide.dimensions
 
@@ -847,17 +271,16 @@ class _BaseLoader:
             return None
 
     @property
-    def slide(self) -> _VIPSWrapper:
+    def slide(self) -> Union["_JPGReader", "_SlideReader"]:
         if self.__slide is not None:
             return self.__slide
-
         try:
-            self.__slide = self._vips_wrapper(
+            self.__slide = wsi_reader(
                 self.path,
                 self._mpp_override,
-                self._vips_cache_kw)
+                **self._reader_kwargs)
             return self.__slide  # type: ignore
-        except vips.error.Error as e:
+        except Exception as e:
             raise errors.SlideLoadError(
                 f"Error loading slide {self.shortname}: {e}"
             )
@@ -989,7 +412,12 @@ class _BaseLoader:
         self.estimated_num_tiles = int(self.grid.sum())
         return Image.fromarray(img_as_ubyte(self.qc_mask))
 
-    def square_thumb(self, width: int = 512) -> Image.Image:
+    def square_thumb(
+        self,
+        width: int = 512,
+        use_associated_image: bool = True,
+        **kwargs
+    ) -> Image.Image:
         '''Returns a square thumbnail of the slide, with black bar borders.
 
         Args:
@@ -998,23 +426,12 @@ class _BaseLoader:
         Returns:
             PIL image
         '''
-        # Get thumbnail image and dimensions via fastest method available
-        associated_images = self.slide.properties['slide-associated-images']
-        if ('slide-associated-images' in self.slide.properties
-           and 'thumbnail' in associated_images):
-            vips_thumb = vips.Image.openslideload(
-                self.slide.path,
-                associated='thumbnail'
-            )
-        else:
-            level = max(0, self.slide.level_count-2)
-            vips_thumb = self.slide.get_downsampled_image(level)
-
-        height = int(width / (vips_thumb.width / vips_thumb.height))
-        np_thumb = vips2numpy(vips_thumb)
-        thumb = Image.fromarray(np_thumb).resize((width, height))
-
-        # Standardize to square with black borders as needed
+        thumb = self.thumb(
+            width=width,
+            use_associated_image=use_associated_image,
+            **kwargs)
+        height = int(width / (thumb.width / thumb.height))
+        thumb = thumb.resize((width, height))
         square_thumb = Image.new("RGB", (width, width))
         square_thumb.paste(thumb, (0, int((width-height)/2)))
         return square_thumb
@@ -1024,9 +441,9 @@ class _BaseLoader:
         mpp: Optional[float] = None,
         width: Optional[int] = None,
         coords: Optional[List[int]] = None,
-        rois: bool = False,
-        linewidth: int = 2,
-        color: str = 'black'
+        rect_linewidth: int = 2,
+        rect_color: str = 'black',
+        use_associated_image: bool = False
     ) -> Image.Image:
         '''Returns PIL thumbnail of the slide.
 
@@ -1038,6 +455,8 @@ class _BaseLoader:
             coords (list(int), optional): List of tile extraction coordinates
                 to show as rectangles on the thumbnail, in [(x_center,
                 y_center), ...] format. Defaults to None.
+            use_associated_image (bool): Use the associated thumbnail image
+                in the slide, rather than reading from a pyramid layer.
 
         Returns:
             PIL image
@@ -1063,23 +482,12 @@ class _BaseLoader:
         # Calculate appropriate height
         height = int((self.mpp * self.dimensions[1]) / mpp)
 
-        # Get thumb via libvips & convert PIL Image
-        if self.vendor and self.vendor == 'leica':
-            # The libvips thumbnail function does not work appropriately
-            # with Leica SCN images, so a downsample level must be
-            # manually specified.
-            thumbnail = vips.Image.new_from_file(
-                self.path,
-                fail=True,
-                access=vips.enums.Access.RANDOM,
-                level=self.slide.level_count-1
-            )
+        if use_associated_image:
+            thumb_kw = dict(associated='thumbnail')
         else:
-            thumbnail = vips.Image.thumbnail(self.path, width)
-        try:
-            np_thumb = vips2numpy(thumbnail)
-        except vips.error.Error as e:
-            raise errors.SlideLoadError(f"Error loading slide thumbnail: {e}")
+            thumb_kw = dict(level=self.slide.level_count-1, width=width)
+
+        np_thumb = self.slide.thumbnail(**thumb_kw)
         image = Image.fromarray(np_thumb).resize((width, height))
 
         if coords:
@@ -1089,7 +497,7 @@ class _BaseLoader:
             for (x, y) in coords:  # type: ignore
                 x, y = x * ratio * self.roi_scale, y * ratio * self.roi_scale  # type: ignore
                 coords = (x-wh, y-wh, x+wh, y+wh)  # type: ignore
-                draw.rectangle(coords, outline='black', width=2)
+                draw.rectangle(coords, outline=rect_color, width=rect_linewidth)
             return image
         else:
             return image
@@ -1548,13 +956,12 @@ class WSI(_BaseLoader):
             return None
 
         # Extract the numpy image at this grid location.
-        image_dict = _wsi_extraction_worker(
+        image_dict = tile_worker(
             (x, y, grid_x, grid_y),
             SimpleNamespace(
                 full_extract_px=self.full_extract_px,
-                vips_wrapper=self._vips_wrapper,
                 mpp_override=self._mpp_override,
-                vips_cache=self._vips_cache_kw,
+                reader_kwargs=self._reader_kwargs,
                 roi_scale=self.roi_scale,
                 rois=self.rois,
                 grid=self.grid,
@@ -1829,9 +1236,8 @@ class WSI(_BaseLoader):
 
         w_args = SimpleNamespace(**{
             'full_extract_px': self.full_extract_px,
-            'vips_wrapper': self._vips_wrapper,
             'mpp_override': self._mpp_override,
-            'vips_cache': self._vips_cache_kw,
+            'reader_kwargs': self._reader_kwargs,
             'roi_scale': self.roi_scale,
             'rois': self.rois,
             'grid': self.grid,
@@ -1895,7 +1301,7 @@ class WSI(_BaseLoader):
                     log.debug(f"Building generator without multithreading")
                     def _generator():
                         for c in non_roi_coord:
-                            yield _wsi_extraction_worker(c, args=w_args)
+                            yield tile_worker(c, args=w_args)
                     i_mapped = _generator()
             else:
                 log.debug("Building generator with a shared pool")
@@ -1914,14 +1320,14 @@ class WSI(_BaseLoader):
                     def _generator():
                         for batch in batched_coord:
                             yield from pool.imap(
-                                partial(_wsi_extraction_worker, args=w_args),
+                                partial(tile_worker, args=w_args),
                                 batch
                             )
                     i_mapped = _generator()
 
                 else:
                     i_mapped = pool.imap(
-                        partial(_wsi_extraction_worker, args=w_args),
+                        partial(tile_worker, args=w_args),
                         non_roi_coord,
                     )
             for e, result in enumerate(i_mapped):
@@ -1955,7 +1361,8 @@ class WSI(_BaseLoader):
         coords: Optional[List[int]] = None,
         rois: bool = False,
         linewidth: int = 2,
-        color: str = 'black'
+        color: str = 'black',
+        use_associated_image: bool = False
     ) -> Image.Image:
         """Returns PIL Image of thumbnail with ROI overlay.
 
@@ -1989,7 +1396,11 @@ class WSI(_BaseLoader):
             else:
                 roi_scale = self.dimensions[0] / width  # type: ignore
 
-        thumb = super().thumb(mpp=mpp, width=width, coords=coords)
+        thumb = super().thumb(
+            mpp=mpp,
+            width=width,
+            coords=coords,
+            use_associated_image=use_associated_image)
 
         if rois:
             annPolys = [
@@ -2311,9 +1722,10 @@ class TMA(_BaseLoader):
         region = self.slide.read_region(
             (region_x_min, region_y_min),
             self.downsample_level,
-            (region_width, region_height)
+            (region_width, region_height),
+            to_numpy=True
         )
-        extracted = vips2numpy(region)[:, :, :-1]
+        extracted = region[:, :, :-1]
         relative_box = ((box - [region_x_min, region_y_min])
                         / self.downsample_factor)
 

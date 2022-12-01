@@ -1428,8 +1428,10 @@ class Trainer:
         self.model.eval()
         self._log_manifest(None, dataset, labels=None)
 
-        if from_wsi:
+        if from_wsi and sf.slide_backend() == 'libvips':
             pool = mp.Pool(os.cpu_count() if os.cpu_count() else 8)
+        elif from_wsi:
+            pool = mp.dummy.Pool(os.cpu_count() if os.cpu_count() else 8)
         else:
             pool = None
         if not batch_size:
@@ -1441,7 +1443,7 @@ class Trainer:
             incl_labels=False,
             from_wsi=from_wsi,
             roi_method=roi_method,
-            pool=pool,)
+            pool=pool)
 
         log.info('Generating predictions...')
         torch_args = types.SimpleNamespace(
@@ -1520,8 +1522,10 @@ class Trainer:
             self.validation_batch_size = batch_size
         if not self.model:
             raise errors.ModelNotLoadedError
-        if from_wsi:
+        if from_wsi and sf.slide_backend() == 'libvips':
             pool = mp.Pool(os.cpu_count() if os.cpu_count() else 8)
+        elif from_wsi:
+            pool = mp.dummy.Pool(os.cpu_count() if os.cpu_count() else 8)
         else:
             pool = None
 
@@ -1668,8 +1672,10 @@ class Trainer:
         self.use_tensorboard = use_tensorboard
         self.log_frequency = log_frequency
 
-        if from_wsi:
+        if from_wsi and sf.slide_backend() == 'libvips':
             pool = mp.Pool(os.cpu_count() if os.cpu_count() else 8)
+        elif from_wsi:
+            pool = mp.dummy.Pool(os.cpu_count() if os.cpu_count() else 8)
         else:
             pool = None
 

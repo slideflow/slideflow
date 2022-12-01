@@ -665,7 +665,7 @@
         <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Grayspace defined as HSV avg &lt; </span><span class="si">{</span><span class="n">gs_t</span><span class="si">}</span><span class="s1"> </span><span class="si">{</span><span class="n">excl</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
 
 
-<span class="k">class</span> <span class="nc">_VIPSWrapper</span><span class="p">:</span>
+<span class="k">class</span> <span class="nc">_VIPSReader</span><span class="p">:</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
@@ -896,7 +896,7 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">image</span>
 
-<span class="k">class</span> <span class="nc">_JPGslideToVIPS</span><span class="p">(</span><span class="n">_VIPSWrapper</span><span class="p">):</span>
+<span class="k">class</span> <span class="nc">_JPGVIPSReader</span><span class="p">(</span><span class="n">_VIPSReader</span><span class="p">):</span>
     <span class="sd">&#39;&#39;&#39;Wrapper for JPG files, which do not possess separate levels, to</span>
 <span class="sd">    preserve openslide-like functions.&#39;&#39;&#39;</span>
 
@@ -1088,11 +1088,11 @@
         <span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">state</span><span class="p">)</span>
 
     <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">_vips_wrapper</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">_slide_reader</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">filetype</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;jpg&#39;</span><span class="p">,</span> <span class="s1">&#39;jpeg&#39;</span><span class="p">):</span>
-            <span class="k">return</span> <span class="n">_JPGslideToVIPS</span>
+            <span class="k">return</span> <span class="n">_JPGVIPSReader</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">_VIPSWrapper</span>
+            <span class="k">return</span> <span class="n">_VIPSReader</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">dimensions</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]:</span>
@@ -1110,12 +1110,12 @@
             <span class="k">return</span> <span class="kc">None</span>
 
     <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">slide</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">_VIPSWrapper</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">slide</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">_VIPSReader</span><span class="p">:</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">__slide</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__slide</span>
 
         <span class="k">try</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">__slide</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_vips_wrapper</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__slide</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_slide_reader</span><span class="p">(</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="p">,</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">_mpp_override</span><span class="p">,</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">_vips_cache_kw</span><span class="p">)</span>
@@ -1197,7 +1197,7 @@
         <span class="c1"># Otsu&#39;s thresholding can be done on the lowest downsample level</span>
         <span class="k">if</span> <span class="n">method</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;otsu&#39;</span><span class="p">,</span> <span class="s1">&#39;both&#39;</span><span class="p">):</span>
             <span class="n">lev</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">level_count</span> <span class="o">-</span> <span class="mi">1</span>
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_vips_wrapper</span> <span class="o">==</span> <span class="n">_JPGslideToVIPS</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_slide_reader</span> <span class="o">==</span> <span class="n">_JPGVIPSReader</span><span class="p">:</span>
                 <span class="n">otsu_thumb</span> <span class="o">=</span> <span class="n">vips</span><span class="o">.</span><span class="n">Image</span><span class="o">.</span><span class="n">new_from_file</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="n">fail</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">otsu_thumb</span> <span class="o">=</span> <span class="n">vips</span><span class="o">.</span><span class="n">Image</span><span class="o">.</span><span class="n">new_from_file</span><span class="p">(</span>
@@ -1849,7 +1849,7 @@
             <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">grid_x</span><span class="p">,</span> <span class="n">grid_y</span><span class="p">),</span>
             <span class="n">SimpleNamespace</span><span class="p">(</span>
                 <span class="n">full_extract_px</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">full_extract_px</span><span class="p">,</span>
-                <span class="n">vips_wrapper</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_vips_wrapper</span><span class="p">,</span>
+                <span class="n">vips_wrapper</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_slide_reader</span><span class="p">,</span>
                 <span class="n">mpp_override</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_mpp_override</span><span class="p">,</span>
                 <span class="n">vips_cache</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_vips_cache_kw</span><span class="p">,</span>
                 <span class="n">roi_scale</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">roi_scale</span><span class="p">,</span>
@@ -2126,7 +2126,7 @@
 
         <span class="n">w_args</span> <span class="o">=</span> <span class="n">SimpleNamespace</span><span class="p">(</span><span class="o">**</span><span class="p">{</span>
             <span class="s1">&#39;full_extract_px&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">full_extract_px</span><span class="p">,</span>
-            <span class="s1">&#39;vips_wrapper&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_vips_wrapper</span><span class="p">,</span>
+            <span class="s1">&#39;vips_wrapper&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_slide_reader</span><span class="p">,</span>
             <span class="s1">&#39;mpp_override&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mpp_override</span><span class="p">,</span>
             <span class="s1">&#39;vips_cache&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_vips_cache_kw</span><span class="p">,</span>
             <span class="s1">&#39;roi_scale&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">roi_scale</span><span class="p">,</span>

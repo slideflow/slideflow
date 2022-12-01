@@ -33,7 +33,7 @@ smac
 ConfigSpace
 pyarrow
 ninja
-tensorflow_probability
+tensorflow_probability<0.18
 rich
 pillow>=6.0.0
 imgui
@@ -43,3 +43,4 @@ saliency
 parameterized
 pyperclip
 requests
+cucim

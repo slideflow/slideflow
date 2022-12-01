@@ -56,8 +56,10 @@ class HeatmapWidget:
     def _create_heatmap(self):
         viz = self.viz
         self.reset()
-        mp_key = 'num_threads' if viz.low_memory else 'num_processes'
-        mp_kw = {mp_key: os.cpu_count()}
+        if viz.low_memory or sf.slide_backend() == 'cucim':
+            mp_kw = dict(num_threads=os.cpu_count())
+        else:
+            mp_kw = dict(num_processes=os.cpu_count())
         viz.heatmap = sf.heatmap.ModelHeatmap(
             viz.wsi,
             viz.model,

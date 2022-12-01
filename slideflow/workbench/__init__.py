@@ -262,8 +262,14 @@ class Workbench(imgui_window.ImguiWindow):
         """Draw the About dialog."""
         if self._show_about:
             import platform
-            import pyvips
-            from pyvips.base import version as lv
+            try:
+                import pyvips
+                from pyvips.base import version as lv
+                libvips_version = f'{lv(0)}.{lv(1)}.{lv(2)}'
+                pyvips_version = pyvips.__version__
+            except Exception:
+                libvips_version = 'NA'
+                pyvips_version = 'NA'
 
             imgui.open_popup('about_popup')
             version_width = imgui.calc_text_size("Version: " + sf.__version__).x
@@ -274,8 +280,9 @@ class Workbench(imgui_window.ImguiWindow):
 
             about_text =  f"Version: {sf.__version__}\n"
             about_text += f"Python: {platform.python_version()}\n"
-            about_text += f"Libvips: {lv(0)}.{lv(1)}.{lv(2)}\n"
-            about_text += f"Pyvips: {pyvips.__version__}\n"
+            about_text += f"Slide Backend: {sf.slide_backend()}\n"
+            about_text += f"Libvips: {libvips_version}\n"
+            about_text += f"Pyvips: {pyvips_version}\n"
             about_text += f"OS: {platform.system()} {platform.release()}\n"
 
             if imgui.begin_popup('about_popup'):
@@ -747,20 +754,25 @@ class Workbench(imgui_window.ImguiWindow):
             rois = self.P.dataset().rois()
         else:
             rois = None
+        if sf.slide_backend() == 'cucim':
+            reader_kwargs = dict(num_workers=os.cpu_count())
+        else:
+            reader_kwargs = {}
         self.wsi = sf.WSI(
             path,
             tile_px=(self.tile_px if self.tile_px else 256),
             tile_um=(self.tile_um if self.tile_um else 512),
             stride_div=stride,
             rois=rois,
-            vips_cache=dict(
+            cache_kw=dict(
                 tile_width=512,
                 tile_height=512,
                 max_tiles=-1,
                 threaded=True,
                 persistent=True
             ),
-            verbose=False)
+            verbose=False,
+            **reader_kwargs)
         self.set_viewer(wsi_utils.SlideViewer(self.wsi, **self._viewer_kwargs()))
 
     def _render_prediction_message(self, message: str) -> None:

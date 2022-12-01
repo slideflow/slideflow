@@ -2,7 +2,6 @@
 
 import cv2
 import numpy as np
-import pyvips as vips
 import slideflow as sf
 import rasterio
 import shapely.affinity as sa
@@ -38,20 +37,15 @@ class Otsu:
             level = wsi.slide.level_count - 1
         else:
             level = self.level
-        if wsi._vips_wrapper == sf.slide._JPGslideToVIPS:
-            thumb = vips.Image.new_from_file(wsi.path, fail=True)
-        else:
-            thumb = vips.Image.new_from_file(
-                wsi.path,
-                fail=True,
-                access=vips.enums.Access.RANDOM,
-                level=level
-            )
+
         try:
-            thumb = sf.slide.vips2numpy(thumb)
-        except vips.error.Error:
+            if wsi.slide.has_levels:
+                thumb = wsi.slide.read_level(level=level, to_numpy=True)
+            else:
+                thumb = wsi.slide.read_level(to_numpy=True)
+        except Exception as e:
             raise errors.QCError(
-                f"Thumbnail error for slide {wsi.shortname}, QC failed"
+                f"Thumbnail error for slide {wsi.shortname}, QC failed: {e}"
             )
         if thumb.shape[-1] == 4:
             thumb = thumb[:, :, :3]
