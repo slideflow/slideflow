@@ -110,7 +110,7 @@ P = sf.project.create(
 
 After the slides have been downloaded and verified, you can skip to [Extract tiles from slides](#extract-tiles-from-slides).
 
-Altneratively, to create a new custom project, create an instance of the `slideflow.Project` class, supplying patient-level annotations in CSV format:
+Alternatively, to create a new custom project, create an instance of the `slideflow.Project` class and supply patient-level annotations in CSV format:
 
 ```python
 import slideflow as sf
