@@ -5,7 +5,6 @@ Requires: cuCIM (...)
 
 import cv2
 import numpy as np
-import cupy as cp
 import slideflow as sf
 
 from types import SimpleNamespace
@@ -13,8 +12,8 @@ from typing import Optional, Dict, Any, Tuple, List
 from slideflow.util import log
 from cucim import CuImage
 from cucim.skimage.transform import resize
-from cucim.skimage.color import rgb2hsv
-from cucim.skimage.util import img_as_float
+from skimage.util import img_as_float
+from skimage.color import rgb2hsv
 from slideflow.slide.utils import *
 
 
@@ -26,7 +25,7 @@ def get_cucim_reader(path: str, *args, **kwargs):
 
 
 def cucim2numpy(img: "CuImage") -> np.ndarray:
-    return ((img_as_float(cp.asarray(img)).get()) * 255).astype(np.uint8)
+    return ((img_as_float(np.asarray(img))) * 255).astype(np.uint8)
 
 
 def cucim2jpg(img: "CuImage") -> str:
@@ -82,7 +81,7 @@ def tile_worker(
 
         # Perform grayspace filtering [Libvips]
         if args.grayspace_fraction < 1:
-            hsv_region = rgb2hsv(cp.asarray(filter_region)).get()
+            hsv_region = rgb2hsv(np.asarray(filter_region))
             gs_fraction = np.mean(hsv_region[:, :, 1] < args.grayspace_threshold)
             if (gs_fraction > args.grayspace_fraction
                and args.whitespace_fraction != FORCE_CALCULATE_WHITESPACE):
@@ -117,7 +116,7 @@ def tile_worker(
     # cuCIM resize
     if not __cv2_resize__:
         if int(args.tile_px) != int(args.extract_px):
-            region = resize(cp.asarray(region), (args.tile_px, args.tile_px))
+            region = resize(np.asarray(region), (args.tile_px, args.tile_px))
 
     region = cucim2numpy(region)
 
@@ -288,7 +287,7 @@ class _cuCIMReader:
             target_size = (int(extract_size[0] * resize_factor),
                            int(extract_size[1] * resize_factor))
             if __cv2_resize__:
-                region = resize(cp.asarray(region), target_size)
+                region = resize(np.asarray(region), target_size)
         # Final conversions
         if flatten and region.shape[-1] == 4:
             region = region[:, :, 0:3]
@@ -338,7 +337,7 @@ class _cuCIMReader:
             (int(window_size[0] / ds), int(window_size[1] / ds))
         )
         if not __cv2_resize__:
-            region = resize(cp.asarray(region), (target_size[1], target_size[0]))
+            region = resize(np.asarray(region), (target_size[1], target_size[0]))
         # Final conversions
         if flatten and region.shape[-1] == 4:
             region = region[:, :, 0:3]
@@ -358,9 +357,13 @@ class _cuCIMReader:
     def thumbnail(
         self,
         width: int = 512,
-        level: Optional[int] = None
+        level: Optional[int] = None,
+        associated: bool = False
     ) -> np.ndarray:
         """Return thumbnail of slide as numpy array."""
+        if associated:
+            log.debug("associated=True not implemented for cucim() thumbnail,"
+                      "reading from lowest-magnification layer.")
         if level is None:
             level = self.level_count - 1
         w, h = self.dimensions
@@ -370,5 +373,5 @@ class _cuCIMReader:
             img = cucim2numpy(img)
             return cv2.resize(img, (width, height))
         else:
-            img = resize(cp.asarray(img), (width, height))
+            img = resize(np.asarray(img), (width, height))
             return cucim2numpy(img)

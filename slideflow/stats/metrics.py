@@ -581,7 +581,9 @@ def group_reduce(
                 _df[f'{outcome}-y_pred{i}'] = (outcome_pred_cat == i).astype(int)
 
     for group in groups:
-        group_dfs.update({group: _df.groupby(group, as_index=False).mean()})
+        group_dfs.update({
+            group: _df.groupby(group, as_index=False).mean(numeric_only=True)
+        })
 
     return group_dfs
 
