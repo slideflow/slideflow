@@ -1621,6 +1621,12 @@ class Trainer:
             config['norm_fit'] = self.normalizer.get_fit(as_list=True)
             sf.util.write_json(config, config_path)
 
+        # Prepare multiprocessing pool if from_wsi=True
+        if from_wsi:
+            pool = mp.Pool(8 if os.cpu_count is None else os.cpu_count())
+        else:
+            pool = None
+
         # Save training / validation manifest
         if val_dts is None:
             val_paths = None
@@ -1682,6 +1688,7 @@ class Trainer:
                     infinite=True,
                     augment=self.hp.augment,
                     from_wsi=from_wsi,
+                    pool=pool,
                     roi_method=roi_method
                 )
                 train_data = train_dts.tensorflow(drop_last=True, **t_kwargs)
@@ -1700,6 +1707,7 @@ class Trainer:
                         infinite=False,
                         augment=False,
                         from_wsi=from_wsi,
+                        pool=pool,
                         roi_method=roi_method
                     )
                     validation_data = val_dts.tensorflow(
@@ -1812,6 +1820,10 @@ class Trainer:
             if self.use_neptune and self.neptune_run is not None:
                 self.neptune_run['results'] = results['epochs']
                 self.neptune_run.stop()
+
+            # Cleanup
+            if pool is not None:
+                pool.close()
 
             return results
 
