@@ -7,7 +7,7 @@ import os
 import tempfile
 import pandas as pd
 from datetime import datetime
-from os.path import join
+from os.path import join, exists
 from types import SimpleNamespace
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
@@ -407,11 +407,25 @@ class ExtractionReport:
     def save(self, filename: str) -> None:
         self.pdf.output(filename)
 
-    def update_csv(self, filename: str) -> None:
+    def update_csv(self, filename: str) -> pd.DataFrame:
+        """Update and save tile extraction report as CSV."""
+
         print("Updating CSV for {} reports.".format(len(self.reports)))
+        if exists(filename):
+            ex_df = pd.read_csv(filename)
+            ex_df.set_index('slide')
+        else:
+            ex_df = None
         assert self.meta is not None
-        qc_str = '...'
-        df = pd.DataFrame(columns={
+        if not self.meta.qc:
+            qc_str = 'None'
+        elif isinstance(self.meta.qc, str):
+            qc_str = self.meta.qc
+        elif isinstance(self.meta.qc, list):
+            qc_str = ', '.join([str(s) for s in self.meta.qc])
+        else:
+            qc_str = str(self.meta.qc)
+        df = pd.DataFrame({
             'slide':        pd.Series([path_to_name(r.path) for r in self.reports]),
             'num_tiles':    pd.Series([r.data['num_tiles'] for r in self.reports]),
             'tile_px':      pd.Series([self.meta.tile_px for r in self.reports]),
@@ -429,5 +443,8 @@ class ExtractionReport:
             'backend':      pd.Series([sf.slide_backend() for r in self.reports]),
             'slideflow_version': pd.Series([sf.__version__ for r in self.reports])
         })
-        print(df)
-        df.to_csv(filename)
+        df.set_index('slide')
+        if ex_df is not None:
+            df = pd.concat([df, ex_df[~ex_df.slide.isin(df.slide.unique())]])
+        df.to_csv(filename, index=False)
+        return df
