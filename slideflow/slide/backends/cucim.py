@@ -11,7 +11,7 @@ from types import SimpleNamespace
 from typing import Optional, Dict, Any, Tuple, List
 from slideflow.util import log
 from cucim import CuImage
-from cucim.skimage.transform import resize
+from skimage.transform import resize
 from skimage.util import img_as_float
 from skimage.color import rgb2hsv
 from slideflow.slide.utils import *

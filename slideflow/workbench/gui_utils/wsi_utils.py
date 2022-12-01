@@ -403,7 +403,7 @@ class SlideViewer(Viewer):
                 (self.wsi.extract_px, self.wsi.extract_px),
                 convert=convert,
                 flatten=True,
-                resize_factor = resize_factor
+                resize_factor=resize_factor
             )
         except Exception as e:
             if allow_errors:
