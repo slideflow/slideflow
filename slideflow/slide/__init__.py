@@ -166,6 +166,7 @@ class _BaseLoader:
         self.stride_div = stride_div
         self.path = path
         self.qc_masks = []
+        self.rois = []  # type: List
         self.qc_mpp = None  # type: Optional[float]
         self.blur_burden = None  # type: Optional[float]
         self.roi_scale = 1  # type: float
@@ -710,7 +711,8 @@ class _BaseLoader:
                 blur_burden=self.blur_burden,
                 num_tiles=len(locations),
                 qc_mask=self.qc_mask,
-                locations=df
+                locations=df,
+                num_rois=(0 if self.roi_method == 'ignore' else len(self.rois))
             )
             slide_report = SlideReport(
                 sample_tiles,
@@ -847,7 +849,6 @@ class WSI(_BaseLoader):
         self.estimated_num_tiles = 0  # type: int
         self.annPolys = []  # type: List
         self.roi_scale = 10  # type: float
-        self.rois = []  # type: List
         self.roi_method = roi_method
         self.randomize_origin = randomize_origin
         self.verbose = verbose

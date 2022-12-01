@@ -1342,6 +1342,7 @@ class Dataset:
                     pdf_report.save(
                         join(pdf_dir, f'tile_extraction_report-{_time}.pdf')
                     )
+                    pdf_report.update_csv(join(pdf_dir, 'extraction_report.csv'))
                     warn_path = join(pdf_dir, f'warn_report-{_time}.txt')
                     with open(warn_path, 'w') as warn_f:
                         warn_f.write(pdf_report.warn_txt)

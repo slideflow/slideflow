@@ -20,6 +20,11 @@ class Otsu:
         """
         self.level = slide_level
 
+    def __repr__(self):
+        return "Otsu(slide_level={!r})".format(
+            self.level
+        )
+
     def _thumb_from_slide(
         self,
         wsi: "sf.WSI",

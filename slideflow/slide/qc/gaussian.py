@@ -26,6 +26,11 @@ class Gaussian:
         self.sigma = sigma
         self.threshold = threshold
 
+    def __repr__(self):
+        return "Gaussian(mpp={!r}, sigma={!r}, threshold={!r})".format(
+            self.mpp, self.sigma, self.threshold
+        )
+
     def _thumb_from_slide(
         self,
         wsi: "sf.WSI"
