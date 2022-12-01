@@ -95,7 +95,22 @@ export SF_SLIDE_BACKEND=libvips
 
 
 ## Getting started
-Slideflow experiments are organized into [Projects](https://slideflow.dev/project_setup.html), which supervise storage of whole-slide images, extracted tiles, and patient-level annotations. To create a new project, create an instance of the `slideflow.Project` class, supplying a pre-configured set of patient-level annotations in CSV format:
+Slideflow experiments are organized into [Projects](https://slideflow.dev/project_setup.html), which supervise storage of whole-slide images, extracted tiles, and patient-level annotations. The fastest way to get started is to use one of our preconfigured projects, which will automatically download slides from the Genomic Data Commons. Download one of our [dataset folders](https://github.com/jamesdolezal/slideflow/tree/dev/datasets), and supply the `*.json` file to the project creation function:
+
+```python
+import slideflow as sf
+
+P = sf.project.create(
+  '/project/destination',
+  cfg='datasets/thyroid_brs/thyroid_brs.json',
+  download=True,
+  md5=True
+)
+```
+
+After the slides have been downloaded and verified, you can skip to [Extract tiles from slides](#extract-tiles-from-slides).
+
+Altneratively, to create a new custom project, create an instance of the `slideflow.Project` class, supplying patient-level annotations in CSV format:
 
 ```python
 import slideflow as sf
