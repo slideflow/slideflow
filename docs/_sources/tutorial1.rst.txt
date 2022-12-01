@@ -148,7 +148,7 @@ to only include patients with documented ER status (otherwise a blank "" would b
 
         # Train with 5-fold cross-validation
         P.train(
-            'ER_status',
+            'er_status_by_ihc',
             params=hp,
             val_k_fold=5,
             filters={'dataset': ['train'],
@@ -166,7 +166,7 @@ we will set ``val_strategy`` to ``None``:
 
         # Train across the entire training dataset
         P.train(
-            'ER_status',
+            'er_status_by_ihc',
             params=hp,
             val_strategy='none',
             filters={'dataset': ['train'],
@@ -193,7 +193,7 @@ Now, it's time to start our pipeline. To review, our ``actions.py`` file at this
 
         # Train with 5-fold cross-validation
         P.train(
-            'ER_status',
+            'er_status_by_ihc',
             params=hp,
             val_k_fold=5,
             filters={'dataset': ['train'],
@@ -202,7 +202,7 @@ Now, it's time to start our pipeline. To review, our ``actions.py`` file at this
 
         # Train across the entire training dataset
         P.train(
-            'ER_status',
+            'er_status_by_ihc',
             params=hp,
             val_strategy='none',
             filters={'dataset': ['train'],

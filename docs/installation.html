@@ -9,22 +9,22 @@
   <meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Installation &mdash; slideflow 1.4.0-rc0+2.g85e4b788.dirty documentation</title>
+  
 
-  <title>Installation &mdash; slideflow 1.3.0 documentation</title>
+  
+  
+  
+  
 
+  
 
+  
+  
+    
 
-
-
-
-
-
-
-
-
-
-
-
+  
 
   <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <!-- <link rel="stylesheet" href="_static/pygments.css" type="text/css" /> -->
@@ -35,11 +35,11 @@
     <link rel="next" title="Pipeline Overview" href="pipeline.html" />
     <link rel="prev" title="Slideflow Documentation" href="index.html" />
   <!-- Google Analytics -->
-
+  
   <!-- End Google Analytics -->
+  
 
-
-
+  
   <script src="_static/js/modernizr.min.js"></script>
 
   <!-- Preload the theme fonts -->
@@ -102,9 +102,9 @@
 
 <body class="pytorch-body">
 
+   
 
-
-
+    
 
     <div class="table-of-contents-link-wrapper">
       <span>Table of Contents</span>
@@ -115,21 +115,21 @@
       <div class="pytorch-side-scroll">
         <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           <div class="pytorch-left-menu-search">
+            
 
-
-
-
-
+            
+              
+              
                 <div class="version">
                   1.3
                 </div>
+              
+            
+
+            
 
 
-
-
-
-
-
+  
 
 
 <div role="search">
@@ -140,15 +140,15 @@
   </form>
 </div>
 
-
+            
           </div>
 
-
-
-
-
-
-
+          
+            
+            
+              
+            
+            
               <p class="caption" role="heading"><span class="caption-text">Overview</span></p>
 <ul class="current">
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Installation</a></li>
@@ -180,6 +180,7 @@
 <li class="toctree-l1"><a class="reference internal" href="mosaic.html">slideflow.mosaic</a></li>
 <li class="toctree-l1"><a class="reference internal" href="norm.html">slideflow.norm</a></li>
 <li class="toctree-l1"><a class="reference internal" href="slide.html">slideflow.slide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="slide_qc.html">slideflow.slide.qc</a></li>
 <li class="toctree-l1"><a class="reference internal" href="stats.html">slideflow.stats</a></li>
 <li class="toctree-l1"><a class="reference internal" href="util.html">slideflow.util</a></li>
 <li class="toctree-l1"><a class="reference internal" href="workbench.html">slideflow.workbench</a></li>
@@ -194,8 +195,8 @@
 <li class="toctree-l1"><a class="reference internal" href="tutorial6.html">Tutorial 6: Custom slide filtering</a></li>
 </ul>
 
-
-
+            
+          
         </div>
       </div>
     </nav>
@@ -203,7 +204,7 @@
     <div class="pytorch-container">
       <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
         <div class="pytorch-breadcrumbs-wrapper">
-
+          
 
 
 
@@ -222,30 +223,30 @@
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="pytorch-breadcrumbs">
-
+    
       <li>
         <a href="index.html">
-
+          
             Docs
-
+          
         </a> &gt;
       </li>
 
-
+        
       <li>Installation</li>
-
-
+    
+    
       <li class="pytorch-breadcrumbs-aside">
-
-
+        
+            
             <a href="_sources/installation.rst.txt" rel="nofollow"><img src="_static/images/view-page-source-icon.svg"></a>
-
-
+          
+        
       </li>
-
+    
   </ul>
 
-
+  
 </div>
         </div>
 
@@ -257,13 +258,13 @@
       <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
         <div class="pytorch-content-left">
 
-
-
+        
+          
           <div class="rst-content">
-
+          
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
-
+              
   <section id="installation">
 <h1>Installation<a class="headerlink" href="#installation" title="Permalink to this heading">¶</a></h1>
 <p>Slideflow has been tested and is supported on the following systems:</p>
@@ -271,16 +272,18 @@
 <li><p>Ubuntu 18.04, 20.04, and 22.04</p></li>
 <li><p>Centos 7, 8, and 8 Stream</p></li>
 </ul>
-<section id="software-requirements">
-<h2>Software Requirements<a class="headerlink" href="#software-requirements" title="Permalink to this heading">¶</a></h2>
-<p>The following dependencies are required before Slideflow can be installed:</p>
+<section id="requirements">
+<h2>Requirements<a class="headerlink" href="#requirements" title="Permalink to this heading">¶</a></h2>
 <ul class="simple">
-<li><p>Python 3.7 - 3.10</p></li>
-<li><p><a class="reference external" href="https://openslide.org/download/">OpenSlide</a></p></li>
-<li><p><a class="reference external" href="https://libvips.github.io/libvips/">Libvips 8.9+</a></p></li>
-<li><p><a class="reference external" href="https://www.tensorflow.org/install">Tensorflow 2.5-2.9</a> or <a class="reference external" href="https://pytorch.org/get-started/locally/">PyTorch 1.9-1.12</a></p></li>
-<li><p><a class="reference external" href="https://qupath.github.io">QuPath</a> [<em>optional</em>] - used for ROI annotations</p></li>
-<li><p>Linear solver for site-preserved cross-validation [<em>optional</em>]:</p>
+<li><p>Python &gt;= 3.7 (&lt;3.10 if using <a class="reference external" href="https://docs.rapids.ai/api/cucim/stable/">cuCIM</a>)</p></li>
+<li><p><a class="reference external" href="https://www.tensorflow.org/">Tensorflow</a> 2.5-2.9 <em>or</em> <a class="reference external" href="https://pytorch.org/">PyTorch</a> 1.9-1.12</p></li>
+</ul>
+<section id="optional">
+<h3>Optional<a class="headerlink" href="#optional" title="Permalink to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><a class="reference external" href="https://libvips.github.io/libvips/">Libvips &gt;= 8.9</a> (alternative slide reader, adds support for *.scn, *.mrxs, *.ndpi, *.vms, and *.vmu files)</p></li>
+<li><p><a class="reference external" href="https://qupath.github.io">QuPath</a> (for pathologist ROIs)</p></li>
+<li><p>Linear solver (for site-preserved cross-validation):</p>
 <ul>
 <li><p><a class="reference external" href="https://www.ibm.com/docs/en/icos/12.10.0?topic=v12100-installing-cplex-optimization-studio">CPLEX 20.1.0</a> with <a class="reference external" href="https://www.ibm.com/docs/en/icos/12.10.0?topic=cplex-setting-up-python-api">Python API</a></p></li>
 <li><p><em>or</em> <a class="reference external" href="http://www.pyomo.org/installation">Pyomo</a> with <a class="reference external" href="https://anaconda.org/conda-forge/coinbonmin">Bonmin</a> solver</p></li>
@@ -288,42 +291,45 @@
 </li>
 </ul>
 </section>
+</section>
 <section id="download-with-pip">
 <h2>Download with pip<a class="headerlink" href="#download-with-pip" title="Permalink to this heading">¶</a></h2>
 <p>Slideflow can be installed either with PyPI or as a Docker container. To install via pip:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Update to latest pip</span>
-$ pip install --upgrade pip
+pip install --upgrade pip wheel
 
 <span class="c1"># Current stable release, Tensorflow backend</span>
-$ pip install slideflow[tf]
+pip install slideflow<span class="o">[</span>tf<span class="o">]</span> cupy-cuda11x
 
 <span class="c1"># Alternatively, install with PyTorch backend</span>
-$ pip install slideflow[torch]
+pip install slideflow<span class="o">[</span>torch<span class="o">]</span> cupy-cuda11x
 </pre></div>
 </div>
+<p>The <code class="docutils literal notranslate"><span class="pre">cupy</span></code> package name depends on the installed CUDA version; <a class="reference external" href="https://docs.cupy.dev/en/stable/install.html#installing-cupy">see here</a> for installation instructions. <code class="docutils literal notranslate"><span class="pre">cupy</span></code> is not required if using Libvips.</p>
 </section>
 <section id="run-a-docker-container">
 <h2>Run a Docker container<a class="headerlink" href="#run-a-docker-container" title="Permalink to this heading">¶</a></h2>
-<p>Alternatively, <a class="reference external" href="https://hub.docker.com/repository/docker/jamesdolezal/slideflow">docker images</a> are available with OpenSlide, Libvips, and either PyTorch 1.11 or Tensorflow 2.8 pre-installed. Using a preconfigured <a class="reference external" href="https://docs.docker.com/install/">Docker</a> container is the easiest way to get started with compatible dependencies and GPU support.</p>
+<p>Alternatively, pre-configured <a class="reference external" href="https://hub.docker.com/repository/docker/jamesdolezal/slideflow">docker images</a> are available with cuCIM, Libvips, and either PyTorch 1.11 or Tensorflow 2.8 pre-installed. Using a preconfigured <a class="reference external" href="https://docs.docker.com/install/">Docker</a> container is the easiest way to get started with compatible dependencies and GPU support.</p>
 <p>To run a Docker container with the Tensorflow 2.8 backend:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ docker pull jamesdolezal/slideflow:latest-tf
-$ docker run -it --gpus all jamesdolezal/slideflow:latest-tf
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker pull jamesdolezal/slideflow:latest-tf
+docker run -it --gpus all jamesdolezal/slideflow:latest-tf
 </pre></div>
 </div>
 <p>To run a Docker container with the PyTorch 1.11 backend:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ docker pull jamesdolezal/slideflow:latest-torch
-$ docker run -it --shm-size<span class="o">=</span>2g --gpus all jamesdolezal/slideflow:latest-torch
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker pull jamesdolezal/slideflow:latest-torch
+docker run -it --shm-size<span class="o">=</span>2g --gpus all jamesdolezal/slideflow:latest-torch
 </pre></div>
 </div>
 </section>
 <section id="build-from-source">
 <h2>Build from source<a class="headerlink" href="#build-from-source" title="Permalink to this heading">¶</a></h2>
 <p>To build Slideflow from source, clone the repository from the project <a class="reference external" href="https://github.com/jamesdolezal/slideflow">Github page</a>:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ git clone https://github.com/jamesdolezal/slideflow
-$ <span class="nb">cd</span> slideflow
-$ pip install -r requirements.txt
-$ python setup.py bdist_wheel
-$ pip install dist/slideflow-1.X.X-py3-any.whl
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git clone https://github.com/jamesdolezal/slideflow
+<span class="nb">cd</span> slideflow
+conda env create -f environment.yml
+conda activate slideflow
+python setup.py bdist_wheel
+pip install dist/slideflow* cupy-cuda11x
 </pre></div>
 </div>
 <div class="admonition warning">
@@ -331,12 +337,17 @@ $ pip install dist/slideflow-1.X.X-py3-any.whl
 <p>A bug in the pixman library (version=0.38) will corrupt downsampled slide images, resulting in large black boxes across the slide. We have provided a patch for version 0.38 that has been tested for Ubuntu, which is provided in the project <a class="reference external" href="https://github.com/jamesdolezal/slideflow">Github page</a> (<code class="docutils literal notranslate"><span class="pre">pixman_repair.sh</span></code>), although it may not be suitable for all environments and we make no guarantees regarding its use. The <a class="reference external" href="https://hub.docker.com/repository/docker/jamesdolezal/slideflow">Slideflow docker images</a> already have this applied. If you are installing from source, have pixman version 0.38, and are unable to apply this patch, the use of downsampled image layers must be disabled to avoid corruption (pass <code class="docutils literal notranslate"><span class="pre">enable_downsample=False</span></code> to tile extraction functions).</p>
 </div>
 </section>
-<section id="changing-backends">
-<h2>Changing backends<a class="headerlink" href="#changing-backends" title="Permalink to this heading">¶</a></h2>
-<p>The default backend for this package is Tensorflow/Keras, but a full PyTorch backend is also included, with a dedicated TFRecord reader/writer that ensures saved image tiles can be served to both Tensorflow and PyTorch models in cross-compatible fashion.</p>
-<p>If using the Tensorflow backend, PyTorch does not need to be installed; the reverse is true as well.</p>
-<p>To switch backends, simply set the environmental variable <code class="docutils literal notranslate"><span class="pre">SF_BACKEND</span></code> equal to either <code class="docutils literal notranslate"><span class="pre">torch</span></code> or <code class="docutils literal notranslate"><span class="pre">tensorflow</span></code>:</p>
+<section id="tensorflow-vs-pytorch">
+<h2>Tensorflow vs. PyTorch<a class="headerlink" href="#tensorflow-vs-pytorch" title="Permalink to this heading">¶</a></h2>
+<p>Slideflow supports both Tensorflow and PyTorch, with cross-compatible TFRecord storage. Slideflow will default to using Tensorflow if both are available, but the backend can be manually specified using the environmental variable <code class="docutils literal notranslate"><span class="pre">SF_BACKEND</span></code>. For example:</p>
 <div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">export SF_BACKEND=torch</span>
+</pre></div>
+</div>
+</section>
+<section id="cucim-vs-libvips">
+<h2>cuCIM vs. Libvips<a class="headerlink" href="#cucim-vs-libvips" title="Permalink to this heading">¶</a></h2>
+<p>By default, Slideflow reads whole-slide images using <a class="reference external" href="https://docs.rapids.ai/api/cucim/stable/">cuCIM</a>. Although much faster than other openslide-based frameworks, it supports fewer slide scanner formats. Slideflow also includes a <a class="reference external" href="https://libvips.github.io/libvips/">Libvips</a> backend, which adds support for *.scn, *.mrxs, *.ndpi, *.vms, and *.vmu files. You can set the active slide backend with the environmental variable <code class="docutils literal notranslate"><span class="pre">SF_SLIDE_BACKEND</span></code>:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">export SF_SLIDE_BACKEND=libvips</span>
 </pre></div>
 </div>
 </section>
@@ -344,25 +355,25 @@ $ pip install dist/slideflow-1.X.X-py3-any.whl
 
 
              </article>
-
+             
             </div>
             <footer>
-
+  
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-
+      
         <a href="pipeline.html" class="btn btn-neutral float-right" title="Pipeline Overview" accesskey="n" rel="next">Next <img src="_static/images/chevron-right-orange.svg" class="next-page"></a>
-
-
+      
+      
         <a href="index.html" class="btn btn-neutral" title="Slideflow Documentation" accesskey="p" rel="prev"><img src="_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
-
+      
     </div>
+  
 
-
-
+  
 
     <hr>
 
-
+  
 
   <div role="contentinfo">
     <p>
@@ -370,11 +381,11 @@ $ pip install dist/slideflow-1.X.X-py3-any.whl
 
     </p>
   </div>
-
+    
       <div>
         Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
       </div>
-
+     
 
 </footer>
 
@@ -386,11 +397,15 @@ $ pip install dist/slideflow-1.X.X-py3-any.whl
             <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
               <ul>
 <li><a class="reference internal" href="#">Installation</a><ul>
-<li><a class="reference internal" href="#software-requirements">Software Requirements</a></li>
+<li><a class="reference internal" href="#requirements">Requirements</a><ul>
+<li><a class="reference internal" href="#optional">Optional</a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#download-with-pip">Download with pip</a></li>
 <li><a class="reference internal" href="#run-a-docker-container">Run a Docker container</a></li>
 <li><a class="reference internal" href="#build-from-source">Build from source</a></li>
-<li><a class="reference internal" href="#changing-backends">Changing backends</a></li>
+<li><a class="reference internal" href="#tensorflow-vs-pytorch">Tensorflow vs. PyTorch</a></li>
+<li><a class="reference internal" href="#cucim-vs-libvips">cuCIM vs. Libvips</a></li>
 </ul>
 </li>
 </ul>
@@ -401,12 +416,12 @@ $ pip install dist/slideflow-1.X.X-py3-any.whl
       </section>
     </div>
 
+  
 
 
+  
 
-
-
-
+     
        <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
          <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
          <script src="_static/jquery.js"></script>
@@ -414,9 +429,9 @@ $ pip install dist/slideflow-1.X.X-py3-any.whl
          <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
          <script src="_static/doctools.js"></script>
          <script src="_static/sphinx_highlight.js"></script>
+     
 
-
-
+  
 
   <script type="text/javascript" src="_static/js/vendor/popper.min.js"></script>
   <script type="text/javascript" src="_static/js/vendor/bootstrap.min.js"></script>
@@ -427,7 +442,7 @@ $ pip install dist/slideflow-1.X.X-py3-any.whl
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script>
+  </script> 
 
   <!-- Begin Footer -->
 

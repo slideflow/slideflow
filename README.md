@@ -72,7 +72,7 @@ cd slideflow
 conda env create -f environment.yml
 conda activate slideflow
 python setup.py bdist_wheel
-pip install dist/slideflow*
+pip install dist/slideflow* cupy-cuda11x
 ```
 
 ## Configuration

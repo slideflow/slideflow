@@ -1,3 +1,5 @@
+.. _tutorial3:
+
 Tutorial 3: Using a custom architecture
 =======================================
 
