@@ -25,28 +25,27 @@ Slideflow has been used by:
 Full documentation with example tutorials can be found at [slideflow.dev](https://www.slideflow.dev/).
 
 ## Requirements
-- Python >= 3.7
-- [Libvips](https://libvips.github.io/libvips/) >= 8.9.
-- [OpenSlide](https://openslide.org/download/)
+- Python >= 3.7 (<3.10 if using [cuCIM](https://docs.rapids.ai/api/cucim/stable/))
 - [Tensorflow](https://www.tensorflow.org/) 2.5-2.9 _or_ [PyTorch](https://pytorch.org/) 1.9-1.12
-- [QuPath](https://qupath.github.io/) [_optional_] - Used for pathologist ROIs
-- Linear solver [_optional_] - Used for preserved-site cross-validation
+
+### Optional
+- [Libvips](https://libvips.github.io/libvips/) >= 8.9 (alternative slide reader, adds support for *.scn, *.mrxs, *.ndpi, *.vms, and *.vmu files).
+- [QuPath](https://qupath.github.io/) (for pathologist ROIs)
+- Linear solver (for preserved-site cross-validation)
   - [CPLEX](https://www.ibm.com/docs/en/icos/12.10.0?topic=v12100-installing-cplex-optimization-studio) 20.1.0 with [Python API](https://www.ibm.com/docs/en/icos/12.10.0?topic=cplex-setting-up-python-api)
   - _or_ [Pyomo](http://www.pyomo.org/installation) with [Bonmin](https://anaconda.org/conda-forge/coinbonmin) solver
 
-## Updates (1.3.3)
-Please see the [Version 1.3.3 Release Notes](https://github.com/jamesdolezal/slideflow/releases/tag/1.3.3) for a summary of the latest updates and fixes in the latest release.
 
 ## Installation
-Slideflow can be installed with PyPI, as a Docker container, or run from source. 
+Slideflow can be installed with PyPI, as a Docker container, or run from source.
 
 ### Method 1: Install via pip
 
 ```
 pip3 install --upgrade setuptools pip wheel
-pip3 install slideflow
+pip3 install slideflow cupy-cuda11x
 ```
-
+The `cupy` package name depends on the installed CUDA version; [see here](https://docs.cupy.dev/en/stable/install.html#installing-cupy) for installation instructions. `cupy` is not required if using Libvips.
 ### Method 2: Docker image
 
 Alternatively, pre-configured [docker images](https://hub.docker.com/repository/docker/jamesdolezal/slideflow) are available with OpenSlide/Libvips and the latest version of either Tensorflow and PyTorch. To install with the Tensorflow backend:
@@ -75,6 +74,25 @@ conda activate slideflow
 python setup.py bdist_wheel
 pip install dist/slideflow*
 ```
+
+## Configuration
+
+### Deep learning (Tensorflow vs. PyTorch)
+
+Slideflow supports both Tensorflow and PyTorch, defaulting to Tensorflow if both are available. You can specify the backend to use with the environmental variable `SF_BACKEND`. For example:
+
+```
+export SF_BACKEND=torch
+```
+
+### Slide reading (cuCIM vs. Libvips)
+
+By default, Slideflow reads whole-slide images using [cuCIM](https://docs.rapids.ai/api/cucim/stable/). Although much faster than other openslide-based frameworks, it supports fewer slide scanner formats. Slideflow also includes a [Libvips](https://libvips.github.io/libvips/) backend, which adds support for *.scn, *.mrxs, *.ndpi, *.vms, and *.vmu files. You can set the active slide backend with the environmental variable `SF_SLIDE_BACKEND`:
+
+```
+export SF_SLIDE_BACKEND=libvips
+```
+
 
 ## Getting started
 Slideflow experiments are organized into [Projects](https://slideflow.dev/project_setup.html), which supervise storage of whole-slide images, extracted tiles, and patient-level annotations. To create a new project, create an instance of the `slideflow.Project` class, supplying a pre-configured set of patient-level annotations in CSV format:
@@ -164,7 +182,7 @@ James Dolezal, Sara Kochanny, & Frederick Howard. (2022). Slideflow: A Unified D
   author       = {James Dolezal and
                   Sara Kochanny and
                   Frederick Howard},
-  title        = {{Slideflow: A Unified Deep Learning Pipeline for 
+  title        = {{Slideflow: A Unified Deep Learning Pipeline for
                    Digital Histology}},
   month        = oct,
   year         = 2022,
