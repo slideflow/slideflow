@@ -28,7 +28,8 @@ chown $(whoami):$(whoami) pixman
 cd pixman
 
 echo "Getting sources..."
-apt-get source libpixman-1-0
+apt install libpixman-1-0=0.38.4-0ubuntu1
+apt-get source libpixman-1-0=0.38.4-0ubuntu1
 cd ..
 chown -R $(whoami):$(whoami) pixman
 cd pixman/pixman-0.38.4
