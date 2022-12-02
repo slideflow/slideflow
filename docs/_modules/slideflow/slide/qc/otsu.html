@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>slideflow.slide.qc.otsu &mdash; slideflow 1.4.0-rc0+2.g85e4b788.dirty documentation</title>
+  <title>slideflow.slide.qc.otsu &mdash; slideflow 1.4.0 documentation</title>
   
 
   
@@ -118,7 +118,7 @@
               
               
                 <div class="version">
-                  1.3
+                  1.4
                 </div>
               
             
@@ -284,6 +284,11 @@
 <span class="sd">                Defaults to second-lowest available level.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">level</span> <span class="o">=</span> <span class="n">slide_level</span></div>
+
+    <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">&quot;Otsu(slide_level=</span><span class="si">{!r}</span><span class="s2">)&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">level</span>
+        <span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">_thumb_from_slide</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>

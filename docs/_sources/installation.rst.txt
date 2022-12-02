@@ -33,12 +33,12 @@ Slideflow can be installed either with PyPI or as a Docker container. To install
     pip install --upgrade pip wheel
 
     # Current stable release, Tensorflow backend
-    pip install slideflow[tf] cupy-cuda11x
+    pip install slideflow[tf] cucim cupy-cuda11x
 
     # Alternatively, install with PyTorch backend
-    pip install slideflow[torch] cupy-cuda11x
+    pip install slideflow[torch] cucim cupy-cuda11x
 
-The ``cupy`` package name depends on the installed CUDA version; `see here <https://docs.cupy.dev/en/stable/install.html#installing-cupy>`_ for installation instructions. ``cupy`` is not required if using Libvips.
+The ``cupy`` package name depends on the installed CUDA version; `see here <https://docs.cupy.dev/en/stable/install.html#installing-cupy>`_ for installation instructions. ``cucim`` and ``cupy`` are not required if using Libvips.
 
 Run a Docker container
 **********************
