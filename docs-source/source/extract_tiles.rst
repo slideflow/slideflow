@@ -116,11 +116,35 @@ Quality control
 
 |
 
-In addition to background filtering, additional blur-detection quality control can be used to identify artifact (pen marks) or out-of-focus areas. If annotated Regions of Interest (ROIs) are not available for your dataset, blur detection should be enabled in order to ensure that high quality image tiles are extracted. If ROIs *are* available, it may be unnecessary. Blur detection may increase tile extraction time by 50% or more.
-
-To use blur detection QC, set ``qc='blur'`` (or ``qc='both'`` if also using Otsu's thresholding).
+In addition to background filtering, additional blur-detection quality control can be used to identify artifact (pen marks) or out-of-focus areas. If annotated Regions of Interest (ROIs) are not available for your dataset, blur detection should be enabled in order to ensure that high quality image tiles are extracted. If ROIs *are* available, it may be unnecessary. Blur detection may increase tile extraction time by 50% or more. Use by setting ``qc='blur'`` (or ``qc='both'`` if also using Otsu's thresholding).
 
 If both Otsu's thresholding and blur detection are being used, Slideflow will automatically calculate Blur Burden, a metric used to assess the degree to which non-background tiles are either out-of-focus or contain artifact. In the tile extraction PDF report that is generated, the distribution of blur burden for slides in the dataset will be plotted on the first page. The report will contain the number of slides meeting criteria for warning, when the blur burden exceeds 5% for a given slide. A text file containing names of slides with high blur burden will be saved in the exported TFRecords directory. These slides should be manually reviewed to ensure they are of high enough quality to include in the dataset.
+
+Customization
+-------------
+
+Quality control methods can be customized by passing a list of callables to the ``qc`` argument instead of a string. For example, to customize the Gaussian filter by manually specifying a sigma of 2:
+
+.. code-block:: python
+
+  import slideflow as sf
+  from slideflow.slide import qc
+
+  # Define custom QC options
+  qc = [
+    qc.Otsu(),
+    qc.Gaussian(sigma=2)
+  ]
+
+  # Use this QC during tile extraction
+  P.extract_tiles(qc=qc)
+
+  # Alternatively, you can use the same QC directly on a WSI object
+  wsi = sf.WSI(...)
+  wsi.qc(qc).show()
+
+See :ref:`qc` for more information on QC customization.
+
 
 Performance optimization
 ************************

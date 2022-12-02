@@ -5,9 +5,12 @@ import json
 import multiprocessing
 import numpy as np
 import os
+import shutil
 import pickle
+import tarfile
+from tqdm import tqdm
 from multiprocessing.managers import DictProxy
-from os.path import basename, exists, join
+from os.path import basename, exists, join, dirname
 from statistics import mean
 from types import SimpleNamespace
 from typing import (TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple,
@@ -18,7 +21,7 @@ from slideflow import errors, project_utils
 from slideflow.dataset import Dataset
 from slideflow.model import ModelParams
 from slideflow.project_utils import auto_dataset, get_validation_settings
-from slideflow.util import log, path_to_name
+from slideflow.util import log, path_to_name, path_to_ext
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -521,6 +524,7 @@ class Project:
         results_dict: Union[Dict, DictProxy],
         training_kwargs: Dict,
         balance_headers: Optional[Union[str, List[str]]],
+        process_isolate: bool = False,
         **kwargs
     ) -> None:
         '''Trains a model(s) using the specified hyperparameters.
@@ -647,6 +651,7 @@ class Project:
             results_dict=results_dict,
             bal_headers=balance_headers,
             input_header=input_header,
+            process_isolate=process_isolate,
             **kwargs
         )
 
@@ -850,8 +855,7 @@ class Project:
             'neptune_workspace': self.neptune_workspace,
             'load_method': s_args.load_method
         }
-        if hp.model != 'custom' and not hp.loss.startswith('custom'):
-            # Do not use process isolation if using a custom model or loss
+        if s_args.process_isolate:
             process = s_args.ctx.Process(target=project_utils._train_worker,
                                         args=((train_dts, val_dts),
                                             model_kwargs,
@@ -2772,6 +2776,7 @@ class Project:
         allow_tf32: bool = False,
         load_method: str = 'full',
         balance_headers: Optional[Union[str, List[str]]] = None,
+        process_isolate: bool = False,
         **training_kwargs: Any
     ) -> Dict:
         """Train model(s) using a given set of parameters, outcomes, and inputs.
@@ -2971,7 +2976,8 @@ class Project:
                 balance_headers=balance_headers,
                 training_kwargs=training_kwargs,
                 results_dict=results_dict,
-                load_method=load_method
+                load_method=load_method,
+                process_isolate=process_isolate
             )
         # Print summary of all models
         log.info('Training complete; validation accuracies:')
@@ -3205,3 +3211,148 @@ class Project:
                         tile_dict=attention_dict,
                         outdir=heatmaps_dir
                     )
+
+# -----------------------------------------------------------------------------
+
+def create(
+    root: str,
+    cfg: Union[str, Dict],
+    *,
+    download: bool = False,
+    md5: bool = False,
+    **kwargs
+) -> "Project":
+    """Create a project at the existing folder from a given configuration.
+
+    Supports both manual project creation via keyword arguments, and setting
+    up a project through a specified configuration. The configuration may be
+    a dictionary or a path to a JSON file containing a dictionary. It must
+    have the key 'annotations', which includes a path to an annotations file,
+    and may optionally have the following arguments:
+
+        - 'name'        Name for the project and dataset.
+        - 'rois'        Path to .tar.gz file containing compressed ROIs.
+        - 'slides'      Path in which slides will be stored.
+        - 'tiles'       Path in which extracted tiles will be stored.
+        - 'tfrecords'   Path in which TFRecords will be stored.
+
+    Annotations files are copied into the created project folder.
+
+    Args:
+        root (str): Path at which the Project will be set up.
+        cfg (dict, str): Path to configuration file (JSON), or a dictionary,
+            containing the key "annotations", and optionally with the keys
+            "name", "rois", "slides", "tiles", or "tfrecords".
+
+    Keyword Args:
+        download (bool): Download any missing slides from the Genomic Data
+            Commons (GDC) automatically, using slide names stored in the
+            annotations file.
+        md5 (bool): Perform MD5 hash verification for all slides using
+            the GDC (TCGA) MD5 manifest, which will be automatically downloaded.
+        name (str): Set the project name. This has higher priority than the
+            supplied configuration, which will be ignored.
+        slides (str): Set the destination folder for slides. This has higher
+            priority than the supplied configuration, which will be ignored.
+        tiles (str): Set the destination folder for tiles. This has higher
+            priority than the supplied configuration, which will be ignored.
+        tfrecords (str): Set the destination for TFRecords. This has higher
+            priority than the supplied configuration, which will be ignored.
+        roi_dest (str): Set the destination folder for ROIs.
+
+    Returns:
+        slideflow.Project
+    """
+
+    # Initial verification
+    if sf.util.is_project(root):
+        raise OSError(f"A project already exists at {root}")
+    if isinstance(cfg, dict):
+        cfg = sf.util.EasyDict(cfg)
+    if isinstance(cfg, str):
+        cfg_path = cfg
+        cfg = sf.util.EasyDict(sf.util.load_json(cfg))
+
+        # Resolve relative paths in configuration file
+        if 'annotations' in cfg and exists(join(dirname(cfg_path),
+                                                cfg.annotations)):
+            cfg.annotations = join(dirname(cfg_path), cfg.annotations)
+        if 'rois' in cfg and exists(join(dirname(cfg_path), cfg.rois)):
+            cfg.rois = join(dirname(cfg_path), cfg.rois)
+    if 'annotations' not in cfg:
+        raise ValueError("'annotations' must be provided in configuration.")
+    if 'name' not in cfg:
+        cfg.name = "MyProject"
+    if 'slides' not in cfg:
+        cfg.slides = join(root, 'slides')
+    if 'tiles' not in cfg:
+        cfg.tiles = join(root, 'tiles')
+    if 'tfrecords' not in cfg:
+        cfg.tfrecords = join(root, 'tfrecords')
+    cfg.roi_dest = join(cfg.slides, 'rois')
+
+    # Overwrite any project configuration with user-specified keyword arguments
+    cfg.update(kwargs)
+
+    # Set up project at the given directory.
+    log.info(f"Setting up project at {root}")
+    P = sf.Project(root, annotations=join(root, basename(cfg.annotations)))
+    shutil.copy(cfg.annotations, root)
+    P.add_source(
+        cfg.name,
+        slides=cfg.slides,
+        roi=cfg.roi_dest,
+        tiles=cfg.tiles,
+        tfrecords=cfg.tfrecords)
+
+    # Set up ROIs, if provided.
+    if 'rois' in cfg and not exists(cfg.roi_dest):
+        os.makedirs(cfg.roi_dest)
+    if 'rois' in cfg and exists(cfg.rois) and os.path.isdir(cfg.rois):
+        # Search the folder for CSV files and copy to the project ROI directory.
+        to_copy = [r for r in os.listdir(cfg.rois) if path_to_ext(r) == 'csv']
+        log.info("Copying {} ROIs from {} to {}.".format(
+            len(to_copy),
+            cfg.rois,
+            cfg.roi_dest
+        ))
+        for roi in to_copy:
+            shutil.copy(join(cfg.rois, roi), cfg.roi_dest)
+    elif 'rois' in cfg and exists(cfg.rois) and os.path.isfile(cfg.rois):
+        # Assume ROIs is a tarfile - extract at destination.
+        log.info(f"Extrating ROIs from tarfile at {cfg.rois}.")
+        roi_file = tarfile.open(cfg.rois)
+        roi_file.extractall(cfg.roi_dest)
+
+    # Download slides from GDC (TCGA), if specified.
+    if download:
+        df = sf.util.get_gdc_manifest()
+        slide_manifest = dict(zip(df.filename.values, df.id.values))
+        if not exists(cfg.slides):
+            os.makedirs(cfg.slides)
+        to_download = [s for s in P.dataset().slides()
+                       if not exists(join(cfg.slides, f'{s}.svs'))]
+        for i, slide in enumerate(to_download):
+            sf.util.download_from_tcga(
+                slide_manifest[slide+".svs"],
+                dest=cfg.slides,
+                message=f"Downloading {i+1} of {len(to_download)}...")
+
+    # Perform MD5 hash verification of slides using the GDC manifest.
+    if md5:
+        df = sf.util.get_gdc_manifest()
+        md5_manifest = dict(zip(df.filename.values, df.md5.values))
+
+        slides_with_md5 = [s for s in os.listdir(cfg.slides)
+                           if s in md5_manifest]
+        failed_md5 = []
+        for slide in tqdm(slides_with_md5):
+            if sf.util.md5(join(cfg.slides, slide)) != md5_manifest[slide]:
+                log.info(f"Slide {slide} failed MD5 verification")
+                failed_md5 += [slide]
+        if not failed_md5:
+            log.info(f"All {len(slides_with_md5)} slides passed MD5 verification.")
+        else:
+            log.warn(f"Warning: {len(failed_md5)} slides failed MD5 verification:")
+
+    return P

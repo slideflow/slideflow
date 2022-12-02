@@ -9,22 +9,22 @@
   <meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>slideflow.workbench &mdash; slideflow 1.4.0-rc0+2.g85e4b788.dirty documentation</title>
+  
 
-  <title>slideflow.workbench &mdash; slideflow 1.3.0 documentation</title>
+  
+  
+  
+  
 
+  
 
+  
+  
+    
 
-
-
-
-
-
-
-
-
-
-
-
+  
 
   <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <!-- <link rel="stylesheet" href="_static/pygments.css" type="text/css" /> -->
@@ -35,11 +35,11 @@
     <link rel="next" title="Tutorial 1: Model training (simple)" href="tutorial1.html" />
     <link rel="prev" title="slideflow.util" href="util.html" />
   <!-- Google Analytics -->
-
+  
   <!-- End Google Analytics -->
+  
 
-
-
+  
   <script src="_static/js/modernizr.min.js"></script>
 
   <!-- Preload the theme fonts -->
@@ -102,9 +102,9 @@
 
 <body class="pytorch-body">
 
+   
 
-
-
+    
 
     <div class="table-of-contents-link-wrapper">
       <span>Table of Contents</span>
@@ -115,21 +115,21 @@
       <div class="pytorch-side-scroll">
         <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           <div class="pytorch-left-menu-search">
+            
 
-
-
-
-
+            
+              
+              
                 <div class="version">
                   1.3
                 </div>
+              
+            
+
+            
 
 
-
-
-
-
-
+  
 
 
 <div role="search">
@@ -140,15 +140,15 @@
   </form>
 </div>
 
-
+            
           </div>
 
-
-
-
-
-
-
+          
+            
+            
+              
+            
+            
               <p class="caption" role="heading"><span class="caption-text">Overview</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
@@ -180,6 +180,7 @@
 <li class="toctree-l1"><a class="reference internal" href="mosaic.html">slideflow.mosaic</a></li>
 <li class="toctree-l1"><a class="reference internal" href="norm.html">slideflow.norm</a></li>
 <li class="toctree-l1"><a class="reference internal" href="slide.html">slideflow.slide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="slide_qc.html">slideflow.slide.qc</a></li>
 <li class="toctree-l1"><a class="reference internal" href="stats.html">slideflow.stats</a></li>
 <li class="toctree-l1"><a class="reference internal" href="util.html">slideflow.util</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">slideflow.workbench</a></li>
@@ -194,8 +195,8 @@
 <li class="toctree-l1"><a class="reference internal" href="tutorial6.html">Tutorial 6: Custom slide filtering</a></li>
 </ul>
 
-
-
+            
+          
         </div>
       </div>
     </nav>
@@ -203,7 +204,7 @@
     <div class="pytorch-container">
       <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
         <div class="pytorch-breadcrumbs-wrapper">
-
+          
 
 
 
@@ -222,30 +223,30 @@
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="pytorch-breadcrumbs">
-
+    
       <li>
         <a href="index.html">
-
+          
             Docs
-
+          
         </a> &gt;
       </li>
 
-
+        
       <li>slideflow.workbench</li>
-
-
+    
+    
       <li class="pytorch-breadcrumbs-aside">
-
-
+        
+            
             <a href="_sources/workbench.rst.txt" rel="nofollow"><img src="_static/images/view-page-source-icon.svg"></a>
-
-
+          
+        
       </li>
-
+    
   </ul>
 
-
+  
 </div>
         </div>
 
@@ -257,19 +258,19 @@
       <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
         <div class="pytorch-content-left">
 
-
-
+        
+          
           <div class="rst-content">
-
+          
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
-
+              
   <section id="slideflow-workbench">
 <h1>slideflow.workbench<a class="headerlink" href="#slideflow-workbench" title="Permalink to this heading">¶</a></h1>
 <p>This module contains the Workbench visualization tool. See <a class="reference internal" href="workbench_tools.html#workbench"><span class="std std-ref">Workbench: Visualization Tools</span></a> for more information.</p>
 <span class="target" id="module-slideflow.workbench"></span><dl class="py class">
 <dt class="sig sig-object py" id="slideflow.workbench.Workbench">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">slideflow.workbench.</span></span><span class="sig-name descname"><span class="pre">Workbench</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">low_memory</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">widgets</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.10)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.10)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.10)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/workbench.html#Workbench"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.workbench.Workbench" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">slideflow.workbench.</span></span><span class="sig-name descname"><span class="pre">Workbench</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">low_memory</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">widgets</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.11)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.11)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.11)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/workbench.html#Workbench"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.workbench.Workbench" title="Permalink to this definition">¶</a></dt>
 <dd><dl class="py property">
 <dt class="sig sig-object py" id="slideflow.workbench.Workbench.P">
 <em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">P</span></span><a class="headerlink" href="#slideflow.workbench.Workbench.P" title="Permalink to this definition">¶</a></dt>
@@ -278,15 +279,15 @@
 
 <dl class="py method">
 <dt class="sig sig-object py" id="slideflow.workbench.Workbench.__init__">
-<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">low_memory</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">widgets</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.10)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.10)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.10)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.10)"><span class="pre">None</span></a></span></span><a class="reference internal" href="_modules/slideflow/workbench.html#Workbench.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.workbench.Workbench.__init__" title="Permalink to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">low_memory</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">widgets</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.11)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.11)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.11)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="reference internal" href="_modules/slideflow/workbench.html#Workbench.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.workbench.Workbench.__init__" title="Permalink to this definition">¶</a></dt>
 <dd><p>Create the main Workbench window.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>low_memory</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a>) – Enable low memory mode, which uses thread pools
+<li><p><strong>low_memory</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a>) – Enable low memory mode, which uses thread pools
 instead of multiprocessing pools when applicable to reduce
 memory footprint, at the cost of decreased performance.</p></li>
-<li><p><strong>widgets</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.10)"><em>list</em></a><em>(</em><em>Any</em><em>)</em><em>, </em><em>optional</em>) – Additional widgets to render.</p></li>
+<li><p><strong>widgets</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.11)"><em>list</em></a><em>(</em><em>Any</em><em>)</em><em>, </em><em>optional</em>) – Additional widgets to render.</p></li>
 </ul>
 </dd>
 </dl>
@@ -294,58 +295,88 @@ memory footprint, at the cost of decreased performance.</p></li>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="slideflow.workbench.Workbench.add_to_render_pipeline">
-<span class="sig-name descname"><span class="pre">add_to_render_pipeline</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">renderer</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.10)"><span class="pre">Any</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.10)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.10)"><span class="pre">None</span></a></span></span><a class="reference internal" href="_modules/slideflow/workbench.html#Workbench.add_to_render_pipeline"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.workbench.Workbench.add_to_render_pipeline" title="Permalink to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">add_to_render_pipeline</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">renderer</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.11)"><span class="pre">Any</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.11)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="reference internal" href="_modules/slideflow/workbench.html#Workbench.add_to_render_pipeline"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.workbench.Workbench.add_to_render_pipeline" title="Permalink to this definition">¶</a></dt>
 <dd><p>Add a renderer to the rendering pipeline.</p>
 </dd></dl>
 
 <dl class="py method">
+<dt class="sig sig-object py" id="slideflow.workbench.Workbench.ask_load_heatmap">
+<span class="sig-name descname"><span class="pre">ask_load_heatmap</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/workbench.html#Workbench.ask_load_heatmap"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.workbench.Workbench.ask_load_heatmap" title="Permalink to this definition">¶</a></dt>
+<dd><p>Prompt user for location of exported heatmap (<a href="#id1"><span class="problematic" id="id2">*</span></a>.npz) and load.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.workbench.Workbench.ask_load_model">
+<span class="sig-name descname"><span class="pre">ask_load_model</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/workbench.html#Workbench.ask_load_model"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.workbench.Workbench.ask_load_model" title="Permalink to this definition">¶</a></dt>
+<dd><p>Prompt user for location of a model and load.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.workbench.Workbench.ask_load_project">
+<span class="sig-name descname"><span class="pre">ask_load_project</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/workbench.html#Workbench.ask_load_project"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.workbench.Workbench.ask_load_project" title="Permalink to this definition">¶</a></dt>
+<dd><p>Prompt user for location of a project and load.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.workbench.Workbench.ask_load_slide">
+<span class="sig-name descname"><span class="pre">ask_load_slide</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/workbench.html#Workbench.ask_load_slide"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.workbench.Workbench.ask_load_slide" title="Permalink to this definition">¶</a></dt>
+<dd><p>Prompt user for location of a slide and load.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.workbench.Workbench.autoload">
+<span class="sig-name descname"><span class="pre">autoload</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ignore_errors</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/slideflow/workbench.html#Workbench.autoload"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.workbench.Workbench.autoload" title="Permalink to this definition">¶</a></dt>
+<dd><p>Automatically load a path, detecting if the path is a slide, model, or project.</p>
+</dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="slideflow.workbench.Workbench.clear_message">
-<span class="sig-name descname"><span class="pre">clear_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">msg</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.10)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><span class="pre">bool</span></a></span></span><a class="reference internal" href="_modules/slideflow/workbench.html#Workbench.clear_message"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.workbench.Workbench.clear_message" title="Permalink to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">clear_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">msg</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.11)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span></span><a class="reference internal" href="_modules/slideflow/workbench.html#Workbench.clear_message"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.workbench.Workbench.clear_message" title="Permalink to this definition">¶</a></dt>
 <dd><p>Clear a specific message from display, if the message is being shown.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>msg</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Message to clear.</p>
+<dd class="field-odd"><p><strong>msg</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a>) – Message to clear.</p>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>Whether message was cleared from display.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)">bool</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)">bool</a></p>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="slideflow.workbench.Workbench.clear_model_results">
-<span class="sig-name descname"><span class="pre">clear_model_results</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.10)"><span class="pre">None</span></a></span></span><a class="reference internal" href="_modules/slideflow/workbench.html#Workbench.clear_model_results"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.workbench.Workbench.clear_model_results" title="Permalink to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">clear_model_results</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="reference internal" href="_modules/slideflow/workbench.html#Workbench.clear_model_results"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.workbench.Workbench.clear_model_results" title="Permalink to this definition">¶</a></dt>
 <dd><p>Clear all model results and associated images.</p>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="slideflow.workbench.Workbench.clear_overlay">
-<span class="sig-name descname"><span class="pre">clear_overlay</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.10)"><span class="pre">None</span></a></span></span><a class="reference internal" href="_modules/slideflow/workbench.html#Workbench.clear_overlay"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.workbench.Workbench.clear_overlay" title="Permalink to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">clear_overlay</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="reference internal" href="_modules/slideflow/workbench.html#Workbench.clear_overlay"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.workbench.Workbench.clear_overlay" title="Permalink to this definition">¶</a></dt>
 <dd><p>Remove the currently overlay image.</p>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="slideflow.workbench.Workbench.clear_result">
-<span class="sig-name descname"><span class="pre">clear_result</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.10)"><span class="pre">None</span></a></span></span><a class="reference internal" href="_modules/slideflow/workbench.html#Workbench.clear_result"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.workbench.Workbench.clear_result" title="Permalink to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">clear_result</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="reference internal" href="_modules/slideflow/workbench.html#Workbench.clear_result"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.workbench.Workbench.clear_result" title="Permalink to this definition">¶</a></dt>
 <dd><p>Clear all shown results and images.</p>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="slideflow.workbench.Workbench.close">
-<span class="sig-name descname"><span class="pre">close</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.10)"><span class="pre">None</span></a></span></span><a class="reference internal" href="_modules/slideflow/workbench.html#Workbench.close"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.workbench.Workbench.close" title="Permalink to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">close</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="reference internal" href="_modules/slideflow/workbench.html#Workbench.close"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.workbench.Workbench.close" title="Permalink to this definition">¶</a></dt>
 <dd><p>Close the application and renderer.</p>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="slideflow.workbench.Workbench.close_model">
-<span class="sig-name descname"><span class="pre">close_model</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">now</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.10)"><span class="pre">None</span></a></span></span><a class="reference internal" href="_modules/slideflow/workbench.html#Workbench.close_model"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.workbench.Workbench.close_model" title="Permalink to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">close_model</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">now</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="reference internal" href="_modules/slideflow/workbench.html#Workbench.close_model"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.workbench.Workbench.close_model" title="Permalink to this definition">¶</a></dt>
 <dd><p>Close the currently loaded model.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>now</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a>) – Close the model now, instead of at the end of the frame.
+<dd class="field-odd"><p><strong>now</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a>) – Close the model now, instead of at the end of the frame.
 Defaults to False (closes model at frame end).</p>
 </dd>
 </dl>
@@ -353,61 +384,85 @@ Defaults to False (closes model at frame end).</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="slideflow.workbench.Workbench.close_slide">
-<span class="sig-name descname"><span class="pre">close_slide</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">now</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.10)"><span class="pre">None</span></a></span></span><a class="reference internal" href="_modules/slideflow/workbench.html#Workbench.close_slide"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.workbench.Workbench.close_slide" title="Permalink to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">close_slide</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">now</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="reference internal" href="_modules/slideflow/workbench.html#Workbench.close_slide"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.workbench.Workbench.close_slide" title="Permalink to this definition">¶</a></dt>
 <dd><p>Close the currently loaded slide.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>now</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a>) – Close the slide now, instead of at the end of the frame.
+<dd class="field-odd"><p><strong>now</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a>) – Close the slide now, instead of at the end of the frame.
 Defaults to False (closes slide at frame end).</p>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="py method">
+<dt class="sig sig-object py" id="slideflow.workbench.Workbench.decrease_tile_zoom">
+<span class="sig-name descname"><span class="pre">decrease_tile_zoom</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="reference internal" href="_modules/slideflow/workbench.html#Workbench.decrease_tile_zoom"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.workbench.Workbench.decrease_tile_zoom" title="Permalink to this definition">¶</a></dt>
+<dd><p>Decrease zoom of tile view by half.</p>
+</dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="slideflow.workbench.Workbench.defer_rendering">
-<span class="sig-name descname"><span class="pre">defer_rendering</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">num_frames</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.10)"><span class="pre">None</span></a></span></span><a class="reference internal" href="_modules/slideflow/workbench.html#Workbench.defer_rendering"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.workbench.Workbench.defer_rendering" title="Permalink to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">defer_rendering</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">num_frames</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="reference internal" href="_modules/slideflow/workbench.html#Workbench.defer_rendering"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.workbench.Workbench.defer_rendering" title="Permalink to this definition">¶</a></dt>
 <dd><p>Defer rendering for a number of frames.</p>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="slideflow.workbench.Workbench.draw_frame">
-<span class="sig-name descname"><span class="pre">draw_frame</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.10)"><span class="pre">None</span></a></span></span><a class="reference internal" href="_modules/slideflow/workbench.html#Workbench.draw_frame"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.workbench.Workbench.draw_frame" title="Permalink to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">draw_frame</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="reference internal" href="_modules/slideflow/workbench.html#Workbench.draw_frame"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.workbench.Workbench.draw_frame" title="Permalink to this definition">¶</a></dt>
 <dd><p>Main draw loop.</p>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="slideflow.workbench.Workbench.get_default_widgets">
-<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">get_default_widgets</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.10)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.10)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/slideflow/workbench.html#Workbench.get_default_widgets"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.workbench.Workbench.get_default_widgets" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">get_default_widgets</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.11)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.11)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/slideflow/workbench.html#Workbench.get_default_widgets"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.workbench.Workbench.get_default_widgets" title="Permalink to this definition">¶</a></dt>
 <dd><p>Returns a list of the default non-mandatory widgets.</p>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="slideflow.workbench.Workbench.get_renderer">
-<span class="sig-name descname"><span class="pre">get_renderer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.10)"><span class="pre">Any</span></a></span></span><a class="reference internal" href="_modules/slideflow/workbench.html#Workbench.get_renderer"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.workbench.Workbench.get_renderer" title="Permalink to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">get_renderer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.11)"><span class="pre">Any</span></a></span></span><a class="reference internal" href="_modules/slideflow/workbench.html#Workbench.get_renderer"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.workbench.Workbench.get_renderer" title="Permalink to this definition">¶</a></dt>
 <dd><p>Check for the given additional renderer in the rendering pipeline.</p>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="slideflow.workbench.Workbench.has_live_viewer">
-<span class="sig-name descname"><span class="pre">has_live_viewer</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><span class="pre">bool</span></a></span></span><a class="reference internal" href="_modules/slideflow/workbench.html#Workbench.has_live_viewer"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.workbench.Workbench.has_live_viewer" title="Permalink to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">has_live_viewer</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span></span><a class="reference internal" href="_modules/slideflow/workbench.html#Workbench.has_live_viewer"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.workbench.Workbench.has_live_viewer" title="Permalink to this definition">¶</a></dt>
 <dd><p>Check if the current viewer is a live viewer (e.g. camera feed).</p>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="slideflow.workbench.Workbench.has_uq">
-<span class="sig-name descname"><span class="pre">has_uq</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><span class="pre">bool</span></a></span></span><a class="reference internal" href="_modules/slideflow/workbench.html#Workbench.has_uq"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.workbench.Workbench.has_uq" title="Permalink to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">has_uq</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span></span><a class="reference internal" href="_modules/slideflow/workbench.html#Workbench.has_uq"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.workbench.Workbench.has_uq" title="Permalink to this definition">¶</a></dt>
 <dd><p>Check if the current model supports uncertainty quantification.</p>
 </dd></dl>
 
 <dl class="py method">
+<dt class="sig sig-object py" id="slideflow.workbench.Workbench.increase_tile_zoom">
+<span class="sig-name descname"><span class="pre">increase_tile_zoom</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="reference internal" href="_modules/slideflow/workbench.html#Workbench.increase_tile_zoom"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.workbench.Workbench.increase_tile_zoom" title="Permalink to this definition">¶</a></dt>
+<dd><p>Increase zoom of tile view two-fold.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="slideflow.workbench.Workbench.load_heatmap">
+<span class="sig-name descname"><span class="pre">load_heatmap</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="reference internal" href="_modules/slideflow/workbench.html#Workbench.load_heatmap"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.workbench.Workbench.load_heatmap" title="Permalink to this definition">¶</a></dt>
+<dd><p>Load a saved heatmap (<a href="#id3"><span class="problematic" id="id4">*</span></a>.npz).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a>) – Path to exported heatmap in <a href="#id5"><span class="problematic" id="id6">*</span></a>.npz format, as generated
+by Heatmap.save() or Heatmap.save_npz().</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="slideflow.workbench.Workbench.load_model">
-<span class="sig-name descname"><span class="pre">load_model</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">ignore_errors</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.10)"><span class="pre">None</span></a></span></span><a class="reference internal" href="_modules/slideflow/workbench.html#Workbench.load_model"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.workbench.Workbench.load_model" title="Permalink to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">load_model</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">ignore_errors</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="reference internal" href="_modules/slideflow/workbench.html#Workbench.load_model"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.workbench.Workbench.load_model" title="Permalink to this definition">¶</a></dt>
 <dd><p>Load the given model.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>model</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Path to Slideflow model (in either backend).</p></li>
-<li><p><strong>ignore_errors</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a>) – Do not fail if an error is encountered.
+<li><p><strong>model</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a>) – Path to Slideflow model (in either backend).</p></li>
+<li><p><strong>ignore_errors</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a>) – Do not fail if an error is encountered.
 Defaults to False.</p></li>
 </ul>
 </dd>
@@ -416,13 +471,13 @@ Defaults to False.</p></li>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="slideflow.workbench.Workbench.load_project">
-<span class="sig-name descname"><span class="pre">load_project</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">project</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">ignore_errors</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.10)"><span class="pre">None</span></a></span></span><a class="reference internal" href="_modules/slideflow/workbench.html#Workbench.load_project"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.workbench.Workbench.load_project" title="Permalink to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">load_project</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">project</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">ignore_errors</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="reference internal" href="_modules/slideflow/workbench.html#Workbench.load_project"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.workbench.Workbench.load_project" title="Permalink to this definition">¶</a></dt>
 <dd><p>Load the given project.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>project</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Path to Slideflow project.</p></li>
-<li><p><strong>ignore_errors</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a>) – Do not fail if an error is encountered.
+<li><p><strong>project</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a>) – Path to Slideflow project.</p></li>
+<li><p><strong>ignore_errors</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a>) – Do not fail if an error is encountered.
 Defaults to False.</p></li>
 </ul>
 </dd>
@@ -431,13 +486,13 @@ Defaults to False.</p></li>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="slideflow.workbench.Workbench.load_slide">
-<span class="sig-name descname"><span class="pre">load_slide</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">slide</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">ignore_errors</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.10)"><span class="pre">None</span></a></span></span><a class="reference internal" href="_modules/slideflow/workbench.html#Workbench.load_slide"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.workbench.Workbench.load_slide" title="Permalink to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">load_slide</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">slide</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">ignore_errors</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="reference internal" href="_modules/slideflow/workbench.html#Workbench.load_slide"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.workbench.Workbench.load_slide" title="Permalink to this definition">¶</a></dt>
 <dd><p>Load the given slide.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>slide</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Path to whole-slide image.</p></li>
-<li><p><strong>ignore_errors</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a>) – Do not fail if an error is encountered.
+<li><p><strong>slide</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a>) – Path to whole-slide image.</p></li>
+<li><p><strong>ignore_errors</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.11)"><em>bool</em></a>) – Do not fail if an error is encountered.
 Defaults to False.</p></li>
 </ul>
 </dd>
@@ -476,31 +531,37 @@ Defaults to False.</p></li>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="slideflow.workbench.Workbench.print_error">
-<span class="sig-name descname"><span class="pre">print_error</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">error</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.10)"><span class="pre">None</span></a></span></span><a class="reference internal" href="_modules/slideflow/workbench.html#Workbench.print_error"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.workbench.Workbench.print_error" title="Permalink to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">print_error</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">error</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="reference internal" href="_modules/slideflow/workbench.html#Workbench.print_error"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.workbench.Workbench.print_error" title="Permalink to this definition">¶</a></dt>
 <dd><p>Print the given error message.</p>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="slideflow.workbench.Workbench.reload_model">
-<span class="sig-name descname"><span class="pre">reload_model</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.10)"><span class="pre">None</span></a></span></span><a class="reference internal" href="_modules/slideflow/workbench.html#Workbench.reload_model"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.workbench.Workbench.reload_model" title="Permalink to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">reload_model</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="reference internal" href="_modules/slideflow/workbench.html#Workbench.reload_model"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.workbench.Workbench.reload_model" title="Permalink to this definition">¶</a></dt>
 <dd><p>Reload the current model.</p>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="slideflow.workbench.Workbench.reload_viewer">
-<span class="sig-name descname"><span class="pre">reload_viewer</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.10)"><span class="pre">None</span></a></span></span><a class="reference internal" href="_modules/slideflow/workbench.html#Workbench.reload_viewer"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.workbench.Workbench.reload_viewer" title="Permalink to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">reload_viewer</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="reference internal" href="_modules/slideflow/workbench.html#Workbench.reload_viewer"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.workbench.Workbench.reload_viewer" title="Permalink to this definition">¶</a></dt>
 <dd><p>Reload the current main viewer.</p>
 </dd></dl>
 
 <dl class="py method">
+<dt class="sig sig-object py" id="slideflow.workbench.Workbench.reset_tile_zoom">
+<span class="sig-name descname"><span class="pre">reset_tile_zoom</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="reference internal" href="_modules/slideflow/workbench.html#Workbench.reset_tile_zoom"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.workbench.Workbench.reset_tile_zoom" title="Permalink to this definition">¶</a></dt>
+<dd><p>Reset tile zoom level.</p>
+</dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="slideflow.workbench.Workbench.set_message">
-<span class="sig-name descname"><span class="pre">set_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">msg</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.10)"><span class="pre">None</span></a></span></span><a class="reference internal" href="_modules/slideflow/workbench.html#Workbench.set_message"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.workbench.Workbench.set_message" title="Permalink to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">set_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">msg</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="reference internal" href="_modules/slideflow/workbench.html#Workbench.set_message"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.workbench.Workbench.set_message" title="Permalink to this definition">¶</a></dt>
 <dd><p>Set a message for display.</p>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="slideflow.workbench.Workbench.set_viewer">
-<span class="sig-name descname"><span class="pre">set_viewer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">viewer</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.10)"><span class="pre">Any</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.10)"><span class="pre">None</span></a></span></span><a class="reference internal" href="_modules/slideflow/workbench.html#Workbench.set_viewer"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.workbench.Workbench.set_viewer" title="Permalink to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">set_viewer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">viewer</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.11)"><span class="pre">Any</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="reference internal" href="_modules/slideflow/workbench.html#Workbench.set_viewer"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#slideflow.workbench.Workbench.set_viewer" title="Permalink to this definition">¶</a></dt>
 <dd><p>Set the main viewer.</p>
 </dd></dl>
 
@@ -517,25 +578,25 @@ over the main view.</p>
 
 
              </article>
-
+             
             </div>
             <footer>
-
+  
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-
+      
         <a href="tutorial1.html" class="btn btn-neutral float-right" title="Tutorial 1: Model training (simple)" accesskey="n" rel="next">Next <img src="_static/images/chevron-right-orange.svg" class="next-page"></a>
-
-
+      
+      
         <a href="util.html" class="btn btn-neutral" title="slideflow.util" accesskey="p" rel="prev"><img src="_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
-
+      
     </div>
+  
 
-
-
+  
 
     <hr>
 
-
+  
 
   <div role="contentinfo">
     <p>
@@ -543,11 +604,11 @@ over the main view.</p>
 
     </p>
   </div>
-
+    
       <div>
         Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
       </div>
-
+     
 
 </footer>
 
@@ -563,6 +624,11 @@ over the main view.</p>
 <li><a class="reference internal" href="#slideflow.workbench.Workbench.P"><code class="docutils literal notranslate"><span class="pre">Workbench.P</span></code></a></li>
 <li><a class="reference internal" href="#slideflow.workbench.Workbench.__init__"><code class="docutils literal notranslate"><span class="pre">Workbench.__init__()</span></code></a></li>
 <li><a class="reference internal" href="#slideflow.workbench.Workbench.add_to_render_pipeline"><code class="docutils literal notranslate"><span class="pre">Workbench.add_to_render_pipeline()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.workbench.Workbench.ask_load_heatmap"><code class="docutils literal notranslate"><span class="pre">Workbench.ask_load_heatmap()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.workbench.Workbench.ask_load_model"><code class="docutils literal notranslate"><span class="pre">Workbench.ask_load_model()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.workbench.Workbench.ask_load_project"><code class="docutils literal notranslate"><span class="pre">Workbench.ask_load_project()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.workbench.Workbench.ask_load_slide"><code class="docutils literal notranslate"><span class="pre">Workbench.ask_load_slide()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.workbench.Workbench.autoload"><code class="docutils literal notranslate"><span class="pre">Workbench.autoload()</span></code></a></li>
 <li><a class="reference internal" href="#slideflow.workbench.Workbench.clear_message"><code class="docutils literal notranslate"><span class="pre">Workbench.clear_message()</span></code></a></li>
 <li><a class="reference internal" href="#slideflow.workbench.Workbench.clear_model_results"><code class="docutils literal notranslate"><span class="pre">Workbench.clear_model_results()</span></code></a></li>
 <li><a class="reference internal" href="#slideflow.workbench.Workbench.clear_overlay"><code class="docutils literal notranslate"><span class="pre">Workbench.clear_overlay()</span></code></a></li>
@@ -570,12 +636,15 @@ over the main view.</p>
 <li><a class="reference internal" href="#slideflow.workbench.Workbench.close"><code class="docutils literal notranslate"><span class="pre">Workbench.close()</span></code></a></li>
 <li><a class="reference internal" href="#slideflow.workbench.Workbench.close_model"><code class="docutils literal notranslate"><span class="pre">Workbench.close_model()</span></code></a></li>
 <li><a class="reference internal" href="#slideflow.workbench.Workbench.close_slide"><code class="docutils literal notranslate"><span class="pre">Workbench.close_slide()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.workbench.Workbench.decrease_tile_zoom"><code class="docutils literal notranslate"><span class="pre">Workbench.decrease_tile_zoom()</span></code></a></li>
 <li><a class="reference internal" href="#slideflow.workbench.Workbench.defer_rendering"><code class="docutils literal notranslate"><span class="pre">Workbench.defer_rendering()</span></code></a></li>
 <li><a class="reference internal" href="#slideflow.workbench.Workbench.draw_frame"><code class="docutils literal notranslate"><span class="pre">Workbench.draw_frame()</span></code></a></li>
 <li><a class="reference internal" href="#slideflow.workbench.Workbench.get_default_widgets"><code class="docutils literal notranslate"><span class="pre">Workbench.get_default_widgets()</span></code></a></li>
 <li><a class="reference internal" href="#slideflow.workbench.Workbench.get_renderer"><code class="docutils literal notranslate"><span class="pre">Workbench.get_renderer()</span></code></a></li>
 <li><a class="reference internal" href="#slideflow.workbench.Workbench.has_live_viewer"><code class="docutils literal notranslate"><span class="pre">Workbench.has_live_viewer()</span></code></a></li>
 <li><a class="reference internal" href="#slideflow.workbench.Workbench.has_uq"><code class="docutils literal notranslate"><span class="pre">Workbench.has_uq()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.workbench.Workbench.increase_tile_zoom"><code class="docutils literal notranslate"><span class="pre">Workbench.increase_tile_zoom()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.workbench.Workbench.load_heatmap"><code class="docutils literal notranslate"><span class="pre">Workbench.load_heatmap()</span></code></a></li>
 <li><a class="reference internal" href="#slideflow.workbench.Workbench.load_model"><code class="docutils literal notranslate"><span class="pre">Workbench.load_model()</span></code></a></li>
 <li><a class="reference internal" href="#slideflow.workbench.Workbench.load_project"><code class="docutils literal notranslate"><span class="pre">Workbench.load_project()</span></code></a></li>
 <li><a class="reference internal" href="#slideflow.workbench.Workbench.load_slide"><code class="docutils literal notranslate"><span class="pre">Workbench.load_slide()</span></code></a></li>
@@ -587,6 +656,7 @@ over the main view.</p>
 <li><a class="reference internal" href="#slideflow.workbench.Workbench.print_error"><code class="docutils literal notranslate"><span class="pre">Workbench.print_error()</span></code></a></li>
 <li><a class="reference internal" href="#slideflow.workbench.Workbench.reload_model"><code class="docutils literal notranslate"><span class="pre">Workbench.reload_model()</span></code></a></li>
 <li><a class="reference internal" href="#slideflow.workbench.Workbench.reload_viewer"><code class="docutils literal notranslate"><span class="pre">Workbench.reload_viewer()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.workbench.Workbench.reset_tile_zoom"><code class="docutils literal notranslate"><span class="pre">Workbench.reset_tile_zoom()</span></code></a></li>
 <li><a class="reference internal" href="#slideflow.workbench.Workbench.set_message"><code class="docutils literal notranslate"><span class="pre">Workbench.set_message()</span></code></a></li>
 <li><a class="reference internal" href="#slideflow.workbench.Workbench.set_viewer"><code class="docutils literal notranslate"><span class="pre">Workbench.set_viewer()</span></code></a></li>
 <li><a class="reference internal" href="#slideflow.workbench.Workbench.show_overlay"><code class="docutils literal notranslate"><span class="pre">Workbench.show_overlay</span></code></a></li>
@@ -602,12 +672,12 @@ over the main view.</p>
       </section>
     </div>
 
+  
 
 
+  
 
-
-
-
+     
        <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
          <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
          <script src="_static/jquery.js"></script>
@@ -615,9 +685,9 @@ over the main view.</p>
          <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
          <script src="_static/doctools.js"></script>
          <script src="_static/sphinx_highlight.js"></script>
+     
 
-
-
+  
 
   <script type="text/javascript" src="_static/js/vendor/popper.min.js"></script>
   <script type="text/javascript" src="_static/js/vendor/bootstrap.min.js"></script>
@@ -628,7 +698,7 @@ over the main view.</p>
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script>
+  </script> 
 
   <!-- Begin Footer -->
 

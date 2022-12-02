@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM tensorflow/tensorflow:2.8.2-gpu
+FROM tensorflow/tensorflow:2.9.3-gpu
 
 # Install necessary packages
 RUN apt update && \
@@ -20,14 +20,14 @@ ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib
 
 # Repair pixman
 WORKDIR "/scripts"
-RUN wget https://raw.githubusercontent.com/jamesdolezal/slideflow/1.3.0/pixman_repair.sh && \
+RUN wget https://raw.githubusercontent.com/jamesdolezal/slideflow/1.4.0/pixman_repair.sh && \
     chmod +x pixman_repair.sh && \
     ./pixman_repair.sh
 
 # Install slideflow & download scripts
-RUN pip3 install "seaborn<0.12" slideflow==1.3.0 tensorflow_probability==0.16.* && \
-    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/1.3.0/test.py && \
-    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/1.3.0/run_project.py && \
-    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/1.3.0/qupath_roi.groovy && \
-    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/1.3.0/qupath_roi_legacy.groovy && \
+RUN pip3 install slideflow[cucim]==1.4.0 cupy-cuda11x tensorflow_probability==0.17.* && \
+    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/1.4.0/test.py && \
+    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/1.4.0/run_project.py && \
+    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/1.4.0/qupath_roi.groovy && \
+    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/1.4.0/qupath_roi_legacy.groovy && \
     pip3 install spams --no-cache --force-reinstall --no-deps

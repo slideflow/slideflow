@@ -72,7 +72,7 @@ if __name__=='__main__':
     if args.debug:
         sf.setLoggingLevel(logging.DEBUG)
 
-    sf.header()
+    sf.about()
     P = sf.Project.from_prompt(args.project, use_neptune=args.neptune)
     P.associate_slide_names()
 

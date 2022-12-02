@@ -440,11 +440,10 @@ def multi_slide_loader(
         )
     loaders = [slide.torch(lazy_iter=True,
                            shard=shard,
+                           infinite=infinite,
                            **kwargs)
                for slide in slides]
-    return RandomSampler(
-        loaders, splits_list, infinite=infinite, shard=None
-    )
+    return RandomSampler(loaders, splits_list, shard=None)
 
 
 def cwh_to_whc(img: torch.Tensor) -> torch.Tensor:
@@ -830,8 +829,10 @@ def interleave(
             log.info(f"Reading {len(paths)} slides and thresholding...")
 
         # ---- Load slides and apply Otsu thresholding ------------------------
-        if pool is None:
-            pool = mp.Pool(os.cpu_count() if os.cpu_count() else 8)
+        if pool is None and sf.slide_backend() == 'cucim':
+            pool = mp.Pool(8 if os.cpu_count is None else os.cpu_count())
+        elif pool is None:
+            pool = mp.dummy.Pool(16 if os.cpu_count is None else os.cpu_count())
         wsi_list = []
         to_remove = []
         otsu_list = []

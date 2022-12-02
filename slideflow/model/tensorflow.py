@@ -5,6 +5,7 @@ from __future__ import absolute_import, division, print_function
 import atexit
 import inspect
 import json
+import logging
 import os
 import shutil
 from os.path import dirname, exists, join
@@ -26,6 +27,18 @@ from slideflow.util import log, NormFit
 import tensorflow as tf
 from tensorflow.keras import applications as kapps
 from slideflow.model.tensorflow_utils import eval_from_model
+
+# Set the tensorflow logger
+if sf.getLoggingLevel() == logging.DEBUG:
+    logging.getLogger('tensorflow').setLevel(logging.DEBUG)
+    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '0'
+else:
+    logging.getLogger('tensorflow').setLevel(logging.ERROR)
+    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+
+gpus = tf.config.experimental.list_physical_devices('GPU')
+for gpu in gpus:
+    tf.config.experimental.set_memory_growth(gpu, True)
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -1621,6 +1634,12 @@ class Trainer:
             config['norm_fit'] = self.normalizer.get_fit(as_list=True)
             sf.util.write_json(config, config_path)
 
+        # Prepare multiprocessing pool if from_wsi=True
+        if from_wsi:
+            pool = mp.Pool(8 if os.cpu_count is None else os.cpu_count())
+        else:
+            pool = None
+
         # Save training / validation manifest
         if val_dts is None:
             val_paths = None
@@ -1682,6 +1701,7 @@ class Trainer:
                     infinite=True,
                     augment=self.hp.augment,
                     from_wsi=from_wsi,
+                    pool=pool,
                     roi_method=roi_method
                 )
                 train_data = train_dts.tensorflow(drop_last=True, **t_kwargs)
@@ -1700,6 +1720,7 @@ class Trainer:
                         infinite=False,
                         augment=False,
                         from_wsi=from_wsi,
+                        pool=pool,
                         roi_method=roi_method
                     )
                     validation_data = val_dts.tensorflow(
@@ -1812,6 +1833,10 @@ class Trainer:
             if self.use_neptune and self.neptune_run is not None:
                 self.neptune_run['results'] = results['epochs']
                 self.neptune_run.stop()
+
+            # Cleanup
+            if pool is not None:
+                pool.close()
 
             return results
 

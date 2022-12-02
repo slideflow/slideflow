@@ -1,0 +1,4 @@
+{
+    "name": "TCGA_LUNG",
+    "annotations": "./lung_labels.csv"
+}

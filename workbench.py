@@ -9,16 +9,16 @@ from os.path import dirname, realpath
 @click.option('--model', '-m', help='Classifier network for categorical predictions.', metavar='PATH')
 @click.option('--project', '-p', help='Slideflow project.', metavar='PATH')
 @click.option('--low_memory', '-l', is_flag=True, help='Low memory mode.', metavar=bool)
+@click.option('--stylegan', '-g', is_flag=True, help='Enable StyleGAN support (requires PyTorch).', metavar=bool)
 @click.option('--picam', '-c', is_flag=True, help='Enable Picamera2 view (experimental).', metavar=bool)
-@click.option('--stylegan', '-g', is_flag=True, help='Enable StyleGAN viewer.', metavar=bool)
 @click.option('--advanced', '-a', is_flag=True, help='Enable advanced StyleGAN options.', metavar=bool)
 def main(
     slide,
     model,
     project,
     low_memory,
-    picam,
     stylegan,
+    picam,
     advanced
 ):
     """
@@ -34,8 +34,10 @@ def main(
     if stylegan:
         from slideflow.workbench import stylegan_widgets
         from slideflow.workbench.seed_map_widget import SeedMapWidget
+        from slideflow.gan.stylegan3.stylegan3.viz.renderer import Renderer as GANRenderer
         widgets += stylegan_widgets(advanced=advanced)
         widgets += [SeedMapWidget]
+
     if picam:
         from slideflow.workbench.picam_widget import PicamWidget
         widgets += [PicamWidget]
@@ -45,7 +47,6 @@ def main(
 
     # --- StyleGAN3 -----------------------------------------------------------
     if stylegan:
-        from slideflow.gan.stylegan3.stylegan3.viz.renderer import Renderer as GANRenderer
         viz.add_to_render_pipeline(GANRenderer(), name='stylegan')
         if advanced:
             viz._pane_w_div = 45

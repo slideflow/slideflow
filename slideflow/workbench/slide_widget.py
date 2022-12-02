@@ -81,8 +81,10 @@ class SlideWidget:
     def _filter_thread_worker(self):
         if self.viz.wsi is not None:
             self.viz.set_message(self._rendering_message)
-            mp_key = 'num_threads' if self.viz.low_memory else 'num_processes'
-            mp_kw = {mp_key: os.cpu_count()}
+            if self.viz.low_memory or sf.slide_backend() == 'cucim':
+                mp_kw = dict(num_threads=os.cpu_count())
+            else:
+                mp_kw = dict(num_processes=os.cpu_count())
             generator = self.viz.wsi.build_generator(
                 img_format='numpy',
                 grayspace_fraction=sf.slide.FORCE_CALCULATE_GRAYSPACE,
@@ -371,7 +373,7 @@ class SlideWidget:
 
                 # Slide properties (sub-child). -----------------------------------
                 if viz.wsi is not None:
-                    prop = viz.wsi.properties
+                    width, height = viz.wsi.dimensions
                     if self._filter_grid is not None and self.show_tile_filter:
                         est_tiles = int(self._filter_grid.sum())
                     elif self.show_slide_filter:
@@ -379,7 +381,7 @@ class SlideWidget:
                     else:
                         est_tiles = viz.wsi.grid.shape[0] * viz.wsi.grid.shape[1]
                     vals = [
-                        f"{prop['width']} x {prop['height']}",
+                        f"{width} x {height}",
                         f'{viz.wsi.mpp:.4f} ({int(10 / (viz.wsi.slide.level_downsamples[0] * viz.wsi.mpp)):d}x)',
                         viz.wsi.vendor if viz.wsi.vendor is not None else '-',
                         str(est_tiles),

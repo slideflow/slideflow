@@ -65,7 +65,7 @@ author = 'James M Dolezal'
 # built documents.
 #
 # The short X.Y version.
-version = '1.3'
+version = '1.4'
 # The full version, including alpha/beta/rc tags.
 release = sf.__version__
 

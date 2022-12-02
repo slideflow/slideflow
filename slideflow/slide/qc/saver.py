@@ -17,6 +17,11 @@ class Save:
         """
         self.dest = dest
 
+    def __repr__(self):
+        return "Save(dest={!r})".format(
+            self.dest
+        )
+
     def __call__(self, wsi: "sf.WSI") -> None:
         """Save a QC mask for a given slide as a numpy file.
 
@@ -27,7 +32,9 @@ class Save:
             None
         """
         dest = self.dest if self.dest is not None else dirname(wsi.path)
-        np.savez(join(dest, wsi.name+'_qc.npz'), mask=wsi.qc_mask)
+        mask = wsi.qc_mask
+        if mask:
+            np.savez(join(dest, wsi.name+'_qc.npz'), mask=mask)
         return None
 
 
@@ -42,6 +49,11 @@ class Load:
                 Defaults to None.
         """
         self.source = source
+
+    def __repr__(self):
+        return "Load(source={!r})".format(
+            self.source
+        )
 
     def __call__(self, wsi: "sf.WSI") -> Optional[np.ndarray]:
         """Load a QC mask for a given slide from a numpy file.
