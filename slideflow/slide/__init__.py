@@ -1576,6 +1576,7 @@ class WSI(_BaseLoader):
         incl_slidenames: bool = False,
         incl_loc: Optional[str] = None,
         shuffle: bool = True,
+        infinite: bool = False,
         **kwargs
     ) -> Any:
         """Create a PyTorch iterator which extractes tiles from this slide.
@@ -1607,27 +1608,30 @@ class WSI(_BaseLoader):
         import torch
 
         def tile_generator():
-            for image_dict in self.build_generator(
-                shuffle=shuffle,
-                show_progress=False,
-                img_format=img_format,
-                **kwargs
-            )():
-                if not (incl_slidenames or incl_loc):
-                    yield torch.from_numpy(image_dict['image'])
-                else:
-                    to_return = {
-                        'image_raw': torch.from_numpy(image_dict['image'])
-                    }
-                    if incl_slidenames:
-                        to_return['slide'] = self.name
-                    if incl_loc == 'coord' or incl_loc == True:
-                        to_return['loc_x'] = image_dict['loc'][0]
-                        to_return['loc_y'] = image_dict['loc'][1]
-                    if incl_loc == 'grid':
-                        to_return['loc_x'] = image_dict['grid'][0]
-                        to_return['loc_y'] = image_dict['grid'][1]
-                    yield to_return
+            while True:
+                for image_dict in self.build_generator(
+                    shuffle=shuffle,
+                    show_progress=False,
+                    img_format=img_format,
+                    **kwargs
+                )():
+                    if not (incl_slidenames or incl_loc):
+                        yield torch.from_numpy(image_dict['image'])
+                    else:
+                        to_return = {
+                            'image_raw': torch.from_numpy(image_dict['image'])
+                        }
+                        if incl_slidenames:
+                            to_return['slide'] = self.name
+                        if incl_loc == 'coord' or incl_loc == True:
+                            to_return['loc_x'] = image_dict['loc'][0]
+                            to_return['loc_y'] = image_dict['loc'][1]
+                        if incl_loc == 'grid':
+                            to_return['loc_x'] = image_dict['grid'][0]
+                            to_return['loc_y'] = image_dict['grid'][1]
+                        yield to_return
+                if not infinite:
+                    break
 
         return tile_generator()
 
