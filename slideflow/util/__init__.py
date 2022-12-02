@@ -256,8 +256,11 @@ def md5(path: str) -> str:
     """Calculate and return MD5 checksum for a file."""
     m = hashlib.md5()
     with open(path, 'rb') as f:
-        while chunk := f.read(4096):
+        chunk = f.read(4096)
+        # No walrus for Python 3.7 :(
+        while chunk:
             m.update(chunk)
+            chunk = f.read(4096)
     return m.hexdigest()
 
 
