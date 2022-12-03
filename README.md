@@ -3,7 +3,7 @@
 [![Python application](https://github.com/jamesdolezal/slideflow/actions/workflows/python-app.yml/badge.svg?branch=master)](https://github.com/jamesdolezal/slideflow/actions/workflows/python-app.yml)
 [![PyPI version](https://badge.fury.io/py/slideflow.svg)](https://badge.fury.io/py/slideflow)
 
-Slideflow is a deep learning library for digital pathology that provides a unified API for building, training, and testing models using Tensorflow and PyTorch.
+Slideflow is a deep learning library for digital pathology that provides a unified API for building, training, and testing models using Tensorflow or PyTorch.
 
 Slideflow includes tools for **whole-slide image processing** and tile extraction, **customizable deep learning model training** with dozens of supported architectures, **explainability tools** including heatmaps, mosaic maps, GANs, and saliency maps, **analysis of activations** from model layers, **uncertainty quantification**, and more. A variety of fast, optimized whole-slide image processing tools are included, including background filtering, blur/artifact detection, [stain normalization](https://slideflow.dev/norm.html), and efficient storage in `*.tfrecords` format. Model training is easy and highly configurable, with an easy drop-in API for training custom architectures. For external training loops, Slideflow can be used as an image processing backend, serving an optimized `tf.data.Dataset` or `torch.utils.data.DataLoader` to read and process slide images and perform real-time stain normalization.
 
