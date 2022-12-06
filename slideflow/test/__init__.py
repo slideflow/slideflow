@@ -337,6 +337,7 @@ class TestSuite:
     def test_training(
         self,
         categorical: bool = True,
+        resume: bool = True,
         uq: bool = True,
         multi_categorical: bool = True,
         linear: bool = True,
@@ -378,8 +379,41 @@ class TestSuite:
             # Test categorical outcome
             self.train_perf(**train_kwargs)
 
+        if resume:
+            # Test resuming training
+            try: 
+                to_resume = self._get_model('category1-manual_hp-TEST-HPSweep0-kfold1')
+            except OSError:
+                log.warning("Could not find categorical model for testing resume_training")
+            else:
+                msg = "Training with resume..."
+                with TaskWrapper(msg) as test:
+                    try:
+                        hp = self.setup_hp('categorical', sweep=False, uq=False)
+                        results = self.project.train(
+                            exp_label='resume',
+                            outcomes='category1',
+                            val_k=1,
+                            params=hp,
+                            validate_on_batch=10,
+                            steps_per_epoch_override=20,
+                            save_predictions=True,
+                            pretrain=None,
+                            resume_training=to_resume,
+                            **train_kwargs
+                        )
+                        _assert_valid_results(results)
+                    except Exception as e:
+                        log.error(traceback.format_exc())
+                        test.fail()
+
         if uq:
             # Test categorical outcome with UQ
+            try: 
+                # Use pretrained model if possible, for testing
+                to_resume = self._get_model('category1-manual_hp-TEST-HPSweep0-kfold1')
+            except OSError:
+                to_resume = None
             msg = "Training single categorical outcome with UQ..."
             with TaskWrapper(msg) as test:
                 try:
@@ -392,7 +426,7 @@ class TestSuite:
                         validate_on_batch=10,
                         steps_per_epoch_override=20,
                         save_predictions=True,
-                        pretrain=None,
+                        pretrain=to_resume,
                         **train_kwargs
                     )
                     _assert_valid_results(results)
