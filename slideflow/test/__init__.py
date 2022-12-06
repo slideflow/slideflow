@@ -116,11 +116,15 @@ class TestSuite:
         tail = '' if sf.backend() == 'tensorflow' else '.zip'
         for run in sorted(prev_run_dirs, reverse=True):
             if run[6:] == name:
-                return join(
+                model_name = join(
                     self.project.models_dir,
                     run,
                     f'{name}_epoch{epoch}'+tail,
                 )
+                if not exists(model_name):
+                    raise OSError(f"Unable to find trained model {name}")
+                else:
+                    return model_name
         raise OSError(f"Unable to find trained model {name}")
 
     def setup_hp(
@@ -381,13 +385,22 @@ class TestSuite:
 
         if resume:
             # Test resuming training
-            try: 
-                to_resume = self._get_model('category1-manual_hp-TEST-HPSweep0-kfold1')
-            except OSError:
-                log.warning("Could not find categorical model for testing resume_training")
-            else:
-                msg = "Training with resume..."
-                with TaskWrapper(msg) as test:
+            with TaskWrapper("Training with resume...") as test:
+                try:
+                    to_resume = self._get_model('category1-manual_hp-TEST-HPSweep1-kfold1')
+                    if sf.backend() == 'tensorflow':
+                        resume_kw = dict(
+                            resume_training=to_resume,
+                        )
+                    else:
+                        resume_kw = dict(
+                            checkpoint=to_resume
+                        )
+                except OSError:
+                    log.warning("Could not find categorical model for testing resume_training")
+                    resume_kw = dict()
+                    test.skip()
+                else:
                     try:
                         hp = self.setup_hp('categorical', sweep=False, uq=False)
                         results = self.project.train(
@@ -399,7 +412,7 @@ class TestSuite:
                             steps_per_epoch_override=20,
                             save_predictions=True,
                             pretrain=None,
-                            resume_training=to_resume,
+                            **resume_kw,
                             **train_kwargs
                         )
                         _assert_valid_results(results)
@@ -409,11 +422,11 @@ class TestSuite:
 
         if uq:
             # Test categorical outcome with UQ
-            try: 
+            try:
                 # Use pretrained model if possible, for testing
                 to_resume = self._get_model('category1-manual_hp-TEST-HPSweep0-kfold1')
             except OSError:
-                to_resume = None
+                to_resume = None  # type: ignore
             msg = "Training single categorical outcome with UQ..."
             with TaskWrapper(msg) as test:
                 try:
