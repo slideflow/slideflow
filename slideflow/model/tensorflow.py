@@ -1683,7 +1683,7 @@ class Trainer:
         with strategy.scope() if strategy else no_scope():
             # Build model from ModelParams
             if resume_training:
-                self.model = tf.keras.load_model(resume_training)
+                self.model = load(resume_training, method='full')
             else:
                 model = self.hp.build_model(
                     labels=self.labels,
