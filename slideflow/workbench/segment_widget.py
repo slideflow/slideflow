@@ -30,6 +30,8 @@ class SegmentWidget:
         self.diam_radio_auto        = True
         self.diam_radio_suggested   = False
         self.diam_radio_manual      = False
+        self.masks                  = None
+        self.centroids              = None
         self.diam_manual            = 10
         self._selected_model_idx    = 1
 
@@ -122,11 +124,13 @@ class SegmentWidget:
                 self.diam_manual = 10
 
 
-        if imgui_utils.button("Segment", width=viz.button_w):
+        if imgui_utils.button("Segment view", width=viz.button_w):
+
+            import slideflow as sf
 
             # Calculate masks.
             diam = None if self.diam_radio_auto else int(self.diam_manual)
-            masks, outlines = self.masks_from_image(viz.viewer.view, diameter=diam)
+            self.masks, outlines = self.masks_from_image(viz.viewer.view, diameter=diam)
 
             # Convert masks to ROI drawing.
             outlined_img = draw_roi(np.zeros_like(viz.viewer.view), outlines)
@@ -134,15 +138,36 @@ class SegmentWidget:
             # Calculate and display centroid points.
             centroid = True
             if centroid:
-                centroids = [polygon_centroid(o[:, 0], o[:, 1]) for o in outlines]
+                self.centroids = [polygon_centroid(o[:, 0], o[:, 1]) for o in outlines]
                 centroid_img = Image.fromarray(outlined_img)
                 draw = ImageDraw.Draw(centroid_img)
-                for c in centroids:
+                for c in self.centroids:
                     draw.point((int(c[0]), int(c[1])), fill='green')
                 outlined_img = np.asarray(centroid_img)
 
             # Set the overlay in the current viewer.
             alpha = (outlined_img.max(axis=-1)).astype(bool).astype(np.uint8) * 255
             overlay = np.dstack((outlined_img, alpha))
-            viz.set_overlay(overlay)
+            viz.set_overlay(overlay, method=sf.workbench.OVERLAY_VIEW)
+
+        if imgui_utils.button("Segment slide", width=viz.button_w):
+
+            import slideflow as sf
+            from slideflow.seg.cell import segment_slide
+            wsi = sf.WSI(viz.wsi.path, tile_px=256, tile_um=140)
+            wsi.qc('blur')
+            masks, _ = segment_slide(wsi, 'cyto2', diameter=10)
+            viz.overlay = np.repeat((masks.astype(bool).astype(np.uint8) * 255)[:, :, np.newaxis], 3, axis=-1)
+            full_extract = int(wsi.tile_um / wsi.mpp)
+            wsi_stride = int(full_extract / wsi.stride_div)
+            viz._overlay_wsi_dim = (wsi.dimensions[0] - wsi_stride/2,
+                                    wsi.dimensions[1] - wsi_stride/2)
+            viz._overlay_offset_wsi_dim = (full_extract/2 - wsi_stride/2, full_extract/2 - wsi_stride/2)
+
+
+        with imgui_utils.grayed_out(self.masks is None):
+            if imgui_utils.button("Export", width=viz.button_w) and self.masks is not None:
+                filename = f'{viz.wsi.name}-masks.npz'
+                np.savez(filename, masks=self.masks, centroids=self.centroids)
+                viz.create_toast(f"Exported masks and centroid to {filename}", icon='success')
 

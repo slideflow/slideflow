@@ -31,6 +31,10 @@ import slideflow.grad
 from slideflow.workbench.utils import EasyDict, _load_model_and_saliency
 from slideflow import log
 
+OVERLAY_GRID    = 0
+OVERLAY_WSI     = 1
+OVERLAY_VIEW    = 2
+
 #----------------------------------------------------------------------------
 
 def stylegan_widgets(advanced: bool = True) -> List[Any]:
@@ -1311,13 +1315,32 @@ class Workbench(imgui_window.ImguiWindow):
         """Set a message for display."""
         self._message = msg
 
-    def set_overlay(self, overlay: np.ndarray) -> None:
+    def set_overlay(self, overlay: np.ndarray, method: int) -> None:
         """Configure the overlay to be applied to the current view screen."""
         if self.viewer is None:
             raise ValueError("Unable to set overlay; viewer not loaded.")
         self.overlay = overlay
-        self._overlay_wsi_dim = self.viewer.wsi_window_size
-        self._overlay_offset_wsi_dim = self.viewer.origin
+        if method == OVERLAY_WSI:
+            # Overlay maps to the entire whole-slide image,
+            # with no offset needed.
+            self._overlay_wsi_dim = self.wsi.dimensions
+            self._overlay_offset_wsi_dim = (0, 0)
+        elif method == OVERLAY_GRID:
+            # Overlay was generated from the slide's grid, meaning
+            # that we need to apply an offset to ensure the overlay
+            # lines up apppropriately.
+            full_extract = int(self.wsi.tile_um / self.wsi.mpp)
+            wsi_stride = int(full_extract / self.wsi.stride_div)
+            self._overlay_wsi_dim = (wsi_stride * (self.overlay.shape[1]),
+                                     wsi_stride * (self.overlay.shape[0]))
+            self._overlay_offset_wsi_dim = (full_extract/2 - wsi_stride/2, full_extract/2 - wsi_stride/2)
+        elif method == OVERLAY_VIEW:
+            # Overlay should only apply to the area of the WSI
+            # currently in view.
+            self._overlay_wsi_dim = self.viewer.wsi_window_size
+            self._overlay_offset_wsi_dim = self.viewer.origin
+        else:
+            raise ValueError(f"Unrecognized method {method}")
 
     def set_viewer(self, viewer: Any) -> None:
         """Set the main viewer."""

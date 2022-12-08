@@ -153,14 +153,8 @@ class HeatmapWidget:
             alpha_channel = np.full(self.viz.rendered_heatmap.shape[0:2],
                                     int(self.alpha * 255),
                                     dtype=np.uint8)
-            self.viz.overlay = np.dstack((self.viz.rendered_heatmap[:, :, 0:3],
-                                                  alpha_channel))
-            full_extract = int(self.viz.wsi.tile_um / self.viz.wsi.mpp)
-            wsi_stride = int(full_extract / self.viz.wsi.stride_div)
-            self.viz._overlay_wsi_dim = (wsi_stride * (self.viz.overlay.shape[1]),
-                                         wsi_stride * (self.viz.overlay.shape[0]))
-            self.viz._overlay_offset_wsi_dim = (full_extract/2 - wsi_stride/2, full_extract/2 - wsi_stride/2)
-
+            overlay = np.dstack((self.viz.rendered_heatmap[:, :, 0:3], alpha_channel))
+            self.viz.set_overlay(overlay, method=sf.workbench.OVERLAY_GRID)
 
     @imgui_utils.scoped_by_object_id
     def __call__(self, show=True):
