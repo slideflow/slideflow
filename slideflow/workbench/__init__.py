@@ -1311,6 +1311,14 @@ class Workbench(imgui_window.ImguiWindow):
         """Set a message for display."""
         self._message = msg
 
+    def set_overlay(self, overlay: np.ndarray) -> None:
+        """Configure the overlay to be applied to the current view screen."""
+        if self.viewer is None:
+            raise ValueError("Unable to set overlay; viewer not loaded.")
+        self.overlay = overlay
+        self._overlay_wsi_dim = self.viewer.wsi_window_size
+        self._overlay_offset_wsi_dim = self.viewer.origin
+
     def set_viewer(self, viewer: Any) -> None:
         """Set the main viewer."""
         log.debug("Setting viewer to {}".format(viewer))

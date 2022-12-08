@@ -37,7 +37,7 @@ def OPS_LEVEL_DOWNSAMPLE(level: int) -> str:
 
 def draw_roi(
     img: Union[np.ndarray, str],
-    coords: List[int]
+    coords: List[List[int]]
 ) -> np.ndarray:
     """Draw ROIs on image.
 

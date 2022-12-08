@@ -11,6 +11,7 @@ from os.path import dirname, realpath
 @click.option('--low_memory', '-l', is_flag=True, help='Low memory mode.', metavar=bool)
 @click.option('--stylegan', '-g', is_flag=True, help='Enable StyleGAN support (requires PyTorch).', metavar=bool)
 @click.option('--picam', '-c', is_flag=True, help='Enable Picamera2 view (experimental).', metavar=bool)
+@click.option('--cellpose', is_flag=True, help='Enable Cellpose segmentation (experimental).', metavar=bool)
 @click.option('--advanced', '-a', is_flag=True, help='Enable advanced StyleGAN options.', metavar=bool)
 def main(
     slide,
@@ -19,6 +20,7 @@ def main(
     low_memory,
     stylegan,
     picam,
+    cellpose,
     advanced
 ):
     """
@@ -41,6 +43,10 @@ def main(
     if picam:
         from slideflow.workbench.picam_widget import PicamWidget
         widgets += [PicamWidget]
+
+    if cellpose:
+        from slideflow.workbench.segment_widget import SegmentWidget
+        widgets += [SegmentWidget]
 
     viz = Workbench(low_memory=low_memory, widgets=widgets)
     viz.project_widget.search_dirs += [dirname(realpath(__file__))]
