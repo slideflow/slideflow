@@ -870,6 +870,31 @@ def tfrecord_heatmap(
     return stats
 
 
+def get_next_model_dir(root: str) -> str:
+    '''
+    This function returns the path of the first indented directory from root.
+    This only works when the indented folder name starts with a 5 digit number,
+    like "00000%".
+
+    Examples
+        If the root has 3 files:
+        root/00000-foldername/
+        root/00001-foldername/
+        root/00002-foldername/
+
+        The function returns "root/00000-foldername/"
+    '''
+    
+    prev_run_dirs = [
+        x for x in os.listdir(root)
+        if isdir(join(root, x))
+    ]
+    prev_run_ids = [re.match(r'^\d+', x) for x in prev_run_dirs]
+    prev_run_ids = [int(x.group()) for x in prev_run_ids if x is not None]
+    model_dir = prev_run_dirs[0]
+    return model_dir
+
+
 def get_new_model_dir(root: str, model_name: str) -> str:
     prev_run_dirs = [
         x for x in os.listdir(root)

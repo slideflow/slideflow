@@ -1,6 +1,7 @@
 import copy
 import csv
 import itertools
+import shutil
 import json
 import multiprocessing
 import numpy as np
@@ -521,6 +522,7 @@ class Project:
         results_dict: Union[Dict, DictProxy],
         training_kwargs: Dict,
         balance_headers: Optional[Union[str, List[str]]],
+        ensemble: bool,
         **kwargs
     ) -> None:
         '''Trains a model(s) using the specified hyperparameters.
@@ -547,6 +549,7 @@ class Project:
             results_dict (dict): Multiprocessing-friendly dict for sending
                 results from isolated training processes
             training_kwargs (dict): Keyword arguments for Trainer.train().
+            ensemble (bool): To know if traing is running to save an ensemble of models.
         '''
 
         # --- Prepare dataset ---------------------------------------------
@@ -653,7 +656,7 @@ class Project:
         # --- Train on a specific K-fold --------------------------------------
         for k in valid_k:
             s_args.k = k
-            self._train_split(dataset, hp, val_settings, s_args)
+            self._train_split(dataset, hp, val_settings, s_args, ensemble)
 
         # --- Record results --------------------------------------------------
         if (not val_settings.source
@@ -677,7 +680,8 @@ class Project:
         dataset: Dataset,
         hp: ModelParams,
         val_settings: SimpleNamespace,
-        s_args: SimpleNamespace
+        s_args: SimpleNamespace,
+        ensemble: bool
     ) -> None:
         '''Trains a model for a given training/validation split.
 
@@ -687,6 +691,7 @@ class Project:
             hp (:class:`slideflow.ModelParams`): Model parameters.
             val_settings (:class:`types.SimpleNamspace`): Validation settings.
             s_args (:class:`types.SimpleNamspace`): Training settings.
+            ensemble (bool): To know if traing is running to save an ensemble of models.
         '''
 
         # Log current model name and k-fold iteration, if applicable
@@ -798,7 +803,10 @@ class Project:
         full_name = s_args.model_name
         if s_args.k is not None:
             full_name += f'-kfold{s_args.k}'
-        model_dir = sf.util.get_new_model_dir(self.models_dir, full_name)
+        if ensemble:
+             model_dir = sf.util.get_new_model_dir(os.getcwd(), full_name)
+        else:
+            model_dir = sf.util.get_new_model_dir(self.models_dir, full_name)
 
         # Log model settings and hyperparameters
         config = {
@@ -2752,6 +2760,58 @@ class Project:
         print(best_config)
         return best_config
 
+
+    def train_ensemble(
+        self, 
+        outcomes: Union[str, List[str]],
+        number_of_ensembles: int = 5, 
+        *args, 
+        **kargs
+        ):
+        """
+        Train an ensemble of model(s) using a given set of parameters, 
+        outcomes, and inputs by calling the train function "number_of_ensembles"
+        of times
+
+        Args:
+            outcomes (str or list(str)): Outcome label annotation header(s).
+
+        Keyword Args:
+            number_of_ensembles (int): Total models needed in the ensemble.
+                Defaults to 5.
+
+        """
+
+        if not isinstance(outcomes, list):
+            outcome_name = [outcomes]
+        if len(outcomes) > 1:
+            outcome_name = f'{"-".join(outcome_name)}'
+        else:
+            outcome_name = f'{outcome_name[0]}'
+
+        full_name = f"{outcome_name}-ensemble"
+        main_model_dir = sf.util.get_new_model_dir(self.models_dir, full_name)
+        os.chdir(main_model_dir)
+
+        for i in range(number_of_ensembles):
+            ens_folder_name = f"ensemble_{i+1}"
+            model_dir = sf.util.get_new_model_dir(os.getcwd(), ens_folder_name)
+            os.chdir(model_dir)
+
+            self.train(ensemble = True, outcomes=outcomes, *args, **kargs)
+
+            if i == 0:     
+                from_path = sf.util.get_next_model_dir(model_dir)
+                to_path = main_model_dir
+                
+                shutil.copyfile(f"{from_path}/slide_manifest.csv", 
+                    f"{to_path}/slide_manifest.csv")
+                shutil.copyfile(f"{from_path}/params.json", 
+                    f"{to_path}/params.json")   
+
+            os.chdir(main_model_dir)
+
+        
     def train(
         self,
         outcomes: Union[str, List[str]],
@@ -2771,6 +2831,7 @@ class Project:
         allow_tf32: bool = False,
         load_method: str = 'full',
         balance_headers: Optional[Union[str, List[str]]] = None,
+        ensemble: bool = False,
         **training_kwargs: Any
     ) -> Dict:
         """Train model(s) using a given set of parameters, outcomes, and inputs.
@@ -2862,6 +2923,8 @@ class Project:
                 training monitoring. Defaults to False.
             validation_steps (int): Number of steps of validation to perform
                 each time doing a mid-epoch validation check. Defaults to 200.
+            ensemble (bool): To know if traing is called to save an ensemble 
+                of models.
 
         Returns:
             Dict with model names mapped to train_acc, val_loss, and val_acc
@@ -2970,7 +3033,8 @@ class Project:
                 balance_headers=balance_headers,
                 training_kwargs=training_kwargs,
                 results_dict=results_dict,
-                load_method=load_method
+                load_method=load_method,
+                ensemble = ensemble
             )
         # Print summary of all models
         log.info('Training complete; validation accuracies:')
@@ -2994,6 +3058,7 @@ class Project:
                     for m in final_val_metrics:
                         log.info(f'{m}: {final_val_metrics[m]}')
         return dict(results_dict)
+
 
     def train_clam(
         self,

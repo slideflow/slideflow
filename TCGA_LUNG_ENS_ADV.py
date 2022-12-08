@@ -15,51 +15,62 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '10'
 
 
 def main():
-    P = sf.Project(root='/home/prajval/DATA/PROJECTS/TCGA_LUNG')
+    P = sf.Project(root='/home/prajval/DATA/PROJECTS/TCGA_BRCA')
 
     # for i in range(5):
-    #     hp = sf.model.ModelParams(
-    #             model='xception',
-    #             tile_px=299,
-    #             tile_um=302,
-    #             batch_size=128,
-    #             epochs=[1],
-    #             early_stop=True,
-    #             early_stop_method='accuracy',
-    #             dropout=0.1,
-    #             #uq=True,
-    #             hidden_layer_width=1024,
-    #             optimizer='Adam',
-    #             learning_rate=0.0001,
-    #             learning_rate_decay_steps=512,
-    #             learning_rate_decay=0.98,
-    #             loss='sparse_categorical_crossentropy',
-    #             normalizer='reinhard_fast',
-    #             include_top=False,
-    #             hidden_layers=2,
-    #             pooling='avg',
-    #             augment='xyrjb'
-    #         )
 
-    #     P.train(
-    #         outcomes='cohort',
-    #         pretrain=None, # used for resnet50 and vgg19 
-    #         val_k = 1,
-    #         params=hp
-    #     )
+    model = "/home/prajval/DATA/PROJECTS/TCGA_BRCA/models/00000-histological_type-HP0-kfold1/histological_type-HP0-kfold1_epoch1"
+        # filter_kw = dict(
+        #     filters={'slide': sf.util.get_slides_from_model_manifest(model, "training")}
+        # )
+
+        # hp = sf.model.ModelParams(
+        #         model='xception',
+        #         tile_px=299,
+        #         tile_um=302,
+        #         batch_size=128,
+        #         epochs=[1],
+        #         early_stop=True,
+        #         early_stop_method='accuracy',
+        #         dropout=0.1,
+        #         #uq=True,
+        #         hidden_layer_width=1024,
+        #         optimizer='Adam',
+        #         learning_rate=0.0001,
+        #         learning_rate_decay_steps=512,
+        #         learning_rate_decay=0.98,
+        #         loss='sparse_categorical_crossentropy',
+        #         normalizer='reinhard_fast',
+        #         include_top=False,
+        #         hidden_layers=2,
+        #         pooling='avg',
+        #         augment='xyrjb'
+        #     )
+
+        # P.train(
+        #     outcomes='cohort',
+        #     pretrain=None,
+        #     adversarial=True,
+        #     val_strategy = None,
+        #     # steps_per_epoch_override = 10,
+        #     params=hp,
+        #     **filter_kw
+        # )
+
 
     print("Load Models")
     paths = [
-    "/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00001-cohort-HP0-kfold1/cohort-HP0-kfold1_epoch1",
-    "/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00002-cohort-HP0-kfold1/cohort-HP0-kfold1_epoch1",
-    "/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00003-cohort-HP0-kfold1/cohort-HP0-kfold1_epoch1",
-    "/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00004-cohort-HP0-kfold1/cohort-HP0-kfold1_epoch1",
-    "/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00005-cohort-HP0-kfold1/cohort-HP0-kfold1_epoch1"]
+    "/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00006-cohort-HP0/cohort-HP0_adversarial_epoch_",
+    "/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00007-cohort-HP0/cohort-HP0_adversarial_epoch_",
+    "/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00008-cohort-HP0/cohort-HP0_adversarial_epoch_",
+    "/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00009-cohort-HP0/cohort-HP0_adversarial_epoch_",
+    "/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00010-cohort-HP0/cohort-HP0_adversarial_epoch_"]
 
-    adv_models = [tf.keras.models.load_model(path) for path in paths]
+    adv_models = [tf.keras.models.load_model(model) for path in paths]
 
     print("Get Validation slides and prepare dataset")
-    val_slides = sf.util.get_slides_from_model_manifest(paths[0], 'validation')
+    val_slides = sf.util.get_slides_from_model_manifest(model)
+    print(len(val_slides))
     
     # prepare dataset
     dataset = P.dataset(tile_px=299, tile_um = 302, filters={'slide': val_slides})
@@ -100,7 +111,7 @@ def main():
         # i += 1
         # if i > 3:
         #     break
-            
+          
     # --- Save predictions in CSV format --------------------------------------
     print("csv conversion")
     slide_label = np.array(slide_label, dtype=object)
@@ -119,13 +130,9 @@ def main():
                     columns = ["cohort-uncertainty0", "cohort-uncertainty1"])
 
     df = pd.concat([df_slide, df_pred, df_unc], axis=1)
-    # print(df)
-    df.to_csv("/home/prajval/DATA/PROJECTS/TCGA_LUNG/eval/ensemble_evaluations/3/tile_predictions_ensemble.csv")
+    print(df)
+    df.to_csv("/home/prajval/DATA/PROJECTS/TCGA_LUNG/eval/ensemble_evaluations/6/tile_predictions_ensemble_val_BRCA.csv")
 
-    # --- Predict with P.predict() ------------------------------------------
-    #print("Starting prediction")
-    #for path in paths:
-    #    P.predict(path, dataset = dataset, batch_size = 64)
 
 if __name__=='__main__':
     multiprocessing.freeze_support()

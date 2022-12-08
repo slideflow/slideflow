@@ -13,10 +13,14 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '10'
 
 
 def main():
-    P = sf.Project(root='/home/prajval/DATA/PROJECTS/TCGA_LUNG')
+    P = sf.Project(root='/home/prajval/DATA/PROJECTS/TCGA_BRCA')
 
     ### ================== Training on 'primary_diagnosis' ================== ###
     # Running on 299px and basic hyper parameters to run deep ensembles. hp from Biscuit
+    model = '/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00000-cohort-HP0-kfold1/cohort-HP0-kfold1_epoch1'
+    # filter_kw = dict(
+    #             filters={'slide': sf.util.get_slides_from_model_manifest(model, "training")}
+    #         )
 
     # hp = sf.model.ModelParams(
     #     model='xception',
@@ -44,13 +48,29 @@ def main():
     # P.train(
     #     outcomes='cohort',
     #     pretrain=None, 
-    #     val_k = 1,
-    #     params=hp
+    #     params=hp,
+    #     val_strategy=None,
+    #     **filter_kw
     # )
 
     ### ================== Runnign prediction ================== ###
-    # Predicting xception - MC Dropout method
-    P.predict('/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00000-cohort-HP0-kfold1/cohort-HP0-kfold1_epoch1', batch_size = 64)
+    # # Predicting xception - MC Dropout method - LUNG
+    # val_slides = sf.util.get_slides_from_model_manifest(model, 'validation')
+    
+    # # prepare dataset
+    # dataset = P.dataset(tile_px=299, tile_um = 302, filters={'slide': val_slides})
+
+    # P.predict(model, dataset = dataset, batch_size = 64)
+
+    # Predicting xception - MC Dropout method - BRCA
+    BRCA_model = "/home/prajval/DATA/PROJECTS/TCGA_BRCA/models/00000-histological_type-HP0-kfold1/histological_type-HP0-kfold1_epoch1"
+    val_slides = sf.util.get_slides_from_model_manifest(BRCA_model)
+    # print(val_slides)
+    # print(len(val_slides))
+    # prepare dataset
+    dataset = P.dataset(tile_px=299, tile_um = 302)#, filters={'slide': val_slides})
+
+    P.predict(model, dataset = dataset, batch_size = 64)
 
 
 if __name__=='__main__':

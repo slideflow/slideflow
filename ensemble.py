@@ -109,6 +109,7 @@ def main(
                 labels=dataset.labels('histological_type')[0],
                 batch_size=64,
                 infinite=False,
+                normalizer=sf.util.get_model_normalizer(paths[1]),
                 standardize=True,
                 incl_slidenames=True)
             print(tf_dts)
@@ -118,7 +119,13 @@ def main(
             unc = []
             slide_label = []
 
-            for batch_images, batch_labels, batch_slide in tf_dts:
+            for batch_images, batch_labels, batch_slide in tqdm(tf_dts, total=dataset.num_tiles // 64):
+        
+                # pred_mean = adv_models[1](batch_images)
+                # # print(type(pred_mean))
+                # # print(pred_mean)
+                # pred.append(pred_mean.numpy())
+                # unc.append(pred_mean.numpy())
                 
                 batch_pred = [model(batch_images) for model in adv_models]
 
@@ -128,28 +135,66 @@ def main(
                 pred_std = tf.stack(batch_pred, axis = 0)  
                 unc.append(tf.math.reduce_std(pred_std, axis=0).numpy().tolist())
                 
-                slide_label.append(batch_slide)              
-            
+                b_slide = [i.decode("utf-8") for i in batch_slide.numpy()]
+                slide_label.append(b_slide)
+
+                # i += 1
+                # if i > 3:
+                #     break
+                    
+            # --- Save predictions in CSV format --------------------------------------
             print("csv conversion")
             slide_label = np.array(slide_label, dtype=object)
             slide_label = np.concatenate(slide_label, axis=0)
             df_slide = pd.DataFrame(data = slide_label,
-                          columns = ["slide"])
+                            columns = ["slide"])
 
             pred = np.array(pred, dtype=object)
             pred = np.concatenate(pred, axis=0)
             df_pred = pd.DataFrame(data = pred,
-                          columns = ["histological_type-y_pred0", "histological_type-y_pred1"])
+                            columns = ["cohort-y_pred0", "cohort-y_pred1"])
 
             unc = np.array(unc, dtype=object)
             unc = np.concatenate(unc, axis=0)
             df_unc = pd.DataFrame(data = unc,
-                          columns = ["histological_type-uncertainty0", "histological_type-uncertainty1"])
+                            columns = ["cohort-uncertainty0", "cohort-uncertainty1"])
 
             df = pd.concat([df_slide, df_pred, df_unc], axis=1)
-            print(df)
+            # print(df)
+            df.to_csv("/home/prajval/DATA/PROJECTS/TCGA_LUNG/eval/ensemble_evaluations/4/tile_predictions_ensemble.csv")
+        
+            # for batch_images, batch_labels, batch_slide in tf_dts:
+                
+            #     batch_pred = [model(batch_images) for model in adv_models]
 
-            # df.to_csv("/home/prajval/DATA/PROJECTS/TCGA_BRCA/ensemble_predictions_adv_in_sf.csv") 
+            #     pred_mean = tf.stack(batch_pred, axis = 0)      # dimension (5,64,2)
+            #     pred.append(tf.reduce_mean(pred_mean, axis=0).numpy().tolist()) # dimension (64,2)
+
+            #     pred_std = tf.stack(batch_pred, axis = 0)  
+            #     unc.append(tf.math.reduce_std(pred_std, axis=0).numpy().tolist())
+                
+            #     slide_label.append(batch_slide)              
+            
+            # print("csv conversion")
+            # slide_label = np.array(slide_label, dtype=object)
+            # slide_label = np.concatenate(slide_label, axis=0)
+            # df_slide = pd.DataFrame(data = slide_label,
+            #               columns = ["slide"])
+
+            # pred = np.array(pred, dtype=object)
+            # pred = np.concatenate(pred, axis=0)
+            # df_pred = pd.DataFrame(data = pred,
+            #               columns = ["histological_type-y_pred0", "histological_type-y_pred1"])
+
+            # unc = np.array(unc, dtype=object)
+            # unc = np.concatenate(unc, axis=0)
+            # df_unc = pd.DataFrame(data = unc,
+            #               columns = ["histological_type-uncertainty0", "histological_type-uncertainty1"])
+
+            # df = pd.concat([df_slide, df_pred, df_unc], axis=1)
+            # print(df)
+
+            # df.to_csv("/home/prajval/DATA/PROJECTS/TCGA_LUNG/eval/ensemble_evaluations/4/tile_predictions_ensemble.csv")
     
 if __name__ == '__main__':
     mp.freeze_support()
