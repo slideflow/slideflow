@@ -330,7 +330,13 @@ class _cuCIMReader:
         """
         target_downsample = window_size[0] / target_size[0]
         ds_level = self.best_level_for_downsample(target_downsample)
+
+        # Use a lower downsample level if the window size is too small
         ds = self.level_downsamples[ds_level]
+        if not int(window_size[0] / ds) or not int(window_size[1] / ds):
+            ds_level = max(0, ds_level-1)
+            ds = self.level_downsamples[ds_level]
+
         region = self.read_region(
             top_left,
             ds_level,
