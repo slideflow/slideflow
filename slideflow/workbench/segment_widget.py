@@ -31,7 +31,22 @@ class SegmentWidget:
         self.diam_radio_suggested   = False
         self.diam_radio_manual      = False
         self.diam_manual            = 10
-        self.cellpose               = cellpose.models.Cellpose(gpu=True, model_type='cyto2')
+        self._selected_model_idx    = 1
+
+        # Load default model
+        self.supported_models = [
+            'cyto', 'cyto2', 'nuclei', 'tissuenet', 'TN1', 'TN2', 'TN3',
+            'livecell', 'LC1', 'LC2', 'LC3', 'LC4'
+        ]
+        self.models = {m: None for m in self.supported_models}
+
+
+    @property
+    def model(self):
+        model_str = self.supported_models[self._selected_model_idx]
+        if self.models[model_str] is None:
+            self.models[model_str] = cellpose.models.Cellpose(gpu=True, model_type=model_str)
+        return self.models[model_str]
 
     def masks_from_image(
         self,
@@ -52,7 +67,7 @@ class SegmentWidget:
         """
         if verbose:
             print("Segmenting image with shape=", img.shape)
-        masks, flows, styles, diams = self.cellpose.eval(
+        masks, flows, styles, diams = self.model.eval(
             img,
             channels=[[0, 0]],
             **kwargs
@@ -66,7 +81,13 @@ class SegmentWidget:
     def __call__(self, show=True):
         viz = self.viz
 
-         # Set up settings interface.
+        # Set up settings interface.
+
+        ## Cell segmentation model.
+        imgui.text("Model")
+        imgui.same_line()
+        with imgui_utils.item_width(viz.font_size * 8):
+            _clicked, self._selected_model_idx = imgui.combo("##cellpose_model", self._selected_model_idx, self.supported_models)
 
         ## Cell Segmentation diameter.
         imgui.text("Diameter")
@@ -91,7 +112,8 @@ class SegmentWidget:
         imgui.same_line()
         imgui.text("Manual")
         imgui.same_line()
-        diam_changed, self.diam_manual = imgui_utils.input_text('##diam_manual', str(self.diam_manual), 8, width=32, flags=0)
+        diam_changed, self.diam_manual = imgui_utils.input_text('##diam_manual', str(self.diam_manual), 8, width=viz.font_size*4, flags=0)
+
         if diam_changed:
             try:
                 self.diam_manual = int(self.diam_manual)
