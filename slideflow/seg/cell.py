@@ -37,11 +37,13 @@ def segment_slide(
     all_masks = np.zeros((slide.shape[0], slide.shape[1], tile_px, tile_px), dtype=np.int32)
     all_diams = []
     ctx = mp.get_context('spawn')
-    pool = ctx.Pool(8)
+    pool = ctx.Pool(4)
 
     for masks, diams, (x, y) in tqdm(pool.imap(partial(get_masks, slide=slide, model=model, **kwargs), np.argwhere(slide.grid)), total=len(np.argwhere(slide.grid))):
         all_diams.append(diams)
         masks[np.nonzero(masks)] += running_max
         all_masks[x, y] = masks
         running_max += masks.max()
+
+    pool.close()
     return np.concatenate(np.concatenate(all_masks, axis=-1), axis=0), all_diams
