@@ -347,40 +347,44 @@ class Workbench(imgui_window.ImguiWindow):
             drawing_control_pane = False
 
         # --- Core widgets (always rendered, not always shown) ----------------
-        header_height = self.font_size + self.spacing * 2
+        header_height = self.font_size + (self.spacing * 2)
         self._control_size = self.spacing * 4
 
         # Slide widget
         if (self.P or self.wsi) and self._show_control:
             expanded, _visible = imgui_utils.collapsing_header('Whole-slide image', default=True)
+            self._control_size += header_height
         else:
             expanded = False
         self.slide_widget(expanded and self._show_control)
-        self._control_size += self.slide_widget.content_height + header_height
+        self._control_size += self.slide_widget.content_height
 
         # Project widget
         if self.P and self._show_control:
             expanded, _visible = imgui_utils.collapsing_header('Project', default=True)
+            self._control_size += header_height
         else:
             expanded = False
         self.project_widget(expanded and self._show_control)
-        self._control_size += self.project_widget.content_height + header_height
+        self._control_size += self.project_widget.content_height
 
         # Model widget
         if (self.P or self._model_path) and self._show_control:
             expanded, _visible = imgui_utils.collapsing_header('Model & tile predictions', default=True)
+            self._control_size += header_height
         else:
             expanded = False
         self.model_widget(expanded and self._show_control)
-        self._control_size += self.model_widget.content_height + header_height
+        self._control_size += self.model_widget.content_height
 
         # Heatmap / prediction widget
         if self.viewer is not None and self._model_config is not None and self._show_control:
             expanded, _visible = imgui_utils.collapsing_header('Heatmap & slide prediction', default=True)
+            self._control_size += header_height
         else:
             expanded = False
         self.heatmap_widget(expanded and self._show_control)
-        self._control_size += self.heatmap_widget.content_height + header_height
+        self._control_size += self.heatmap_widget.content_height
 
         # ---------------------------------------------------------------------
 
