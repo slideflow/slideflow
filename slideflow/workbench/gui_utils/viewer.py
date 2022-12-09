@@ -204,7 +204,11 @@ class Viewer:
         if offset:
             all_x_offset += self.x_offset
             all_y_offset += self.y_offset
-        return (
-            ((x - self.origin[0]) / self.view_zoom) + all_x_offset,
-            ((y - self.origin[1]) / self.view_zoom) + all_y_offset
-        )
+        if sf.slide_backend() == 'cucim':
+            x, y = int(x), int(y)
+            origin_x, origin_y = int(self.origin[0]), int(self.origin[1])
+        else:
+            origin_x, origin_y = self.origin
+        wsi_x = ((x - origin_x) / self.view_zoom) + all_x_offset
+        wsi_y = ((y - origin_y) / self.view_zoom) + all_y_offset
+        return wsi_x, wsi_y
