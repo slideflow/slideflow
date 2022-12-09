@@ -265,7 +265,8 @@ class SlideViewer(Viewer):
         """
         if (view_params.window_size != self.view_params.window_size
            or view_params.target_size != self.view_params.target_size
-           or self._normalizer):
+           or self._normalizer
+           or self.mpp < self.wsi.mpp):
             self._refresh_view_full(view_params)
         else:
             new_view = np.zeros_like(self.view)
