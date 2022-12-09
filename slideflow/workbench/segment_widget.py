@@ -25,6 +25,7 @@ class SegmentWidget:
         self.calc_centroid          = False
         self.view_types             = ('Mask', 'Outline', 'Cellprob', 'gradXY')
         self.overlay                = None
+        self.content_height         = 0
 
         self._selected_model_idx    = 1
         self._view_type_idx         = 0
@@ -118,7 +119,7 @@ class SegmentWidget:
         if self.view_types[self._view_type_idx] == 'Mask':
             self.overlay = self.segmentation.mask_to_image()
         elif self.view_types[self._view_type_idx] == 'Outline':
-            self.overlay = self.segmentation.outline_to_image(centroid=True)
+            self.overlay = self.segmentation.outline_to_image(centroid=self.calc_centroid)
 
         # Update transparency of the calculated overview.
         self.update_transparency()
@@ -127,9 +128,14 @@ class SegmentWidget:
     def __call__(self, show=True):
         viz = self.viz
 
+        if not show:
+            self.content_height = 0
+            return
+
         # Set up settings interface.
         child_width = imgui.get_content_region_max()[0] / 3 - viz.spacing
         child_height = imgui.get_text_line_height_with_spacing() * 6 + viz.spacing * 2
+        self.content_height = child_height + viz.spacing
 
         # --- Segmentation ----------------------------------------------------
         imgui.begin_child('##segment_child', width=child_width, height=child_height, border=True)
