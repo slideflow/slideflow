@@ -127,6 +127,7 @@ class Workbench(imgui_window.ImguiWindow):
         self._show_tile_preview = False
         self._tile_preview_is_new = True
         self._tile_preview_image_is_new = True
+        self._show_overlays     = True
 
         # Widget interface.
         self.wsi                = None
@@ -179,7 +180,8 @@ class Workbench(imgui_window.ImguiWindow):
         """An overlay (e.g. tile filter or heatmap) is currently being shown
         over the main view.
         """
-        return self.slide_widget.show_overlay or self.heatmap_widget.show
+        return ((self.slide_widget.show_overlay or self.heatmap_widget.show)
+                and self._show_overlays)
 
     @property
     def model(self):
