@@ -32,7 +32,8 @@ class Segmentation:
     @property
     def centroids(self):
         if self._centroids is None:
-            self._centroids = [polygon_centroid(o[:, 0], o[:, 1]) for o in self.outlines]
+            mask_s = sparse_mask(self.masks)
+            self._centroids = get_sparse_centroid(self.masks, mask_s)
         return self._centroids
 
     def mask_to_image(self):
@@ -45,25 +46,22 @@ class Segmentation:
             pil_img = Image.fromarray(img)
             draw = ImageDraw.Draw(pil_img)
             for c in self.centroids:
-                draw.point((int(c[0]), int(c[1])), fill=centroid_color)
+                draw.point((int(c[1]), int(c[0])), fill=centroid_color)
             return np.asarray(pil_img)
         else:
             return img
 
 
-def polygon_area(xs, ys):
-    """https://en.wikipedia.org/wiki/Centroid#Of_a_polygon"""
-    # https://stackoverflow.com/a/30408825/7128154
-    return 0.5 * (np.dot(xs, np.roll(ys, 1)) - np.dot(ys, np.roll(xs, 1)))
+def get_sparse_centroid(mask, sparse_mask):
+    return [np.mean(np.unravel_index(row.data, mask.shape), 1).astype(int)
+            for (R, row) in enumerate(sparse_mask) if R>0]
 
 
-def polygon_centroid(xs, ys):
-    """https://en.wikipedia.org/wiki/Centroid#Of_a_polygon"""
-    xy = np.array([xs, ys])
-    c = np.dot(xy + np.roll(xy, 1, axis=1),
-               xs * np.roll(ys, 1) - np.roll(xs, 1) * ys
-               ) / (6 * polygon_area(xs, ys))
-    return c
+def sparse_mask(mask):
+    from scipy.sparse import csr_matrix
+    cols = np.arange(mask.size)
+    return csr_matrix((cols, (np.ravel(mask), cols)),
+                      shape=(mask.max() + 1, mask.size))
 
 
 def get_masks(c, slide, model, diameter=None, **kwargs):

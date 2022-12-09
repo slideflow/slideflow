@@ -3,6 +3,7 @@ import imgui
 import numpy as np
 import cellpose
 import cellpose.models
+from threading import Thread
 from typing import Tuple
 from PIL import Image, ImageDraw
 from slideflow.slide.utils import draw_roi
@@ -31,6 +32,8 @@ class SegmentWidget:
         self._view_type_idx         = 0
         self._segment_wsi_dim       = None
         self._segment_wsi_offset    = None
+        self._segment_thread        = None
+        self._segment_toast         = None
 
         # Load default model
         self.supported_models = [
@@ -66,6 +69,7 @@ class SegmentWidget:
         self._segment_wsi_offset = self.viz.viewer.origin
         self.diam_manual = diams
         print(f"Segmentation of current view complete (diameter={diams:.2f}), {masks.max()} total masks).")
+        self.refresh_segmentation_view()
 
     def segment_slide(self):
         """Generate whole-slide segmentation.
@@ -96,6 +100,11 @@ class SegmentWidget:
                                     wsi_stride * (wsi.grid.shape[1]))
         self._segment_wsi_offset = (full_extract/2 - wsi_stride/2, full_extract/2 - wsi_stride/2)
 
+        # Done; refresh view.
+        self._segment_toast.done()
+        self.viz.create_toast("Segmentation complete.", icon="success")
+        self.refresh_segmentation_view()
+
     def update_transparency(self):
         """Updates transparency of the overlay."""
         if self.overlay is None:
@@ -104,7 +113,7 @@ class SegmentWidget:
             alpha = np.full(self.overlay.shape[0:2], int(self.alpha * 255), dtype=np.uint8)
             self.overlay = np.dstack((self.overlay[:, :, 0:3], alpha))
         elif self.view_types[self._view_type_idx] == 'Outline':
-            alpha = (self.overlay[:, :, 0:3].max(axis=-1)).astype(bool).astype(np.uint8) * (255 * self.alpha)
+            alpha = ((self.overlay[:, :, 0:3].max(axis=-1)).astype(bool).astype(np.uint8) * (255 * self.alpha)).astype(np.uint8)
             self.overlay = np.dstack((self.overlay[:, :, 0:3], alpha))
 
         # Ensure segmentation matches WSI view.
@@ -145,9 +154,15 @@ class SegmentWidget:
         if imgui.radio_button('Manual##config_radio_manual', not self.config_auto):
             self.config_auto = False
         _, self.use_gpu = imgui.checkbox('Use GPU', self.use_gpu)
-        if imgui_utils.button("Segment", width=viz.button_w * 1.2):
-            self.segment_slide()
-            self.refresh_segmentation_view()
+        if (imgui_utils.button("Segment", width=viz.button_w * 1.2)
+            and (self._segment_thread is None or not self._segment_thread.is_alive())):
+            self._segment_toast = viz.create_toast(
+                title=f"Segmenting whole-slide image.",
+                icon='info',
+                sticky=True,
+                spinner=True)
+            self._segment_thread = Thread(target=self.segment_slide)
+            self._segment_thread.start()
         imgui.end_child()
 
         # --- Configuration ---------------------------------------------------
@@ -187,7 +202,6 @@ class SegmentWidget:
             # Preview segmentation.
             if imgui_utils.button("Preview", width=viz.button_w * 1.2) and not self.config_auto:
                 self.segment_view()
-                self.refresh_segmentation_view()
 
         imgui.end_child()
 
