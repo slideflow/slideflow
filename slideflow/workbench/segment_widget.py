@@ -102,8 +102,14 @@ class SegmentWidget:
 
         # Done; refresh view.
         self._segment_toast.done()
-        self.viz.create_toast("Segmentation complete.", icon="success")
+        refresh_toast = self.viz.create_toast(
+                title=f"Rendering segmentations.",
+                icon='info',
+                sticky=True,
+                spinner=True)
         self.refresh_segmentation_view()
+        refresh_toast.done()
+        self.viz.create_toast("Segmentation complete.", icon="success")
 
     def update_transparency(self):
         """Updates transparency of the overlay."""
@@ -124,9 +130,10 @@ class SegmentWidget:
 
     def refresh_segmentation_view(self):
         """Refresh the Workbench view of the active segmentation."""
-
+        if self.segmentation is None:
+            return
         if self.view_types[self._view_type_idx] == 'Mask':
-            self.overlay = self.segmentation.mask_to_image()
+            self.overlay = self.segmentation.mask_to_image(centroid=self.calc_centroid)
         elif self.view_types[self._view_type_idx] == 'Outline':
             self.overlay = self.segmentation.outline_to_image(centroid=self.calc_centroid)
 
@@ -230,7 +237,9 @@ class SegmentWidget:
                             self.update_transparency()
                 if i == 2:
                     imgui.same_line(viz.font_size*6)
-                    _, self.calc_centroid = imgui.checkbox('Centroid', self.calc_centroid)
+                    _centroid_clicked, self.calc_centroid = imgui.checkbox('Centroid', self.calc_centroid)
+                    if _centroid_clicked:
+                        self.refresh_segmentation_view()
             if imgui_utils.button("Export", width=viz.button_w * 1.2) and self.segmentation is not None:
                 filename = f'{viz.wsi.name}-masks.npz'
                 np.savez(filename, masks=self.segmentation.masks, centroids=self.segmentation.centroids)

@@ -36,24 +36,33 @@ class Segmentation:
             self._centroids = get_sparse_centroid(self.masks, mask_s)
         return self._centroids
 
-    def mask_to_image(self):
-        return np.repeat((self.masks.astype(bool).astype(np.uint8) * 255)[:, :, np.newaxis], 3, axis=-1)
+    def _draw_centroid(self, img, color='green'):
+        pil_img = Image.fromarray(img)
+        draw = ImageDraw.Draw(pil_img)
+        for c in self.centroids:
+            x, y = np.int32(c[1]), np.int32(c[0])
+            draw.ellipse((x-3, y-3, x+3, y+3), fill=color)
+        return np.asarray(pil_img)
+
+
+    def mask_to_image(self, centroid=False, centroid_color='green'):
+        img = np.repeat((self.masks.astype(bool).astype(np.uint8) * 255)[:, :, np.newaxis], 3, axis=-1)
+        if centroid:
+            return self._draw_centroid(img, color=centroid_color)
+        else:
+            return img
 
     def outline_to_image(self, centroid=False, color='red', centroid_color='green'):
         empty = np.zeros((self.masks.shape[0], self.masks.shape[1], 3), dtype=np.uint8)
         img = draw_roi(empty, self.outlines, color=color)
         if centroid:
-            pil_img = Image.fromarray(img)
-            draw = ImageDraw.Draw(pil_img)
-            for c in self.centroids:
-                draw.point((int(c[1]), int(c[0])), fill=centroid_color)
-            return np.asarray(pil_img)
+            return self._draw_centroid(img, color=centroid_color)
         else:
             return img
 
 
 def get_sparse_centroid(mask, sparse_mask):
-    return [np.mean(np.unravel_index(row.data, mask.shape), 1).astype(int)
+    return [np.mean(np.unravel_index(row.data, mask.shape), 1).astype(np.int32)
             for (R, row) in enumerate(sparse_mask) if R>0]
 
 
@@ -61,7 +70,8 @@ def sparse_mask(mask):
     from scipy.sparse import csr_matrix
     cols = np.arange(mask.size)
     return csr_matrix((cols, (np.ravel(mask), cols)),
-                      shape=(mask.max() + 1, mask.size))
+                      shape=(mask.max() + 1, mask.size),
+                      dtype=np.int64)
 
 
 def get_masks(c, slide, model, diameter=None, **kwargs):
@@ -93,7 +103,7 @@ def segment_slide(
     diam_str = f'{diameter:.2f}' if diameter is not None else 'None'
     print(f"Segmenting slide with diameter {diam_str} (shape={slide.dimensions})")
     running_max = 0
-    all_masks = np.zeros((slide.shape[0], slide.shape[1], tile_px, tile_px), dtype=np.int32)
+    all_masks = np.zeros((slide.shape[0] * tile_px, slide.shape[1] * tile_px), dtype=np.int32)
     all_diams = []
     ctx = mp.get_context('spawn')
     pool = ctx.Pool(4)
@@ -102,8 +112,10 @@ def segment_slide(
                                                np.argwhere(slide.grid)),
                                      total=len(np.argwhere(slide.grid))):
         all_diams.append(diams)
-        masks[np.nonzero(masks)] += running_max
-        all_masks[x, y] = masks
+        all_masks[x * tile_px: (x+1) * tile_px,
+                  y * tile_px: (y+1) * tile_px] = masks
+        all_masks[x * tile_px: (x+1) * tile_px,
+                  y * tile_px: (y+1) * tile_px][np.nonzero(masks)] += running_max
         running_max += masks.max()
 
     pool.close()
