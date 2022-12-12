@@ -129,7 +129,8 @@ class SlideWidget:
 
     def _reset_tile_filter_and_join_thread(self):
         self._join_filter_thread()
-        self.viz._overlay_tex_obj = None
+        if self.viz.viewer is not None:
+            self.viz.viewer.clear_overlay_object()
         self._filter_grid = None
         self._filter_thread = None
         self._ws_grid = None
@@ -215,7 +216,8 @@ class SlideWidget:
     def render_slide_filter(self):
         """Render the slide filter (QC) to screen."""
         self.viz.heatmap_widget.show = False
-        self.viz._overlay_tex_obj = None
+        if self.viz.viewer is not None:
+            self.viz.viewer.clear_overlay_object()
         self.viz._overlay_wsi_dim = None
         self.render_overlay(self.qc_mask, correct_wsi_dim=False)
 
@@ -281,7 +283,8 @@ class SlideWidget:
         if self.show_tile_filter:
             self.viz.heatmap_widget.show = False
             self._join_filter_thread()
-            self.viz._overlay_tex_obj = None
+            if self.viz.viewer is not None:
+                self.viz.viewer.clear_overlay_object()
             if not self.show_slide_filter:
                 self.viz.overlay = None
             if self._filter_grid is None and self.viz.wsi is not None:
@@ -292,7 +295,8 @@ class SlideWidget:
                 self._join_filter_thread()
                 self.render_overlay(self._filter_grid, correct_wsi_dim=True)
         else:
-            self.viz._overlay_tex_obj = None
+            if self.viz.viewer is not None:
+                self.viz.viewer.clear_overlay_object()
             if self.show_slide_filter:
                 self.render_slide_filter()
 

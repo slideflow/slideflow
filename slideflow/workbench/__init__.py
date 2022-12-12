@@ -91,8 +91,6 @@ class Workbench(imgui_window.ImguiWindow):
         self._heatmap_tex_obj   = None
         self._wsi_tex_obj       = None
         self._wsi_tex_img       = None
-        self._overlay_tex_img   = None
-        self._overlay_tex_obj   = None
         self._about_tex_obj     = None
         self._predictions       = None
         self._model_path        = None
@@ -445,19 +443,10 @@ class Workbench(imgui_window.ImguiWindow):
 
         # Render overlay heatmap.
         if self.overlay is not None and self.show_overlay:
-            if self._overlay_tex_img is not self.overlay:
-                self._overlay_tex_img = self.overlay
-                if self._overlay_tex_obj is None or not self._overlay_tex_obj.is_compatible(image=self._overlay_tex_img):
-                    if self._overlay_tex_obj is not None:
-                        self._tex_to_delete += [self._overlay_tex_obj]
-                    self._overlay_tex_obj = gl_utils.Texture(image=self._overlay_tex_img, bilinear=False, mipmap=False)
-                else:
-                    self._overlay_tex_obj.update(self._overlay_tex_img)
-            if self._overlay_wsi_dim is None:
-                self._overlay_wsi_dim = self.viewer.dimensions
-            h_zoom = (self._overlay_wsi_dim[0] / self.overlay.shape[1]) / self.viewer.view_zoom
-            h_pos = self.viewer.wsi_coords_to_display_coords(*self._overlay_offset_wsi_dim)
-            self._overlay_tex_obj.draw(pos=h_pos, zoom=h_zoom, align=0.5, rint=True, anchor='topleft')
+            self.viewer.render_overlay(
+                self.overlay,
+                dim=self._overlay_wsi_dim,
+                offset=self._overlay_offset_wsi_dim)
 
         # Calculate location for model display.
         if (self._model_path
@@ -918,8 +907,9 @@ class Workbench(imgui_window.ImguiWindow):
 
     def clear_overlay(self) -> None:
         """Remove the currently overlay image."""
-        self._overlay_tex_img = None
         self.overlay = None
+        if self.viewer is not None:
+            self.viewer.clear_overlay()
 
     def clear_result(self) -> None:
         """Clear all shown results and images."""
@@ -954,8 +944,8 @@ class Workbench(imgui_window.ImguiWindow):
         self._norm_tex_obj      = None
         self._heatmap_tex_img   = None
         self._heatmap_tex_obj   = None
-        self._overlay_tex_img   = None
-        self._overlay_tex_obj   = None
+        if self.viewer is not None:
+            self.viewer.clear_overlay()
 
     def close(self) -> None:
         """Close the application and renderer."""

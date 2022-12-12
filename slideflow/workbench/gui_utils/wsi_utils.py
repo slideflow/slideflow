@@ -27,6 +27,8 @@ class SlideViewer(Viewer):
         self.wsi            = wsi
         self._tile_px       = wsi.tile_px
         self._tile_um       = wsi.tile_um
+        self._max_w         = None  # Used for late rendering
+        self._max_h         = None  # Used for late rendering
         self.show_scale = True
 
         # Create initial display
@@ -415,6 +417,8 @@ class SlideViewer(Viewer):
 
     def late_render(self):
         self._render_rois()
+        if self.show_scale:
+            self._draw_scale(self._max_w, self._max_h)
 
     def move(self, dx: float, dy: float) -> None:
         """Move the view in the given directions.
@@ -443,8 +447,7 @@ class SlideViewer(Viewer):
             zoom = min(max_w / self._tex_obj.width, max_h / self._tex_obj.height)
             zoom = np.floor(zoom) if zoom >= 1 else zoom
             self._tex_obj.draw(pos=pos, zoom=zoom, align=0.5, rint=True)
-        if self.show_scale:
-            self._draw_scale(max_w, max_h)
+        self._max_w, self._max_h = max_w, max_h
 
 
     def set_tile_px(self, tile_px: int):

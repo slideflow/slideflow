@@ -1,9 +1,11 @@
 """Whole-slide imaging viewer for graphical interfaces."""
 
-from typing import Tuple
-from . import gl_utils
-
+import cv2
+import numpy as np
 import slideflow as sf
+from typing import Tuple, Optional, Union, Callable
+from . import gl_utils
+from ..utils import EasyDict
 
 # -----------------------------------------------------------------------------
 
@@ -22,24 +24,35 @@ class Viewer:
         mipmap: bool = False,
         normalizer: sf.norm.StainNormalizer = None
     ):
-        self._tex_img       = None
-        self._tex_obj       = None
-        self._tex_to_delete = []
-        self._normalizer    = normalizer
-        self._tile_um       = 0
-        self._tile_px       = 0
-        self.origin         = (0, 0)  # WSI origin for the current view.
-        self.view           = None    # Numpy image of current view.
-        self.view_zoom      = None    # Zoom level for the current view.
-        self.width          = width
-        self.height         = height
-        self.bilinear       = bilinear
-        self.mipmap         = mipmap
-        self.view_zoom      = 1
+        self._tex_img           = None
+        self._tex_obj           = None
+        self._tex_to_delete     = []
+        self._normalizer        = normalizer
+        self._tile_um           = 0
+        self._tile_px           = 0
+        self._overlay           = None    # type: Optional[np.ndarray]
+        self._overlay_params    = EasyDict()
+        self._overlay_alpha_fn  = None
+        self._alpha             = None    # type: Optional[Union[Callable, float, int]]
+        self._last_alpha        = None    # type: Optional[Union[Callable, float, int]]
+        self.origin             = (0, 0)  # WSI origin for the current view.
+        self.view               = None    # Numpy image of current view.
+        self.view_zoom          = None    # Zoom level for the current view.
+        self.h_zoom             = None
+        self.overlay_pos        = None
+        self.width              = width
+        self.height             = height
+        self.bilinear           = bilinear
+        self.mipmap             = mipmap
+        self.view_zoom          = 1
 
         # Window offset for the display
-        self.x_offset       = x_offset
-        self.y_offset       = y_offset
+        self.x_offset           = x_offset
+        self.y_offset           = y_offset
+
+        # Overlay
+        self._overlay_tex_img   = None  # type: Optional[np.ndarray]
+        self._overlay_tex_obj   = None
 
     @property
     def dimensions(self) -> Tuple[int, int]:
@@ -85,6 +98,13 @@ class Viewer:
     def clear(self):
         """Remove the displayed image."""
         self._tex_img = None
+        self.clear_overlay()
+
+    def clear_overlay(self) -> None:
+        self._overlay_tex_img = None
+
+    def clear_overlay_object(self):
+        self._overlay_tex_obj = None
 
     def clear_normalizer(self) -> None:
         """Clear the internal normalizer, if one exists."""
@@ -105,6 +125,7 @@ class Viewer:
         Args:
             x (int): X coordinate in display space.
             y (int): Y coordinate in display space.
+            offset (bool): Include GUI offsets.
 
         Returns:
             A tuple containing
@@ -122,6 +143,56 @@ class Viewer:
             (x - all_x_offset) * self.view_zoom + self.origin[0],
             (y - all_y_offset) * self.view_zoom + self.origin[1]
         )
+
+    def in_view(
+        self,
+        image: np.ndarray,
+        dim: Tuple[int, int],
+        offset: Tuple[int, int],
+        resize: bool = True
+    ) -> Tuple[np.ndarray, float, Tuple[float, float]]:
+        """Gets the section of the overaly currently in view.
+
+        Args:
+            image (np.ndarray): Overlay image.
+            dim ((int, int), optional): Dimensions of the image in the full
+                WSI coordinate space (level=0). Defaults to the full WSI size.
+            offset ((int, int)): Offset for the image in the full WSI
+                coordinate space (level=0). Defaults to 0, 0 (no offset).
+            resize (bool): Resize the region of the image currently in view
+                to the size of the preview pane.
+
+        Returns:
+            ...
+        """
+        overlay_zoom = dim[0] / image.shape[1]
+        h_zoom = overlay_zoom / self.view_zoom  # type: ignore
+        #h_pos = self.wsi_coords_to_display_coords(*offset)
+
+        # Get the slice of overlay currently in view.
+        pad = 3 # Padding
+        top_left = self.display_coords_to_wsi_coords(0, 0, offset=False)
+        slice_min_x = max(int((top_left[0] - offset[0]) / overlay_zoom) - pad, 0)
+        slice_max_x = min(int(slice_min_x + (self.width / h_zoom)) + pad, image.shape[1])
+        slice_min_y = max(int((top_left[1] - offset[1]) / overlay_zoom) - pad, 0)
+        slice_max_y = min(int(slice_min_y + (self.height / h_zoom)) + pad, image.shape[0])
+        if len(image.shape) == 2:
+            in_view = image[slice_min_y: slice_max_y, slice_min_x: slice_max_x]
+        else:
+            in_view = image[slice_min_y: slice_max_y, slice_min_x: slice_max_x, :]
+        in_view_offset = (int(slice_min_x * overlay_zoom),
+                          int(slice_min_y * overlay_zoom))
+
+        # --- Note: the below may not be pixel-perfect ------------------------
+        # Resize the overlay if the image is very large
+        # To fix: will not resize large & tall images
+        if resize and in_view.shape[0] > 2 * self.width:
+            shrink_factor = in_view.shape[1] / self.width
+            target_shape = (int(in_view.shape[1] / shrink_factor),
+                            int(in_view.shape[0] / shrink_factor))
+            h_zoom *= shrink_factor
+            in_view = cv2.resize(in_view, target_shape, interpolation=cv2.INTER_NEAREST)
+        return in_view, h_zoom, in_view_offset
 
     def is_in_view(self, cx: int, cy: int) -> bool:
         """Checks if the given coordinates (in screen space) are in the active
@@ -152,6 +223,82 @@ class Viewer:
             tex.delete()
         self._tex_to_delete = []
 
+    def render_overlay(
+        self,
+        overlay: np.ndarray,
+        dim: Optional[Tuple[int, int]],
+        offset: Tuple[int, int] = (0, 0)
+    ) -> None:
+        """Render an image as an overlay on the WSI.
+
+        Args:
+            overlay (np.ndarray): Overlay image to render on the WSI.
+            dim ((int, int), optional): Dimensions of the overlay in the full
+                WSI coordinate space (level=0). Defaults to the full WSI size.
+            offset ((int, int)): Offset for the overlay in the full WSI
+                coordinate space (level=0). Defaults to 0, 0 (no offset).
+        """
+        if dim is None:
+            dim = self.dimensions
+        overlay_params = EasyDict(
+            dim=tuple(dim),
+            offset=tuple(offset),
+            view_zoom=self.view_zoom,
+            width=self.width,
+            height=self.height,
+            origin=tuple(self.origin))
+        params_different = (overlay_params != self._overlay_params)
+        overlay_different = (overlay is not self._overlay)
+
+        # If the overlay image is reasonably sized, display as-is.
+        if max(overlay.shape) < 5000:
+            if self._overlay_tex_img is None or self._overlay is not overlay:
+                self._overlay_tex_img = self._overlay = overlay
+            self._overlay_params = overlay_params
+            self.h_zoom = (dim[0] / overlay.shape[1]) / self.view_zoom  # type: ignore
+            self.overlay_pos = self.wsi_coords_to_display_coords(*offset)
+
+        # Otherwise, display on the portion of the overlay in view.
+        # This avoids OpenGL errors when displaying very large overlays.
+        elif params_different or overlay_different:
+            # Recalculate the overlay
+            self._overlay = overlay
+            self._overlay_params = overlay_params
+            self._overlay_tex_img, self.h_zoom, in_view_offset = self.in_view(
+                self._overlay,
+                dim=dim,
+                offset=self._overlay_params.offset
+            )
+            self.overlay_pos = self.wsi_coords_to_display_coords(
+                int(offset[0] + in_view_offset[0]),
+                int(offset[1] + in_view_offset[1]))
+
+        # Update transparency, if function has been specified.
+        if (self._alpha is not None
+            and (self._alpha is not self._last_alpha
+                 or (max(overlay.shape) >= 5000 and (params_different or overlay_different)))):
+            assert self._overlay_tex_img is not None
+            self._last_alpha = self._alpha
+            img = self._overlay_tex_img
+            if isinstance(self._alpha, float):
+                alpha_channel = np.full(img.shape[0:2], int(self._alpha * 255), dtype=np.uint8)
+                self._overlay_tex_img = np.dstack((img[:, :, 0:3], alpha_channel))
+            elif isinstance(self._alpha, int):
+                alpha_channel = np.full(img.shape[0:2], self._alpha, dtype=np.uint8)
+                self._overlay_tex_img = np.dstack((img[:, :, 0:3], alpha_channel))
+            else:
+                self._overlay_tex_img = self._alpha(self._overlay_tex_img)
+
+        # Draw the image texture.
+        if self._overlay_tex_obj is None or not self._overlay_tex_obj.is_compatible(image=self._overlay_tex_img):
+            if self._overlay_tex_obj is not None:
+                self._tex_to_delete += [self._overlay_tex_obj]
+            self._overlay_tex_obj = gl_utils.Texture(image=self._overlay_tex_img, bilinear=False, mipmap=False)  # type: ignore
+        else:
+            self._overlay_tex_obj.update(self._overlay_tex_img)
+        assert self._overlay_tex_obj is not None
+        self._overlay_tex_obj.draw(pos=self.overlay_pos, zoom=self.h_zoom, align=0.5, rint=True, anchor='topleft')
+
     def set_normalizer(self, normalizer: sf.norm.StainNormalizer) -> None:
         """Set the internal WSI normalizer.
 
@@ -159,6 +306,9 @@ class Viewer:
             normalizer (sf.norm.StainNormalizer): Stain normalizer.
         """
         self._normalizer = normalizer
+
+    def set_overlay_alpha(self, alpha: Optional[Union[Callable, float, int]]):
+        self._alpha = alpha
 
     def set_tile_px(self, tile_px):
         self._tile_px = tile_px

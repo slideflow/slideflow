@@ -6,11 +6,13 @@ import cellpose
 import cellpose.models
 import logging
 import slideflow as sf
-from PIL import Image, ImageDraw
-from slideflow.slide.utils import draw_roi
+from matplotlib.colors import to_rgb
 from tqdm import tqdm
 from typing import Tuple, Union
 from functools import partial
+from PIL import Image, ImageDraw
+from slideflow.slide.utils import draw_roi
+from cellpose.utils import outlines_list
 
 
 class Segmentation:
@@ -55,10 +57,19 @@ class Segmentation:
     def calculate_outlines(self, force=False):
         if self._outlines is not None and not force:
             return
-        self._outlines = cellpose.utils.outlines_list(self.masks)
+        self._outlines = outlines_list(self.masks)
 
-    def mask_to_image(self, centroid=False, centroid_color='green'):
-        img = np.repeat((self.masks.astype(bool).astype(np.uint8) * 255)[:, :, np.newaxis], 3, axis=-1)
+    def centroid_to_image(self, color='green'):
+        img = np.zeros((self.masks.shape[0], self.masks.shape[1], 3), dtype=np.uint8)
+        return self._draw_centroid(img, color=color)
+
+    def mask_to_image(self, centroid=False, color='cyan', centroid_color='green'):
+        if isinstance(color, str):
+            color = [int(c * 255) for c in to_rgb(color)]
+        else:
+            assert len(color) == 3
+        img = np.zeros((self.masks.shape[0], self.masks.shape[1], 3), dtype=np.uint8)
+        img[self.masks > 0] = color
         if centroid:
             return self._draw_centroid(img, color=centroid_color)
         else:
