@@ -8,7 +8,7 @@ import logging
 import slideflow as sf
 from matplotlib.colors import to_rgb
 from tqdm import tqdm
-from typing import Tuple, Union
+from typing import Tuple, Union, Callable
 from functools import partial
 from PIL import Image, ImageDraw
 from slideflow.slide.utils import draw_roi
@@ -62,6 +62,23 @@ class Segmentation:
     def centroid_to_image(self, color='green'):
         img = np.zeros((self.masks.shape[0], self.masks.shape[1], 3), dtype=np.uint8)
         return self._draw_centroid(img, color=color)
+
+    def extract_centroids(
+        self,
+        slide: str,
+        tile_px: int = 128,
+        wsi_offset: Tuple[int, int] = (0, 0)
+    ) -> Callable:
+        """Return a generator which extracts tiles from a slide at the given centroids."""
+        reader = sf.slide.wsi_reader(slide)
+        factor = reader.dimensions[1] / self.masks.shape[0]
+
+        def generator():
+            for c in self._centroids:
+                cf = c * factor + wsi_offset
+                yield reader.read_from_pyramid((cf[1]-(tile_px/2), cf[0]-(tile_px/2)), (tile_px, tile_px), (tile_px, tile_px), convert='numpy', flatten=True)
+
+        return generator
 
     def mask_to_image(self, centroid=False, color='cyan', centroid_color='green'):
         if isinstance(color, str):
