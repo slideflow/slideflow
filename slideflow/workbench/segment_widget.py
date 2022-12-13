@@ -140,7 +140,7 @@ class SegmentWidget:
         # Calculate and draw the outlines
         outlines = [o for o in sf.seg.cell.outlines_list(in_view) if o.shape[0] >= 3]
         empty = np.zeros((in_view.shape[0], in_view.shape[1], 3), dtype=np.uint8)
-        outline_img = draw_roi(empty, outlines, color=color)
+        outline_img = draw_roi(empty, outlines, color=color, linewidth=2)
 
         self.viz.overlay = outline_img
         self.viz._overlay_wsi_dim = (
