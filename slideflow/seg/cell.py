@@ -8,12 +8,14 @@ import logging
 import slideflow as sf
 from matplotlib.colors import to_rgb
 from tqdm import tqdm
-from typing import Tuple, Union, Callable
+from typing import Tuple, Union, Callable, Optional, Iterable
 from functools import partial
 from PIL import Image, ImageDraw
 from slideflow.slide.utils import draw_roi
+from slideflow.util import batch
 from cellpose.utils import outlines_list
 
+_loaded_model_ = None
 
 class Segmentation:
     def __init__(self, masks):
@@ -141,19 +143,43 @@ def sparse_mask(mask):
                       dtype=np.int64)
 
 
-def get_masks(c, slide, model, diameter=None, **kwargs):
-    x, y = c
-    tile = slide[x, y]
-    masks, flows, styles, diams = model.eval(tile, channels=[[0, 0]], **kwargs)
-    return masks, diams, (x, y)
+def _mask_worker(c, slide, diameter=None, **kwargs):
+    tiles = np.array([slide[x, y] for x, y in c])
+    masks, flows, styles, diams = _loaded_model_.eval(tiles, channels=[[0, 0]], tile=False, diameter=diameter, **kwargs)
+    return masks, diams, c
+
+
+def _init_worker(
+    model: Union["cellpose.models.Cellpose", str],
+    gpus: Optional[Union[int, Iterable[int]]] = None
+):
+    """Initialize pool worker, including loading model."""
+    global _loaded_model_
+    if isinstance(model, str):
+        if gpus is not None:
+            if isinstance(gpus, int):
+                gpus = [gpus]
+            import torch
+            _id = mp.current_process()._identity
+            proc = 0 if not len(_id) else _id[0]
+
+            device = torch.device(f'cuda:{gpus[proc % len(gpus)]}')
+            _loaded_model_ = cellpose.models.Cellpose(model_type=model, gpu=True, device=device)
+        else:
+            _loaded_model_ = cellpose.models.Cellpose(model_type=model, gpu=True)
+    else:
+        _loaded_model_ = model
 
 
 def segment_slide(
     slide: Union[sf.WSI, str],
     model: Union["cellpose.models.Cellpose", str] = 'cyto2',
-    tile_px: int = 64,
+    tile_px: int = 256,
     tile_um: Union[int, str] = '40x',
     diameter: int = None,
+    batch_size: int = 8,
+    gpus: Optional[Union[int, Iterable[int]]] = 0, #(0, 1),
+    num_workers: Optional[int] = None,
     **kwargs
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Segment cells in a whole-slide image, returning masks and centroids."""
@@ -161,31 +187,39 @@ def segment_slide(
     # Quiet the logger to suppress warnings of empty masks
     logging.getLogger('cellpose').setLevel(40)
 
-    if isinstance(model, str):
-        model = cellpose.models.Cellpose(model_type=model, gpu=True)
-
     if isinstance(slide, str):
         slide = sf.WSI(slide, tile_px=tile_px, tile_um=tile_um)
         slide.qc('otsu')
     else:
         tile_px = slide.tile_px
 
+    if num_workers is None and isinstance(gpus, (list, tuple)):
+        num_workers = 4 * len(gpus)
+    elif num_workers is None:
+        num_workers = 4
+
     diam_str = f'{diameter:.2f}' if diameter is not None else 'None'
     print(f"Segmenting slide with diameter {diam_str} (shape={slide.dimensions})")
     running_max = 0
     all_masks = np.zeros((slide.shape[0], slide.shape[1], tile_px, tile_px), dtype=np.int32)
     all_diams = []
-    ctx = mp.get_context('spawn')
-    pool = ctx.Pool(4)
 
-    for masks, diams, (x, y) in tqdm(pool.imap(partial(get_masks, slide=slide, model=model, diameter=diameter, **kwargs),
-                                               np.argwhere(slide.grid)),
-                                     total=len(np.argwhere(slide.grid))):
+    if num_workers:
+        ctx = mp.get_context('spawn')
+        pool = ctx.Pool(num_workers, initializer=partial(_init_worker, model=model, gpus=gpus))
+    else:
+        pool = mp.dummy.Pool(4, initializer=partial(_init_worker, model=model, gpus=gpus))
+    tile_idx = np.argwhere(slide.grid)
+    for masks, diams, c in tqdm(pool.imap(partial(_mask_worker, slide=slide, diameter=diameter, batch_size=batch_size, **kwargs),
+                                               batch(tile_idx, max(batch_size, 64))),
+                                     total=int(len(tile_idx) / max(batch_size, 64))):
         all_diams.append(diams)
-        all_masks[x, y] = masks
-        all_masks[x, y][np.nonzero(masks)] += running_max
-        running_max += masks.max()
-
+        for i in range(len(masks)):
+            x = c[i][0]
+            y = c[i][1]
+            all_masks[x, y] = masks[i]
+            all_masks[x, y][np.nonzero(masks[i])] += running_max
+            running_max += masks[i].max()
     pool.close()
     seg = Segmentation(np.concatenate(np.concatenate(all_masks, axis=-1), axis=0))
     return seg, all_diams
