@@ -15,10 +15,9 @@ from slideflow.slide.utils import draw_roi
 from slideflow.util import batch
 from cellpose.utils import outlines_list
 
-_loaded_model_ = None
 
 class Segmentation:
-    def __init__(self, masks):
+    def __init__(self, masks, flows=None):
         """Segmentation mask.
 
         Args:
@@ -27,6 +26,7 @@ class Segmentation:
                 by unique increasing integers.
         """
         self.masks = masks
+        self.flows = flows
         self._outlines = None
         self._centroids = None
 
@@ -146,7 +146,7 @@ def sparse_mask(mask):
 def _mask_worker(c, slide, diameter=None, **kwargs):
     tiles = np.array([slide[x, y] for x, y in c])
     masks, flows, styles, diams = _loaded_model_.eval(tiles, channels=[[0, 0]], tile=False, diameter=diameter, **kwargs)
-    return masks, diams, c
+    return masks, flows, diams, c
 
 
 def _init_worker(
@@ -178,7 +178,7 @@ def segment_slide(
     tile_um: Union[int, str] = '40x',
     diameter: int = None,
     batch_size: int = 8,
-    gpus: Optional[Union[int, Iterable[int]]] = 0, #(0, 1),
+    gpus: Optional[Union[int, Iterable[int]]] = (0, 1),
     num_workers: Optional[int] = None,
     **kwargs
 ) -> Tuple[np.ndarray, np.ndarray]:
@@ -193,26 +193,30 @@ def segment_slide(
     else:
         tile_px = slide.tile_px
 
+    # Workers and pool
     if num_workers is None and isinstance(gpus, (list, tuple)):
-        num_workers = 4 * len(gpus)
+        num_workers = 2 * len(gpus)
     elif num_workers is None:
-        num_workers = 4
+        num_workers = 2
+    if num_workers > 0:
+        ctx = mp.get_context('spawn')
+        pool = ctx.Pool(num_workers, initializer=partial(_init_worker, model=model, gpus=gpus))
+    else:
+        pool = mp.dummy.Pool(4, initializer=partial(_init_worker, model=model, gpus=gpus))
 
     diam_str = f'{diameter:.2f}' if diameter is not None else 'None'
     print(f"Segmenting slide with diameter {diam_str} (shape={slide.dimensions})")
     running_max = 0
     all_masks = np.zeros((slide.shape[0], slide.shape[1], tile_px, tile_px), dtype=np.int32)
+    all_flows = np.zeros((slide.shape[0], slide.shape[1], tile_px, tile_px, 3), dtype=np.uint8)
     all_diams = []
 
-    if num_workers:
-        ctx = mp.get_context('spawn')
-        pool = ctx.Pool(num_workers, initializer=partial(_init_worker, model=model, gpus=gpus))
-    else:
-        pool = mp.dummy.Pool(4, initializer=partial(_init_worker, model=model, gpus=gpus))
     tile_idx = np.argwhere(slide.grid)
-    for masks, diams, c in tqdm(pool.imap(partial(_mask_worker, slide=slide, diameter=diameter, batch_size=batch_size, **kwargs),
-                                               batch(tile_idx, max(batch_size, 64))),
-                                     total=int(len(tile_idx) / max(batch_size, 64))):
+    for masks, flows, diams, c in tqdm(
+        pool.imap(partial(_mask_worker, slide=slide, diameter=diameter, batch_size=batch_size, **kwargs),
+        batch(tile_idx, max(batch_size, 64))),
+        total=int(len(tile_idx) / max(batch_size, 64))
+    ):
         all_diams.append(diams)
         for i in range(len(masks)):
             x = c[i][0]
@@ -220,6 +224,9 @@ def segment_slide(
             all_masks[x, y] = masks[i]
             all_masks[x, y][np.nonzero(masks[i])] += running_max
             running_max += masks[i].max()
+            all_flows[x, y] = flows[0][i]
     pool.close()
-    seg = Segmentation(np.concatenate(np.concatenate(all_masks, axis=-1), axis=0))
+    masks = np.concatenate(np.concatenate(all_masks, axis=-1), axis=0)
+    flows = np.concatenate(np.concatenate(all_flows, axis=-2), axis=0)
+    seg = Segmentation(masks, flows)
     return seg, all_diams

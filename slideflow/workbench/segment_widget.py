@@ -26,6 +26,7 @@ class SegmentWidget:
         self.overlay                = None
         self.content_height         = 0
         self.show_mask              = True
+        self.show_gradXY            = False
         self.show_centroid          = False
         self.overlay_background     = True
 
@@ -73,7 +74,8 @@ class SegmentWidget:
         loaded = np.load(path)
         if 'masks' not in loaded and not ignore_errors:
             raise TypeError(f"Unable to load '{path}'; 'masks' index not found.")
-        self.segmentation = Segmentation(loaded['masks'])
+        flows = None if 'flows' not in loaded else loaded[flows]
+        self.segmentation = Segmentation(loaded['masks'], flows)
         self._segment_wsi_dim = loaded['wsi_dim']
         self._segment_wsi_offset = loaded['wsi_offset']
         if 'centroids' in loaded:
@@ -121,6 +123,11 @@ class SegmentWidget:
             return
         if self.show_mask:
             self.overlay = self.segmentation.mask_to_image(centroid=self.show_centroid)
+        elif self.show_gradXY:
+            if self.show_centroid:
+                self.overlay = self.segmentation._draw_centroid(self.segmentation.flows)
+            else:
+                self.overlay = self.segmentation.flows
         elif self.show_centroid:
             self.overlay = self.segmentation.centroid_to_image()
 
@@ -153,17 +160,18 @@ class SegmentWidget:
         )
         self._outline_toast.done()
         self.viz.create_toast("Outlining complete.", icon="success")
+        self.update_transparency()
 
     def segment_view(self):
         """Segment the current view."""
         v = self.viz.viewer
         print(f"Segmenting image with diameter {self.diameter} (shape={v.view.shape})")
-        masks, *_, diams = self.model.eval(
+        masks, flows, styles, diams = self.model.eval(
             v.view,
             channels=[[0, 0]],
             diameter=self.diameter,
         )
-        self.segmentation = Segmentation(masks)
+        self.segmentation = Segmentation(masks, flows[0])
         self._segment_wsi_dim = v.wsi_window_size
         self._segment_wsi_offset = v.origin
         self.diam_manual = int(diams)
@@ -194,7 +202,7 @@ class SegmentWidget:
         # Done; refresh view.
         self._segment_toast.done()
         refresh_toast = self.viz.create_toast(
-                title=f"Rendering segmentations.",
+                title=f"Rendering segmentations",
                 icon='info',
                 sticky=True,
                 spinner=True)
@@ -268,7 +276,7 @@ class SegmentWidget:
         # WSI segmentation.
         if imgui_utils.button("Segment", width=viz.button_w) and not self.is_thread_running():
             self._segment_toast = viz.create_toast(
-                title=f"Segmenting whole-slide image.",
+                title=f"Segmenting whole-slide image",
                 icon='info',
                 sticky=True,
                 spinner=True)
@@ -284,6 +292,7 @@ class SegmentWidget:
                     filename,
                     masks=self.segmentation.masks,
                     centroids=self.segmentation.centroids,
+                    flows=self.segmentation.flows,
                     wsi_dim=self._segment_wsi_dim,
                     wsi_offset=self._segment_wsi_offset)
                 viz.create_toast(f"Exported masks and centroids to {filename}", icon='success')
@@ -331,6 +340,8 @@ class SegmentWidget:
 
             # Show segmentation mask
             _mask_clicked, self.show_mask = imgui.checkbox('Mask', self.show_mask)
+            if _mask_clicked and self.show_mask:
+                self.show_gradXY = False
 
             # Show outlines
             imgui.same_line(viz.font_size*6)
@@ -350,6 +361,20 @@ class SegmentWidget:
                     self._thread = Thread(target=self.render_outlines)
                     self._thread.start()
 
+            # Show gradXY
+            with imgui_utils.grayed_out(self.segmentation is None or self.segmentation.flows is None):
+                _grad_clicked, self.show_gradXY = imgui.checkbox('gradXY', self.show_gradXY)
+                if self.segmentation is None or self.segmentation.flows is None:
+                    _grad_clicked = False
+                    self.show_gradXY = False
+                elif _grad_clicked and self.show_gradXY:
+                    self.show_mask = False
+
+            # Show cellprob
+            imgui.same_line(viz.font_size*6)
+            with imgui_utils.grayed_out(True):
+                imgui_utils.button("Cellprob", width=viz.button_w)
+
             # Show centroid
             _centroid_clicked, self.show_centroid = imgui.checkbox('Centroid', self.show_centroid)
             if _centroid_clicked and not self.is_thread_running():
@@ -362,12 +387,21 @@ class SegmentWidget:
                 self._thread = Thread(target=self.calculate_centroids)
                 self._thread.start()
 
-            # Show cellprob
-            imgui.same_line(viz.font_size*6)
-            with imgui_utils.grayed_out(True):
-                imgui_utils.button("Cellprob", width=viz.button_w)
-
             # Alpha control
+            imgui.same_line(viz.font_size*6)
+            if imgui_utils.button("Reset", width=viz.button_w):
+                self.show_mask = True
+                self.show_gradXY = False
+                self.show_centroid = False
+                self.overlay_background = True
+                self.alpha = 1
+                self.refresh_segmentation_view()
+
+            _bg_change, self.overlay_background = imgui.checkbox("Black BG", self.overlay_background)
+            if _bg_change:
+                self.update_transparency()
+
+            imgui.same_line(viz.font_size*6)
             with imgui_utils.item_width(viz.button_w - viz.spacing):
                 _alpha_changed, self.alpha = imgui.slider_float('##alpha',
                                                                 self.alpha,
@@ -377,26 +411,9 @@ class SegmentWidget:
                 if _alpha_changed:
                     self.update_transparency()
 
-            # Show gradXY
-            imgui.same_line(viz.font_size*6)
-            with imgui_utils.grayed_out(True):
-                imgui_utils.button("gradXY", width=viz.button_w)
-
-            if imgui_utils.button("Reset", width=viz.button_w):
-                self.show_mask = True
-                self.show_centroid = False
-                self.overlay_background = True
-                self.alpha = 1
-                self.refresh_segmentation_view()
-
-            imgui.same_line(viz.font_size*6)
-            _bg_change, self.overlay_background = imgui.checkbox("Black BG", self.overlay_background)
-            if _bg_change:
-                self.update_transparency()
-
             # Refresh segmentation --------------------------------------------
-            self.viz._show_overlays = (self.show_mask or self.show_centroid or self._showing_preview_overlay)
-            if _mask_clicked: # or others
+            self.viz._show_overlays = any((self.show_mask, self.show_gradXY, self.show_centroid, self._showing_preview_overlay))
+            if _mask_clicked or _grad_clicked: # or others
                 if self.segmentation is not None:
                     self.refresh_segmentation_view()
                     self.update_transparency()
