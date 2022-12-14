@@ -13,7 +13,10 @@ try:
 
     gpus = tf.config.experimental.list_physical_devices('GPU')
     for gpu in gpus:
-        tf.config.experimental.set_memory_growth(gpu, True)
+        try:
+            tf.config.experimental.set_memory_growth(gpu, True)
+        except RuntimeError:
+            pass
 
     from slideflow.model.tensorflow import ModelParams as TFModelParams
     from slideflow.model.tensorflow import Features as TFFeatures
