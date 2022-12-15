@@ -8,7 +8,7 @@ import time
 from functools import partial
 from multiprocessing.dummy import Pool as DPool
 from random import shuffle
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union, Iterable
 
 import cv2
 import numpy as np
@@ -23,7 +23,6 @@ from slideflow.stats import get_centroid_index
 if TYPE_CHECKING:
     from slideflow.norm import StainNormalizer
 
-
 class Mosaic:
     """Visualization of tiles mapped using dimensionality reduction.
 
@@ -34,8 +33,10 @@ class Mosaic:
 
     def __init__(
         self,
-        slide_map: SlideMap,
-        tfrecords: List[str],
+        images: Union[SlideMap, List[np.ndarray], np.ndarray, List[Tuple[str, str]]],
+        coords: Optional[Union[Tuple[int, int], np.ndarray]] = None,
+        *,
+        tfrecords: List[str] = None,
         leniency: float = 1.5,
         expanded: bool = False,
         num_tiles_x: int = 50,
@@ -45,6 +46,35 @@ class Mosaic:
         normalizer_source: Optional[str] = None
     ) -> None:
         """Generate a mosaic map.
+
+        Creating a mosaic map requires two components: a set of images and
+        corresponding coordinates. These can either be manually provided,
+        or the mosaic can be configured to dynamically read images from
+        TFRecords as needed, reducing memory requirements.
+
+        The first argument provides the images, and may be any of the following:
+            - A list or array of images (np.ndarray, HxWxC)
+            - A list of tuples, containing (slide_name, tfrecord_index)
+            - A ``slideflow.SlideMap`` object
+
+        The second argument provides the coordinates, and may be any of:
+            - A list or array of (x, y) coordinates for each image
+            - None (if the first argument is a ``SlideMap``, which has coordinates)
+
+        If images are to be read dynamically from tfrecords (with a ``SlideMap``,
+        or by providing tfrecord indices directly), the keyword argument
+        ``tfrecords`` must be specified with paths to tfrecords.
+
+        Examples
+
+            Generate a mosaic map from a list of images and coordinates.
+
+                >>> mosaic = Mosaic(images, coordinates)
+
+            Generate a mosaic map from a SlideMap and list of TFRecord paths.
+
+                >>> sm = SlideMap.from_features(...)
+                >>> mosaic = Mosaic(sm, tfrecords=dataset.tfrecords())
 
         Args:
             slide_map (:class:`slideflow.SlideMap`): SlideMap object.
@@ -69,27 +99,41 @@ class Mosaic:
                 If None, normalizer will use slideflow.slide.norm_tile.jpg.
                 Defaults to None.
         """
-        if not len(tfrecords):
-            raise errors.TFRecordsNotFoundError
+
         if tile_select not in ('nearest', 'centroid'):
             raise TypeError(f'Unknown tile selection method {tile_select}')
         else:
             log.debug(f'Tile selection method: {tile_select}')
 
         self.tile_point_distances = []  # type: List[Dict]
-        self.mapped_tiles = {}  # type: Dict[str, List[int]]
-        self.slide_map = slide_map
+        self.slide_map = None
         self.num_tiles_x = num_tiles_x
         self.tfrecords = tfrecords
         self.mapping_method = 'expanded' if expanded else 'strict'
         log.debug(f'Mapping method: {self.mapping_method}')
 
+        if isinstance(images, SlideMap):
+            if tfrecords is None:
+                raise ValueError("If building a Mosaic from a SlideMap, must "
+                                 "provide paths to tfrecords via keyword arg "
+                                 "tfrecords=...")
+            elif isinstance(tfrecords, list) and not len(tfrecords):
+                raise errors.TFRecordsNotFoundError()
+            self._prepare_from_slidemap(images)
+        elif isinstance(images[0], (tuple, list)) and isinstance(images[0][0], str):
+            raise NotImplementedError
+        else:
+            assert coords is not None
+            assert len(images) == len(coords)
+            self._prepare_from_coords(images, coords)  # type: ignore
+
+        # ---------------------------------------------------------------------
+
         # Detect tfrecord image format
-        _, self.img_format = sf.io.detect_tfrecord_format(self.tfrecords[0])
-        if self.img_format not in ('jpg', 'jpeg', 'png'):
-            raise errors.MosaicError(
-                f"Unknown image format in tfrecords: {self.img_format}"
-            )
+        if self.tfrecords is not None:
+            _, self.img_format = sf.io.detect_tfrecord_format(self.tfrecords[0])
+        else:
+            self.img_format = 'numpy'
 
         # Setup normalization
         if isinstance(normalizer, str):
@@ -103,24 +147,8 @@ class Mosaic:
         else:
             self.normalizer = None
 
-        # First, load UMAP coordinates
-        log.info('Loading coordinates and plotting points...')
-        self.points = []
-        for i, row in enumerate(slide_map.data.itertuples()):
-            if tile_meta:
-                meta = tile_meta[row.slide][row.tfr_index]
-            else:
-                meta = None
-            self.points.append({
-                'coord': np.array((row.x, row.y)),
-                'global_index': i,
-                'category': 'none',
-                'slide': row.slide,
-                'tfrecord': self._get_tfrecords_from_slide(row.slide),
-                'tfrecord_index': row.tfr_index,
-                'paired_tile': None,
-                'meta': meta
-            })
+        # ---------------------------------------------------------------------
+
         x_points = [p['coord'][0] for p in self.points]
         y_points = [p['coord'][1] for p in self.points]
         _x_width = max(x_points) - min(x_points)
@@ -226,6 +254,70 @@ class Mosaic:
         if self.mapping_method == 'expanded':
             self.tile_point_distances.sort(key=lambda d: d['distance'])
 
+    def _prepare_from_slidemap(
+        self,
+        slide_map: SlideMap,
+        *,
+        tile_meta: Optional[Dict] = None,
+    ):
+        log.info('Loading coordinates and plotting points...')
+        self.slide_map = slide_map
+        self.mapped_tiles = {}  # type: Dict[str, List[int]]
+        self.points = []
+        for i, row in enumerate(slide_map.data.itertuples()):
+            if tile_meta:
+                meta = tile_meta[row.slide][row.tfr_index]
+            else:
+                meta = None
+            self.points.append({
+                'coord': np.array((row.x, row.y)),
+                'global_index': i,
+                'category': 'none',
+                'slide': row.slide,
+                'tfrecord': self._get_tfrecords_from_slide(row.slide),
+                'tfrecord_index': row.tfr_index,
+                'paired_tile': None,
+                'meta': meta
+            })
+
+    def _prepare_from_coords(
+        self,
+        images: Union[List[np.ndarray], np.ndarray],
+        coords: List[Union[Tuple[int, int], np.ndarray]]
+    ):
+        log.info('Loading coordinates and plotting points...')
+        self.images = images
+        self.mapped_tiles = []  # type: List[int]
+        self.points = [{
+            'coord': coords[i],
+            'global_index': i,
+            'category': 'none',
+            'paired_tile': None,
+        } for i in range(len(coords))]
+
+    def _get_image_from_point(self, point):
+        if 'tfrecord' in point:
+            tfr = point['tfrecord']
+            tfr_idx = point['tfrecord_index']
+            if not tfr:
+                log.error(f"TFRecord {tfr} not found in slide_map")
+            _, tile_image = sf.io.get_tfrecord_by_index(
+                tfr, tfr_idx, decode=False
+            )
+        else:
+            tile_image = self.images[point['global_index']]
+        return tile_image
+
+    def _record_point(self, point):
+        if 'tfrecord' in point:
+            tfr, tfr_idx = point['tfrecord'], point['tfrecord_index']
+            if tfr in self.mapped_tiles:
+                self.mapped_tiles[tfr] += [tfr_idx]
+            else:
+                self.mapped_tiles[tfr] = [tfr_idx]
+        else:
+            self.mapped_tiles += [point['global_index']]
+
     def plot(
         self,
         figsize: Tuple[int, int] = (200, 200),
@@ -252,6 +344,9 @@ class Mosaic:
         """
         import matplotlib.pyplot as plt
         from matplotlib import patches
+
+        if (focus is not None or focus_slide is not None) and self.tfrecords is None:
+            raise ValueError("Unable to plot with focus; slides/tfrecords not configured.")
 
         # Initialize figure
         fig = plt.figure(figsize=figsize)
@@ -302,22 +397,13 @@ class Mosaic:
                     continue
                 closest_point = tile['nearest_idx']
                 point = self.points[closest_point]
-                tfr = point['tfrecord']
-                tfr_idx = point['tfrecord_index']
-                if not tfr:
-                    log.error(f"TFRecord {tfr} not found in slide_map")
-                _, tile_image = sf.io.get_tfrecord_by_index(
-                    tfr, tfr_idx, decode=False
-                )
-                if not tile_image:
+                tile_image = self._get_image_from_point(point)
+                if tile_image is None:
                     continue
-                if tfr in self.mapped_tiles:
-                    self.mapped_tiles[tfr] += [tfr_idx]
-                else:
-                    self.mapped_tiles[tfr] = [tfr_idx]
+                self._record_point(point)
                 if sf.model.is_tensorflow_tensor(tile_image):
                     tile_image = tile_image.numpy()
-                tile_image = self._decode_image_string(tile_image)
+                tile_image = self._decode_image(tile_image)
                 tile_alpha, num_slide, num_other = float(1), 0, 0
                 display_size = self.tile_size
                 if relative_size:
@@ -355,21 +441,15 @@ class Mosaic:
                 point = self.points[distance_pair['point_index']]
                 tile = self.GRID[distance_pair['grid_index']]
                 if not (point['paired_tile'] or tile['paired_point']):
-                    _, tile_image = sf.io.get_tfrecord_by_index(
-                        point['tfrecord'],
-                        point['tfrecord_index'],
-                        decode=False
-                    )
-                    if not tile_image:
+                    tile_image = self._get_image_from_point(point)
+                    if tile_image is None:
                         continue
                     point['paired_tile'] = True
                     tile['paired_point'] = True
-                    self.mapped_tiles.update({
-                        point['tfrecord']: point['tfrecord_index']
-                    })
+                    self._record_point(point)
                     if sf.model.is_tensorflow_tensor(tile_image):
                         tile_image = tile_image.numpy()
-                    tile_image = self._decode_image_string(tile_image)
+                    tile_image = self._decode_image(tile_image)
                     extent = [
                         tile['coord'][0]-self.tile_size/2,
                         tile['coord'][0]+self.tile_size/2,
@@ -399,23 +479,27 @@ class Mosaic:
         log.error(f'Unable to find TFRecord path for slide [green]{slide}')
         return None
 
-    def _decode_image_string(self, string: str) -> np.ndarray:
+    def _decode_image(self, image: Union[str, np.ndarray]) -> np.ndarray:
         """Internal method to convert an image string (as stored in TFRecords)
         to an RGB array."""
 
         if self.normalizer:
             try:
-                if self.img_format in ('jpg', 'jpeg'):
-                    return self.normalizer.jpeg_to_rgb(string)
+                if isinstance(image, np.ndarray):
+                    return self.normalizer.rgb_to_rgb(image)
+                elif self.img_format in ('jpg', 'jpeg'):
+                    return self.normalizer.jpeg_to_rgb(image)
                 elif self.img_format == 'png':
-                    return self.normalizer.png_to_rgb(string)
+                    return self.normalizer.png_to_rgb(image)
             except Exception as e:
                 log.error("Error encountered during image normalization, "
                           f"displaying image tile non-normalized. {e}")
-
-        image_arr = np.fromstring(string, np.uint8)
-        tile_image_bgr = cv2.imdecode(image_arr, cv2.IMREAD_COLOR)
-        return cv2.cvtColor(tile_image_bgr, cv2.COLOR_BGR2RGB)
+        if isinstance(image, np.ndarray):
+            return image
+        else:
+            image_arr = np.fromstring(image, np.uint8)
+            tile_image_bgr = cv2.imdecode(image_arr, cv2.IMREAD_COLOR)
+            return cv2.cvtColor(tile_image_bgr, cv2.COLOR_BGR2RGB)
 
     def focus(self, tfrecords: Optional[List[str]]) -> None:
         """Highlights certain tiles according to a focus list if list provided,
@@ -475,7 +559,11 @@ class Mosaic:
         with open(filename, 'w') as f:
             writer = csv.writer(f)
             writer.writerow(['slide', 'index'])
-            for tfr in self.mapped_tiles:
-                for idx in self.mapped_tiles[tfr]:
-                    writer.writerow([tfr, idx])
+            if isinstance(self.mapped_tiles, dict):
+                for tfr in self.mapped_tiles:
+                    for idx in self.mapped_tiles[tfr]:
+                        writer.writerow([tfr, idx])
+            else:
+                for idx in self.mapped_tiles:
+                        writer.writerow([idx])
         log.info(f'Mosaic report saved to [green]{filename}')
