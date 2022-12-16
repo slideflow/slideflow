@@ -840,6 +840,7 @@ class Dataset:
         mpp: float = 0.5,
         qc: Optional[str] = 'otsu',
         dest: Optional[str] = None,
+        compress: bool = True,
         **kwargs
     ) -> None:
         """Perform cell segmentation on slides, saving segmentation masks.
@@ -863,13 +864,14 @@ class Dataset:
                 Defaults to 256.
             tile_um (int, str): Window size, in microns, at which to segment cells.
                 Defaults to '40x'.
-            diameter (int, optional): Cell segmentation diameter. If None, will auto-detect.
-                Defaults to None.
+            diameter (int, optional): Cell segmentation diameter. If None,
+                will auto-detect. Defaults to None.
             batch_size (int): Batch size for cell segmentation. Defaults to 8.
             gpus (int, list(int)): GPUs to use for cell segmentation.
                 Defaults to 0 (first GPU).
             num_workers (int, optional): Number of workers.
                 Defaults to 2 * num_gpus.
+            compress (bool): Compress saved segmentation masks. Defaults to True.
 
         Returns:
             None
@@ -884,16 +886,21 @@ class Dataset:
             return
 
         pb = TileExtractionProgress()
-        speed_task = pb.add_task("Speed: ", progress_type="speed", total=None)
-        slide_task = pb.add_task("Slides: ", progress_type="slide_progress", total=len(slide_list))
+        speed_task = pb.add_task(
+            "Speed: ", progress_type="speed", total=None
+        )
+        slide_task = pb.add_task(
+            "Slides: ", progress_type="slide_progress", total=len(slide_list)
+        )
         pb.start()
         for slide_path in slide_list:
-
-            # Prepare slide for segmentation.
             wsi = sf.WSI(slide_path, tile_px=window_size, tile_um=int(window_size * mpp))
             wsi.qc(qc)
-            segment_task = pb.add_task("Segmenting... ", progress_type="slide_progress", total=wsi.estimated_num_tiles)
-
+            segment_task = pb.add_task(
+                "Segmenting... ",
+                progress_type="slide_progress",
+                total=wsi.estimated_num_tiles
+            )
             # Perform segmentation and save
             segmentation = segment_slide(
                 wsi,
@@ -902,7 +909,9 @@ class Dataset:
                 show_progress=False,
                 **kwargs)
             mask_dest = dest if dest is not None else dirname(slide_path)
-            segmentation.save_npz(join(mask_dest, f'{wsi.name}-masks.npz'))
+            segmentation.save_npz(
+                join(mask_dest, f'{wsi.name}-masks.npz'),
+                compress=compress)
             pb.advance(slide_task)
             pb.remove_task(segment_task)
         pb.stop()

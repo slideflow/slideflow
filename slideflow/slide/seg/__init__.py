@@ -150,7 +150,12 @@ class Segmentation:
         else:
             return img
 
-    def save_npz(self, filename: str, incl_centroids: bool = True):
+    def save_npz(
+        self,
+        filename: str,
+        incl_centroids: bool = True,
+        compress: bool = True
+    ):
         save_dict = dict(masks=self.masks)
         if incl_centroids:
             self.calculate_centroids()
@@ -162,7 +167,8 @@ class Segmentation:
             save_dict['wsi_dim'] = self.wsi_dim
         if self.wsi_offset is not None:
             save_dict['wsi_offset'] = self.wsi_offset
-        np.savez(filename, **save_dict)
+        save_fn = np.savez_compressed if compress else np.savez
+        save_fn(filename, **save_dict)
 
 # -----------------------------------------------------------------------------
 
