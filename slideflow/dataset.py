@@ -833,6 +833,53 @@ class Dataset:
             pass
         pool.close()
 
+    def cell_segmentation(
+        self,
+        window_size=256,
+        mpp=0.5,
+        qc='otsu',
+        model='cyto2',
+        diameter=None,
+        dest=None,
+        batch_size=8,
+        **kwargs
+    ):
+        """Perform cell segmentation."""
+        from slideflow.slide.seg import segment_slide
+
+        slide_list = self.slide_paths()
+        if slide_list:
+            log.info(f"Performing cell segmentation for {len(slide_list)} slides.")
+        else:
+            log.info("No slides found.")
+            return
+
+        pb = TileExtractionProgress()
+        speed_task = pb.add_task("Speed: ", progress_type="speed", total=None)
+        slide_task = pb.add_task("Slides: ", progress_type="slide_progress", total=len(slide_list))
+        pb.start()
+        for slide_path in slide_list:
+
+            # Prepare slide for segmentation.
+            wsi = sf.WSI(slide_path, tile_px=window_size, tile_um=int(window_size * mpp))
+            wsi.qc(qc)
+            segment_task = pb.add_task("Segmenting... ", progress_type="slide_progress", total=wsi.estimated_num_tiles)
+
+            # Perform segmentation and save
+            segmentation = segment_slide(
+                wsi,
+                model,
+                diameter=diameter,
+                pb=pb,
+                pb_tasks=[speed_task, segment_task],
+                show_progress=False,
+                **kwargs)
+            mask_dest = dest if dest is not None else dirname(slide_path)
+            segmentation.save_npz(join(mask_dest, f'{wsi.name}-masks.npz'))
+            pb.advance(slide_task)
+            pb.remove_task(segment_task)
+        pb.stop()
+
     def check_duplicates(
         self,
         dataset: Optional["Dataset"] = None,

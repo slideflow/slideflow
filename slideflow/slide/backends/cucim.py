@@ -54,6 +54,7 @@ def tile_worker(
         c, tile_mask = c
         (x, y, grid_x), grid_y = c, 0
     else:
+        tile_mask = None
         x, y, grid_x, grid_y = c
 
     x_coord = int(x + args.full_extract_px / 2)

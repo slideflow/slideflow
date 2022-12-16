@@ -1338,7 +1338,9 @@ class WSI(_BaseLoader):
                     np.random.shuffle(non_roi_coord)
                 num_possible_tiles = len(non_roi_coord)
             elif self.segmentation is None:
-                raise ValueError("Segmentation not applied to slide.")
+                log.warn(f"Segmentation not applied to slide {self.name} - "
+                         "skipping tile extraction.")
+                return
             else:
                 from scipy.sparse import csr_matrix
                 log.info("Building generator from segmentation centroids.")
