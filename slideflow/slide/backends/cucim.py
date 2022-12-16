@@ -50,9 +50,14 @@ def tile_worker(
 ) -> Optional[Union[str, Dict]]:
     '''Multiprocessing worker for WSI. Extracts tile at given coordinates.'''
 
-    x, y, grid_x, grid_y = c
-    x_coord = int((x + args.full_extract_px / 2) / args.roi_scale)
-    y_coord = int((y + args.full_extract_px / 2) / args.roi_scale)
+    if args.use_segmentations:
+        c, tile_mask = c
+        (x, y, grid_x), grid_y = c, 0
+    else:
+        x, y, grid_x, grid_y = c
+
+    x_coord = int(x + args.full_extract_px / 2)
+    y_coord = int(y + args.full_extract_px / 2)
 
     # If downsampling is enabled, read image from highest level
     # to perform filtering; otherwise filter from our target level
@@ -130,6 +135,10 @@ def tile_worker(
     # Remove the alpha channel and convert to RGB
     if region.shape[-1] == 4:
         region = region[:, :, 0:3]
+
+    # Apply segmentation mask
+    if tile_mask is not None:
+        region[tile_mask == 0] = (0, 0, 0)
 
     # Apply normalization
     if normalizer:

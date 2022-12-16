@@ -828,8 +828,10 @@ def tfrecord_heatmap(
     log.debug('Loaded tile values')
     log.debug(f'Min: {min(vals)}\t Max:{max(vals)}')
 
-    scaled_x = [(xi * wsi.roi_scale) - wsi.full_extract_px/2 for xi in x]
-    scaled_y = [(yi * wsi.roi_scale) - wsi.full_extract_px/2 for yi in y]
+    roi_scaling = True
+    scale = wsi.roi_scale if roi_scaling else 1
+    scaled_x = [(xi * scale) - wsi.full_extract_px/2 for xi in x]
+    scaled_y = [(yi * scale) - wsi.full_extract_px/2 for yi in y]
 
     log.debug('Loaded CSV coordinates:')
     log.debug(f'Min x: {min(x)}\t Max x: {max(x)}')

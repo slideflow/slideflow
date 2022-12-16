@@ -8,7 +8,7 @@ from threading import Thread
 from typing import Tuple
 from PIL import Image, ImageDraw
 from slideflow.slide.utils import draw_roi
-from slideflow.seg.cell import segment_slide, Segmentation
+from slideflow.slide.seg import segment_slide, Segmentation
 from .gui_utils import imgui_utils
 
 
@@ -35,8 +35,6 @@ class SegmentWidget:
         self._auto_tile_px          = 256
         self._auto_mpp              = 0.5
         self._wsi_config            = 'auto'
-        self._segment_wsi_dim       = None
-        self._segment_wsi_offset    = None
         self._thread                = None
         self._segment_toast         = None
         self._centroid_toast        = None
@@ -71,15 +69,7 @@ class SegmentWidget:
         return self._thread is not None and self._thread.is_alive()
 
     def _load_segmentation(self, path, ignore_errors=False):
-        loaded = np.load(path)
-        if 'masks' not in loaded and not ignore_errors:
-            raise TypeError(f"Unable to load '{path}'; 'masks' index not found.")
-        flows = None if 'flows' not in loaded else loaded[flows]
-        self.segmentation = Segmentation(loaded['masks'], flows)
-        self._segment_wsi_dim = loaded['wsi_dim']
-        self._segment_wsi_offset = loaded['wsi_offset']
-        if 'centroids' in loaded:
-            self.segmentation._centroids = loaded['centroids']
+        self.segmentation = Segmentation.from_npz(path)
         self.refresh_segmentation_view()
         self._load_toast.done()
         self.viz.create_toast(f"Loaded {self.segmentation.masks.max()} segmentations.", icon="success")
@@ -133,30 +123,30 @@ class SegmentWidget:
 
         self._showing_preview_overlay = False
         self.viz.overlay = self.overlay
-        self.viz._overlay_wsi_dim = self._segment_wsi_dim
-        self.viz._overlay_offset_wsi_dim = self._segment_wsi_offset
+        self.viz._overlay_wsi_dim = self.segmentation.wsi_dim
+        self.viz._overlay_offset_wsi_dim = self.segmentation.wsi_offset
 
     def render_outlines(self, color='red'):
         """Render outlines of the segmentations currently in view."""
         in_view, _, view_offset = self.viz.viewer.in_view(
             self.segmentation.masks,
-            dim=self._segment_wsi_dim,
-            offset=self._segment_wsi_offset,
+            dim=self.segmentation.wsi_dim,
+            offset=self.segmentation.wsi_offset,
             resize=False)
 
         # Calculate and draw the outlines
-        outlines = [o for o in sf.seg.cell.outlines_list(in_view) if o.shape[0] >= 3]
+        outlines = [o for o in sf.slide.seg.outlines_list(in_view) if o.shape[0] >= 3]
         empty = np.zeros((in_view.shape[0], in_view.shape[1], 3), dtype=np.uint8)
         outline_img = draw_roi(empty, outlines, color=color, linewidth=2)
 
         self.viz.overlay = outline_img
         self.viz._overlay_wsi_dim = (
-            (in_view.shape[1] / self.segmentation.masks.shape[1]) * self._segment_wsi_dim[0],
-            (in_view.shape[0] / self.segmentation.masks.shape[0]) * self._segment_wsi_dim[1],
+            (in_view.shape[1] / self.segmentation.masks.shape[1]) * self.segmentation.wsi_dim[0],
+            (in_view.shape[0] / self.segmentation.masks.shape[0]) * self.segmentation.wsi_dim[1],
         )
         self.viz._overlay_offset_wsi_dim = (
-            self._segment_wsi_offset[0] + view_offset[0],
-            self._segment_wsi_offset[1] + view_offset[1]
+            self.segmentation.wsi_offset[0] + view_offset[0],
+            self.segmentation.wsi_offset[1] + view_offset[1]
         )
         self._outline_toast.done()
         self.viz.create_toast("Outlining complete.", icon="success")
@@ -171,9 +161,12 @@ class SegmentWidget:
             channels=[[0, 0]],
             diameter=self.diameter,
         )
-        self.segmentation = Segmentation(masks, flows[0])
-        self._segment_wsi_dim = v.wsi_window_size
-        self._segment_wsi_offset = v.origin
+        self.segmentation = Segmentation(
+            slide=None,
+            masks=masks,
+            flows=flows[0],
+            wsi_dim=v.wsi_window_size,
+            wsi_offset=v.origin)
         self.diam_manual = int(diams)
         print(f"Segmentation of current view complete (diameter={diams:.2f}), {masks.max()} total masks).")
         self.refresh_segmentation_view()
@@ -191,13 +184,13 @@ class SegmentWidget:
             wsi.apply_qc_mask(self.viz.wsi.qc_mask)
 
         # Perform segmentation.
-        self.segmentation, _ = segment_slide(wsi, 'cyto2', diameter=self.diameter)
+        self.segmentation = segment_slide(wsi, 'cyto2', diameter=self.diameter)
         print('Mask shape:', self.segmentation.masks.shape)
         full_extract = int(wsi.tile_um / wsi.mpp)
         wsi_stride = int(full_extract / wsi.stride_div)
-        self._segment_wsi_dim = (wsi_stride * (wsi.grid.shape[0]),
-                                 wsi_stride * (wsi.grid.shape[1]))
-        self._segment_wsi_offset = (full_extract/2 - wsi_stride/2, full_extract/2 - wsi_stride/2)
+        self.segmentation.wsi_dim = (wsi_stride * (wsi.grid.shape[0]),
+                                     wsi_stride * (wsi.grid.shape[1]))
+        self.segmentation.wsi_offset = (full_extract/2 - wsi_stride/2, full_extract/2 - wsi_stride/2)
 
         # Done; refresh view.
         self._segment_toast.done()
@@ -288,13 +281,7 @@ class SegmentWidget:
         with imgui_utils.grayed_out(self.segmentation is None):
             if imgui_utils.button("Export", width=viz.button_w) and self.segmentation is not None:
                 filename = f'{viz.wsi.name}-masks.npz'
-                np.savez(
-                    filename,
-                    masks=self.segmentation.masks,
-                    centroids=self.segmentation.centroids,
-                    flows=self.segmentation.flows,
-                    wsi_dim=self._segment_wsi_dim,
-                    wsi_offset=self._segment_wsi_offset)
+                self.segmentation.save_npz(filename)
                 viz.create_toast(f"Exported masks and centroids to {filename}", icon='success')
         imgui.end_child()
 

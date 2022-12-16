@@ -852,6 +852,7 @@ class WSI(_BaseLoader):
         self.roi_method = roi_method
         self.randomize_origin = randomize_origin
         self.verbose = verbose
+        self.segmentation = None
 
         # Look in ROI directory if available
         if roi_dir and exists(join(roi_dir, self.name + ".csv")):
@@ -981,6 +982,7 @@ class WSI(_BaseLoader):
                 yolo=False,
                 draw_roi=False,
                 dry_run=False,
+                use_segmentations=False,
             )
         )
         return image_dict['image']
@@ -1075,6 +1077,64 @@ class WSI(_BaseLoader):
     def shape(self):
         return self.grid.shape
 
+    def apply_segmentation(
+        self,
+        segmentation
+    ):
+        self.segmentation = segmentation
+        if self.segmentation.slide is None:
+            self.segmentation.slide = self
+        centroids = segmentation.centroids(wsi_dim=True)
+        self.seg_coord = np.concatenate(
+            (centroids - int(self.full_extract_px/2),
+             np.expand_dims(np.arange(centroids.shape[0]), axis=-1)),
+            axis=-1)
+        self.estimated_num_tiles = centroids.shape[0]
+
+    def get_tile_mask(self, index, sparse_mask):
+
+        # Get the corresponding segmentation mask, reading from the sparse matrix
+        seg = self.segmentation
+        seg_idx = np.argwhere(self.seg_coord[:, 2] == index)[0][0]
+        mask_y, mask_x = np.unravel_index(sparse_mask[index+1].data, seg.masks.shape) # sparse index starts at 1
+
+        # This is the top-left coordinate, in WSI base dimension,
+        # of the tile extraction window.
+        wsi_tile_top_left = self.seg_coord[seg_idx]
+
+        # Determine the mask array offset (top-left), in mask coordinate space.
+        wsi_mask_x_offset = (seg.wsi_offset[0] / seg.wsi_ratio).astype(np.int32)
+        wsi_mask_y_offset = (seg.wsi_offset[1] / seg.wsi_ratio).astype(np.int32)
+
+        # Offset the mask to reflect WSI space (but still in mask coordinates).
+        wsi_mask_x = mask_x + wsi_mask_x_offset
+        wsi_mask_y = mask_y + wsi_mask_y_offset
+
+        # Determine the tile window offset (top-left), in mask coordinate space.
+        tile_offset_x_in_mask_space = (wsi_tile_top_left[0] / seg.wsi_ratio).astype(np.int32)
+        tile_offset_y_in_mask_space = (wsi_tile_top_left[1] / seg.wsi_ratio).astype(np.int32)
+
+        # Adjust the mask coordinate space, using the tile window offset as origin.
+        tile_mask_x = (wsi_mask_x - tile_offset_x_in_mask_space)
+        tile_mask_y = (wsi_mask_y - tile_offset_y_in_mask_space)
+
+        # Calculate the size of the tile window, in mask coordinate space.
+        mask_tile_size = int(self.full_extract_px / seg.wsi_ratio)
+
+        # Clip the mask to the tile window view.
+        tile_mask_x = tile_mask_x.clip(0, mask_tile_size-1)
+        tile_mask_y = tile_mask_y.clip(0, mask_tile_size-1)
+
+        # Convert mask coordinates (in sparse format) to 2D array.
+        unsized = np.zeros((mask_tile_size, mask_tile_size), dtype=np.int32)
+        unsized[tile_mask_y, tile_mask_x] = 1
+
+        # Resize mask from mask coordinates to tile extraction WSI coordinates.
+        return cv2.resize(
+            unsized,
+            (self.tile_px, self.tile_px),
+            interpolation=cv2.INTER_NEAREST)
+
     def extract_tiles(
         self,
         tfrecord_dir: Optional[str] = None,
@@ -1153,7 +1213,8 @@ class WSI(_BaseLoader):
         dry_run: bool = False,
         lazy_iter: bool = False,
         shard: Optional[Tuple[int, int]] = None,
-        max_tiles: Optional[int] = None
+        max_tiles: Optional[int] = None,
+        use_segmentations: bool = False
     ) -> Optional[Callable]:
         """Builds tile generator to extract tiles from this slide.
 
@@ -1258,7 +1319,8 @@ class WSI(_BaseLoader):
             'img_format': img_format,
             'yolo': yolo,
             'draw_roi': draw_roi,
-            'dry_run': dry_run
+            'dry_run': dry_run,
+            'use_segmentations': use_segmentations
         })
 
         def generator():
@@ -1267,17 +1329,38 @@ class WSI(_BaseLoader):
             n_extracted = 0
 
             # Skip tiles filtered out with QC or ROI
-            non_roi_coord = self.coord[
-                self.grid[tuple(self.coord[:, 2:4].T)].astype(bool)
-            ]
+            if not use_segmentations:
+                non_roi_coord = self.coord[
+                    self.grid[tuple(self.coord[:, 2:4].T)].astype(bool)
+                ]
+                # Shuffle coordinates to randomize extraction order
+                if shuffle:
+                    np.random.shuffle(non_roi_coord)
+                num_possible_tiles = len(non_roi_coord)
+            elif self.segmentation is None:
+                raise ValueError("Segmentation not applied to slide.")
+            else:
+                from scipy.sparse import csr_matrix
+                log.info("Building generator from segmentation centroids.")
+                cols = np.arange(self.segmentation.masks.size)
+                num_possible_tiles = len(self.seg_coord)
+                sparse = csr_matrix((cols, (np.ravel(self.segmentation.masks), cols)),
+                                    shape=(self.segmentation.masks.max() + 1,
+                                           self.segmentation.masks.size),
+                                    dtype=np.int64)
+                if shuffle:
+                    np.random.shuffle(self.seg_coord)
+
+                def _sparse_generator():
+                    for c in self.seg_coord:
+                        yield c, self.get_tile_mask(c[2], sparse)
+
+                non_roi_coord = _sparse_generator()
+
             if shard is not None:
                 shard_idx, shard_count = shard
                 sharded_coords = np.array_split(non_roi_coord, shard_count)
                 non_roi_coord = sharded_coords[shard_idx]
-
-            # Shuffle coordinates to randomize extraction order
-            if shuffle:
-                np.random.shuffle(non_roi_coord)
 
             # Set up worker pool
             if pool is None:
@@ -1348,8 +1431,7 @@ class WSI(_BaseLoader):
             if should_close:
                 pool.close()
             name_msg = f'[green]{self.shortname}[/]'
-            pos = len(non_roi_coord)
-            num_msg = f'({n_extracted} tiles of {pos} possible)'
+            num_msg = f'({n_extracted} tiles of {num_possible_tiles} possible)'
             log_fn = log.info if self.verbose else log.debug
             log_fn(f"Finished tile extraction for {name_msg} {num_msg}")
 

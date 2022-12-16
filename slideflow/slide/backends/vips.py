@@ -97,9 +97,15 @@ def tile_worker(
 ) -> Optional[Union[str, Dict]]:
     '''Multiprocessing worker for WSI. Extracts tile at given coordinates.'''
 
-    x, y, grid_x, grid_y = c
-    x_coord = int((x + args.full_extract_px / 2) / args.roi_scale)
-    y_coord = int((y + args.full_extract_px / 2) / args.roi_scale)
+    if args.use_segmentations:
+        c, tile_mask = c
+        (x, y, grid_x), grid_y = c, 0
+    else:
+        tile_mask = None
+        x, y, grid_x, grid_y = c
+
+    x_coord = int(x + args.full_extract_px / 2)
+    y_coord = int(y + args.full_extract_px / 2)
 
     # If downsampling is enabled, read image from highest level
     # to perform filtering; otherwise filter from our target level
@@ -175,6 +181,11 @@ def tile_worker(
         region = region.resize(args.tile_px/args.extract_px)
     assert(region.width == region.height == args.tile_px)
 
+    # Apply segmentation mask
+    if tile_mask is not None:
+        vips_mask = vips.Image.new_from_array(tile_mask)
+        region = region.multiply(vips_mask)
+
     if args.img_format != 'numpy':
         if args.img_format == 'png':
             image = region.pngsave_buffer()
@@ -198,7 +209,7 @@ def tile_worker(
                 return None
     else:
         # Read regions into memory and convert to numpy arrays
-        image = vips2numpy(region)
+        image = vips2numpy(region).astype(np.uint8)
 
         # Apply normalization
         if normalizer:
