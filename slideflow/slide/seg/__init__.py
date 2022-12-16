@@ -12,7 +12,7 @@ from functools import partial
 from PIL import Image, ImageDraw
 from cellpose.utils import outlines_list
 from slideflow.slide.utils import draw_roi
-from slideflow.util import batch
+from slideflow.util import batch, log
 
 from . import seg_utils
 
@@ -150,8 +150,10 @@ class Segmentation:
         else:
             return img
 
-    def save_npz(self, filename: str):
+    def save_npz(self, filename: str, incl_centroids: bool = True):
         save_dict = dict(masks=self.masks)
+        if incl_centroids:
+            self.calculate_centroids()
         if self._centroids is not None:
             save_dict['centroids'] = self._centroids
         if self.flows is not None:
@@ -206,7 +208,32 @@ def segment_slide(
     show_progress: bool = True,
     **kwargs
 ) -> Segmentation:
-    """Segment cells in a whole-slide image, returning masks and centroids."""
+    """Segment cells in a whole-slide image, returning masks and centroids.
+
+    Args:
+        slide (str, :class:`slideflow.WSI`): Whole-slide image.
+
+    Keyword arguments:
+        model (str, :class:`cellpose.models.Cellpose`): Cellpose model to use
+            for cell segmentation. May be any valid cellpose model. Defaults
+            to 'cyto2'.
+        tile_px (int): Window size, in pixels, at which to segment cells.
+            Defaults to 256.
+        tile_um (int, str): Window size, in microns, at which to segment cells.
+            Defaults to '40x'.
+        diameter (int, optional): Cell segmentation diameter. If None, will auto-detect.
+            Defaults to None.
+        batch_size (int): Batch size for cell segmentation. Defaults to 8.
+        gpus (int, list(int)): GPUs to use for cell segmentation.
+            Defaults to 0 (first GPU).
+        num_workers (int, optional): Number of workers.
+            Defaults to 2 * num_gpus.
+        show_progress (bool): Show a tqdm progress bar. Defaults to True.
+        pb (:class:`rich.progress.Progress`, optional): Progress bar instance.
+            Used for external progress bar tracking. Defaults to None.
+        pb_tasks (list(:class:`rich.progress.TaskID`)): Progress bar tasks.
+            Used for external progress bar tracking. Defaults to None.
+    """
 
     # Quiet the logger to suppress warnings of empty masks
     logging.getLogger('cellpose').setLevel(40)
@@ -229,11 +256,10 @@ def segment_slide(
         pool = mp.dummy.Pool(4, initializer=partial(_init_worker, model=model, gpus=gpus))
 
     diam_str = f'{diameter:.2f}' if diameter is not None else 'None'
-    print(f"Segmenting slide with diameter {diam_str} (shape={slide.dimensions})")
+    log.info(f"Segmenting cells in slide with diameter={diam_str} (shape={slide.dimensions})")
     running_max = 0
     all_masks = np.zeros((slide.shape[0], slide.shape[1], tile_px, tile_px), dtype=np.int32)
     all_flows = np.zeros((slide.shape[0], slide.shape[1], tile_px, tile_px, 3), dtype=np.uint8)
-    all_diams = []
 
     tile_idx = np.argwhere(slide.grid)
     mapped = pool.imap(
@@ -244,7 +270,6 @@ def segment_slide(
         mapped = tqdm(mapped, total=int(len(tile_idx) / (batch_size * 8)))
 
     for masks, flows, diams, c in mapped:
-        all_diams.append(diams)
         for i in range(len(masks)):
             x = c[i][0]
             y = c[i][1]
@@ -260,4 +285,19 @@ def segment_slide(
     pool.close()
     masks = np.concatenate(np.concatenate(all_masks, axis=-1), axis=0)
     flows = np.concatenate(np.concatenate(all_flows, axis=-2), axis=0)
-    return Segmentation(slide=slide, masks=masks, flows=flows, diams=all_diams)
+
+    log.info(f"Segmented {running_max} cells for {slide.name}")
+
+    # Calculate WSI dimensions and offset, and return final segmentation.
+    full_extract = int(slide.tile_um / slide.mpp)
+    wsi_stride = int(full_extract / slide.stride_div)
+    wsi_dim = (wsi_stride * (slide.grid.shape[0]),
+               wsi_stride * (slide.grid.shape[1]))
+    wsi_offset = (int(full_extract/2 - wsi_stride/2), int(full_extract/2 - wsi_stride/2))
+
+    return Segmentation(
+        slide=slide,
+        masks=masks,
+        flows=flows,
+        wsi_dim=wsi_dim,
+        wsi_offset=wsi_offset)

@@ -910,6 +910,54 @@ class Project:
         dataset = self.dataset(tile_px=0, tile_um=0, verification=None)
         dataset.update_annotations_with_slidenames(self.annotations)
 
+    def cell_segmentation(
+        self,
+        *,
+        filters: Optional[Dict] = None,
+        filter_blank: Optional[Union[str, List[str]]] = None,
+        **kwargs
+    ) -> None:
+        """Perform cell segmentation on slides, saving segmentation masks.
+
+        Args:
+            window_size (int): Window size at which to segment cells across
+                a whole-slide image. Defaults to 256.
+            mpp (float): Microns-per-pixel at which cells should be segmented.
+                Defaults to 0.5.
+            qc (str): Slide-level quality control method to use before
+                performing cell segmentation. Defaults to "Otsu".
+            dest (str): Destination in which to save cell segmentation masks.
+                If None, will save masks in same folder as slides.
+                Defaults to None.
+
+        Keyword args:
+            model (str, :class:`cellpose.models.Cellpose`): Cellpose model to use
+                for cell segmentation. May be any valid cellpose model. Defaults
+                to 'cyto2'.
+            tile_px (int): Window size, in pixels, at which to segment cells.
+                Defaults to 256.
+            tile_um (int, str): Window size, in microns, at which to segment cells.
+                Defaults to '40x'.
+            diameter (int, optional): Cell segmentation diameter. If None, will auto-detect.
+                Defaults to None.
+            batch_size (int): Batch size for cell segmentation. Defaults to 8.
+            gpus (int, list(int)): GPUs to use for cell segmentation.
+                Defaults to 0 (first GPU).
+            num_workers (int, optional): Number of workers.
+                Defaults to 2 * num_gpus.
+
+        Returns:
+            None
+        """
+        dataset = self.dataset(
+            None,
+            None,
+            filters=filters,
+            filter_blank=filter_blank,
+            verification='slides'
+        )
+        dataset.cell_segmentation(**kwargs)
+
     def create_blank_annotations(
         self,
         filename: Optional[str] = None

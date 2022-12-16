@@ -186,11 +186,6 @@ class SegmentWidget:
         # Perform segmentation.
         self.segmentation = segment_slide(wsi, 'cyto2', diameter=self.diameter)
         print('Mask shape:', self.segmentation.masks.shape)
-        full_extract = int(wsi.tile_um / wsi.mpp)
-        wsi_stride = int(full_extract / wsi.stride_div)
-        self.segmentation.wsi_dim = (wsi_stride * (wsi.grid.shape[0]),
-                                     wsi_stride * (wsi.grid.shape[1]))
-        self.segmentation.wsi_offset = (full_extract/2 - wsi_stride/2, full_extract/2 - wsi_stride/2)
 
         # Done; refresh view.
         self._segment_toast.done()
