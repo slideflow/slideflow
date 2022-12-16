@@ -150,6 +150,8 @@ class Workbench(imgui_window.ImguiWindow):
         self.button_w           = 0
         self.x                  = None
         self.y                  = None
+        self.mouse_x            = None
+        self.mouse_y            = None
         self.menu_bar_height    = self.font_size + self.spacing
 
         # Core widgets.
@@ -259,6 +261,8 @@ class Workbench(imgui_window.ImguiWindow):
         self.wsi_thumb = None
         self.x = None
         self.y = None
+        self.mouse_x = None
+        self.mouse_y = None
         self.clear_result()
         self._async_renderer._live_updates = False
 
@@ -437,6 +441,7 @@ class Workbench(imgui_window.ImguiWindow):
                 if self._refresh_view and inp.dx is None and not inp.wheel:
                     self.viewer.refresh_view()
                     self._refresh_view = False
+            self.mouse_x, self.mouse_y = self.viewer.display_coords_to_wsi_coords(inp.cx, inp.cy, offset=False)
 
         # Render slide view.
         self.viewer.render(max_w, max_h)
@@ -822,7 +827,8 @@ class Workbench(imgui_window.ImguiWindow):
             height=self.content_frame_height - self.offset_y_pixels,
             x_offset=self.offset_x_pixels,
             y_offset=self.offset_y_pixels,
-            normalizer=(self._normalizer if self._normalize_wsi else None)
+            normalizer=(self._normalizer if self._normalize_wsi else None),
+            viz=self
         )
 
     def _widgets_by_header(self) -> List[Tuple[str, List[Any]]]:

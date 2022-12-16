@@ -1,5 +1,6 @@
 """Utility for an efficient, tiled Whole-slide image viewer."""
 
+import imgui
 import numpy as np
 from typing import Tuple, Optional, TYPE_CHECKING
 from . import gl_utils, text_utils
@@ -136,7 +137,7 @@ class SlideViewer(Viewer):
     def _draw_scale(self, max_w: int, max_h: int):
 
         origin_x = self.x_offset + 30
-        origin_y = self.y_offset + max_h - 50
+        origin_y = self.y_offset + max_h - 50 - (self.viz.font_size + self.viz.spacing)
         scale_w = self.scale_um / self.mpp
 
         main_pos = np.array([origin_x, origin_y])
@@ -448,7 +449,12 @@ class SlideViewer(Viewer):
             zoom = np.floor(zoom) if zoom >= 1 else zoom
             self._tex_obj.draw(pos=pos, zoom=zoom, align=0.5, rint=True)
         self._max_w, self._max_h = max_w, max_h
-
+        h = self.viz.font_size + self.viz.spacing
+        imgui.set_next_window_position(self.x_offset, self.height + self.y_offset - h)
+        imgui.set_next_window_size(self.width, h)
+        imgui.begin('Status bar', closable=True, flags=(imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_COLLAPSE | imgui.WINDOW_NO_TITLE_BAR | imgui.WINDOW_NO_MOVE | imgui.WINDOW_NO_SCROLLBAR))
+        imgui.text('x={:<8} y={:<8} mpp={:.3f}'.format(int(self.viz.mouse_x), int(self.viz.mouse_y), self.mpp))
+        imgui.end()
 
     def set_tile_px(self, tile_px: int):
         if tile_px != self.tile_px:

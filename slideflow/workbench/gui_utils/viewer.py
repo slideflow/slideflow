@@ -22,7 +22,8 @@ class Viewer:
         y_offset: int = 0,
         bilinear: bool = False,
         mipmap: bool = False,
-        normalizer: sf.norm.StainNormalizer = None
+        normalizer: sf.norm.StainNormalizer = None,
+        viz = None
     ):
         self._tex_img           = None
         self._tex_obj           = None
@@ -44,7 +45,8 @@ class Viewer:
         self.height             = height
         self.bilinear           = bilinear
         self.mipmap             = mipmap
-        self.view_zoom          = 1
+        self.view_zoom          = 1,
+        self.viz                = viz
 
         # Window offset for the display
         self.x_offset           = x_offset

@@ -51,7 +51,6 @@ class SegmentWidget:
         ]
         self.models = {m: None for m in self.supported_models}
 
-
     @property
     def model(self):
         model_str = self.supported_models[self._selected_model_idx]
@@ -92,7 +91,8 @@ class SegmentWidget:
             refresh_toast.done()
 
     def drag_and_drop_hook(self, path, ignore_errors=False):
-        if 'masks' in np.load(path, mmap_mode='r').files:
+        if (sf.util.path_to_ext(path).lower() == 'npz'
+           and 'masks' in np.load(path, mmap_mode='r').files):
             self.load(path, ignore_errors=ignore_errors)
 
     def load(self, path, ignore_errors=False):
@@ -221,6 +221,7 @@ class SegmentWidget:
     @imgui_utils.scoped_by_object_id
     def __call__(self, show=True):
         viz = self.viz
+        has_viewer = (viz.viewer is not None)
 
         if not show:
             self.content_height = 0
@@ -232,66 +233,66 @@ class SegmentWidget:
         self.content_height = child_height + viz.spacing
 
         # --- Segmentation ----------------------------------------------------
-        imgui.begin_child('##segment_child', width=child_width, height=child_height, border=True)
-        imgui.text("Whole-slide segmentation")
-        imgui.separator()
+        with imgui_utils.grayed_out(not has_viewer):
+            imgui.begin_child('##segment_child', width=child_width, height=child_height, border=True)
+            imgui.text("Whole-slide segmentation")
+            imgui.separator()
 
-        if imgui.radio_button('Auto##config_radio_auto', self._wsi_config == 'auto'):
-            self._wsi_config = 'auto'
-        imgui.same_line(viz.font_size*6)
-        _, self.use_gpu = imgui.checkbox('Use GPU', self.use_gpu)
+            if imgui.radio_button('Auto##config_radio_auto', self._wsi_config == 'auto') and has_viewer:
+                self._wsi_config = 'auto'
+            imgui.same_line(viz.font_size*6)
+            _, self.use_gpu = imgui.checkbox('Use GPU', self.use_gpu)
 
 
-        if imgui.radio_button('In view##config_radio_manual', self._wsi_config == 'in_view'):
-            self._wsi_config = 'in_view'
-        imgui.same_line(viz.font_size*6)
-        with imgui_utils.grayed_out(self._wsi_config == 'auto'):
-            if self._wsi_config == 'auto':
-                self.tile_px = self._auto_tile_px
-            with imgui_utils.item_width(viz.font_size*2):
-                _, self.tile_px = imgui.input_int('##tile_px', self.tile_px, step=0)
-            imgui.same_line()
-            imgui.text('Tile (px)')
-
-        if imgui.radio_button('Manual##config_radio_manual', self._wsi_config == 'manual'):
-            self._wsi_config = 'manual'
-        imgui.same_line(viz.font_size*6)
-        with imgui_utils.grayed_out(self._wsi_config != 'manual'):
-            if self._wsi_config == 'auto':
-                self.mpp = self._auto_mpp
-            elif self._wsi_config == 'in_view' and hasattr(viz, 'viewer') and hasattr(viz.viewer, 'mpp'):
-                self.mpp = viz.viewer.mpp
-            with imgui_utils.item_width(viz.font_size*3):
-                _, self.mpp = imgui.input_float('##mpp', self.mpp)
+            if imgui.radio_button('In view##config_radio_manual', self._wsi_config == 'in_view') and has_viewer:
+                self._wsi_config = 'in_view'
+            imgui.same_line(viz.font_size*6)
+            with imgui_utils.grayed_out(self._wsi_config == 'auto'):
+                if self._wsi_config == 'auto':
+                    self.tile_px = self._auto_tile_px
+                with imgui_utils.item_width(viz.font_size*2):
+                    _, self.tile_px = imgui.input_int('##tile_px', self.tile_px, step=0)
                 imgui.same_line()
-            imgui.text('MPP')
+                imgui.text('Tile (px)')
 
-        # WSI segmentation.
-        if imgui_utils.button("Segment", width=viz.button_w) and not self.is_thread_running():
-            self._segment_toast = viz.create_toast(
-                title=f"Segmenting whole-slide image",
-                icon='info',
-                sticky=True,
-                spinner=True)
-            self._thread = Thread(target=self.segment_slide)
-            self._thread.start()
+            if imgui.radio_button('Manual##config_radio_manual', self._wsi_config == 'manual') and has_viewer:
+                self._wsi_config = 'manual'
+            imgui.same_line(viz.font_size*6)
+            with imgui_utils.grayed_out(self._wsi_config != 'manual'):
+                if self._wsi_config == 'auto':
+                    self.mpp = self._auto_mpp
+                elif self._wsi_config == 'in_view' and hasattr(viz, 'viewer') and hasattr(viz.viewer, 'mpp'):
+                    self.mpp = viz.viewer.mpp
+                with imgui_utils.item_width(viz.font_size*3):
+                    _, self.mpp = imgui.input_float('##mpp', self.mpp)
+                    imgui.same_line()
+                imgui.text('MPP')
 
-        # Export
-        imgui.same_line(viz.font_size*6)
-        with imgui_utils.grayed_out(self.segmentation is None):
-            if imgui_utils.button("Export", width=viz.button_w) and self.segmentation is not None:
-                filename = f'{viz.wsi.name}-masks.npz'
-                self.segmentation.save_npz(filename)
-                viz.create_toast(f"Exported masks and centroids to {filename}", icon='success')
-        imgui.end_child()
+            # WSI segmentation.
+            if imgui_utils.button("Segment", width=viz.button_w) and not self.is_thread_running() and has_viewer:
+                self._segment_toast = viz.create_toast(
+                    title=f"Segmenting whole-slide image",
+                    icon='info',
+                    sticky=True,
+                    spinner=True)
+                self._thread = Thread(target=self.segment_slide)
+                self._thread.start()
+
+            # Export
+            imgui.same_line(viz.font_size*6)
+            with imgui_utils.grayed_out(self.segmentation is None):
+                if imgui_utils.button("Export", width=viz.button_w) and self.segmentation is not None:
+                    filename = f'{viz.wsi.name}-masks.npz'
+                    self.segmentation.save_npz(filename)
+                    viz.create_toast(f"Exported masks and centroids to {filename}", icon='success')
+            imgui.end_child()
 
         # --- Configuration ---------------------------------------------------
         imgui.same_line()
-        imgui.begin_child('##config_child', width=child_width, height=child_height, border=True)
-        imgui.text("Model & cell diameter")
-        imgui.separator()
-
         with imgui_utils.grayed_out(self._wsi_config == 'auto'):
+            imgui.begin_child('##config_child', width=child_width, height=child_height, border=True)
+            imgui.text("Model & cell diameter")
+            imgui.separator()
 
             ## Cell segmentation model.
             with imgui_utils.item_width(child_width - viz.spacing * 2):
@@ -319,11 +320,10 @@ class SegmentWidget:
 
         # --- View ------------------------------------------------------------
         imgui.same_line()
-        imgui.begin_child('##view_child', width=child_width, height=child_height, border=True)
-        imgui.text("View controls")
-        imgui.separator()
-
         with imgui_utils.grayed_out(self.segmentation is None):
+            imgui.begin_child('##view_child', width=child_width, height=child_height, border=True)
+            imgui.text("View controls")
+            imgui.separator()
 
             # Show segmentation mask
             _mask_clicked, self.show_mask = imgui.checkbox('Mask', self.show_mask)
