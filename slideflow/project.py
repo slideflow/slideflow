@@ -935,10 +935,6 @@ class Project:
             model (str, :class:`cellpose.models.Cellpose`): Cellpose model to use
                 for cell segmentation. May be any valid cellpose model. Defaults
                 to 'cyto2'.
-            tile_px (int): Window size, in pixels, at which to segment cells.
-                Defaults to 256.
-            tile_um (int, str): Window size, in microns, at which to segment cells.
-                Defaults to '40x'.
             diameter (int, optional): Cell segmentation diameter. If None, will auto-detect.
                 Defaults to None.
             batch_size (int): Batch size for cell segmentation. Defaults to 8.
