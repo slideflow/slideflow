@@ -1355,6 +1355,7 @@ class Trainer:
                 augment=False
             )
             tf_dts_w_slidenames = dataset.tensorflow(
+                incl_loc=True,
                 incl_slidenames=True,
                 from_wsi=from_wsi,
                 roi_method=roi_method,

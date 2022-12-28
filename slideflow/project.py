@@ -6,9 +6,11 @@ import json
 import multiprocessing
 import numpy as np
 import os
+import re
 import pickle
+import pandas as pd
 from multiprocessing.managers import DictProxy
-from os.path import basename, exists, join
+from os.path import basename, exists, join, isdir, dirname
 from statistics import mean
 from types import SimpleNamespace
 from typing import (TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple,
@@ -803,10 +805,10 @@ class Project:
         full_name = s_args.model_name
         if s_args.k is not None:
             full_name += f'-kfold{s_args.k}'
-        if ensemble:
-             model_dir = sf.util.get_new_model_dir(os.getcwd(), full_name)
-        else:
-            model_dir = sf.util.get_new_model_dir(self.models_dir, full_name)
+        # if ensemble:
+        #      model_dir = sf.util.get_new_model_dir(os.getcwd(), full_name)
+        # else:
+        model_dir = sf.util.get_new_model_dir(self.models_dir, full_name)
 
         # Log model settings and hyperparameters
         config = {
@@ -2374,6 +2376,286 @@ class Project:
         else:
             raise errors.ProjectError('Unable to find settings.json.')
 
+    
+    def predict_ensemble(
+        self,
+        model: str,
+        kfold_number: Optional[int] = None,
+        epoch_number: Optional[int] = None,
+        *args,
+        **kwargs
+        )-> None:
+        """Evaluates a saved ensemble model on a given set of tfrecords.
+
+        Args:
+            model (str): Path to ensemble model to evaluate. 
+
+        Keyword Args:
+            kfold_number (int, optional): The k-fold number to be considered 
+                to run the prediction. By default it sets to the first k-fold
+                present in the ensemble folder.
+            epoch_number (int, optional): The epoch number to be considered
+                to run the prediction. By default it sets to the first epoch
+                present in the selected k-fold folder.
+        """
+
+        innitial_eval_dir = self.eval_dir
+        file_type = ""
+        header_list_slide = []
+        header_list_tile = []
+
+        config = sf.util.get_model_config(model)
+        outcomes = config['outcomes']
+        outcomes = f'{"-".join(outcomes)}'
+        model_name = f"eval-ensemble-{outcomes}"
+        main_eval_dir = sf.util.get_new_model_dir(self.eval_dir, model_name)
+        self.eval_dir = main_eval_dir
+
+        # List of ensemble directories
+        ensemble_dirs = sorted([
+            join(model, x) for x in os.listdir(model)
+            if isdir(join(model, x))
+        ])
+
+        for j in range(len(ensemble_dirs)):
+
+            i = ensemble_dirs[j]
+   
+            # List of k-fold directories
+            kfold_dirs = sorted([
+                join(i, x) for x in os.listdir(i)
+                if isdir(join(i, x))
+            ])
+
+            # If k-fold number not given
+            if kfold_number == None:    
+                kfold_dir = kfold_dirs[0]
+            else:
+                kfold_dir = [x for x in kfold_dirs 
+                    if f'kfold{kfold_number}' in str(x)][0]
+
+            # List of epoch directories
+            epoch_dirs = sorted([
+                join(kfold_dir, x) for x in os.listdir(kfold_dir)
+                if isdir(join(kfold_dir, x))
+            ])
+            
+            # If epoch number not given
+            if epoch_number == None:
+                epoch_dir = epoch_dirs[0]
+            epoch_dir = [x for x in epoch_dirs 
+                if f'epoch{epoch_number}' in str(x)]
+
+            prediction_path = epoch_dir[0]
+
+            ens_folder_name = f"ensemble_{j+1}"
+            eval_dir = sf.util.get_new_model_dir(self.eval_dir, ens_folder_name)
+            self.eval_dir = eval_dir
+
+            self.predict(prediction_path, *args, **kwargs)
+
+            if j == 0: 
+                # Creating the root directory files    
+                _, from_path = sf.util.get_valid_model_dir(eval_dir)
+                to_path = main_eval_dir
+                
+                shutil.copyfile(f"{self.eval_dir}/{from_path[0]}/slide_manifest.csv", 
+                    f"{to_path}/slide_manifest.csv")
+                shutil.copyfile(f"{self.eval_dir}/{from_path[0]}/params.json", 
+                    f"{to_path}/params.json")
+
+                # Checking the stored file format
+                filenames = os.listdir(f"{self.eval_dir}/{from_path[0]}")
+                count_csv = len([ filename for filename in filenames 
+                    if filename.endswith(".csv") ])
+                count_parquet = len([ filename for filename in filenames 
+                    if filename.endswith(".parquet.gzip") ])
+                count_feather = len([ filename for filename in filenames 
+                    if filename.endswith(".feather") ])
+                
+                if count_csv > 1:
+                    file_type = "csv"
+                if count_parquet > 0 and count_feather == 0:
+                    file_type = "parquet"
+                if count_feather > 0 and count_parquet == 0:
+                    file_type = "feather"
+
+                # For slide_predicitons
+                if file_type == "csv":
+                    main_df_slide = pd.read_csv(
+                        f"{self.eval_dir}/{from_path[0]}/slide_predictions.csv")
+                    main_df_tile = pd.read_csv(
+                        f"{self.eval_dir}/{from_path[0]}/tile_predictions.csv")
+                    main_df_slide = main_df_slide.drop(columns=['Unnamed: 0'])
+                    main_df_tile = main_df_tile.drop(columns=['Unnamed: 0'])
+
+                elif file_type == "parquet":
+                    main_df_slide = pd.read_parquet(
+                        f"{self.eval_dir}/{from_path[0]}/slide_predictions.parquet.gzip")
+                    main_df_tile = pd.read_parquet(
+                        f"{self.eval_dir}/{from_path[0]}/tile_predictions.parquet.gzip")
+
+                elif file_type == "feather":
+                    main_df_slide = pd.read_feather(
+                        f"{self.eval_dir}/{from_path[0]}/slide_predictions.feather")
+                    main_df_tile = pd.read_feather(
+                        f"{self.eval_dir}/{from_path[0]}/tile_predictions.feather")
+
+                main_df_slide = main_df_slide.sort_values(by=["slide"])
+                header_list_slide = main_df_slide.columns.tolist()
+                new_ens_headers_slide = [s + f"_ens{j+1}" for s in header_list_slide]
+                header_change_dict_slide = dict(zip(header_list_slide, new_ens_headers_slide))
+                main_df_slide.rename(columns=header_change_dict_slide,inplace=True)
+
+                main_df_tile = main_df_tile.sort_values(by=["slide","loc_x", "loc_y"])
+                header_list_tile = main_df_tile.columns.tolist()
+                new_ens_headers_tile = [s + f"_ens{j+1}" for s in header_list_tile]
+                header_change_dict_tile = dict(zip(header_list_tile, new_ens_headers_tile))
+                main_df_tile.rename(columns=header_change_dict_tile,inplace=True)
+
+                if file_type == "csv":
+                    main_df_tile.to_csv(f"{main_eval_dir}/ensemble_tile_predictions.csv",
+                        index=False)
+                    main_df_slide.to_csv(f"{main_eval_dir}/ensemble_slide_predictions.csv", 
+                        index=False)
+
+                elif file_type == "parquet":
+                    main_df_tile.to_parquet(f"{main_eval_dir}/ensemble_tile_predictions.parquet.gzip",
+                        index=False, compression='gzip')
+                    main_df_slide.to_parquet(f"{main_eval_dir}/ensemble_slide_predictions.parquet.gzip", 
+                        index=False, compression='gzip')
+
+                elif file_type == "feather":
+                    main_df_tile.reset_index().to_feather(
+                        f"{main_eval_dir}/ensemble_tile_predictions.feather")
+                    main_df_slide.reset_index().to_feather(
+                        f"{main_eval_dir}/ensemble_slide_predictions.feather")
+                        
+            else:
+                # Merging each ensemble into the root prediction file
+                if file_type == "csv":
+                    main_df_slide = pd.read_csv(
+                        f"{main_eval_dir}/ensemble_slide_predictions.csv")
+                    to_merge_csv_slide = pd.read_csv(
+                        f"{self.eval_dir}/{from_path[0]}/slide_predictions.csv")
+                    main_df_tile = pd.read_csv(
+                        f"{main_eval_dir}/ensemble_tile_predictions.csv")
+                    to_merge_csv_tile = pd.read_csv(
+                        f"{self.eval_dir}/{from_path[0]}/tile_predictions.csv")
+                    to_merge_csv_slide = to_merge_csv_slide.drop(columns=['Unnamed: 0'])
+                    to_merge_csv_tile = to_merge_csv_tile.drop(columns=['Unnamed: 0'])
+                        
+                elif file_type == "parquet":
+                    main_df_slide = pd.read_parquet(
+                        f"{main_eval_dir}/ensemble_slide_predictions.parquet.gzip")
+                    to_merge_csv_slide = pd.read_parquet(
+                        f"{self.eval_dir}/{from_path[0]}/slide_predictions.parquet.gzip")
+                    main_df_tile = pd.read_parquet(
+                        f"{main_eval_dir}/ensemble_tile_predictions.parquet.gzip")
+                    to_merge_csv_tile = pd.read_parquet(
+                        f"{self.eval_dir}/{from_path[0]}/tile_predictions.parquet.gzip")
+                
+                elif file_type == "feather":
+                    main_df_slide = pd.read_feather(
+                        f"{main_eval_dir}/ensemble_slide_predictions.feather")
+                    to_merge_csv_slide = pd.read_feather(
+                        f"{self.eval_dir}/{from_path[0]}/slide_predictions.feather")
+                    main_df_tile = pd.read_feather(
+                        f"{main_eval_dir}/ensemble_tile_predictions.feather")
+                    to_merge_csv_tile = pd.read_feather(
+                        f"{self.eval_dir}/{from_path[0]}/tile_predictions.feather")
+
+                header_list_slide = to_merge_csv_slide.columns.tolist()
+                new_ens_headers_slide = [s + f"_ens{j+1}" for s in header_list_slide]
+                header_change_dict_slide = dict(zip(header_list_slide, new_ens_headers_slide))
+                to_merge_csv_slide.rename(columns=header_change_dict_slide,inplace=True)
+                main_df_slide = pd.merge(main_df_slide, to_merge_csv_slide,
+                    how="inner", left_on=["slide_ens1"], right_on=[f"slide_ens{j+1}"])
+                main_df_slide = main_df_slide.drop(columns=[f"slide_ens{j+1}"])
+                
+                header_list_tile = to_merge_csv_tile.columns.tolist()
+                new_ens_headers_tile = [s + f"_ens{j+1}" for s in header_list_tile]
+                header_change_dict_tile = dict(zip(header_list_tile, new_ens_headers_tile))
+                to_merge_csv_tile.rename(columns=header_change_dict_tile,inplace=True)
+                main_df_tile = pd.merge(main_df_tile, to_merge_csv_tile,
+                    how="inner", left_on=["slide_ens1","loc_x_ens1", "loc_y_ens1"],
+                    right_on=[f"slide_ens{j+1}", f"loc_x_ens{j+1}", f"loc_y_ens{j+1}"])
+                main_df_tile = main_df_tile.drop(columns=[f"slide_ens{j+1}", f"loc_x_ens{j+1}", f"loc_y_ens{j+1}"])
+
+                if file_type == "csv":
+                    main_df_slide.to_csv(f"{main_eval_dir}/ensemble_slide_predictions.csv", 
+                        index=False)
+                    main_df_tile.to_csv(f"{main_eval_dir}/ensemble_tile_predictions.csv", 
+                        index=False) 
+
+                elif file_type == "parquet":
+                    main_df_slide.to_parquet(f"{main_eval_dir}/ensemble_slide_predictions.parquet.gzip", 
+                        index=False, compression='gzip')
+                    main_df_tile.to_parquet(f"{main_eval_dir}/ensemble_tile_predictions.parquet.gzip", 
+                        index=False, compression='gzip') 
+
+                elif file_type == "feather":
+                    main_df_slide.to_feather(f"{main_eval_dir}/ensemble_slide_predictions.feather")
+                    main_df_tile.to_feather(f"{main_eval_dir}/ensemble_tile_predictions.feather")    
+
+            self.eval_dir = main_eval_dir
+
+        # Creating new ensemble columns and renamiming fixed columns
+        if file_type == "csv":
+            main_df_slide = pd.read_csv(
+                f"{main_eval_dir}/ensemble_slide_predictions.csv")
+            main_df_tile = pd.read_csv(
+                f"{main_eval_dir}/ensemble_tile_predictions.csv")
+
+        elif file_type == "parquet":
+            main_df_slide = pd.read_parquet(
+                f"{main_eval_dir}/ensemble_slide_predictions.parquet.gzip")
+            main_df_tile = pd.read_parquet(
+                f"{main_eval_dir}/ensemble_tile_predictions.parquet.gzip")
+
+        elif file_type == "feather":
+            main_df_slide = pd.read_feather(
+                f"{main_eval_dir}/ensemble_slide_predictions.feather")
+            main_df_tile = pd.read_feather(
+                f"{main_eval_dir}/ensemble_tile_predictions.feather")
+
+        slide_level_headers = main_df_slide.columns.tolist()
+        for i in header_list_slide:
+            if i == "slide":
+                main_df_slide = main_df_slide.rename(columns={"slide_ens1": i})
+            elif i != "Unnamed: 0":
+                group_columns = [col_name for col_name in slide_level_headers
+                    if i in col_name]
+                main_df_slide[i] = main_df_slide.loc[:, group_columns].mean(axis = 1)
+        
+        tile_level_headers = main_df_tile.columns.tolist()
+        for i in header_list_tile:
+            if i in ["slide", "loc_x", "loc_y"]:
+                main_df_tile = main_df_tile.rename(columns={f"{i}_ens1": i})
+            elif i != "Unnamed: 0":
+                group_columns = [col_name for col_name in tile_level_headers
+                    if i in col_name]
+                main_df_tile[i] = main_df_tile.loc[:, group_columns].mean(axis = 1)
+        
+        if file_type == "csv":
+            main_df_slide.to_csv(f"{main_eval_dir}/ensemble_slide_predictions.csv", 
+                        index=False)
+            main_df_tile.to_csv(f"{main_eval_dir}/ensemble_tile_predictions.csv", 
+                        index=False) 
+        
+        elif file_type == "parquet":
+            main_df_slide.to_parquet(f"{main_eval_dir}/ensemble_slide_predictions.parquet.gzip", 
+                        index=False, compression='gzip')
+            main_df_tile.to_parquet(f"{main_eval_dir}/ensemble_tile_predictions.parquet.gzip", 
+                        index=False, compression='gzip') 
+        
+        elif file_type == "feather":
+            main_df_slide.to_feather(f"{main_eval_dir}/ensemble_slide_predictions.feather")
+            main_df_tile.to_feather(f"{main_eval_dir}/ensemble_tile_predictions.feather") 
+        
+        self.eval_dir = innitial_eval_dir
+
+
     @auto_dataset
     def predict(
         self,
@@ -2466,6 +2748,7 @@ class Project:
             format=format,
             **kwargs
         )
+        print(results)
         return results
 
     @auto_dataset
@@ -2766,8 +3049,8 @@ class Project:
         outcomes: Union[str, List[str]],
         number_of_ensembles: int = 5, 
         *args, 
-        **kargs
-        ):
+        **kwargs
+        ) -> None:
         """
         Train an ensemble of model(s) using a given set of parameters, 
         outcomes, and inputs by calling the train function "number_of_ensembles"
@@ -2781,6 +3064,7 @@ class Project:
                 Defaults to 5.
 
         """
+        innitial_models_dir = self.models_dir #set it back
 
         if not isinstance(outcomes, list):
             outcome_name = [outcomes]
@@ -2791,25 +3075,30 @@ class Project:
 
         full_name = f"{outcome_name}-ensemble"
         main_model_dir = sf.util.get_new_model_dir(self.models_dir, full_name)
-        os.chdir(main_model_dir)
+        self.models_dir = main_model_dir
+        # os.chdir(main_model_dir)
 
         for i in range(number_of_ensembles):
             ens_folder_name = f"ensemble_{i+1}"
-            model_dir = sf.util.get_new_model_dir(os.getcwd(), ens_folder_name)
-            os.chdir(model_dir)
+            model_dir = sf.util.get_new_model_dir(self.models_dir, ens_folder_name)
+            self.models_dir = model_dir
+            # os.chdir(model_dir)
 
-            self.train(ensemble = True, outcomes=outcomes, *args, **kargs)
+            self.train(ensemble = False, outcomes=outcomes, *args, **kwargs)
 
             if i == 0:     
-                from_path = sf.util.get_next_model_dir(model_dir)
+                _, from_path = sf.util.get_valid_model_dir(model_dir)
                 to_path = main_model_dir
                 
-                shutil.copyfile(f"{from_path}/slide_manifest.csv", 
+                shutil.copyfile(f"{self.models_dir}/{from_path[0]}/slide_manifest.csv", 
                     f"{to_path}/slide_manifest.csv")
-                shutil.copyfile(f"{from_path}/params.json", 
+                shutil.copyfile(f"{self.models_dir}/{from_path[0]}/params.json", 
                     f"{to_path}/params.json")   
 
-            os.chdir(main_model_dir)
+            self.models_dir = main_model_dir
+            # os.chdir(main_model_dir)
+
+        self.models_dir = innitial_models_dir
 
         
     def train(
