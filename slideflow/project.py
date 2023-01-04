@@ -3044,6 +3044,222 @@ class Project:
         return best_config
 
 
+    def ensemble_train_predictions(
+        self,
+        main_model_dir: str, 
+        save_format: str,
+        ) -> None:
+        """
+        """
+        ensemble_dirs = sorted([
+            join(main_model_dir, x) for x in os.listdir(main_model_dir)
+            if isdir(join(main_model_dir, x))
+        ])
+
+        kfold_dirs = sorted([
+            x for x in os.listdir(ensemble_dirs[0])
+            if isdir(join(ensemble_dirs[0], x))
+        ])
+        
+        kfold_number_list = sorted([
+            int(re.findall(r'\d', x)[-1]) for x in kfold_dirs
+        ])
+
+        main_header_list_slide = []
+
+        if save_format == "parquet":
+            prediction_file_names = sorted([
+                x for x in os.listdir(join(ensemble_dirs[0], kfold_dirs[0]))
+                if x.startswith("slide_predictions_") 
+                or x.startswith("tile_predictions_")
+                or x.startswith("patient_predictions_")
+            ])
+
+            epoch_number_list = sorted([
+                int(re.findall(r'\d', x)[0]) for x in prediction_file_names
+                if x.startswith("slide_")
+            ])
+
+            for k in range(len(kfold_dirs)):
+                for e in range(len(epoch_number_list)):
+                    for i in range(len(ensemble_dirs)):
+                        slide_file_name = sorted([
+                            x for x in prediction_file_names
+                            if x.startswith("slide_predictions_") 
+                            and f"epoch{epoch_number_list[e]}." in x
+                        ])
+
+                        patient_file_name = sorted([
+                            x for x in prediction_file_names
+                            if x.startswith("patient_predictions_") 
+                            and f"epoch{epoch_number_list[e]}." in x
+                        ])
+
+                        tile_file_name = sorted([
+                            x for x in prediction_file_names
+                            if x.startswith("tile_predictions_") 
+                            and f"epoch{epoch_number_list[e]}." in x
+                        ])
+
+                        if i == 0:
+                            main_df_slide = pd.read_parquet(
+                                f"{ensemble_dirs[i]}/{kfold_dirs[k]}/{slide_file_name[0]}")
+
+                            main_df_patient = pd.read_parquet(
+                                f"{ensemble_dirs[i]}/{kfold_dirs[k]}/{patient_file_name[0]}")
+
+                            main_df_tile = pd.read_parquet(
+                                f"{ensemble_dirs[i]}/{kfold_dirs[k]}/{tile_file_name[0]}")
+
+                            main_df_slide = main_df_slide.sort_values(by=["slide"])
+                            main_header_list_slide = main_df_slide.columns.tolist()
+                            new_ens_headers_slide = [s + f"_ens{i+1}" for s in main_header_list_slide]
+                            header_change_dict_slide = dict(zip(main_header_list_slide, new_ens_headers_slide))
+                            main_df_slide.rename(columns=header_change_dict_slide,inplace=True)
+
+                            main_df_patient = main_df_patient.sort_values(by=["patient"])
+                            main_header_list_patient = main_df_patient.columns.tolist()
+                            new_ens_headers_patient = [s + f"_ens{i+1}" for s in main_header_list_patient]
+                            header_change_dict_patient = dict(zip(main_header_list_patient, new_ens_headers_patient))
+                            main_df_patient.rename(columns=header_change_dict_patient,inplace=True)
+
+                            main_df_tile = main_df_tile.sort_values(by=["slide", "loc_x", "loc_y"])
+                            main_header_list_tile = main_df_tile.columns.tolist()
+                            new_ens_headers_tile = [s + f"_ens{i+1}" for s in main_header_list_tile]
+                            header_change_dict_tile = dict(zip(main_header_list_tile, new_ens_headers_tile))
+                            main_df_tile.rename(columns=header_change_dict_tile,inplace=True)
+
+                            main_df_slide.to_parquet(
+                                f"{main_model_dir}/ensemble_slide_predictions_kfold{kfold_number_list[k]}_epoch{epoch_number_list[e]}.parquet.gzip", 
+                                index=False, compression='gzip')
+
+                            main_df_patient.to_parquet(
+                                f"{main_model_dir}/ensemble_patient_predictions_kfold{kfold_number_list[k]}_epoch{epoch_number_list[e]}.parquet.gzip", 
+                                index=False, compression='gzip')
+
+                            main_df_tile.to_parquet(
+                                f"{main_model_dir}/ensemble_tile_predictions_kfold{kfold_number_list[k]}_epoch{epoch_number_list[e]}.parquet.gzip", 
+                                index=False, compression='gzip')
+
+                            
+
+                        else:
+                            main_df_slide = pd.read_parquet(
+                                f"{main_model_dir}/ensemble_slide_predictions_kfold{kfold_number_list[k]}_epoch{epoch_number_list[e]}.parquet.gzip", 
+                            )
+                            to_merge_df_slide = pd.read_parquet(
+                                f"{ensemble_dirs[i]}/{kfold_dirs[k]}/{slide_file_name[0]}")
+
+                            main_df_patient = pd.read_parquet(
+                                f"{main_model_dir}/ensemble_patient_predictions_kfold{kfold_number_list[k]}_epoch{epoch_number_list[e]}.parquet.gzip", 
+                            )
+                            to_merge_df_patient = pd.read_parquet(
+                                f"{ensemble_dirs[i]}/{kfold_dirs[k]}/{patient_file_name[0]}")
+
+                            main_df_tile = pd.read_parquet(
+                                f"{main_model_dir}/ensemble_tile_predictions_kfold{kfold_number_list[k]}_epoch{epoch_number_list[e]}.parquet.gzip", 
+                            )
+                            to_merge_df_tile = pd.read_parquet(
+                                f"{ensemble_dirs[i]}/{kfold_dirs[k]}/{tile_file_name[0]}")
+                            
+                            main_header_list_slide = to_merge_df_slide.columns.tolist()
+                            new_ens_headers_slide = [s + f"_ens{i+1}" for s in main_header_list_slide]
+                            header_change_dict_slide = dict(zip(main_header_list_slide, new_ens_headers_slide))
+                            to_merge_df_slide.rename(columns=header_change_dict_slide,inplace=True)
+                            main_df_slide = pd.merge(main_df_slide, to_merge_df_slide,
+                                how="inner", left_on=["slide_ens1"], right_on=[f"slide_ens{i+1}"])
+                            main_df_slide = main_df_slide.drop(columns=[f"slide_ens{i+1}"])
+
+                            main_header_list_patient = to_merge_df_patient.columns.tolist()
+                            new_ens_headers_patient = [s + f"_ens{i+1}" for s in main_header_list_patient]
+                            header_change_dict_patient = dict(zip(main_header_list_patient, new_ens_headers_patient))
+                            to_merge_df_patient.rename(columns=header_change_dict_patient,inplace=True)
+                            main_df_patient = pd.merge(main_df_patient, to_merge_df_patient,
+                                how="inner", left_on=["patient_ens1"], right_on=[f"patient_ens{i+1}"])
+                            main_df_patient = main_df_patient.drop(columns=[f"patient_ens{i+1}"])
+
+                            main_header_list_tile = to_merge_df_tile.columns.tolist()
+                            new_ens_headers_tile = [s + f"_ens{i+1}" for s in main_header_list_tile]
+                            header_change_dict_tile = dict(zip(main_header_list_tile, new_ens_headers_tile))
+                            to_merge_df_tile.rename(columns=header_change_dict_tile,inplace=True)
+                            main_df_tile = pd.merge(main_df_tile, to_merge_df_tile,
+                                how="inner", left_on=["slide_ens1","loc_x_ens1", "loc_y_ens1"], 
+                                right_on=[f"slide_ens{i+1}", f"loc_x_ens{i+1}", f"loc_y_ens{i+1}"])
+                            main_df_tile = main_df_tile.drop(columns=[f"slide_ens{i+1}", f"patient_ens{i+1}", f"loc_x_ens{i+1}", f"loc_y_ens{i+1}"])
+
+                            main_df_slide.to_parquet(
+                                f"{main_model_dir}/ensemble_slide_predictions_kfold{kfold_number_list[k]}_epoch{epoch_number_list[e]}.parquet.gzip", 
+                                index=False, compression='gzip')
+
+                            main_df_patient.to_parquet(
+                                f"{main_model_dir}/ensemble_patient_predictions_kfold{kfold_number_list[k]}_epoch{epoch_number_list[e]}.parquet.gzip", 
+                                index=False, compression='gzip')
+
+                            main_df_tile.to_parquet(
+                                f"{main_model_dir}/ensemble_tile_predictions_kfold{kfold_number_list[k]}_epoch{epoch_number_list[e]}.parquet.gzip", 
+                                index=False, compression='gzip')
+
+                    # change header and ensemble results
+                    main_df_slide = pd.read_parquet(
+                            f"{main_model_dir}/ensemble_slide_predictions_kfold{kfold_number_list[k]}_epoch{epoch_number_list[e]}.parquet.gzip" 
+                        )
+
+                    slide_level_headers = main_df_slide.columns.tolist()
+                    for i in main_header_list_slide:
+                        if i == "slide":
+                            main_df_slide = main_df_slide.rename(columns={"slide_ens1": i})
+                        elif i != "Unnamed: 0":
+                            group_columns = [col_name for col_name in slide_level_headers
+                                if i in col_name]
+                            main_df_slide[i] = main_df_slide.loc[:, group_columns].mean(axis = 1)
+
+                    main_df_slide.to_parquet(
+                        f"{main_model_dir}/ensemble_slide_predictions_kfold{kfold_number_list[k]}_epoch{epoch_number_list[e]}.parquet.gzip",
+                        index=False, compression='gzip'
+                    )
+
+                    main_df_patient = pd.read_parquet(
+                            f"{main_model_dir}/ensemble_patient_predictions_kfold{kfold_number_list[k]}_epoch{epoch_number_list[e]}.parquet.gzip" 
+                        )
+
+                    patient_level_headers = main_df_patient.columns.tolist()
+                    for i in main_header_list_patient:
+                        if i == "patient":
+                            main_df_patient = main_df_patient.rename(columns={"patient_ens1": i})
+                        elif i != "Unnamed: 0":
+                            group_columns = [col_name for col_name in patient_level_headers
+                                if i in col_name]
+                            main_df_patient[i] = main_df_patient.loc[:, group_columns].mean(axis = 1)
+
+                    main_df_patient.to_parquet(
+                        f"{main_model_dir}/ensemble_patient_predictions_kfold{kfold_number_list[k]}_epoch{epoch_number_list[e]}.parquet.gzip",
+                        index=False, compression='gzip'
+                    )
+
+                    main_df_tile = pd.read_parquet(
+                            f"{main_model_dir}/ensemble_tile_predictions_kfold{kfold_number_list[k]}_epoch{epoch_number_list[e]}.parquet.gzip" 
+                        )
+
+                    tile_level_headers = main_df_tile.columns.tolist()
+                    for i in main_header_list_tile:
+                        if i in ["slide", "loc_x", "loc_y", "patient"]:
+                            main_df_tile = main_df_tile.rename(columns={f"{i}_ens1": i})
+                        elif i != "Unnamed: 0":
+                            group_columns = [col_name for col_name in tile_level_headers
+                                if i in col_name]
+                            main_df_tile[i] = main_df_tile.loc[:, group_columns].mean(axis = 1)
+                    patient_col = main_df_tile.pop("patient")
+                    main_df_tile.insert(0, "patient", patient_col)
+
+                    main_df_tile.to_parquet(
+                        f"{main_model_dir}/ensemble_tile_predictions_kfold{kfold_number_list[k]}_epoch{epoch_number_list[e]}.parquet.gzip",
+                        index=False, compression='gzip'
+                    )
+
+        if save_format == "csv":
+            print("csv")
+
+ 
     def train_ensemble(
         self, 
         outcomes: Union[str, List[str]],
@@ -3062,9 +3278,9 @@ class Project:
         Keyword Args:
             number_of_ensembles (int): Total models needed in the ensemble.
                 Defaults to 5.
-
         """
-        innitial_models_dir = self.models_dir #set it back
+
+        innitial_models_dir = self.models_dir
 
         if not isinstance(outcomes, list):
             outcome_name = [outcomes]
@@ -3076,13 +3292,11 @@ class Project:
         full_name = f"{outcome_name}-ensemble"
         main_model_dir = sf.util.get_new_model_dir(self.models_dir, full_name)
         self.models_dir = main_model_dir
-        # os.chdir(main_model_dir)
 
         for i in range(number_of_ensembles):
             ens_folder_name = f"ensemble_{i+1}"
             model_dir = sf.util.get_new_model_dir(self.models_dir, ens_folder_name)
             self.models_dir = model_dir
-            # os.chdir(model_dir)
 
             self.train(ensemble = False, outcomes=outcomes, *args, **kwargs)
 
@@ -3096,8 +3310,15 @@ class Project:
                     f"{to_path}/params.json")   
 
             self.models_dir = main_model_dir
-            # os.chdir(main_model_dir)
 
+        if "save_predictions" in kwargs.keys():
+            if kwargs["save_predictions"] == True:
+                self.ensemble_train_predictions(main_model_dir, 
+                    save_format = 'parquet')
+            else:
+                self.ensemble_train_predictions(main_model_dir, 
+                    save_format = kwargs["save_predictions"])
+        
         self.models_dir = innitial_models_dir
 
         

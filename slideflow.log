@@ -9109,3 +9109,2906 @@ Hint: If you want to see a list of allocated tensors when OOM happens, add repor
 2022-12-08 17:27:59 [INFO] - Using 941 training TFRecords, 0 validation
 2022-12-08 17:28:40 [INFO] - No validation performed.
 2022-12-08 17:28:40 [INFO] - Training complete; validation accuracies:
+2022-12-09 11:21:55 [INFO] - Training model [bold]cohort-HP0[/]...
+2022-12-09 11:21:55 [INFO] - Hyperparameters: {
+  "augment": "xyrjb",
+  "batch_size": 128,
+  "drop_images": false,
+  "dropout": 0.1,
+  "early_stop": true,
+  "early_stop_method": "accuracy",
+  "early_stop_patience": 0,
+  "epochs": [
+    1
+  ],
+  "hidden_layer_width": 1024,
+  "hidden_layers": 2,
+  "include_top": false,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0.98,
+  "learning_rate_decay_steps": 512,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": "reinhard_fast",
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "avg",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2022-12-09 11:21:55 [INFO] - Val settings: {
+  "strategy": "none",
+  "k_fold": 3,
+  "k": null,
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2022-12-09 11:21:55 [INFO] - Using 941 training TFRecords, 0 validation
+2022-12-09 11:22:38 [INFO] - No validation performed.
+2022-12-09 11:22:38 [INFO] - Training complete; validation accuracies:
+2022-12-09 12:09:16 [INFO] - Training model [bold]cohort-HP0[/]...
+2022-12-09 12:09:16 [INFO] - Hyperparameters: {
+  "augment": "xyrjb",
+  "batch_size": 128,
+  "drop_images": false,
+  "dropout": 0.1,
+  "early_stop": true,
+  "early_stop_method": "accuracy",
+  "early_stop_patience": 0,
+  "epochs": [
+    1
+  ],
+  "hidden_layer_width": 1024,
+  "hidden_layers": 2,
+  "include_top": false,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0.98,
+  "learning_rate_decay_steps": 512,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": "reinhard_fast",
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "avg",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2022-12-09 12:09:16 [INFO] - Val settings: {
+  "strategy": "none",
+  "k_fold": 3,
+  "k": null,
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2022-12-09 12:09:16 [INFO] - Using 941 training TFRecords, 0 validation
+2022-12-09 12:09:18 [INFO] - Using realtime reinhard_fast normalization
+2022-12-09 12:09:22 [INFO] - Using vectorized normalization
+2022-12-09 12:09:23 [INFO] - Beginning training
+2022-12-09 12:09:53 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00016-cohort-ensemble/00001-cohort-HP0/cohort-HP0_epoch1
+2022-12-09 12:09:56 [INFO] - No validation performed.
+2022-12-09 12:09:56 [INFO] - Training complete; validation accuracies:
+2022-12-09 12:12:12 [INFO] - Training model [bold]cohort-HP0[/]...
+2022-12-09 12:12:12 [INFO] - Hyperparameters: {
+  "augment": "xyrjb",
+  "batch_size": 128,
+  "drop_images": false,
+  "dropout": 0.1,
+  "early_stop": true,
+  "early_stop_method": "accuracy",
+  "early_stop_patience": 0,
+  "epochs": [
+    1
+  ],
+  "hidden_layer_width": 1024,
+  "hidden_layers": 2,
+  "include_top": false,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0.98,
+  "learning_rate_decay_steps": 512,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": "reinhard_fast",
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "avg",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2022-12-09 12:12:12 [INFO] - Val settings: {
+  "strategy": "none",
+  "k_fold": 3,
+  "k": null,
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2022-12-09 12:12:12 [INFO] - Using 941 training TFRecords, 0 validation
+2022-12-09 12:12:15 [INFO] - Using realtime reinhard_fast normalization
+2022-12-09 12:12:18 [INFO] - Using vectorized normalization
+2022-12-09 12:12:20 [INFO] - Beginning training
+2022-12-09 12:12:50 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00016-cohort-ensemble/00000-ensemble_1/00000-cohort-HP0/cohort-HP0_epoch1
+2022-12-09 12:12:53 [INFO] - No validation performed.
+2022-12-09 12:12:53 [INFO] - Training complete; validation accuracies:
+2022-12-09 12:13:36 [INFO] - Training model [bold]cohort-HP0[/]...
+2022-12-09 12:13:36 [INFO] - Hyperparameters: {
+  "augment": "xyrjb",
+  "batch_size": 128,
+  "drop_images": false,
+  "dropout": 0.1,
+  "early_stop": true,
+  "early_stop_method": "accuracy",
+  "early_stop_patience": 0,
+  "epochs": [
+    1
+  ],
+  "hidden_layer_width": 1024,
+  "hidden_layers": 2,
+  "include_top": false,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0.98,
+  "learning_rate_decay_steps": 512,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": "reinhard_fast",
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "avg",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2022-12-09 12:13:36 [INFO] - Val settings: {
+  "strategy": "none",
+  "k_fold": 3,
+  "k": null,
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2022-12-09 12:13:36 [INFO] - Using 941 training TFRecords, 0 validation
+2022-12-09 12:13:38 [INFO] - Using realtime reinhard_fast normalization
+2022-12-09 12:13:42 [INFO] - Using vectorized normalization
+2022-12-09 12:13:43 [INFO] - Beginning training
+2022-12-09 12:14:13 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00016-cohort-ensemble/00000-ensemble_1/00000-cohort-HP0/cohort-HP0_epoch1
+2022-12-09 12:14:16 [INFO] - No validation performed.
+2022-12-09 12:14:16 [INFO] - Training complete; validation accuracies:
+2022-12-09 12:17:09 [INFO] - Training model [bold]cohort-HP0[/]...
+2022-12-09 12:17:09 [INFO] - Hyperparameters: {
+  "augment": "xyrjb",
+  "batch_size": 128,
+  "drop_images": false,
+  "dropout": 0.1,
+  "early_stop": true,
+  "early_stop_method": "accuracy",
+  "early_stop_patience": 0,
+  "epochs": [
+    1
+  ],
+  "hidden_layer_width": 1024,
+  "hidden_layers": 2,
+  "include_top": false,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0.98,
+  "learning_rate_decay_steps": 512,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": "reinhard_fast",
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "avg",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2022-12-09 12:17:09 [INFO] - Val settings: {
+  "strategy": "none",
+  "k_fold": 3,
+  "k": null,
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2022-12-09 12:17:09 [INFO] - Using 941 training TFRecords, 0 validation
+2022-12-09 12:17:12 [INFO] - Using realtime reinhard_fast normalization
+2022-12-09 12:17:15 [INFO] - Using vectorized normalization
+2022-12-09 12:17:17 [INFO] - Beginning training
+2022-12-09 12:17:46 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00016-cohort-ensemble/00000-ensemble_1/00000-cohort-HP0/cohort-HP0_epoch1
+2022-12-09 12:17:49 [INFO] - No validation performed.
+2022-12-09 12:17:49 [INFO] - Training complete; validation accuracies:
+2022-12-09 12:26:16 [INFO] - Training model [bold]cohort-HP0[/]...
+2022-12-09 12:26:16 [INFO] - Hyperparameters: {
+  "augment": "xyrjb",
+  "batch_size": 128,
+  "drop_images": false,
+  "dropout": 0.1,
+  "early_stop": true,
+  "early_stop_method": "accuracy",
+  "early_stop_patience": 0,
+  "epochs": [
+    1
+  ],
+  "hidden_layer_width": 1024,
+  "hidden_layers": 2,
+  "include_top": false,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0.98,
+  "learning_rate_decay_steps": 512,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": "reinhard_fast",
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "avg",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2022-12-09 12:26:16 [INFO] - Val settings: {
+  "strategy": "none",
+  "k_fold": 3,
+  "k": null,
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2022-12-09 12:26:16 [INFO] - Using 941 training TFRecords, 0 validation
+2022-12-09 12:26:18 [INFO] - Using realtime reinhard_fast normalization
+2022-12-09 12:26:22 [INFO] - Using vectorized normalization
+2022-12-09 12:26:23 [INFO] - Beginning training
+2022-12-09 12:26:53 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00016-cohort-ensemble/00000-ensemble_1/00000-cohort-HP0/cohort-HP0_epoch1
+2022-12-09 12:26:57 [INFO] - No validation performed.
+2022-12-09 12:26:57 [INFO] - Training complete; validation accuracies:
+2022-12-09 12:30:41 [INFO] - Training model [bold]cohort-HP0[/]...
+2022-12-09 12:30:41 [INFO] - Hyperparameters: {
+  "augment": "xyrjb",
+  "batch_size": 128,
+  "drop_images": false,
+  "dropout": 0.1,
+  "early_stop": true,
+  "early_stop_method": "accuracy",
+  "early_stop_patience": 0,
+  "epochs": [
+    1
+  ],
+  "hidden_layer_width": 1024,
+  "hidden_layers": 2,
+  "include_top": false,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0.98,
+  "learning_rate_decay_steps": 512,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": "reinhard_fast",
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "avg",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2022-12-09 12:30:41 [INFO] - Val settings: {
+  "strategy": "none",
+  "k_fold": 3,
+  "k": null,
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2022-12-09 12:30:41 [INFO] - Using 941 training TFRecords, 0 validation
+2022-12-09 12:30:43 [INFO] - Using realtime reinhard_fast normalization
+2022-12-09 12:30:47 [INFO] - Using vectorized normalization
+2022-12-09 12:30:48 [INFO] - Beginning training
+2022-12-09 12:31:18 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00017-cohort-ensemble/00000-ensemble_1/00000-cohort-HP0/cohort-HP0_epoch1
+2022-12-09 12:31:22 [INFO] - No validation performed.
+2022-12-09 12:31:22 [INFO] - Training complete; validation accuracies:
+2022-12-09 12:33:24 [INFO] - Training model [bold]cohort-HP0[/]...
+2022-12-09 12:33:24 [INFO] - Hyperparameters: {
+  "augment": "xyrjb",
+  "batch_size": 128,
+  "drop_images": false,
+  "dropout": 0.1,
+  "early_stop": true,
+  "early_stop_method": "accuracy",
+  "early_stop_patience": 0,
+  "epochs": [
+    1
+  ],
+  "hidden_layer_width": 1024,
+  "hidden_layers": 2,
+  "include_top": false,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0.98,
+  "learning_rate_decay_steps": 512,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": "reinhard_fast",
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "avg",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2022-12-09 12:33:24 [INFO] - Val settings: {
+  "strategy": "none",
+  "k_fold": 3,
+  "k": null,
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2022-12-09 12:33:24 [INFO] - Using 941 training TFRecords, 0 validation
+2022-12-09 12:33:27 [INFO] - Using realtime reinhard_fast normalization
+2022-12-09 12:33:30 [INFO] - Using vectorized normalization
+2022-12-09 12:33:32 [INFO] - Beginning training
+2022-12-09 12:34:01 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00018-cohort-ensemble/00000-ensemble_1/00000-cohort-HP0/cohort-HP0_epoch1
+2022-12-09 12:34:04 [INFO] - No validation performed.
+2022-12-09 12:34:04 [INFO] - Training complete; validation accuracies:
+2022-12-09 13:04:07 [INFO] - Training model [bold]cohort-HP0[/]...
+2022-12-09 13:04:07 [INFO] - Hyperparameters: {
+  "augment": "xyrjb",
+  "batch_size": 128,
+  "drop_images": false,
+  "dropout": 0.1,
+  "early_stop": true,
+  "early_stop_method": "accuracy",
+  "early_stop_patience": 0,
+  "epochs": [
+    1
+  ],
+  "hidden_layer_width": 1024,
+  "hidden_layers": 2,
+  "include_top": false,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0.98,
+  "learning_rate_decay_steps": 512,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": "reinhard_fast",
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "avg",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2022-12-09 13:04:07 [INFO] - Val settings: {
+  "strategy": "none",
+  "k_fold": 3,
+  "k": null,
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2022-12-09 13:04:07 [INFO] - Using 941 training TFRecords, 0 validation
+2022-12-09 13:04:10 [INFO] - Using realtime reinhard_fast normalization
+2022-12-09 13:04:13 [INFO] - Using vectorized normalization
+2022-12-09 13:04:15 [INFO] - Beginning training
+2022-12-09 13:04:44 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00016-cohort-ensemble/00000-ensemble_1/00000-cohort-HP0/cohort-HP0_epoch1
+2022-12-09 13:04:47 [INFO] - No validation performed.
+2022-12-09 13:04:47 [INFO] - Training complete; validation accuracies:
+2022-12-09 13:04:47 [INFO] - Training model [bold]cohort-HP0[/]...
+2022-12-09 13:04:47 [INFO] - Hyperparameters: {
+  "augment": "xyrjb",
+  "batch_size": 128,
+  "drop_images": false,
+  "dropout": 0.1,
+  "early_stop": true,
+  "early_stop_method": "accuracy",
+  "early_stop_patience": 0,
+  "epochs": [
+    1
+  ],
+  "hidden_layer_width": 1024,
+  "hidden_layers": 2,
+  "include_top": false,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0.98,
+  "learning_rate_decay_steps": 512,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": "reinhard_fast",
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "avg",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2022-12-09 13:04:47 [INFO] - Val settings: {
+  "strategy": "none",
+  "k_fold": 3,
+  "k": null,
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2022-12-09 13:04:47 [INFO] - Using 941 training TFRecords, 0 validation
+2022-12-09 13:04:50 [INFO] - Using realtime reinhard_fast normalization
+2022-12-09 13:04:53 [INFO] - Using vectorized normalization
+2022-12-09 13:04:55 [INFO] - Beginning training
+2022-12-09 13:05:25 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00017-ensemble_2/00000-cohort-HP0/cohort-HP0_epoch1
+2022-12-09 13:05:28 [INFO] - No validation performed.
+2022-12-09 13:05:28 [INFO] - Training complete; validation accuracies:
+2022-12-09 13:05:28 [INFO] - Training model [bold]cohort-HP0[/]...
+2022-12-09 13:05:28 [INFO] - Hyperparameters: {
+  "augment": "xyrjb",
+  "batch_size": 128,
+  "drop_images": false,
+  "dropout": 0.1,
+  "early_stop": true,
+  "early_stop_method": "accuracy",
+  "early_stop_patience": 0,
+  "epochs": [
+    1
+  ],
+  "hidden_layer_width": 1024,
+  "hidden_layers": 2,
+  "include_top": false,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0.98,
+  "learning_rate_decay_steps": 512,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": "reinhard_fast",
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "avg",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2022-12-09 13:05:28 [INFO] - Val settings: {
+  "strategy": "none",
+  "k_fold": 3,
+  "k": null,
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2022-12-09 13:05:28 [INFO] - Using 941 training TFRecords, 0 validation
+2022-12-09 13:05:30 [INFO] - Using realtime reinhard_fast normalization
+2022-12-09 13:05:34 [INFO] - Using vectorized normalization
+2022-12-09 13:05:35 [INFO] - Beginning training
+2022-12-09 13:06:53 [INFO] - Training model [bold]cohort-HP0[/]...
+2022-12-09 13:06:53 [INFO] - Hyperparameters: {
+  "augment": "xyrjb",
+  "batch_size": 128,
+  "drop_images": false,
+  "dropout": 0.1,
+  "early_stop": true,
+  "early_stop_method": "accuracy",
+  "early_stop_patience": 0,
+  "epochs": [
+    1
+  ],
+  "hidden_layer_width": 1024,
+  "hidden_layers": 2,
+  "include_top": false,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0.98,
+  "learning_rate_decay_steps": 512,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": "reinhard_fast",
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "avg",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2022-12-09 13:06:53 [INFO] - Val settings: {
+  "strategy": "none",
+  "k_fold": 3,
+  "k": null,
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2022-12-09 13:06:53 [INFO] - Using 941 training TFRecords, 0 validation
+2022-12-09 13:06:56 [INFO] - Using realtime reinhard_fast normalization
+2022-12-09 13:06:59 [INFO] - Using vectorized normalization
+2022-12-09 13:07:01 [INFO] - Beginning training
+2022-12-09 13:07:31 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00016-cohort-ensemble/00000-ensemble_1/00000-cohort-HP0/cohort-HP0_epoch1
+2022-12-09 13:07:34 [INFO] - No validation performed.
+2022-12-09 13:07:34 [INFO] - Training complete; validation accuracies:
+2022-12-09 13:07:34 [INFO] - Training model [bold]cohort-HP0[/]...
+2022-12-09 13:07:34 [INFO] - Hyperparameters: {
+  "augment": "xyrjb",
+  "batch_size": 128,
+  "drop_images": false,
+  "dropout": 0.1,
+  "early_stop": true,
+  "early_stop_method": "accuracy",
+  "early_stop_patience": 0,
+  "epochs": [
+    1
+  ],
+  "hidden_layer_width": 1024,
+  "hidden_layers": 2,
+  "include_top": false,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0.98,
+  "learning_rate_decay_steps": 512,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": "reinhard_fast",
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "avg",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2022-12-09 13:07:34 [INFO] - Val settings: {
+  "strategy": "none",
+  "k_fold": 3,
+  "k": null,
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2022-12-09 13:07:34 [INFO] - Using 941 training TFRecords, 0 validation
+2022-12-09 13:07:37 [INFO] - Using realtime reinhard_fast normalization
+2022-12-09 13:07:40 [INFO] - Using vectorized normalization
+2022-12-09 13:07:42 [INFO] - Beginning training
+2022-12-09 13:08:11 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00016-cohort-ensemble/00001-ensemble_2/00000-cohort-HP0/cohort-HP0_epoch1
+2022-12-09 13:08:14 [INFO] - No validation performed.
+2022-12-09 13:08:14 [INFO] - Training complete; validation accuracies:
+2022-12-09 13:08:14 [INFO] - Training model [bold]cohort-HP0[/]...
+2022-12-09 13:08:14 [INFO] - Hyperparameters: {
+  "augment": "xyrjb",
+  "batch_size": 128,
+  "drop_images": false,
+  "dropout": 0.1,
+  "early_stop": true,
+  "early_stop_method": "accuracy",
+  "early_stop_patience": 0,
+  "epochs": [
+    1
+  ],
+  "hidden_layer_width": 1024,
+  "hidden_layers": 2,
+  "include_top": false,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0.98,
+  "learning_rate_decay_steps": 512,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": "reinhard_fast",
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "avg",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2022-12-09 13:08:14 [INFO] - Val settings: {
+  "strategy": "none",
+  "k_fold": 3,
+  "k": null,
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2022-12-09 13:08:14 [INFO] - Using 941 training TFRecords, 0 validation
+2022-12-09 13:08:17 [INFO] - Using realtime reinhard_fast normalization
+2022-12-09 13:08:20 [INFO] - Using vectorized normalization
+2022-12-09 13:08:22 [INFO] - Beginning training
+2022-12-09 13:08:48 [INFO] - Training model [bold]cohort-HP0[/]...
+2022-12-09 13:08:48 [INFO] - Hyperparameters: {
+  "augment": "xyrjb",
+  "batch_size": 128,
+  "drop_images": false,
+  "dropout": 0.1,
+  "early_stop": true,
+  "early_stop_method": "accuracy",
+  "early_stop_patience": 0,
+  "epochs": [
+    1
+  ],
+  "hidden_layer_width": 1024,
+  "hidden_layers": 2,
+  "include_top": false,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0.98,
+  "learning_rate_decay_steps": 512,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": "reinhard_fast",
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "avg",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2022-12-09 13:08:48 [INFO] - Val settings: {
+  "strategy": "none",
+  "k_fold": 3,
+  "k": null,
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2022-12-09 13:08:48 [INFO] - Using 941 training TFRecords, 0 validation
+2022-12-09 13:08:51 [INFO] - Using realtime reinhard_fast normalization
+2022-12-09 13:08:54 [INFO] - Using vectorized normalization
+2022-12-09 13:08:56 [INFO] - Beginning training
+2022-12-09 13:09:26 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00016-cohort-ensemble/00000-ensemble_1/00000-cohort-HP0/cohort-HP0_epoch1
+2022-12-09 13:09:28 [INFO] - No validation performed.
+2022-12-09 13:09:28 [INFO] - Training complete; validation accuracies:
+2022-12-09 13:10:20 [INFO] - Training model [bold]cohort-HP0[/]...
+2022-12-09 13:10:20 [INFO] - Hyperparameters: {
+  "augment": "xyrjb",
+  "batch_size": 128,
+  "drop_images": false,
+  "dropout": 0.1,
+  "early_stop": true,
+  "early_stop_method": "accuracy",
+  "early_stop_patience": 0,
+  "epochs": [
+    1
+  ],
+  "hidden_layer_width": 1024,
+  "hidden_layers": 2,
+  "include_top": false,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0.98,
+  "learning_rate_decay_steps": 512,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": "reinhard_fast",
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "avg",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2022-12-09 13:10:20 [INFO] - Val settings: {
+  "strategy": "none",
+  "k_fold": 3,
+  "k": null,
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2022-12-09 13:10:20 [INFO] - Using 941 training TFRecords, 0 validation
+2022-12-09 13:10:22 [INFO] - Using realtime reinhard_fast normalization
+2022-12-09 13:10:26 [INFO] - Using vectorized normalization
+2022-12-09 13:10:27 [INFO] - Beginning training
+2022-12-09 13:10:57 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00016-cohort-ensemble/00000-ensemble_1/00000-cohort-HP0/cohort-HP0_epoch1
+2022-12-09 13:11:00 [INFO] - No validation performed.
+2022-12-09 13:11:00 [INFO] - Training complete; validation accuracies:
+2022-12-09 13:11:00 [INFO] - Training model [bold]cohort-HP0[/]...
+2022-12-09 13:11:00 [INFO] - Hyperparameters: {
+  "augment": "xyrjb",
+  "batch_size": 128,
+  "drop_images": false,
+  "dropout": 0.1,
+  "early_stop": true,
+  "early_stop_method": "accuracy",
+  "early_stop_patience": 0,
+  "epochs": [
+    1
+  ],
+  "hidden_layer_width": 1024,
+  "hidden_layers": 2,
+  "include_top": false,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0.98,
+  "learning_rate_decay_steps": 512,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": "reinhard_fast",
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "avg",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2022-12-09 13:11:00 [INFO] - Val settings: {
+  "strategy": "none",
+  "k_fold": 3,
+  "k": null,
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2022-12-09 13:11:00 [INFO] - Using 941 training TFRecords, 0 validation
+2022-12-09 13:11:02 [INFO] - Using realtime reinhard_fast normalization
+2022-12-09 13:11:06 [INFO] - Using vectorized normalization
+2022-12-09 13:11:07 [INFO] - Beginning training
+2022-12-09 13:11:37 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00016-cohort-ensemble/00001-ensemble_2/00000-cohort-HP0/cohort-HP0_epoch1
+2022-12-09 13:11:40 [INFO] - No validation performed.
+2022-12-09 13:11:40 [INFO] - Training complete; validation accuracies:
+2022-12-09 13:11:40 [INFO] - Training model [bold]cohort-HP0[/]...
+2022-12-09 13:11:40 [INFO] - Hyperparameters: {
+  "augment": "xyrjb",
+  "batch_size": 128,
+  "drop_images": false,
+  "dropout": 0.1,
+  "early_stop": true,
+  "early_stop_method": "accuracy",
+  "early_stop_patience": 0,
+  "epochs": [
+    1
+  ],
+  "hidden_layer_width": 1024,
+  "hidden_layers": 2,
+  "include_top": false,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0.98,
+  "learning_rate_decay_steps": 512,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": "reinhard_fast",
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "avg",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2022-12-09 13:11:40 [INFO] - Val settings: {
+  "strategy": "none",
+  "k_fold": 3,
+  "k": null,
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2022-12-09 13:11:40 [INFO] - Using 941 training TFRecords, 0 validation
+2022-12-09 13:11:43 [INFO] - Using realtime reinhard_fast normalization
+2022-12-09 13:11:46 [INFO] - Using vectorized normalization
+2022-12-09 13:11:47 [INFO] - Beginning training
+2022-12-09 13:12:18 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00016-cohort-ensemble/00002-ensemble_3/00000-cohort-HP0/cohort-HP0_epoch1
+2022-12-09 13:12:20 [INFO] - No validation performed.
+2022-12-09 13:12:20 [INFO] - Training complete; validation accuracies:
+2022-12-09 13:12:20 [INFO] - Training model [bold]cohort-HP0[/]...
+2022-12-09 13:12:20 [INFO] - Hyperparameters: {
+  "augment": "xyrjb",
+  "batch_size": 128,
+  "drop_images": false,
+  "dropout": 0.1,
+  "early_stop": true,
+  "early_stop_method": "accuracy",
+  "early_stop_patience": 0,
+  "epochs": [
+    1
+  ],
+  "hidden_layer_width": 1024,
+  "hidden_layers": 2,
+  "include_top": false,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0.98,
+  "learning_rate_decay_steps": 512,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": "reinhard_fast",
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "avg",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2022-12-09 13:12:20 [INFO] - Val settings: {
+  "strategy": "none",
+  "k_fold": 3,
+  "k": null,
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2022-12-09 13:12:20 [INFO] - Using 941 training TFRecords, 0 validation
+2022-12-09 13:12:23 [INFO] - Using realtime reinhard_fast normalization
+2022-12-09 13:12:27 [INFO] - Using vectorized normalization
+2022-12-09 13:12:28 [INFO] - Beginning training
+2022-12-09 13:12:58 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00016-cohort-ensemble/00003-ensemble_4/00000-cohort-HP0/cohort-HP0_epoch1
+2022-12-09 13:13:01 [INFO] - No validation performed.
+2022-12-09 13:13:01 [INFO] - Training complete; validation accuracies:
+2022-12-09 13:13:01 [INFO] - Training model [bold]cohort-HP0[/]...
+2022-12-09 13:13:01 [INFO] - Hyperparameters: {
+  "augment": "xyrjb",
+  "batch_size": 128,
+  "drop_images": false,
+  "dropout": 0.1,
+  "early_stop": true,
+  "early_stop_method": "accuracy",
+  "early_stop_patience": 0,
+  "epochs": [
+    1
+  ],
+  "hidden_layer_width": 1024,
+  "hidden_layers": 2,
+  "include_top": false,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0.98,
+  "learning_rate_decay_steps": 512,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": "reinhard_fast",
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "avg",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2022-12-09 13:13:01 [INFO] - Val settings: {
+  "strategy": "none",
+  "k_fold": 3,
+  "k": null,
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2022-12-09 13:13:01 [INFO] - Using 941 training TFRecords, 0 validation
+2022-12-09 13:13:04 [INFO] - Using realtime reinhard_fast normalization
+2022-12-09 13:13:07 [INFO] - Using vectorized normalization
+2022-12-09 13:13:09 [INFO] - Beginning training
+2022-12-09 13:13:38 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00016-cohort-ensemble/00004-ensemble_5/00000-cohort-HP0/cohort-HP0_epoch1
+2022-12-09 13:13:42 [INFO] - No validation performed.
+2022-12-09 13:13:42 [INFO] - Training complete; validation accuracies:
+2022-12-10 14:05:35 [INFO] - Training model [bold]cohort-HP0[/] (k-fold #3)...
+2022-12-10 14:05:35 [INFO] - Hyperparameters: {
+  "augment": "xyrjb",
+  "batch_size": 128,
+  "drop_images": false,
+  "dropout": 0.1,
+  "early_stop": true,
+  "early_stop_method": "accuracy",
+  "early_stop_patience": 0,
+  "epochs": [
+    1
+  ],
+  "hidden_layer_width": 1024,
+  "hidden_layers": 2,
+  "include_top": false,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0.98,
+  "learning_rate_decay_steps": 512,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": "reinhard_fast",
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "avg",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2022-12-10 14:05:35 [INFO] - Val settings: {
+  "strategy": "k-fold",
+  "k_fold": 3,
+  "k": [
+    3
+  ],
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2022-12-10 14:05:35 [INFO] - Using k-fold validation split detected at [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/splits.json[/] (ID: 1)
+2022-12-10 14:05:35 [INFO] - Using 628 training TFRecords, 313 validation
+2022-12-10 14:05:38 [INFO] - Using realtime reinhard_fast normalization
+2022-12-10 14:05:40 [INFO] - Using vectorized normalization
+2022-12-10 14:05:43 [INFO] - Using vectorized normalization
+2022-12-10 14:05:43 [INFO] - Beginning training
+2022-12-10 14:06:12 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00017-cohort-ensemble/00000-ensemble_1/00000-cohort-HP0-kfold3/cohort-HP0-kfold3_epoch1
+2022-12-10 14:14:55 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2022-12-10 14:14:55 [INFO] - tile-level AUC (cat # 0): 0.505 tile-level AP: 0.496 (opt. threshold: 0.467)
+2022-12-10 14:14:55 [INFO] - tile-level AUC (cat # 1): 0.505 tile-level AP: 0.510 (opt. threshold: 0.533)
+2022-12-10 14:14:55 [INFO] - Category 0 acc: 0.0% (0/196253)
+2022-12-10 14:14:55 [INFO] - Category 1 acc: 100.0% (202595/202595)
+2022-12-10 14:14:55 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2022-12-10 14:14:55 [INFO] - slide-level AUC (cat # 0): 0.520 slide-level AP: 0.555 (opt. threshold: 0.467)
+2022-12-10 14:14:55 [INFO] - slide-level AUC (cat # 1): 0.521 slide-level AP: 0.519 (opt. threshold: 0.533)
+2022-12-10 14:14:55 [INFO] - Category 0 acc: 0.0% (0/155)
+2022-12-10 14:14:55 [INFO] - Category 1 acc: 100.0% (158/158)
+2022-12-10 14:14:55 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2022-12-10 14:14:55 [INFO] - patient-level AUC (cat # 0): 0.520 patient-level AP: 0.555 (opt. threshold: 0.467)
+2022-12-10 14:14:55 [INFO] - patient-level AUC (cat # 1): 0.521 patient-level AP: 0.519 (opt. threshold: 0.533)
+2022-12-10 14:14:55 [INFO] - Category 0 acc: 0.0% (0/155)
+2022-12-10 14:14:55 [INFO] - Category 1 acc: 100.0% (158/158)
+2022-12-10 14:14:55 [INFO] - Validation metrics: {
+    "accuracy": 0.5079503971437741,
+    "loss": 0.6942389371956733
+}
+2022-12-10 14:14:58 [INFO] - Training results saved: [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/results_log.csv
+2022-12-10 14:14:58 [INFO] - Training complete; validation accuracies:
+2022-12-10 14:14:58 [INFO] - Training model [bold]cohort-HP0[/] (k-fold #3)...
+2022-12-10 14:14:58 [INFO] - Hyperparameters: {
+  "augment": "xyrjb",
+  "batch_size": 128,
+  "drop_images": false,
+  "dropout": 0.1,
+  "early_stop": true,
+  "early_stop_method": "accuracy",
+  "early_stop_patience": 0,
+  "epochs": [
+    1
+  ],
+  "hidden_layer_width": 1024,
+  "hidden_layers": 2,
+  "include_top": false,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0.98,
+  "learning_rate_decay_steps": 512,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": "reinhard_fast",
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "avg",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2022-12-10 14:14:58 [INFO] - Val settings: {
+  "strategy": "k-fold",
+  "k_fold": 3,
+  "k": [
+    3
+  ],
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2022-12-10 14:14:58 [INFO] - Using k-fold validation split detected at [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/splits.json[/] (ID: 1)
+2022-12-10 14:14:59 [INFO] - Using 628 training TFRecords, 313 validation
+2022-12-10 14:15:01 [INFO] - Using realtime reinhard_fast normalization
+2022-12-10 14:15:04 [INFO] - Using vectorized normalization
+2022-12-10 14:15:06 [INFO] - Using vectorized normalization
+2022-12-10 14:15:06 [INFO] - Beginning training
+2022-12-10 14:15:35 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00017-cohort-ensemble/00001-ensemble_2/00000-cohort-HP0-kfold3/cohort-HP0-kfold3_epoch1
+2022-12-10 14:24:19 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2022-12-10 14:24:19 [INFO] - tile-level AUC (cat # 0): 0.486 tile-level AP: 0.482 (opt. threshold: 0.493)
+2022-12-10 14:24:19 [INFO] - tile-level AUC (cat # 1): 0.486 tile-level AP: 0.498 (opt. threshold: 0.507)
+2022-12-10 14:24:19 [INFO] - Category 0 acc: 0.0% (0/196253)
+2022-12-10 14:24:19 [INFO] - Category 1 acc: 100.0% (202595/202595)
+2022-12-10 14:24:19 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2022-12-10 14:24:19 [INFO] - slide-level AUC (cat # 0): 0.433 slide-level AP: 0.475 (opt. threshold: 0.493)
+2022-12-10 14:24:19 [INFO] - slide-level AUC (cat # 1): 0.433 slide-level AP: 0.445 (opt. threshold: 0.507)
+2022-12-10 14:24:19 [INFO] - Category 0 acc: 0.0% (0/155)
+2022-12-10 14:24:19 [INFO] - Category 1 acc: 100.0% (158/158)
+2022-12-10 14:24:19 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2022-12-10 14:24:19 [INFO] - patient-level AUC (cat # 0): 0.433 patient-level AP: 0.475 (opt. threshold: 0.493)
+2022-12-10 14:24:19 [INFO] - patient-level AUC (cat # 1): 0.433 patient-level AP: 0.445 (opt. threshold: 0.507)
+2022-12-10 14:24:19 [INFO] - Category 0 acc: 0.0% (0/155)
+2022-12-10 14:24:19 [INFO] - Category 1 acc: 100.0% (158/158)
+2022-12-10 14:24:19 [INFO] - Validation metrics: {
+    "accuracy": 0.5079503971437741,
+    "loss": 0.6930244405860312
+}
+2022-12-10 14:24:22 [INFO] - Training results saved: [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/results_log.csv
+2022-12-10 14:24:22 [INFO] - Training complete; validation accuracies:
+2022-12-10 14:24:22 [INFO] - Training model [bold]cohort-HP0[/] (k-fold #3)...
+2022-12-10 14:24:22 [INFO] - Hyperparameters: {
+  "augment": "xyrjb",
+  "batch_size": 128,
+  "drop_images": false,
+  "dropout": 0.1,
+  "early_stop": true,
+  "early_stop_method": "accuracy",
+  "early_stop_patience": 0,
+  "epochs": [
+    1
+  ],
+  "hidden_layer_width": 1024,
+  "hidden_layers": 2,
+  "include_top": false,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0.98,
+  "learning_rate_decay_steps": 512,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": "reinhard_fast",
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "avg",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2022-12-10 14:24:22 [INFO] - Val settings: {
+  "strategy": "k-fold",
+  "k_fold": 3,
+  "k": [
+    3
+  ],
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2022-12-10 14:24:22 [INFO] - Using k-fold validation split detected at [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/splits.json[/] (ID: 1)
+2022-12-10 14:24:23 [INFO] - Using 628 training TFRecords, 313 validation
+2022-12-10 14:25:14 [INFO] - Training model [bold]cohort-HP0[/]...
+2022-12-10 14:25:14 [INFO] - Hyperparameters: {
+  "augment": "xyrjb",
+  "batch_size": 128,
+  "drop_images": false,
+  "dropout": 0.1,
+  "early_stop": true,
+  "early_stop_method": "accuracy",
+  "early_stop_patience": 0,
+  "epochs": [
+    1,
+    3
+  ],
+  "hidden_layer_width": 1024,
+  "hidden_layers": 2,
+  "include_top": false,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0.98,
+  "learning_rate_decay_steps": 512,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": "reinhard_fast",
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "avg",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2022-12-10 14:25:14 [INFO] - Val settings: {
+  "strategy": "none",
+  "k_fold": 3,
+  "k": null,
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2022-12-10 14:25:14 [INFO] - Using 941 training TFRecords, 0 validation
+2022-12-10 14:25:16 [INFO] - Using realtime reinhard_fast normalization
+2022-12-10 14:25:20 [INFO] - Using vectorized normalization
+2022-12-10 14:25:21 [INFO] - Beginning training
+2022-12-10 14:25:51 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00018-cohort-ensemble/00000-ensemble_1/00000-cohort-HP0/cohort-HP0_epoch1
+2022-12-10 14:26:14 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00018-cohort-ensemble/00000-ensemble_1/00000-cohort-HP0/cohort-HP0_epoch3
+2022-12-10 14:26:17 [INFO] - No validation performed.
+2022-12-10 14:26:17 [INFO] - Training complete; validation accuracies:
+2022-12-10 14:26:17 [INFO] - Training model [bold]cohort-HP0[/]...
+2022-12-10 14:26:17 [INFO] - Hyperparameters: {
+  "augment": "xyrjb",
+  "batch_size": 128,
+  "drop_images": false,
+  "dropout": 0.1,
+  "early_stop": true,
+  "early_stop_method": "accuracy",
+  "early_stop_patience": 0,
+  "epochs": [
+    1,
+    3
+  ],
+  "hidden_layer_width": 1024,
+  "hidden_layers": 2,
+  "include_top": false,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0.98,
+  "learning_rate_decay_steps": 512,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": "reinhard_fast",
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "avg",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2022-12-10 14:26:17 [INFO] - Val settings: {
+  "strategy": "none",
+  "k_fold": 3,
+  "k": null,
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2022-12-10 14:26:17 [INFO] - Using 941 training TFRecords, 0 validation
+2022-12-10 14:26:20 [INFO] - Using realtime reinhard_fast normalization
+2022-12-10 14:26:23 [INFO] - Using vectorized normalization
+2022-12-10 14:26:24 [INFO] - Beginning training
+2022-12-10 14:26:55 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00018-cohort-ensemble/00001-ensemble_2/00000-cohort-HP0/cohort-HP0_epoch1
+2022-12-10 14:27:18 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00018-cohort-ensemble/00001-ensemble_2/00000-cohort-HP0/cohort-HP0_epoch3
+2022-12-10 14:27:21 [INFO] - No validation performed.
+2022-12-10 14:27:21 [INFO] - Training complete; validation accuracies:
+2022-12-10 14:27:21 [INFO] - Training model [bold]cohort-HP0[/]...
+2022-12-10 14:27:21 [INFO] - Hyperparameters: {
+  "augment": "xyrjb",
+  "batch_size": 128,
+  "drop_images": false,
+  "dropout": 0.1,
+  "early_stop": true,
+  "early_stop_method": "accuracy",
+  "early_stop_patience": 0,
+  "epochs": [
+    1,
+    3
+  ],
+  "hidden_layer_width": 1024,
+  "hidden_layers": 2,
+  "include_top": false,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0.98,
+  "learning_rate_decay_steps": 512,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": "reinhard_fast",
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "avg",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2022-12-10 14:27:21 [INFO] - Val settings: {
+  "strategy": "none",
+  "k_fold": 3,
+  "k": null,
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2022-12-10 14:27:21 [INFO] - Using 941 training TFRecords, 0 validation
+2022-12-10 14:27:24 [INFO] - Using realtime reinhard_fast normalization
+2022-12-10 14:27:27 [INFO] - Using vectorized normalization
+2022-12-10 14:27:29 [INFO] - Beginning training
+2022-12-10 14:28:00 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00018-cohort-ensemble/00002-ensemble_3/00000-cohort-HP0/cohort-HP0_epoch1
+2022-12-10 14:28:24 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00018-cohort-ensemble/00002-ensemble_3/00000-cohort-HP0/cohort-HP0_epoch3
+2022-12-10 14:28:27 [INFO] - No validation performed.
+2022-12-10 14:28:27 [INFO] - Training complete; validation accuracies:
+2022-12-10 14:28:27 [INFO] - Training model [bold]cohort-HP0[/]...
+2022-12-10 14:28:27 [INFO] - Hyperparameters: {
+  "augment": "xyrjb",
+  "batch_size": 128,
+  "drop_images": false,
+  "dropout": 0.1,
+  "early_stop": true,
+  "early_stop_method": "accuracy",
+  "early_stop_patience": 0,
+  "epochs": [
+    1,
+    3
+  ],
+  "hidden_layer_width": 1024,
+  "hidden_layers": 2,
+  "include_top": false,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0.98,
+  "learning_rate_decay_steps": 512,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": "reinhard_fast",
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "avg",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2022-12-10 14:28:27 [INFO] - Val settings: {
+  "strategy": "none",
+  "k_fold": 3,
+  "k": null,
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2022-12-10 14:28:27 [INFO] - Using 941 training TFRecords, 0 validation
+2022-12-10 14:28:30 [INFO] - Using realtime reinhard_fast normalization
+2022-12-10 14:28:33 [INFO] - Using vectorized normalization
+2022-12-10 14:28:35 [INFO] - Beginning training
+2022-12-10 14:29:15 [INFO] - Training model [bold]cohort-HP0[/]...
+2022-12-10 14:29:15 [INFO] - Hyperparameters: {
+  "augment": "xyrjb",
+  "batch_size": 128,
+  "drop_images": false,
+  "dropout": 0.1,
+  "early_stop": true,
+  "early_stop_method": "accuracy",
+  "early_stop_patience": 0,
+  "epochs": [
+    1,
+    3
+  ],
+  "hidden_layer_width": 1024,
+  "hidden_layers": 2,
+  "include_top": false,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0.98,
+  "learning_rate_decay_steps": 512,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": "reinhard_fast",
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "avg",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2022-12-10 14:29:15 [INFO] - Val settings: {
+  "strategy": "none",
+  "k_fold": 3,
+  "k": null,
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2022-12-10 14:29:16 [INFO] - Using 941 training TFRecords, 0 validation
+2022-12-10 14:29:20 [INFO] - Training model [bold]cohort-HP0[/]...
+2022-12-10 14:29:20 [INFO] - Hyperparameters: {
+  "augment": "xyrjb",
+  "batch_size": 128,
+  "drop_images": false,
+  "dropout": 0.1,
+  "early_stop": true,
+  "early_stop_method": "accuracy",
+  "early_stop_patience": 0,
+  "epochs": [
+    1,
+    3
+  ],
+  "hidden_layer_width": 1024,
+  "hidden_layers": 2,
+  "include_top": false,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0.98,
+  "learning_rate_decay_steps": 512,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": "reinhard_fast",
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "avg",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2022-12-10 14:29:20 [INFO] - Val settings: {
+  "strategy": "none",
+  "k_fold": 3,
+  "k": null,
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2022-12-10 14:29:20 [INFO] - Using 941 training TFRecords, 0 validation
+2022-12-10 14:29:22 [INFO] - Using realtime reinhard_fast normalization
+2022-12-10 14:29:26 [INFO] - Using vectorized normalization
+2022-12-10 14:29:27 [INFO] - Beginning training
+2022-12-10 14:29:58 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00021-cohort-ensemble/00000-ensemble_1/00000-cohort-HP0/cohort-HP0_epoch1
+2022-12-10 14:30:22 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00021-cohort-ensemble/00000-ensemble_1/00000-cohort-HP0/cohort-HP0_epoch3
+2022-12-10 14:30:25 [INFO] - No validation performed.
+2022-12-10 14:30:25 [INFO] - Training complete; validation accuracies:
+2022-12-10 14:30:25 [INFO] - Training model [bold]cohort-HP0[/]...
+2022-12-10 14:30:25 [INFO] - Hyperparameters: {
+  "augment": "xyrjb",
+  "batch_size": 128,
+  "drop_images": false,
+  "dropout": 0.1,
+  "early_stop": true,
+  "early_stop_method": "accuracy",
+  "early_stop_patience": 0,
+  "epochs": [
+    1,
+    3
+  ],
+  "hidden_layer_width": 1024,
+  "hidden_layers": 2,
+  "include_top": false,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0.98,
+  "learning_rate_decay_steps": 512,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": "reinhard_fast",
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "avg",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2022-12-10 14:30:25 [INFO] - Val settings: {
+  "strategy": "none",
+  "k_fold": 3,
+  "k": null,
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2022-12-10 14:30:25 [INFO] - Using 941 training TFRecords, 0 validation
+2022-12-12 15:15:48 [INFO] - Predicting model results
+2022-12-12 15:15:48 [INFO] - Using realtime reinhard_fast normalization
+2022-12-12 15:15:55 [INFO] - Using vectorized normalization
+2022-12-12 15:15:56 [INFO] - Generating predictions...
+2022-12-12 16:58:58 [INFO] - Predicting model results
+2022-12-12 16:58:58 [INFO] - Using realtime reinhard_fast normalization
+2022-12-12 16:59:05 [INFO] - Using vectorized normalization
+2022-12-12 16:59:06 [INFO] - Generating predictions...
+2022-12-12 17:52:04 [INFO] - Predicting model results
+2022-12-12 17:52:05 [INFO] - Using realtime reinhard_fast normalization
+2022-12-12 17:52:12 [INFO] - Using vectorized normalization
+2022-12-12 17:52:12 [INFO] - Generating predictions...
+2022-12-12 17:54:53 [INFO] - Predicting model results
+2022-12-12 17:54:53 [INFO] - Using realtime reinhard_fast normalization
+2022-12-12 17:55:00 [INFO] - Using vectorized normalization
+2022-12-12 17:55:01 [INFO] - Generating predictions...
+2022-12-12 17:55:48 [INFO] - Predicting model results
+2022-12-12 17:55:48 [INFO] - Using realtime reinhard_fast normalization
+2022-12-12 17:55:55 [INFO] - Using vectorized normalization
+2022-12-12 17:55:56 [INFO] - Generating predictions...
+2022-12-12 18:00:07 [INFO] - Predicting model results
+2022-12-12 18:00:08 [INFO] - Using realtime reinhard_fast normalization
+2022-12-12 18:00:15 [INFO] - Using vectorized normalization
+2022-12-12 18:00:16 [INFO] - Generating predictions...
+2022-12-12 18:01:42 [INFO] - Predicting model results
+2022-12-12 18:01:43 [INFO] - Using realtime reinhard_fast normalization
+2022-12-12 18:02:45 [INFO] - Predicting model results
+2022-12-12 18:02:46 [INFO] - Using realtime reinhard_fast normalization
+2022-12-13 01:39:03 [INFO] - Predicting model results
+2022-12-13 01:39:03 [INFO] - Using realtime reinhard_fast normalization
+2022-12-13 01:39:10 [INFO] - Using vectorized normalization
+2022-12-13 01:39:11 [INFO] - Generating predictions...
+2022-12-13 02:03:35 [INFO] - Predicting model results
+2022-12-13 02:03:35 [INFO] - Using realtime reinhard_fast normalization
+2022-12-13 02:03:42 [INFO] - Using vectorized normalization
+2022-12-13 02:03:42 [INFO] - Generating predictions...
+2022-12-13 02:25:52 [INFO] - Predicting model results
+2022-12-13 02:25:52 [INFO] - Using realtime reinhard_fast normalization
+2022-12-13 02:25:59 [INFO] - Using vectorized normalization
+2022-12-13 02:25:59 [INFO] - Generating predictions...
+2022-12-13 02:49:11 [INFO] - Predicting model results
+2022-12-13 02:49:11 [INFO] - Using realtime reinhard_fast normalization
+2022-12-13 02:49:18 [INFO] - Using vectorized normalization
+2022-12-13 02:49:18 [INFO] - Generating predictions...
+2022-12-13 03:13:42 [INFO] - Predicting model results
+2022-12-13 03:13:42 [INFO] - Using realtime reinhard_fast normalization
+2022-12-13 03:13:49 [INFO] - Using vectorized normalization
+2022-12-13 03:13:49 [INFO] - Generating predictions...
+2022-12-13 16:17:14 [INFO] - Predicting model results
+2022-12-13 16:17:14 [INFO] - Using realtime reinhard_fast normalization
+2022-12-13 16:17:21 [INFO] - Using vectorized normalization
+2022-12-13 16:17:22 [INFO] - Generating predictions...
+2022-12-13 16:39:27 [INFO] - Predicting model results
+2022-12-13 16:39:27 [INFO] - Using realtime reinhard_fast normalization
+2022-12-13 16:39:34 [INFO] - Using vectorized normalization
+2022-12-13 16:39:34 [INFO] - Generating predictions...
+2022-12-13 16:46:51 [INFO] - Predicting model results
+2022-12-13 16:46:52 [INFO] - Using realtime reinhard_fast normalization
+2022-12-13 16:46:59 [INFO] - Using vectorized normalization
+2022-12-13 16:46:59 [INFO] - Generating predictions...
+2022-12-13 17:11:19 [INFO] - Predicting model results
+2022-12-13 17:11:19 [INFO] - Using realtime reinhard_fast normalization
+2022-12-13 17:11:26 [INFO] - Using vectorized normalization
+2022-12-13 17:11:26 [INFO] - Generating predictions...
+2022-12-13 17:35:52 [INFO] - Predicting model results
+2022-12-13 17:35:52 [INFO] - Using realtime reinhard_fast normalization
+2022-12-13 17:35:59 [INFO] - Using vectorized normalization
+2022-12-13 17:35:59 [INFO] - Generating predictions...
+2022-12-13 18:00:15 [INFO] - Predicting model results
+2022-12-13 18:00:15 [INFO] - Using realtime reinhard_fast normalization
+2022-12-13 18:00:23 [INFO] - Using vectorized normalization
+2022-12-13 18:00:23 [INFO] - Generating predictions...
+2022-12-13 18:28:59 [INFO] - Predicting model results
+2022-12-13 18:28:59 [INFO] - Using realtime reinhard_fast normalization
+2022-12-13 18:29:06 [INFO] - Using vectorized normalization
+2022-12-13 18:29:06 [INFO] - Generating predictions...
+2022-12-13 21:28:55 [INFO] - Predicting model results
+2022-12-13 21:28:56 [INFO] - Using realtime reinhard_fast normalization
+2022-12-13 21:29:03 [INFO] - Using vectorized normalization
+2022-12-13 21:29:04 [INFO] - Generating predictions...
+2022-12-13 21:53:21 [INFO] - Predicting model results
+2022-12-13 21:53:21 [INFO] - Using realtime reinhard_fast normalization
+2022-12-13 21:53:28 [INFO] - Using vectorized normalization
+2022-12-13 21:53:28 [INFO] - Generating predictions...
+2022-12-13 22:17:20 [INFO] - Predicting model results
+2022-12-13 22:17:20 [INFO] - Using realtime reinhard_fast normalization
+2022-12-13 22:17:28 [INFO] - Using vectorized normalization
+2022-12-13 22:17:28 [INFO] - Generating predictions...
+2022-12-13 22:41:59 [INFO] - Predicting model results
+2022-12-13 22:41:59 [INFO] - Using realtime reinhard_fast normalization
+2022-12-13 22:42:06 [INFO] - Using vectorized normalization
+2022-12-13 22:42:06 [INFO] - Generating predictions...
+2022-12-13 23:05:58 [INFO] - Predicting model results
+2022-12-13 23:05:58 [INFO] - Using realtime reinhard_fast normalization
+2022-12-13 23:06:05 [INFO] - Using vectorized normalization
+2022-12-13 23:06:05 [INFO] - Generating predictions...
+2022-12-14 03:05:56 [INFO] - Predicting model results
+2022-12-14 03:05:57 [INFO] - Using realtime reinhard_fast normalization
+2022-12-14 03:06:05 [INFO] - Using vectorized normalization
+2022-12-14 03:06:05 [INFO] - Generating predictions...
+2022-12-14 03:07:45 [INFO] - Predicting model results
+2022-12-14 03:07:45 [INFO] - Using realtime reinhard_fast normalization
+2022-12-14 03:07:52 [INFO] - Using vectorized normalization
+2022-12-14 03:07:53 [INFO] - Generating predictions...
+2022-12-14 03:32:51 [INFO] - Predicting model results
+2022-12-14 03:32:52 [INFO] - Using realtime reinhard_fast normalization
+2022-12-14 03:32:59 [INFO] - Using vectorized normalization
+2022-12-14 03:33:00 [INFO] - Generating predictions...
+2022-12-14 03:57:24 [INFO] - Predicting model results
+2022-12-14 03:57:24 [INFO] - Using realtime reinhard_fast normalization
+2022-12-14 03:57:31 [INFO] - Using vectorized normalization
+2022-12-14 03:57:31 [INFO] - Generating predictions...
+2022-12-14 04:24:55 [INFO] - Predicting model results
+2022-12-14 04:24:55 [INFO] - Using realtime reinhard_fast normalization
+2022-12-14 04:25:02 [INFO] - Using vectorized normalization
+2022-12-14 04:25:03 [INFO] - Generating predictions...
+2022-12-14 04:49:27 [INFO] - Predicting model results
+2022-12-14 04:49:27 [INFO] - Using realtime reinhard_fast normalization
+2022-12-14 04:49:34 [INFO] - Using vectorized normalization
+2022-12-14 04:49:34 [INFO] - Generating predictions...
+2022-12-14 05:13:59 [INFO] - Predicting model results
+2022-12-14 05:13:59 [INFO] - Using realtime reinhard_fast normalization
+2022-12-14 05:14:06 [INFO] - Using vectorized normalization
+2022-12-14 05:14:06 [INFO] - Generating predictions...
+2022-12-14 05:38:30 [INFO] - Predicting model results
+2022-12-14 05:38:30 [INFO] - Using realtime reinhard_fast normalization
+2022-12-14 05:38:38 [INFO] - Using vectorized normalization
+2022-12-14 05:38:38 [INFO] - Generating predictions...
+2022-12-14 06:02:41 [INFO] - Predicting model results
+2022-12-14 06:02:41 [INFO] - Using realtime reinhard_fast normalization
+2022-12-14 06:02:48 [INFO] - Using vectorized normalization
+2022-12-14 06:02:48 [INFO] - Generating predictions...
+2022-12-14 09:14:14 [INFO] - Predicting model results
+2022-12-14 09:14:15 [INFO] - Using realtime reinhard_fast normalization
+2022-12-14 09:14:22 [INFO] - Using vectorized normalization
+2022-12-14 09:14:23 [INFO] - Generating predictions...
+2022-12-14 09:20:45 [INFO] - Predicting model results
+2022-12-14 09:20:45 [INFO] - Using realtime reinhard_fast normalization
+2022-12-14 09:20:52 [INFO] - Using vectorized normalization
+2022-12-14 09:20:53 [INFO] - Generating predictions...
+2022-12-14 09:45:59 [INFO] - Predicting model results
+2022-12-14 09:45:59 [INFO] - Using realtime reinhard_fast normalization
+2022-12-14 09:46:06 [INFO] - Using vectorized normalization
+2022-12-14 09:46:06 [INFO] - Generating predictions...
+2022-12-14 10:10:59 [INFO] - Predicting model results
+2022-12-14 10:10:59 [INFO] - Using realtime reinhard_fast normalization
+2022-12-14 10:11:06 [INFO] - Using vectorized normalization
+2022-12-14 10:11:07 [INFO] - Generating predictions...
+2022-12-14 10:29:52 [INFO] - Predicting model results
+2022-12-14 10:29:53 [INFO] - Using realtime reinhard_fast normalization
+2022-12-14 10:30:01 [INFO] - Using vectorized normalization
+2022-12-14 10:30:01 [INFO] - Generating predictions...
+2022-12-14 10:54:00 [INFO] - Predicting model results
+2022-12-14 10:54:00 [INFO] - Using realtime reinhard_fast normalization
+2022-12-14 10:54:07 [INFO] - Using vectorized normalization
+2022-12-14 10:54:07 [INFO] - Generating predictions...
+2022-12-14 11:18:04 [INFO] - Predicting model results
+2022-12-14 11:18:04 [INFO] - Using realtime reinhard_fast normalization
+2022-12-14 11:18:11 [INFO] - Using vectorized normalization
+2022-12-14 11:18:11 [INFO] - Generating predictions...
+2022-12-14 11:42:10 [INFO] - Predicting model results
+2022-12-14 11:42:10 [INFO] - Using realtime reinhard_fast normalization
+2022-12-14 11:42:18 [INFO] - Using vectorized normalization
+2022-12-14 11:42:18 [INFO] - Generating predictions...
+2022-12-14 12:06:57 [INFO] - Predicting model results
+2022-12-14 12:06:57 [INFO] - Using realtime reinhard_fast normalization
+2022-12-14 12:07:04 [INFO] - Using vectorized normalization
+2022-12-14 12:07:04 [INFO] - Generating predictions...
+2022-12-15 18:04:03 [INFO] - Predicting model results
+2022-12-15 18:04:04 [INFO] - Using realtime reinhard_fast normalization
+2022-12-15 18:04:11 [INFO] - Using vectorized normalization
+2022-12-15 18:04:12 [INFO] - Generating predictions...
+2022-12-15 18:28:02 [INFO] - Predicting model results
+2022-12-15 18:28:02 [INFO] - Using realtime reinhard_fast normalization
+2022-12-15 18:28:09 [INFO] - Using vectorized normalization
+2022-12-15 18:28:09 [INFO] - Generating predictions...
+2022-12-15 18:40:45 [INFO] - Predicting model results
+2022-12-15 18:40:46 [INFO] - Using realtime reinhard_fast normalization
+2022-12-15 18:40:53 [INFO] - Using vectorized normalization
+2022-12-15 18:40:54 [INFO] - Generating predictions...
+2022-12-15 19:04:21 [INFO] - Predicting model results
+2022-12-15 19:04:21 [INFO] - Using realtime reinhard_fast normalization
+2022-12-15 19:04:28 [INFO] - Using vectorized normalization
+2022-12-15 19:04:28 [INFO] - Generating predictions...
+2022-12-15 19:44:33 [INFO] - Predicting model results
+2022-12-15 19:44:33 [INFO] - Using realtime reinhard_fast normalization
+2022-12-15 19:44:40 [INFO] - Using vectorized normalization
+2022-12-15 19:44:40 [INFO] - Generating predictions...
+2022-12-15 20:08:12 [INFO] - Predicting model results
+2022-12-15 20:08:12 [INFO] - Using realtime reinhard_fast normalization
+2022-12-15 20:08:19 [INFO] - Using vectorized normalization
+2022-12-15 20:08:19 [INFO] - Generating predictions...
+2022-12-15 20:31:56 [INFO] - Predicting model results
+2022-12-15 20:31:56 [INFO] - Using realtime reinhard_fast normalization
+2022-12-15 20:32:03 [INFO] - Using vectorized normalization
+2022-12-15 20:32:03 [INFO] - Generating predictions...
+2022-12-16 15:57:12 [INFO] - Predicting model results
+2022-12-16 15:57:13 [INFO] - Using realtime reinhard_fast normalization
+2022-12-16 15:57:20 [INFO] - Using vectorized normalization
+2022-12-16 15:57:21 [INFO] - Generating predictions...
+2022-12-16 16:20:47 [INFO] - Predicting model results
+2022-12-16 16:20:47 [INFO] - Using realtime reinhard_fast normalization
+2022-12-16 16:20:54 [INFO] - Using vectorized normalization
+2022-12-16 16:20:54 [INFO] - Generating predictions...
+2022-12-16 22:25:42 [INFO] - Predicting model results
+2022-12-16 22:25:43 [INFO] - Using realtime reinhard_fast normalization
+2022-12-16 22:25:50 [INFO] - Using vectorized normalization
+2022-12-16 22:25:51 [INFO] - Generating predictions...
+2022-12-17 07:45:19 [INFO] - Predicting model results
+2022-12-17 07:45:20 [INFO] - Using realtime reinhard_fast normalization
+2022-12-17 07:45:27 [INFO] - Using vectorized normalization
+2022-12-17 07:45:28 [INFO] - Generating predictions...
+2022-12-17 08:13:51 [INFO] - Predicting model results
+2022-12-17 08:13:51 [INFO] - Using realtime reinhard_fast normalization
+2022-12-17 08:13:58 [INFO] - Using vectorized normalization
+2022-12-17 08:13:58 [INFO] - Generating predictions...
+2022-12-17 08:37:25 [INFO] - Predicting model results
+2022-12-17 08:37:25 [INFO] - Using realtime reinhard_fast normalization
+2022-12-17 08:37:33 [INFO] - Using vectorized normalization
+2022-12-17 08:37:33 [INFO] - Generating predictions...
+2022-12-17 09:01:30 [INFO] - Predicting model results
+2022-12-17 09:01:30 [INFO] - Using realtime reinhard_fast normalization
+2022-12-17 09:01:37 [INFO] - Using vectorized normalization
+2022-12-17 09:01:37 [INFO] - Generating predictions...
+2022-12-17 09:25:14 [INFO] - Predicting model results
+2022-12-17 09:25:14 [INFO] - Using realtime reinhard_fast normalization
+2022-12-17 09:25:21 [INFO] - Using vectorized normalization
+2022-12-17 09:25:21 [INFO] - Generating predictions...
+2022-12-17 12:10:47 [INFO] - Predicting model results
+2022-12-17 12:10:48 [INFO] - Using realtime reinhard_fast normalization
+2022-12-17 12:10:55 [INFO] - Using vectorized normalization
+2022-12-17 12:10:56 [INFO] - Generating predictions...
+2022-12-17 12:34:24 [INFO] - Predicting model results
+2022-12-17 12:34:24 [INFO] - Using realtime reinhard_fast normalization
+2022-12-17 12:34:30 [INFO] - Using vectorized normalization
+2022-12-17 12:34:31 [INFO] - Generating predictions...
+2022-12-17 14:34:58 [INFO] - Predicting model results
+2022-12-17 14:34:58 [INFO] - Using realtime reinhard_fast normalization
+2022-12-17 14:35:05 [INFO] - Using vectorized normalization
+2022-12-17 14:35:05 [INFO] - Generating predictions...
+2022-12-17 14:58:34 [INFO] - Predicting model results
+2022-12-17 14:58:34 [INFO] - Using realtime reinhard_fast normalization
+2022-12-17 14:58:41 [INFO] - Using vectorized normalization
+2022-12-17 14:58:41 [INFO] - Generating predictions...
+2022-12-17 15:52:39 [INFO] - Predicting model results
+2022-12-17 15:52:39 [INFO] - Using realtime reinhard_fast normalization
+2022-12-17 15:52:46 [INFO] - Using vectorized normalization
+2022-12-17 15:52:46 [INFO] - Generating predictions...
+2022-12-17 20:37:19 [INFO] - Training model [bold]cohort-HP0[/]...
+2022-12-17 20:37:19 [INFO] - Hyperparameters: {
+  "augment": "xyrjb",
+  "batch_size": 128,
+  "drop_images": false,
+  "dropout": 0.1,
+  "early_stop": true,
+  "early_stop_method": "accuracy",
+  "early_stop_patience": 0,
+  "epochs": [
+    1,
+    3
+  ],
+  "hidden_layer_width": 1024,
+  "hidden_layers": 2,
+  "include_top": false,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0.98,
+  "learning_rate_decay_steps": 512,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": "reinhard_fast",
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "avg",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2022-12-17 20:37:19 [INFO] - Val settings: {
+  "strategy": "none",
+  "k_fold": 3,
+  "k": null,
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2022-12-17 20:37:19 [INFO] - Using 941 training TFRecords, 0 validation
+2022-12-17 20:37:22 [INFO] - Using realtime reinhard_fast normalization
+2022-12-17 20:37:25 [INFO] - Using vectorized normalization
+2022-12-17 20:37:27 [INFO] - Beginning training
+2022-12-17 20:37:58 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00019-cohort-ensemble/00000-ensemble_1/00000-cohort-HP0/cohort-HP0_epoch1
+2022-12-17 20:38:21 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00019-cohort-ensemble/00000-ensemble_1/00000-cohort-HP0/cohort-HP0_epoch3
+2022-12-17 20:38:24 [INFO] - No validation performed.
+2022-12-17 20:38:24 [INFO] - Training complete; validation accuracies:
+2022-12-17 20:38:24 [INFO] - Training model [bold]cohort-HP0[/]...
+2022-12-17 20:38:24 [INFO] - Hyperparameters: {
+  "augment": "xyrjb",
+  "batch_size": 128,
+  "drop_images": false,
+  "dropout": 0.1,
+  "early_stop": true,
+  "early_stop_method": "accuracy",
+  "early_stop_patience": 0,
+  "epochs": [
+    1,
+    3
+  ],
+  "hidden_layer_width": 1024,
+  "hidden_layers": 2,
+  "include_top": false,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0.98,
+  "learning_rate_decay_steps": 512,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": "reinhard_fast",
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "avg",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2022-12-17 20:38:24 [INFO] - Val settings: {
+  "strategy": "none",
+  "k_fold": 3,
+  "k": null,
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2022-12-17 20:38:24 [INFO] - Using 941 training TFRecords, 0 validation
+2022-12-17 20:38:27 [INFO] - Using realtime reinhard_fast normalization
+2022-12-17 20:38:31 [INFO] - Using vectorized normalization
+2022-12-17 20:38:32 [INFO] - Beginning training
+2022-12-17 20:39:03 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00019-cohort-ensemble/00001-ensemble_2/00000-cohort-HP0/cohort-HP0_epoch1
+2022-12-17 20:39:25 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00019-cohort-ensemble/00001-ensemble_2/00000-cohort-HP0/cohort-HP0_epoch3
+2022-12-17 20:39:28 [INFO] - No validation performed.
+2022-12-17 20:39:28 [INFO] - Training complete; validation accuracies:
+2022-12-17 20:39:28 [INFO] - Training model [bold]cohort-HP0[/]...
+2022-12-17 20:39:28 [INFO] - Hyperparameters: {
+  "augment": "xyrjb",
+  "batch_size": 128,
+  "drop_images": false,
+  "dropout": 0.1,
+  "early_stop": true,
+  "early_stop_method": "accuracy",
+  "early_stop_patience": 0,
+  "epochs": [
+    1,
+    3
+  ],
+  "hidden_layer_width": 1024,
+  "hidden_layers": 2,
+  "include_top": false,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0.98,
+  "learning_rate_decay_steps": 512,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": "reinhard_fast",
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "avg",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2022-12-17 20:39:28 [INFO] - Val settings: {
+  "strategy": "none",
+  "k_fold": 3,
+  "k": null,
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2022-12-17 20:39:28 [INFO] - Using 941 training TFRecords, 0 validation
+2022-12-17 20:39:31 [INFO] - Using realtime reinhard_fast normalization
+2022-12-17 20:39:35 [INFO] - Using vectorized normalization
+2022-12-17 20:39:36 [INFO] - Beginning training
+2022-12-17 20:40:06 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00019-cohort-ensemble/00002-ensemble_3/00000-cohort-HP0/cohort-HP0_epoch1
+2022-12-17 20:40:29 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00019-cohort-ensemble/00002-ensemble_3/00000-cohort-HP0/cohort-HP0_epoch3
+2022-12-17 20:40:32 [INFO] - No validation performed.
+2022-12-17 20:40:32 [INFO] - Training complete; validation accuracies:
+2022-12-17 20:40:32 [INFO] - Training model [bold]cohort-HP0[/]...
+2022-12-17 20:40:32 [INFO] - Hyperparameters: {
+  "augment": "xyrjb",
+  "batch_size": 128,
+  "drop_images": false,
+  "dropout": 0.1,
+  "early_stop": true,
+  "early_stop_method": "accuracy",
+  "early_stop_patience": 0,
+  "epochs": [
+    1,
+    3
+  ],
+  "hidden_layer_width": 1024,
+  "hidden_layers": 2,
+  "include_top": false,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0.98,
+  "learning_rate_decay_steps": 512,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": "reinhard_fast",
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "avg",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2022-12-17 20:40:32 [INFO] - Val settings: {
+  "strategy": "none",
+  "k_fold": 3,
+  "k": null,
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2022-12-17 20:40:32 [INFO] - Using 941 training TFRecords, 0 validation
+2022-12-17 20:40:34 [INFO] - Using realtime reinhard_fast normalization
+2022-12-17 20:40:38 [INFO] - Using vectorized normalization
+2022-12-17 20:40:40 [INFO] - Beginning training
+2022-12-17 20:41:10 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00019-cohort-ensemble/00003-ensemble_4/00000-cohort-HP0/cohort-HP0_epoch1
+2022-12-17 20:41:32 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00019-cohort-ensemble/00003-ensemble_4/00000-cohort-HP0/cohort-HP0_epoch3
+2022-12-17 20:41:35 [INFO] - No validation performed.
+2022-12-17 20:41:35 [INFO] - Training complete; validation accuracies:
+2022-12-17 20:41:35 [INFO] - Training model [bold]cohort-HP0[/]...
+2022-12-17 20:41:35 [INFO] - Hyperparameters: {
+  "augment": "xyrjb",
+  "batch_size": 128,
+  "drop_images": false,
+  "dropout": 0.1,
+  "early_stop": true,
+  "early_stop_method": "accuracy",
+  "early_stop_patience": 0,
+  "epochs": [
+    1,
+    3
+  ],
+  "hidden_layer_width": 1024,
+  "hidden_layers": 2,
+  "include_top": false,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0.98,
+  "learning_rate_decay_steps": 512,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": "reinhard_fast",
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "avg",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2022-12-17 20:41:35 [INFO] - Val settings: {
+  "strategy": "none",
+  "k_fold": 3,
+  "k": null,
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2022-12-17 20:41:35 [INFO] - Using 941 training TFRecords, 0 validation
+2022-12-17 20:41:38 [INFO] - Using realtime reinhard_fast normalization
+2022-12-17 20:41:42 [INFO] - Using vectorized normalization
+2022-12-17 20:41:43 [INFO] - Beginning training
+2022-12-17 20:42:14 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00019-cohort-ensemble/00004-ensemble_5/00000-cohort-HP0/cohort-HP0_epoch1
+2022-12-17 20:42:36 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00019-cohort-ensemble/00004-ensemble_5/00000-cohort-HP0/cohort-HP0_epoch3
+2022-12-17 20:42:39 [INFO] - No validation performed.
+2022-12-17 20:42:39 [INFO] - Training complete; validation accuracies:
+2022-12-17 21:11:48 [INFO] - Training model [bold]cohort-HP0[/] (k-fold #3)...
+2022-12-17 21:11:48 [INFO] - Hyperparameters: {
+  "augment": "xyrjb",
+  "batch_size": 128,
+  "drop_images": false,
+  "dropout": 0.1,
+  "early_stop": true,
+  "early_stop_method": "accuracy",
+  "early_stop_patience": 0,
+  "epochs": [
+    1,
+    3
+  ],
+  "hidden_layer_width": 1024,
+  "hidden_layers": 2,
+  "include_top": false,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0.98,
+  "learning_rate_decay_steps": 512,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": "reinhard_fast",
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "avg",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2022-12-17 21:11:48 [INFO] - Val settings: {
+  "strategy": "k-fold",
+  "k_fold": 3,
+  "k": [
+    3
+  ],
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2022-12-17 21:11:48 [INFO] - Using k-fold validation split detected at [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/splits.json[/] (ID: 1)
+2022-12-17 21:11:48 [INFO] - Using 628 training TFRecords, 313 validation
+2022-12-17 21:11:51 [INFO] - Using realtime reinhard_fast normalization
+2022-12-17 21:11:54 [INFO] - Using vectorized normalization
+2022-12-17 21:11:56 [INFO] - Using vectorized normalization
+2022-12-17 21:11:56 [INFO] - Beginning training
+2022-12-17 21:12:25 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00020-cohort-ensemble/00000-ensemble_1/00000-cohort-HP0-kfold3/cohort-HP0-kfold3_epoch1
+2022-12-17 21:20:50 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2022-12-17 21:20:50 [INFO] - tile-level AUC (cat # 0): 0.504 tile-level AP: 0.494 (opt. threshold: 0.528)
+2022-12-17 21:20:50 [INFO] - tile-level AUC (cat # 1): 0.504 tile-level AP: 0.510 (opt. threshold: 0.472)
+2022-12-17 21:20:50 [INFO] - Category 0 acc: 100.0% (196253/196253)
+2022-12-17 21:20:50 [INFO] - Category 1 acc: 0.0% (0/202595)
+2022-12-17 21:20:50 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2022-12-17 21:20:50 [INFO] - slide-level AUC (cat # 0): 0.610 slide-level AP: 0.601 (opt. threshold: 0.528)
+2022-12-17 21:20:50 [INFO] - slide-level AUC (cat # 1): 0.613 slide-level AP: 0.606 (opt. threshold: 0.472)
+2022-12-17 21:20:50 [INFO] - Category 0 acc: 100.0% (155/155)
+2022-12-17 21:20:50 [INFO] - Category 1 acc: 0.0% (0/158)
+2022-12-17 21:20:50 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2022-12-17 21:20:51 [INFO] - patient-level AUC (cat # 0): 0.610 patient-level AP: 0.601 (opt. threshold: 0.528)
+2022-12-17 21:20:51 [INFO] - patient-level AUC (cat # 1): 0.613 patient-level AP: 0.606 (opt. threshold: 0.472)
+2022-12-17 21:20:51 [INFO] - Category 0 acc: 100.0% (155/155)
+2022-12-17 21:20:51 [INFO] - Category 1 acc: 0.0% (0/158)
+2022-12-17 21:20:51 [INFO] - Validation metrics: {
+    "accuracy": 0.49204960285622595,
+    "loss": 0.6956034969916239
+}
+2022-12-17 21:21:13 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00020-cohort-ensemble/00000-ensemble_1/00000-cohort-HP0-kfold3/cohort-HP0-kfold3_epoch3
+2022-12-17 21:29:40 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2022-12-17 21:29:40 [INFO] - tile-level AUC (cat # 0): 0.499 tile-level AP: 0.492 (opt. threshold: 0.583)
+2022-12-17 21:29:40 [INFO] - tile-level AUC (cat # 1): 0.499 tile-level AP: 0.507 (opt. threshold: 0.417)
+2022-12-17 21:29:40 [INFO] - Category 0 acc: 100.0% (196253/196253)
+2022-12-17 21:29:40 [INFO] - Category 1 acc: 0.0% (0/202595)
+2022-12-17 21:29:40 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2022-12-17 21:29:40 [INFO] - slide-level AUC (cat # 0): 0.461 slide-level AP: 0.476 (opt. threshold: 0.583)
+2022-12-17 21:29:40 [INFO] - slide-level AUC (cat # 1): 0.460 slide-level AP: 0.485 (opt. threshold: 0.417)
+2022-12-17 21:29:40 [INFO] - Category 0 acc: 100.0% (155/155)
+2022-12-17 21:29:40 [INFO] - Category 1 acc: 0.0% (0/158)
+2022-12-17 21:29:40 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2022-12-17 21:29:40 [INFO] - patient-level AUC (cat # 0): 0.461 patient-level AP: 0.476 (opt. threshold: 0.583)
+2022-12-17 21:29:40 [INFO] - patient-level AUC (cat # 1): 0.460 patient-level AP: 0.485 (opt. threshold: 0.417)
+2022-12-17 21:29:40 [INFO] - Category 0 acc: 100.0% (155/155)
+2022-12-17 21:29:40 [INFO] - Category 1 acc: 0.0% (0/158)
+2022-12-17 21:29:40 [INFO] - Validation metrics: {
+    "accuracy": 0.49204960285622595,
+    "loss": 0.7097172571659393
+}
+2022-12-17 21:29:43 [INFO] - Training results saved: [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/results_log.csv
+2022-12-17 21:29:43 [INFO] - Training complete; validation accuracies:
+2022-12-17 21:29:44 [INFO] - Training model [bold]cohort-HP0[/] (k-fold #3)...
+2022-12-17 21:29:44 [INFO] - Hyperparameters: {
+  "augment": "xyrjb",
+  "batch_size": 128,
+  "drop_images": false,
+  "dropout": 0.1,
+  "early_stop": true,
+  "early_stop_method": "accuracy",
+  "early_stop_patience": 0,
+  "epochs": [
+    1,
+    3
+  ],
+  "hidden_layer_width": 1024,
+  "hidden_layers": 2,
+  "include_top": false,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0.98,
+  "learning_rate_decay_steps": 512,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": "reinhard_fast",
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "avg",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2022-12-17 21:29:44 [INFO] - Val settings: {
+  "strategy": "k-fold",
+  "k_fold": 3,
+  "k": [
+    3
+  ],
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2022-12-17 21:29:44 [INFO] - Using k-fold validation split detected at [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/splits.json[/] (ID: 1)
+2022-12-17 21:29:44 [INFO] - Using 628 training TFRecords, 313 validation
+2022-12-17 21:29:46 [INFO] - Using realtime reinhard_fast normalization
+2022-12-17 21:29:49 [INFO] - Using vectorized normalization
+2022-12-17 21:29:51 [INFO] - Using vectorized normalization
+2022-12-17 21:29:51 [INFO] - Beginning training
+2022-12-17 21:30:21 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00020-cohort-ensemble/00001-ensemble_2/00000-cohort-HP0-kfold3/cohort-HP0-kfold3_epoch1
+2022-12-17 21:38:47 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2022-12-17 21:38:47 [INFO] - tile-level AUC (cat # 0): 0.499 tile-level AP: 0.492 (opt. threshold: 0.517)
+2022-12-17 21:38:47 [INFO] - tile-level AUC (cat # 1): 0.499 tile-level AP: 0.508 (opt. threshold: 0.483)
+2022-12-17 21:38:47 [INFO] - Category 0 acc: 100.0% (196253/196253)
+2022-12-17 21:38:47 [INFO] - Category 1 acc: 0.0% (0/202595)
+2022-12-17 21:38:47 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2022-12-17 21:38:47 [INFO] - slide-level AUC (cat # 0): 0.482 slide-level AP: 0.482 (opt. threshold: 0.517)
+2022-12-17 21:38:47 [INFO] - slide-level AUC (cat # 1): 0.481 slide-level AP: 0.493 (opt. threshold: 0.483)
+2022-12-17 21:38:47 [INFO] - Category 0 acc: 100.0% (155/155)
+2022-12-17 21:38:47 [INFO] - Category 1 acc: 0.0% (0/158)
+2022-12-17 21:38:47 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2022-12-17 21:38:47 [INFO] - patient-level AUC (cat # 0): 0.482 patient-level AP: 0.482 (opt. threshold: 0.517)
+2022-12-17 21:38:47 [INFO] - patient-level AUC (cat # 1): 0.481 patient-level AP: 0.493 (opt. threshold: 0.483)
+2022-12-17 21:38:47 [INFO] - Category 0 acc: 100.0% (155/155)
+2022-12-17 21:38:47 [INFO] - Category 1 acc: 0.0% (0/158)
+2022-12-17 21:38:47 [INFO] - Validation metrics: {
+    "accuracy": 0.49204960285622595,
+    "loss": 0.6942174704374813
+}
+2022-12-17 21:39:10 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00020-cohort-ensemble/00001-ensemble_2/00000-cohort-HP0-kfold3/cohort-HP0-kfold3_epoch3
+2022-12-17 21:47:34 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2022-12-17 21:47:35 [INFO] - tile-level AUC (cat # 0): 0.525 tile-level AP: 0.506 (opt. threshold: 0.553)
+2022-12-17 21:47:35 [INFO] - tile-level AUC (cat # 1): 0.525 tile-level AP: 0.521 (opt. threshold: 0.447)
+2022-12-17 21:47:35 [INFO] - Category 0 acc: 100.0% (196253/196253)
+2022-12-17 21:47:35 [INFO] - Category 1 acc: 0.0% (0/202595)
+2022-12-17 21:47:35 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2022-12-17 21:47:35 [INFO] - slide-level AUC (cat # 0): 0.667 slide-level AP: 0.693 (opt. threshold: 0.553)
+2022-12-17 21:47:35 [INFO] - slide-level AUC (cat # 1): 0.667 slide-level AP: 0.631 (opt. threshold: 0.447)
+2022-12-17 21:47:35 [INFO] - Category 0 acc: 100.0% (155/155)
+2022-12-17 21:47:35 [INFO] - Category 1 acc: 0.0% (0/158)
+2022-12-17 21:47:35 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2022-12-17 21:47:35 [INFO] - patient-level AUC (cat # 0): 0.667 patient-level AP: 0.693 (opt. threshold: 0.553)
+2022-12-17 21:47:35 [INFO] - patient-level AUC (cat # 1): 0.667 patient-level AP: 0.631 (opt. threshold: 0.447)
+2022-12-17 21:47:35 [INFO] - Category 0 acc: 100.0% (155/155)
+2022-12-17 21:47:35 [INFO] - Category 1 acc: 0.0% (0/158)
+2022-12-17 21:47:35 [INFO] - Validation metrics: {
+    "accuracy": 0.49204960285622595,
+    "loss": 0.7005450212144426
+}
+2022-12-17 21:47:38 [INFO] - Training results saved: [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/results_log.csv
+2022-12-17 21:47:38 [INFO] - Training complete; validation accuracies:
+2022-12-17 21:47:38 [INFO] - Training model [bold]cohort-HP0[/] (k-fold #3)...
+2022-12-17 21:47:38 [INFO] - Hyperparameters: {
+  "augment": "xyrjb",
+  "batch_size": 128,
+  "drop_images": false,
+  "dropout": 0.1,
+  "early_stop": true,
+  "early_stop_method": "accuracy",
+  "early_stop_patience": 0,
+  "epochs": [
+    1,
+    3
+  ],
+  "hidden_layer_width": 1024,
+  "hidden_layers": 2,
+  "include_top": false,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0.98,
+  "learning_rate_decay_steps": 512,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": "reinhard_fast",
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "avg",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2022-12-17 21:47:38 [INFO] - Val settings: {
+  "strategy": "k-fold",
+  "k_fold": 3,
+  "k": [
+    3
+  ],
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2022-12-17 21:47:38 [INFO] - Using k-fold validation split detected at [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/splits.json[/] (ID: 1)
+2022-12-17 21:47:38 [INFO] - Using 628 training TFRecords, 313 validation
+2022-12-17 21:47:41 [INFO] - Using realtime reinhard_fast normalization
+2022-12-17 21:47:44 [INFO] - Using vectorized normalization
+2022-12-17 21:47:46 [INFO] - Using vectorized normalization
+2022-12-17 21:47:46 [INFO] - Beginning training
+2022-12-17 21:48:16 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00020-cohort-ensemble/00002-ensemble_3/00000-cohort-HP0-kfold3/cohort-HP0-kfold3_epoch1
+2022-12-17 21:56:42 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2022-12-17 21:56:42 [INFO] - tile-level AUC (cat # 0): 0.493 tile-level AP: 0.488 (opt. threshold: 0.465)
+2022-12-17 21:56:43 [INFO] - tile-level AUC (cat # 1): 0.493 tile-level AP: 0.504 (opt. threshold: 0.535)
+2022-12-17 21:56:43 [INFO] - Category 0 acc: 0.0% (0/196253)
+2022-12-17 21:56:43 [INFO] - Category 1 acc: 100.0% (202595/202595)
+2022-12-17 21:56:43 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2022-12-17 21:56:43 [INFO] - slide-level AUC (cat # 0): 0.455 slide-level AP: 0.477 (opt. threshold: 0.465)
+2022-12-17 21:56:43 [INFO] - slide-level AUC (cat # 1): 0.458 slide-level AP: 0.473 (opt. threshold: 0.535)
+2022-12-17 21:56:43 [INFO] - Category 0 acc: 0.0% (0/155)
+2022-12-17 21:56:43 [INFO] - Category 1 acc: 100.0% (158/158)
+2022-12-17 21:56:43 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2022-12-17 21:56:43 [INFO] - patient-level AUC (cat # 0): 0.455 patient-level AP: 0.477 (opt. threshold: 0.465)
+2022-12-17 21:56:43 [INFO] - patient-level AUC (cat # 1): 0.458 patient-level AP: 0.473 (opt. threshold: 0.535)
+2022-12-17 21:56:43 [INFO] - Category 0 acc: 0.0% (0/155)
+2022-12-17 21:56:43 [INFO] - Category 1 acc: 100.0% (158/158)
+2022-12-17 21:56:43 [INFO] - Validation metrics: {
+    "accuracy": 0.5079503971437741,
+    "loss": 0.6945374128677709
+}
+2022-12-17 21:57:06 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00020-cohort-ensemble/00002-ensemble_3/00000-cohort-HP0-kfold3/cohort-HP0-kfold3_epoch3
+2022-12-17 22:05:34 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2022-12-17 22:05:34 [INFO] - tile-level AUC (cat # 0): 0.487 tile-level AP: 0.485 (opt. threshold: 0.411)
+2022-12-17 22:05:34 [INFO] - tile-level AUC (cat # 1): 0.487 tile-level AP: 0.498 (opt. threshold: 0.589)
+2022-12-17 22:05:34 [INFO] - Category 0 acc: 0.0% (0/196253)
+2022-12-17 22:05:34 [INFO] - Category 1 acc: 100.0% (202595/202595)
+2022-12-17 22:05:34 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2022-12-17 22:05:34 [INFO] - slide-level AUC (cat # 0): 0.348 slide-level AP: 0.429 (opt. threshold: 0.411)
+2022-12-17 22:05:34 [INFO] - slide-level AUC (cat # 1): 0.349 slide-level AP: 0.412 (opt. threshold: 0.589)
+2022-12-17 22:05:34 [INFO] - Category 0 acc: 0.0% (0/155)
+2022-12-17 22:05:34 [INFO] - Category 1 acc: 100.0% (158/158)
+2022-12-17 22:05:34 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2022-12-17 22:05:34 [INFO] - patient-level AUC (cat # 0): 0.348 patient-level AP: 0.429 (opt. threshold: 0.411)
+2022-12-17 22:05:34 [INFO] - patient-level AUC (cat # 1): 0.349 patient-level AP: 0.412 (opt. threshold: 0.589)
+2022-12-17 22:05:34 [INFO] - Category 0 acc: 0.0% (0/155)
+2022-12-17 22:05:34 [INFO] - Category 1 acc: 100.0% (158/158)
+2022-12-17 22:05:34 [INFO] - Validation metrics: {
+    "accuracy": 0.5079503971437741,
+    "loss": 0.7065172699281289
+}
+2022-12-17 22:05:38 [INFO] - Training results saved: [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/results_log.csv
+2022-12-17 22:05:38 [INFO] - Training complete; validation accuracies:
+2022-12-17 22:05:38 [INFO] - Training model [bold]cohort-HP0[/] (k-fold #3)...
+2022-12-17 22:05:38 [INFO] - Hyperparameters: {
+  "augment": "xyrjb",
+  "batch_size": 128,
+  "drop_images": false,
+  "dropout": 0.1,
+  "early_stop": true,
+  "early_stop_method": "accuracy",
+  "early_stop_patience": 0,
+  "epochs": [
+    1,
+    3
+  ],
+  "hidden_layer_width": 1024,
+  "hidden_layers": 2,
+  "include_top": false,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0.98,
+  "learning_rate_decay_steps": 512,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": "reinhard_fast",
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "avg",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2022-12-17 22:05:38 [INFO] - Val settings: {
+  "strategy": "k-fold",
+  "k_fold": 3,
+  "k": [
+    3
+  ],
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2022-12-17 22:05:38 [INFO] - Using k-fold validation split detected at [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/splits.json[/] (ID: 1)
+2022-12-17 22:05:38 [INFO] - Using 628 training TFRecords, 313 validation
+2022-12-17 22:05:41 [INFO] - Using realtime reinhard_fast normalization
+2022-12-17 22:05:43 [INFO] - Using vectorized normalization
+2022-12-17 22:05:46 [INFO] - Using vectorized normalization
+2022-12-17 22:05:46 [INFO] - Beginning training
+2022-12-17 22:06:16 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00020-cohort-ensemble/00003-ensemble_4/00000-cohort-HP0-kfold3/cohort-HP0-kfold3_epoch1
+2022-12-17 23:58:10 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2022-12-17 23:58:10 [INFO] - tile-level AUC (cat # 0): 0.515 tile-level AP: 0.504 (opt. threshold: 0.490)
+2022-12-17 23:58:10 [INFO] - tile-level AUC (cat # 1): 0.515 tile-level AP: 0.517 (opt. threshold: 0.510)
+2022-12-17 23:58:10 [INFO] - Category 0 acc: 0.0% (0/196253)
+2022-12-17 23:58:10 [INFO] - Category 1 acc: 100.0% (202595/202595)
+2022-12-17 23:58:10 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2022-12-17 23:58:10 [INFO] - slide-level AUC (cat # 0): 0.608 slide-level AP: 0.606 (opt. threshold: 0.490)
+2022-12-17 23:58:10 [INFO] - slide-level AUC (cat # 1): 0.608 slide-level AP: 0.575 (opt. threshold: 0.510)
+2022-12-17 23:58:10 [INFO] - Category 0 acc: 0.0% (0/155)
+2022-12-17 23:58:10 [INFO] - Category 1 acc: 100.0% (158/158)
+2022-12-17 23:58:10 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2022-12-17 23:58:10 [INFO] - patient-level AUC (cat # 0): 0.608 patient-level AP: 0.606 (opt. threshold: 0.490)
+2022-12-17 23:58:11 [INFO] - patient-level AUC (cat # 1): 0.608 patient-level AP: 0.575 (opt. threshold: 0.510)
+2022-12-17 23:58:11 [INFO] - Category 0 acc: 0.0% (0/155)
+2022-12-17 23:58:11 [INFO] - Category 1 acc: 100.0% (158/158)
+2022-12-17 23:58:11 [INFO] - Validation metrics: {
+    "accuracy": 0.5079503971437741,
+    "loss": 0.6930258124492894
+}
+2022-12-17 23:58:33 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00020-cohort-ensemble/00003-ensemble_4/00000-cohort-HP0-kfold3/cohort-HP0-kfold3_epoch3
+2022-12-18 00:06:57 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2022-12-18 00:06:57 [INFO] - tile-level AUC (cat # 0): 0.493 tile-level AP: 0.488 (opt. threshold: 0.481)
+2022-12-18 00:06:57 [INFO] - tile-level AUC (cat # 1): 0.493 tile-level AP: 0.504 (opt. threshold: 0.519)
+2022-12-18 00:06:57 [INFO] - Category 0 acc: 0.0% (0/196253)
+2022-12-18 00:06:57 [INFO] - Category 1 acc: 100.0% (202595/202595)
+2022-12-18 00:06:57 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2022-12-18 00:06:57 [INFO] - slide-level AUC (cat # 0): 0.437 slide-level AP: 0.484 (opt. threshold: 0.481)
+2022-12-18 00:06:57 [INFO] - slide-level AUC (cat # 1): 0.439 slide-level AP: 0.450 (opt. threshold: 0.519)
+2022-12-18 00:06:57 [INFO] - Category 0 acc: 0.0% (0/155)
+2022-12-18 00:06:57 [INFO] - Category 1 acc: 100.0% (158/158)
+2022-12-18 00:06:57 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2022-12-18 00:06:58 [INFO] - patient-level AUC (cat # 0): 0.437 patient-level AP: 0.484 (opt. threshold: 0.481)
+2022-12-18 00:06:58 [INFO] - patient-level AUC (cat # 1): 0.439 patient-level AP: 0.450 (opt. threshold: 0.519)
+2022-12-18 00:06:58 [INFO] - Category 0 acc: 0.0% (0/155)
+2022-12-18 00:06:58 [INFO] - Category 1 acc: 100.0% (158/158)
+2022-12-18 00:06:58 [INFO] - Validation metrics: {
+    "accuracy": 0.5079503971437741,
+    "loss": 0.6932682727436035
+}
+2022-12-18 00:07:01 [INFO] - Training results saved: [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/results_log.csv
+2022-12-18 00:07:01 [INFO] - Training complete; validation accuracies:
+2022-12-18 00:07:01 [INFO] - Training model [bold]cohort-HP0[/] (k-fold #3)...
+2022-12-18 00:07:01 [INFO] - Hyperparameters: {
+  "augment": "xyrjb",
+  "batch_size": 128,
+  "drop_images": false,
+  "dropout": 0.1,
+  "early_stop": true,
+  "early_stop_method": "accuracy",
+  "early_stop_patience": 0,
+  "epochs": [
+    1,
+    3
+  ],
+  "hidden_layer_width": 1024,
+  "hidden_layers": 2,
+  "include_top": false,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0.98,
+  "learning_rate_decay_steps": 512,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": "reinhard_fast",
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "avg",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2022-12-18 00:07:01 [INFO] - Val settings: {
+  "strategy": "k-fold",
+  "k_fold": 3,
+  "k": [
+    3
+  ],
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2022-12-18 00:07:01 [INFO] - Using k-fold validation split detected at [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/splits.json[/] (ID: 1)
+2022-12-18 00:07:01 [INFO] - Using 628 training TFRecords, 313 validation
+2022-12-18 00:07:04 [INFO] - Using realtime reinhard_fast normalization
+2022-12-18 00:07:06 [INFO] - Using vectorized normalization
+2022-12-18 00:07:09 [INFO] - Using vectorized normalization
+2022-12-18 00:07:09 [INFO] - Beginning training
+2022-12-18 00:07:39 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00020-cohort-ensemble/00004-ensemble_5/00000-cohort-HP0-kfold3/cohort-HP0-kfold3_epoch1
+2022-12-18 00:16:05 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2022-12-18 00:16:05 [INFO] - tile-level AUC (cat # 0): 0.511 tile-level AP: 0.500 (opt. threshold: 0.505)
+2022-12-18 00:16:05 [INFO] - tile-level AUC (cat # 1): 0.511 tile-level AP: 0.515 (opt. threshold: 0.495)
+2022-12-18 00:16:05 [INFO] - Category 0 acc: 100.0% (196253/196253)
+2022-12-18 00:16:05 [INFO] - Category 1 acc: 0.0% (0/202595)
+2022-12-18 00:16:05 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2022-12-18 00:16:05 [INFO] - slide-level AUC (cat # 0): 0.581 slide-level AP: 0.600 (opt. threshold: 0.505)
+2022-12-18 00:16:05 [INFO] - slide-level AUC (cat # 1): 0.584 slide-level AP: 0.560 (opt. threshold: 0.495)
+2022-12-18 00:16:05 [INFO] - Category 0 acc: 100.0% (155/155)
+2022-12-18 00:16:05 [INFO] - Category 1 acc: 0.0% (0/158)
+2022-12-18 00:16:05 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2022-12-18 00:16:05 [INFO] - patient-level AUC (cat # 0): 0.581 patient-level AP: 0.600 (opt. threshold: 0.505)
+2022-12-18 00:16:05 [INFO] - patient-level AUC (cat # 1): 0.584 patient-level AP: 0.560 (opt. threshold: 0.495)
+2022-12-18 00:16:05 [INFO] - Category 0 acc: 100.0% (155/155)
+2022-12-18 00:16:05 [INFO] - Category 1 acc: 0.0% (0/158)
+2022-12-18 00:16:05 [INFO] - Validation metrics: {
+    "accuracy": 0.49204960285622595,
+    "loss": 0.6933778418043938
+}
+2022-12-18 00:16:28 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00020-cohort-ensemble/00004-ensemble_5/00000-cohort-HP0-kfold3/cohort-HP0-kfold3_epoch3
+2022-12-18 00:24:54 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2022-12-18 00:24:54 [INFO] - tile-level AUC (cat # 0): 0.525 tile-level AP: 0.511 (opt. threshold: 0.521)
+2022-12-18 00:24:54 [INFO] - tile-level AUC (cat # 1): 0.525 tile-level AP: 0.525 (opt. threshold: 0.479)
+2022-12-18 00:24:54 [INFO] - Category 0 acc: 100.0% (196253/196253)
+2022-12-18 00:24:54 [INFO] - Category 1 acc: 0.0% (0/202595)
+2022-12-18 00:24:54 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2022-12-18 00:24:54 [INFO] - slide-level AUC (cat # 0): 0.622 slide-level AP: 0.634 (opt. threshold: 0.521)
+2022-12-18 00:24:55 [INFO] - slide-level AUC (cat # 1): 0.622 slide-level AP: 0.566 (opt. threshold: 0.479)
+2022-12-18 00:24:55 [INFO] - Category 0 acc: 100.0% (155/155)
+2022-12-18 00:24:55 [INFO] - Category 1 acc: 0.0% (0/158)
+2022-12-18 00:24:55 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2022-12-18 00:24:55 [INFO] - patient-level AUC (cat # 0): 0.622 patient-level AP: 0.634 (opt. threshold: 0.521)
+2022-12-18 00:24:55 [INFO] - patient-level AUC (cat # 1): 0.622 patient-level AP: 0.566 (opt. threshold: 0.479)
+2022-12-18 00:24:55 [INFO] - Category 0 acc: 100.0% (155/155)
+2022-12-18 00:24:55 [INFO] - Category 1 acc: 0.0% (0/158)
+2022-12-18 00:24:55 [INFO] - Validation metrics: {
+    "accuracy": 0.49204960285622595,
+    "loss": 0.6947464039489445
+}
+2022-12-18 00:24:58 [INFO] - Training results saved: [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/results_log.csv
+2022-12-18 00:24:58 [INFO] - Training complete; validation accuracies:
+2022-12-18 10:09:22 [INFO] - Predicting model results
+2022-12-18 10:09:23 [INFO] - Using realtime reinhard_fast normalization
+2022-12-18 10:09:30 [INFO] - Using vectorized normalization
+2022-12-18 10:09:31 [INFO] - Generating predictions...
+2022-12-19 17:38:50 [INFO] - Predicting model results
+2022-12-19 17:38:51 [INFO] - Using realtime reinhard_fast normalization
+2022-12-19 17:38:58 [INFO] - Using vectorized normalization
+2022-12-19 17:38:59 [INFO] - Generating predictions...
+2022-12-19 18:01:55 [INFO] - Predicting model results
+2022-12-19 18:01:56 [INFO] - Using realtime reinhard_fast normalization
+2022-12-19 18:02:03 [INFO] - Using vectorized normalization
+2022-12-19 18:02:04 [INFO] - Generating predictions...
+2022-12-20 22:06:17 [INFO] - Predicting model results
+2022-12-20 22:06:18 [INFO] - Using realtime reinhard_fast normalization
+2022-12-20 22:06:25 [INFO] - Using vectorized normalization
+2022-12-20 22:06:26 [INFO] - Generating predictions...
+2022-12-20 22:29:47 [INFO] - Predicting model results
+2022-12-20 22:29:47 [INFO] - Using realtime reinhard_fast normalization
+2022-12-20 22:29:53 [INFO] - Using vectorized normalization
+2022-12-20 22:29:54 [INFO] - Generating predictions...
+2022-12-20 22:53:17 [INFO] - Predicting model results
+2022-12-20 22:53:17 [INFO] - Using realtime reinhard_fast normalization
+2022-12-20 22:53:24 [INFO] - Using vectorized normalization
+2022-12-20 22:53:24 [INFO] - Generating predictions...
+2022-12-20 23:16:48 [INFO] - Predicting model results
+2022-12-20 23:16:48 [INFO] - Using realtime reinhard_fast normalization
+2022-12-20 23:16:55 [INFO] - Using vectorized normalization
+2022-12-20 23:16:55 [INFO] - Generating predictions...
+2022-12-20 23:40:19 [INFO] - Predicting model results
+2022-12-20 23:40:19 [INFO] - Using realtime reinhard_fast normalization
+2022-12-20 23:40:27 [INFO] - Using vectorized normalization
+2022-12-20 23:40:27 [INFO] - Generating predictions...
+2022-12-21 00:15:40 [INFO] - Predicting model results
+2022-12-21 00:15:41 [INFO] - Using realtime reinhard_fast normalization
+2022-12-21 00:15:48 [INFO] - Using vectorized normalization
+2022-12-21 00:15:49 [INFO] - Generating predictions...
+2022-12-21 08:42:11 [INFO] - Predicting model results
+2022-12-21 08:42:12 [INFO] - Using realtime reinhard_fast normalization
+2022-12-21 08:42:19 [INFO] - Using vectorized normalization
+2022-12-21 08:42:19 [INFO] - Generating predictions...
+2022-12-22 14:50:47 [INFO] - Predicting model results
+2022-12-22 14:50:48 [INFO] - Using realtime reinhard_fast normalization
+2022-12-22 14:50:55 [INFO] - Using vectorized normalization
+2022-12-22 14:50:56 [INFO] - Generating predictions...
+2022-12-22 16:21:31 [INFO] - Predicting model results
+2022-12-22 16:21:32 [INFO] - Using realtime reinhard_fast normalization
+2022-12-22 16:21:39 [INFO] - Using vectorized normalization
+2022-12-22 16:21:40 [INFO] - Generating predictions...
+2022-12-22 16:45:01 [INFO] - Predicting model results
+2022-12-22 16:45:01 [INFO] - Using realtime reinhard_fast normalization
+2022-12-22 16:45:08 [INFO] - Using vectorized normalization
+2022-12-22 16:45:08 [INFO] - Generating predictions...
+2022-12-22 17:35:46 [INFO] - Predicting model results
+2022-12-22 17:35:47 [INFO] - Using realtime reinhard_fast normalization
+2022-12-22 17:35:55 [INFO] - Using vectorized normalization
+2022-12-22 17:35:55 [INFO] - Generating predictions...
+2022-12-22 17:59:22 [INFO] - Predicting model results
+2022-12-22 17:59:22 [INFO] - Using realtime reinhard_fast normalization
+2022-12-22 17:59:29 [INFO] - Using vectorized normalization
+2022-12-22 17:59:29 [INFO] - Generating predictions...
+2022-12-22 18:26:52 [INFO] - Predicting model results
+2022-12-22 18:26:52 [INFO] - Using realtime reinhard_fast normalization
+2022-12-22 18:26:59 [INFO] - Using vectorized normalization
+2022-12-22 18:26:59 [INFO] - Generating predictions...
+2022-12-22 19:57:57 [INFO] - Predicting model results
+2022-12-22 19:57:58 [INFO] - Using realtime reinhard_fast normalization
+2022-12-22 19:58:05 [INFO] - Using vectorized normalization
+2022-12-22 19:58:06 [INFO] - Generating predictions...
+2022-12-22 20:21:27 [INFO] - Predicting model results
+2022-12-22 20:21:27 [INFO] - Using realtime reinhard_fast normalization
+2022-12-22 20:21:34 [INFO] - Using vectorized normalization
+2022-12-22 20:21:34 [INFO] - Generating predictions...
+2022-12-23 12:52:07 [INFO] - Predicting model results
+2022-12-23 12:52:08 [INFO] - Using realtime reinhard_fast normalization
+2022-12-23 12:52:15 [INFO] - Using vectorized normalization
+2022-12-23 12:52:16 [INFO] - Generating predictions...
+2022-12-23 13:15:36 [INFO] - Predicting model results
+2022-12-23 13:15:36 [INFO] - Using realtime reinhard_fast normalization
+2022-12-23 13:15:43 [INFO] - Using vectorized normalization
+2022-12-23 13:15:43 [INFO] - Generating predictions...
+2022-12-23 13:39:05 [INFO] - Predicting model results
+2022-12-23 13:39:05 [INFO] - Using realtime reinhard_fast normalization
+2022-12-23 13:39:12 [INFO] - Using vectorized normalization
+2022-12-23 13:39:12 [INFO] - Generating predictions...
+2022-12-23 14:02:35 [INFO] - Predicting model results
+2022-12-23 14:02:35 [INFO] - Using realtime reinhard_fast normalization
+2022-12-23 14:02:43 [INFO] - Using vectorized normalization
+2022-12-23 14:02:43 [INFO] - Generating predictions...
+2022-12-26 13:54:35 [INFO] - Predicting model results
+2022-12-26 13:54:36 [INFO] - Using realtime reinhard_fast normalization
+2022-12-26 13:54:43 [INFO] - Using vectorized normalization
+2022-12-26 13:54:44 [INFO] - Generating predictions...
+2022-12-26 14:18:04 [INFO] - Predicting model results
+2022-12-26 14:18:04 [INFO] - Using realtime reinhard_fast normalization
+2022-12-26 14:18:11 [INFO] - Using vectorized normalization
+2022-12-26 14:18:11 [INFO] - Generating predictions...
+2022-12-26 16:44:01 [INFO] - Predicting model results
+2022-12-26 16:44:02 [INFO] - Using realtime reinhard_fast normalization
+2022-12-26 16:44:09 [INFO] - Using vectorized normalization
+2022-12-26 16:44:10 [INFO] - Generating predictions...
+2022-12-26 20:50:45 [INFO] - Predicting model results
+2022-12-26 20:50:45 [INFO] - Using realtime reinhard_fast normalization
+2022-12-26 20:50:53 [INFO] - Using vectorized normalization
+2022-12-26 20:50:53 [INFO] - Generating predictions...
+2022-12-26 21:14:14 [INFO] - Predicting model results
+2022-12-26 21:14:14 [INFO] - Using realtime reinhard_fast normalization
+2022-12-26 21:14:21 [INFO] - Using vectorized normalization
+2022-12-26 21:14:21 [INFO] - Generating predictions...
+2022-12-26 21:38:12 [INFO] - Predicting model results
+2022-12-26 21:38:12 [INFO] - Using realtime reinhard_fast normalization
+2022-12-26 21:38:20 [INFO] - Using vectorized normalization
+2022-12-26 21:38:20 [INFO] - Generating predictions...
+2022-12-26 22:01:42 [INFO] - Predicting model results
+2022-12-26 22:01:42 [INFO] - Using realtime reinhard_fast normalization
+2022-12-26 22:01:49 [INFO] - Using vectorized normalization
+2022-12-26 22:01:49 [INFO] - Generating predictions...
+2022-12-26 22:25:13 [INFO] - Predicting model results
+2022-12-26 22:25:13 [INFO] - Using realtime reinhard_fast normalization
+2022-12-26 22:25:20 [INFO] - Using vectorized normalization
+2022-12-26 22:25:20 [INFO] - Generating predictions...
+2022-12-27 13:58:54 [INFO] - Predicting model results
+2022-12-27 13:58:55 [INFO] - Using realtime reinhard_fast normalization
+2022-12-27 13:59:02 [INFO] - Using vectorized normalization
+2022-12-27 13:59:03 [INFO] - Generating predictions...
+2022-12-27 14:22:25 [INFO] - Predicting model results
+2022-12-27 14:22:25 [INFO] - Using realtime reinhard_fast normalization
+2022-12-27 14:22:32 [INFO] - Using vectorized normalization
+2022-12-27 14:22:32 [INFO] - Generating predictions...
+2022-12-27 14:47:17 [INFO] - Predicting model results
+2022-12-27 14:47:17 [INFO] - Using realtime reinhard_fast normalization
+2022-12-27 14:47:25 [INFO] - Using vectorized normalization
+2022-12-27 14:47:25 [INFO] - Generating predictions...
+2022-12-27 15:10:47 [INFO] - Predicting model results
+2022-12-27 15:10:47 [INFO] - Using realtime reinhard_fast normalization
+2022-12-27 15:10:56 [INFO] - Using vectorized normalization
+2022-12-27 15:10:56 [INFO] - Generating predictions...
+2022-12-27 15:39:27 [INFO] - Predicting model results
+2022-12-27 15:39:27 [INFO] - Using realtime reinhard_fast normalization
+2022-12-27 15:39:35 [INFO] - Using vectorized normalization
+2022-12-27 15:39:35 [INFO] - Generating predictions...
+2022-12-27 16:31:24 [INFO] - Predicting model results
+2022-12-27 16:31:25 [INFO] - Using realtime reinhard_fast normalization
+2022-12-27 16:31:32 [INFO] - Using vectorized normalization
+2022-12-27 16:31:33 [INFO] - Generating predictions...
+2022-12-27 21:27:01 [INFO] - Predicting model results
+2022-12-27 21:27:02 [INFO] - Using realtime reinhard_fast normalization
+2022-12-27 21:27:10 [INFO] - Using vectorized normalization
+2022-12-27 21:27:10 [INFO] - Generating predictions...
+2022-12-27 21:50:37 [INFO] - Predicting model results
+2022-12-27 21:50:37 [INFO] - Using realtime reinhard_fast normalization
+2022-12-27 21:50:45 [INFO] - Using vectorized normalization
+2022-12-27 21:50:45 [INFO] - Generating predictions...
+2022-12-27 22:14:11 [INFO] - Predicting model results
+2022-12-27 22:14:11 [INFO] - Using realtime reinhard_fast normalization
+2022-12-27 22:14:19 [INFO] - Using vectorized normalization
+2022-12-27 22:14:19 [INFO] - Generating predictions...
+2022-12-27 22:37:48 [INFO] - Predicting model results
+2022-12-27 22:37:48 [INFO] - Using realtime reinhard_fast normalization
+2022-12-27 22:37:55 [INFO] - Using vectorized normalization
+2022-12-27 22:37:55 [INFO] - Generating predictions...
+2022-12-27 23:01:26 [INFO] - Predicting model results
+2022-12-27 23:01:26 [INFO] - Using realtime reinhard_fast normalization
+2022-12-27 23:01:33 [INFO] - Using vectorized normalization
+2022-12-27 23:01:33 [INFO] - Generating predictions...
+2022-12-28 00:09:57 [INFO] - Predicting model results
+2022-12-28 00:09:58 [INFO] - Using realtime reinhard_fast normalization
+2022-12-28 00:10:05 [INFO] - Using vectorized normalization
+2022-12-28 00:10:06 [INFO] - Generating predictions...
+2022-12-28 00:33:28 [INFO] - Predicting model results
+2022-12-28 00:33:28 [INFO] - Using realtime reinhard_fast normalization
+2022-12-28 00:33:37 [INFO] - Using vectorized normalization
+2022-12-28 00:33:37 [INFO] - Generating predictions...
+2022-12-28 01:14:41 [INFO] - Predicting model results
+2022-12-28 01:14:41 [INFO] - Using realtime reinhard_fast normalization
+2022-12-28 01:14:48 [INFO] - Using vectorized normalization
+2022-12-28 01:14:48 [INFO] - Generating predictions...
+2022-12-28 10:53:48 [INFO] - Predicting model results
+2022-12-28 10:53:49 [INFO] - Using realtime reinhard_fast normalization
+2022-12-28 10:53:57 [INFO] - Using vectorized normalization
+2022-12-28 10:53:57 [INFO] - Generating predictions...
+2022-12-28 11:17:19 [INFO] - Predicting model results
+2022-12-28 11:17:19 [INFO] - Using realtime reinhard_fast normalization
+2022-12-28 11:17:27 [INFO] - Using vectorized normalization
+2022-12-28 11:17:27 [INFO] - Generating predictions...
+2022-12-28 11:41:18 [INFO] - Predicting model results
+2022-12-28 11:41:18 [INFO] - Using realtime reinhard_fast normalization
+2022-12-28 11:41:25 [INFO] - Using vectorized normalization
+2022-12-28 11:41:25 [INFO] - Generating predictions...
+2022-12-28 12:04:49 [INFO] - Predicting model results
+2022-12-28 12:04:49 [INFO] - Using realtime reinhard_fast normalization
+2022-12-28 12:04:56 [INFO] - Using vectorized normalization
+2022-12-28 12:04:56 [INFO] - Generating predictions...
+2022-12-28 12:28:22 [INFO] - Predicting model results
+2022-12-28 12:28:22 [INFO] - Using realtime reinhard_fast normalization
+2022-12-28 12:28:30 [INFO] - Using vectorized normalization
+2022-12-28 12:28:30 [INFO] - Generating predictions...

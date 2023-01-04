@@ -22,7 +22,7 @@ def main():
             tile_px=299,
             tile_um=302,
             batch_size=128,
-            epochs=[1],
+            epochs=[1,3],
             early_stop=True,
             early_stop_method='accuracy',
             dropout=0.1,
@@ -40,15 +40,22 @@ def main():
             augment='xyrjb'
         )
 
-    P.train_ensemble(
-        outcomes='cohort',
-        number_of_ensembles = 5,
-        pretrain=None, # used for resnet50 and vgg19 
-        steps_per_epoch_override =10,
-        # val_k = 3,
-        val_strategy = None,
-        params=hp
-    )
+    P.ensemble_train_predictions(
+        "/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00021-cohort-ensemble",
+        save_format = "parquet")
+
+    # P.predict_ensemble('/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00015-cohort-ensemble', epoch_number=1, format = "feather")
+
+    # P.train_ensemble(
+    #     outcomes='cohort',
+    #     number_of_ensembles = 5,
+    #     pretrain=None, # used for resnet50 and vgg19 
+    #     steps_per_epoch_override =10,
+    #     val_k = 3,
+    #     # val_strategy = None,
+    #     save_predictions = "parquet",
+    #     params=hp
+    # )
 
     # P.train(
     #     outcomes='cohort',
