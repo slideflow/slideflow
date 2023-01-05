@@ -428,6 +428,15 @@ class ModelParams(_base._ModelParams):
                     name='output'
                 )(final_dense_layer)
             ]
+        
+        if self.weighted_loss:
+            weight_input_tensor = tf.keras.Input(shape=(1), name='weight_input')
+            model_inputs += [weight_input_tensor]
+            outputs[0] = tf.keras.layers.Concatenate(
+                name='output_layer_weight',
+                dtype='float32'
+                )([outputs[0], weight_input_tensor])
+        
         # Assemble final model
         log.debug(f'Using {activation} activation')
         model = tf.keras.Model(inputs=model_inputs, outputs=outputs)
@@ -1205,6 +1214,11 @@ class Trainer:
                 neptune_workspace
             )
 
+        # if self.hp.weighted_loss:
+        #     log.info("Loading weight model")
+        #     self.weightmodel = tf.keras.models.load_model(self.hp.weighted_loss)
+        
+
     def _setup_inputs(self) -> None:
         """Setup slide-level input."""
         if self.num_slide_features:
@@ -1254,7 +1268,8 @@ class Trainer:
     def _parse_tfrecord_labels(
         self,
         image: tf.Tensor,
-        slide: tf.Tensor
+        slide: tf.Tensor,
+        likelihood=None,
     ) -> Tuple[Dict[str, tf.Tensor], tf.Tensor]:
         """Parses raw entry read from TFRecord."""
 
@@ -1284,6 +1299,25 @@ class Trainer:
                 Tout=[tf.float32] * num_features
             )
             image_dict.update({'slide_feature_input': slide_feature_input_val})
+
+        if self.hp.weighted_loss:
+
+            # calculating weight during training is TOO SLOW
+            # def calc_weight(image):
+            #     # weight_pred = self.weightmodel(tf.expand_dims(image, 0))
+            #     # weight = weight_pred.numpy()[0, 1]
+            #     # return weight
+            #     assert likelihood is not None
+            #     return likelihood  
+            # weight_input_val = tf.py_function(
+            #         func=calc_weight,
+            #         inp=[image],
+            #         Tout=[tf.float32]
+            #     )
+            
+            # image_dict.update({'weight_input': weight_input_val})
+
+            image_dict.update({'weight_input': likelihood})
 
         return image_dict, label
 

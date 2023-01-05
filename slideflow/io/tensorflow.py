@@ -31,7 +31,8 @@ FEATURE_DESCRIPTION = {
     'slide': tf.io.FixedLenFeature([], tf.string),
     'image_raw': tf.io.FixedLenFeature([], tf.string),
     'loc_x': tf.io.FixedLenFeature([], tf.int64),
-    'loc_y': tf.io.FixedLenFeature([], tf.int64)
+    'loc_y': tf.io.FixedLenFeature([], tf.int64),
+    'tumor_likelihood': tf.io.FixedLenFeature([], tf.float32)
 }
 
 
@@ -44,6 +45,9 @@ def _int64_feature(value: int) -> "Feature":
     """Returns an int64_list from a bool / enum / int / uint."""
     return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
 
+def _float_feature(value: float) -> "Feature":
+    """Returns an float32_list from a bool / enum / int / uint."""
+    return tf.train.Feature(float_list=tf.train.FloatList(value=[value]))
 
 def _apply_otsu(wsi):
     wsi.qc('otsu')
@@ -489,7 +493,7 @@ def interleave(
     interleave_task = pb.add_task('Interleaving...', total=len(paths))
     pb.start()
     with tf.device('cpu'):
-        features_to_return = ['image_raw', 'slide']
+        features_to_return = ['image_raw', 'slide', 'tumor_likelihood']
         if incl_loc:
             features_to_return += ['loc_x', 'loc_y']
 
@@ -658,10 +662,11 @@ def _get_parsed_datasets(
 
     def final_parser(record):
         if include_loc:
-            image, slide, loc_x, loc_y = base_parser(record)
+            image, slide, likelihood, loc_x, loc_y = base_parser(record)
         else:
-            image, slide = base_parser(record)
-        image, label = label_parser(image, slide) if label_parser else (image, None)
+            image, slide, likelihood = base_parser(record)
+
+        image, label = label_parser(image, slide, likelihood) if label_parser else (image, None)
 
         to_return = [image, label]
         if include_slidenames:
@@ -681,7 +686,8 @@ def tfrecord_example(
     slide: bytes,
     image_raw: bytes,
     loc_x: int = 0,
-    loc_y: int = 0
+    loc_y: int = 0,
+    tumor_likelihood: float = None
 ) -> "Example":
     '''Returns a Tensorflow Data example for TFRecord storage.'''
     feature = {
@@ -690,6 +696,8 @@ def tfrecord_example(
         'loc_x': _int64_feature(loc_x),
         'loc_y': _int64_feature(loc_y)
     }
+    if tumor_likelihood: 
+        feature.update({'tumor_likelihood': _float_feature(tumor_likelihood)})
     return tf.train.Example(features=tf.train.Features(feature=feature))
 
 
@@ -697,10 +705,14 @@ def serialized_record(
     slide: bytes,
     image_raw: bytes,
     loc_x: int = 0,
-    loc_y: int = 0
+    loc_y: int = 0,
+    tumor_likelihood: float = None
 ) -> bytes:
     '''Returns a serialized example for TFRecord storage, ready to be written
     by a TFRecordWriter.'''
+    if tumor_likelihood:
+        return tfrecord_example(slide, image_raw, loc_x, loc_y, 
+                                tumor_likelihood).SerializeToString()
     return tfrecord_example(slide, image_raw, loc_x, loc_y).SerializeToString()
 
 
@@ -834,7 +846,7 @@ def transform_tfrecord(
     writer = tf.io.TFRecordWriter(target)
     parser = get_tfrecord_parser(
         origin,
-        ('slide', 'image_raw', 'loc_x', 'loc_y'),
+        ('slide', 'image_raw', 'loc_x', 'loc_y', 'tumor_likelihood'),
         decode_images=(hue_shift is not None or resize is not None),
         error_if_invalid=False,
         to_numpy=True
@@ -859,14 +871,15 @@ def transform_tfrecord(
             return image_string
 
     for record in dataset:
-        slide, image_raw, loc_x, loc_y = parser(record)  # type: ignore
+        slide, image_raw, loc_x, loc_y, tumor_likelihood = parser(record)  # type: ignore
         slidename = slide if not assign_slide else bytes(assign_slide, 'utf-8')
         image_processed_data = process_image(image_raw)
         tf_example = tfrecord_example(
             slidename,
             image_processed_data,
             loc_x,
-            loc_y
+            loc_y,
+            tumor_likelihood
         )
         writer.write(tf_example.SerializeToString())
     writer.close()

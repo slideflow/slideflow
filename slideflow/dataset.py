@@ -128,7 +128,7 @@ def _prepare_slide(
     report_dir: Optional[str],
     tma: bool,
     wsi_kwargs: Dict,
-    qc: Optional[str],
+    qc: Optional[Union[str, Callable, List[Callable]]],
     qc_kwargs: Dict,
 ) -> Optional[sf.slide._BaseLoader]:
 

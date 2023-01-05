@@ -34,6 +34,7 @@ from skimage import img_as_ubyte
 from slideflow import errors
 from slideflow.util import SUPPORTED_FORMATS  # noqa F401
 from slideflow.util import log, path_to_name  # noqa F401
+import tensorflow as tf
 
 from .report import ExtractionPDF  # noqa F401
 from .report import ExtractionReport, SlideReport
@@ -246,6 +247,15 @@ class _BaseLoader:
         self.__slide = None
         self._mpp_override = mpp
         self._reader_kwargs = reader_kwargs
+
+        # load model
+        log.info('Loading weight model')
+        model_path = ""
+        hp = sf.ModelParams()
+        config = sf.util.get_model_config(model_path)
+        hp.load_dict(config['hp'])
+        self.weight_normalizer = hp.get_normalizer()
+        self.weight_model = tf.keras.models.load_model(model_path)
 
         # Initiate supported slide reader
         if not os.path.exists(path):
@@ -757,7 +767,22 @@ class _BaseLoader:
             if dry_run:
                 continue
 
-            image_string = tile_dict['image']
+            image_string = tile_dict['image'] # type: bytes
+
+            # calculate weight
+            if self.weight_model:
+                cv_image = cv2.imdecode(
+                    np.frombuffer(image_string, dtype=np.uint8),
+                    cv2.IMREAD_COLOR
+                )
+                cv_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB)
+                image_ = sf.io.tensorflow.process_image(
+                        self.weight_normalizer.tf_to_tf(cv_image), standardize=True
+                        )[0]
+                weight = self.weight_model.predict(
+                            tf.expand_dims(image_, 0), verbose=0
+                         )[0][1]
+
             if len(sample_tiles) < 10:
                 sample_tiles += [image_string]
             elif (not tiles_dir and not tfrecord_dir) and not dry_run:
@@ -781,12 +806,22 @@ class _BaseLoader:
                                 ann[3]
                             ))
             if tfrecord_dir:
-                record = sf.io.serialized_record(
-                    slidename_bytes,
-                    image_string,
-                    location[0],
-                    location[1]
-                )
+                # write weight
+                if self.weight_model:
+                    record = sf.io.serialized_record(
+                        slidename_bytes,
+                        image_string,
+                        location[0],
+                        location[1],
+                        weight
+                    )
+                else:
+                    record = sf.io.serialized_record(
+                        slidename_bytes,
+                        image_string,
+                        location[0],
+                        location[1]
+                    )
                 writer.write(record)
                 num_wrote_to_tfr += 1
         if tfrecord_dir and not dry_run:
