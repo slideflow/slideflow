@@ -1,3 +1,4 @@
+import zarr
 import slideflow as sf
 import imgui
 import numpy as np
@@ -17,32 +18,31 @@ class SegmentWidget:
         self.viz                    = viz
         self.header                 = "Cellpose"
         self.alpha                  = 1
+        self.downscale              = 1
+        self.show_advanced          = False
+        self.spawn_workers          = True
+        self.tile                   = True
         self.show                   = True
-        self.diam_radio_auto        = True
-        self.use_gpu                = True
-        self.diam_radio_manual      = False
+        self.diam_radio_auto        = False
+        self.otsu                   = False
         self.segmentation           = None
-        self.diam_manual            = 10
+        self.diameter_microns       = 10
         self.overlay                = None
         self.content_height         = 0
         self.show_mask              = True
         self.show_gradXY            = False
         self.show_centroid          = False
         self.overlay_background     = True
+        self.tile_px                = 512
+        self.save_flow              = False
 
         self._showing_preview_overlay = False
         self._selected_model_idx    = 1
-        self._auto_tile_px          = 256
-        self._auto_mpp              = 0.5
-        self._wsi_config            = 'auto'
         self._thread                = None
         self._segment_toast         = None
         self._centroid_toast        = None
         self._load_toast            = None
         self._outline_toast         = None
-
-        self.mpp                    = self._auto_mpp
-        self.tile_px                = self._auto_tile_px
 
         # Load default model
         self.supported_models = [
@@ -50,6 +50,11 @@ class SegmentWidget:
             'livecell', 'LC1', 'LC2', 'LC3', 'LC4'
         ]
         self.models = {m: None for m in self.supported_models}
+
+    @property
+    def diam_mean(self):
+        return (17 if self.supported_models[self._selected_model_idx] == 'nuclei'
+                   else 30)
 
     @property
     def model(self):
@@ -62,13 +67,30 @@ class SegmentWidget:
 
     @property
     def diameter(self):
-        return None if self.diam_radio_auto else self.diam_manual
+        return None if self.diam_radio_auto else self.diam_mean
+
+    @property
+    def tile_um(self):
+        return int(self.tile_px * self.mpp)
+
+    @property
+    def mpp(self):
+        return self.diameter_microns / self.diam_mean
+
+    def formatted_slide_levels(self):
+        if self.viz.wsi:
+            return [
+                '{:.0f}x (mpp={:.2f})'.format(10/mpp, mpp)
+                for mpp in self.viz.wsi.level_mpp
+            ]
+        else:
+            return ['NA']
 
     def is_thread_running(self):
         return self._thread is not None and self._thread.is_alive()
 
     def _load_segmentation(self, path, ignore_errors=False):
-        self.segmentation = Segmentation.from_npz(path)
+        self.segmentation = Segmentation.load(path)
         self.refresh_segmentation_view()
         self._load_toast.done()
         self.viz.create_toast(f"Loaded {self.segmentation.masks.max()} segmentations.", icon="success")
@@ -91,9 +113,14 @@ class SegmentWidget:
             refresh_toast.done()
 
     def drag_and_drop_hook(self, path, ignore_errors=False):
-        if (sf.util.path_to_ext(path).lower() == 'npz'
-           and 'masks' in np.load(path, mmap_mode='r').files):
-            self.load(path, ignore_errors=ignore_errors)
+        if (sf.util.path_to_ext(path).lower() == 'zip'):
+            try:
+                z = zarr.open(path)
+            except Exception as e:
+                return
+            else:
+                if 'masks' in z:
+                    self.load(path, ignore_errors=ignore_errors)
 
     def load(self, path, ignore_errors=False):
         """Load a .npz with saved masks."""
@@ -152,12 +179,22 @@ class SegmentWidget:
         self.viz.create_toast("Outlining complete.", icon="success")
         self.update_transparency()
 
-    def segment_view(self):
+    def _segment_view(self):
         """Segment the current view."""
         v = self.viz.viewer
-        print(f"Segmenting image with diameter {self.diameter} (shape={v.view.shape})")
+        view_params = v.view_params
+        view_microns = (
+            view_params.window_size[0] * v.wsi.mpp,
+            view_params.window_size[1] * v.wsi.mpp,
+        )
+        view_params.target_size = (
+            int(view_microns[0] / self.mpp),
+            int(view_microns[1] / self.mpp)
+        )
+        view_img = v._read_from_pyramid(**view_params)
+        print(f"Segmenting image view with diameter {self.diameter} (um={view_microns} mpp={self.mpp:.3f} shape={view_img.shape})")
         masks, flows, styles, diams = self.model.eval(
-            v.view,
+            view_img,
             channels=[[0, 0]],
             diameter=self.diameter,
         )
@@ -167,28 +204,46 @@ class SegmentWidget:
             flows=flows[0],
             wsi_dim=v.wsi_window_size,
             wsi_offset=v.origin)
-        self.diam_manual = int(diams)
-        print(f"Segmentation of current view complete (diameter={diams:.2f}), {masks.max()} total masks).")
+        self.diameter_microns = int(diams * self.mpp)
+        print(f"Segmentation of view complete (diameter={diams:.2f}, {masks.max()} total masks), shape={masks.shape}.")
         self.refresh_segmentation_view()
+        if self._segment_toast is not None:
+            self._segment_toast.done()
 
-    def segment_slide(self):
-        """Generate whole-slide segmentation.
+    def segment_slide(self, in_view=False):
+        """Generate whole-slide segmentation."""
 
-        Args:
-            auto (bool): Use recommended, automatic segmentation configuration.
-                If false, will use user-specified settings.
-        """
-        wsi = sf.WSI(self.viz.wsi.path, tile_px=self.tile_px, tile_um=int(self.tile_px * self.mpp))
-        print(f"Segmenting WSI (shape={wsi.dimensions}, tile_px={self.tile_px}, mpp={self.mpp}, diameter={self.diameter})")
-        if self.viz.wsi.qc_mask is not None:
-            wsi.apply_qc_mask(self.viz.wsi.qc_mask)
+        # Segment single preview image if auto-diameter (diameter=None)
+        if in_view:
+            return self._segment_view()
+
+        # Otherwise, segment using whole-slide image interface
+        wsi = sf.WSI(self.viz.wsi.path, tile_px=self.tile_px, tile_um=self.tile_um, verbose=False)
+        if self.otsu:
+            wsi.qc('otsu', filter_threshold=1)
+        print(f"Segmenting WSI (shape={wsi.dimensions}, tile_px={self.tile_px}, tile_um={self.tile_um}, diameter={self.diameter})")
+
+        # Alternative method of rendering in-view preview
+        if in_view:
+            print("Segmenting partial WSI using current view window")
+            (xi, xi_e), (yi, yi_e) = self.viz.viewer.grid_in_view(wsi)
+            z = np.zeros_like(wsi.grid, dtype=bool)
+            z[xi:xi_e, yi:yi_e] = True
+            wsi.grid = wsi.grid * z
 
         # Perform segmentation.
-        self.segmentation = segment_slide(wsi, 'cyto2', diameter=self.diameter)
+        self.segmentation = segment_slide(
+            wsi,
+            'cyto2',
+            save_flow=self.save_flow,
+            downscale=(None if self.downscale == 1 else self.downscale),
+            tile=self.tile,
+            spawn_workers=self.spawn_workers)
         print('Mask shape:', self.segmentation.masks.shape)
 
         # Done; refresh view.
-        self._segment_toast.done()
+        if self._segment_toast is not None:
+            self._segment_toast.done()
         refresh_toast = self.viz.create_toast(
                 title=f"Rendering segmentations",
                 icon='info',
@@ -227,64 +282,8 @@ class SegmentWidget:
         child_height = imgui.get_text_line_height_with_spacing() * 6 + viz.spacing * 2
         self.content_height = child_height + viz.spacing
 
-        # --- Segmentation ----------------------------------------------------
-        with imgui_utils.grayed_out(not has_viewer):
-            imgui.begin_child('##segment_child', width=child_width, height=child_height, border=True)
-            imgui.text("Whole-slide segmentation")
-            imgui.separator()
-
-            if imgui.radio_button('Auto##config_radio_auto', self._wsi_config == 'auto') and has_viewer:
-                self._wsi_config = 'auto'
-            imgui.same_line(viz.font_size*6)
-            _, self.use_gpu = imgui.checkbox('Use GPU', self.use_gpu)
-
-
-            if imgui.radio_button('In view##config_radio_manual', self._wsi_config == 'in_view') and has_viewer:
-                self._wsi_config = 'in_view'
-            imgui.same_line(viz.font_size*6)
-            with imgui_utils.grayed_out(self._wsi_config == 'auto'):
-                if self._wsi_config == 'auto':
-                    self.tile_px = self._auto_tile_px
-                with imgui_utils.item_width(viz.font_size*2):
-                    _, self.tile_px = imgui.input_int('##tile_px', self.tile_px, step=0)
-                imgui.same_line()
-                imgui.text('Tile (px)')
-
-            if imgui.radio_button('Manual##config_radio_manual', self._wsi_config == 'manual') and has_viewer:
-                self._wsi_config = 'manual'
-            imgui.same_line(viz.font_size*6)
-            with imgui_utils.grayed_out(self._wsi_config != 'manual'):
-                if self._wsi_config == 'auto':
-                    self.mpp = self._auto_mpp
-                elif self._wsi_config == 'in_view' and hasattr(viz, 'viewer') and hasattr(viz.viewer, 'mpp'):
-                    self.mpp = viz.viewer.mpp
-                with imgui_utils.item_width(viz.font_size*3):
-                    _, self.mpp = imgui.input_float('##mpp', self.mpp)
-                    imgui.same_line()
-                imgui.text('MPP')
-
-            # WSI segmentation.
-            if imgui_utils.button("Segment", width=viz.button_w) and not self.is_thread_running() and has_viewer:
-                self._segment_toast = viz.create_toast(
-                    title=f"Segmenting whole-slide image",
-                    icon='info',
-                    sticky=True,
-                    spinner=True)
-                self._thread = Thread(target=self.segment_slide)
-                self._thread.start()
-
-            # Export
-            imgui.same_line(viz.font_size*6)
-            with imgui_utils.grayed_out(self.segmentation is None):
-                if imgui_utils.button("Export", width=viz.button_w) and self.segmentation is not None:
-                    filename = f'{viz.wsi.name}-masks.npz'
-                    self.segmentation.save_npz(filename)
-                    viz.create_toast(f"Exported masks and centroids to {filename}", icon='success')
-            imgui.end_child()
-
         # --- Configuration ---------------------------------------------------
-        imgui.same_line()
-        with imgui_utils.grayed_out(self._wsi_config == 'auto'):
+        with imgui_utils.grayed_out(not has_viewer):
             imgui.begin_child('##config_child', width=child_width, height=child_height, border=True)
             imgui.text("Model & cell diameter")
             imgui.separator()
@@ -297,21 +296,69 @@ class SegmentWidget:
                     self.supported_models)
 
             ## Cell Segmentation diameter.
-            if imgui.radio_button('Auto diameter##diam_radio_auto', self.diam_radio_auto):
+            if imgui.radio_button('Auto-detect diameter##diam_radio_auto', self.diam_radio_auto):
                 self.diam_radio_auto = True
-            if imgui.radio_button('Manual ##diam_radio_manual', not self.diam_radio_auto):
+            if imgui.radio_button('Manual: ##diam_radio_manual', not self.diam_radio_auto):
                 self.diam_radio_auto = False
             imgui.same_line()
-            with imgui_utils.item_width(viz.font_size*5):
-                _, self.diam_manual = imgui.input_int('##diam_manual', self.diam_manual)
-            if self._wsi_config == 'auto':
-                self.diam_manual = 10
+            with imgui_utils.item_width(viz.font_size*2):
+                _, self.diameter_microns = imgui.input_int('##diam_manual', self.diameter_microns, step=0)
+            imgui.same_line()
+            imgui.text('um')
 
             # Preview segmentation.
-            if imgui_utils.button("Preview", width=viz.button_w) and not (self._wsi_config == 'auto'):
-                self.segment_view()
+            if imgui_utils.button("Preview", width=viz.button_w):
+                self._segment_toast = viz.create_toast(
+                    title=f"Segmenting current view",
+                    icon='info',
+                    sticky=True,
+                    spinner=True)
+                self._thread = Thread(target=self.segment_slide, args=(True,))
+                self._thread.start()
 
-        imgui.end_child()
+            imgui.end_child()
+
+        # --- Whole-slide segmentation ----------------------------------------
+        imgui.same_line()
+        with imgui_utils.grayed_out(not has_viewer or self.diam_radio_auto):
+            imgui.begin_child('##segment_child', width=child_width, height=child_height, border=True)
+            imgui.text("Whole-slide segmentation")
+            imgui.separator()
+
+            _, self.otsu = imgui.checkbox('Otsu threshold', self.otsu)
+            _, self.save_flow = imgui.checkbox('Save flows', self.save_flow)
+            _, self.show_advanced = imgui.checkbox('Show advanced', self.show_advanced)
+
+            if self.show_advanced:
+                with imgui_utils.item_width(viz.font_size*3):
+                    _, self.tile_px = imgui.input_int('Window', self.tile_px, step=0)
+                imgui.same_line()
+                _, self.tile = imgui.checkbox('Tile', self.tile)
+                with imgui_utils.item_width(viz.font_size*2):
+                    _, self.downscale = imgui.input_int('Downscale factor', self.downscale, step=0)
+                _, self.spawn_workers = imgui.checkbox('Enable spawn workers', self.spawn_workers)
+
+            # WSI segmentation.
+            if (imgui_utils.button("Segment", width=viz.button_w)
+               and not self.is_thread_running()
+               and has_viewer
+               and not self.diam_radio_auto):
+                self._segment_toast = viz.create_toast(
+                    title=f"Segmenting whole-slide image",
+                    icon='info',
+                    sticky=True,
+                    spinner=True)
+                self._thread = Thread(target=self.segment_slide)
+                self._thread.start()
+
+            # Export
+            imgui.same_line(viz.font_size*6)
+            with imgui_utils.grayed_out(self.segmentation is None):
+                if imgui_utils.button("Export", width=viz.button_w) and self.segmentation is not None:
+                    filename = f'{viz.wsi.name}-masks.zip'
+                    self.segmentation.save(filename, centroids=True)
+                    viz.create_toast(f"Exported masks and centroids to {filename}", icon='success')
+            imgui.end_child()
 
         # --- View ------------------------------------------------------------
         imgui.same_line()

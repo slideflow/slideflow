@@ -1,18 +1,26 @@
+import time
+import cv2
+import threading
 import multiprocessing as mp
 import numpy as np
 import cellpose
 import cellpose.models
 import logging
 import slideflow as sf
-
+import zarr
+import torch
+from queue import Queue
+from numcodecs import Blosc
 from matplotlib.colors import to_rgb
 from tqdm import tqdm
 from typing import Tuple, Union, Callable, Optional, Iterable, TYPE_CHECKING, List
 from functools import partial
 from PIL import Image, ImageDraw
 from cellpose.utils import outlines_list
+from cellpose.models import Cellpose
+from cellpose import transforms, plot, dynamics
 from slideflow.slide.utils import draw_roi
-from slideflow.util import batch, log
+from slideflow.util import batch_generator, log
 
 from . import seg_utils
 
@@ -49,8 +57,8 @@ class Segmentation:
         self.wsi_offset = wsi_offset
 
     @classmethod
-    def from_npz(cls, path) -> "Segmentation":
-        loaded = np.load(path)
+    def load(cls, path) -> "Segmentation":
+        loaded = zarr.load(path)
         if 'masks' not in loaded:
             raise TypeError(f"Unable to load '{path}'; 'masks' index not found.")
         flows = None if 'flows' not in loaded else loaded['flows']
@@ -150,160 +158,385 @@ class Segmentation:
         else:
             return img
 
-    def save_npz(
+    def save(
         self,
         filename: str,
-        incl_centroids: bool = True,
-        compress: bool = True
+        centroids: bool = True,
+        flows: bool = True
     ):
-        save_dict = dict(masks=self.masks)
-        if incl_centroids:
+        if not filename.endswith('zip'):
+            filename += '.zip'
+        save_dict = dict(
+            masks=self.masks,
+            compressor=Blosc(
+                cname='zstd', clevel=3, shuffle=Blosc.BITSHUFFLE
+            )
+        )
+        if centroids:
             self.calculate_centroids()
-        if self._centroids is not None:
+        if self._centroids is not None and centroids:
             save_dict['centroids'] = self._centroids
-        if self.flows is not None:
+        if self.flows is not None and flows:
             save_dict['flows'] = self.flows
         if self.wsi_dim is not None:
             save_dict['wsi_dim'] = self.wsi_dim
         if self.wsi_offset is not None:
             save_dict['wsi_offset'] = self.wsi_offset
-        save_fn = np.savez_compressed if compress else np.savez
-        save_fn(filename, **save_dict)
+        seg_utils.save_zarr_compressed(filename, **save_dict)
 
 # -----------------------------------------------------------------------------
 
-def _mask_worker(c, slide, diameter=None, **kwargs):
-    tiles = np.array([slide[x, y] for x, y in c])
-    masks, flows, styles, diams = _loaded_model_.eval(tiles, channels=[[0, 0]], tile=False, diameter=diameter, **kwargs)
-    return masks, flows, diams, c
 
-
-def _init_worker(
-    model: Union["cellpose.models.Cellpose", str],
-    gpus: Optional[Union[int, Iterable[int]]] = None
-):
-    """Initialize pool worker, including loading model."""
-    global _loaded_model_
-    if isinstance(model, str):
-        if gpus is not None:
-            if isinstance(gpus, int):
-                gpus = [gpus]
-            import torch
-            _id = mp.current_process()._identity
-            proc = 0 if not len(_id) else _id[0]
-
-            device = torch.device(f'cuda:{gpus[proc % len(gpus)]}')
-            _loaded_model_ = cellpose.models.Cellpose(model_type=model, gpu=True, device=device)
-        else:
-            _loaded_model_ = cellpose.models.Cellpose(model_type=model, gpu=True)
+def follow_flows(dP_and_cellprob, cp_thresh, gpus=(0,), **kwargs):
+    dP, cellprob = dP_and_cellprob
+    if gpus is not None:
+        _id = mp.current_process()._identity
+        proc = 0 if not len(_id) else _id[0]
+        kwargs['device'] = torch.device(f'cuda:{gpus[proc % len(gpus)]}')
+    if np.any(cellprob > cp_thresh):
+        return dynamics.follow_flows(
+            dP * (cellprob > cp_thresh) / 5.,
+            use_gpu=(gpus is not None),
+            **kwargs
+        )
     else:
-        _loaded_model_ = model
+        return (None, None)
+
+
+def remove_bad_flow(mask_and_dP, flow_threshold, gpus=(0,), **kwargs):
+    mask, dP = mask_and_dP
+    if gpus is not None:
+        _id = mp.current_process()._identity
+        proc = 0 if not len(_id) else _id[0]
+        kwargs['device'] = torch.device(f'cuda:{gpus[proc % len(gpus)]}')
+    if mask.max() > 0 and flow_threshold is not None and flow_threshold > 0:
+        mask = dynamics.remove_bad_flow_masks(
+            mask,
+            dP,
+            threshold=flow_threshold,
+            use_gpu=(gpus is not None),
+            **kwargs
+        )
+    return mask
+
+
+def resize_and_clean_mask(mask, target_size=None):
+    # Resizing
+    recast = mask.max() >= 2**16-1
+    if target_size:
+        if recast:
+            mask = mask.astype(np.float32)
+        else:
+            mask = mask.astype(np.uint16)
+        mask = cv2.resize(mask, (target_size, target_size), interpolation=cv2.INTER_NEAREST)
+        mask = mask.astype(np.uint32)
+    elif not recast:
+        mask = mask.astype(np.uint16)
+    mask = dynamics.utils.fill_holes_and_remove_small_masks(mask, min_size=15)
+    if mask.dtype == np.uint32 and mask.max() == 65535:
+        log.warn(f'more than 65535 masks in image, masks returned as np.uint32')
+    return mask
+
+
+def get_empty_mask(shape):
+    mask = np.zeros(shape, np.uint16)
+    p = np.zeros((len(shape), *shape), np.uint16)
+    return mask, p
+
+
+def normalize_img(X):
+    X = X.float()
+    i99 = torch.quantile(X, 0.99)
+    i1 = torch.quantile(X, 0.01)
+    return (X - i1) / (i99 - i1)
+
+
+def process_image(img, nchan):
+    return transforms.convert_image(
+        img,
+        channels=[[0, 0]],
+        channel_axis=None,
+        z_axis=None,
+        do_3D=False,
+        normalize=False,
+        invert=False,
+        nchan=nchan)
+
+
+def process_batch(img_batch):
+    # Ensure Ly and Lx are divisible by 4
+    assert not (img_batch.shape[1] % 16 or img_batch.shape[2] % 16) #img_batch, ysub, xsub = transforms.pad_image_ND(img_batch)
+
+    # Normalize and permute axes.
+    img_batch = normalize_img(img_batch)
+    img_batch = torch.permute(img_batch, (0, 3, 1, 2))  # img_batch = np.transpose(img_batch, (0,3,1,2))
+    return img_batch
+
+
+def get_masks(args, cp_thresh):
+    p, inds, cellprob = args
+    if inds is None:
+        mask, p = get_empty_mask(cellprob.shape)
+    else:
+        mask = dynamics.get_masks(p, iscell=(cellprob > cp_thresh))
+    return mask, p
+
+
+def tile_processor(slide, q, batch_size, nchan):
+    tiles = batch_generator(
+        slide.torch(
+            incl_loc='grid',
+            num_threads=4,
+            to_tensor=False,
+            grayspace_fraction=1,
+            lazy_iter=True
+        ),
+        batch_size
+    )
+    for tile_dict in tiles:
+        imgs = [t['image_raw'] for t in tile_dict]
+        imgs = np.array([process_image(img, nchan) for img in imgs])
+        c = [(t['loc_x'], t['loc_y']) for t in tile_dict]
+        q.put((imgs, c))
+    q.put(None)
 
 
 def segment_slide(
     slide: Union[sf.WSI, str],
     model: Union["cellpose.models.Cellpose", str] = 'cyto2',
-    tile_px: int = 256,
-    tile_um: Union[int, str] = '40x',
-    diameter: int = None,
+    *,
+    diam_um: Optional[float] = None,
+    diam_mean: Optional[int] = None,
+    window_size: Optional[int] = None,
+    downscale: Optional[float] = None,
     batch_size: int = 8,
     gpus: Optional[Union[int, Iterable[int]]] = (0,),
-    num_workers: Optional[int] = None,
+    spawn_workers: bool = True,
     pb: Optional["Progress"] = None,
     pb_tasks: Optional[List["TaskID"]] = None,
     show_progress: bool = True,
-    **kwargs
+    save_flow: bool = True,
+    cp_thresh: float = 0.0,
+    flow_threshold: float = 0.4,
+    interp: bool = True,
+    tile: bool = True,
+    verbose: bool = True
 ) -> Segmentation:
     """Segment cells in a whole-slide image, returning masks and centroids.
 
     Args:
-        slide (str, :class:`slideflow.WSI`): Whole-slide image.
+        slide (str, :class:`slideflow.WSI`): Whole-slide image. May be a path
+            (str) or WSI object (`slideflow.WSI`).
 
     Keyword arguments:
         model (str, :class:`cellpose.models.Cellpose`): Cellpose model to use
             for cell segmentation. May be any valid cellpose model. Defaults
             to 'cyto2'.
-        tile_px (int): Window size, in pixels, at which to segment cells.
-            Defaults to 256.
-        tile_um (int, str): Window size, in microns, at which to segment cells.
-            Defaults to '40x'.
-        diameter (int, optional): Cell segmentation diameter. If None, will auto-detect.
-            Defaults to None.
+        diam_um (float, optional): Cell diameter to detect, in microns.
+            Determines tile  extraction microns-per-pixel resolution to match
+            the given pixel diameter specified by `diam_mean`. Not used if
+            `slide` is a `sf.WSI` object.
+        diam_mean (int, optional): Cell diameter to detect, in pixels (without
+            image resizing). If None, uses Cellpose defaults (17 for the
+            'nuclei' model, 30 for all others).
+        window_size (int): Window size, in pixels, at which to segment cells.
+            Not used if slide is a `sf.WSI` object.
+        downscale (float): Factor by which to downscale generated masks after
+            calculation. Defaults to None (keep masks at original size).
         batch_size (int): Batch size for cell segmentation. Defaults to 8.
         gpus (int, list(int)): GPUs to use for cell segmentation.
             Defaults to 0 (first GPU).
-        num_workers (int, optional): Number of workers.
-            Defaults to 2 * num_gpus.
-        show_progress (bool): Show a tqdm progress bar. Defaults to True.
+        spawn_workers (bool): Enable spawn-based multiprocessing. Increases
+            cell segmentation speed at the cost of higher memory utilization.
         pb (:class:`rich.progress.Progress`, optional): Progress bar instance.
             Used for external progress bar tracking. Defaults to None.
         pb_tasks (list(:class:`rich.progress.TaskID`)): Progress bar tasks.
             Used for external progress bar tracking. Defaults to None.
+        show_progress (bool): Show a tqdm progress bar. Defaults to True.
+        save_float (bool): Save flow values for the whole-slide image.
+            Increases memory utilization. Defaults to True.
+        cp_thresh (float): Cell probability threshold. All pixels with value
+            above threshold kept for masks, decrease to find more and larger
+            masks. Defaults to 0.
+        flow_threshold (float): Flow error threshold (all cells with errors
+            below threshold are kept). Defaults to 0.4.
+        interp (bool): Interpolate during 2D dynamics. Defaults to True.
+        tile (bool): Tiles image to decrease GPU/CPU memory usage.
+            Defaults to True.
+        verbose (bool): Verbose log output at the INFO level. Defaults to True.
     """
 
     # Quiet the logger to suppress warnings of empty masks
     logging.getLogger('cellpose').setLevel(40)
+    if diam_mean is None:
+        diam_mean = 30 if model != 'nuclei' else 17
 
+    # Initial validation checks. ----------------------------------------------
     if isinstance(slide, str):
-        slide = sf.WSI(slide, tile_px=tile_px, tile_um=tile_um)
-        slide.qc('otsu')
+        assert diam_um is not None, "Must supply diam_um if slide is a path to a slide"
+        assert window_size is not None, "Must supply window_size if slide is a path to a slide"
+        tile_um = int(window_size * (diam_um / diam_mean))
+        slide = sf.WSI(slide, tile_px=window_size, tile_um=tile_um, verbose=False)
+    elif window_size is not None or diam_um is not None:
+        raise ValueError("Invalid argument: cannot provide window_size or diam_um "
+                         "when slide is a sf.WSI object")
     else:
-        tile_px = slide.tile_px
-
-    # Workers and pool
-    if num_workers is None and isinstance(gpus, (list, tuple)):
-        num_workers = 2 * len(gpus)
-    elif num_workers is None:
-        num_workers = 2
-    if num_workers > 0:
-        ctx = mp.get_context('spawn')
-        pool = ctx.Pool(num_workers, initializer=partial(_init_worker, model=model, gpus=gpus))
+        window_size = slide.tile_px
+        diam_um = diam_mean * (slide.tile_um/slide.tile_px)
+    if window_size % 16:
+        raise ValueError("Window size (tile_px) must be a multiple of 16.")
+    if downscale is None:
+        target_size = window_size
     else:
-        pool = mp.dummy.Pool(4, initializer=partial(_init_worker, model=model, gpus=gpus))
+        target_size = int(window_size / downscale)
 
-    diam_str = f'{diameter:.2f}' if diameter is not None else 'None'
-    log.info(f"Segmenting cells in slide with diameter={diam_str} (shape={slide.dimensions})")
+    # Set up model and parameters. --------------------------------------------
+    start_time = time.time()
+    device = torch.device('cuda:0')
+    model = Cellpose(gpu=True, device=device)
+    cp = model.cp
+    cp.batch_size = batch_size
+    cp.net.load_model(cp.pretrained_model[0], cpu=(not cp.gpu))  # Modify to accept different models
+    cp.net.eval()
+    rescale = 1  # No rescaling, as we are manually setting diameter = diam_mean
+    mask_dim = (slide.stride * (slide.shape[0]-1) + slide.tile_px,
+                slide.stride * (slide.shape[1]-1) + slide.tile_px)
+
+    log_fn = log.info if verbose else log.debug
+    log_fn("=== Segmentation parameters ===")
+    log_fn(f"Diameter (px):     {diam_mean}")
+    log_fn(f"Diameter (um):     {diam_um}")
+    log_fn(f"Window size:       {window_size}")
+    log_fn(f"Target size:       {target_size}")
+    log_fn(f"Perform tiled:     {tile}")
+    log_fn(f"Slide dimensions:  {slide.dimensions}")
+    log_fn(f"Slide shape:       {slide.shape}")
+    log_fn(f"Slide stride (px): {slide.stride}")
+    log_fn(f"Est. tiles:        {slide.estimated_num_tiles}")
+    log_fn(f"Save flow:         {save_flow}")
+    log_fn(f"Mask size:         {mask_dim}")
+    log_fn("===============================")
+
+    # Processes and pools. ----------------------------------------------------
+    tile_q = mp.Queue(4)
+    y_q = Queue(2)
+    ctx = mp.get_context('spawn')
+    fork_pool = mp.Pool(batch_size)
+    if spawn_workers:
+        spawn_pool = ctx.Pool(4)
+    else:
+        spawn_pool = mp.dummy.Pool(4)
+    tile_process = mp.Process(target=tile_processor, args=(slide, tile_q, batch_size, cp.nchan))
+    tile_process.start()
+
+    def net_runner():
+        while True:
+            item = tile_q.get()
+            if item is None:
+                y_q.put(None)
+                break
+            imgs, c = item
+            torch_batch = cp._to_device(imgs)
+            torch_batch = process_batch(torch_batch)
+            if tile:
+                y, style = cp._run_tiled(torch_batch.cpu().numpy(), augment=False, bsize=224, return_conv=False)
+            else:
+                y, style = cp.network(torch_batch)
+            y_q.put((y, style, c))
+
+    runner = threading.Thread(target=net_runner)
+    runner.start()
+
+    # Mask and flow arrays. ---------------------------------------------------
     running_max = 0
-    all_masks = np.zeros((slide.shape[0], slide.shape[1], tile_px, tile_px), dtype=np.int32)
-    all_flows = np.zeros((slide.shape[0], slide.shape[1], tile_px, tile_px, 3), dtype=np.uint8)
+    all_masks = np.zeros((slide.shape[1] * target_size, slide.shape[0] * target_size), dtype=np.uint32)
+    if save_flow:
+        all_flows = np.zeros((slide.shape[1] * target_size, slide.shape[0] * target_size, 3), dtype=np.uint8)
 
-    tile_idx = np.argwhere(slide.grid)
-    mapped = pool.imap(
-        partial(_mask_worker, slide=slide, diameter=diameter, batch_size=batch_size, **kwargs),
-        batch(tile_idx, batch_size * 8)) # batch_size * 8
-
+    # Main loop. --------------------------------------------------------------
     if show_progress:
-        mapped = tqdm(mapped, total=int(len(tile_idx) / (batch_size * 8)))
+        tqdm_pb = tqdm(total=slide.estimated_num_tiles)
+    while True:
+        item = y_q.get()
+        if item is None:
+            break
+        y, style, c = item
 
-    for masks, flows, diams, c in mapped:
-        for i in range(len(masks)):
-            x = c[i][0]
-            y = c[i][1]
-            all_masks[x, y] = masks[i]
-            all_masks[x, y][np.nonzero(masks[i])] += running_max
-            running_max += masks[i].max()
-            all_flows[x, y] = flows[0][i]
+        # Initial preparation
+        #style /= (style**2).sum()**0.5
+        y = np.transpose(y, (0,2,3,1))
+        cellprob = y[:, :, :, 2].astype(np.float32)
+        dP = y[:, :, :, :2].transpose((3,0,1,2))
+        del y, style
+        #styles = style.squeeze()
+
+        # Calculate flows
+        batch_p, batch_ind = zip(*spawn_pool.map(
+            partial(follow_flows, niter=(1 / rescale * 200), interp=interp, cp_thresh=cp_thresh, gpus=gpus),
+            zip([dP[:, i] for i in range(len(c))], cellprob)
+        ))
+
+        # Calculate masks
+        batch_masks, batch_p = zip(*fork_pool.map(
+            partial(get_masks, cp_thresh=cp_thresh),
+            zip(batch_p, batch_ind, cellprob)))
+
+        # Remove bad flow
+        batch_masks = spawn_pool.map(
+            partial(remove_bad_flow, flow_threshold=flow_threshold, gpus=gpus),
+            zip(batch_masks, [dP[:, i] for i in range(len(c))]))
+
+        # Resize masks and clean (remove small masks/holes)
+        batch_masks = fork_pool.map(
+            partial(resize_and_clean_mask, target_size=(None if target_size == window_size else target_size)),
+            batch_masks)
+
+        dP = dP.squeeze()
+        cellprob = cellprob.squeeze()
+        #p = np.stack(batch_p, axis=0)
+        #flows = [plot.dx_to_circ(dP), dP, cellprob, p]
+
+        for i in range(len(c)):
+            x, y = c[i][0], c[i][1]
+            img_masks = batch_masks[i].astype(np.uint32)
+            max_in_mask = img_masks.max()
+            img_masks[np.nonzero(img_masks)] += running_max
+            running_max += max_in_mask
+            all_masks[y * target_size: (y+1)*target_size, x * target_size: (x+1)*target_size] = img_masks
+            if save_flow:
+                flow_plot = plot.dx_to_circ(dP[:, i])
+                if target_size != window_size:
+                    flow_plot = cv2.resize(flow_plot, (target_size, target_size))
+                all_flows[y * target_size: (y+1)*target_size, x * target_size: (x+1)*target_size, :] = flow_plot
+
+        # Final cleanup
+        del dP, cellprob
+
         # Update progress bars
+        if show_progress:
+            tqdm_pb.update(batch_size)
         if pb is not None and pb_tasks:
             for task in pb_tasks:
-                pb.advance(task, batch_size * 8)
+                pb.advance(task, batch_size)
 
-    pool.close()
-    masks = np.concatenate(np.concatenate(all_masks, axis=-1), axis=0)
-    flows = np.concatenate(np.concatenate(all_flows, axis=-2), axis=0)
+    spawn_pool.close()
+    spawn_pool.join()
+    fork_pool.close()
+    fork_pool.join()
+    runner.join()
+    tile_process.join()
 
-    log.info(f"Segmented {running_max} cells for {slide.name}")
+    ttime = time.time() - start_time
+    log.info(f"Segmented {running_max} cells for {slide.name} ({ttime:.0f} s)")
 
     # Calculate WSI dimensions and offset, and return final segmentation.
-    full_extract = int(slide.tile_um / slide.mpp)
-    wsi_stride = int(full_extract / slide.stride_div)
-    wsi_dim = (wsi_stride * (slide.grid.shape[0]),
-               wsi_stride * (slide.grid.shape[1]))
-    wsi_offset = (int(full_extract/2 - wsi_stride/2), int(full_extract/2 - wsi_stride/2))
+    wsi_dim = (all_masks.shape[1] * (slide.full_extract_px / target_size),
+               all_masks.shape[0] * (slide.full_extract_px / target_size))
+    wsi_offset = (0, 0)#(int(full_extract/2 - wsi_stride/2), int(full_extract/2 - wsi_stride/2))
 
     return Segmentation(
         slide=slide,
-        masks=masks,
-        flows=flows,
+        masks=all_masks,
+        flows=None if not save_flow else all_flows,
         wsi_dim=wsi_dim,
         wsi_offset=wsi_offset)

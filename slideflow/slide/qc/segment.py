@@ -33,7 +33,7 @@ class Segment:
         """
         from slideflow.slide.seg import Segmentation
         source = self.source if self.source is not None else dirname(wsi.path)
-        if exists(join(source, wsi.name+'-masks.npz')):
-            seg = Segmentation.from_npz(join(source, wsi.name+'-masks.npz'))
+        if exists(join(source, wsi.name+'-masks.zip')):
+            seg = Segmentation.load(join(source, wsi.name+'-masks.zip'))
             wsi.apply_segmentation(seg)
         return None

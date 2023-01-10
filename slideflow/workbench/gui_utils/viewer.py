@@ -165,7 +165,11 @@ class Viewer:
                 to the size of the preview pane.
 
         Returns:
-            ...
+            np.ndarray: Crop of image currently in view.
+
+            float: Zoom factor of cropped image view.
+
+            Tuple[int, int]: x, y offset of cropped image in view.
         """
         overlay_zoom = dim[0] / image.shape[1]
         h_zoom = overlay_zoom / self.view_zoom  # type: ignore

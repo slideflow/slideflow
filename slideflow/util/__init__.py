@@ -293,6 +293,19 @@ def batch(iterable: List, n: int = 1) -> Iterable:
         yield iterable[ndx:min(ndx + n, l)]
 
 
+def batch_generator(iterable: Iterable, n: int = 1) -> Iterable:
+    """Separates an interable into batches of maximum size `n`."""
+    batch = []
+    for item in iterable:
+        batch.append(item)
+        if len(batch) == n:
+            yield batch
+            batch = []
+    if len(batch):
+        yield batch
+    return
+
+
 def as_list(arg1: Any) -> List[Any]:
     if not isinstance(arg1, list):
         return [arg1]

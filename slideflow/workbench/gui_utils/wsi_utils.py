@@ -377,6 +377,21 @@ class SlideViewer(Viewer):
             gl_utils.draw_roi(roi, color=1, alpha=0.7, linewidth=5)
             gl_utils.draw_roi(roi, color=0, alpha=1, linewidth=3)
 
+    def grid_in_view(self, wsi=None):
+        """Returns coordinates of WSI grid currently in view."""
+        if wsi is None:
+            wsi = self.wsi
+        wsi_stride = int(wsi.full_extract_px / wsi.stride_div)
+        xi_start = int(self.origin[0] / wsi_stride)
+        yi_start = int(self.origin[1] / wsi_stride)
+        xi_end = int((self.origin[0] + self.view_params.window_size[0]) / wsi_stride)
+        yi_end = int((self.origin[1] + self.view_params.window_size[1]) / wsi_stride)
+        xi_start = max(xi_start-1, 0)
+        yi_start = max(yi_start-1, 0)
+        xi_end = min(xi_end+1, wsi.shape[0]-1)
+        yi_end = min(yi_end+1, wsi.shape[1]-1)
+        return (xi_start, xi_end), (yi_start, yi_end)
+
     def read_tile(
         self,
         x: int,

@@ -64,8 +64,8 @@ class SlideWidget:
             'Augment']
         self._normalizer_methods = self._all_normalizer_methods
         self._normalizer_methods_str = self._all_normalizer_methods_str
-        self._qc_methods_str    = ['Blur filter', "Otsu threshold", "Blur + Otsu"]
-        self._qc_methods        = ['blur', 'otsu', 'both']
+        self._qc_methods_str    = ["Otsu threshold", "Blur filter", "Blur + Otsu"]
+        self._qc_methods        = ['otsu', 'blur', 'both']
         self.load('', ignore_errors=True)
 
     @property

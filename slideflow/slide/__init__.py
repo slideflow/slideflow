@@ -241,8 +241,8 @@ class _BaseLoader:
         # Calculate shape and stride
         self.downsample_level = ds_level
         self.downsample_dimensions = self.slide.level_dimensions[ds_level]
-        self.stride = self.extract_px // stride_div
-        self.full_stride = self.full_extract_px // stride_div
+        self.stride = int(self.extract_px // stride_div)
+        self.full_stride = int(self.full_extract_px // stride_div)
 
     def __getstate__(self):
         state = self.__dict__.copy()
@@ -259,6 +259,22 @@ class _BaseLoader:
     @property
     def dimensions(self) -> Tuple[int, int]:
         return self.slide.dimensions
+
+    @property
+    def levels(self) -> Dict:
+        return self.slide.levels
+
+    @property
+    def level_dimensions(self) -> List[List[int]]:
+        return self.slide.level_dimensions
+
+    @property
+    def level_downsamples(self) -> List[float]:
+        return self.slide.level_downsamples
+
+    @property
+    def level_mpp(self) -> List[float]:
+        return [d * self.mpp for d in self.level_downsamples]
 
     @property
     def properties(self) -> Dict:
@@ -405,7 +421,7 @@ class _BaseLoader:
             qc_x = int(x * qc_ratio)
             qc_y = int(y * qc_ratio)
             submask = mask[qc_y:(qc_y+qc_width), qc_x:(qc_x+qc_width)]
-            if np.mean(submask) > filter_threshold:
+            if np.mean(submask) >= filter_threshold:
                 self.grid[xi, yi] = 0
 
         self.qc_masks.append(mask)
@@ -1661,6 +1677,7 @@ class WSI(_BaseLoader):
         incl_loc: Optional[str] = None,
         shuffle: bool = True,
         infinite: bool = False,
+        to_tensor: bool = True,
         **kwargs
     ) -> Any:
         """Create a PyTorch iterator which extractes tiles from this slide.
@@ -1700,11 +1717,15 @@ class WSI(_BaseLoader):
                     **kwargs
                 )():
                     if not (incl_slidenames or incl_loc):
-                        yield torch.from_numpy(image_dict['image'])
+                        if to_tensor:
+                            yield torch.from_numpy(image_dict['image'])
+                        else:
+                            yield image_dict['image']
                     else:
-                        to_return = {
-                            'image_raw': torch.from_numpy(image_dict['image'])
-                        }
+                        if to_tensor:
+                            to_return = {'image_raw': torch.from_numpy(image_dict['image'])}
+                        else:
+                            to_return = {'image_raw': image_dict['image']}
                         if incl_slidenames:
                             to_return['slide'] = self.name
                         if incl_loc == 'coord' or incl_loc == True:

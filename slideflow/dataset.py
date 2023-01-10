@@ -836,11 +836,18 @@ class Dataset:
     def cell_segmentation(
         self,
         dest: str,
+        diam_um: float,
         *,
+        model: Union["cellpose.models.Cellpose", str] = 'cyto2',
         window_size: int = 256,
-        mpp: float = 0.5,
-        qc: Optional[str] = 'otsu',
-        compress: bool = True,
+        diam_mean: Optional[int] = None,
+        qc: Optional[str] = None,
+        qc_kwargs: Optional[dict] = None,
+        buffer: Optional[str] = None,
+        q_size: int = 1,
+        force: bool = False,
+        save_centroid: bool = True,
+        save_flow: bool = False,
         **kwargs
     ) -> None:
         """Perform cell segmentation on slides, saving segmentation masks.
@@ -849,6 +856,7 @@ class Dataset:
             dest (str): Destination in which to save cell segmentation masks.
                 If None, will save masks in same folder as slides.
                 Defaults to None.
+            diameter (int, optional): Cell segmentation diameter, in microns.
 
         Keyword args:
             window_size (int): Window size at which to segment cells across
@@ -860,8 +868,6 @@ class Dataset:
             model (str, :class:`cellpose.models.Cellpose`): Cellpose model to use
                 for cell segmentation. May be any valid cellpose model. Defaults
                 to 'cyto2'.
-            diameter (int, optional): Cell segmentation diameter. If None,
-                will auto-detect. Defaults to None.
             batch_size (int): Batch size for cell segmentation. Defaults to 8.
             gpus (int, list(int)): GPUs to use for cell segmentation.
                 Defaults to 0 (first GPU).
@@ -874,13 +880,28 @@ class Dataset:
         """
         from slideflow.slide.seg import segment_slide
 
+        if qc_kwargs is None:
+            qc_kwargs = {}
+
         slide_list = self.slide_paths()
+        if not force:
+            n_all = len(slide_list)
+            slide_list = [s for s in slide_list
+                          if not exists(join(dest, sf.util.path_to_name(s)+'-masks.zip'))]
+            n_skipped = n_all - len(slide_list)
+            if n_skipped:
+                log.info("Skipping {} slides (masks already generated)".format(
+                    n_skipped
+                ))
         if slide_list:
             log.info(f"Performing cell segmentation for {len(slide_list)} slides.")
         else:
             log.info("No slides found.")
             return
 
+        if diam_mean is None:
+            diam_mean = 30 if model != 'nuclei' else 17
+        tile_um = int(window_size * (diam_um / diam_mean))
         pb = TileExtractionProgress()
         speed_task = pb.add_task(
             "Speed: ", progress_type="speed", total=None
@@ -888,11 +909,23 @@ class Dataset:
         slide_task = pb.add_task(
             "Slides: ", progress_type="slide_progress", total=len(slide_list)
         )
+        q = Queue()  # type: Queue
+        if buffer:
+            thread = threading.Thread(
+                target=_fill_queue,
+                args=(slide_list, q, q_size, buffer))
+            thread.start()
+
         pb.start()
-        for slide_path in slide_list:
-            wsi = sf.WSI(slide_path, tile_px=window_size, tile_um=int(window_size * mpp))
+        while True:
+            slide_path = q.get()
+            if slide_path is None:
+                q.task_done()
+                break
+
+            wsi = sf.WSI(slide_path, tile_px=window_size, tile_um=tile_um, verbose=False)
             if qc is not None:
-                wsi.qc(qc)
+                wsi.qc(qc, **qc_kwargs)
             segment_task = pb.add_task(
                 "Segmenting... ",
                 progress_type="slide_progress",
@@ -904,13 +937,23 @@ class Dataset:
                 pb=pb,
                 pb_tasks=[speed_task, segment_task],
                 show_progress=False,
+                model=model,
+                diam_mean=diam_mean,
+                save_flow=save_flow,
                 **kwargs)
             mask_dest = dest if dest is not None else dirname(slide_path)
-            segmentation.save_npz(
-                join(mask_dest, f'{wsi.name}-masks.npz'),
-                compress=compress)
+            segmentation.save(
+                join(mask_dest, f'{wsi.name}-masks.zip'),
+                flows=save_flow,
+                centroids=save_centroid)
             pb.advance(slide_task)
             pb.remove_task(segment_task)
+
+            if buffer:
+                os.remove(slide_path)
+            q.task_done()
+        if buffer:
+            thread.join()
         pb.stop()
 
     def check_duplicates(
@@ -1117,7 +1160,7 @@ class Dataset:
         tma: bool = False,
         randomize_origin: bool = False,
         buffer: Optional[str] = None,
-        q_size: int = 4,
+        q_size: int = 1,
         qc: Optional[str] = None,
         report: bool = True,
         **kwargs: Any
@@ -1290,7 +1333,6 @@ class Dataset:
             # from all slides in the filtered list
             if len(slide_list):
                 q = Queue()  # type: Queue
-                task_finished = False
                 manager = mp.Manager()
                 # Forking incompatible with some libvips configurations
                 ctx = mp.get_context('spawn')
@@ -1339,26 +1381,21 @@ class Dataset:
                                          total=len(slide_list))
                 pb.start()
                 if buffer:
-                    # Worker to put each slide path into queue
-                    def buffer_worker():
-                        nonlocal task_finished
-                        _fill_queue(slide_list, q, q_size, buffer=buffer)
-                        task_finished = True
-
                     # Start the worker threads
-                    thread = threading.Thread(target=buffer_worker)
+                    thread = threading.Thread(
+                        target=_fill_queue,
+                        args=(slide_list, q, q_size, buffer))
                     thread.start()
 
                     # Grab slide path from queue and start extraction
-                    while not task_finished:
+                    while True:
                         path = q.get()
                         if path is None:
                             q.task_done()
                             break
                         _tile_extractor(path, **extraction_kwargs)
                         pb.advance(slide_task)
-                        if buffer:
-                            os.remove(path)
+                        os.remove(path)
                         q.task_done()
                     thread.join()
                 else:
