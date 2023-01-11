@@ -12012,3 +12012,1469 @@ Hint: If you want to see a list of allocated tensors when OOM happens, add repor
 2022-12-28 12:28:22 [INFO] - Using realtime reinhard_fast normalization
 2022-12-28 12:28:30 [INFO] - Using vectorized normalization
 2022-12-28 12:28:30 [INFO] - Generating predictions...
+2023-01-06 13:07:04 [INFO] - Predicting model results
+2023-01-06 13:07:05 [INFO] - Using realtime reinhard_fast normalization
+2023-01-06 13:07:12 [INFO] - Using vectorized normalization
+2023-01-06 13:07:13 [INFO] - Generating predictions...
+2023-01-06 13:31:32 [INFO] - Predicting model results
+2023-01-06 13:31:32 [INFO] - Using realtime reinhard_fast normalization
+2023-01-06 13:31:39 [INFO] - Using vectorized normalization
+2023-01-06 13:31:39 [INFO] - Generating predictions...
+2023-01-06 13:56:40 [INFO] - Predicting model results
+2023-01-06 13:56:40 [INFO] - Using realtime reinhard_fast normalization
+2023-01-06 13:56:47 [INFO] - Using vectorized normalization
+2023-01-06 13:56:47 [INFO] - Generating predictions...
+2023-01-06 14:22:24 [INFO] - Predicting model results
+2023-01-06 14:22:24 [INFO] - Using realtime reinhard_fast normalization
+2023-01-06 14:22:32 [INFO] - Using vectorized normalization
+2023-01-06 14:22:32 [INFO] - Generating predictions...
+2023-01-06 14:47:30 [INFO] - Predicting model results
+2023-01-06 14:47:30 [INFO] - Using realtime reinhard_fast normalization
+2023-01-06 14:47:37 [INFO] - Using vectorized normalization
+2023-01-06 14:47:37 [INFO] - Generating predictions...
+2023-01-06 15:18:52 [INFO] - Predicting model results
+2023-01-06 15:18:53 [INFO] - Using realtime reinhard_fast normalization
+2023-01-06 15:19:00 [INFO] - Using vectorized normalization
+2023-01-06 15:19:01 [INFO] - Generating predictions...
+2023-01-06 15:43:21 [INFO] - Predicting model results
+2023-01-06 15:43:21 [INFO] - Using realtime reinhard_fast normalization
+2023-01-06 15:43:29 [INFO] - Using vectorized normalization
+2023-01-06 15:43:29 [INFO] - Generating predictions...
+2023-01-06 18:14:04 [INFO] - Predicting model results
+2023-01-06 18:14:05 [INFO] - Using realtime reinhard_fast normalization
+2023-01-06 18:14:12 [INFO] - Using vectorized normalization
+2023-01-06 18:14:13 [INFO] - Generating predictions...
+2023-01-06 18:38:39 [INFO] - Predicting model results
+2023-01-06 18:38:39 [INFO] - Using realtime reinhard_fast normalization
+2023-01-06 18:38:46 [INFO] - Using vectorized normalization
+2023-01-06 18:38:46 [INFO] - Generating predictions...
+2023-01-06 19:02:57 [INFO] - Predicting model results
+2023-01-06 19:02:57 [INFO] - Using realtime reinhard_fast normalization
+2023-01-06 19:03:05 [INFO] - Using vectorized normalization
+2023-01-06 19:03:05 [INFO] - Generating predictions...
+2023-01-06 19:27:16 [INFO] - Predicting model results
+2023-01-06 19:27:16 [INFO] - Using realtime reinhard_fast normalization
+2023-01-06 19:27:24 [INFO] - Using vectorized normalization
+2023-01-06 19:27:24 [INFO] - Generating predictions...
+2023-01-06 19:51:31 [INFO] - Predicting model results
+2023-01-06 19:51:31 [INFO] - Using realtime reinhard_fast normalization
+2023-01-06 19:51:39 [INFO] - Using vectorized normalization
+2023-01-06 19:51:39 [INFO] - Generating predictions...
+2023-01-06 20:52:52 [INFO] - Predicting model results
+2023-01-06 20:52:53 [INFO] - Using realtime reinhard_fast normalization
+2023-01-06 20:53:00 [INFO] - Using vectorized normalization
+2023-01-06 20:53:01 [INFO] - Generating predictions...
+2023-01-06 23:40:34 [INFO] - Predicting model results
+2023-01-06 23:40:35 [INFO] - Using realtime reinhard_fast normalization
+2023-01-06 23:40:41 [INFO] - Using vectorized normalization
+2023-01-06 23:40:42 [INFO] - Generating predictions...
+2023-01-07 11:31:12 [INFO] - Predicting model results
+2023-01-07 11:31:13 [INFO] - Using realtime reinhard_fast normalization
+2023-01-07 11:31:20 [INFO] - Using vectorized normalization
+2023-01-07 11:31:21 [INFO] - Generating predictions...
+2023-01-07 11:54:43 [INFO] - Predicting model results
+2023-01-07 11:54:43 [INFO] - Using realtime reinhard_fast normalization
+2023-01-07 11:54:50 [INFO] - Using vectorized normalization
+2023-01-07 11:54:50 [INFO] - Generating predictions...
+2023-01-07 12:18:10 [INFO] - Predicting model results
+2023-01-07 12:18:10 [INFO] - Using realtime reinhard_fast normalization
+2023-01-07 12:18:17 [INFO] - Using vectorized normalization
+2023-01-07 12:18:17 [INFO] - Generating predictions...
+2023-01-07 15:19:41 [INFO] - Predicting model results
+2023-01-07 15:19:41 [INFO] - Using realtime reinhard_fast normalization
+2023-01-07 15:19:48 [INFO] - Using vectorized normalization
+2023-01-07 15:19:48 [INFO] - Generating predictions...
+2023-01-07 15:43:06 [INFO] - Predicting model results
+2023-01-07 15:43:06 [INFO] - Using realtime reinhard_fast normalization
+2023-01-07 15:43:15 [INFO] - Using vectorized normalization
+2023-01-07 15:43:15 [INFO] - Generating predictions...
+2023-01-07 19:01:42 [INFO] - Training model [bold]cohort-HP0[/] (k-fold #3)...
+2023-01-07 19:01:42 [INFO] - Hyperparameters: {
+  "augment": "xyrjb",
+  "batch_size": 128,
+  "drop_images": false,
+  "dropout": 0.1,
+  "early_stop": true,
+  "early_stop_method": "accuracy",
+  "early_stop_patience": 0,
+  "epochs": [
+    1,
+    3
+  ],
+  "hidden_layer_width": 1024,
+  "hidden_layers": 2,
+  "include_top": false,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0.98,
+  "learning_rate_decay_steps": 512,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": "reinhard_fast",
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "avg",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2023-01-07 19:01:42 [INFO] - Val settings: {
+  "strategy": "k-fold",
+  "k_fold": 3,
+  "k": [
+    3
+  ],
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2023-01-07 19:01:42 [INFO] - Using k-fold validation split detected at [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/splits.json[/] (ID: 1)
+2023-01-07 19:01:42 [INFO] - Using 628 training TFRecords, 313 validation
+2023-01-07 19:01:45 [INFO] - Using realtime reinhard_fast normalization
+2023-01-07 19:01:48 [INFO] - Using vectorized normalization
+2023-01-07 19:01:50 [INFO] - Using vectorized normalization
+2023-01-07 19:01:50 [INFO] - Beginning training
+2023-01-07 19:02:20 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00023-cohort-ensemble/00000-ensemble_1/00000-cohort-HP0-kfold3/cohort-HP0-kfold3_epoch1
+2023-01-07 19:10:46 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2023-01-07 19:10:46 [INFO] - tile-level AUC (cat # 0): 0.485 tile-level AP: 0.482 (opt. threshold: 0.486)
+2023-01-07 19:10:46 [INFO] - tile-level AUC (cat # 1): 0.485 tile-level AP: 0.497 (opt. threshold: 0.514)
+2023-01-07 19:10:46 [INFO] - Category 0 acc: 0.0% (0/196253)
+2023-01-07 19:10:46 [INFO] - Category 1 acc: 100.0% (202595/202595)
+2023-01-07 19:10:46 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2023-01-07 19:10:46 [INFO] - slide-level AUC (cat # 0): 0.397 slide-level AP: 0.422 (opt. threshold: 0.486)
+2023-01-07 19:10:47 [INFO] - slide-level AUC (cat # 1): 0.399 slide-level AP: 0.452 (opt. threshold: 0.514)
+2023-01-07 19:10:47 [INFO] - Category 0 acc: 0.0% (0/155)
+2023-01-07 19:10:47 [INFO] - Category 1 acc: 100.0% (158/158)
+2023-01-07 19:10:47 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2023-01-07 19:10:47 [INFO] - patient-level AUC (cat # 0): 0.397 patient-level AP: 0.422 (opt. threshold: 0.486)
+2023-01-07 19:10:47 [INFO] - patient-level AUC (cat # 1): 0.399 patient-level AP: 0.452 (opt. threshold: 0.514)
+2023-01-07 19:10:47 [INFO] - Category 0 acc: 0.0% (0/155)
+2023-01-07 19:10:47 [INFO] - Category 1 acc: 100.0% (158/158)
+2023-01-07 19:10:47 [INFO] - Validation metrics: {
+    "accuracy": 0.5079503971437741,
+    "loss": 0.6930908007745715
+}
+2023-01-07 19:11:09 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00023-cohort-ensemble/00000-ensemble_1/00000-cohort-HP0-kfold3/cohort-HP0-kfold3_epoch3
+2023-01-07 19:19:35 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2023-01-07 19:19:35 [INFO] - tile-level AUC (cat # 0): 0.528 tile-level AP: 0.513 (opt. threshold: 0.491)
+2023-01-07 19:19:36 [INFO] - tile-level AUC (cat # 1): 0.528 tile-level AP: 0.525 (opt. threshold: 0.509)
+2023-01-07 19:19:36 [INFO] - Category 0 acc: 0.0% (0/196253)
+2023-01-07 19:19:36 [INFO] - Category 1 acc: 100.0% (202595/202595)
+2023-01-07 19:19:36 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2023-01-07 19:19:36 [INFO] - slide-level AUC (cat # 0): 0.642 slide-level AP: 0.670 (opt. threshold: 0.491)
+2023-01-07 19:19:36 [INFO] - slide-level AUC (cat # 1): 0.642 slide-level AP: 0.621 (opt. threshold: 0.509)
+2023-01-07 19:19:36 [INFO] - Category 0 acc: 0.0% (0/155)
+2023-01-07 19:19:36 [INFO] - Category 1 acc: 100.0% (158/158)
+2023-01-07 19:19:36 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2023-01-07 19:19:36 [INFO] - patient-level AUC (cat # 0): 0.642 patient-level AP: 0.670 (opt. threshold: 0.491)
+2023-01-07 19:19:36 [INFO] - patient-level AUC (cat # 1): 0.642 patient-level AP: 0.621 (opt. threshold: 0.509)
+2023-01-07 19:19:36 [INFO] - Category 0 acc: 0.0% (0/155)
+2023-01-07 19:19:36 [INFO] - Category 1 acc: 100.0% (158/158)
+2023-01-07 19:19:36 [INFO] - Validation metrics: {
+    "accuracy": 0.5079503971437741,
+    "loss": 0.6930242202630862
+}
+2023-01-07 19:19:39 [INFO] - Training results saved: [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/results_log.csv
+2023-01-07 19:19:39 [INFO] - Training complete; validation accuracies:
+2023-01-07 19:19:39 [INFO] - Training model [bold]cohort-HP0[/] (k-fold #3)...
+2023-01-07 19:19:39 [INFO] - Hyperparameters: {
+  "augment": "xyrjb",
+  "batch_size": 128,
+  "drop_images": false,
+  "dropout": 0.1,
+  "early_stop": true,
+  "early_stop_method": "accuracy",
+  "early_stop_patience": 0,
+  "epochs": [
+    1,
+    3
+  ],
+  "hidden_layer_width": 1024,
+  "hidden_layers": 2,
+  "include_top": false,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0.98,
+  "learning_rate_decay_steps": 512,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": "reinhard_fast",
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "avg",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2023-01-07 19:19:39 [INFO] - Val settings: {
+  "strategy": "k-fold",
+  "k_fold": 3,
+  "k": [
+    3
+  ],
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2023-01-07 19:19:39 [INFO] - Using k-fold validation split detected at [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/splits.json[/] (ID: 1)
+2023-01-07 19:19:39 [INFO] - Using 628 training TFRecords, 313 validation
+2023-01-07 19:19:43 [INFO] - Using realtime reinhard_fast normalization
+2023-01-07 19:19:45 [INFO] - Using vectorized normalization
+2023-01-07 19:19:48 [INFO] - Using vectorized normalization
+2023-01-07 19:19:48 [INFO] - Beginning training
+2023-01-07 19:20:17 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00023-cohort-ensemble/00001-ensemble_2/00000-cohort-HP0-kfold3/cohort-HP0-kfold3_epoch1
+2023-01-07 19:28:44 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2023-01-07 19:28:44 [INFO] - tile-level AUC (cat # 0): 0.498 tile-level AP: 0.496 (opt. threshold: 0.474)
+2023-01-07 19:28:44 [INFO] - tile-level AUC (cat # 1): 0.498 tile-level AP: 0.506 (opt. threshold: 0.526)
+2023-01-07 19:28:44 [INFO] - Category 0 acc: 0.0% (0/196253)
+2023-01-07 19:28:44 [INFO] - Category 1 acc: 100.0% (202595/202595)
+2023-01-07 19:28:44 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2023-01-07 19:28:44 [INFO] - slide-level AUC (cat # 0): 0.579 slide-level AP: 0.600 (opt. threshold: 0.474)
+2023-01-07 19:28:44 [INFO] - slide-level AUC (cat # 1): 0.579 slide-level AP: 0.553 (opt. threshold: 0.526)
+2023-01-07 19:28:44 [INFO] - Category 0 acc: 0.0% (0/155)
+2023-01-07 19:28:44 [INFO] - Category 1 acc: 100.0% (158/158)
+2023-01-07 19:28:44 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2023-01-07 19:28:45 [INFO] - patient-level AUC (cat # 0): 0.579 patient-level AP: 0.600 (opt. threshold: 0.474)
+2023-01-07 19:28:45 [INFO] - patient-level AUC (cat # 1): 0.579 patient-level AP: 0.553 (opt. threshold: 0.526)
+2023-01-07 19:28:45 [INFO] - Category 0 acc: 0.0% (0/155)
+2023-01-07 19:28:45 [INFO] - Category 1 acc: 100.0% (158/158)
+2023-01-07 19:28:45 [INFO] - Validation metrics: {
+    "accuracy": 0.5079503971437741,
+    "loss": 0.6936587834006247
+}
+2023-01-07 19:29:07 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00023-cohort-ensemble/00001-ensemble_2/00000-cohort-HP0-kfold3/cohort-HP0-kfold3_epoch3
+2023-01-07 19:37:32 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2023-01-07 19:37:33 [INFO] - tile-level AUC (cat # 0): 0.553 tile-level AP: 0.534 (opt. threshold: 0.441)
+2023-01-07 19:37:33 [INFO] - tile-level AUC (cat # 1): 0.553 tile-level AP: 0.544 (opt. threshold: 0.559)
+2023-01-07 19:37:33 [INFO] - Category 0 acc: 0.0% (0/196253)
+2023-01-07 19:37:33 [INFO] - Category 1 acc: 100.0% (202595/202595)
+2023-01-07 19:37:33 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2023-01-07 19:37:33 [INFO] - slide-level AUC (cat # 0): 0.662 slide-level AP: 0.692 (opt. threshold: 0.441)
+2023-01-07 19:37:33 [INFO] - slide-level AUC (cat # 1): 0.662 slide-level AP: 0.616 (opt. threshold: 0.559)
+2023-01-07 19:37:33 [INFO] - Category 0 acc: 0.0% (0/155)
+2023-01-07 19:37:33 [INFO] - Category 1 acc: 100.0% (158/158)
+2023-01-07 19:37:33 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2023-01-07 19:37:33 [INFO] - patient-level AUC (cat # 0): 0.662 patient-level AP: 0.692 (opt. threshold: 0.441)
+2023-01-07 19:37:33 [INFO] - patient-level AUC (cat # 1): 0.662 patient-level AP: 0.616 (opt. threshold: 0.559)
+2023-01-07 19:37:33 [INFO] - Category 0 acc: 0.0% (0/155)
+2023-01-07 19:37:33 [INFO] - Category 1 acc: 100.0% (158/158)
+2023-01-07 19:37:33 [INFO] - Validation metrics: {
+    "accuracy": 0.5079503971437741,
+    "loss": 0.6982964948871776
+}
+2023-01-07 19:37:36 [INFO] - Training results saved: [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/results_log.csv
+2023-01-07 19:37:36 [INFO] - Training complete; validation accuracies:
+2023-01-07 19:37:36 [INFO] - Training model [bold]cohort-HP0[/] (k-fold #3)...
+2023-01-07 19:37:36 [INFO] - Hyperparameters: {
+  "augment": "xyrjb",
+  "batch_size": 128,
+  "drop_images": false,
+  "dropout": 0.1,
+  "early_stop": true,
+  "early_stop_method": "accuracy",
+  "early_stop_patience": 0,
+  "epochs": [
+    1,
+    3
+  ],
+  "hidden_layer_width": 1024,
+  "hidden_layers": 2,
+  "include_top": false,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0.98,
+  "learning_rate_decay_steps": 512,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": "reinhard_fast",
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "avg",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2023-01-07 19:37:36 [INFO] - Val settings: {
+  "strategy": "k-fold",
+  "k_fold": 3,
+  "k": [
+    3
+  ],
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2023-01-07 19:37:36 [INFO] - Using k-fold validation split detected at [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/splits.json[/] (ID: 1)
+2023-01-07 19:37:36 [INFO] - Using 628 training TFRecords, 313 validation
+2023-01-07 19:37:39 [INFO] - Using realtime reinhard_fast normalization
+2023-01-07 19:37:42 [INFO] - Using vectorized normalization
+2023-01-07 19:37:44 [INFO] - Using vectorized normalization
+2023-01-07 19:37:44 [INFO] - Beginning training
+2023-01-07 19:38:14 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00023-cohort-ensemble/00002-ensemble_3/00000-cohort-HP0-kfold3/cohort-HP0-kfold3_epoch1
+2023-01-07 19:46:41 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2023-01-07 19:46:41 [INFO] - tile-level AUC (cat # 0): 0.489 tile-level AP: 0.486 (opt. threshold: 0.502)
+2023-01-07 19:46:41 [INFO] - tile-level AUC (cat # 1): 0.489 tile-level AP: 0.501 (opt. threshold: 0.498)
+2023-01-07 19:46:41 [INFO] - Category 0 acc: 100.0% (196253/196253)
+2023-01-07 19:46:41 [INFO] - Category 1 acc: 0.0% (0/202595)
+2023-01-07 19:46:41 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2023-01-07 19:46:41 [INFO] - slide-level AUC (cat # 0): 0.434 slide-level AP: 0.461 (opt. threshold: 0.502)
+2023-01-07 19:46:42 [INFO] - slide-level AUC (cat # 1): 0.432 slide-level AP: 0.450 (opt. threshold: 0.498)
+2023-01-07 19:46:42 [INFO] - Category 0 acc: 100.0% (155/155)
+2023-01-07 19:46:42 [INFO] - Category 1 acc: 0.0% (0/158)
+2023-01-07 19:46:42 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2023-01-07 19:46:42 [INFO] - patient-level AUC (cat # 0): 0.434 patient-level AP: 0.461 (opt. threshold: 0.502)
+2023-01-07 19:46:42 [INFO] - patient-level AUC (cat # 1): 0.432 patient-level AP: 0.450 (opt. threshold: 0.498)
+2023-01-07 19:46:42 [INFO] - Category 0 acc: 100.0% (155/155)
+2023-01-07 19:46:42 [INFO] - Category 1 acc: 0.0% (0/158)
+2023-01-07 19:46:42 [INFO] - Validation metrics: {
+    "accuracy": 0.49204960285622595,
+    "loss": 0.6932083068939179
+}
+2023-01-07 19:47:04 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00023-cohort-ensemble/00002-ensemble_3/00000-cohort-HP0-kfold3/cohort-HP0-kfold3_epoch3
+2023-01-07 19:55:30 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2023-01-07 19:55:31 [INFO] - tile-level AUC (cat # 0): 0.503 tile-level AP: 0.493 (opt. threshold: 0.500)
+2023-01-07 19:55:31 [INFO] - tile-level AUC (cat # 1): 0.503 tile-level AP: 0.510 (opt. threshold: 0.500)
+2023-01-07 19:55:31 [INFO] - Category 0 acc: 0.0% (0/196253)
+2023-01-07 19:55:31 [INFO] - Category 1 acc: 100.0% (202595/202595)
+2023-01-07 19:55:31 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2023-01-07 19:55:31 [INFO] - slide-level AUC (cat # 0): 0.501 slide-level AP: 0.492 (opt. threshold: 0.500)
+2023-01-07 19:55:31 [INFO] - slide-level AUC (cat # 1): 0.500 slide-level AP: 0.514 (opt. threshold: 0.500)
+2023-01-07 19:55:31 [INFO] - Category 0 acc: 0.0% (0/155)
+2023-01-07 19:55:31 [INFO] - Category 1 acc: 100.0% (158/158)
+2023-01-07 19:55:31 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2023-01-07 19:55:31 [INFO] - patient-level AUC (cat # 0): 0.501 patient-level AP: 0.492 (opt. threshold: 0.500)
+2023-01-07 19:55:31 [INFO] - patient-level AUC (cat # 1): 0.500 patient-level AP: 0.514 (opt. threshold: 0.500)
+2023-01-07 19:55:31 [INFO] - Category 0 acc: 0.0% (0/155)
+2023-01-07 19:55:31 [INFO] - Category 1 acc: 100.0% (158/158)
+2023-01-07 19:55:31 [INFO] - Validation metrics: {
+    "accuracy": 0.5079503971437741,
+    "loss": 0.6931380770325818
+}
+2023-01-07 19:55:34 [INFO] - Training results saved: [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/results_log.csv
+2023-01-07 19:55:34 [INFO] - Training complete; validation accuracies:
+2023-01-07 19:55:34 [INFO] - Training model [bold]cohort-HP0[/] (k-fold #3)...
+2023-01-07 19:55:34 [INFO] - Hyperparameters: {
+  "augment": "xyrjb",
+  "batch_size": 128,
+  "drop_images": false,
+  "dropout": 0.1,
+  "early_stop": true,
+  "early_stop_method": "accuracy",
+  "early_stop_patience": 0,
+  "epochs": [
+    1,
+    3
+  ],
+  "hidden_layer_width": 1024,
+  "hidden_layers": 2,
+  "include_top": false,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0.98,
+  "learning_rate_decay_steps": 512,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": "reinhard_fast",
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "avg",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2023-01-07 19:55:34 [INFO] - Val settings: {
+  "strategy": "k-fold",
+  "k_fold": 3,
+  "k": [
+    3
+  ],
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2023-01-07 19:55:34 [INFO] - Using k-fold validation split detected at [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/splits.json[/] (ID: 1)
+2023-01-07 19:55:35 [INFO] - Using 628 training TFRecords, 313 validation
+2023-01-07 19:55:37 [INFO] - Using realtime reinhard_fast normalization
+2023-01-07 19:55:40 [INFO] - Using vectorized normalization
+2023-01-07 19:55:42 [INFO] - Using vectorized normalization
+2023-01-07 19:55:42 [INFO] - Beginning training
+2023-01-07 19:56:12 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00023-cohort-ensemble/00003-ensemble_4/00000-cohort-HP0-kfold3/cohort-HP0-kfold3_epoch1
+2023-01-07 20:04:39 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2023-01-07 20:04:39 [INFO] - tile-level AUC (cat # 0): 0.550 tile-level AP: 0.528 (opt. threshold: 0.504)
+2023-01-07 20:04:39 [INFO] - tile-level AUC (cat # 1): 0.550 tile-level AP: 0.541 (opt. threshold: 0.496)
+2023-01-07 20:04:39 [INFO] - Category 0 acc: 100.0% (196253/196253)
+2023-01-07 20:04:39 [INFO] - Category 1 acc: 0.0% (0/202595)
+2023-01-07 20:04:39 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2023-01-07 20:04:39 [INFO] - slide-level AUC (cat # 0): 0.696 slide-level AP: 0.730 (opt. threshold: 0.504)
+2023-01-07 20:04:39 [INFO] - slide-level AUC (cat # 1): 0.696 slide-level AP: 0.645 (opt. threshold: 0.496)
+2023-01-07 20:04:39 [INFO] - Category 0 acc: 100.0% (155/155)
+2023-01-07 20:04:39 [INFO] - Category 1 acc: 0.0% (0/158)
+2023-01-07 20:04:39 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2023-01-07 20:04:39 [INFO] - patient-level AUC (cat # 0): 0.696 patient-level AP: 0.730 (opt. threshold: 0.504)
+2023-01-07 20:04:39 [INFO] - patient-level AUC (cat # 1): 0.696 patient-level AP: 0.645 (opt. threshold: 0.496)
+2023-01-07 20:04:39 [INFO] - Category 0 acc: 100.0% (155/155)
+2023-01-07 20:04:39 [INFO] - Category 1 acc: 0.0% (0/158)
+2023-01-07 20:04:39 [INFO] - Validation metrics: {
+    "accuracy": 0.49204960285622595,
+    "loss": 0.6933066404026506
+}
+2023-01-07 20:05:02 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00023-cohort-ensemble/00003-ensemble_4/00000-cohort-HP0-kfold3/cohort-HP0-kfold3_epoch3
+2023-01-07 20:13:28 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2023-01-07 20:13:28 [INFO] - tile-level AUC (cat # 0): 0.526 tile-level AP: 0.511 (opt. threshold: 0.512)
+2023-01-07 20:13:28 [INFO] - tile-level AUC (cat # 1): 0.526 tile-level AP: 0.526 (opt. threshold: 0.488)
+2023-01-07 20:13:28 [INFO] - Category 0 acc: 100.0% (196253/196253)
+2023-01-07 20:13:28 [INFO] - Category 1 acc: 0.0% (0/202595)
+2023-01-07 20:13:28 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2023-01-07 20:13:28 [INFO] - slide-level AUC (cat # 0): 0.656 slide-level AP: 0.667 (opt. threshold: 0.512)
+2023-01-07 20:13:29 [INFO] - slide-level AUC (cat # 1): 0.656 slide-level AP: 0.601 (opt. threshold: 0.488)
+2023-01-07 20:13:29 [INFO] - Category 0 acc: 100.0% (155/155)
+2023-01-07 20:13:29 [INFO] - Category 1 acc: 0.0% (0/158)
+2023-01-07 20:13:29 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2023-01-07 20:13:29 [INFO] - patient-level AUC (cat # 0): 0.656 patient-level AP: 0.667 (opt. threshold: 0.512)
+2023-01-07 20:13:29 [INFO] - patient-level AUC (cat # 1): 0.656 patient-level AP: 0.601 (opt. threshold: 0.488)
+2023-01-07 20:13:29 [INFO] - Category 0 acc: 100.0% (155/155)
+2023-01-07 20:13:29 [INFO] - Category 1 acc: 0.0% (0/158)
+2023-01-07 20:13:29 [INFO] - Validation metrics: {
+    "accuracy": 0.49204960285622595,
+    "loss": 0.693844762478928
+}
+2023-01-07 20:13:32 [INFO] - Training results saved: [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/results_log.csv
+2023-01-07 20:13:32 [INFO] - Training complete; validation accuracies:
+2023-01-07 20:13:32 [INFO] - Training model [bold]cohort-HP0[/] (k-fold #3)...
+2023-01-07 20:13:32 [INFO] - Hyperparameters: {
+  "augment": "xyrjb",
+  "batch_size": 128,
+  "drop_images": false,
+  "dropout": 0.1,
+  "early_stop": true,
+  "early_stop_method": "accuracy",
+  "early_stop_patience": 0,
+  "epochs": [
+    1,
+    3
+  ],
+  "hidden_layer_width": 1024,
+  "hidden_layers": 2,
+  "include_top": false,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0.98,
+  "learning_rate_decay_steps": 512,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": "reinhard_fast",
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "avg",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2023-01-07 20:13:32 [INFO] - Val settings: {
+  "strategy": "k-fold",
+  "k_fold": 3,
+  "k": [
+    3
+  ],
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2023-01-07 20:13:32 [INFO] - Using k-fold validation split detected at [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/splits.json[/] (ID: 1)
+2023-01-07 20:13:32 [INFO] - Using 628 training TFRecords, 313 validation
+2023-01-07 20:13:35 [INFO] - Using realtime reinhard_fast normalization
+2023-01-07 20:13:38 [INFO] - Using vectorized normalization
+2023-01-07 20:13:40 [INFO] - Using vectorized normalization
+2023-01-07 20:13:40 [INFO] - Beginning training
+2023-01-07 20:14:10 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00023-cohort-ensemble/00004-ensemble_5/00000-cohort-HP0-kfold3/cohort-HP0-kfold3_epoch1
+2023-01-07 20:22:36 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2023-01-07 20:22:36 [INFO] - tile-level AUC (cat # 0): 0.459 tile-level AP: 0.462 (opt. threshold: 0.503)
+2023-01-07 20:22:37 [INFO] - tile-level AUC (cat # 1): 0.459 tile-level AP: 0.481 (opt. threshold: 0.497)
+2023-01-07 20:22:37 [INFO] - Category 0 acc: 100.0% (196253/196253)
+2023-01-07 20:22:37 [INFO] - Category 1 acc: 0.0% (0/202595)
+2023-01-07 20:22:37 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2023-01-07 20:22:37 [INFO] - slide-level AUC (cat # 0): 0.364 slide-level AP: 0.423 (opt. threshold: 1.503)
+2023-01-07 20:22:37 [INFO] - slide-level AUC (cat # 1): 0.362 slide-level AP: 0.408 (opt. threshold: 1.497)
+2023-01-07 20:22:37 [INFO] - Category 0 acc: 100.0% (155/155)
+2023-01-07 20:22:37 [INFO] - Category 1 acc: 0.0% (0/158)
+2023-01-07 20:22:37 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2023-01-07 20:22:37 [INFO] - patient-level AUC (cat # 0): 0.364 patient-level AP: 0.423 (opt. threshold: 1.503)
+2023-01-07 20:22:37 [INFO] - patient-level AUC (cat # 1): 0.362 patient-level AP: 0.408 (opt. threshold: 1.497)
+2023-01-07 20:22:37 [INFO] - Category 0 acc: 100.0% (155/155)
+2023-01-07 20:22:37 [INFO] - Category 1 acc: 0.0% (0/158)
+2023-01-07 20:22:37 [INFO] - Validation metrics: {
+    "accuracy": 0.49204960285622595,
+    "loss": 0.6932703971250688
+}
+2023-01-07 20:22:59 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00023-cohort-ensemble/00004-ensemble_5/00000-cohort-HP0-kfold3/cohort-HP0-kfold3_epoch3
+2023-01-07 21:50:43 [INFO] - Training model [bold]cohort-HP0[/] (k-fold #3)...
+2023-01-07 21:50:43 [INFO] - Hyperparameters: {
+  "augment": "xyrjb",
+  "batch_size": 128,
+  "drop_images": false,
+  "dropout": 0.1,
+  "early_stop": true,
+  "early_stop_method": "accuracy",
+  "early_stop_patience": 0,
+  "epochs": [
+    1,
+    3
+  ],
+  "hidden_layer_width": 1024,
+  "hidden_layers": 2,
+  "include_top": false,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0.98,
+  "learning_rate_decay_steps": 512,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": "reinhard_fast",
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "avg",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2023-01-07 21:50:43 [INFO] - Val settings: {
+  "strategy": "k-fold",
+  "k_fold": 3,
+  "k": [
+    3
+  ],
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2023-01-07 21:50:43 [INFO] - Using k-fold validation split detected at [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/splits.json[/] (ID: 1)
+2023-01-07 21:50:43 [INFO] - Using 628 training TFRecords, 313 validation
+2023-01-07 21:50:45 [INFO] - Using realtime reinhard_fast normalization
+2023-01-07 21:50:48 [INFO] - Using vectorized normalization
+2023-01-07 21:50:50 [INFO] - Using vectorized normalization
+2023-01-07 21:50:50 [INFO] - Beginning training
+2023-01-07 21:51:03 [ERROR] - Training failed for [bold]cohort-HP0-kfold3[/]. Error: 
+ in user code:
+
+    File "/home/prajval/anaconda3/envs/sf/lib/python3.8/site-packages/keras/engine/training.py", line 1051, in train_function  *
+        return step_function(self, iterator)
+    File "/home/prajval/anaconda3/envs/sf/lib/python3.8/site-packages/keras/engine/training.py", line 1040, in step_function  **
+        outputs = model.distribute_strategy.run(run_step, args=(data,))
+    File "/home/prajval/anaconda3/envs/sf/lib/python3.8/site-packages/keras/engine/training.py", line 1030, in run_step  **
+        outputs = model.train_step(data)
+    File "/home/prajval/anaconda3/envs/sf/lib/python3.8/site-packages/keras/engine/training.py", line 893, in train_step
+        self.optimizer.minimize(loss, self.trainable_variables, tape=tape)
+    File "/home/prajval/anaconda3/envs/sf/lib/python3.8/site-packages/keras/optimizers/optimizer_v2/optimizer_v2.py", line 539, in minimize
+        return self.apply_gradients(grads_and_vars, name=name)
+    File "/home/prajval/anaconda3/envs/sf/lib/python3.8/site-packages/keras/mixed_precision/loss_scale_optimizer.py", line 770, in apply_gradients
+        maybe_apply_op = tf.__internal__.smart_cond.smart_cond(should_apply_grads, apply_fn,
+    File "/home/prajval/anaconda3/envs/sf/lib/python3.8/site-packages/keras/mixed_precision/loss_scale_optimizer.py", line 768, in apply_fn
+        return self._apply_gradients(grads, wrapped_vars, name)
+    File "/home/prajval/anaconda3/envs/sf/lib/python3.8/site-packages/keras/mixed_precision/loss_scale_optimizer.py", line 802, in _apply_gradients
+        return self._optimizer.apply_gradients(
+    File "/home/prajval/anaconda3/envs/sf/lib/python3.8/site-packages/keras/optimizers/optimizer_v2/optimizer_v2.py", line 646, in apply_gradients
+        self._create_all_weights(var_list)
+    File "/home/prajval/anaconda3/envs/sf/lib/python3.8/site-packages/keras/optimizers/optimizer_v2/optimizer_v2.py", line 860, in _create_all_weights
+        self._create_slots(var_list)
+    File "/home/prajval/anaconda3/envs/sf/lib/python3.8/site-packages/keras/optimizers/optimizer_v2/adam.py", line 122, in _create_slots
+        self.add_slot(var, 'm')
+    File "/home/prajval/anaconda3/envs/sf/lib/python3.8/site-packages/keras/optimizers/optimizer_v2/optimizer_v2.py", line 946, in add_slot
+        weight = tf.Variable(
+    File "/home/prajval/anaconda3/envs/sf/lib/python3.8/site-packages/keras/initializers/initializers_v2.py", line 152, in __call__
+        return tf.zeros(shape, dtype)
+
+    ResourceExhaustedError: OOM when allocating tensor with shape[728] and type float on /job:localhost/replica:0/task:0/device:GPU:0 by allocator GPU_0_bfc [Op:Fill]
+
+2023-01-07 21:51:04 [INFO] - Training results saved: [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/results_log.csv
+2023-01-07 21:51:04 [INFO] - Training complete; validation accuracies:
+2023-01-07 21:51:04 [INFO] - Training model [bold]cohort-HP0[/] (k-fold #3)...
+2023-01-07 21:51:04 [INFO] - Hyperparameters: {
+  "augment": "xyrjb",
+  "batch_size": 128,
+  "drop_images": false,
+  "dropout": 0.1,
+  "early_stop": true,
+  "early_stop_method": "accuracy",
+  "early_stop_patience": 0,
+  "epochs": [
+    1,
+    3
+  ],
+  "hidden_layer_width": 1024,
+  "hidden_layers": 2,
+  "include_top": false,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0.98,
+  "learning_rate_decay_steps": 512,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": "reinhard_fast",
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "avg",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2023-01-07 21:51:04 [INFO] - Val settings: {
+  "strategy": "k-fold",
+  "k_fold": 3,
+  "k": [
+    3
+  ],
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2023-01-07 21:51:04 [INFO] - Using k-fold validation split detected at [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/splits.json[/] (ID: 1)
+2023-01-07 21:51:04 [INFO] - Using 628 training TFRecords, 313 validation
+2023-01-07 21:51:06 [INFO] - Using realtime reinhard_fast normalization
+2023-01-07 21:51:09 [INFO] - Using vectorized normalization
+2023-01-07 21:51:11 [INFO] - Using vectorized normalization
+2023-01-07 21:51:11 [INFO] - Beginning training
+2023-01-07 21:51:24 [ERROR] - Training failed for [bold]cohort-HP0-kfold3[/]. Error: 
+ in user code:
+
+    File "/home/prajval/anaconda3/envs/sf/lib/python3.8/site-packages/keras/engine/training.py", line 1051, in train_function  *
+        return step_function(self, iterator)
+    File "/home/prajval/anaconda3/envs/sf/lib/python3.8/site-packages/keras/engine/training.py", line 1040, in step_function  **
+        outputs = model.distribute_strategy.run(run_step, args=(data,))
+    File "/home/prajval/anaconda3/envs/sf/lib/python3.8/site-packages/keras/engine/training.py", line 1030, in run_step  **
+        outputs = model.train_step(data)
+    File "/home/prajval/anaconda3/envs/sf/lib/python3.8/site-packages/keras/engine/training.py", line 893, in train_step
+        self.optimizer.minimize(loss, self.trainable_variables, tape=tape)
+    File "/home/prajval/anaconda3/envs/sf/lib/python3.8/site-packages/keras/optimizers/optimizer_v2/optimizer_v2.py", line 539, in minimize
+        return self.apply_gradients(grads_and_vars, name=name)
+    File "/home/prajval/anaconda3/envs/sf/lib/python3.8/site-packages/keras/mixed_precision/loss_scale_optimizer.py", line 770, in apply_gradients
+        maybe_apply_op = tf.__internal__.smart_cond.smart_cond(should_apply_grads, apply_fn,
+    File "/home/prajval/anaconda3/envs/sf/lib/python3.8/site-packages/keras/mixed_precision/loss_scale_optimizer.py", line 768, in apply_fn
+        return self._apply_gradients(grads, wrapped_vars, name)
+    File "/home/prajval/anaconda3/envs/sf/lib/python3.8/site-packages/keras/mixed_precision/loss_scale_optimizer.py", line 802, in _apply_gradients
+        return self._optimizer.apply_gradients(
+    File "/home/prajval/anaconda3/envs/sf/lib/python3.8/site-packages/keras/optimizers/optimizer_v2/optimizer_v2.py", line 646, in apply_gradients
+        self._create_all_weights(var_list)
+    File "/home/prajval/anaconda3/envs/sf/lib/python3.8/site-packages/keras/optimizers/optimizer_v2/optimizer_v2.py", line 860, in _create_all_weights
+        self._create_slots(var_list)
+    File "/home/prajval/anaconda3/envs/sf/lib/python3.8/site-packages/keras/optimizers/optimizer_v2/adam.py", line 122, in _create_slots
+        self.add_slot(var, 'm')
+    File "/home/prajval/anaconda3/envs/sf/lib/python3.8/site-packages/keras/optimizers/optimizer_v2/optimizer_v2.py", line 946, in add_slot
+        weight = tf.Variable(
+    File "/home/prajval/anaconda3/envs/sf/lib/python3.8/site-packages/keras/initializers/initializers_v2.py", line 152, in __call__
+        return tf.zeros(shape, dtype)
+
+    ResourceExhaustedError: OOM when allocating tensor with shape[728] and type float on /job:localhost/replica:0/task:0/device:GPU:0 by allocator GPU_0_bfc [Op:Fill]
+
+2023-01-07 21:51:25 [INFO] - Training results saved: [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/results_log.csv
+2023-01-07 21:51:25 [INFO] - Training complete; validation accuracies:
+2023-01-07 21:51:25 [INFO] - Training model [bold]cohort-HP0[/] (k-fold #3)...
+2023-01-07 21:51:25 [INFO] - Hyperparameters: {
+  "augment": "xyrjb",
+  "batch_size": 128,
+  "drop_images": false,
+  "dropout": 0.1,
+  "early_stop": true,
+  "early_stop_method": "accuracy",
+  "early_stop_patience": 0,
+  "epochs": [
+    1,
+    3
+  ],
+  "hidden_layer_width": 1024,
+  "hidden_layers": 2,
+  "include_top": false,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0.98,
+  "learning_rate_decay_steps": 512,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": "reinhard_fast",
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "avg",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2023-01-07 21:51:25 [INFO] - Val settings: {
+  "strategy": "k-fold",
+  "k_fold": 3,
+  "k": [
+    3
+  ],
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2023-01-07 21:51:25 [INFO] - Using k-fold validation split detected at [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/splits.json[/] (ID: 1)
+2023-01-07 21:51:25 [INFO] - Using 628 training TFRecords, 313 validation
+2023-01-07 21:51:27 [INFO] - Using realtime reinhard_fast normalization
+2023-01-07 21:51:30 [INFO] - Using vectorized normalization
+2023-01-07 21:51:32 [INFO] - Using vectorized normalization
+2023-01-07 21:51:32 [INFO] - Beginning training
+2023-01-07 21:51:45 [ERROR] - Training failed for [bold]cohort-HP0-kfold3[/]. Error: 
+ in user code:
+
+    File "/home/prajval/anaconda3/envs/sf/lib/python3.8/site-packages/keras/engine/training.py", line 1051, in train_function  *
+        return step_function(self, iterator)
+    File "/home/prajval/anaconda3/envs/sf/lib/python3.8/site-packages/keras/engine/training.py", line 1040, in step_function  **
+        outputs = model.distribute_strategy.run(run_step, args=(data,))
+    File "/home/prajval/anaconda3/envs/sf/lib/python3.8/site-packages/keras/engine/training.py", line 1030, in run_step  **
+        outputs = model.train_step(data)
+    File "/home/prajval/anaconda3/envs/sf/lib/python3.8/site-packages/keras/engine/training.py", line 893, in train_step
+        self.optimizer.minimize(loss, self.trainable_variables, tape=tape)
+    File "/home/prajval/anaconda3/envs/sf/lib/python3.8/site-packages/keras/optimizers/optimizer_v2/optimizer_v2.py", line 539, in minimize
+        return self.apply_gradients(grads_and_vars, name=name)
+    File "/home/prajval/anaconda3/envs/sf/lib/python3.8/site-packages/keras/mixed_precision/loss_scale_optimizer.py", line 770, in apply_gradients
+        maybe_apply_op = tf.__internal__.smart_cond.smart_cond(should_apply_grads, apply_fn,
+    File "/home/prajval/anaconda3/envs/sf/lib/python3.8/site-packages/keras/mixed_precision/loss_scale_optimizer.py", line 768, in apply_fn
+        return self._apply_gradients(grads, wrapped_vars, name)
+    File "/home/prajval/anaconda3/envs/sf/lib/python3.8/site-packages/keras/mixed_precision/loss_scale_optimizer.py", line 802, in _apply_gradients
+        return self._optimizer.apply_gradients(
+    File "/home/prajval/anaconda3/envs/sf/lib/python3.8/site-packages/keras/optimizers/optimizer_v2/optimizer_v2.py", line 646, in apply_gradients
+        self._create_all_weights(var_list)
+    File "/home/prajval/anaconda3/envs/sf/lib/python3.8/site-packages/keras/optimizers/optimizer_v2/optimizer_v2.py", line 860, in _create_all_weights
+        self._create_slots(var_list)
+    File "/home/prajval/anaconda3/envs/sf/lib/python3.8/site-packages/keras/optimizers/optimizer_v2/adam.py", line 122, in _create_slots
+        self.add_slot(var, 'm')
+    File "/home/prajval/anaconda3/envs/sf/lib/python3.8/site-packages/keras/optimizers/optimizer_v2/optimizer_v2.py", line 946, in add_slot
+        weight = tf.Variable(
+    File "/home/prajval/anaconda3/envs/sf/lib/python3.8/site-packages/keras/initializers/initializers_v2.py", line 152, in __call__
+        return tf.zeros(shape, dtype)
+
+    ResourceExhaustedError: OOM when allocating tensor with shape[728] and type float on /job:localhost/replica:0/task:0/device:GPU:0 by allocator GPU_0_bfc [Op:Fill]
+
+2023-01-07 21:51:46 [INFO] - Training results saved: [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/results_log.csv
+2023-01-07 21:51:46 [INFO] - Training complete; validation accuracies:
+2023-01-07 21:51:46 [INFO] - Training model [bold]cohort-HP0[/] (k-fold #3)...
+2023-01-07 21:51:46 [INFO] - Hyperparameters: {
+  "augment": "xyrjb",
+  "batch_size": 128,
+  "drop_images": false,
+  "dropout": 0.1,
+  "early_stop": true,
+  "early_stop_method": "accuracy",
+  "early_stop_patience": 0,
+  "epochs": [
+    1,
+    3
+  ],
+  "hidden_layer_width": 1024,
+  "hidden_layers": 2,
+  "include_top": false,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0.98,
+  "learning_rate_decay_steps": 512,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": "reinhard_fast",
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "avg",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2023-01-07 21:51:46 [INFO] - Val settings: {
+  "strategy": "k-fold",
+  "k_fold": 3,
+  "k": [
+    3
+  ],
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2023-01-07 21:51:46 [INFO] - Using k-fold validation split detected at [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/splits.json[/] (ID: 1)
+2023-01-07 21:51:46 [INFO] - Using 628 training TFRecords, 313 validation
+2023-01-07 21:51:48 [INFO] - Using realtime reinhard_fast normalization
+2023-01-07 21:51:51 [INFO] - Using vectorized normalization
+2023-01-07 21:51:53 [INFO] - Using vectorized normalization
+2023-01-07 21:51:53 [INFO] - Beginning training
+2023-01-07 21:52:06 [ERROR] - Training failed for [bold]cohort-HP0-kfold3[/]. Error: 
+ in user code:
+
+    File "/home/prajval/anaconda3/envs/sf/lib/python3.8/site-packages/keras/engine/training.py", line 1051, in train_function  *
+        return step_function(self, iterator)
+    File "/home/prajval/anaconda3/envs/sf/lib/python3.8/site-packages/keras/engine/training.py", line 1040, in step_function  **
+        outputs = model.distribute_strategy.run(run_step, args=(data,))
+    File "/home/prajval/anaconda3/envs/sf/lib/python3.8/site-packages/keras/engine/training.py", line 1030, in run_step  **
+        outputs = model.train_step(data)
+    File "/home/prajval/anaconda3/envs/sf/lib/python3.8/site-packages/keras/engine/training.py", line 893, in train_step
+        self.optimizer.minimize(loss, self.trainable_variables, tape=tape)
+    File "/home/prajval/anaconda3/envs/sf/lib/python3.8/site-packages/keras/optimizers/optimizer_v2/optimizer_v2.py", line 539, in minimize
+        return self.apply_gradients(grads_and_vars, name=name)
+    File "/home/prajval/anaconda3/envs/sf/lib/python3.8/site-packages/keras/mixed_precision/loss_scale_optimizer.py", line 770, in apply_gradients
+        maybe_apply_op = tf.__internal__.smart_cond.smart_cond(should_apply_grads, apply_fn,
+    File "/home/prajval/anaconda3/envs/sf/lib/python3.8/site-packages/keras/mixed_precision/loss_scale_optimizer.py", line 768, in apply_fn
+        return self._apply_gradients(grads, wrapped_vars, name)
+    File "/home/prajval/anaconda3/envs/sf/lib/python3.8/site-packages/keras/mixed_precision/loss_scale_optimizer.py", line 802, in _apply_gradients
+        return self._optimizer.apply_gradients(
+    File "/home/prajval/anaconda3/envs/sf/lib/python3.8/site-packages/keras/optimizers/optimizer_v2/optimizer_v2.py", line 646, in apply_gradients
+        self._create_all_weights(var_list)
+    File "/home/prajval/anaconda3/envs/sf/lib/python3.8/site-packages/keras/optimizers/optimizer_v2/optimizer_v2.py", line 860, in _create_all_weights
+        self._create_slots(var_list)
+    File "/home/prajval/anaconda3/envs/sf/lib/python3.8/site-packages/keras/optimizers/optimizer_v2/adam.py", line 122, in _create_slots
+        self.add_slot(var, 'm')
+    File "/home/prajval/anaconda3/envs/sf/lib/python3.8/site-packages/keras/optimizers/optimizer_v2/optimizer_v2.py", line 946, in add_slot
+        weight = tf.Variable(
+    File "/home/prajval/anaconda3/envs/sf/lib/python3.8/site-packages/keras/initializers/initializers_v2.py", line 152, in __call__
+        return tf.zeros(shape, dtype)
+
+    ResourceExhaustedError: OOM when allocating tensor with shape[728] and type float on /job:localhost/replica:0/task:0/device:GPU:0 by allocator GPU_0_bfc [Op:Fill]
+
+2023-01-07 21:52:07 [INFO] - Training results saved: [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/results_log.csv
+2023-01-07 21:52:07 [INFO] - Training complete; validation accuracies:
+2023-01-07 21:52:07 [INFO] - Training model [bold]cohort-HP0[/] (k-fold #3)...
+2023-01-07 21:52:07 [INFO] - Hyperparameters: {
+  "augment": "xyrjb",
+  "batch_size": 128,
+  "drop_images": false,
+  "dropout": 0.1,
+  "early_stop": true,
+  "early_stop_method": "accuracy",
+  "early_stop_patience": 0,
+  "epochs": [
+    1,
+    3
+  ],
+  "hidden_layer_width": 1024,
+  "hidden_layers": 2,
+  "include_top": false,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0.98,
+  "learning_rate_decay_steps": 512,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": "reinhard_fast",
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "avg",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2023-01-07 21:52:07 [INFO] - Val settings: {
+  "strategy": "k-fold",
+  "k_fold": 3,
+  "k": [
+    3
+  ],
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2023-01-07 21:52:07 [INFO] - Using k-fold validation split detected at [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/splits.json[/] (ID: 1)
+2023-01-07 21:52:07 [INFO] - Using 628 training TFRecords, 313 validation
+2023-01-07 21:52:09 [INFO] - Using realtime reinhard_fast normalization
+2023-01-07 21:52:20 [ERROR] - Training failed for model cohort-HP0
+2023-01-07 21:52:20 [INFO] - Training results saved: [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/results_log.csv
+2023-01-07 21:52:20 [INFO] - Training complete; validation accuracies:
+2023-01-08 09:56:17 [INFO] - Training model [bold]cohort-HP0[/] (k-fold #3)...
+2023-01-08 09:56:17 [INFO] - Hyperparameters: {
+  "augment": "xyrjb",
+  "batch_size": 128,
+  "drop_images": false,
+  "dropout": 0.1,
+  "early_stop": true,
+  "early_stop_method": "accuracy",
+  "early_stop_patience": 0,
+  "epochs": [
+    1,
+    3
+  ],
+  "hidden_layer_width": 1024,
+  "hidden_layers": 2,
+  "include_top": false,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0.98,
+  "learning_rate_decay_steps": 512,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": "reinhard_fast",
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "avg",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2023-01-08 09:56:17 [INFO] - Val settings: {
+  "strategy": "k-fold",
+  "k_fold": 3,
+  "k": [
+    3
+  ],
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2023-01-08 09:56:17 [INFO] - Using k-fold validation split detected at [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/splits.json[/] (ID: 1)
+2023-01-08 09:56:17 [INFO] - Using 628 training TFRecords, 313 validation
+2023-01-08 09:56:20 [INFO] - Using realtime reinhard_fast normalization
+2023-01-08 09:56:22 [INFO] - Using vectorized normalization
+2023-01-08 09:56:24 [INFO] - Using vectorized normalization
+2023-01-08 09:56:25 [INFO] - Beginning training
+2023-01-08 09:56:54 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00024-cohort-ensemble/00000-ensemble_1/00000-cohort-HP0-kfold3/cohort-HP0-kfold3_epoch1
+2023-01-08 10:05:19 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2023-01-08 10:05:20 [INFO] - tile-level AUC (cat # 0): 0.520 tile-level AP: 0.506 (opt. threshold: 0.498)
+2023-01-08 10:05:20 [INFO] - tile-level AUC (cat # 1): 0.520 tile-level AP: 0.525 (opt. threshold: 0.502)
+2023-01-08 10:05:20 [INFO] - Category 0 acc: 0.0% (0/196253)
+2023-01-08 10:05:20 [INFO] - Category 1 acc: 100.0% (202595/202595)
+2023-01-08 10:05:20 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2023-01-08 10:05:20 [INFO] - slide-level AUC (cat # 0): 0.586 slide-level AP: 0.624 (opt. threshold: 0.498)
+2023-01-08 10:05:20 [INFO] - slide-level AUC (cat # 1): 0.587 slide-level AP: 0.538 (opt. threshold: 0.502)
+2023-01-08 10:05:20 [INFO] - Category 0 acc: 0.0% (0/155)
+2023-01-08 10:05:20 [INFO] - Category 1 acc: 100.0% (158/158)
+2023-01-08 10:05:20 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2023-01-08 10:05:20 [INFO] - patient-level AUC (cat # 0): 0.586 patient-level AP: 0.624 (opt. threshold: 0.498)
+2023-01-08 10:05:20 [INFO] - patient-level AUC (cat # 1): 0.587 patient-level AP: 0.538 (opt. threshold: 0.502)
+2023-01-08 10:05:20 [INFO] - Category 0 acc: 0.0% (0/155)
+2023-01-08 10:05:20 [INFO] - Category 1 acc: 100.0% (158/158)
+2023-01-08 10:05:20 [INFO] - Validation metrics: {
+    "accuracy": 0.5079503971437741,
+    "loss": 0.6930995573204807
+}
+2023-01-08 10:05:43 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00024-cohort-ensemble/00000-ensemble_1/00000-cohort-HP0-kfold3/cohort-HP0-kfold3_epoch3
+2023-01-08 10:14:09 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2023-01-08 10:14:10 [INFO] - tile-level AUC (cat # 0): 0.527 tile-level AP: 0.512 (opt. threshold: 0.490)
+2023-01-08 10:14:10 [INFO] - tile-level AUC (cat # 1): 0.527 tile-level AP: 0.527 (opt. threshold: 0.510)
+2023-01-08 10:14:10 [INFO] - Category 0 acc: 0.0% (0/196253)
+2023-01-08 10:14:10 [INFO] - Category 1 acc: 100.0% (202595/202595)
+2023-01-08 10:14:10 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2023-01-08 10:14:10 [INFO] - slide-level AUC (cat # 0): 0.550 slide-level AP: 0.577 (opt. threshold: 0.490)
+2023-01-08 10:14:10 [INFO] - slide-level AUC (cat # 1): 0.551 slide-level AP: 0.549 (opt. threshold: 0.510)
+2023-01-08 10:14:10 [INFO] - Category 0 acc: 0.0% (0/155)
+2023-01-08 10:14:10 [INFO] - Category 1 acc: 100.0% (158/158)
+2023-01-08 10:14:10 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2023-01-08 10:14:10 [INFO] - patient-level AUC (cat # 0): 0.550 patient-level AP: 0.577 (opt. threshold: 0.490)
+2023-01-08 10:14:10 [INFO] - patient-level AUC (cat # 1): 0.551 patient-level AP: 0.549 (opt. threshold: 0.510)
+2023-01-08 10:14:10 [INFO] - Category 0 acc: 0.0% (0/155)
+2023-01-08 10:14:10 [INFO] - Category 1 acc: 100.0% (158/158)
+2023-01-08 10:14:10 [INFO] - Validation metrics: {
+    "accuracy": 0.5079503971437741,
+    "loss": 0.6930281979932101
+}
+2023-01-08 10:14:14 [INFO] - Training results saved: [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/results_log.csv
+2023-01-08 10:14:14 [INFO] - Training complete; validation accuracies:
+2023-01-08 10:14:14 [INFO] - Training model [bold]cohort-HP0[/] (k-fold #3)...
+2023-01-08 10:14:14 [INFO] - Hyperparameters: {
+  "augment": "xyrjb",
+  "batch_size": 128,
+  "drop_images": false,
+  "dropout": 0.1,
+  "early_stop": true,
+  "early_stop_method": "accuracy",
+  "early_stop_patience": 0,
+  "epochs": [
+    1,
+    3
+  ],
+  "hidden_layer_width": 1024,
+  "hidden_layers": 2,
+  "include_top": false,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0.98,
+  "learning_rate_decay_steps": 512,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": "reinhard_fast",
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "avg",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2023-01-08 10:14:14 [INFO] - Val settings: {
+  "strategy": "k-fold",
+  "k_fold": 3,
+  "k": [
+    3
+  ],
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2023-01-08 10:14:14 [INFO] - Using k-fold validation split detected at [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/splits.json[/] (ID: 1)
+2023-01-08 10:14:14 [INFO] - Using 628 training TFRecords, 313 validation
+2023-01-08 10:14:17 [INFO] - Using realtime reinhard_fast normalization
+2023-01-08 10:14:20 [INFO] - Using vectorized normalization
+2023-01-08 10:14:22 [INFO] - Using vectorized normalization
+2023-01-08 10:14:23 [INFO] - Beginning training
+2023-01-08 10:14:52 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00024-cohort-ensemble/00001-ensemble_2/00000-cohort-HP0-kfold3/cohort-HP0-kfold3_epoch1
+2023-01-08 10:23:17 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2023-01-08 10:23:17 [INFO] - tile-level AUC (cat # 0): 0.493 tile-level AP: 0.487 (opt. threshold: 0.492)
+2023-01-08 10:23:17 [INFO] - tile-level AUC (cat # 1): 0.493 tile-level AP: 0.505 (opt. threshold: 0.509)
+2023-01-08 10:23:17 [INFO] - Category 0 acc: 0.0% (0/196253)
+2023-01-08 10:23:17 [INFO] - Category 1 acc: 100.0% (202595/202595)
+2023-01-08 10:23:17 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2023-01-08 10:23:17 [INFO] - slide-level AUC (cat # 0): 0.451 slide-level AP: 0.491 (opt. threshold: 0.492)
+2023-01-08 10:23:17 [INFO] - slide-level AUC (cat # 1): 0.454 slide-level AP: 0.466 (opt. threshold: 0.508)
+2023-01-08 10:23:17 [INFO] - Category 0 acc: 0.0% (0/155)
+2023-01-08 10:23:17 [INFO] - Category 1 acc: 100.0% (158/158)
+2023-01-08 10:23:17 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2023-01-08 10:23:17 [INFO] - patient-level AUC (cat # 0): 0.451 patient-level AP: 0.491 (opt. threshold: 0.492)
+2023-01-08 10:23:17 [INFO] - patient-level AUC (cat # 1): 0.454 patient-level AP: 0.466 (opt. threshold: 0.508)
+2023-01-08 10:23:17 [INFO] - Category 0 acc: 0.0% (0/155)
+2023-01-08 10:23:17 [INFO] - Category 1 acc: 100.0% (158/158)
+2023-01-08 10:23:17 [INFO] - Validation metrics: {
+    "accuracy": 0.5079503971437741,
+    "loss": 0.6930214692485815
+}
+2023-01-08 10:23:40 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00024-cohort-ensemble/00001-ensemble_2/00000-cohort-HP0-kfold3/cohort-HP0-kfold3_epoch3
+2023-01-08 10:32:05 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2023-01-08 10:32:05 [INFO] - tile-level AUC (cat # 0): 0.512 tile-level AP: 0.502 (opt. threshold: 0.488)
+2023-01-08 10:32:05 [INFO] - tile-level AUC (cat # 1): 0.512 tile-level AP: 0.517 (opt. threshold: 0.512)
+2023-01-08 10:32:05 [INFO] - Category 0 acc: 0.0% (0/196253)
+2023-01-08 10:32:05 [INFO] - Category 1 acc: 100.0% (202595/202595)
+2023-01-08 10:32:05 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2023-01-08 10:32:06 [INFO] - slide-level AUC (cat # 0): 0.557 slide-level AP: 0.588 (opt. threshold: 0.488)
+2023-01-08 10:32:06 [INFO] - slide-level AUC (cat # 1): 0.555 slide-level AP: 0.527 (opt. threshold: 0.512)
+2023-01-08 10:32:06 [INFO] - Category 0 acc: 0.0% (0/155)
+2023-01-08 10:32:06 [INFO] - Category 1 acc: 100.0% (158/158)
+2023-01-08 10:32:06 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2023-01-08 10:32:06 [INFO] - patient-level AUC (cat # 0): 0.557 patient-level AP: 0.588 (opt. threshold: 0.488)
+2023-01-08 10:32:06 [INFO] - patient-level AUC (cat # 1): 0.555 patient-level AP: 0.527 (opt. threshold: 0.512)
+2023-01-08 10:32:06 [INFO] - Category 0 acc: 0.0% (0/155)
+2023-01-08 10:32:06 [INFO] - Category 1 acc: 100.0% (158/158)
+2023-01-08 10:32:06 [INFO] - Validation metrics: {
+    "accuracy": 0.5079503971437741,
+    "loss": 0.6930529477316258
+}
+2023-01-08 10:32:10 [INFO] - Training results saved: [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/results_log.csv
+2023-01-08 10:32:10 [INFO] - Training complete; validation accuracies:
+2023-01-08 10:32:10 [INFO] - Training model [bold]cohort-HP0[/] (k-fold #3)...
+2023-01-08 10:32:10 [INFO] - Hyperparameters: {
+  "augment": "xyrjb",
+  "batch_size": 128,
+  "drop_images": false,
+  "dropout": 0.1,
+  "early_stop": true,
+  "early_stop_method": "accuracy",
+  "early_stop_patience": 0,
+  "epochs": [
+    1,
+    3
+  ],
+  "hidden_layer_width": 1024,
+  "hidden_layers": 2,
+  "include_top": false,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0.98,
+  "learning_rate_decay_steps": 512,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": "reinhard_fast",
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "avg",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2023-01-08 10:32:10 [INFO] - Val settings: {
+  "strategy": "k-fold",
+  "k_fold": 3,
+  "k": [
+    3
+  ],
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2023-01-08 10:32:10 [INFO] - Using k-fold validation split detected at [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/splits.json[/] (ID: 1)
+2023-01-08 10:32:10 [INFO] - Using 628 training TFRecords, 313 validation
+2023-01-08 10:32:13 [INFO] - Using realtime reinhard_fast normalization
+2023-01-08 10:32:15 [INFO] - Using vectorized normalization
+2023-01-08 10:32:18 [INFO] - Using vectorized normalization
+2023-01-08 10:32:18 [INFO] - Beginning training
+2023-01-08 10:32:48 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00024-cohort-ensemble/00002-ensemble_3/00000-cohort-HP0-kfold3/cohort-HP0-kfold3_epoch1
+2023-01-08 10:41:16 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2023-01-08 10:41:16 [INFO] - tile-level AUC (cat # 0): 0.484 tile-level AP: 0.481 (opt. threshold: 0.503)
+2023-01-08 10:41:17 [INFO] - tile-level AUC (cat # 1): 0.484 tile-level AP: 0.498 (opt. threshold: 0.497)
+2023-01-08 10:41:17 [INFO] - Category 0 acc: 100.0% (196253/196253)
+2023-01-08 10:41:17 [INFO] - Category 1 acc: 0.0% (0/202595)
+2023-01-08 10:41:17 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2023-01-08 10:41:17 [INFO] - slide-level AUC (cat # 0): 0.451 slide-level AP: 0.459 (opt. threshold: 1.503)
+2023-01-08 10:41:17 [INFO] - slide-level AUC (cat # 1): 0.450 slide-level AP: 0.466 (opt. threshold: 1.497)
+2023-01-08 10:41:17 [INFO] - Category 0 acc: 100.0% (155/155)
+2023-01-08 10:41:17 [INFO] - Category 1 acc: 0.0% (0/158)
+2023-01-08 10:41:17 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2023-01-08 10:41:17 [INFO] - patient-level AUC (cat # 0): 0.451 patient-level AP: 0.459 (opt. threshold: 1.503)
+2023-01-08 10:41:17 [INFO] - patient-level AUC (cat # 1): 0.450 patient-level AP: 0.466 (opt. threshold: 1.497)
+2023-01-08 10:41:17 [INFO] - Category 0 acc: 100.0% (155/155)
+2023-01-08 10:41:17 [INFO] - Category 1 acc: 0.0% (0/158)
+2023-01-08 10:41:17 [INFO] - Validation metrics: {
+    "accuracy": 0.49204960285622595,
+    "loss": 0.6932408432637629
+}
+2023-01-08 10:41:40 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00024-cohort-ensemble/00002-ensemble_3/00000-cohort-HP0-kfold3/cohort-HP0-kfold3_epoch3
+2023-01-08 10:50:07 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2023-01-08 10:50:07 [INFO] - tile-level AUC (cat # 0): 0.500 tile-level AP: 0.493 (opt. threshold: 0.495)
+2023-01-08 10:50:07 [INFO] - tile-level AUC (cat # 1): 0.500 tile-level AP: 0.508 (opt. threshold: 0.505)
+2023-01-08 10:50:07 [INFO] - Category 0 acc: 0.0% (0/196253)
+2023-01-08 10:50:07 [INFO] - Category 1 acc: 100.0% (202595/202595)
+2023-01-08 10:50:07 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2023-01-08 10:50:08 [INFO] - slide-level AUC (cat # 0): 0.471 slide-level AP: 0.506 (opt. threshold: 0.495)
+2023-01-08 10:50:08 [INFO] - slide-level AUC (cat # 1): 0.472 slide-level AP: 0.478 (opt. threshold: 0.505)
+2023-01-08 10:50:08 [INFO] - Category 0 acc: 0.0% (0/155)
+2023-01-08 10:50:08 [INFO] - Category 1 acc: 100.0% (158/158)
+2023-01-08 10:50:08 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2023-01-08 10:50:08 [INFO] - patient-level AUC (cat # 0): 0.471 patient-level AP: 0.506 (opt. threshold: 0.495)
+2023-01-08 10:50:08 [INFO] - patient-level AUC (cat # 1): 0.472 patient-level AP: 0.478 (opt. threshold: 0.505)
+2023-01-08 10:50:08 [INFO] - Category 0 acc: 0.0% (0/155)
+2023-01-08 10:50:08 [INFO] - Category 1 acc: 100.0% (158/158)
+2023-01-08 10:50:08 [INFO] - Validation metrics: {
+    "accuracy": 0.5079503971437741,
+    "loss": 0.693034686769846
+}
+2023-01-08 10:50:12 [INFO] - Training results saved: [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/results_log.csv
+2023-01-08 10:50:12 [INFO] - Training complete; validation accuracies:
+2023-01-08 10:50:12 [INFO] - Training model [bold]cohort-HP0[/] (k-fold #3)...
+2023-01-08 10:50:12 [INFO] - Hyperparameters: {
+  "augment": "xyrjb",
+  "batch_size": 128,
+  "drop_images": false,
+  "dropout": 0.1,
+  "early_stop": true,
+  "early_stop_method": "accuracy",
+  "early_stop_patience": 0,
+  "epochs": [
+    1,
+    3
+  ],
+  "hidden_layer_width": 1024,
+  "hidden_layers": 2,
+  "include_top": false,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0.98,
+  "learning_rate_decay_steps": 512,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": "reinhard_fast",
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "avg",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2023-01-08 10:50:12 [INFO] - Val settings: {
+  "strategy": "k-fold",
+  "k_fold": 3,
+  "k": [
+    3
+  ],
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2023-01-08 10:50:12 [INFO] - Using k-fold validation split detected at [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/splits.json[/] (ID: 1)
+2023-01-08 10:50:12 [INFO] - Using 628 training TFRecords, 313 validation
+2023-01-08 10:50:15 [INFO] - Using realtime reinhard_fast normalization
+2023-01-08 10:50:17 [INFO] - Using vectorized normalization
+2023-01-08 10:50:20 [INFO] - Using vectorized normalization
+2023-01-08 10:50:20 [INFO] - Beginning training
+2023-01-08 10:50:50 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00024-cohort-ensemble/00003-ensemble_4/00000-cohort-HP0-kfold3/cohort-HP0-kfold3_epoch1
+2023-01-08 10:59:16 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2023-01-08 10:59:16 [INFO] - tile-level AUC (cat # 0): 0.516 tile-level AP: 0.503 (opt. threshold: 0.488)
+2023-01-08 10:59:16 [INFO] - tile-level AUC (cat # 1): 0.516 tile-level AP: 0.519 (opt. threshold: 0.512)
+2023-01-08 10:59:16 [INFO] - Category 0 acc: 0.0% (0/196253)
+2023-01-08 10:59:16 [INFO] - Category 1 acc: 100.0% (202595/202595)
+2023-01-08 10:59:16 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2023-01-08 10:59:16 [INFO] - slide-level AUC (cat # 0): 0.614 slide-level AP: 0.645 (opt. threshold: 0.488)
+2023-01-08 10:59:16 [INFO] - slide-level AUC (cat # 1): 0.615 slide-level AP: 0.565 (opt. threshold: 0.512)
+2023-01-08 10:59:17 [INFO] - Category 0 acc: 0.0% (0/155)
+2023-01-08 10:59:17 [INFO] - Category 1 acc: 100.0% (158/158)
+2023-01-08 10:59:17 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2023-01-08 10:59:17 [INFO] - patient-level AUC (cat # 0): 0.614 patient-level AP: 0.645 (opt. threshold: 0.488)
+2023-01-08 10:59:17 [INFO] - patient-level AUC (cat # 1): 0.615 patient-level AP: 0.565 (opt. threshold: 0.512)
+2023-01-08 10:59:17 [INFO] - Category 0 acc: 0.0% (0/155)
+2023-01-08 10:59:17 [INFO] - Category 1 acc: 100.0% (158/158)
+2023-01-08 10:59:17 [INFO] - Validation metrics: {
+    "accuracy": 0.5079503971437741,
+    "loss": 0.6930556818555956
+}
+2023-01-08 10:59:39 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00024-cohort-ensemble/00003-ensemble_4/00000-cohort-HP0-kfold3/cohort-HP0-kfold3_epoch3
+2023-01-08 11:08:07 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2023-01-08 11:08:07 [INFO] - tile-level AUC (cat # 0): 0.494 tile-level AP: 0.490 (opt. threshold: 0.464)
+2023-01-08 11:08:07 [INFO] - tile-level AUC (cat # 1): 0.494 tile-level AP: 0.502 (opt. threshold: 0.536)
+2023-01-08 11:08:07 [INFO] - Category 0 acc: 0.0% (0/196253)
+2023-01-08 11:08:07 [INFO] - Category 1 acc: 100.0% (202595/202595)
+2023-01-08 11:08:07 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2023-01-08 11:08:08 [INFO] - slide-level AUC (cat # 0): 0.389 slide-level AP: 0.431 (opt. threshold: 0.464)
+2023-01-08 11:08:08 [INFO] - slide-level AUC (cat # 1): 0.389 slide-level AP: 0.428 (opt. threshold: 0.536)
+2023-01-08 11:08:08 [INFO] - Category 0 acc: 0.0% (0/155)
+2023-01-08 11:08:08 [INFO] - Category 1 acc: 100.0% (158/158)
+2023-01-08 11:08:08 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2023-01-08 11:08:08 [INFO] - patient-level AUC (cat # 0): 0.389 patient-level AP: 0.431 (opt. threshold: 0.464)
+2023-01-08 11:08:08 [INFO] - patient-level AUC (cat # 1): 0.389 patient-level AP: 0.428 (opt. threshold: 0.536)
+2023-01-08 11:08:08 [INFO] - Category 0 acc: 0.0% (0/155)
+2023-01-08 11:08:08 [INFO] - Category 1 acc: 100.0% (158/158)
+2023-01-08 11:08:08 [INFO] - Validation metrics: {
+    "accuracy": 0.5079503971437741,
+    "loss": 0.6946189905467796
+}
+2023-01-08 11:08:12 [INFO] - Training results saved: [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/results_log.csv
+2023-01-08 11:08:12 [INFO] - Training complete; validation accuracies:
+2023-01-08 11:08:12 [INFO] - Training model [bold]cohort-HP0[/] (k-fold #3)...
+2023-01-08 11:08:12 [INFO] - Hyperparameters: {
+  "augment": "xyrjb",
+  "batch_size": 128,
+  "drop_images": false,
+  "dropout": 0.1,
+  "early_stop": true,
+  "early_stop_method": "accuracy",
+  "early_stop_patience": 0,
+  "epochs": [
+    1,
+    3
+  ],
+  "hidden_layer_width": 1024,
+  "hidden_layers": 2,
+  "include_top": false,
+  "l1": 0.0,
+  "l1_dense": 0.0,
+  "l2": 0.0,
+  "l2_dense": 0.0,
+  "learning_rate": 0.0001,
+  "learning_rate_decay": 0.98,
+  "learning_rate_decay_steps": 512,
+  "loss": "sparse_categorical_crossentropy",
+  "manual_early_stop_batch": null,
+  "manual_early_stop_epoch": null,
+  "model": "xception",
+  "normalizer": "reinhard_fast",
+  "normalizer_source": null,
+  "optimizer": "Adam",
+  "pooling": "avg",
+  "tile_px": 299,
+  "tile_um": 302,
+  "toplayer_epochs": 0,
+  "trainable_layers": 0,
+  "training_balance": "category",
+  "uq": false,
+  "validation_balance": "none"
+}
+2023-01-08 11:08:12 [INFO] - Val settings: {
+  "strategy": "k-fold",
+  "k_fold": 3,
+  "k": [
+    3
+  ],
+  "k_fold_header": null,
+  "fraction": null,
+  "source": null,
+  "annotations": null,
+  "filters": null
+}
+2023-01-08 11:08:12 [INFO] - Using k-fold validation split detected at [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/splits.json[/] (ID: 1)
+2023-01-08 11:08:12 [INFO] - Using 628 training TFRecords, 313 validation
+2023-01-08 11:08:15 [INFO] - Using realtime reinhard_fast normalization
+2023-01-08 11:08:17 [INFO] - Using vectorized normalization
+2023-01-08 11:08:19 [INFO] - Using vectorized normalization
+2023-01-08 11:08:20 [INFO] - Beginning training
+2023-01-08 11:08:49 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00024-cohort-ensemble/00004-ensemble_5/00000-cohort-HP0-kfold3/cohort-HP0-kfold3_epoch1
+2023-01-08 11:17:15 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2023-01-08 11:17:15 [INFO] - tile-level AUC (cat # 0): 0.532 tile-level AP: 0.517 (opt. threshold: 0.498)
+2023-01-08 11:17:15 [INFO] - tile-level AUC (cat # 1): 0.532 tile-level AP: 0.531 (opt. threshold: 0.502)
+2023-01-08 11:17:15 [INFO] - Category 0 acc: 0.0% (0/196253)
+2023-01-08 11:17:15 [INFO] - Category 1 acc: 100.0% (202595/202595)
+2023-01-08 11:17:15 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2023-01-08 11:17:15 [INFO] - slide-level AUC (cat # 0): 0.570 slide-level AP: 0.565 (opt. threshold: 0.498)
+2023-01-08 11:17:16 [INFO] - slide-level AUC (cat # 1): 0.572 slide-level AP: 0.565 (opt. threshold: 0.502)
+2023-01-08 11:17:16 [INFO] - Category 0 acc: 0.0% (0/155)
+2023-01-08 11:17:16 [INFO] - Category 1 acc: 100.0% (158/158)
+2023-01-08 11:17:16 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2023-01-08 11:17:16 [INFO] - patient-level AUC (cat # 0): 0.570 patient-level AP: 0.565 (opt. threshold: 0.498)
+2023-01-08 11:17:16 [INFO] - patient-level AUC (cat # 1): 0.572 patient-level AP: 0.565 (opt. threshold: 0.502)
+2023-01-08 11:17:16 [INFO] - Category 0 acc: 0.0% (0/155)
+2023-01-08 11:17:16 [INFO] - Category 1 acc: 100.0% (158/158)
+2023-01-08 11:17:16 [INFO] - Validation metrics: {
+    "accuracy": 0.5079503971437741,
+    "loss": 0.6930913562110508
+}
+2023-01-08 11:17:38 [INFO] - Trained model saved to [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00024-cohort-ensemble/00004-ensemble_5/00000-cohort-HP0-kfold3/cohort-HP0-kfold3_epoch3
+2023-01-08 11:26:04 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2023-01-08 11:26:04 [INFO] - tile-level AUC (cat # 0): 0.532 tile-level AP: 0.514 (opt. threshold: 0.499)
+2023-01-08 11:26:04 [INFO] - tile-level AUC (cat # 1): 0.532 tile-level AP: 0.531 (opt. threshold: 0.501)
+2023-01-08 11:26:04 [INFO] - Category 0 acc: 0.0% (0/196253)
+2023-01-08 11:26:04 [INFO] - Category 1 acc: 100.0% (202595/202595)
+2023-01-08 11:26:04 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2023-01-08 11:26:04 [INFO] - slide-level AUC (cat # 0): 0.596 slide-level AP: 0.627 (opt. threshold: 0.499)
+2023-01-08 11:26:04 [INFO] - slide-level AUC (cat # 1): 0.595 slide-level AP: 0.559 (opt. threshold: 0.501)
+2023-01-08 11:26:04 [INFO] - Category 0 acc: 0.0% (0/155)
+2023-01-08 11:26:04 [INFO] - Category 1 acc: 100.0% (158/158)
+2023-01-08 11:26:04 [INFO] - Validation metrics for outcome [green]cohort[/]:
+2023-01-08 11:26:04 [INFO] - patient-level AUC (cat # 0): 0.596 patient-level AP: 0.627 (opt. threshold: 0.499)
+2023-01-08 11:26:05 [INFO] - patient-level AUC (cat # 1): 0.595 patient-level AP: 0.559 (opt. threshold: 0.501)
+2023-01-08 11:26:05 [INFO] - Category 0 acc: 0.0% (0/155)
+2023-01-08 11:26:05 [INFO] - Category 1 acc: 100.0% (158/158)
+2023-01-08 11:26:05 [INFO] - Validation metrics: {
+    "accuracy": 0.5079503971437741,
+    "loss": 0.6931102443606026
+}
+2023-01-08 11:26:08 [INFO] - Training results saved: [green]/home/prajval/DATA/PROJECTS/TCGA_LUNG/results_log.csv
+2023-01-08 11:26:08 [INFO] - Training complete; validation accuracies:

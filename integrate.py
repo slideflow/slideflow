@@ -41,10 +41,10 @@ def main():
         )
 
     P.ensemble_train_predictions(
-        "/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00021-cohort-ensemble",
-        save_format = "parquet")
+        "/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00023-cohort-ensemble",
+        save_format = "feather")
 
-    # P.predict_ensemble('/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00015-cohort-ensemble', epoch_number=1, format = "feather")
+    # P.predict_ensemble('/home/prajval/DATA/PROJECTS/TCGA_LUNG/models/00015-cohort-ensemble',epoch_number=1, format = "feather")
 
     # P.train_ensemble(
     #     outcomes='cohort',
@@ -53,7 +53,7 @@ def main():
     #     steps_per_epoch_override =10,
     #     val_k = 3,
     #     # val_strategy = None,
-    #     save_predictions = "parquet",
+    #     save_predictions = "feather",
     #     params=hp
     # )
 
