@@ -23,6 +23,7 @@ from tqdm import tqdm
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
 import numpy as np
+import pandas as pd
 import slideflow as sf
 from slideflow.util import log_utils
 from slideflow import errors
@@ -992,3 +993,84 @@ def extract_feature_dict(
         processed_features[key] = get_value(typename, typename_mapping, key)
 
     return processed_features
+
+
+def convert_file_to_df(
+    path: str,
+    file_type: str,
+    file_type_in_path: bool = False,
+    **kwargs) -> pd.DataFrame:
+    """
+    Converts a 'csv', 'parquet' or 'feather' file to a pandas dataframe.
+
+    Args:
+        path (str): Path to the file to be read.
+        file_type (str): The type of file to be read. It can have the 
+            values 'csv', 'parquet' or 'feather.'
+    
+    Keyword Args:
+        file_type_in_path (bool): True if the extension of the file being
+            read is already added in the path.
+    
+    Returns:
+        df (pd.DataFrame): The dataframe read from the path.
+    """
+
+    if file_type_in_path:
+        if file_type == "csv":
+            df = pd.read_csv(f"{path}", **kwargs)
+
+        if file_type == "parquet":
+            df = pd.read_parquet(f"{path}", **kwargs)
+
+        if file_type == "feather":
+            df = pd.read_feather(f"{path}", **kwargs)
+
+    else:
+        if file_type == "csv":
+            df = pd.read_csv(f"{path}.csv", **kwargs)
+
+        if file_type == "parquet":
+            df = pd.read_parquet(f"{path}.parquet.gzip", **kwargs)
+
+        if file_type == "feather":
+            df = pd.read_feather(f"{path}.feather", **kwargs)
+
+    return df
+
+
+def convert_df_to_file(
+    df: pd.DataFrame,
+    path: str,
+    file_type: str,
+    first_iter: bool = False,
+    **kwargs) -> None:
+    """
+    Converts pandas dataframe to a 'csv', 'parquet' or 'feather' file.
+
+    Args:
+        df (pd.DataFrame): The dataframe that is to be converted 
+            into a 'csv', 'parquet' or 'feather' file.
+        path (str): Path to the file to be read.
+        file_type (str): The type of file to be read. It can have the 
+            values 'csv', 'parquet' or 'feather.'
+    
+    Keyword Args:
+        first_iter (bool): True if this is the first time the dataframe 
+            is being coverted into a file with the given path. This is 
+            necessary because 'feather' files require 'reset_index()' 
+            during first pass of the conversion.  
+    """
+
+    if file_type == "csv":
+        df.to_csv(f"{path}.csv", index = False, **kwargs)
+
+    if file_type == "parquet":
+        df.to_parquet(f"{path}.parquet.gzip",
+            index = False, compression = 'gzip', **kwargs)
+
+    if file_type == "feather":
+        if first_iter:
+            df.reset_index().to_feather(f"{path}.feather", **kwargs)
+        else:
+            df.to_feather(f"{path}.feather", **kwargs)
