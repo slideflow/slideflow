@@ -401,6 +401,9 @@ def segment_slide(
     rescale = 1  # No rescaling, as we are manually setting diameter = diam_mean
     mask_dim = (slide.stride * (slide.shape[0]-1) + slide.tile_px,
                 slide.stride * (slide.shape[1]-1) + slide.tile_px)
+    all_masks = np.zeros((slide.shape[1] * target_size, slide.shape[0] * target_size), dtype=np.uint32)
+    if save_flow:
+        all_flows = np.zeros((slide.shape[1] * target_size, slide.shape[0] * target_size, 3), dtype=np.uint8)
 
     log_fn = log.info if verbose else log.debug
     log_fn("=== Segmentation parameters ===")
@@ -414,7 +417,8 @@ def segment_slide(
     log_fn(f"Slide stride (px): {slide.stride}")
     log_fn(f"Est. tiles:        {slide.estimated_num_tiles}")
     log_fn(f"Save flow:         {save_flow}")
-    log_fn(f"Mask size:         {mask_dim}")
+    log_fn(f"Mask dimensions:   {mask_dim}")
+    log_fn(f"Mask size:         {all_masks.shape}")
     log_fn("===============================")
 
     # Processes and pools. ----------------------------------------------------
@@ -447,13 +451,8 @@ def segment_slide(
     runner = threading.Thread(target=net_runner)
     runner.start()
 
-    # Mask and flow arrays. ---------------------------------------------------
-    running_max = 0
-    all_masks = np.zeros((slide.shape[1] * target_size, slide.shape[0] * target_size), dtype=np.uint32)
-    if save_flow:
-        all_flows = np.zeros((slide.shape[1] * target_size, slide.shape[0] * target_size, 3), dtype=np.uint8)
-
     # Main loop. --------------------------------------------------------------
+    running_max = 0
     if show_progress:
         tqdm_pb = tqdm(total=slide.estimated_num_tiles)
     while True:
