@@ -892,17 +892,10 @@ def get_valid_model_dir(root: str) -> List:
     ]
     prev_run_ids = [re.match(r'^\d+', x) for x in prev_run_dirs]
     prev_run_ids = [int(x.group()) for x in prev_run_ids if x is not None]
-    # model_dir = prev_run_dirs[number]
     return prev_run_ids, prev_run_dirs
 
 
 def get_new_model_dir(root: str, model_name: str) -> str:
-    # prev_run_dirs = [
-    #     x for x in os.listdir(root)
-    #     if isdir(join(root, x))
-    # ]
-    # prev_run_ids = [re.match(r'^\d+', x) for x in prev_run_dirs]  # type: List
-    # prev_run_ids = [int(x.group()) for x in prev_run_ids if x is not None]
     prev_run_ids, prev_run_dirs = get_valid_model_dir(root)
     cur_id = max(prev_run_ids, default=-1) + 1
     model_dir = os.path.join(root, f'{cur_id:05d}-{model_name}')

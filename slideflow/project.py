@@ -806,9 +806,6 @@ class Project:
         full_name = s_args.model_name
         if s_args.k is not None:
             full_name += f'-kfold{s_args.k}'
-        # if ensemble:
-        #      model_dir = sf.util.get_new_model_dir(os.getcwd(), full_name)
-        # else:
         model_dir = sf.util.get_new_model_dir(self.models_dir, full_name)
 
         # Log model settings and hyperparameters
@@ -3286,7 +3283,7 @@ class Project:
         """
         Train an ensemble of model(s) using a given set of parameters, 
         outcomes, and inputs by calling the train function "number_of_ensembles"
-        of times
+        of times.
 
         Args:
             outcomes (str or list(str)): Outcome label annotation header(s).
