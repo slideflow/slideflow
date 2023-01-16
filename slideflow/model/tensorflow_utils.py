@@ -409,13 +409,15 @@ def eval_from_model(
                 yt = [yt[f'out-{o}'] for o in range(len(yt))]
                 if loss is not None:
                     loss_val = [loss(yt[i], yp[i]) for i in range(len(yt))]
+                    loss_val = [l for l in loss_val if not tf.math.is_nan(l)]
                     batch_loss = tf.math.reduce_sum(loss_val).numpy()
                     running_loss = (((num_vals - slide.shape[0]) * running_loss) + batch_loss) / num_vals
             else:
                 y_true += [yt.numpy()]
                 if loss is not None:
                     loss_val = loss(yt, yp)
-                    batch_loss = tf.math.reduce_sum(loss_val).numpy()
+                    not_nan = ~tf.math.is_nan(loss_val)
+                    batch_loss = tf.math.reduce_sum(loss_val[not_nan]).numpy()
                     running_loss = (((num_vals - slide.shape[0]) * running_loss) + batch_loss) / num_vals
 
     if verbosity != 'silent':
