@@ -1,4 +1,5 @@
 import time
+import rasterio
 import cv2
 import threading
 import multiprocessing as mp
@@ -9,6 +10,7 @@ import logging
 import slideflow as sf
 import zarr
 import torch
+import shapely.affinity as sa
 from queue import Queue
 from numcodecs import Blosc
 from matplotlib.colors import to_rgb
@@ -84,6 +86,24 @@ class Segmentation:
             return self.wsi_dim[1] / self.masks.shape[0]
         else:
             return None
+
+    def apply_rois(self, scale, annpolys):
+        roi_seg_scale = scale / self.wsi_ratio
+        scaled_polys = [
+            sa.scale(
+                poly,
+                xfact=roi_seg_scale,
+                yfact=roi_seg_scale,
+                origin=(0, 0)
+            ) for poly in annpolys
+        ]
+        roi_seg_mask = rasterio.features.rasterize(
+            scaled_polys,
+            out_shape=self.masks.shape,
+            all_touched=False
+        ).astype(bool)
+        self.masks *= roi_seg_mask
+        self.calculate_centroids(force=True)
 
     def centroids(self, wsi_dim=False):
         if self._centroids is None:
@@ -520,10 +540,10 @@ def segment_slide(
             for task in pb_tasks:
                 pb.advance(task, batch_size)
 
-    spawn_pool.join()
     spawn_pool.close()
-    fork_pool.join()
+    spawn_pool.join()
     fork_pool.close()
+    fork_pool.join()
     runner.join()
     tile_process.join()
 

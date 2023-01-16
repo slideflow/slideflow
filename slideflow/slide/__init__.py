@@ -1093,25 +1093,29 @@ class WSI(_BaseLoader):
     def shape(self):
         return self.grid.shape
 
-    def apply_segmentation(
-        self,
-        segmentation
-    ):
+    def apply_segmentation(self, segmentation):
+        # Filter out masks outside of ROIs, if present.
+        if self.roi_method != 'ignore' and self.annPolys is not None:
+            log.debug(f"Applying {len(self.annPolys)} ROIs to segmentation.")
+            segmentation.apply_rois(self.roi_scale, self.annPolys)
+
         self.segmentation = segmentation
         if self.segmentation.slide is None:
             self.segmentation.slide = self
         centroids = segmentation.centroids(wsi_dim=True)
         self.seg_coord = np.concatenate(
-            (centroids - int(self.full_extract_px/2),
-             np.expand_dims(np.arange(centroids.shape[0]), axis=-1)),
+            (centroids, np.expand_dims(np.arange(centroids.shape[0]), axis=-1)),
             axis=-1)
+        nonzero = self.seg_coord[:, 0] > 0
+        self.seg_coord[:, 0:2][nonzero] -= int(self.full_extract_px/2)
         self.estimated_num_tiles = centroids.shape[0]
 
     def get_tile_mask(self, index, sparse_mask):
 
         # Get the corresponding segmentation mask, reading from the sparse matrix
         seg = self.segmentation
-        mask_y, mask_x = np.unravel_index(sparse_mask[index+1].data, seg.masks.shape) # sparse index starts at 1
+        mask_idx = self.seg_coord[index][2] + 1  # sparse mask index starts at 1
+        mask_y, mask_x = np.unravel_index(sparse_mask[mask_idx].data, seg.masks.shape)
 
         # This is the top-left coordinate, in WSI base dimension,
         # of the tile extraction window.
@@ -1357,7 +1361,8 @@ class WSI(_BaseLoader):
             else:
                 from .seg import seg_utils
                 log.info("Building generator from segmentation centroids.")
-                num_possible_tiles = len(self.seg_coord)
+                nonzero = self.seg_coord[:, 0] > 0
+                num_possible_tiles = nonzero.sum()
                 if apply_masks:
                     sparse = seg_utils.sparse_mask(self.segmentation.masks)
 
@@ -1369,9 +1374,10 @@ class WSI(_BaseLoader):
 
                     if shuffle:
                         for idx in np.random.permutation(self.seg_coord.shape[0]):
-                            yield proc(self.seg_coord[idx])
+                            if nonzero[idx]:
+                                yield proc(self.seg_coord[idx])
                     else:
-                        for c in self.seg_coord:
+                        for c in self.seg_coord[nonzero]:
                             yield proc(c)
 
                 non_roi_coord = _sparse_generator()

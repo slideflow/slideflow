@@ -60,6 +60,8 @@ def sparse_split_indices(shape, splits):
 
 def get_sparse_chunk_centroid(sparse_mask, shape):
     return np.array([np.mean(np.unravel_index(row.data, shape), 1).astype(np.int32)
+                     if row.getnnz()
+                     else (0, 0)
                      for row in sparse_mask])
 
 
