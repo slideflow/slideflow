@@ -1008,11 +1008,10 @@ def convert_file_to_df(
     Returns:
         df (pd.DataFrame): The dataframe read from the path.
     """
-
     if file_type_in_path:
         if file_type == "csv":
             df = pd.read_csv(f"{path}", **kwargs)
-        elif file_type == "parquet":
+        elif file_type in ("parquet", "gzip"):
             df = pd.read_parquet(f"{path}", **kwargs)
         elif file_type == "feather":
             df = pd.read_feather(f"{path}", **kwargs)
@@ -1021,7 +1020,7 @@ def convert_file_to_df(
     else:
         if file_type == "csv":
             df = pd.read_csv(f"{path}.csv", **kwargs)
-        elif file_type == "parquet":
+        elif file_type in ("parquet", "gzip"):
             df = pd.read_parquet(f"{path}.parquet.gzip", **kwargs)
         elif file_type == "feather":
             df = pd.read_feather(f"{path}.feather", **kwargs)
@@ -1052,15 +1051,12 @@ def convert_df_to_file(
             necessary because 'feather' files require 'reset_index()'
             during first pass of the conversion.
     """
-
     if file_type == "csv":
         df.to_csv(f"{path}.csv", index = False, **kwargs)
-
-    if file_type == "parquet":
+    elif file_type in ("parquet", "gzip"):
         df.to_parquet(f"{path}.parquet.gzip",
             index = False, compression = 'gzip', **kwargs)
-
-    if file_type == "feather":
+    elif file_type == "feather":
         if first_iter:
             df.reset_index().to_feather(f"{path}.feather", **kwargs)
         else:
