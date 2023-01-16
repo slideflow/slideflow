@@ -22,7 +22,6 @@ from slideflow.model import tensorflow_utils as tf_utils
 from slideflow.model.base import log_manifest, no_scope
 from slideflow.model.tensorflow_utils import unwrap, flatten  # type: ignore
 from slideflow.util import log, NormFit
-import neural_structured_learning as nsl
 
 import tensorflow as tf
 from tensorflow.keras import applications as kapps
@@ -1814,6 +1813,13 @@ class Trainer:
                 )
 
             if adversarial:
+                try:
+                    import neural_structured_learning as nsl
+                except ImportError:
+                    raise ImportError(
+                        'Adversarial training requires the package '
+                        '"neural_structured_learning", which could not be found.'
+                    )
                 # Wrap the model with adversarial regularization,
                 # using tensorflow/neural-structured-learning
                 adv_config = nsl.configs.make_adv_reg_config(
