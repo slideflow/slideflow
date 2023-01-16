@@ -2374,7 +2374,7 @@ class Project:
         else:
             raise errors.ProjectError('Unable to find settings.json.')
 
-    
+
     def predict_ensemble(
         self,
         model: str,
@@ -2386,10 +2386,10 @@ class Project:
         """Evaluates a saved ensemble model on a given set of tfrecords.
 
         Args:
-            model (str): Path to ensemble model to evaluate. 
+            model (str): Path to ensemble model to evaluate.
 
         Keyword Args:
-            kfold_number (int, optional): The k-fold number to be considered 
+            kfold_number (int, optional): The k-fold number to be considered
                 to run the prediction. By default it sets to the first k-fold
                 present in the ensemble folder.
             epoch_number (int, optional): The epoch number to be considered
@@ -2418,7 +2418,7 @@ class Project:
         for j in range(len(ensemble_dirs)):
 
             i = ensemble_dirs[j]
-   
+
             # List of k-fold directories
             kfold_dirs = sorted([
                 join(i, x) for x in os.listdir(i)
@@ -2426,11 +2426,11 @@ class Project:
             ])
 
             # If k-fold number not given
-            if kfold_number == None:    
+            if kfold_number == None:
                 kfold_dir = kfold_dirs[0]
             else:
                 try:
-                    kfold_dir = [x for x in kfold_dirs 
+                    kfold_dir = [x for x in kfold_dirs
                         if f'kfold{kfold_number}' in str(x)][0]
                     if len(kfold_dir) == 0:
                         sys.exit(f"kfold_number {kfold_number} doesn't exist")
@@ -2442,13 +2442,13 @@ class Project:
                 join(kfold_dir, x) for x in os.listdir(kfold_dir)
                 if isdir(join(kfold_dir, x))
             ])
-            
+
             # If epoch number not given
             if epoch_number == None:
                 epoch_dir = epoch_dirs[0]
             else:
                 try:
-                    epoch_dir = [x for x in epoch_dirs 
+                    epoch_dir = [x for x in epoch_dirs
                         if f'epoch{epoch_number}' in str(x)]
                     if len(epoch_dir) == 0:
                         sys.exit(f"epoch_number {epoch_number} doesn't exist")
@@ -2463,29 +2463,29 @@ class Project:
 
             self.predict(prediction_path, *args, **kwargs)
 
-            if j == 0: 
-                # Creating the root directory files    
+            if j == 0:
+                # Creating the root directory files
                 _, from_path = sf.util.get_valid_model_dir(eval_dir)
                 to_path = main_eval_dir
-                
+
                 shutil.copyfile(
-                    f"{self.eval_dir}/{from_path[0]}/slide_manifest.csv", 
+                    f"{self.eval_dir}/{from_path[0]}/slide_manifest.csv",
                     f"{to_path}/slide_manifest.csv"
                 )
                 shutil.copyfile(
-                    f"{self.eval_dir}/{from_path[0]}/params.json", 
+                    f"{self.eval_dir}/{from_path[0]}/params.json",
                     f"{to_path}/params.json"
                 )
 
                 # Checking the stored file format
                 filenames = os.listdir(f"{self.eval_dir}/{from_path[0]}")
-                count_csv = len([ filename for filename in filenames 
+                count_csv = len([ filename for filename in filenames
                     if filename.endswith(".csv") ])
-                count_parquet = len([ filename for filename in filenames 
+                count_parquet = len([ filename for filename in filenames
                     if filename.endswith(".parquet.gzip") ])
-                count_feather = len([ filename for filename in filenames 
+                count_feather = len([ filename for filename in filenames
                     if filename.endswith(".feather") ])
-                
+
                 if count_csv > 1:
                     file_type = "csv"
                 if count_parquet > 0 and count_feather == 0:
@@ -2495,7 +2495,7 @@ class Project:
 
                 # For slide_predicitons
                 main_df_slide = convert_file_to_df(
-                    f"{self.eval_dir}/{from_path[0]}/slide_predictions", 
+                    f"{self.eval_dir}/{from_path[0]}/slide_predictions",
                     file_type
                 )
                 main_df_tile = convert_file_to_df(
@@ -2521,36 +2521,36 @@ class Project:
 
                 convert_df_to_file(
                     main_df_slide,
-                    f"{main_eval_dir}/ensemble_slide_predictions", 
-                    file_type, 
+                    f"{main_eval_dir}/ensemble_slide_predictions",
+                    file_type,
                     first_iter = True
                 )
                 convert_df_to_file(
                     main_df_tile,
-                    f"{main_eval_dir}/ensemble_tile_predictions", 
-                    file_type, 
+                    f"{main_eval_dir}/ensemble_tile_predictions",
+                    file_type,
                     first_iter = True
                 )
-                        
+
             else:
-                # Merging each ensemble into the root prediction file  
+                # Merging each ensemble into the root prediction file
                 main_df_slide = convert_file_to_df(
-                    f"{main_eval_dir}/ensemble_slide_predictions", 
+                    f"{main_eval_dir}/ensemble_slide_predictions",
                     file_type
                 )
                 to_merge_csv_slide = convert_file_to_df(
-                    f"{self.eval_dir}/{from_path[0]}/slide_predictions", 
+                    f"{self.eval_dir}/{from_path[0]}/slide_predictions",
                     file_type
                 )
                 main_df_tile = convert_file_to_df(
-                    f"{main_eval_dir}/ensemble_tile_predictions", 
+                    f"{main_eval_dir}/ensemble_tile_predictions",
                     file_type
                 )
                 to_merge_csv_tile = convert_file_to_df(
-                    f"{self.eval_dir}/{from_path[0]}/tile_predictions", 
+                    f"{self.eval_dir}/{from_path[0]}/tile_predictions",
                     file_type
                 )
-                
+
                 if file_type == "csv":
                     to_merge_csv_slide = to_merge_csv_slide.drop(columns=['Unnamed: 0'])
                     to_merge_csv_tile = to_merge_csv_tile.drop(columns=['Unnamed: 0'])
@@ -2562,7 +2562,7 @@ class Project:
                 main_df_slide = pd.merge(main_df_slide, to_merge_csv_slide,
                     how="inner", left_on=["slide_ens1"], right_on=[f"slide_ens{j+1}"])
                 main_df_slide = main_df_slide.drop(columns=[f"slide_ens{j+1}"])
-                
+
                 header_list_tile = to_merge_csv_tile.columns.tolist()
                 new_ens_headers_tile = [s + f"_ens{j+1}" for s in header_list_tile]
                 header_change_dict_tile = dict(zip(header_list_tile, new_ens_headers_tile))
@@ -2574,24 +2574,24 @@ class Project:
 
                 convert_df_to_file(
                     main_df_slide,
-                    f"{main_eval_dir}/ensemble_slide_predictions", 
+                    f"{main_eval_dir}/ensemble_slide_predictions",
                     file_type
                 )
                 convert_df_to_file(
                     main_df_tile,
-                    f"{main_eval_dir}/ensemble_tile_predictions", 
+                    f"{main_eval_dir}/ensemble_tile_predictions",
                     file_type
-                )  
+                )
 
             self.eval_dir = main_eval_dir
 
-        # Creating new ensemble columns and renamiming fixed columns    
+        # Creating new ensemble columns and renamiming fixed columns
         main_df_slide = convert_file_to_df(
-            f"{main_eval_dir}/ensemble_slide_predictions", 
+            f"{main_eval_dir}/ensemble_slide_predictions",
             file_type
         )
         main_df_tile = convert_file_to_df(
-            f"{main_eval_dir}/ensemble_tile_predictions", 
+            f"{main_eval_dir}/ensemble_tile_predictions",
             file_type
         )
 
@@ -2603,7 +2603,7 @@ class Project:
                 group_columns = [col_name for col_name in slide_level_headers
                     if i in col_name]
                 main_df_slide[i] = main_df_slide.loc[:, group_columns].mean(axis = 1)
-        
+
         tile_level_headers = main_df_tile.columns.tolist()
         for i in header_list_tile:
             if i in ["slide", "loc_x", "loc_y"]:
@@ -2612,18 +2612,18 @@ class Project:
                 group_columns = [col_name for col_name in tile_level_headers
                     if i in col_name]
                 main_df_tile[i] = main_df_tile.loc[:, group_columns].mean(axis = 1)
-        
+
         convert_df_to_file(
             main_df_slide,
-            f"{main_eval_dir}/ensemble_slide_predictions", 
+            f"{main_eval_dir}/ensemble_slide_predictions",
             file_type
         )
         convert_df_to_file(
             main_df_tile,
-            f"{main_eval_dir}/ensemble_tile_predictions", 
+            f"{main_eval_dir}/ensemble_tile_predictions",
             file_type
         )
-        
+
         self.eval_dir = innitial_eval_dir
 
 
@@ -3016,7 +3016,7 @@ class Project:
 
     def ensemble_train_predictions(
         self,
-        main_model_dir: str, 
+        main_model_dir: str,
         save_format: str,
     ) -> None:
         """
@@ -3037,7 +3037,7 @@ class Project:
             x for x in os.listdir(ensemble_dirs[0])
             if isdir(join(ensemble_dirs[0], x))
         ])
-        
+
         kfold_number_list = sorted([
             int(re.findall(r'\d', x)[-1]) for x in kfold_dirs
         ])
@@ -3046,7 +3046,7 @@ class Project:
 
         prediction_file_names = sorted([
             x for x in os.listdir(join(ensemble_dirs[0], kfold_dirs[0]))
-            if x.startswith("slide_predictions_") 
+            if x.startswith("slide_predictions_")
             or x.startswith("tile_predictions_")
             or x.startswith("patient_predictions_")
         ])
@@ -3061,36 +3061,36 @@ class Project:
                 for i in range(len(ensemble_dirs)):
                     slide_file_name = sorted([
                         x for x in prediction_file_names
-                        if x.startswith("slide_predictions_") 
+                        if x.startswith("slide_predictions_")
                         and f"epoch{epoch_number_list[e]}." in x
                     ])
 
                     patient_file_name = sorted([
                         x for x in prediction_file_names
-                        if x.startswith("patient_predictions_") 
+                        if x.startswith("patient_predictions_")
                         and f"epoch{epoch_number_list[e]}." in x
                     ])
 
                     tile_file_name = sorted([
                         x for x in prediction_file_names
-                        if x.startswith("tile_predictions_") 
+                        if x.startswith("tile_predictions_")
                         and f"epoch{epoch_number_list[e]}." in x
                     ])
 
                     if i == 0:
                         main_df_slide = convert_file_to_df(
                             f"{ensemble_dirs[i]}/{kfold_dirs[k]}/{slide_file_name[0]}",
-                            file_type = save_format, 
+                            file_type = save_format,
                             file_type_in_path = True
                         )
                         main_df_patient = convert_file_to_df(
                             f"{ensemble_dirs[i]}/{kfold_dirs[k]}/{patient_file_name[0]}",
-                            file_type = save_format, 
+                            file_type = save_format,
                             file_type_in_path = True
                         )
                         main_df_tile = convert_file_to_df(
                             f"{ensemble_dirs[i]}/{kfold_dirs[k]}/{tile_file_name[0]}",
-                            file_type = save_format, 
+                            file_type = save_format,
                             file_type_in_path = True
                         )
 
@@ -3119,51 +3119,51 @@ class Project:
 
                         convert_df_to_file(
                             main_df_slide,
-                            f"{main_model_dir}/ensemble_slide_predictions_kfold{kfold_number_list[k]}_epoch{epoch_number_list[e]}", 
-                            file_type = save_format, 
+                            f"{main_model_dir}/ensemble_slide_predictions_kfold{kfold_number_list[k]}_epoch{epoch_number_list[e]}",
+                            file_type = save_format,
                             first_iter = True
                         )
                         convert_df_to_file(
                             main_df_patient,
-                            f"{main_model_dir}/ensemble_patient_predictions_kfold{kfold_number_list[k]}_epoch{epoch_number_list[e]}", 
-                            file_type = save_format, 
+                            f"{main_model_dir}/ensemble_patient_predictions_kfold{kfold_number_list[k]}_epoch{epoch_number_list[e]}",
+                            file_type = save_format,
                             first_iter = True
                         )
                         convert_df_to_file(
                             main_df_tile,
-                            f"{main_model_dir}/ensemble_tile_predictions_kfold{kfold_number_list[k]}_epoch{epoch_number_list[e]}", 
-                            file_type = save_format, 
+                            f"{main_model_dir}/ensemble_tile_predictions_kfold{kfold_number_list[k]}_epoch{epoch_number_list[e]}",
+                            file_type = save_format,
                             first_iter = True
                         )
 
                     else:
                         main_df_slide = convert_file_to_df(
-                            f"{main_model_dir}/ensemble_slide_predictions_kfold{kfold_number_list[k]}_epoch{epoch_number_list[e]}", 
+                            f"{main_model_dir}/ensemble_slide_predictions_kfold{kfold_number_list[k]}_epoch{epoch_number_list[e]}",
                             file_type = save_format
                         )
                         to_merge_df_slide = convert_file_to_df(
-                            f"{ensemble_dirs[i]}/{kfold_dirs[k]}/{slide_file_name[0]}", 
-                            file_type = save_format, 
+                            f"{ensemble_dirs[i]}/{kfold_dirs[k]}/{slide_file_name[0]}",
+                            file_type = save_format,
                             file_type_in_path = True
                         )
 
                         main_df_patient = convert_file_to_df(
-                            f"{main_model_dir}/ensemble_patient_predictions_kfold{kfold_number_list[k]}_epoch{epoch_number_list[e]}", 
+                            f"{main_model_dir}/ensemble_patient_predictions_kfold{kfold_number_list[k]}_epoch{epoch_number_list[e]}",
                             file_type = save_format
                         )
                         to_merge_df_patient = convert_file_to_df(
                             f"{ensemble_dirs[i]}/{kfold_dirs[k]}/{patient_file_name[0]}",
-                            file_type = save_format, 
+                            file_type = save_format,
                             file_type_in_path = True
                         )
 
                         main_df_tile = convert_file_to_df(
-                            f"{main_model_dir}/ensemble_tile_predictions_kfold{kfold_number_list[k]}_epoch{epoch_number_list[e]}", 
+                            f"{main_model_dir}/ensemble_tile_predictions_kfold{kfold_number_list[k]}_epoch{epoch_number_list[e]}",
                             file_type = save_format
                         )
                         to_merge_df_tile = convert_file_to_df(
                             f"{ensemble_dirs[i]}/{kfold_dirs[k]}/{tile_file_name[0]}",
-                            file_type = save_format, 
+                            file_type = save_format,
                             file_type_in_path = True
                         )
 
@@ -3171,7 +3171,7 @@ class Project:
                             to_merge_df_slide = to_merge_df_slide.drop(columns=['Unnamed: 0'])
                             to_merge_df_patient = to_merge_df_patient.drop(columns=['Unnamed: 0'])
                             to_merge_df_tile = to_merge_df_tile.drop(columns=['Unnamed: 0'])
-                        
+
                         main_header_list_slide = to_merge_df_slide.columns.tolist()
                         new_ens_headers_slide = [s + f"_ens{i+1}" for s in main_header_list_slide]
                         header_change_dict_slide = dict(zip(main_header_list_slide, new_ens_headers_slide))
@@ -3193,23 +3193,23 @@ class Project:
                         header_change_dict_tile = dict(zip(main_header_list_tile, new_ens_headers_tile))
                         to_merge_df_tile.rename(columns=header_change_dict_tile,inplace=True)
                         main_df_tile = pd.merge(main_df_tile, to_merge_df_tile,
-                            how="inner", left_on=["slide_ens1","loc_x_ens1", "loc_y_ens1"], 
+                            how="inner", left_on=["slide_ens1","loc_x_ens1", "loc_y_ens1"],
                             right_on=[f"slide_ens{i+1}", f"loc_x_ens{i+1}", f"loc_y_ens{i+1}"])
                         main_df_tile = main_df_tile.drop(columns=[f"slide_ens{i+1}", f"patient_ens{i+1}", f"loc_x_ens{i+1}", f"loc_y_ens{i+1}"])
 
                         convert_df_to_file(
                             main_df_slide,
-                            f"{main_model_dir}/ensemble_slide_predictions_kfold{kfold_number_list[k]}_epoch{epoch_number_list[e]}", 
+                            f"{main_model_dir}/ensemble_slide_predictions_kfold{kfold_number_list[k]}_epoch{epoch_number_list[e]}",
                             file_type = save_format
                         )
                         convert_df_to_file(
                             main_df_patient,
-                            f"{main_model_dir}/ensemble_patient_predictions_kfold{kfold_number_list[k]}_epoch{epoch_number_list[e]}", 
+                            f"{main_model_dir}/ensemble_patient_predictions_kfold{kfold_number_list[k]}_epoch{epoch_number_list[e]}",
                             file_type = save_format
                         )
                         convert_df_to_file(
                             main_df_tile,
-                            f"{main_model_dir}/ensemble_tile_predictions_kfold{kfold_number_list[k]}_epoch{epoch_number_list[e]}", 
+                            f"{main_model_dir}/ensemble_tile_predictions_kfold{kfold_number_list[k]}_epoch{epoch_number_list[e]}",
                             file_type = save_format
                         )
 
@@ -3223,7 +3223,7 @@ class Project:
                     file_type = save_format
                 )
                 main_df_tile = convert_file_to_df(
-                    f"{main_model_dir}/ensemble_tile_predictions_kfold{kfold_number_list[k]}_epoch{epoch_number_list[e]}", 
+                    f"{main_model_dir}/ensemble_tile_predictions_kfold{kfold_number_list[k]}_epoch{epoch_number_list[e]}",
                     file_type = save_format
                 )
 
@@ -3234,7 +3234,7 @@ class Project:
                     else:
                         group_columns = [col_name for col_name in slide_level_headers
                             if i in col_name]
-                        main_df_slide[i] = main_df_slide.loc[:, group_columns].mean(axis = 1)  
+                        main_df_slide[i] = main_df_slide.loc[:, group_columns].mean(axis = 1)
 
                 patient_level_headers = main_df_patient.columns.tolist()
                 for i in main_header_list_patient:
@@ -3272,16 +3272,16 @@ class Project:
                     file_type = save_format
                 )
 
- 
+
     def train_ensemble(
-        self, 
+        self,
         outcomes: Union[str, List[str]],
-        number_of_ensembles: int = 5, 
-        *args, 
+        number_of_ensembles: int = 5,
+        *args,
         **kwargs
     ) -> None:
         """
-        Train an ensemble of model(s) using a given set of parameters, 
+        Train an ensemble of model(s) using a given set of parameters,
         outcomes, and inputs by calling the train function "number_of_ensembles"
         of times.
 
@@ -3307,7 +3307,7 @@ class Project:
         main_model_dir = sf.util.get_new_model_dir(self.models_dir, full_name)
         self.models_dir = main_model_dir
 
-        # Creating and populating the respective directories for each ensemble 
+        # Creating and populating the respective directories for each ensemble
         for i in range(number_of_ensembles):
             ens_folder_name = f"ensemble_{i+1}"
             model_dir = sf.util.get_new_model_dir(self.models_dir, ens_folder_name)
@@ -3315,30 +3315,30 @@ class Project:
 
             self.train(ensemble = False, outcomes=outcomes, *args, **kwargs)
 
-            if i == 0:     
+            if i == 0:
                 _, from_path = sf.util.get_valid_model_dir(model_dir)
                 to_path = main_model_dir
-                
+
                 shutil.copyfile(
-                    f"{self.models_dir}/{from_path[0]}/slide_manifest.csv", 
+                    f"{self.models_dir}/{from_path[0]}/slide_manifest.csv",
                     f"{to_path}/slide_manifest.csv"
                 )
                 shutil.copyfile(
-                    f"{self.models_dir}/{from_path[0]}/params.json", 
+                    f"{self.models_dir}/{from_path[0]}/params.json",
                     f"{to_path}/params.json"
-                )   
+                )
 
             self.models_dir = main_model_dir
 
         # ensembling the predictions if save_predictions added during training
         if "save_predictions" in kwargs:
             save_format = kwargs["save_predictions"]
-            self.ensemble_train_predictions(main_model_dir, 
+            self.ensemble_train_predictions(main_model_dir,
                 save_format = 'parquet' if save_format is True else save_format)
-        
+
         self.models_dir = innitial_models_dir
 
-        
+
     def train(
         self,
         outcomes: Union[str, List[str]],
@@ -3450,7 +3450,7 @@ class Project:
                 training monitoring. Defaults to False.
             validation_steps (int): Number of steps of validation to perform
                 each time doing a mid-epoch validation check. Defaults to 200.
-            ensemble (bool): To know if traing is called to save an ensemble 
+            ensemble (bool): To know if traing is called to save an ensemble
                 of models.
 
         Returns:

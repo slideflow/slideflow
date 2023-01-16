@@ -1510,18 +1510,18 @@ class Trainer:
         return results
 
     def _convert_dts_to_adv_dict(
-        self, 
+        self,
         dataset: tf.data.Dataset,
         image_input_name: str = 'tile_image',
         label_input_name: str = 'label'
     ) -> tf.data.Dataset:
         """Convert a dataset into the format expected by the adversarial wrapper."""
 
-        def convert_to_dictionaries(image, label):  
+        def convert_to_dictionaries(image, label):
             return {image_input_name: image["tile_image"], label_input_name: label}
 
         return dataset.map(convert_to_dictionaries)
-           
+
 
     def train(
         self,
@@ -1602,7 +1602,7 @@ class Trainer:
                 parameters (e.g. target_means, target_stds) to values
                 (np.ndarray). If not provided, will fit normalizer using
                 model params (if applicable). Defaults to None.
-            adversarial (bool): Train with adversarial regularization, 
+            adversarial (bool): Train with adversarial regularization,
                 using neural-structured-learning.
 
         Returns:
@@ -1812,9 +1812,9 @@ class Trainer:
                     callbacks=None,
                     epochs=self.hp.toplayer_epochs
                 )
-            
+
             if adversarial:
-                # Wrap the model with adversarial regularization, 
+                # Wrap the model with adversarial regularization,
                 # using tensorflow/neural-structured-learning
                 adv_config = nsl.configs.make_adv_reg_config(
                     multiplier=0.2,
@@ -1850,7 +1850,7 @@ class Trainer:
                     initial_epoch=self.hp.toplayer_epochs,
                     callbacks=callbacks
                 )
-                if adversarial and save_model:    
+                if adversarial and save_model:
                     model_path = os.path.join(
                         self.outdir,
                         f'{self.name}_adversarial_epoch_{self.epoch_count}'
@@ -1859,7 +1859,7 @@ class Trainer:
                     log.info('Model saved')
                     results = {}
                     return results
-                    
+
             except tf.errors.ResourceExhaustedError as e:
                 log.error(f"Training failed for [bold]{self.name}[/]. "
                           f"Error: \n {e}")
@@ -1868,7 +1868,7 @@ class Trainer:
                 self.neptune_run['results'] = results['epochs']
                 self.neptune_run.stop()
             return results
-            
+
 
 class LinearTrainer(Trainer):
 
