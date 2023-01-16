@@ -102,6 +102,13 @@ def tile_worker(
         return_dict.update({'loc': [x_coord, y_coord]})
         return return_dict
 
+    # If using a segmentation mask, resize mask to match the tile size.
+    if tile_mask is not None:
+        tile_mask = cv2.resize(
+            tile_mask,
+            (args.tile_px, args.tile_px),
+            interpolation=cv2.INTER_NEAREST)
+
     # Normalizer
     if not args.normalizer:
         normalizer = None

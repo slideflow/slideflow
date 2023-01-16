@@ -4,12 +4,12 @@ Requires: libvips (https://libvips.github.io/libvips/)
 """
 
 import re
-from typing import (Any, Dict, List, Optional, Tuple, Union)
-
+import cv2
 import numpy as np
 import slideflow as sf
 from types import SimpleNamespace
 from PIL import Image, UnidentifiedImageError
+from typing import (Any, Dict, List, Optional, Tuple, Union)
 from slideflow.util import log, path_to_name, path_to_ext  # noqa F401
 from slideflow.slide.utils import *
 
@@ -158,6 +158,13 @@ def tile_worker(
     if args.dry_run:
         return_dict.update({'loc': [x_coord, y_coord]})
         return return_dict
+
+    # If using a segmentation mask, resize mask to match the tile size.
+    if tile_mask is not None:
+        tile_mask = cv2.resize(
+            tile_mask,
+            (args.tile_px, args.tile_px),
+            interpolation=cv2.INTER_NEAREST)
 
     # Normalizer
     if not args.normalizer:

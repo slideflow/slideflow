@@ -1111,24 +1111,23 @@ class WSI(_BaseLoader):
 
         # Get the corresponding segmentation mask, reading from the sparse matrix
         seg = self.segmentation
-        seg_idx = np.argwhere(self.seg_coord[:, 2] == index)[0][0]
         mask_y, mask_x = np.unravel_index(sparse_mask[index+1].data, seg.masks.shape) # sparse index starts at 1
 
         # This is the top-left coordinate, in WSI base dimension,
         # of the tile extraction window.
-        wsi_tile_top_left = self.seg_coord[seg_idx][0:2]
+        wsi_tile_top_left = self.seg_coord[index][0:2]
 
         # Determine the mask array offset (top-left), in mask coordinate space.
-        wsi_mask_x_offset = (seg.wsi_offset[0] / seg.wsi_ratio).astype(np.int32)
-        wsi_mask_y_offset = (seg.wsi_offset[1] / seg.wsi_ratio).astype(np.int32)
+        wsi_mask_x_offset = np.round(seg.wsi_offset[0] / seg.wsi_ratio).astype(np.int32)
+        wsi_mask_y_offset = np.round(seg.wsi_offset[1] / seg.wsi_ratio).astype(np.int32)
 
         # Offset the mask to reflect WSI space (but still in mask coordinates).
         wsi_mask_x = mask_x + wsi_mask_x_offset
         wsi_mask_y = mask_y + wsi_mask_y_offset
 
         # Determine the tile window offset (top-left), in mask coordinate space.
-        tile_offset_x_in_mask_space = (wsi_tile_top_left[0] / seg.wsi_ratio).astype(np.int32)
-        tile_offset_y_in_mask_space = (wsi_tile_top_left[1] / seg.wsi_ratio).astype(np.int32)
+        tile_offset_x_in_mask_space = np.round(wsi_tile_top_left[0] / seg.wsi_ratio).astype(np.int32)
+        tile_offset_y_in_mask_space = np.round(wsi_tile_top_left[1] / seg.wsi_ratio).astype(np.int32)
 
         # Adjust the mask coordinate space, using the tile window offset as origin.
         tile_mask_x = (wsi_mask_x - tile_offset_x_in_mask_space)
@@ -1146,10 +1145,7 @@ class WSI(_BaseLoader):
         unsized[tile_mask_y, tile_mask_x] = 1
 
         # Resize mask from mask coordinates to tile extraction WSI coordinates.
-        return cv2.resize(
-            unsized,
-            (self.tile_px, self.tile_px),
-            interpolation=cv2.INTER_NEAREST)
+        return unsized
 
     def extract_tiles(
         self,
@@ -1230,7 +1226,8 @@ class WSI(_BaseLoader):
         lazy_iter: bool = False,
         shard: Optional[Tuple[int, int]] = None,
         max_tiles: Optional[int] = None,
-        use_segmentations: bool = False
+        use_segmentations: bool = False,
+        apply_masks: bool = True
     ) -> Optional[Callable]:
         """Builds tile generator to extract tiles from this slide.
 
@@ -1361,16 +1358,21 @@ class WSI(_BaseLoader):
                 from .seg import seg_utils
                 log.info("Building generator from segmentation centroids.")
                 num_possible_tiles = len(self.seg_coord)
-                sparse = seg_utils.sparse_mask(self.segmentation.masks)
+                if apply_masks:
+                    sparse = seg_utils.sparse_mask(self.segmentation.masks)
 
                 def _sparse_generator():
+
+                    def proc(c):
+                        mask = None if not apply_masks else self.get_tile_mask(c[2], sparse)
+                        return c, mask
+
                     if shuffle:
                         for idx in np.random.permutation(self.seg_coord.shape[0]):
-                            c = self.seg_coord[idx]
-                            yield c, self.get_tile_mask(c[2], sparse)
+                            yield proc(self.seg_coord[idx])
                     else:
                         for c in self.seg_coord:
-                            yield c, self.get_tile_mask(c[2], sparse)
+                            yield proc(c)
 
                 non_roi_coord = _sparse_generator()
 
@@ -1427,9 +1429,12 @@ class WSI(_BaseLoader):
                     i_mapped = _generator()
 
                 else:
+                    csize = min(int(self.estimated_num_tiles/pool._processes), 64)
+                    log.debug(f"Using imap chunksize={csize}")
                     i_mapped = pool.imap(
                         partial(tile_worker, args=w_args),
                         non_roi_coord,
+                        chunksize=csize
                     )
             for e, result in enumerate(i_mapped):
                 if show_progress:
