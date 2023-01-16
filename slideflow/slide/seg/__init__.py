@@ -48,6 +48,8 @@ class Segmentation:
                 non-segmented background, and each segmented mask is represented
                 by unique increasing integers.
         """
+        if not isinstance(masks, np.ndarray):
+            raise ValueError("First argument (masks) must be a numpy array.")
         self.slide = slide
         self.masks = masks
         self.flows = flows
@@ -518,10 +520,10 @@ def segment_slide(
             for task in pb_tasks:
                 pb.advance(task, batch_size)
 
-    spawn_pool.close()
     spawn_pool.join()
-    fork_pool.close()
+    spawn_pool.close()
     fork_pool.join()
+    fork_pool.close()
     runner.join()
     tile_process.join()
 
@@ -529,8 +531,9 @@ def segment_slide(
     log.info(f"Segmented {running_max} cells for {slide.name} ({ttime:.0f} s)")
 
     # Calculate WSI dimensions and offset, and return final segmentation.
-    wsi_dim = (all_masks.shape[1] * (slide.full_extract_px / target_size),
-               all_masks.shape[0] * (slide.full_extract_px / target_size))
+    # TODO: does not account for stride != 1
+    wsi_dim = (slide.shape[1] * slide.full_extract_px,
+               slide.shape[0] * slide.full_extract_px)
     wsi_offset = (0, 0)#(int(full_extract/2 - wsi_stride/2), int(full_extract/2 - wsi_stride/2))
 
     return Segmentation(

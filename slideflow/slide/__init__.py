@@ -1116,7 +1116,7 @@ class WSI(_BaseLoader):
 
         # This is the top-left coordinate, in WSI base dimension,
         # of the tile extraction window.
-        wsi_tile_top_left = self.seg_coord[seg_idx]
+        wsi_tile_top_left = self.seg_coord[seg_idx][0:2]
 
         # Determine the mask array offset (top-left), in mask coordinate space.
         wsi_mask_x_offset = (seg.wsi_offset[0] / seg.wsi_ratio).astype(np.int32)
@@ -1358,20 +1358,19 @@ class WSI(_BaseLoader):
                          "skipping tile extraction.")
                 return
             else:
-                from scipy.sparse import csr_matrix
+                from .seg import seg_utils
                 log.info("Building generator from segmentation centroids.")
-                cols = np.arange(self.segmentation.masks.size)
                 num_possible_tiles = len(self.seg_coord)
-                sparse = csr_matrix((cols, (np.ravel(self.segmentation.masks), cols)),
-                                    shape=(self.segmentation.masks.max() + 1,
-                                           self.segmentation.masks.size),
-                                    dtype=np.int64)
-                if shuffle:
-                    np.random.shuffle(self.seg_coord)
+                sparse = seg_utils.sparse_mask(self.segmentation.masks)
 
                 def _sparse_generator():
-                    for c in self.seg_coord:
-                        yield c, self.get_tile_mask(c[2], sparse)
+                    if shuffle:
+                        for idx in np.random.permutation(self.seg_coord.shape[0]):
+                            c = self.seg_coord[idx]
+                            yield c, self.get_tile_mask(c[2], sparse)
+                    else:
+                        for c in self.seg_coord:
+                            yield c, self.get_tile_mask(c[2], sparse)
 
                 non_roi_coord = _sparse_generator()
 

@@ -52,15 +52,15 @@ def fast_outlines_list(masks, num_threads=None):
         return pool.map(get_mask_outline, np.unique(masks)[1:])
 
 
-def get_split_indices(shape, splits):
-    ar = np.arange(0, shape, int(shape/splits))
+def sparse_split_indices(shape, splits):
+    ar = np.arange(1, shape, int(shape/splits))
     ar[-1] = shape-1
     return list(zip(ar[0:-1], ar[1:]))
 
 
 def get_sparse_chunk_centroid(sparse_mask, shape):
     return np.array([np.mean(np.unravel_index(row.data, shape), 1).astype(np.int32)
-                     for (R, row) in enumerate(sparse_mask) if R>0])
+                     for row in sparse_mask])
 
 
 def get_sparse_centroid(mask, sparse_mask):
@@ -69,7 +69,7 @@ def get_sparse_centroid(mask, sparse_mask):
         return np.concatenate(
             pool.map(
                 partial(get_sparse_chunk_centroid, shape=mask.shape),
-                [sparse_mask[i:j] for (i, j) in get_split_indices(sparse_mask.shape[0], n_proc)]
+                [sparse_mask[i:j] for (i, j) in sparse_split_indices(sparse_mask.shape[0], n_proc)]
             ))
 
 def sparse_mask(mask):
