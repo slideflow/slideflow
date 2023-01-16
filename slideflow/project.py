@@ -3015,29 +3015,24 @@ class Project:
 
 
     def ensemble_train_predictions(self, ensemble_path: str) -> None:
-        """
-        Ensemble the predictions for a model trained using train_enseble()
+        """Ensemble the predictions for a model trained using train_ensemble().
 
         Args:
-            ensemble_path (str): Path to the model with ensemble directories
+            ensemble_path (str): Path to directory containing ensemble members.
         """
-        ensemble_dirs = sorted([
+        member_paths = sorted([
             join(ensemble_path, x) for x in os.listdir(ensemble_path)
             if isdir(join(ensemble_path, x))
         ])
 
         kfold_dirs = sorted([
-            x for x in os.listdir(ensemble_dirs[0])
-            if isdir(join(ensemble_dirs[0], x))
-        ])
-
-        kfold_number_list = sorted([
-            int(re.findall(r'\d', x)[-1]) for x in kfold_dirs
+            x for x in os.listdir(member_paths[0])
+            if isdir(join(member_paths[0], x))
         ])
 
         main_header_list_slide = []
         prediction_file_names = sorted([
-            x for x in os.listdir(join(ensemble_dirs[0], kfold_dirs[0]))
+            x for x in os.listdir(join(member_paths[0], kfold_dirs[0]))
             if x.startswith("slide_predictions_")
             or x.startswith("tile_predictions_")
             or x.startswith("patient_predictions_")
@@ -3050,45 +3045,47 @@ class Project:
         # as the individual ensemble prediction files.
         save_format = sf.util.path_to_ext(prediction_file_names[0])
 
-        epoch_number_list = sorted([
+        epochs = sorted([
             int(re.findall(r'\d', x)[0]) for x in prediction_file_names
             if x.startswith("slide_")
         ])
+        for kfold_dir in kfold_dirs:
+            for epoch in epochs:
+                for i, member_path in enumerate(member_paths):
+                    kfold_path = join(member_path, kfold_dir)
+                    kfold_int = int(re.findall(r'\d', kfold_dir)[-1])
 
-        for k in range(len(kfold_dirs)):
-            for e in range(len(epoch_number_list)):
-                for i in range(len(ensemble_dirs)):
                     slide_file_name = sorted([
                         x for x in prediction_file_names
                         if x.startswith("slide_predictions_")
-                        and f"epoch{epoch_number_list[e]}." in x
+                        and f"epoch{epoch}." in x
                     ])
 
                     patient_file_name = sorted([
                         x for x in prediction_file_names
                         if x.startswith("patient_predictions_")
-                        and f"epoch{epoch_number_list[e]}." in x
+                        and f"epoch{epoch}." in x
                     ])
 
                     tile_file_name = sorted([
                         x for x in prediction_file_names
                         if x.startswith("tile_predictions_")
-                        and f"epoch{epoch_number_list[e]}." in x
+                        and f"epoch{epoch}." in x
                     ])
 
                     if i == 0:
                         main_df_slide = convert_file_to_df(
-                            f"{ensemble_dirs[i]}/{kfold_dirs[k]}/{slide_file_name[0]}",
+                            join(kfold_path, slide_file_name[0]),
                             file_type = save_format,
                             file_type_in_path = True
                         )
                         main_df_patient = convert_file_to_df(
-                            f"{ensemble_dirs[i]}/{kfold_dirs[k]}/{patient_file_name[0]}",
+                            join(kfold_path, patient_file_name[0]),
                             file_type = save_format,
                             file_type_in_path = True
                         )
                         main_df_tile = convert_file_to_df(
-                            f"{ensemble_dirs[i]}/{kfold_dirs[k]}/{tile_file_name[0]}",
+                            join(kfold_path, tile_file_name[0]),
                             file_type = save_format,
                             file_type_in_path = True
                         )
@@ -3118,50 +3115,50 @@ class Project:
 
                         convert_df_to_file(
                             main_df_slide,
-                            f"{ensemble_path}/ensemble_slide_predictions_kfold{kfold_number_list[k]}_epoch{epoch_number_list[e]}",
+                            join(ensemble_path, f"ensemble_slide_predictions_kfold{kfold_int}_epoch{epoch}"),
                             file_type = save_format,
                             first_iter = True
                         )
                         convert_df_to_file(
                             main_df_patient,
-                            f"{ensemble_path}/ensemble_patient_predictions_kfold{kfold_number_list[k]}_epoch{epoch_number_list[e]}",
+                            join(ensemble_path, f"ensemble_patient_predictions_kfold{kfold_int}_epoch{epoch}"),
                             file_type = save_format,
                             first_iter = True
                         )
                         convert_df_to_file(
                             main_df_tile,
-                            f"{ensemble_path}/ensemble_tile_predictions_kfold{kfold_number_list[k]}_epoch{epoch_number_list[e]}",
+                            join(ensemble_path, f"ensemble_tile_predictions_kfold{kfold_int}_epoch{epoch}"),
                             file_type = save_format,
                             first_iter = True
                         )
 
                     else:
                         main_df_slide = convert_file_to_df(
-                            f"{ensemble_path}/ensemble_slide_predictions_kfold{kfold_number_list[k]}_epoch{epoch_number_list[e]}",
+                            join(ensemble_path, f"ensemble_slide_predictions_kfold{kfold_int}_epoch{epoch}"),
                             file_type = save_format
                         )
                         to_merge_df_slide = convert_file_to_df(
-                            f"{ensemble_dirs[i]}/{kfold_dirs[k]}/{slide_file_name[0]}",
+                            join(kfold_path, slide_file_name[0]),
                             file_type = save_format,
                             file_type_in_path = True
                         )
 
                         main_df_patient = convert_file_to_df(
-                            f"{ensemble_path}/ensemble_patient_predictions_kfold{kfold_number_list[k]}_epoch{epoch_number_list[e]}",
+                            join(ensemble_path, f"ensemble_patient_predictions_kfold{kfold_int}_epoch{epoch}"),
                             file_type = save_format
                         )
                         to_merge_df_patient = convert_file_to_df(
-                            f"{ensemble_dirs[i]}/{kfold_dirs[k]}/{patient_file_name[0]}",
+                            join(kfold_path, patient_file_name[0]),
                             file_type = save_format,
                             file_type_in_path = True
                         )
 
                         main_df_tile = convert_file_to_df(
-                            f"{ensemble_path}/ensemble_tile_predictions_kfold{kfold_number_list[k]}_epoch{epoch_number_list[e]}",
+                            join(ensemble_path, f"ensemble_tile_predictions_kfold{kfold_int}_epoch{epoch}"),
                             file_type = save_format
                         )
                         to_merge_df_tile = convert_file_to_df(
-                            f"{ensemble_dirs[i]}/{kfold_dirs[k]}/{tile_file_name[0]}",
+                            join(kfold_path, tile_file_name[0]),
                             file_type = save_format,
                             file_type_in_path = True
                         )
@@ -3198,31 +3195,31 @@ class Project:
 
                         convert_df_to_file(
                             main_df_slide,
-                            f"{ensemble_path}/ensemble_slide_predictions_kfold{kfold_number_list[k]}_epoch{epoch_number_list[e]}",
+                            join(ensemble_path, f"ensemble_slide_predictions_kfold{kfold_int}_epoch{epoch}"),
                             file_type = save_format
                         )
                         convert_df_to_file(
                             main_df_patient,
-                            f"{ensemble_path}/ensemble_patient_predictions_kfold{kfold_number_list[k]}_epoch{epoch_number_list[e]}",
+                            join(ensemble_path, f"ensemble_patient_predictions_kfold{kfold_int}_epoch{epoch}"),
                             file_type = save_format
                         )
                         convert_df_to_file(
                             main_df_tile,
-                            f"{ensemble_path}/ensemble_tile_predictions_kfold{kfold_number_list[k]}_epoch{epoch_number_list[e]}",
+                            join(ensemble_path, f"ensemble_tile_predictions_kfold{kfold_int}_epoch{epoch}"),
                             file_type = save_format
                         )
 
                 # change header and ensemble results
                 main_df_slide = convert_file_to_df(
-                    f"{ensemble_path}/ensemble_slide_predictions_kfold{kfold_number_list[k]}_epoch{epoch_number_list[e]}",
+                    join(ensemble_path, f"ensemble_slide_predictions_kfold{kfold_int}_epoch{epoch}"),
                     file_type = save_format
                 )
                 main_df_patient = convert_file_to_df(
-                    f"{ensemble_path}/ensemble_patient_predictions_kfold{kfold_number_list[k]}_epoch{epoch_number_list[e]}",
+                    join(ensemble_path, f"ensemble_patient_predictions_kfold{kfold_int}_epoch{epoch}"),
                     file_type = save_format
                 )
                 main_df_tile = convert_file_to_df(
-                    f"{ensemble_path}/ensemble_tile_predictions_kfold{kfold_number_list[k]}_epoch{epoch_number_list[e]}",
+                    join(ensemble_path, f"ensemble_tile_predictions_kfold{kfold_int}_epoch{epoch}"),
                     file_type = save_format
                 )
 
@@ -3257,17 +3254,17 @@ class Project:
 
                 convert_df_to_file(
                     main_df_slide,
-                    f"{ensemble_path}/ensemble_slide_predictions_kfold{kfold_number_list[k]}_epoch{epoch_number_list[e]}",
+                    join(ensemble_path, f"ensemble_slide_predictions_kfold{kfold_int}_epoch{epoch}"),
                     file_type = save_format
                 )
                 convert_df_to_file(
                     main_df_patient,
-                    f"{ensemble_path}/ensemble_patient_predictions_kfold{kfold_number_list[k]}_epoch{epoch_number_list[e]}",
+                    join(ensemble_path, f"ensemble_patient_predictions_kfold{kfold_int}_epoch{epoch}"),
                     file_type = save_format
                 )
                 convert_df_to_file(
                     main_df_tile,
-                    f"{ensemble_path}/ensemble_tile_predictions_kfold{kfold_number_list[k]}_epoch{epoch_number_list[e]}",
+                    join(ensemble_path, f"ensemble_tile_predictions_kfold{kfold_int}_epoch{epoch}"),
                     file_type = save_format
                 )
 
