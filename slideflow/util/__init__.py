@@ -885,7 +885,7 @@ def get_valid_model_dir(root: str) -> List:
 
         The function returns "root/00000-foldername/"
     '''
-    
+
     prev_run_dirs = [
         x for x in os.listdir(root)
         if isdir(join(root, x))
@@ -998,13 +998,13 @@ def convert_file_to_df(
 
     Args:
         path (str): Path to the file to be read.
-        file_type (str): The type of file to be read. It can have the 
+        file_type (str): The type of file to be read. It can have the
             values 'csv', 'parquet' or 'feather.'
-    
+
     Keyword Args:
         file_type_in_path (bool): True if the extension of the file being
             read is already added in the path.
-    
+
     Returns:
         df (pd.DataFrame): The dataframe read from the path.
     """
@@ -1012,23 +1012,21 @@ def convert_file_to_df(
     if file_type_in_path:
         if file_type == "csv":
             df = pd.read_csv(f"{path}", **kwargs)
-
-        if file_type == "parquet":
+        elif file_type == "parquet":
             df = pd.read_parquet(f"{path}", **kwargs)
-
-        if file_type == "feather":
+        elif file_type == "feather":
             df = pd.read_feather(f"{path}", **kwargs)
-
+        else:
+            raise ValueError(f'Unrecognized file type "{file_type}"')
     else:
         if file_type == "csv":
             df = pd.read_csv(f"{path}.csv", **kwargs)
-
-        if file_type == "parquet":
+        elif file_type == "parquet":
             df = pd.read_parquet(f"{path}.parquet.gzip", **kwargs)
-
-        if file_type == "feather":
+        elif file_type == "feather":
             df = pd.read_feather(f"{path}.feather", **kwargs)
-
+        else:
+            raise ValueError(f'Unrecognized file type "{file_type}"')
     return df
 
 
@@ -1042,17 +1040,17 @@ def convert_df_to_file(
     Converts pandas dataframe to a 'csv', 'parquet' or 'feather' file.
 
     Args:
-        df (pd.DataFrame): The dataframe that is to be converted 
+        df (pd.DataFrame): The dataframe that is to be converted
             into a 'csv', 'parquet' or 'feather' file.
         path (str): Path to the file to be read.
-        file_type (str): The type of file to be read. It can have the 
+        file_type (str): The type of file to be read. It can have the
             values 'csv', 'parquet' or 'feather.'
-    
+
     Keyword Args:
-        first_iter (bool): True if this is the first time the dataframe 
-            is being coverted into a file with the given path. This is 
-            necessary because 'feather' files require 'reset_index()' 
-            during first pass of the conversion.  
+        first_iter (bool): True if this is the first time the dataframe
+            is being coverted into a file with the given path. This is
+            necessary because 'feather' files require 'reset_index()'
+            during first pass of the conversion.
     """
 
     if file_type == "csv":
