@@ -3020,10 +3020,7 @@ class Project:
 
         Args:
             ensemble_path (str): Path to the model with ensemble directories
-            save_format (str): The format in which the predictions are being
-                saved. It can have values 'csv', 'parquet' or 'feather'.
         """
-
         ensemble_dirs = sorted([
             join(ensemble_path, x) for x in os.listdir(ensemble_path)
             if isdir(join(ensemble_path, x))
@@ -3274,15 +3271,13 @@ class Project:
                     file_type = save_format
                 )
 
-
     def train_ensemble(
         self,
         outcomes: Union[str, List[str]],
         n_ensembles: int = 5,
         **kwargs
-    ) -> None:
-        """
-        Train an ensemble of model(s) using a given set of parameters,
+    ) -> List[Dict]:
+        """Train an ensemble of model(s) using a given set of parameters,
         outcomes, and inputs by calling the train function ``n_ensembles``
         of times.
 
@@ -3293,49 +3288,47 @@ class Project:
 
         Keyword Args:
             All keyword arguments accepted by :meth:`slideflow.Project.train`
+
+        Returns:
+            List of dictionaries of length ``n_ensembles``, containing training
+            results for each member of the ensemble.
         """
 
+        if isinstance(outcomes, list):
+            ensemble_name = f"{'-'.join(outcomes)}-ensemble"
+        else:
+            ensemble_name = f"{outcomes}-ensemble"
+        ensemble_path = sf.util.get_new_model_dir(self.models_dir, ensemble_name)
+        ensemble_results = []
         _initial_models_dir = self.models_dir
 
-        # Getting the outcomes
-        if not isinstance(outcomes, list):
-            outcome_name = [outcomes]
-        if len(outcomes) > 1:
-            outcome_name = f'{"-".join(outcome_name)}'
-        else:
-            outcome_name = f'{outcome_name[0]}'
-
-        full_name = f"{outcome_name}-ensemble"
-        main_model_dir = sf.util.get_new_model_dir(self.models_dir, full_name)
-        self.models_dir = main_model_dir
-
-        # Creating and populating the respective directories for each ensemble
         for i in range(n_ensembles):
-            ens_folder_name = f"ensemble_{i+1}"
-            model_dir = sf.util.get_new_model_dir(self.models_dir, ens_folder_name)
-            self.models_dir = model_dir
+            # Create the ensemble member folder, which will hold each
+            # k-fold model for the given ensemble member.
+            self.models_dir = sf.util.get_new_model_dir(
+                ensemble_path,
+                f"ensemble_{i+1}")
+            result = self.train(outcomes, ensemble=False, **kwargs)
+            ensemble_results.append(result)
 
-            self.train(outcomes, ensemble=False, **kwargs)
-
-            if i == 0:
-                _, from_path = sf.util.get_valid_model_dir(model_dir)
-                to_path = main_model_dir
-
+        # Copy the slide manifest and params.json file
+        # into the parent ensemble folder.
+        _, member_paths = sf.util.get_valid_model_dir(self.models_dir)
+        if len(member_paths):
+            try:
                 shutil.copyfile(
-                    f"{self.models_dir}/{from_path[0]}/slide_manifest.csv",
-                    f"{to_path}/slide_manifest.csv"
-                )
+                    join(self.models_dir, member_paths[0], "slide_manifest.csv"),
+                    join(ensemble_path, "slide_manifest.csv"))
                 shutil.copyfile(
-                    f"{self.models_dir}/{from_path[0]}/params.json",
-                    f"{to_path}/params.json"
-                )
-
-            self.models_dir = main_model_dir
+                    join(self.models_dir, member_paths[0], "params.json"),
+                    join(ensemble_path, "params.json"))
+            except OSError:
+                log.warn("Unable to find ensemble slide manifest and params.json.")
 
         # Merge predictions from each ensemble.
-        self.ensemble_train_predictions(main_model_dir)
+        self.ensemble_train_predictions(ensemble_path)
         self.models_dir = _initial_models_dir
-
+        return ensemble_results
 
     def train(
         self,
