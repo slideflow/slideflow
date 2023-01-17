@@ -9,7 +9,7 @@ from threading import Thread
 from typing import Tuple
 from PIL import Image, ImageDraw
 from slideflow.slide.utils import draw_roi
-from slideflow.slide.seg import segment_slide, Segmentation
+from slideflow.cellseg import segment_slide, Segmentation
 from .gui_utils import imgui_utils
 
 
@@ -169,7 +169,7 @@ class SegmentWidget:
             resize=False)
 
         # Calculate and draw the outlines
-        outlines = [o for o in sf.slide.seg.outlines_list(in_view) if o.shape[0] >= 3]
+        outlines = [o for o in sf.cellseg.outlines_list(in_view) if o.shape[0] >= 3]
         empty = np.zeros((in_view.shape[0], in_view.shape[1], 3), dtype=np.uint8)
         outline_img = draw_roi(empty, outlines, color=color, linewidth=2)
 

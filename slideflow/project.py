@@ -28,6 +28,7 @@ if TYPE_CHECKING:
     from ConfigSpace import ConfigurationSpace
 
     from slideflow.model import DatasetFeatures, Trainer
+    from slideflow.slide import SlideReport
 
 
 class Project:
@@ -1287,6 +1288,48 @@ class Project:
                     outdir=heatmaps_dir
                 )
 
+    def extract_cells(
+        self,
+        tile_px: int,
+        tile_um: Union[int, str],
+        masks_path: Optional[str] = None,
+        *,
+        filters: Optional[Dict] = None,
+        filter_blank: Optional[Union[str, List[str]]] = None,
+        **kwargs: Any
+    ) -> Dict[str, "SlideReport"]:
+        """Extract images of cells from slides, with a tile at each cell
+        centroid. Requires that cells have already been segmented with
+        ``Project.cell_segmentation()``.
+
+        Args:
+            tile_px (int): Size of tiles to extract at cell centroids (pixels).
+            tile_um (int or str): Size of tiles to extract, in microns (int) or
+                magnification (str, e.g. "20x").
+            masks_path (str, optional): Location of saved masks. If None, will
+                look in project default (subfolder '/masks'). Defaults to None.
+
+        Keyword Args:
+            apply_masks (bool): Apply cell segmentation masks to the extracted
+                tiles. Defaults to True.
+
+            All other keyword arguments for :meth:`Project.extract_tiles()`.
+
+        Returns:
+            Dictionary mapping slide paths to each slide's SlideReport
+            (:class:`slideflow.slide.report.SlideReport`)
+        """
+        if masks_path is None:
+            masks_path = join(self.root, 'masks')
+        dataset = self.dataset(
+            tile_px,
+            tile_um,
+            filters=filters,
+            filter_blank=filter_blank,
+            verification='slides'
+        )
+        return dataset.extract_cells(masks_path=masks_path, **kwargs)
+
     def extract_tiles(
         self,
         tile_px: int,
@@ -1295,7 +1338,7 @@ class Project:
         filters: Optional[Dict] = None,
         filter_blank: Optional[Union[str, List[str]]] = None,
         **kwargs: Any
-    ) -> None:
+    ) -> Dict[str, "SlideReport"]:
         """Extracts tiles from slides. Preferred use is calling
         :func:`slideflow.dataset.Dataset.extract_tiles` on a
         :class:`slideflow.dataset.Dataset` directly.
@@ -1399,7 +1442,7 @@ class Project:
             filter_blank=filter_blank,
             verification='slides'
         )
-        dataset.extract_tiles(**kwargs)
+        return dataset.extract_tiles(**kwargs)
 
     def gan_train(
         self,

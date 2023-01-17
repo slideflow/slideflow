@@ -50,7 +50,7 @@ def tile_worker(
 ) -> Optional[Union[str, Dict]]:
     '''Multiprocessing worker for WSI. Extracts tile at given coordinates.'''
 
-    if args.use_segmentations:
+    if args.has_segmentation:
         c, tile_mask = c
         (x, y, grid_x), grid_y = c, 0
     else:

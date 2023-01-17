@@ -156,7 +156,13 @@ class Segmentation:
         def generator():
             for c in self._centroids:
                 cf = c * factor + wsi_offset
-                yield reader.read_from_pyramid((cf[1]-(tile_px/2), cf[0]-(tile_px/2)), (tile_px, tile_px), (tile_px, tile_px), convert='numpy', flatten=True)
+                yield reader.read_from_pyramid(
+                    (cf[1]-(tile_px/2), cf[0]-(tile_px/2)),
+                    (tile_px, tile_px),
+                    (tile_px, tile_px),
+                    convert='numpy',
+                    flatten=True
+                )
 
         return generator
 
@@ -250,8 +256,11 @@ def resize_and_clean_mask(mask, target_size=None):
             mask = mask.astype(np.float32)
         else:
             mask = mask.astype(np.uint16)
-        mask = cv2.resize(mask, (target_size, target_size), interpolation=cv2.INTER_NEAREST)
-        mask = mask.astype(np.uint32)
+        mask = cv2.resize(
+            mask,
+            (target_size, target_size),
+            interpolation=cv2.INTER_NEAREST
+        ).astype(np.uint32)
     elif not recast:
         mask = mask.astype(np.uint16)
     mask = dynamics.utils.fill_holes_and_remove_small_masks(mask, min_size=15)
@@ -287,11 +296,11 @@ def process_image(img, nchan):
 
 def process_batch(img_batch):
     # Ensure Ly and Lx are divisible by 4
-    assert not (img_batch.shape[1] % 16 or img_batch.shape[2] % 16) #img_batch, ysub, xsub = transforms.pad_image_ND(img_batch)
+    assert not (img_batch.shape[1] % 16 or img_batch.shape[2] % 16)
 
     # Normalize and permute axes.
     img_batch = normalize_img(img_batch)
-    img_batch = torch.permute(img_batch, (0, 3, 1, 2))  # img_batch = np.transpose(img_batch, (0,3,1,2))
+    img_batch = torch.permute(img_batch, (0, 3, 1, 2))
     return img_batch
 
 
@@ -411,6 +420,9 @@ def segment_slide(
         target_size = window_size
     else:
         target_size = int(window_size / downscale)
+    if slide.stride_div != 1:
+        log.warn("Whole-slide cell segmentation not configured for strides "
+                 f"other than 1 (got: {slide.stride_div}).")
 
     # Set up model and parameters. --------------------------------------------
     start_time = time.time()
@@ -423,9 +435,13 @@ def segment_slide(
     rescale = 1  # No rescaling, as we are manually setting diameter = diam_mean
     mask_dim = (slide.stride * (slide.shape[0]-1) + slide.tile_px,
                 slide.stride * (slide.shape[1]-1) + slide.tile_px)
-    all_masks = np.zeros((slide.shape[1] * target_size, slide.shape[0] * target_size), dtype=np.uint32)
+    all_masks = np.zeros((slide.shape[1] * target_size,
+                          slide.shape[0] * target_size),
+                         dtype=np.uint32)
     if save_flow:
-        all_flows = np.zeros((slide.shape[1] * target_size, slide.shape[0] * target_size, 3), dtype=np.uint8)
+        all_flows = np.zeros((slide.shape[1] * target_size,
+                              slide.shape[0] * target_size, 3),
+                             dtype=np.uint8)
 
     log_fn = log.info if verbose else log.debug
     log_fn("=== Segmentation parameters ===")
@@ -452,7 +468,10 @@ def segment_slide(
         spawn_pool = ctx.Pool(4)
     else:
         spawn_pool = mp.dummy.Pool(4)
-    tile_process = mp.Process(target=tile_processor, args=(slide, tile_q, batch_size, cp.nchan))
+    tile_process = mp.Process(
+        target=tile_processor,
+        args=(slide, tile_q, batch_size, cp.nchan)
+    )
     tile_process.start()
 
     def net_runner():
@@ -465,7 +484,12 @@ def segment_slide(
             torch_batch = cp._to_device(imgs)
             torch_batch = process_batch(torch_batch)
             if tile:
-                y, style = cp._run_tiled(torch_batch.cpu().numpy(), augment=False, bsize=224, return_conv=False)
+                y, style = cp._run_tiled(
+                    torch_batch.cpu().numpy(),
+                    augment=False,
+                    bsize=224,
+                    return_conv=False
+                )
             else:
                 y, style = cp.network(torch_batch)
             y_q.put((y, style, c))
@@ -493,7 +517,11 @@ def segment_slide(
 
         # Calculate flows
         batch_p, batch_ind = zip(*spawn_pool.map(
-            partial(follow_flows, niter=(1 / rescale * 200), interp=interp, cp_thresh=cp_thresh, gpus=gpus),
+            partial(follow_flows,
+                    niter=(1 / rescale * 200),
+                    interp=interp,
+                    cp_thresh=cp_thresh,
+                    gpus=gpus),
             zip([dP[:, i] for i in range(len(c))], cellprob)
         ))
 
@@ -509,7 +537,9 @@ def segment_slide(
 
         # Resize masks and clean (remove small masks/holes)
         batch_masks = fork_pool.map(
-            partial(resize_and_clean_mask, target_size=(None if target_size == window_size else target_size)),
+            partial(resize_and_clean_mask,
+                    target_size=(None if target_size == window_size
+                                      else target_size)),
             batch_masks)
 
         dP = dP.squeeze()
@@ -523,12 +553,14 @@ def segment_slide(
             max_in_mask = img_masks.max()
             img_masks[np.nonzero(img_masks)] += running_max
             running_max += max_in_mask
-            all_masks[y * target_size: (y+1)*target_size, x * target_size: (x+1)*target_size] = img_masks
+            all_masks[y * target_size: (y+1)*target_size,
+                      x * target_size: (x+1)*target_size] = img_masks
             if save_flow:
                 flow_plot = plot.dx_to_circ(dP[:, i])
                 if target_size != window_size:
                     flow_plot = cv2.resize(flow_plot, (target_size, target_size))
-                all_flows[y * target_size: (y+1)*target_size, x * target_size: (x+1)*target_size, :] = flow_plot
+                all_flows[y * target_size: (y+1)*target_size,
+                          x * target_size: (x+1)*target_size, :] = flow_plot
 
         # Final cleanup
         del dP, cellprob
@@ -540,21 +572,20 @@ def segment_slide(
             for task in pb_tasks:
                 pb.advance(task, batch_size)
 
+    # Close pools/processes and log time.
     spawn_pool.close()
     spawn_pool.join()
     fork_pool.close()
     fork_pool.join()
     runner.join()
     tile_process.join()
-
     ttime = time.time() - start_time
     log.info(f"Segmented {running_max} cells for {slide.name} ({ttime:.0f} s)")
 
-    # Calculate WSI dimensions and offset, and return final segmentation.
-    # TODO: does not account for stride != 1
-    wsi_dim = (slide.shape[1] * slide.full_extract_px,
-               slide.shape[0] * slide.full_extract_px)
-    wsi_offset = (0, 0)#(int(full_extract/2 - wsi_stride/2), int(full_extract/2 - wsi_stride/2))
+    # Calculate WSI dimensions and return final segmentation.
+    wsi_dim = (slide.shape[0] * slide.full_extract_px,
+               slide.shape[1] * slide.full_extract_px)
+    wsi_offset = (0, 0)
 
     return Segmentation(
         slide=slide,

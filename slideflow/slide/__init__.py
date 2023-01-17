@@ -372,21 +372,31 @@ class _BaseLoader:
         Returns:
             Image: Image of applied QC mask.
         """
-        if isinstance(method, str) and method == 'otsu':
-            method = sf.slide.qc.Otsu()
-        elif isinstance(method, str) and method == 'blur':
-            method = sf.slide.qc.Gaussian(mpp=blur_mpp, sigma=blur_radius, threshold=blur_threshold)
-        elif isinstance(method, str) and method == 'both':
-            method = [sf.slide.qc.Otsu(),
-                      sf.slide.qc.Gaussian(mpp=blur_mpp, sigma=blur_radius, threshold=blur_threshold)]
-        elif isinstance(method, str):
-            raise errors.QCError(f"Unknown QC method {method}")
+
+        # Prepare known QC methods - 'blur', 'otsu', and 'both'.
         if not isinstance(method, list):
-            method = [method]
+            method = [method]           # type: ignore
+        if 'both' in method:
+            idx = method.index('both')  # type: ignore
+            method.remove('both')       # type: ignore
+            method.insert(idx, 'blur')  # type: ignore
+            method.insert(idx, 'otsu')  # type: ignore
+        if 'blur' in method:
+            idx = method.index('blur')  # type: ignore
+            method.remove('blur')       # type: ignore
+            method.insert(idx, sf.slide.qc.Gaussian(mpp=blur_mpp,
+                                                    sigma=blur_radius,
+                                                    threshold=blur_threshold))
+        if 'otsu' in method:
+            idx = method.index('otsu')  # type: ignore
+            method.remove('otsu')       # type: ignore
+            method.insert(idx, sf.slide.qc.Otsu())
 
         starttime = time.time()
         img = None
         for qc in method:
+            if isinstance(method, str):
+                raise errors.QCError(f"Unknown QC method {method}")
             mask = qc(self)
             if mask is not None:
                 img = self.apply_qc_mask(mask, filter_threshold=filter_threshold)
@@ -998,7 +1008,7 @@ class WSI(_BaseLoader):
                 yolo=False,
                 draw_roi=False,
                 dry_run=False,
-                use_segmentations=False,
+                has_segmentation=False,
             )
         )
         return image_dict['image']
@@ -1164,7 +1174,7 @@ class WSI(_BaseLoader):
 
         Args:
             tfrecord_dir (str): If provided, saves tiles into a TFRecord file
-            (named according to slide name) here.
+                (named according to slide name) here.
             tiles_dir (str): If provided, saves loose images into a
                 subdirectory (per slide name) here.
             img_format (str): 'png' or 'jpg'. Format of images for internal
@@ -1208,6 +1218,47 @@ class WSI(_BaseLoader):
             **kwargs
         )
 
+    def extract_cells(
+        self,
+        tfrecord_dir: Optional[str] = None,
+        tiles_dir: Optional[str] = None,
+        img_format: str = 'jpg',
+        report: bool = True,
+        apply_masks: bool = True,
+        **kwargs
+    ) -> Optional[SlideReport]:
+        """Extract tiles from cell segmentation centroids.
+
+        Args:
+            tfrecord_dir (str): If provided, saves tiles into a TFRecord file
+                (named according to slide name) here.
+            tiles_dir (str): If provided, saves loose images into a
+                subdirectory (per slide name) here.
+            img_format (str): 'png' or 'jpg'. Format of images for internal
+                storage in tfrecords. PNG (lossless) format recommended for
+                fidelity, JPG (lossy) for efficiency. Defaults to 'jpg'.
+            report (bool): Generate and return PDF report of tile extraction.
+            apply_masks (bool): Apply cell segmentation masks to the extracted
+                tiles. Defaults to True.
+
+        Keyword Args:
+            All keyword arguments are passed to :meth:`WSI.extract_tiles()`.
+        """
+        if self.segmentation is None:
+            raise ValueError(
+                "Cannot build generator from segmentation centroids; "
+                "segmentation not yet applied. Use WSI.apply_segmentation()."
+            )
+        return super().extract_tiles(
+            tfrecord_dir,
+            tiles_dir,
+            img_format,
+            report,
+            apply_masks=apply_masks,
+            from_centroids=True,
+            **kwargs
+        )
+
     def build_generator(
         self,
         *,
@@ -1230,8 +1281,8 @@ class WSI(_BaseLoader):
         lazy_iter: bool = False,
         shard: Optional[Tuple[int, int]] = None,
         max_tiles: Optional[int] = None,
-        use_segmentations: bool = False,
-        apply_masks: bool = True
+        from_centroids: bool = False,
+        apply_masks: bool = True,
     ) -> Optional[Callable]:
         """Builds tile generator to extract tiles from this slide.
 
@@ -1265,6 +1316,13 @@ class WSI(_BaseLoader):
                 but do not export any images. Defaults to None.
             max_tiles (int, optional): Only extract this many tiles per slide.
                 Defaults to None.
+            from_centroids (bool): Extract tiles from cell segmentation
+                centroids, rather than in a grid-wise pattern. Requires that
+                cell segmentation has already been applied with
+                `WSI.apply_segmentation()`. Defaults to False.
+            apply_masks (bool): Apply cell segmentation masks to tiles. Ignored
+                if cell segmentation has been applied to the slide.
+                Defaults to True.
 
         Returns:
             dict: Dict with keys 'image' (image data), 'yolo' (optional
@@ -1285,6 +1343,11 @@ class WSI(_BaseLoader):
             raise ValueError("If shard is provided, it must be a tuple of "
                              "two int (shard_idx, shard_count)")
 
+        if from_centroids and self.segmentation is None:
+            raise ValueError(
+                "Cannot build generator from segmentation centroids; "
+                "segmentation not yet applied. Use WSI.apply_segmentation()."
+            )
 
         super().build_generator()
         if self.estimated_num_tiles == 0:
@@ -1337,7 +1400,7 @@ class WSI(_BaseLoader):
             'yolo': yolo,
             'draw_roi': draw_roi,
             'dry_run': dry_run,
-            'use_segmentations': use_segmentations
+            'has_segmentation': from_centroids
         })
 
         def generator():
@@ -1346,7 +1409,7 @@ class WSI(_BaseLoader):
             n_extracted = 0
 
             # Skip tiles filtered out with QC or ROI
-            if not use_segmentations:
+            if not from_centroids:
                 non_roi_coord = self.coord[
                     self.grid[tuple(self.coord[:, 2:4].T)].astype(bool)
                 ]
@@ -1354,12 +1417,9 @@ class WSI(_BaseLoader):
                 if shuffle:
                     np.random.shuffle(non_roi_coord)
                 num_possible_tiles = len(non_roi_coord)
-            elif self.segmentation is None:
-                log.warn(f"Segmentation not applied to slide {self.name} - "
-                         "skipping tile extraction.")
-                return
             else:
-                from .seg import seg_utils
+                from slideflow.cellseg import seg_utils
+
                 log.info("Building generator from segmentation centroids.")
                 nonzero = self.seg_coord[:, 0] > 0
                 num_possible_tiles = nonzero.sum()

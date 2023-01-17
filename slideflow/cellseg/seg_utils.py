@@ -1,11 +1,16 @@
 import os
 import cv2
-import multiprocessing as mp
 import numpy as np
+import multiprocessing as mp
+import slideflow as sf
+from os.path import dirname, join, exists
+from typing import Optional
 from functools import partial
 from zarr.convenience import (_might_close, normalize_store_arg,
                               _create_group, _check_and_update_path, StoreLike,
                               BaseStore)
+
+# --- Utility functions -------------------------------------------------------
 
 def save_zarr_compressed(store: StoreLike, *args, zarr_version=None, path=None, compressor=None, **kwargs):
     if len(args) == 0 and len(kwargs) == 0:
@@ -25,6 +30,7 @@ def save_zarr_compressed(store: StoreLike, *args, zarr_version=None, path=None, 
         if may_need_closing:
             # needed to ensure zip file records are written
             _store.close()
+
 
 def fast_outlines_list(masks, num_threads=None):
     """Get outlines of masks as a list to loop over for plotting. Accelerated
@@ -82,3 +88,40 @@ def sparse_mask(mask):
     return csr_matrix((cols, (raveled[nonzero], cols)),
                       shape=(mask.max() + 1, cols[-1]+1),
                       dtype=(np.uint32 if (cols[-1]+1) < 4294967295 else np.uint64))
+
+# --- WSI Cell Segmentation transformation utility ----------------------------
+
+class ApplySegmentation:
+
+    def __init__(self, source: Optional[str] = None) -> None:
+        """QC function which loads a saved numpy mask to a WSI.
+
+        Args:
+            source (str, optional): Path to search for qc mask.
+                If None, will search in the same directory as the slide.
+                Defaults to None.
+        """
+        self.source = source
+
+    def __repr__(self):
+        return "CellSegment(source={!r})".format(
+            self.source
+        )
+
+    def __call__(self, wsi: "sf.WSI") -> None:
+        """Applies a segmentation mask to a given slide from a saved npz file.
+
+        Args:
+            wsi (sf.WSI): Whole-slide image.
+
+        Returns:
+            None
+        """
+        from slideflow.cellseg import Segmentation
+        source = self.source if self.source is not None else dirname(wsi.path)
+        if exists(join(source, wsi.name+'-masks.zip')):
+            seg = Segmentation.load(join(source, wsi.name+'-masks.zip'))
+            wsi.apply_segmentation(seg)
+        else:
+            raise sf.errors.QCError("Segmentation mask not found.")
+        return None

@@ -101,7 +101,7 @@ from random import shuffle
 from tabulate import tabulate  # type: ignore[import]
 from pprint import pformat
 from typing import (TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Tuple,
-                    Union)
+                    Union, Callable)
 import numpy as np
 import pandas as pd
 import shapely.geometry as sg
@@ -878,7 +878,7 @@ class Dataset:
         Returns:
             None
         """
-        from slideflow.slide.seg import segment_slide
+        from slideflow.cellseg import segment_slide
 
         if qc_kwargs is None:
             qc_kwargs = {}
@@ -1148,8 +1148,31 @@ class Dataset:
             }
         return ret
 
+    def extract_cells(
+        self,
+        masks_path: str,
+        **kwargs
+    ) -> Dict[str, SlideReport]:
+        """Extract cells from whole-slide images."""
+
+        from slideflow.cellseg.seg_utils import ApplySegmentation
+
+        # Add WSI segmentation as slide-level transformation.
+        qc = [] if 'qc' not in kwargs else kwargs['qc']
+        if not isinstance(qc, list):
+            qc = [qc]
+        qc.append(ApplySegmentation(masks_path))
+        kwargs['qc'] = qc
+
+        # Extract tiles from segmentation centroids.
+        return self.extract_tiles(
+            from_centroids=True,
+            **kwargs
+        )
+
     def extract_tiles(
         self,
+        *,
         save_tiles: bool = False,
         save_tfrecords: bool = True,
         source: Optional[str] = None,
@@ -1161,7 +1184,7 @@ class Dataset:
         randomize_origin: bool = False,
         buffer: Optional[str] = None,
         q_size: int = 1,
-        qc: Optional[str] = None,
+        qc: Optional[Union[str, Callable, List[Callable]]] = None,
         report: bool = True,
         **kwargs: Any
     ) -> Dict[str, SlideReport]:
