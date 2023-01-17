@@ -22,7 +22,7 @@ from slideflow import errors, project_utils
 from slideflow.dataset import Dataset
 from slideflow.model import ModelParams
 from slideflow.project_utils import auto_dataset, get_validation_settings
-from slideflow.util import log, path_to_name, convert_file_to_df, convert_df_to_file
+from slideflow.util import log, path_to_name
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -3020,253 +3020,52 @@ class Project:
         Args:
             ensemble_path (str): Path to directory containing ensemble members.
         """
+
+        if not exists(join(ensemble_path, 'params.json')):
+            raise OSError("Could not find ensemble params.json.")
+
+        # Path to each ensemble member.
         member_paths = sorted([
             join(ensemble_path, x) for x in os.listdir(ensemble_path)
             if isdir(join(ensemble_path, x))
         ])
 
+        # Model directory names for each k-fold.
+        # Each ensemble member will have these same folders.
+        # For example, "00001-outcome-HP0-kfold1"
         kfold_dirs = sorted([
             x for x in os.listdir(member_paths[0])
             if isdir(join(member_paths[0], x))
         ])
 
-        main_header_list_slide = []
-        prediction_file_names = sorted([
-            x for x in os.listdir(join(member_paths[0], kfold_dirs[0]))
-            if x.startswith("slide_predictions_")
-            or x.startswith("tile_predictions_")
-            or x.startswith("patient_predictions_")
-        ])
+        # Read the expected epochs from params.json.
+        params = sf.util.load_json(join(ensemble_path, 'params.json'))
+        epochs = params['hp']['epochs']
 
-        if not len(prediction_file_names):
-            raise OSError("Unable to find ensemble prediction files.")
-
-        # Final merged prediction file should be of the same format
-        # as the individual ensemble prediction files.
-        save_format = sf.util.path_to_ext(prediction_file_names[0])
-
-        epochs = sorted([
-            int(re.findall(r'\d', x)[0]) for x in prediction_file_names
-            if x.startswith("slide_")
-        ])
         for kfold_dir in kfold_dirs:
             for epoch in epochs:
-                for i, member_path in enumerate(member_paths):
+                for member_id, member_path in enumerate(member_paths):
                     kfold_path = join(member_path, kfold_dir)
                     kfold_int = int(re.findall(r'\d', kfold_dir)[-1])
 
-                    slide_file_name = sorted([
-                        x for x in prediction_file_names
-                        if x.startswith("slide_predictions_")
-                        and f"epoch{epoch}." in x
-                    ])
-
-                    patient_file_name = sorted([
-                        x for x in prediction_file_names
-                        if x.startswith("patient_predictions_")
-                        and f"epoch{epoch}." in x
-                    ])
-
-                    tile_file_name = sorted([
-                        x for x in prediction_file_names
-                        if x.startswith("tile_predictions_")
-                        and f"epoch{epoch}." in x
-                    ])
-
-                    if i == 0:
-                        main_df_slide = convert_file_to_df(
-                            join(kfold_path, slide_file_name[0]),
-                            file_type = save_format,
-                            file_type_in_path = True
-                        )
-                        main_df_patient = convert_file_to_df(
-                            join(kfold_path, patient_file_name[0]),
-                            file_type = save_format,
-                            file_type_in_path = True
-                        )
-                        main_df_tile = convert_file_to_df(
-                            join(kfold_path, tile_file_name[0]),
-                            file_type = save_format,
-                            file_type_in_path = True
+                    # Create (or add to) the ensemble dataframe.
+                    for level in ('tile', 'slide', 'patient'):
+                        project_utils.add_to_ensemble_dataframe(
+                            ensemble_path=ensemble_path,
+                            member_id=member_id,
+                            kfold_path=kfold_path,
+                            kfold_int=kfold_int,
+                            epoch=epoch,
+                            level=level
                         )
 
-                        if save_format == "csv":
-                            main_df_slide = main_df_slide.drop(columns=['Unnamed: 0'])
-                            main_df_patient = main_df_patient.drop(columns=['Unnamed: 0'])
-                            main_df_tile = main_df_tile.drop(columns=['Unnamed: 0'])
-
-                        main_df_slide = main_df_slide.sort_values(by=["slide"])
-                        main_header_list_slide = main_df_slide.columns.tolist()
-                        new_ens_headers_slide = [s + f"_ens{i+1}" for s in main_header_list_slide]
-                        header_change_dict_slide = dict(zip(main_header_list_slide, new_ens_headers_slide))
-                        main_df_slide.rename(columns=header_change_dict_slide,inplace=True)
-
-                        main_df_patient = main_df_patient.sort_values(by=["patient"])
-                        main_header_list_patient = main_df_patient.columns.tolist()
-                        new_ens_headers_patient = [s + f"_ens{i+1}" for s in main_header_list_patient]
-                        header_change_dict_patient = dict(zip(main_header_list_patient, new_ens_headers_patient))
-                        main_df_patient.rename(columns=header_change_dict_patient,inplace=True)
-
-                        main_df_tile = main_df_tile.sort_values(by=["slide", "loc_x", "loc_y"])
-                        main_header_list_tile = main_df_tile.columns.tolist()
-                        new_ens_headers_tile = [s + f"_ens{i+1}" for s in main_header_list_tile]
-                        header_change_dict_tile = dict(zip(main_header_list_tile, new_ens_headers_tile))
-                        main_df_tile.rename(columns=header_change_dict_tile,inplace=True)
-
-                        convert_df_to_file(
-                            main_df_slide,
-                            join(ensemble_path, f"ensemble_slide_predictions_kfold{kfold_int}_epoch{epoch}"),
-                            file_type = save_format,
-                            first_iter = True
-                        )
-                        convert_df_to_file(
-                            main_df_patient,
-                            join(ensemble_path, f"ensemble_patient_predictions_kfold{kfold_int}_epoch{epoch}"),
-                            file_type = save_format,
-                            first_iter = True
-                        )
-                        convert_df_to_file(
-                            main_df_tile,
-                            join(ensemble_path, f"ensemble_tile_predictions_kfold{kfold_int}_epoch{epoch}"),
-                            file_type = save_format,
-                            first_iter = True
-                        )
-
-                    else:
-                        main_df_slide = convert_file_to_df(
-                            join(ensemble_path, f"ensemble_slide_predictions_kfold{kfold_int}_epoch{epoch}"),
-                            file_type = save_format
-                        )
-                        to_merge_df_slide = convert_file_to_df(
-                            join(kfold_path, slide_file_name[0]),
-                            file_type = save_format,
-                            file_type_in_path = True
-                        )
-
-                        main_df_patient = convert_file_to_df(
-                            join(ensemble_path, f"ensemble_patient_predictions_kfold{kfold_int}_epoch{epoch}"),
-                            file_type = save_format
-                        )
-                        to_merge_df_patient = convert_file_to_df(
-                            join(kfold_path, patient_file_name[0]),
-                            file_type = save_format,
-                            file_type_in_path = True
-                        )
-
-                        main_df_tile = convert_file_to_df(
-                            join(ensemble_path, f"ensemble_tile_predictions_kfold{kfold_int}_epoch{epoch}"),
-                            file_type = save_format
-                        )
-                        to_merge_df_tile = convert_file_to_df(
-                            join(kfold_path, tile_file_name[0]),
-                            file_type = save_format,
-                            file_type_in_path = True
-                        )
-
-                        if save_format == "csv":
-                            to_merge_df_slide = to_merge_df_slide.drop(columns=['Unnamed: 0'])
-                            to_merge_df_patient = to_merge_df_patient.drop(columns=['Unnamed: 0'])
-                            to_merge_df_tile = to_merge_df_tile.drop(columns=['Unnamed: 0'])
-
-                        main_header_list_slide = to_merge_df_slide.columns.tolist()
-                        new_ens_headers_slide = [s + f"_ens{i+1}" for s in main_header_list_slide]
-                        header_change_dict_slide = dict(zip(main_header_list_slide, new_ens_headers_slide))
-                        to_merge_df_slide.rename(columns=header_change_dict_slide,inplace=True)
-                        main_df_slide = pd.merge(main_df_slide, to_merge_df_slide,
-                            how="inner", left_on=["slide_ens1"], right_on=[f"slide_ens{i+1}"])
-                        main_df_slide = main_df_slide.drop(columns=[f"slide_ens{i+1}"])
-
-                        main_header_list_patient = to_merge_df_patient.columns.tolist()
-                        new_ens_headers_patient = [s + f"_ens{i+1}" for s in main_header_list_patient]
-                        header_change_dict_patient = dict(zip(main_header_list_patient, new_ens_headers_patient))
-                        to_merge_df_patient.rename(columns=header_change_dict_patient,inplace=True)
-                        main_df_patient = pd.merge(main_df_patient, to_merge_df_patient,
-                            how="inner", left_on=["patient_ens1"], right_on=[f"patient_ens{i+1}"])
-                        main_df_patient = main_df_patient.drop(columns=[f"patient_ens{i+1}"])
-
-                        main_header_list_tile = to_merge_df_tile.columns.tolist()
-                        new_ens_headers_tile = [s + f"_ens{i+1}" for s in main_header_list_tile]
-                        header_change_dict_tile = dict(zip(main_header_list_tile, new_ens_headers_tile))
-                        to_merge_df_tile.rename(columns=header_change_dict_tile,inplace=True)
-                        main_df_tile = pd.merge(main_df_tile, to_merge_df_tile,
-                            how="inner", left_on=["slide_ens1","loc_x_ens1", "loc_y_ens1"],
-                            right_on=[f"slide_ens{i+1}", f"loc_x_ens{i+1}", f"loc_y_ens{i+1}"])
-                        main_df_tile = main_df_tile.drop(columns=[f"slide_ens{i+1}", f"patient_ens{i+1}", f"loc_x_ens{i+1}", f"loc_y_ens{i+1}"])
-
-                        convert_df_to_file(
-                            main_df_slide,
-                            join(ensemble_path, f"ensemble_slide_predictions_kfold{kfold_int}_epoch{epoch}"),
-                            file_type = save_format
-                        )
-                        convert_df_to_file(
-                            main_df_patient,
-                            join(ensemble_path, f"ensemble_patient_predictions_kfold{kfold_int}_epoch{epoch}"),
-                            file_type = save_format
-                        )
-                        convert_df_to_file(
-                            main_df_tile,
-                            join(ensemble_path, f"ensemble_tile_predictions_kfold{kfold_int}_epoch{epoch}"),
-                            file_type = save_format
-                        )
-
-                # change header and ensemble results
-                main_df_slide = convert_file_to_df(
-                    join(ensemble_path, f"ensemble_slide_predictions_kfold{kfold_int}_epoch{epoch}"),
-                    file_type = save_format
-                )
-                main_df_patient = convert_file_to_df(
-                    join(ensemble_path, f"ensemble_patient_predictions_kfold{kfold_int}_epoch{epoch}"),
-                    file_type = save_format
-                )
-                main_df_tile = convert_file_to_df(
-                    join(ensemble_path, f"ensemble_tile_predictions_kfold{kfold_int}_epoch{epoch}"),
-                    file_type = save_format
-                )
-
-                slide_level_headers = main_df_slide.columns.tolist()
-                for i in main_header_list_slide:
-                    if i == "slide":
-                        main_df_slide = main_df_slide.rename(columns={"slide_ens1": i})
-                    else:
-                        group_columns = [col_name for col_name in slide_level_headers
-                            if i in col_name]
-                        main_df_slide[i] = main_df_slide.loc[:, group_columns].mean(axis = 1)
-
-                patient_level_headers = main_df_patient.columns.tolist()
-                for i in main_header_list_patient:
-                    if i == "patient":
-                        main_df_patient = main_df_patient.rename(columns={"patient_ens1": i})
-                    else:
-                        group_columns = [col_name for col_name in patient_level_headers
-                            if i in col_name]
-                        main_df_patient[i] = main_df_patient.loc[:, group_columns].mean(axis = 1)
-
-                tile_level_headers = main_df_tile.columns.tolist()
-                for i in main_header_list_tile:
-                    if i in ["slide", "loc_x", "loc_y", "patient"]:
-                        main_df_tile = main_df_tile.rename(columns={f"{i}_ens1": i})
-                    else:
-                        group_columns = [col_name for col_name in tile_level_headers
-                            if i in col_name]
-                        main_df_tile[i] = main_df_tile.loc[:, group_columns].mean(axis = 1)
-                patient_col = main_df_tile.pop("patient")
-                main_df_tile.insert(0, "patient", patient_col)
-
-                convert_df_to_file(
-                    main_df_slide,
-                    join(ensemble_path, f"ensemble_slide_predictions_kfold{kfold_int}_epoch{epoch}"),
-                    file_type = save_format
-                )
-                convert_df_to_file(
-                    main_df_patient,
-                    join(ensemble_path, f"ensemble_patient_predictions_kfold{kfold_int}_epoch{epoch}"),
-                    file_type = save_format
-                )
-                convert_df_to_file(
-                    main_df_tile,
-                    join(ensemble_path, f"ensemble_tile_predictions_kfold{kfold_int}_epoch{epoch}"),
-                    file_type = save_format
-                )
+                for level in ('tile', 'slide', 'patient'):
+                    project_utils.update_ensemble_dataframe_headers(
+                        ensemble_path=ensemble_path,
+                        kfold_int=kfold_int,
+                        epoch=epoch,
+                        level=level
+                    )
 
     def train_ensemble(
         self,
