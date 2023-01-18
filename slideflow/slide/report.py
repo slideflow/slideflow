@@ -407,10 +407,14 @@ class ExtractionReport:
     def save(self, filename: str) -> None:
         self.pdf.output(filename)
 
-    def update_csv(self, filename: str) -> pd.DataFrame:
+    def update_csv(self, filename: str) -> Optional[pd.DataFrame]:
         """Update and save tile extraction report as CSV."""
 
-        print("Updating CSV for {} reports.".format(len(self.reports)))
+        if len(self.reports):
+            print("Updating CSV for {} reports.".format(len(self.reports)))
+        else:
+            print("Skipping CSV update; no extraction reports found.")
+            return None
         if exists(filename):
             ex_df = pd.read_csv(filename)
             ex_df.set_index('slide')

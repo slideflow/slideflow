@@ -1153,8 +1153,23 @@ class Dataset:
         masks_path: str,
         **kwargs
     ) -> Dict[str, SlideReport]:
-        """Extract cells from whole-slide images."""
+        """Extract images of cells from slides, with a tile at each cell
+        centroid. Requires that cells have already been segmented with
+        ``Dataset.cell_segmentation()``.
 
+        Args:
+            masks_path (str): Location of saved segmentation masks.
+
+        Keyword Args:
+            apply_masks (bool): Apply cell segmentation masks to the extracted
+                tiles. Defaults to True.
+
+            All other keyword arguments for :meth:`Dataset.extract_tiles()`.
+
+        Returns:
+            Dictionary mapping slide paths to each slide's SlideReport
+            (:class:`slideflow.slide.report.SlideReport`)
+        """
         from slideflow.cellseg.seg_utils import ApplySegmentation
 
         # Add WSI segmentation as slide-level transformation.

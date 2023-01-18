@@ -265,7 +265,7 @@ def categorical_metrics(
                 thresh = 'NA' if not fit.opt_thresh else f'{fit.opt_thresh:.3f}'
                 log.info(
                     f"{level}-level AUC (cat #{i:>2}): {auroc_str} "
-                    f"{level}-level AP: {ap_str} (opt. threshold: {thresh})"
+                    f"AP: {ap_str} (opt. threshold: {thresh})"
                 )
         except ValueError as e:
             # Occurs when predictions contain NaN

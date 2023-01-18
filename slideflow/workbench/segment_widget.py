@@ -6,8 +6,6 @@ import cellpose
 import cellpose.models
 from functools import partial
 from threading import Thread
-from typing import Tuple
-from PIL import Image, ImageDraw
 from slideflow.slide.utils import draw_roi
 from slideflow.cellseg import segment_slide, Segmentation
 from .gui_utils import imgui_utils
@@ -100,16 +98,21 @@ class SegmentWidget:
 
         self.refresh_segmentation_view()
         self._load_toast.done()
-        self.viz.create_toast(f"Loaded {self.segmentation.masks.max()} segmentations.", icon="success")
+        self.viz.create_toast(
+            f"Loaded {self.segmentation.masks.max()} segmentations.",
+            icon="success"
+        )
 
     def calculate_centroids(self, refresh=True):
         """Calculate segmentation centroids."""
-        _should_announce_complete = self.show_centroid and (self.segmentation._centroids is None)
         self.segmentation.calculate_centroids()
         if self._centroid_toast:
             self._centroid_toast.done()
-        if _should_announce_complete:
-            self.viz.create_toast("Centroid calculation complete.", icon="success")
+        if self.show_centroid and (self.segmentation._centroids is None):
+            self.viz.create_toast(
+                "Centroid calculation complete.",
+                icon="success"
+            )
         if refresh:
             refresh_toast = self.viz.create_toast(
                 title=f"Rendering",
@@ -120,6 +123,7 @@ class SegmentWidget:
             refresh_toast.done()
 
     def drag_and_drop_hook(self, path, ignore_errors=False):
+        """Handle file paths provided via drag-and-drop."""
         if (sf.util.path_to_ext(path).lower() == 'zip'):
             try:
                 z = zarr.open(path)
@@ -138,7 +142,8 @@ class SegmentWidget:
             icon='info',
             sticky=True,
             spinner=True)
-        self._thread = Thread(target=self._load_segmentation, args=(path, ignore_errors))
+        self._thread = Thread(target=self._load_segmentation,
+                              args=(path, ignore_errors))
         self._thread.start()
 
     def refresh_segmentation_view(self):
@@ -162,10 +167,11 @@ class SegmentWidget:
 
     def render_outlines(self, color='red'):
         """Render outlines of the segmentations currently in view."""
+        seg = self.segmentation
         in_view, _, view_offset = self.viz.viewer.in_view(
-            self.segmentation.masks,
-            dim=self.segmentation.wsi_dim,
-            offset=self.segmentation.wsi_offset,
+            seg.masks,
+            dim=seg.wsi_dim,
+            offset=seg.wsi_offset,
             resize=False)
 
         # Calculate and draw the outlines
@@ -175,12 +181,12 @@ class SegmentWidget:
 
         self.viz.overlay = outline_img
         self.viz._overlay_wsi_dim = (
-            (in_view.shape[1] / self.segmentation.masks.shape[1]) * self.segmentation.wsi_dim[0],
-            (in_view.shape[0] / self.segmentation.masks.shape[0]) * self.segmentation.wsi_dim[1],
+            (in_view.shape[1] / seg.masks.shape[1]) * seg.wsi_dim[0],
+            (in_view.shape[0] / seg.masks.shape[0]) * seg.wsi_dim[1],
         )
         self.viz._overlay_offset_wsi_dim = (
-            self.segmentation.wsi_offset[0] + view_offset[0],
-            self.segmentation.wsi_offset[1] + view_offset[1]
+            seg.wsi_offset[0] + view_offset[0],
+            seg.wsi_offset[1] + view_offset[1]
         )
         self._outline_toast.done()
         self.viz.create_toast("Outlining complete.", icon="success")
@@ -199,7 +205,12 @@ class SegmentWidget:
             int(view_microns[1] / self.mpp)
         )
         view_img = v._read_from_pyramid(**view_params)
-        print(f"Segmenting image view with diameter {self.diameter} (um={view_microns} mpp={self.mpp:.3f} shape={view_img.shape})")
+        print("Segmenting view, with diameter (px) {} (um={} mpp={:.3f} shape={})".format(
+            self.diameter,
+            view_microns,
+            self.mpp,
+            view_img.shape
+        ))
         masks, flows, styles, diams = self.model.eval(
             view_img,
             channels=[[0, 0]],
@@ -212,7 +223,11 @@ class SegmentWidget:
             wsi_dim=v.wsi_window_size,
             wsi_offset=v.origin)
         self.diameter_microns = int(diams * self.mpp)
-        print(f"Segmentation of view complete (diameter={diams:.2f}, {masks.max()} total masks), shape={masks.shape}.")
+        print("Segmentation of view complete (diameter={:.2f}, {} total masks), shape={}.".format(
+            diams,
+            masks.max(),
+            masks.shape
+        ))
         self.refresh_segmentation_view()
         if self._segment_toast is not None:
             self._segment_toast.done()
@@ -225,11 +240,20 @@ class SegmentWidget:
             return self._segment_view()
 
         # Otherwise, segment using whole-slide image interface
-        wsi = sf.WSI(self.viz.wsi.path, tile_px=self.tile_px, tile_um=self.tile_um, verbose=False)
+        wsi = sf.WSI(
+            self.viz.wsi.path,
+            tile_px=self.tile_px,
+            tile_um=self.tile_um,
+            verbose=False
+        )
         if self.otsu:
             wsi.qc('otsu', filter_threshold=1)
-        print(f"Segmenting WSI (shape={wsi.dimensions}, tile_px={self.tile_px}, tile_um={self.tile_um}, diameter={self.diameter})")
-
+        print("Segmenting WSI (shape={}, tile_px={}, tile_um={}, diameter={})".format(
+            wsi.dimensions,
+            self.tile_px,
+            self.tile_um,
+            self.diameter
+        ))
         # Alternative method of rendering in-view preview
         if in_view:
             print("Segmenting partial WSI using current view window")
@@ -412,8 +436,8 @@ class SegmentWidget:
                 imgui_utils.button("Cellprob", width=viz.button_w)
 
             # Show centroid
-            _centroid_clicked, self.show_centroid = imgui.checkbox('Centroid', self.show_centroid)
-            if _centroid_clicked and not self.is_thread_running():
+            _clicked, self.show_centroid = imgui.checkbox('Centroid', self.show_centroid)
+            if _clicked and not self.is_thread_running():
                 if self.show_centroid and self.segmentation._centroids is None:
                     self._centroid_toast = viz.create_toast(
                         title=f"Calculating centroids",
@@ -433,7 +457,10 @@ class SegmentWidget:
                 self.alpha = 1
                 self.refresh_segmentation_view()
 
-            _bg_change, self.overlay_background = imgui.checkbox("Black BG", self.overlay_background)
+            _bg_change, self.overlay_background = imgui.checkbox(
+                "Black BG",
+                self.overlay_background
+            )
             if _bg_change:
                 self.update_transparency()
 
@@ -448,7 +475,10 @@ class SegmentWidget:
                     self.update_transparency()
 
             # Refresh segmentation --------------------------------------------
-            self.viz._show_overlays = any((self.show_mask, self.show_gradXY, self.show_centroid, self._showing_preview_overlay))
+            self.viz._show_overlays = any((self.show_mask,
+                                           self.show_gradXY,
+                                           self.show_centroid,
+                                           self._showing_preview_overlay))
             if _mask_clicked or _grad_clicked: # or others
                 if self.segmentation is not None:
                     self.refresh_segmentation_view()

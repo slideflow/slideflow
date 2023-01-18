@@ -3,7 +3,7 @@ import cv2
 import numpy as np
 import multiprocessing as mp
 import slideflow as sf
-from os.path import dirname, join, exists
+from os.path import dirname, join, exists, isfile
 from typing import Optional
 from functools import partial
 from zarr.convenience import (_might_close, normalize_store_arg,
@@ -12,7 +12,15 @@ from zarr.convenience import (_might_close, normalize_store_arg,
 
 # --- Utility functions -------------------------------------------------------
 
-def save_zarr_compressed(store: StoreLike, *args, zarr_version=None, path=None, compressor=None, **kwargs):
+def save_zarr_compressed(
+    store: StoreLike,
+    *args,
+    zarr_version=None,
+    path=None,
+    compressor=None,
+    **kwargs
+) -> None:
+    """Save compressed array using zarr."""
     if len(args) == 0 and len(kwargs) == 0:
         raise ValueError('at least one array must be provided')
     # handle polymorphic store arg
@@ -96,8 +104,22 @@ class ApplySegmentation:
     def __init__(self, source: Optional[str] = None) -> None:
         """QC function which loads a saved numpy mask to a WSI.
 
+        Examples
+            Apply saved segmentation mask to a slide.
+
+                >>> wsi = sf.WSI(...)
+                >>> segment = ApplySegmentation('.../masks.zip')
+                >>> wsi.qc(segment)
+
+            Search for masks in a folder, and apply if matching mask found.
+
+                >>> wsi = sf.WSI(...)
+                >>> segment = ApplySegmentation('.../masks_folder/')
+                >>> wsi.qc(segment)
+
         Args:
             source (str, optional): Path to search for qc mask.
+                Searches for a *.zip file matching "[slidename]-masks.zip".
                 If None, will search in the same directory as the slide.
                 Defaults to None.
         """
@@ -118,10 +140,17 @@ class ApplySegmentation:
             None
         """
         from slideflow.cellseg import Segmentation
+
+        # If source is not specified, look for masks in the same directory
+        # as the slide.
         source = self.source if self.source is not None else dirname(wsi.path)
-        if exists(join(source, wsi.name+'-masks.zip')):
-            seg = Segmentation.load(join(source, wsi.name+'-masks.zip'))
-            wsi.apply_segmentation(seg)
+
+        if exists(source) and isfile(source):
+            mask_path = source
+        elif exists(join(source, wsi.name+'-masks.zip')):
+            mask_path = join(source, wsi.name+'-masks.zip')
         else:
             raise sf.errors.QCError("Segmentation mask not found.")
+        seg = Segmentation.load(mask_path)
+        wsi.apply_segmentation(seg)
         return None
