@@ -2087,7 +2087,7 @@ class Project:
 
         mosaic = sf.Mosaic(
             umap,
-            dataset.tfrecords(),
+            tfrecords=dataset.tfrecords(),
             normalizer=(df.normalizer if use_norm else None),
             **kwargs
         )
@@ -2217,7 +2217,7 @@ class Project:
 
         mosaic = sf.Mosaic(
             umap,
-            dataset.tfrecords(),
+            tfrecords=dataset.tfrecords(),
             tile_select='centroid' if use_optimal_tile else 'nearest',
             **kwargs
         )
