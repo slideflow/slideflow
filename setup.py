@@ -76,7 +76,7 @@ setuptools.setup(
         'numpy<1.22',
         'tabulate',
 		'rasterio',
-        'smac',
+        'smac==1.4.0',
         'ConfigSpace',
         'pyarrow',
         'ninja',

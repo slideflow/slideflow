@@ -8,6 +8,7 @@ import os
 import shutil
 import pickle
 import tarfile
+import pandas as pd
 from tqdm import tqdm
 from multiprocessing.managers import DictProxy
 from os.path import basename, exists, join, dirname
@@ -24,10 +25,9 @@ from slideflow.project_utils import auto_dataset, get_validation_settings
 from slideflow.util import log, path_to_name, path_to_ext
 
 if TYPE_CHECKING:
-    import pandas as pd
-    from ConfigSpace import ConfigurationSpace
-
     from slideflow.model import DatasetFeatures, Trainer
+    from ConfigSpace import ConfigurationSpace, Configuration
+    from smac.facade.smac_bb_facade import SMAC4BB
 
 
 class Project:
@@ -2391,7 +2391,7 @@ class Project:
         allow_tf32: bool = False,
         load_method: str = 'full',
         **kwargs: Any
-    ) -> "pd.DataFrame":
+    ) -> pd.DataFrame:
         """Evaluates a saved model on a given set of tfrecords.
 
         Args:
@@ -2654,12 +2654,17 @@ class Project:
             """SMAC tae_runner function."""
 
             # Load hyperparameters from SMAC configuration and train model.
+            config_dict = json.dumps(config.get_dictionary(), indent=2)
+            log.info(f"Training model with config={config_dict}")
             params.load_dict(dict(config))
+            _prior_logging_level = sf.getLoggingLevel()
+            sf.setLoggingLevel(40)
             results = self.train(
                 outcomes=outcomes,
                 params=params,
                 **train_kwargs
             )
+            sf.setLoggingLevel(_prior_logging_level)
 
             # Interpret results.
             model_name = list(results.keys())[0]
@@ -2670,7 +2675,7 @@ class Project:
 
             # Determine metric for optimization.
             if callable(metric):
-                return metric(epoch_results)
+                result = metric(epoch_results)
             elif metric not in epoch_results:
                 raise errors.SMACError(f"Metric '{metric}' not returned from "
                                        "training, unable to optimize.")
@@ -2679,7 +2684,12 @@ class Project:
                     raise errors.SMACError(
                         f"Unable to interpret metric {metric} (epoch results: "
                         f"{epoch_results})")
-                return 1 - mean(epoch_results[metric][outcomes])
+                result = 1 - mean(epoch_results[metric][outcomes])
+            log.info("[green]Result ({})[/]: {:.4f}".format(
+                'custom' if callable(metric) else f'1-{metric}',
+                result
+            ))
+            return result
 
         return smac_runner
 
@@ -2688,11 +2698,14 @@ class Project:
         outcomes: Union[str, List[str]],
         params: ModelParams,
         smac_configspace: "ConfigurationSpace",
+        exp_label: str = "SMAC",
         smac_limit: int = 10,
         smac_metric: str = 'tile_auc',
+        save_model: bool = False,
+        save_predictions: Union[bool, str] = False,
         **train_kwargs: Any
-    ) -> None:
-        """Train a model using SMAC3 bayesian hyperparameter optimization.
+    ) -> Tuple["Configuration", pd.DataFrame]:
+        """Train a model using SMAC3 Bayesian hyperparameter optimization.
 
         The hyperparameter optimization is performed with
         `SMAC3 <https://automl.github.io/SMAC3/master/>`_. Start by setting the
@@ -2718,29 +2731,43 @@ class Project:
             params (ModelParams): Model parameters for training.
             smac_configspace (ConfigurationSpace): ConfigurationSpace to
                 determine the SMAC optimization.
-            smac_limit (int): Max number of function evaluations to perform
-                during optimization. Defaults to 10.
+            smac_limit (int): Max number of models to train during optimization.
+                Defaults to 10.
             smac_metric (str, optional): Metric to monitor for optimization.
                 May either be a callable function or a str. If a callable
                 function, must accept the epoch results dict and return a
                 float value. If a str, must be a valid metric, such as
                 'tile_auc', 'patient_auc', 'r_squared', etc.
                 Defaults to 'tile_auc'.
+            save_model (bool): Save SMAC models. Defaults to False.
+            save_predictions (bool or str, optional): Save tile, slide, and
+                patient-level predictions at each evaluation. May be 'csv',
+                'feather', or 'parquet'. If False, will not save predictions.
+                Defaults to False.
 
         Returns:
             Configuration: Optimal hyperparameter configuration returned
-            by SMAC4BB.optimize()
+            by SMAC4BB.optimize().
+
+            pd.DataFrame: History of hyperparameters resulting metrics.
         """
 
         from smac.facade.smac_bb_facade import SMAC4BB
         from smac.scenario.scenario import Scenario
 
+        # Perform SMAC search in a single model folder.
+        smac_path = sf.util.get_new_model_dir(self.models_dir, exp_label)
+        _initial_models_dir = self.models_dir
+        self.models_dir = smac_path
+
         # Create SMAC scenario.
-        scenario = Scenario({
-            'run_obj': 'quality', # Optimize quality (alternatively: runtime)
-            'runcount-limit': smac_limit,  # Max number of function evaluations
-            'cs': smac_configspace
-        })
+        scenario = Scenario(
+            {'run_obj': 'quality', # Optimize quality (alternatively: runtime)
+             'runcount-limit': smac_limit,  # Max number of function evaluations
+             'cs': smac_configspace},
+            {'output_dir': self.models_dir})
+        train_kwargs['save_model'] = save_model
+        train_kwargs['save_predictions'] = save_predictions
         smac = SMAC4BB(
             scenario=scenario,
             tae_runner=self._get_smac_runner(
@@ -2751,11 +2778,28 @@ class Project:
             )
         )
 
+        # Log.
+        log.info("Performing Bayesian hyperparameter optimization with SMAC")
+        log.info(
+            "=== SMAC config ==========================================\n"
+            "[bold]Base parameters:[/]\n"
+            f"{params}\n\n"
+            "[bold]Configuration space:[/]\n"
+            f"{smac_configspace}\n"
+            "=========================================================="
+        )
+
         # Optimize.
         best_config = smac.optimize()
-        log.info("Results of SMAC optimization:")
-        print(best_config)
-        return best_config
+        log.info(f"Best configuration after SMAC optimization: {best_config}")
+
+        # Process history and write to dataframe.
+        configs = smac.runhistory.get_all_configs()
+        history = pd.DataFrame([c.get_dictionary() for c in configs])
+        history['metric'] = [smac.runhistory.get_cost(c) for c in configs]
+        history.to_csv(join(self.models_dir, 'run_history.csv'), index=False)
+        self.models_dir = _initial_models_dir
+        return best_config, history
 
     def train(
         self,

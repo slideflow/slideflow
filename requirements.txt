@@ -29,7 +29,7 @@ h5py
 tabulate
 saliency
 rasterio
-smac
+smac==1.4.0
 ConfigSpace
 pyarrow
 ninja
