@@ -58,7 +58,7 @@ setuptools.setup(
         'scikit-learn',
         'matplotlib>=3.2',
         'imageio',
-        'opencv-python',
+        'opencv-python-headless',
         'shapely',
         'umap-learn',
         'seaborn<0.12',

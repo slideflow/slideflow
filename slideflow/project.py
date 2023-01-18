@@ -2653,10 +2653,18 @@ class Project:
         def smac_runner(config):
             """SMAC tae_runner function."""
 
-            # Load hyperparameters from SMAC configuration and train model.
-            config_dict = json.dumps(config.get_dictionary(), indent=2)
-            log.info(f"Training model with config={config_dict}")
-            params.load_dict(dict(config))
+            # Load hyperparameters from SMAC configuration, handling "None".
+            c = dict(config)
+            if 'normalizer' in c and c['normalizer'].lower() == 'none':
+                c['normalizer'] = None
+            if 'normalizer_source' in c and c['normalizer_source'].lower() == 'none':
+                c['normalizer_source'] = None
+
+
+            # Train model.
+            pretty = json.dumps(c, indent=2)
+            log.info(f"Training model with config={pretty}")
+            params.load_dict(c)
             _prior_logging_level = sf.getLoggingLevel()
             sf.setLoggingLevel(40)
             results = self.train(
