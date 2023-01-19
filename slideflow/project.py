@@ -2709,6 +2709,7 @@ class Project:
         exp_label: str = "SMAC",
         smac_limit: int = 10,
         smac_metric: str = 'tile_auc',
+        save_checkpoints: bool = False,
         save_model: bool = False,
         save_predictions: Union[bool, str] = False,
         **train_kwargs: Any
@@ -2747,7 +2748,8 @@ class Project:
                 float value. If a str, must be a valid metric, such as
                 'tile_auc', 'patient_auc', 'r_squared', etc.
                 Defaults to 'tile_auc'.
-            save_model (bool): Save SMAC models. Defaults to False.
+            save_checkpoints (bool): Save model checkpoints. Defaults to False.
+            save_model (bool): Save each trained model. Defaults to False.
             save_predictions (bool or str, optional): Save tile, slide, and
                 patient-level predictions at each evaluation. May be 'csv',
                 'feather', or 'parquet'. If False, will not save predictions.
@@ -2774,6 +2776,7 @@ class Project:
              'runcount-limit': smac_limit,  # Max number of function evaluations
              'cs': smac_configspace},
             {'output_dir': self.models_dir})
+        train_kwargs['save_checkpoints'] = save_checkpoints
         train_kwargs['save_model'] = save_model
         train_kwargs['save_predictions'] = save_predictions
         smac = SMAC4BB(

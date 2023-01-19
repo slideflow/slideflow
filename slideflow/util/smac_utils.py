@@ -18,7 +18,7 @@ def broad_search_space(
     learning_rate: Optional[Tuple[float, float]] = (0.00001, 0.001),    # Float (log range)
     learning_rate_decay: Optional[Tuple[float, float]] = (0.95, 1),     # Float (range)
     learning_rate_decay_steps: Optional[Tuple[int, int]] = (128, 1024), # Int (log range)
-    hidden_layers: Optional[Tuple[int, int]] = (0, 3),                  # Int (range)
+    hidden_layers: Optional[List[int]] = [0, 1, 2, 3],                  # Int (ordinal)
     hidden_layer_width: Optional[List[int]] = [64, 128, 256, 512],      # Int (ordinal)
     **kwargs
 ) -> ConfigurationSpace:
@@ -44,8 +44,8 @@ def shallow_search_space(
     dropout: Optional[Tuple[float, float]] = (0, 0.3),                  # Float (range)
     l2: Optional[Tuple[float, float]] = (0, 0.3),                       # Float (range)
     l2_dense: Optional[Tuple[float, float]] = (0, 0.3),                 # Float (range)
-    learning_rate: Optional[Tuple[float, float]] = (0.00005, 0.0005),    # Float (log range)
-    hidden_layers: Optional[Tuple[int, int]] = (0, 2),                  # Int (range)
+    learning_rate: Optional[Tuple[float, float]] = (0.00005, 0.0005),   # Float (log range)
+    hidden_layers: Optional[List[int]] = [0, 1, 2],                     # Int (ordinal)
     **kwargs
 ) -> ConfigurationSpace:
     """Build a configuration space for a shallow hyperparameter search."""
@@ -79,7 +79,7 @@ def create_search_space(
     learning_rate: Optional[Tuple[float, float]] = None,          # Float (log range)
     learning_rate_decay: Optional[Tuple[float, float]] = None,    # Float (range)
     learning_rate_decay_steps: Optional[Tuple[int, int]] = None,  # Int (log range)
-    hidden_layers: Optional[Tuple[int, int]] = None,              # Int (range)
+    hidden_layers: Optional[List[int]] = None,                    # Int (ordinal)
     hidden_layer_width: Optional[List[int]] = None,               # Int (ordinal)
     pooling: Optional[List[str]] = None,                          # Categorical
     trainable_layers: Optional[Tuple[int, int]] = None,           # Int (range)
@@ -114,12 +114,12 @@ def create_search_space(
         assert isinstance(normalizer_source, list)
         cs.add_hyperparameter(cs_hp.CategoricalHyperparameter("normalizer_source", normalizer_source, default_value=normalizer_source[0]))
 
-    # Model/architecture hyperparameters
+    # --- Model/architecture hyperparameters ----------------------------------
     if model is not None:
         assert isinstance(model, list)
         cs.add_hyperparameter(cs_hp.CategoricalHyperparameter("model", model, default_value=model[0]))
 
-    # Training hyperparameters
+    # --- Training hyperparameters --------------------------------------------
     if batch_size is not None:
         assert isinstance(batch_size, list)
         assert all([isinstance(b, int) for b in batch_size])
@@ -152,13 +152,11 @@ def create_search_space(
         lr_start, lr_end = learning_rate_decay_steps
         decay_steps = cs_hp.UniformIntegerHyperparameter("learning_rate_decay_steps", lr_start, lr_end, log=True)
         cs.add_hyperparameter(decay_steps)
-    if learning_rate_decay is not None and learning_rate_decay_steps is not None:
-        # Only sample learning_rate_decay_steps if learning_rate_decay < 1 (decay of 1 is no decay)
-        cond = LessThanCondition(decay_steps, decay, 1)
     if hidden_layers is not None:
-        assert isinstance(hidden_layers, (list, tuple)) and len(hidden_layers) == 2
-        hl_start, hl_end = hidden_layers
-        hl = cs_hp.UniformIntegerHyperparameter("hidden_layers", hl_start, hl_end, default_value=hl_end)
+        assert isinstance(hidden_layers, (list, tuple))
+        assert all([isinstance(b, int) for b in hidden_layers])
+        hidden_layers = sorted(hidden_layers)
+        hl = cs_hp.OrdinalHyperparameter("hidden_layers", hidden_layers, default_value=hidden_layers[0])
         cs.add_hyperparameter(hl)
     if hidden_layer_width is not None:
         assert isinstance(hidden_layer_width, (list, tuple))
@@ -166,10 +164,6 @@ def create_search_space(
         hidden_layer_width = sorted(hidden_layer_width)
         hl_width = cs_hp.OrdinalHyperparameter("hidden_layer_width", hidden_layer_width, default_value=hidden_layer_width[0])
         cs.add_hyperparameter(hl_width)
-    if hidden_layers is not None and hidden_layer_width is not None:
-        # Only sample hyperparameter hidden_layer_width if hidden_layers > 0
-        cond = NotEqualsCondition(hl_width, hl, 0)
-        cs.add_condition(cond)
     if pooling is not None:
         assert isinstance(pooling, list)
         cs.add_hyperparameter(cs_hp.CategoricalHyperparameter("pooling", pooling, default_value=pooling[0]))
@@ -179,5 +173,19 @@ def create_search_space(
         cs.add_hyperparameter(cs_hp.UniformIntegerHyperparameter("trainable_layers", tl_start, tl_end))
     if early_stop:
         cs_hp.CategoricalHyperparameter("early_stop", [True, False], default_value=False)
+
+    # --- Conditions ----------------------------------------------------------
+    # Only sample hyperparameter hidden_layer_width if hidden_layers > 0
+    if hidden_layers is not None and hidden_layer_width is not None:
+        cs.add_condition(NotEqualsCondition(hl_width, hl, 0))
+    # Only sample learning_rate_decay_steps if learning_rate_decay < 1 (decay of 1 is no decay)
+    if learning_rate_decay is not None and learning_rate_decay_steps is not None:
+        cs.add_condition(LessThanCondition(decay_steps, decay, 1))
+    # Do not sample l1_dense if hidden_layers = 0
+    if hidden_layers is not None and l1_dense is not None:
+        cs.add_condition(NotEqualsCondition(cs['l1_dense'], hl, 0))
+    # Do not sample l2_dense if hidden_layers = 0
+    if hidden_layers is not None and l2_dense is not None:
+        cs.add_condition(NotEqualsCondition(cs['l2_dense'], hl, 0))
 
     return cs
