@@ -181,11 +181,14 @@ class _cuCIMReader:
 
         # Check for Microns-per-pixel (MPP)
         if mpp is not None:
-            log.debug(f"Setting MPP to {mpp}")
+            log.debug(f"Manually setting MPP to {mpp}")
             self._mpp = mpp
         for prop_key in self.metadata:
             if 'MPP' in self.metadata[prop_key]:
                 self._mpp = self.metadata[prop_key]['MPP']
+            elif 'DICOM_PIXEL_SPACING' in self.metadata[prop_key]:
+                ps = self.metadata[prop_key]['DICOM_PIXEL_SPACING'][0]
+                self._mpp = ps * 1000  # Convert from millimeters -> microns
         if not self.mpp:
             log.warn("Unable to auto-detect microns-per-pixel (MPP).")
 
