@@ -3114,7 +3114,7 @@ class Project:
             if 'epochs' not in results_dict[model]:
                 continue
             ep_res = results_dict[model]['epochs']
-            epochs = [e for e in ep_res if 'epoch' in ep_res.keys()]
+            epochs = [e for e in ep_res if 'epoch' in e]
             try:
                 last = max([int(e.split('epoch')[-1]) for e in epochs])
                 final_train_metrics = ep_res[f'epoch{last}']['train_metrics']
