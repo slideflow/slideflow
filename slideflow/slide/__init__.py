@@ -1495,7 +1495,7 @@ class WSI(_BaseLoader):
                     i_mapped = _generator()
 
                 else:
-                    csize = min(int(self.estimated_num_tiles/pool._processes), 64)
+                    csize = max(min(int(self.estimated_num_tiles/pool._processes), 64), 1)
                     log.debug(f"Using imap chunksize={csize}")
                     i_mapped = pool.imap(
                         partial(tile_worker, args=w_args),
