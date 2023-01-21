@@ -125,6 +125,7 @@ def process_image(
     *args: Any,
     standardize: bool = False,
     augment: Union[bool, str] = False,
+    size: Optional[int] = None
 ) -> Tuple[Union[Dict, tf.Tensor], ...]:
     """Applies augmentations and/or standardization to an image Tensor."""
 
@@ -132,6 +133,8 @@ def process_image(
         image = record['tile_image']
     else:
         image = record
+    if size is not None:
+        image.set_shape([size, size, 3])
     if augment is True or (isinstance(augment, str) and 'j' in augment):
         # Augment with random compession
         image = tf.cond(tf.random.uniform(
@@ -594,7 +597,8 @@ def interleave(
             partial(
                 process_image,
                 standardize=standardize,
-                augment=augment
+                augment=augment,
+                size=img_size
             ),
             num_parallel_calls=tf.data.AUTOTUNE,
             deterministic=deterministic

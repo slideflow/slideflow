@@ -23,6 +23,7 @@ import pandas as pd
 import rasterio.features
 import shapely.geometry as sg
 import shapely.affinity as sa
+import shapely.validation as sv
 import skimage
 import skimage.filters
 import slideflow as sf
@@ -853,6 +854,9 @@ class WSI(_BaseLoader):
         self.randomize_origin = randomize_origin
         self.verbose = verbose
 
+        if rois is not None and not isinstance(rois, (list, tuple)):
+            rois = [rois]
+
         # Look in ROI directory if available
         if roi_dir and exists(join(roi_dir, self.name + ".csv")):
             self.load_csv_roi(join(roi_dir, self.name + ".csv"))
@@ -1448,18 +1452,33 @@ class WSI(_BaseLoader):
             for roi_object in roi_dict.values():
                 self.rois.append(roi_object)
 
-        # Load annotations as shapely.geometry objects
+        # Load annotations as shapely.geometry objects.
         if self.roi_method != 'ignore':
             self.annPolys = []
             for i, annotation in enumerate(self.rois):
                 try:
-                    poly = sg.Polygon(annotation.scaled_area(self.roi_scale))
+                    poly = sv.make_valid(sg.Polygon(annotation.scaled_area(self.roi_scale)))
                     self.annPolys += [poly]
                 except ValueError:
                     log.warning(
                         f"Unable to use ROI {i} for [green]{self.name}[/]."
                         " At least 3 points required to create a shape."
                     )
+            # Handle polygon holes.
+            outers, inners = [], []
+            for o, outer in enumerate(self.annPolys):
+                for i, inner in enumerate(self.annPolys):
+                    if o == i:
+                        continue
+                    if (i in inners) or (o in inners) or (i in outers):
+                        continue
+                    if outer.contains(inner):
+                        log.debug(f"Rendering ROI polygon {i} as hole in {o}")
+                        self.annPolys[o] = outer.difference(inner)
+                        outers.append(o)
+                        inners.append(i)
+            self.annPolys = [ann for (i, ann) in enumerate(self.annPolys)
+                             if i not in inners]
             roi_area = sum([poly.area for poly in self.annPolys])
         else:
             roi_area = 1

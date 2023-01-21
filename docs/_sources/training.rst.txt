@@ -57,7 +57,7 @@ Then, simply replace ``Project.train()`` with :meth:`slideflow.Project.smac_sear
 
 .. code-block:: python
 
-    P.train(..., smac_configspace=cs)
+    P.smac_search(..., smac_configspace=cs)
 
 Available hyperparameters are listed in the :class:`slideflow.model.ModelParams` documentation.
 

@@ -463,7 +463,7 @@ class Heatmap:
     def plot_uncertainty(
         self,
         heatmap_alpha: float = 0.6,
-        cmap: str = 'coowarm',
+        cmap: str = 'coolwarm',
         interpolation: str = 'none',
         ax: Optional["Axes"] = None,
         **thumb_kwargs
