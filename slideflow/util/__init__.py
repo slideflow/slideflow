@@ -342,6 +342,13 @@ def is_torch_model_path(path: str) -> bool:
             and exists(join(dirname(path), 'params.json')))
 
 
+def is_simclr_model_path(path: Any) -> bool:
+    """Checks if the given path is a valid Slideflow/Tensorflow model."""
+    return (isinstance(path, str)
+            and isdir(path)
+            and exists(join(path, 'flags.json')))
+
+
 def assert_is_mag(arg1: str):
     if not isinstance(arg1, str) or not is_mag(arg1):
         raise ValueError(
