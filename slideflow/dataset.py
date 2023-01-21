@@ -1213,7 +1213,8 @@ class Dataset:
                 task_finished = False
                 manager = mp.Manager()
                 # Forking incompatible with some libvips configurations
-                ctx = mp.get_context('spawn')
+                ptype = 'spawn' if sf.slide_backend() == 'libvips' else 'fork'
+                ctx = mp.get_context(ptype)
                 reports = manager.dict()
 
                 # Use a single shared multiprocessing pool
@@ -1223,7 +1224,7 @@ class Dataset:
                         num_threads = 8
                 else:
                     num_threads = kwargs['num_threads']
-                log.info(f'Extracting tiles with {num_threads} threads')
+                log.info(f'Using {num_threads} processes (pool={ptype})')
                 if num_threads != 1:
                     kwargs['pool'] = ctx.Pool(num_threads)
 
