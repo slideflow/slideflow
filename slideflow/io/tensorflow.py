@@ -30,9 +30,9 @@ if TYPE_CHECKING:
 FEATURE_DESCRIPTION = {
     'slide': tf.io.FixedLenFeature([], tf.string),
     'image_raw': tf.io.FixedLenFeature([], tf.string),
+    'tumor_likelihood': tf.io.FixedLenFeature([], tf.float32),
     'loc_x': tf.io.FixedLenFeature([], tf.int64),
     'loc_y': tf.io.FixedLenFeature([], tf.int64),
-    'tumor_likelihood': tf.io.FixedLenFeature([], tf.float32)
 }
 
 
@@ -408,6 +408,7 @@ def interleave(
     rois: Optional[List[str]] = None,
     roi_method: str = 'auto',
     pool: Optional["mp.pool.Pool"] = None,
+    weighted_loss: bool = False,
     **decode_kwargs: Any
 ) -> Iterable:
 
@@ -493,9 +494,12 @@ def interleave(
     interleave_task = pb.add_task('Interleaving...', total=len(paths))
     pb.start()
     with tf.device('cpu'):
-        features_to_return = ['image_raw', 'slide', 'tumor_likelihood']
+        features_to_return = ['image_raw', 'slide']
+        if weighted_loss:
+            features_to_return += ['tumor_likelihood']
         if incl_loc:
             features_to_return += ['loc_x', 'loc_y']
+        
 
         if from_wsi:
             assert tile_um is not None
@@ -589,6 +593,7 @@ def interleave(
             label_parser=label_parser,
             include_slidenames=incl_slidenames,
             include_loc=incl_loc,
+            weighted_loss=weighted_loss,
             deterministic=deterministic
         )
         # ------- Apply normalization -----------------------------------------
@@ -637,6 +642,7 @@ def _get_parsed_datasets(
     label_parser: Optional[Callable] = None,
     include_slidenames: bool = False,
     include_loc: Optional[str] = None,
+    weighted_loss: Optional[bool] = False,
     deterministic: bool = False
 ) -> tf.data.Dataset:
     """Return a parsed dataset.
@@ -661,12 +667,22 @@ def _get_parsed_datasets(
     """
 
     def final_parser(record):
-        if include_loc:
+        if include_loc and weighted_loss:
             image, slide, likelihood, loc_x, loc_y = base_parser(record)
-        else:
+        elif include_loc and not weighted_loss:
+            image, slide, loc_x, loc_y = base_parser(record)
+        elif not include_loc and weighted_loss:
             image, slide, likelihood = base_parser(record)
+        else:
+            image, slide= base_parser(record)
 
-        image, label = label_parser(image, slide, likelihood) if label_parser else (image, None)
+        if label_parser:
+            if weighted_loss:
+                image, label = label_parser(image, slide, likelihood)
+            else:
+                image, label = label_parser(image, slide)
+        else:
+            image, label = (image, None)
 
         to_return = [image, label]
         if include_slidenames:
@@ -846,7 +862,8 @@ def transform_tfrecord(
     writer = tf.io.TFRecordWriter(target)
     parser = get_tfrecord_parser(
         origin,
-        ('slide', 'image_raw', 'loc_x', 'loc_y', 'tumor_likelihood'),
+        # ('slide', 'image_raw', 'loc_x', 'loc_y', 'tumor_likelihood'),
+        ('slide', 'image_raw', 'loc_x', 'loc_y'),
         decode_images=(hue_shift is not None or resize is not None),
         error_if_invalid=False,
         to_numpy=True

@@ -57,7 +57,8 @@ class _ModelParams:
         normalizer: Optional[str] = None,
         normalizer_source: Optional[str] = None,
         include_top: bool = True,
-        drop_images: bool = False
+        drop_images: bool = False,
+        weighted_loss: Optional[bool] = False,
     ) -> None:
         """Configure a set of training parameters via keyword arguments.
 
@@ -156,6 +157,7 @@ class _ModelParams:
         self.augment = augment
         self.drop_images = drop_images
         self.include_top = include_top
+        self.weighted_loss = weighted_loss
 
         # Perform check to ensure combination of HPs are valid
         self.validate()

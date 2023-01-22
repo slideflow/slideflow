@@ -802,6 +802,12 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
         self,
         epoch_label: str,
     ) -> Tuple[Dict, float, float]:
+        try:
+            weighted = self.hp.weighted_loss
+            tfdir = os.path.dirname(list(self.parent.manifest.keys())[0])
+        except:
+            weighted = False
+            tfdir = None
         return sf.stats.metrics_from_dataset(
             self.model,
             model_type=self.hp.model_type(),
@@ -815,6 +821,8 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
             reduce_method=self.cb_args.reduce_method,
             loss=self.hp.get_loss(),
             uq=bool(self.hp.uq),
+            weighted=weighted,
+            tfdir=tfdir,
         )
 
     def on_epoch_end(self, epoch: int, logs={}) -> None:
@@ -1034,6 +1042,9 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
             self.results['epochs'][f'epoch{epoch}'][f'tile_{m}'] = metrics[m]['tile']
             self.results['epochs'][f'epoch{epoch}'][f'slide_{m}'] = metrics[m]['slide']
             self.results['epochs'][f'epoch{epoch}'][f'patient_{m}'] = metrics[m]['patient']
+            if 'slide_weighted' in metrics[m]:
+                self.results['epochs'][f'epoch{epoch}'][f'slide_weighted_{m}'] = metrics[m]['slide_weighted']
+                self.results['epochs'][f'epoch{epoch}'][f'patient_weighted_{m}'] = metrics[m]['patient_weighted']
 
         epoch_results = self.results['epochs'][f'epoch{epoch}']
         self._log_epoch_evaluation(
@@ -1214,9 +1225,6 @@ class Trainer:
                 neptune_workspace
             )
 
-        # if self.hp.weighted_loss:
-        #     log.info("Loading weight model")
-        #     self.weightmodel = tf.keras.models.load_model(self.hp.weighted_loss)
         
 
     def _setup_inputs(self) -> None:
@@ -1301,22 +1309,6 @@ class Trainer:
             image_dict.update({'slide_feature_input': slide_feature_input_val})
 
         if self.hp.weighted_loss:
-
-            # calculating weight during training is TOO SLOW
-            # def calc_weight(image):
-            #     # weight_pred = self.weightmodel(tf.expand_dims(image, 0))
-            #     # weight = weight_pred.numpy()[0, 1]
-            #     # return weight
-            #     assert likelihood is not None
-            #     return likelihood  
-            # weight_input_val = tf.py_function(
-            #         func=calc_weight,
-            #         inp=[image],
-            #         Tout=[tf.float32]
-            #     )
-            
-            # image_dict.update({'weight_input': weight_input_val})
-
             image_dict.update({'weight_input': likelihood})
 
         return image_dict, label
@@ -1475,6 +1467,10 @@ class Trainer:
             )
         # Generate predictions
         log.info('Generating predictions...')
+        try:
+            weighted = self.hp.weighted_loss
+        except:
+            weighted = False
         dfs = sf.stats.predict_dataset(
             model=self.model,
             dataset=tf_dts_w_slidenames,
@@ -1482,7 +1478,8 @@ class Trainer:
             uq=bool(self.hp.uq),
             num_tiles=dataset.num_tiles,
             outcome_names=self.outcome_names,
-            patients=self.patients
+            patients=self.patients,
+            weighted=weighted,
         )
         # Save predictions
         sf.stats.metrics.save_dfs(dfs, format=format, outdir=self.outdir)
@@ -1572,7 +1569,8 @@ class Trainer:
             interleave_kwargs = self._interleave_kwargs_val(
                 batch_size=batch_size,
                 infinite=False,
-                augment=False
+                augment=False,
+                weighted_loss=self.hp.weighted_loss,
             )
             tf_dts_w_slidenames = dataset.tensorflow(
                 incl_slidenames=True,
@@ -1588,11 +1586,19 @@ class Trainer:
             num_tiles=dataset.num_tiles,
             label='eval'
         )
+        try:
+            weighted = self.hp.weighted_loss
+            tfdir = os.path.dirname(list(self.manifest.keys())[0])
+        except:
+            weighted = False
+            tfdir = None
         metrics, acc, loss = sf.stats.metrics_from_dataset(
             save_predictions=save_predictions,
             reduce_method=reduce_method,
             loss=self.hp.get_loss(),
             uq=bool(self.hp.uq),
+            weighted=weighted,
+            tfdir=tfdir,
             **metric_kwargs
         )
         results = {'eval': {}}  # type: Dict[str, Dict[str, float]]
@@ -1606,6 +1612,17 @@ class Trainer:
                     f'slide_{metric}': metrics[metric]['slide'],
                     f'patient_{metric}': metrics[metric]['patient']
                 })
+                if 'slide_weighted' in metrics[metric]:
+                    sw = metrics[metric]['slide_weighted']
+                    pw = metrics[metric]['patient_weighted']
+                    log.info(f"Slide Weighted {metric}: {sw}")
+                    log.info(f"Patient Weighted {metric}: {pw}")
+                    results['eval'].update({
+                        f'slide_weighted_{metric}': sw,
+                        f'patient_weighted_{metric}': pw
+                    })
+
+
 
         # Note that Keras loss during training includes regularization losses,
         # so this loss will not match validation loss calculated during training
@@ -1805,7 +1822,8 @@ class Trainer:
                     augment=self.hp.augment,
                     from_wsi=from_wsi,
                     pool=pool,
-                    roi_method=roi_method
+                    roi_method=roi_method,
+                    weighted_loss=self.hp.weighted_loss
                 )
                 train_data = train_dts.tensorflow(drop_last=True, **t_kwargs)
 
@@ -1824,7 +1842,8 @@ class Trainer:
                         augment=False,
                         from_wsi=from_wsi,
                         pool=pool,
-                        roi_method=roi_method
+                        roi_method=roi_method,
+                        weighted_loss=self.hp.weighted_loss
                     )
                     validation_data = val_dts.tensorflow(
                         incl_slidenames=True,
@@ -1970,7 +1989,8 @@ class LinearTrainer(Trainer):
     def _parse_tfrecord_labels(
         self,
         image: Union[Dict[str, tf.Tensor], tf.Tensor],
-        slide: tf.Tensor
+        slide: tf.Tensor,
+        likelihood=None,
     ) -> Tuple[Union[Dict[str, tf.Tensor], tf.Tensor], tf.Tensor]:
         image_dict = {'tile_image': image}
         if self.num_classes is None:
@@ -1995,7 +2015,8 @@ class LinearTrainer(Trainer):
                 Tout=[tf.float32] * num_features
             )
             image_dict.update({'slide_feature_input': slide_feature_input_val})
-
+        if self.hp.weighted_loss:
+            image_dict.update({'weight_input': likelihood})
         return image_dict, label
 
 

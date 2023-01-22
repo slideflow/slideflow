@@ -225,6 +225,7 @@ class _BaseLoader:
         enable_downsample: bool = True,
         pb: Optional[Progress] = None,
         mpp: Optional[float] = None,
+        weight_model_path: Optional[str] = None,
         **reader_kwargs
     ) -> None:
 
@@ -248,14 +249,13 @@ class _BaseLoader:
         self._mpp_override = mpp
         self._reader_kwargs = reader_kwargs
 
-        # load model
-        log.info('Loading weight model')
-        model_path = ""
-        hp = sf.ModelParams()
-        config = sf.util.get_model_config(model_path)
-        hp.load_dict(config['hp'])
-        self.weight_normalizer = hp.get_normalizer()
-        self.weight_model = tf.keras.models.load_model(model_path)
+        if weight_model_path:
+            log.info('Loading weight model')
+            hp = sf.ModelParams()
+            config = sf.util.get_model_config(weight_model_path)
+            hp.load_dict(config['hp'])
+            self.weight_normalizer = hp.get_normalizer()
+            self.weight_model = tf.keras.models.load_model(weight_model_path)
 
         # Initiate supported slide reader
         if not os.path.exists(path):
@@ -769,7 +769,6 @@ class _BaseLoader:
 
             image_string = tile_dict['image'] # type: bytes
 
-            # calculate weight
             if self.weight_model:
                 cv_image = cv2.imdecode(
                     np.frombuffer(image_string, dtype=np.uint8),
@@ -780,7 +779,7 @@ class _BaseLoader:
                         self.weight_normalizer.tf_to_tf(cv_image), standardize=True
                         )[0]
                 weight = self.weight_model.predict(
-                            tf.expand_dims(image_, 0), verbose=0
+                            tf.expand_dims(image_, 0)
                          )[0][1]
 
             if len(sample_tiles) < 10:
@@ -806,7 +805,6 @@ class _BaseLoader:
                                 ann[3]
                             ))
             if tfrecord_dir:
-                # write weight
                 if self.weight_model:
                     record = sf.io.serialized_record(
                         slidename_bytes,

@@ -15,6 +15,10 @@ from pandas.core.frame import DataFrame
 from sklearn import metrics
 from slideflow import errors
 from slideflow.util import log
+import os
+from slideflow.io.tensorflow import get_tfrecord_parser
+from slideflow.util import path_to_ext
+import tensorflow as tf
 
 if TYPE_CHECKING:
     import neptune.new as neptune
@@ -360,7 +364,7 @@ def df_from_pred(
     y_pred: List[Any],
     y_std: Optional[List[Any]],
     tile_to_slides: Union[List, np.ndarray],
-    locations: Optional[Union[List, np.ndarray]] = None
+    locations: Optional[Union[List, np.ndarray]] = None,
 ) -> DataFrame:
     """Converts arrays of model predictions to a pandas dataframe.
 
@@ -455,6 +459,8 @@ def eval_dataset(
     outcome_names: Optional[List[str]] = None,
     loss: Optional[Callable] = None,
     torch_args: Optional[SimpleNamespace] = None,
+    weighted: Optional[bool] = None,
+    tfdir: Optional[str] = None,
 ) -> Tuple[DataFrame, float, float]:
     """Generates predictions and accuracy/loss from a given model and dataset.
 
@@ -514,6 +520,12 @@ def eval_dataset(
 
     if outcome_names or model_type == 'cph':
         df = name_columns(df, model_type, outcome_names)
+    
+    if weighted:
+        pred_cols = [c for c in df.columns if 'y_pred' in c]
+        weight_col = sorted(pred_cols)[-1]
+        df = df.rename(columns={weight_col: 'weight'})
+
     dfs = group_reduce(df, method=reduce_method, patients=patients)
     return dfs, acc, total_loss
 
@@ -581,12 +593,34 @@ def group_reduce(
             outcome_pred_cat = df[y_pred_cols].values.argmax(1)
             for i in range(num_cat):
                 _df[f'{outcome}-y_pred{i}'] = (outcome_pred_cat == i).astype(int)
+    
+    
+    if 'weight' in _df.columns:
+        for group in groups:
+            dfg = _df.groupby(group, as_index=False).mean(numeric_only=True)
+            group_dfs.update({group: dfg.drop(columns='weight')})
 
-    for group in groups:
-        group_dfs.update({
-            group: _df.groupby(group, as_index=False).mean(numeric_only=True)
-        })
-
+            dfw = _df.copy()
+            dfw.to_csv('/home/anran/work/tumor_likelihood/df.csv', index=False)
+            y_pred_cols = [c for c in _df.columns if 'y_pred' in c]
+            y_true_col = [c for c in dfw.columns if 'y_true' in c]
+            for colname in y_pred_cols:
+                dfw[colname] = dfw[colname] * dfw['weight']
+            df_pred_w = dfw.groupby(group, as_index=False)[y_pred_cols + 
+                            ['weight']].sum(numeric_only=True)
+            for colname in y_pred_cols:
+                df_pred_w[colname] = df_pred_w[colname] / df_pred_w['weight']
+            df_true = dfw.groupby(group, as_index=False)[y_true_col].mean()
+            dfg = df_pred_w.merge(df_true, on=group, how='left')
+            group_dfs.update({
+                group + '_weighted': 
+                dfg.drop(columns='weight')
+            })
+    else:
+        for group in groups:
+            group_dfs.update({
+                group: _df.groupby(group, as_index=False).mean(numeric_only=True)
+            })
     return group_dfs
 
 
@@ -666,6 +700,8 @@ def metrics_from_dataset(
     uq: bool = False,
     loss: Optional[Callable] = None,
     torch_args: Optional[SimpleNamespace] = None,
+    weighted: Optional[bool] = None,
+    tfdir: Optional[str] = None,
     **kwargs
 ) -> Tuple[Dict, float, float]:
 
@@ -713,6 +749,8 @@ def metrics_from_dataset(
         outcome_names=outcome_names,
         reduce_method=reduce_method,
         torch_args=torch_args,
+        weighted=weighted,
+        tfdir=tfdir,
     )
 
     # Save predictions
@@ -847,6 +885,7 @@ def predict_dataset(
     patients: Optional[Dict[str, str]] = None,
     outcome_names: Optional[List[str]] = None,
     torch_args: Optional[SimpleNamespace] = None,
+    weighted: Optional[bool] = False,
 ) -> Dict[str, DataFrame]:
     """Generates predictions from model and dataset.
 
@@ -905,6 +944,12 @@ def predict_dataset(
         )
     if outcome_names is not None or model_type == 'cph':
         df = name_columns(df, model_type, outcome_names)
+    
+    if weighted:
+        pred_cols = [c for c in df.columns if 'y_pred' in c]
+        weight_col = sorted(pred_cols)[-1]
+        df = df.rename(columns={weight_col: 'weight'})
+
     return group_reduce(df, method=reduce_method, patients=patients)
 
 

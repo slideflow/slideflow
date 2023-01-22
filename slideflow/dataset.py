@@ -614,6 +614,8 @@ class Dataset:
                             f"Filter header {filter_key} not in annotations."
                         )
                     filter_vals = sf.util.as_list(self.filters[filter_key])
+                    v = filter_vals[0]
+                    vv = f_ann[filter_key].values[0]
                     f_ann = f_ann.loc[f_ann[filter_key].isin(filter_vals)]
 
             # Filter out slides that are blank in a given annotation
@@ -1289,6 +1291,7 @@ class Dataset:
         buffer: Optional[str] = None,
         q_size: int = 1,
         qc: Optional[Union[str, Callable, List[Callable]]] = None,
+        weight_model_path: Optional[str] = None,
         report: bool = True,
         **kwargs: Any
     ) -> Dict[str, SlideReport]:
@@ -1504,6 +1507,9 @@ class Dataset:
                     'randomize_origin': randomize_origin,
                     'pb': pb
                 }
+                # TODO pass down weight model path
+                if weight_model_path:
+                    wsi_kwargs.update({'weight_model_path': weight_model_path})
                 extraction_kwargs = {
                     'tfrecord_dir': tfrecord_dir,
                     'tiles_dir': tiles_dir,
