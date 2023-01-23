@@ -90,6 +90,10 @@ def tile_worker(
     # Prepare return dict with WS/GS fraction
     return_dict = {'loc': [x_coord, y_coord]}  # type: Dict[str, Any]
     return_dict.update({'grid': [grid_x, grid_y]})
+    if args.grayspace_fraction < 1:
+        return_dict.update({'gs_fraction': gs_fraction})
+    if args.whitespace_fraction < 1:
+        return_dict.update({'ws_fraction': ws_fraction})
 
     # If dry run, return without the image
     if args.dry_run:
