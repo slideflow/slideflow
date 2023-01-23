@@ -423,7 +423,7 @@ class DatasetFeatures:
             from slideflow.simclr import SlideflowBuilder, build_distributed_dataset
             strategy = tf.distribute.OneDeviceStrategy('gpu:0')
             builder = SlideflowBuilder(
-                test_dts=self.dataset,
+                val_dts=self.dataset,
                 dataset_kwargs=dict(
                     incl_slidenames=True,
                     incl_loc=True,
@@ -459,7 +459,7 @@ class DatasetFeatures:
                     return
                 model_out = sf.util.as_list(model_out)
 
-                if sf.model.is_tensorflow_model(model):
+                if is_simclr or sf.model.is_tensorflow_model(model):
                     decoded_slides = [
                         bs.decode('utf-8')
                         for bs in batch_slides.numpy()
