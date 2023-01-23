@@ -899,15 +899,19 @@ class Workbench(imgui_window.ImguiWindow):
 
     def autoload(self, path, ignore_errors=False):
         """Automatically load a path, detecting if the path is a slide, model, or project."""
+        sf.log.info(f"Attempting to load {path}")
         if sf.util.is_project(path):
             self.load_project(path, ignore_errors=ignore_errors)
         elif sf.util.is_slide(path):
             self.load_slide(path, ignore_errors=ignore_errors)
         elif sf.util.is_model(path):
             self.load_model(path, ignore_errors=ignore_errors)
+        elif path.endswith('npz'):
+            self.load_heatmap(path)
         else:
             # See if any widgets implement a drag_and_drop_hook() method
             for widget in self.widgets:
+                sf.log.info(f"Attempting load with widget {widget}")
                 if hasattr(widget, 'drag_and_drop_hook'):
                     widget.drag_and_drop_hook(path)
 

@@ -96,6 +96,10 @@ def tile_worker(
     # Prepare return dict with WS/GS fraction
     return_dict = {'loc': [x_coord, y_coord]}  # type: Dict[str, Any]
     return_dict.update({'grid': [grid_x, grid_y]})
+    if args.grayspace_fraction < 1:
+        return_dict.update({'gs_fraction': gs_fraction})
+    if args.whitespace_fraction < 1:
+        return_dict.update({'ws_fraction': ws_fraction})
 
     # If dry run, return without the image
     if args.dry_run:
@@ -198,11 +202,14 @@ class _cuCIMReader:
 
         # Check for Microns-per-pixel (MPP)
         if mpp is not None:
-            log.debug(f"Setting MPP to {mpp}")
+            log.debug(f"Manually setting MPP to {mpp}")
             self._mpp = mpp
         for prop_key in self.metadata:
             if 'MPP' in self.metadata[prop_key]:
                 self._mpp = self.metadata[prop_key]['MPP']
+            elif 'DICOM_PIXEL_SPACING' in self.metadata[prop_key]:
+                ps = self.metadata[prop_key]['DICOM_PIXEL_SPACING'][0]
+                self._mpp = ps * 1000  # Convert from millimeters -> microns
         if not self.mpp:
             log.warn("Unable to auto-detect microns-per-pixel (MPP).")
 

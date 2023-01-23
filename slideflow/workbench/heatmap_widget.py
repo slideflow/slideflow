@@ -70,6 +70,15 @@ class HeatmapWidget:
             **mp_kw
         )
 
+    def drag_and_drop(self, path, ignore_errors=True):
+        if path.endswith('npz'):
+            try:
+                self.load(path)
+            except Exception:
+                sf.log.debug(f"Unable to load {path} as heatmap.")
+                if not ignore_errors:
+                    raise
+
     def generate_heatmap(self):
         """Create and generate a heatmap asynchronously."""
 
@@ -112,6 +121,7 @@ class HeatmapWidget:
             self._button_pressed = False
             self._heatmap_thread = None
             self.viz.clear_message(self._rendering_message)
+            self.viz.create_toast("Heatmap complete.", icon="success")
 
     def render_heatmap(self):
         """Render the current heatmap."""
@@ -221,6 +231,10 @@ class HeatmapWidget:
                 _button_text = ('Generate' if not self._button_pressed else "Working...")
                 if imgui_utils.button(_button_text, width=viz.button_w, enabled=(not self._button_pressed)):
                     self.viz.set_message(self._rendering_message)
+                    self.viz.create_toast(
+                        title=self._rendering_message,
+                        icon='info',
+                    )
                     _thread = threading.Thread(target=self.generate_heatmap)
                     _thread.start()
                     self.show = True

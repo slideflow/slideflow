@@ -5,7 +5,7 @@ scipy
 scikit-learn
 matplotlib>=3.2
 imageio
-opencv-python
+opencv-python-headless
 shapely
 umap-learn
 seaborn<0.12
@@ -29,7 +29,7 @@ h5py
 tabulate
 saliency
 rasterio
-smac
+smac==1.4.0
 ConfigSpace
 pyarrow
 ninja

@@ -27,10 +27,11 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
 import numpy as np
 import slideflow as sf
-from slideflow.util import log_utils
 from slideflow import errors
-from slideflow.util import example_pb2
-from slideflow.util.colors import *  # noqa F403,F401 - Here for compatibility
+from . import example_pb2, log_utils
+from .colors import *  # noqa F403,F401 - Here for compatibility
+from .smac_utils import (broad_search_space, shallow_search_space,
+                         create_search_space)
 
 tf_available = importlib.util.find_spec('tensorflow')
 torch_available = importlib.util.find_spec('torch')
