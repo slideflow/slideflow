@@ -605,7 +605,7 @@ class Project:
             val_settings.k = [val_settings.k]
         if val_settings.strategy == 'k-fold-manual':
             _, unique_k = dataset.labels(k_header, format='name')
-            valid_k = [int(kf) for kf in unique_k]
+            valid_k = [kf for kf in unique_k]
             k_fold = len(valid_k)
             log.info(f"Manual folds: {', '.join([str(ks) for ks in valid_k])}")
             if val_settings.k:
