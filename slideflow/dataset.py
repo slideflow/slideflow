@@ -614,8 +614,6 @@ class Dataset:
                             f"Filter header {filter_key} not in annotations."
                         )
                     filter_vals = sf.util.as_list(self.filters[filter_key])
-                    v = filter_vals[0]
-                    vv = f_ann[filter_key].values[0]
                     f_ann = f_ann.loc[f_ann[filter_key].isin(filter_vals)]
 
             # Filter out slides that are blank in a given annotation

@@ -2976,8 +2976,9 @@ class Project:
         scenario = Scenario(
             {'run_obj': 'quality', # Optimize quality (alternatively: runtime)
              'runcount-limit': smac_limit,  # Max number of function evaluations
-             'cs': smac_configspace},
-            {'output_dir': self.models_dir})
+             'abort_on_first_run_crash': False,
+             'cs': smac_configspace, 
+             'output_dir': self.models_dir})
         train_kwargs['save_checkpoints'] = save_checkpoints
         train_kwargs['save_model'] = save_model
         train_kwargs['save_predictions'] = save_predictions
