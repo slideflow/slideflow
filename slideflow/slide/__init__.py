@@ -256,6 +256,8 @@ class _BaseLoader:
             hp.load_dict(config['hp'])
             self.weight_normalizer = hp.get_normalizer()
             self.weight_model = tf.keras.models.load_model(weight_model_path)
+        else:
+            self.weight_model = None
 
         # Initiate supported slide reader
         if not os.path.exists(path):
