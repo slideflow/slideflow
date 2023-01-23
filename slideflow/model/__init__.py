@@ -247,7 +247,10 @@ class DatasetFeatures:
         self.slides = sorted([sf.util.path_to_name(t) for t in self.tfrecords])
 
         # Load configuration if model is path to a saved model
-        if isinstance(model, str):
+        if isinstance(model, str) and sf.util.is_simclr_model_path(model):
+            self.uq = False
+            self.normalizer = None
+        elif isinstance(model, str):
             model_config = sf.util.get_model_config(model)
             hp = ModelParams.from_dict(model_config['hp'])
             self.uq = hp.uq
@@ -361,6 +364,7 @@ class DatasetFeatures:
                  f'tfrecords (layers={layers})')
         log.info(f'Generating from [green]{model}')
         layers = sf.util.as_list(layers)
+        is_simclr = sf.util.is_simclr_model_path(model)
 
         # Load model
         feat_kw = dict(
@@ -373,6 +377,17 @@ class DatasetFeatures:
                 model,
                 layers=layers
             )
+        elif is_simclr:
+            import tensorflow as tf
+            from slideflow.simclr import SimCLR
+            combined_model = SimCLR(2)
+            combined_model.num_features = 128
+            combined_model.num_logits = 2
+            checkpoint = tf.train.Checkpoint(
+                model=combined_model,
+                global_step=tf.Variable(0, dtype=tf.int64)
+            )
+            checkpoint.restore(model).expect_partial()
         elif isinstance(model, str):
             combined_model = sf.model.Features(model, **feat_kw)
         elif sf.model.is_tensorflow_model(model):
@@ -404,7 +419,21 @@ class DatasetFeatures:
             'incl_loc': True,
             'normalizer': self.normalizer
         }
-        if sf.model.is_tensorflow_model(model):
+        if is_simclr:
+            from slideflow.simclr import SlideflowBuilder, build_distributed_dataset
+            strategy = tf.distribute.OneDeviceStrategy('gpu:0')
+            builder = SlideflowBuilder(
+                val_dts=self.dataset,
+                dataset_kwargs=dict(
+                    incl_slidenames=True,
+                    incl_loc=True,
+                    normalizer=self.normalizer
+                )
+            )
+            dataloader = build_distributed_dataset(
+                builder, batch_size, False, strategy, None
+            )
+        elif sf.model.is_tensorflow_model(model):
             dataloader = self.dataset.tensorflow(
                 None,
                 num_parallel_reads=None,
@@ -430,13 +459,13 @@ class DatasetFeatures:
                     return
                 model_out = sf.util.as_list(model_out)
 
-                if sf.model.is_tensorflow_model(model):
+                if is_simclr or sf.model.is_tensorflow_model(model):
                     decoded_slides = [
                         bs.decode('utf-8')
                         for bs in batch_slides.numpy()
                     ]
                     model_out = [
-                        m.numpy() if not isinstance(m, list) else m
+                        m.numpy() if not isinstance(m, (list, tuple)) else m
                         for m in model_out
                     ]
                     batch_loc = np.stack([
@@ -452,6 +481,8 @@ class DatasetFeatures:
                     batch_loc = np.stack([batch_loc[0], batch_loc[1]], axis=1)
 
                 # Process model outputs
+                if is_simclr:
+                    model_out = model_out[0]
                 if self.uq and include_uncertainty:
                     uncertainty = model_out[-1]
                     model_out = model_out[:-1]
@@ -485,7 +516,8 @@ class DatasetFeatures:
         task = pb.add_task("Generating...", total=estimated_tiles)
         pb.start()
         for batch_img, _, batch_slides, batch_loc_x, batch_loc_y in dataloader:
-            model_output = combined_model(batch_img)
+            call_kw = dict(training=False) if is_simclr else dict()
+            model_output = combined_model(batch_img, **call_kw)
             q.put((model_output, batch_slides, (batch_loc_x, batch_loc_y)))
             pb.advance(task, batch_size)
         pb.stop()
