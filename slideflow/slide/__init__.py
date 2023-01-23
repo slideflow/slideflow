@@ -1474,9 +1474,11 @@ class WSI(_BaseLoader):
                         continue
                     if outer.contains(inner):
                         log.debug(f"Rendering ROI polygon {i} as hole in {o}")
-                        self.annPolys[o] = outer.difference(inner)
-                        outers.append(o)
-                        inners.append(i)
+                        self.annPolys[o] = self.annPolys[o].difference(inner)
+                        if o not in outers:
+                            outers.append(o)
+                        if i not in inners:
+                            inners.append(i)
             self.annPolys = [ann for (i, ann) in enumerate(self.annPolys)
                              if i not in inners]
             roi_area = sum([poly.area for poly in self.annPolys])
