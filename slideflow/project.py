@@ -917,6 +917,7 @@ class Project:
         *,
         filters: Optional[Dict] = None,
         filter_blank: Optional[Union[str, List[str]]] = None,
+        sources: Union[str, List[str]],
         **kwargs
     ) -> None:
         """Perform cell segmentation on slides, saving segmentation masks.
@@ -927,6 +928,8 @@ class Project:
                 Defaults to None.
 
         Keyword args:
+            sources (List[str]): List of dataset sources to include from
+                configuration file.
             window_size (int): Window size at which to segment cells across
                 a whole-slide image. Defaults to 256.
             mpp (float): Microns-per-pixel at which cells should be segmented.
@@ -956,7 +959,8 @@ class Project:
             None,
             filters=filters,
             filter_blank=filter_blank,
-            verification='slides'
+            verification='slides',
+            sources=sources,
         )
         dataset.cell_segmentation(dest, **kwargs)
 
