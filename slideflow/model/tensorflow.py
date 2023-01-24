@@ -1004,10 +1004,8 @@ class Trainer:
         hp: ModelParams,
         outdir: str,
         labels: Dict[str, Any],
-        patients: Dict[str, str],
         slide_input: Optional[Dict[str, Any]] = None,
         name: str = 'Trainer',
-        manifest: Optional[Dict[str, int]] = None,
         feature_sizes: Optional[List[int]] = None,
         feature_names: Optional[List[str]] = None,
         outcome_names: Optional[List[str]] = None,
@@ -1027,15 +1025,10 @@ class Trainer:
             outdir (str): Path for event logs and checkpoints.
             labels (dict): Dict mapping slide names to outcome labels (int or
                 float format).
-            patients (dict): Dict mapping slide names to patient ID, as some
-                patients may have multiple slides. If not provided, assumes 1:1
-                mapping between slide names and patients.
             slide_input (dict): Dict mapping slide names to additional
                 slide-level input, concatenated after post-conv.
             name (str, optional): Optional name describing the model, used for
                 model saving. Defaults to 'Trainer'.
-            manifest (dict, optional): Manifest dictionary mapping TFRecords to
-                number of tiles. Defaults to None.
             feature_sizes (list, optional): List of sizes of input features.
                 Required if providing additional input features as input to
                 the model.
@@ -1070,7 +1063,6 @@ class Trainer:
                              "either 'full' or 'weights'.")
 
         self.outdir = outdir
-        self.manifest = manifest
         self.tile_px = hp.tile_px
         self.labels = labels
         self.hp = hp
@@ -1086,11 +1078,7 @@ class Trainer:
         self.annotations_tables = []
         self.eval_callback = _PredictionAndEvaluationCallback  # type: tf.keras.callbacks.Callback
         self.load_method = load_method
-
-        if patients:
-            self.patients = patients
-        else:
-            self.patients = {s: s for s in self.slides}
+        self.patients = dict()
 
         if not os.path.exists(outdir):
             os.makedirs(outdir)
@@ -1271,6 +1259,17 @@ class Trainer:
         self.model.layers[0].trainable = True
         return toplayer_model.history
 
+    def _detect_patients(self, *args):
+        self.patients = dict()
+        for dataset in args:
+            if args is None:
+                continue
+            dataset_patients = dataset.patients()
+            if not dataset_patients:
+                self.patients.update({s: s for s in self.slides})
+            else:
+                self.patients.update(dataset_patients)
+
     def _interleave_kwargs(self, **kwargs) -> Dict[str, Any]:
         args = SimpleNamespace(
             labels=self._parse_tfrecord_labels,
@@ -1348,6 +1347,8 @@ class Trainer:
 
         if format not in ('csv', 'feather', 'parquet'):
             raise ValueError(f"Unrecognized format {format}")
+
+        self._detect_patients(dataset)
 
         # Verify image format
         self._verify_img_format(dataset)
@@ -1434,6 +1435,8 @@ class Trainer:
             if not isinstance(uq, bool):
                 raise ValueError(f"Unrecognized value {uq} for uq")
             self.hp.uq = uq
+
+        self._detect_patients(dataset)
 
         # Verify image format
         self._verify_img_format(dataset)
@@ -1613,6 +1616,8 @@ class Trainer:
             hp_model = self.hp.model_type()
             raise errors.ModelError(f"Incompatible models: {hp_model} (hp) and "
                                     f"{self._model_type} (model)")
+
+        self._detect_patients(train_dts, val_dts)
 
         # Clear prior Tensorflow graph to free memory
         tf.keras.backend.clear_session()

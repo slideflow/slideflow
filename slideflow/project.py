@@ -481,9 +481,7 @@ class Project:
             outdir=model_dir,
             labels=labels,
             config=eval_config,
-            patients=dataset.patients(),
             slide_input=slide_inp,
-            manifest=dataset.manifest(),
             mixed_precision=mixed_precision,
             allow_tf32=allow_tf32,
             feature_names=input_header,
@@ -706,7 +704,6 @@ class Project:
         log.info(f'Val settings: {json.dumps(vars(val_settings), indent=2)}')
 
         # --- Set up validation data ------------------------------------------
-        manifest = dataset.manifest()
         from_wsi = ('from_wsi' in s_args.training_kwargs
                     and s_args.training_kwargs['from_wsi'])
 
@@ -840,13 +837,11 @@ class Project:
         model_kwargs = {
             'hp': hp,
             'name': full_name,
-            'manifest': manifest,
             'feature_names': s_args.input_header,
             'feature_sizes': feature_sizes,
             'outcome_names': s_args.outcomes,
             'outdir': model_dir,
             'config': config,
-            'patients': dataset.patients(),
             'slide_input': slide_inp,
             'labels': s_args.labels,
             'mixed_precision': s_args.mixed_precision,
@@ -879,10 +874,10 @@ class Project:
         self,
         name: str,
         *,
-        slides: str,
-        roi: str,
-        tiles: str,
-        tfrecords: str,
+        slides: Optional[str] = None,
+        roi: Optional[str] = None,
+        tiles: Optional[str] = None,
+        tfrecords: Optional[str] = None,
         path: Optional[str] = None
     ) -> None:
         """Adds a dataset source to the dataset configuration file.
@@ -891,17 +886,28 @@ class Project:
             name (str): Dataset source name.
 
         Keyword Args:
-            slides (str): Path to directory containing slides.
-            roi (str): Path to directory containing CSV ROIs.
-            tiles (str): Path to directory for storing extracted tiles.
-            tfrecords (str): Path to directory for storing TFRecords of tiles.
+            slides (str, optional): Path to directory containing slides.
+                Defaults to None.
+            roi (str, optional): Path to directory containing CSV ROIs.
+                Defaults to None.
+            tiles (str, optional): Path to directory for loose extracted tiles
+                images (*.jpg, *.png). Defaults to None.
+            tfrecords (str, optional): Path to directory for storing TFRecords
+                of tiles. Defaults to None.
             path (str, optional): Path to dataset configuration file.
-                Defaults to None. If not provided, uses project default.
+                If not provided, uses project default. Defaults to None.
         """
 
         if not path:
             path = self.dataset_config
-        project_utils.add_source(name, slides, roi, tiles, tfrecords, path)
+        project_utils.add_source(
+            name,
+            path=path,
+            slides=slides,
+            roi=roi,
+            tiles=tiles,
+            tfrecords=tfrecords,
+        )
         if name not in self.sources:
             self.sources += [name]
         self.save()

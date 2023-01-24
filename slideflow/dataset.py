@@ -428,25 +428,74 @@ def split_patients_list(
 
 class Dataset:
     """Object to supervise organization of slides, tfrecords, and tiles
-    across one or more sources in a stored configuration file."""
+    across one or more sources in a stored configuration file.
+
+    Datasets can be created in two ways: either by loading one dataset source,
+    or by loading a dataset configuration that contains information about
+    multiple dataset sources.
+
+    For the first approach, the dataset source configuration is provided via
+    keyword arguments (`tiles`, `tfrecords`, `slides`, and `roi`). Each is a
+    path to a directory containing the respective data.
+
+    For the second approach, the first argument `config` is either a nested
+    dictionary containing the configuration for multiple dataset sources, or
+    a path to a JSON file with this information. The second argument is a list
+    of dataset sources to load (keys from the `config` dictionary).
+
+    With either approach, slide/patient-level annotations are provided through
+    the `annotations` keyword argument, which can either be a path to a CSV
+    file, or a pandas DataFrame, which must contain at minimum the column
+    'patient'.
+
+    Examples
+        Load a dataset via keyword arguments.
+
+            dataset = Dataset(
+                tfrecords='../path',
+                slides='../path',
+                annotations='../file.csv'
+            )
+
+        Load a dataset configuration file and specify the dataset source(s).
+
+            dataset = Dataset(
+                config='../path/to/config.json',
+                sources=['Lung_Adeno', 'Lung_Squam'],
+                annotations='../file.csv
+            )
+    """
 
     def __init__(
         self,
-        config: Union[str, Dict[str, Dict[str, str]]],
-        sources: Union[str, List[str]],
-        tile_px: Optional[int],
-        tile_um: Optional[Union[str, int]],
+        config: Optional[Union[str, Dict[str, Dict[str, str]]]] = None,
+        sources: Optional[Union[str, List[str]]] = None,
+        tile_px: Optional[int] = None,
+        tile_um: Optional[Union[str, int]] = None,
+        *,
+        tfrecords: Optional[str] = None,
+        tiles: Optional[str] = None,
+        roi: Optional[str] = None,
+        slides: Optional[str] = None,
         filters: Optional[Dict] = None,
         filter_blank: Optional[Union[List[str], str]] = None,
         annotations: Optional[Union[str, pd.DataFrame]] = None,
-        min_tiles: int = 0
+        min_tiles: int = 0,
     ) -> None:
         """Initializes dataset to organize processed images.
 
         Args:
-            config (str): Path to dataset configuration.
+            config (str, dict): Either a dictionary or a path to a JSON file.
+                If a dictionary, keys should be dataset source names, and values
+                should be dictionaries containing the keys 'tiles', 'tfrecords',
+                'roi', and/or 'slides', specifying directories for each dataset
+                source. If `config` is a str, it should be a path to a JSON
+                file containing a dictionary with the same formatting.
+                If None, tiles, tfrecords, roi and/or slides should be manually
+                provided via keyword arguments. Defaults to None.
             sources (List[str]): List of dataset sources to include from
-                configuration file.
+                configuration. If not provided, will use all sources in the
+                provided configuration. Defaults to None.
             tile_px (int): Tile size in pixels.
             tile_um (int or str): Tile size in microns (int) or magnification
                 (str, e.g. "20x").
@@ -481,6 +530,20 @@ class Dataset:
         self.prob_weights = None  # type: Optional[Dict]
         self._annotations = None  # type: Optional[pd.DataFrame]
         self.annotations_file = None  # type: Optional[str]
+
+        if (any(arg is not None for arg in (tfrecords, tiles, roi, slides))
+           and (config is not None or sources is not None)):
+            raise ValueError(
+                "When initializing a Dataset object via keywords (tiles, "
+                "tfrecords, slides, roi), the arguments 'config' and 'sources' "
+                "are invalid."
+            )
+        elif any(arg is not None for arg in (tfrecords, tiles, roi, slides)):
+            config = dict(dataset=dict(
+                tfrecords=tfrecords, tiles=tiles, roi=roi, slides=slides
+            ))
+            sources = ['dataset']
+
         if isinstance(config, str):
             self._config = config
             loaded_config = sf.util.load_json(config)
@@ -489,6 +552,8 @@ class Dataset:
             loaded_config = config
 
         # Read dataset sources from the configuration
+        if sources is None:
+            raise ValueError("Missing argument 'sources'")
         sources = sources if isinstance(sources, list) else [sources]
         try:
             self.sources = {
@@ -601,6 +666,30 @@ class Dataset:
             have been extracted.
         """
         return self.verify_img_format()
+
+    def _tfrecords_set(self, source: str):
+        if source not in self.sources:
+            raise ValueError(f"Unrecognized dataset source {source}")
+        config = self.sources[source]
+        return 'tfrecords' in config and config['tfrecords']
+
+    def _tiles_set(self, source: str):
+        if source not in self.sources:
+            raise ValueError(f"Unrecognized dataset source {source}")
+        config = self.sources[source]
+        return 'tiles' in config and config['tiles']
+
+    def _roi_set(self, source: str):
+        if source not in self.sources:
+            raise ValueError(f"Unrecognized dataset source {source}")
+        config = self.sources[source]
+        return 'roi' in config and config['roi']
+
+    def _slides_set(self, source: str):
+        if source not in self.sources:
+            raise ValueError(f"Unrecognized dataset source {source}")
+        config = self.sources[source]
+        return 'slides' in config and config['slides']
 
     def _assert_size_matches_hp(self, hp: Union[Dict, ModelParams]) -> None:
         """Checks if dataset tile size (px/um) matches the given parameters."""
@@ -1306,7 +1395,7 @@ class Dataset:
                 "Dataset tile_px and tile_um must be != 0 to extract tiles"
             )
         if source:
-            sources = sf.util.as_list(source)
+            sources = sf.util.as_list(source)  # type: List[str]
         else:
             sources = list(self.sources.keys())
         all_reports = []
@@ -1319,17 +1408,26 @@ class Dataset:
 
         for source in sources:
             log.info(f'Working on dataset source [bold]{source}[/]...')
-            roi_dir = self.sources[source]['roi']
+            if self._roi_set(source):
+                roi_dir = self.sources[source]['roi']
+            else:
+                roi_dir = None
             src_conf = self.sources[source]
             if 'dry_run' not in kwargs or not kwargs['dry_run']:
-                if save_tfrecords:
+                if save_tfrecords and not self._tfrecords_set(source):
+                    log.error(f"tfrecords path not set for dataset source {source}")
+                    continue
+                elif save_tfrecords:
                     tfrecord_dir = join(
                         src_conf['tfrecords'],
                         src_conf['label']
                     )
                 else:
                     tfrecord_dir = None
-                if save_tiles:
+                if save_tiles and not self._tiles_set(source):
+                    log.error(f"tiles path not set for dataset source {source}")
+                    continue
+                elif save_tiles:
                     tiles_dir = join(src_conf['tiles'], src_conf['label'])
                 else:
                     tiles_dir = None
@@ -1520,11 +1618,14 @@ class Dataset:
             to_extract_tfrecords = self.tfrecords(source=source)
             if dest:
                 tiles_dir = dest
-            else:
+            elif self._tiles_set(source):
                 tiles_dir = join(self.sources[source]['tiles'],
                                  self.sources[source]['label'])
                 if not exists(tiles_dir):
                     os.makedirs(tiles_dir)
+            else:
+                log.error(f"tiles directory not set for dataset source {source}")
+                continue
             for tfr in to_extract_tfrecords:
                 sf.io.extract_tiles(tfr, tiles_dir)
 
@@ -1668,6 +1769,8 @@ class Dataset:
         Returns:
             bool: If all values from header can be converted to float.
         """
+        if self.annotations is None:
+            raise errors.DatasetError("Annotations not loaded.")
         filtered_labels = self.filtered_annotations[header]
         try:
             filtered_labels = [float(o) for o in filtered_labels]
@@ -1714,6 +1817,8 @@ class Dataset:
                 **list**: List of unique labels. For categorical outcomes, this will
                 be a list of str; indices correspond with the outcome label id.
         """
+        if self.annotations is None:
+            raise errors.DatasetError("Annotations not loaded.")
         if not len(self.filtered_annotations):
             raise errors.DatasetError(
                 "Cannot generate labels: dataset is empty after filtering."
@@ -1867,6 +1972,9 @@ class Dataset:
         for source in self.sources:
             if self.sources[source]['label'] is None:
                 continue
+            if not self._tfrecords_set(source):
+                log.warning(f"tfrecords path not set for dataset source {source}")
+                continue
             tfrecord_dir = join(
                 self.sources[source]['tfrecords'],
                 self.sources[source]['label']
@@ -1906,6 +2014,8 @@ class Dataset:
 
     def patients(self) -> Dict[str, str]:
         """Returns a list of patient IDs from this dataset."""
+        if self.annotations is None:
+            raise errors.DatasetError("Annotations not loaded.")
         result = {}  # type: Dict[str, str]
         pairs = list(zip(
             self.filtered_annotations['slide'],
@@ -1988,7 +2098,10 @@ class Dataset:
         """Returns a list of all ROIs."""
         rois_list = []
         for source in self.sources:
-            rois_list += glob(join(self.sources[source]['roi'], "*.csv"))
+            if self._roi_set(source):
+                rois_list += glob(join(self.sources[source]['roi'], "*.csv"))
+            else:
+                log.warning(f"roi path not set for dataset source {source}")
         slides = self.slides()
         return [r for r in list(set(rois_list)) if path_to_name(r) in slides]
 
@@ -2098,11 +2211,18 @@ class Dataset:
             raise errors.DatasetError(f"Dataset {source} not found.")
         # Get unfiltered paths
         if source:
-            paths = sf.util.get_slide_paths(self.sources[source]['slides'])
+            if not self._slides_set(source):
+                log.warning(f"slides path not set for dataset source {source}")
+                return []
+            else:
+                paths = sf.util.get_slide_paths(self.sources[source]['slides'])
         else:
             paths = []
             for src in self.sources:
-                paths += sf.util.get_slide_paths(self.sources[src]['slides'])
+                if not self._slides_set(src):
+                    log.warning(f"slides path not set for dataset source {src}")
+                else:
+                    paths += sf.util.get_slide_paths(self.sources[src]['slides'])
 
         # Remove any duplicates from shared dataset paths
         paths = list(set(paths))
@@ -2458,13 +2578,16 @@ class Dataset:
             log.error(f"Dataset {source} not found.")
             return []
         if source is None:
-            sources_to_search = list(self.sources.keys())
+            sources_to_search = list(self.sources.keys())  # type: List[str]
         else:
             sources_to_search = [source]
 
         tfrecords_list = []
         folders_to_search = []
         for source in sources_to_search:
+            if not self._tfrecords_set(source):
+                log.warning(f"tfrecords path not set for dataset source {source}")
+                continue
             tfrecords = self.sources[source]['tfrecords']
             label = self.sources[source]['label']
             if label is None:
@@ -2521,6 +2644,9 @@ class Dataset:
         for source in self.sources:
             if self.sources[source]['label'] is None:
                 continue
+            if not self._tfrecords_set(source):
+                log.warning(f"tfrecords path not set for dataset source {source}")
+                continue
             base_dir = join(
                 self.sources[source]['tfrecords'],
                 self.sources[source]['label']
@@ -2542,6 +2668,9 @@ class Dataset:
         folders = []
         for source in self.sources:
             if self.sources[source]['label'] is None:
+                continue
+            if not self._tfrecords_set(source):
+                log.warning(f"tfrecords path not set for dataset source {source}")
                 continue
             folders += [join(
                 self.sources[source]['tfrecords'],
@@ -2566,6 +2695,10 @@ class Dataset:
         for source in self.sources:
             log.info(f'Working on dataset source {source}')
             config = self.sources[source]
+            if not (self._tiles_set(source) and self._tfrecords_set(source)):
+                log.error("tiles and/or tfrecords paths not set for dataset "
+                          f"source {source}")
+                continue
             tfrecord_dir = join(config['tfrecords'], config['label'])
             tiles_dir = join(config['tiles'], config['label'])
             if not exists(tiles_dir):
