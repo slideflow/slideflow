@@ -409,15 +409,20 @@ def eval_from_model(
                 yt = [yt[f'out-{o}'] for o in range(len(yt))]
                 if loss is not None:
                     loss_val = [loss(yt[i], yp[i]) for i in range(len(yt))]
-                    loss_val = [l for l in loss_val if not tf.math.is_nan(l)]
+                    loss_val = [tf.boolean_mask(l, tf.math.is_finite(l)) for l in loss_val]
                     batch_loss = tf.math.reduce_sum(loss_val).numpy()
                     running_loss = (((num_vals - slide.shape[0]) * running_loss) + batch_loss) / num_vals
             else:
                 y_true += [yt.numpy()]
                 if loss is not None:
                     loss_val = loss(yt, yp)
-                    not_nan = ~tf.math.is_nan(loss_val)
-                    batch_loss = tf.math.reduce_sum(loss_val[not_nan]).numpy()
+                    if tf.rank(loss_val):
+                        # Loss is a vector
+                        is_finite = tf.math.is_finite(loss_val)
+                        batch_loss = tf.math.reduce_sum(tf.boolean_mask(loss_val, is_finite)).numpy()
+                    else:
+                        # Loss is a scalar
+                        batch_loss = loss_val.numpy()  # type: ignore
                     running_loss = (((num_vals - slide.shape[0]) * running_loss) + batch_loss) / num_vals
 
     if verbosity != 'silent':

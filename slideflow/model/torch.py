@@ -427,7 +427,8 @@ class Trainer:
         use_neptune: bool = False,
         neptune_api: Optional[str] = None,
         neptune_workspace: Optional[str] = None,
-        load_method: str = 'full'
+        load_method: str = 'full',
+        custom_objects: Optional[Dict[str, Any]] = None,
     ):
         """Sets base configuration, preparing model inputs and outputs.
 
@@ -479,6 +480,9 @@ class Trainer:
         self.use_tensorboard: bool
         self.writer: SummaryWriter
         self._reset_training_params()
+
+        if custom_objects is not None:
+            log.warn("custom_objects argument ignored in PyTorch backend.")
 
         # Enable or disable Tensorflow-32
         # Allows PyTorch to internally use tf32 for matmul and convolutions

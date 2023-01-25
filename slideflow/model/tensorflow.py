@@ -1015,7 +1015,8 @@ class Trainer:
         use_neptune: bool = False,
         neptune_api: Optional[str] = None,
         neptune_workspace: Optional[str] = None,
-        load_method: str = 'full'
+        load_method: str = 'full',
+        custom_objects: Optional[Dict[str, Any]] = None,
     ) -> None:
 
         """Sets base configuration, preparing model inputs and outputs.
@@ -1056,6 +1057,8 @@ class Trainer:
                 Defaults to None.
             neptune_workspace (str, optional): Neptune workspace.
                 Defaults to None.
+            custom_objects (dict, Optional): Dictionary mapping names
+                (strings) to custom classes or functions. Defaults to None.
         """
 
         if load_method not in ('full', 'weights'):
@@ -1078,6 +1081,7 @@ class Trainer:
         self.annotations_tables = []
         self.eval_callback = _PredictionAndEvaluationCallback  # type: tf.keras.callbacks.Callback
         self.load_method = load_method
+        self.custom_objects = custom_objects
         self.patients = dict()
 
         if not os.path.exists(outdir):
@@ -1304,7 +1308,11 @@ class Trainer:
                     dataset.img_format))
 
     def load(self, model: str) -> tf.keras.Model:
-        self.model = load(model, method=self.load_method)
+        self.model = load(
+            model,
+            method=self.load_method,
+            custom_objects=self.custom_objects
+        )
 
     def predict(
         self,
@@ -2449,7 +2457,10 @@ class UncertaintyInterface(Features):
             return logits, uncertainty
 
 
-def load(path: str, method: str = 'full'):
+def load(
+    path: str,
+    method: str = 'full',
+    custom_objects: Optional[Dict[str, Any]] = None,):
     """Load Tensorflow model from location.
 
     Args:
@@ -2462,6 +2473,8 @@ def load(path: str, method: str = 'full'):
             ``Model.load_weights()``. Loading with 'full' may improve
             compatibility across Slideflow versions. Loading with 'weights'
             may improve compatibility across hardware & environments.
+        custom_objects (dict, Optional): Dictionary mapping names
+            (strings) to custom classes or functions. Defaults to None.
 
     Returns:
         tf.keras.models.Model: Loaded model.
@@ -2471,7 +2484,7 @@ def load(path: str, method: str = 'full'):
                          "either 'full' or 'weights'")
     log.debug(f"Loading model with method='{method}'")
     if method == 'full':
-        return tf.keras.models.load_model(path)
+        return tf.keras.models.load_model(path, custom_objects=custom_objects)
     else:
         config = sf.util.get_model_config(path)
         hp = ModelParams.from_dict(config['hp'])
