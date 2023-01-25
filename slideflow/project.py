@@ -323,7 +323,8 @@ class Project:
         mixed_precision: bool = True,
         allow_tf32: bool = False,
         input_header: Optional[Union[str, List[str]]] = None,
-        load_method: str = 'full'
+        load_method: str = 'full',
+        custom_objects: Optional[Dict[str, Any]] = None,
     ) -> Tuple["Trainer", Dataset]:
         """Prepares a :class:`slideflow.model.Trainer` for eval or prediction.
 
@@ -356,6 +357,8 @@ class Project:
                 ``Model.load_weights()``. Loading with 'full' may improve
                 compatibility across Slideflow versions. Loading with 'weights'
                 may improve compatibility across hardware & environments.
+            custom_objects (dict, Optional): Dictionary mapping names
+                (strings) to custom classes or functions. Defaults to None.
 
         Returns:
             A tuple containing
@@ -491,7 +494,8 @@ class Project:
             use_neptune=self.use_neptune,
             neptune_api=self.neptune_api,
             neptune_workspace=self.neptune_workspace,
-            load_method=load_method
+            load_method=load_method,
+            custom_objects=custom_objects,
         )
         if isinstance(model, str):
             trainer.load(model)
@@ -605,7 +609,7 @@ class Project:
             val_settings.k = [val_settings.k]
         if val_settings.strategy == 'k-fold-manual':
             _, unique_k = dataset.labels(k_header, format='name')
-            valid_k = [int(kf) for kf in unique_k]
+            valid_k = [kf for kf in unique_k]
             k_fold = len(valid_k)
             log.info(f"Manual folds: {', '.join([str(ks) for ks in valid_k])}")
             if val_settings.k:
@@ -1014,6 +1018,7 @@ class Project:
         allow_tf32: bool = False,
         input_header: Optional[Union[str, List[str]]] = None,
         load_method: str = 'full',
+        custom_objects: Optional[Dict[str, Any]] = None,
         **kwargs: Any
     ) -> Dict:
         """Evaluates a saved model on a given set of tfrecords.
@@ -1062,6 +1067,8 @@ class Project:
                 patient-level predictions at each evaluation. May be 'csv',
                 'feather', or 'parquet'. If False, will not save predictions.
                 Defaults to 'parquet'.
+            custom_objects (dict, Optional): Dictionary mapping names
+                (strings) to custom classes or functions. Defaults to None.
             **kwargs: Additional keyword arguments to the `Trainer.evaluate()`
                 function.
 
@@ -1080,7 +1087,8 @@ class Project:
             input_header=input_header,
             mixed_precision=mixed_precision,
             allow_tf32=allow_tf32,
-            load_method=load_method
+            load_method=load_method,
+            custom_objects=custom_objects,
         )
         return trainer.evaluate(eval_dts, **kwargs)
 
@@ -2398,6 +2406,7 @@ class Project:
         mixed_precision: bool = True,
         allow_tf32: bool = False,
         load_method: str = 'full',
+        custom_objects: Optional[Dict[str, Any]] = None,
         **kwargs: Any
     ) -> "pd.DataFrame":
         """Evaluates a saved model on a given set of tfrecords.
@@ -2445,6 +2454,8 @@ class Project:
                 ``Model.load_weights()``. Loading with 'full' may improve
                 compatibility across Slideflow versions. Loading with 'weights'
                 may improve compatibility across hardware & environments.
+            custom_objects (dict, Optional): Dictionary mapping names
+                (strings) to custom classes or functions. Defaults to None.
 
         Returns:
             Dictionary of predictions dataframes, with the keys 'tile', 'slide',
@@ -2463,7 +2474,8 @@ class Project:
             input_header=input_header,
             mixed_precision=mixed_precision,
             allow_tf32=allow_tf32,
-            load_method=load_method
+            load_method=load_method,
+            custom_objects=custom_objects,
         )
         results = trainer.predict(
             dataset=eval_dts,
