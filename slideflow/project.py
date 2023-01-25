@@ -3148,6 +3148,81 @@ class Project:
                         log.info(f'{m}: {final_val_metrics[m]}')
         return dict(results_dict)
 
+    def train_simclr(
+        self,
+        exp_name: str,
+        outcomes: Union[str, List[str]], # FIXME: can we actually have a list of outcomes in simCLR?
+        dataset: Dataset,
+        val_fraction: float = 0.2,
+        splits: str = 'simclr_splits.json', # FIXME: do we want same splits.json ? 
+        **kwargs # 
+    ) -> None:
+        """Train SimCLR model, saved in SimCLR/{exp_name}/models
+            directory
+        
+        Args:
+            exp_name (str): Name of experiment. Makes SimCLR/{exp_name} folder.]
+            outcomes (str): Annotation column which specifies the outcome.
+            dataset (:class:`slideflow.dataset.Dataset`): Dataset object from
+                which to generate activations.
+            val_fraction (float): 
+            splits (str): splits file name, if exists the splits defined are 
+                used otherwise it is created
+            
+        
+        Keyword Args: SimCLR flags 
+            FIXME: how do we want to pass SimCLR parameters?
+
+        Examples
+            Train with a couple of SimCLR flags specified
+
+                >>> P = sf.Project.from_prompt('/project/path')
+                >>> dataset = P.dataset(tile_px=299, tile_um=302)
+                >>> P.train_simclr('name', 'case_control', dataset, 
+                ...     train_epochs=1,
+                ...     use_tpu=False
+                ... )
+        """
+
+        import slideflow.simclr as simclr
+
+        # Set up SimCLR experiment data directory
+        simCLR_dir = join(self.root, 'simCLR', exp_name)
+        splits_path = os.path.join(simCLR_dir, splits) 
+        model_dir = os.path.join(simCLR_dir, 'models')
+        if not exists(model_dir):
+            os.makedirs(model_dir)
+
+        # Load the ground-truth labels for each slide
+        labels, unique_labels = dataset.labels(outcomes)
+
+        # Create or load a validation dataset.
+        train_dts, val_dts = dataset.train_val_split(
+            'categorical',             # Type of model FIXME: should this be a parameter?
+            labels=labels,             # Ground truth labels
+            val_strategy='fixed',      # Not a cross-fold split, just single split FIXME: par?
+            val_fraction=val_fraction, # Fraction of data for validation
+            splits = splits_path # Save directory for split
+        )
+
+        log.info(f"Training dataset size: {train_dts.num_tiles}")
+        log.info(f"Validation dataset size: {val_dts.num_tiles}")
+
+        # Create dataset builder, which SimCLR will use to create
+        # the input pipeline for training
+        builder = simclr.SlideflowBuilder(
+            train_dts=train_dts.balance(strategy='slide'),
+            val_dts=val_dts.balance(strategy='slide'),
+            labels=labels,
+            num_classes=len(unique_labels)
+        )
+
+        # add model_dir to kwargs
+        kwargs['model_dir'] = model_dir
+
+        simclr.run_simclr(builder, flags=kwargs)
+
+
     def train_clam(
         self,
         exp_name: str,
