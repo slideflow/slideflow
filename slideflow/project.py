@@ -1164,6 +1164,14 @@ class Project:
         args_dict = sf.util.load_json(join(exp_name, 'experiment.json'))
         args = SimpleNamespace(**args_dict)
         args.save_dir = eval_dir
+        # Update any missing arguments with current defaults
+        _default_args = clam.get_args()
+        for _a in _default_args.__dict__:
+            if not hasattr(args, _a):
+                _default = getattr(_default_args, _a)
+                log.info(f"Argument {_a} not found in CLAM model configuration "
+                         f"file; using default value of {_default}.")
+                setattr(args, _a, _default)
 
         dataset = self.dataset(
             tile_px=tile_px,
