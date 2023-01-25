@@ -601,7 +601,6 @@ def group_reduce(
             group_dfs.update({group: dfg.drop(columns='weight')})
 
             dfw = _df.copy()
-            dfw.to_csv('/home/anran/work/tumor_likelihood/df.csv', index=False)
             y_pred_cols = [c for c in _df.columns if 'y_pred' in c]
             y_true_col = [c for c in dfw.columns if 'y_true' in c]
             for colname in y_pred_cols:

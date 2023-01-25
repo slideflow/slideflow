@@ -1574,7 +1574,7 @@ class Trainer:
             )
             tf_dts_w_slidenames = dataset.tensorflow(
                 incl_slidenames=True,
-                incl_loc=True,
+                incl_loc=False,
                 from_wsi=from_wsi,
                 roi_method=roi_method,
                 **interleave_kwargs
@@ -1847,7 +1847,7 @@ class Trainer:
                     )
                     validation_data = val_dts.tensorflow(
                         incl_slidenames=True,
-                        incl_loc=True,
+                        incl_loc=False,
                         drop_last=True,
                         **v_kwargs
                     )

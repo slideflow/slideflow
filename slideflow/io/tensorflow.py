@@ -862,8 +862,8 @@ def transform_tfrecord(
     writer = tf.io.TFRecordWriter(target)
     parser = get_tfrecord_parser(
         origin,
-        # ('slide', 'image_raw', 'loc_x', 'loc_y', 'tumor_likelihood'),
-        ('slide', 'image_raw', 'loc_x', 'loc_y'),
+        ('slide', 'image_raw', 'loc_x', 'loc_y', 'tumor_likelihood'),
+        # ('slide', 'image_raw', 'loc_x', 'loc_y'),
         decode_images=(hue_shift is not None or resize is not None),
         error_if_invalid=False,
         to_numpy=True
@@ -889,6 +889,7 @@ def transform_tfrecord(
 
     for record in dataset:
         slide, image_raw, loc_x, loc_y, tumor_likelihood = parser(record)  # type: ignore
+        # slide, image_raw, loc_x, loc_y = parser(record)
         slidename = slide if not assign_slide else bytes(assign_slide, 'utf-8')
         image_processed_data = process_image(image_raw)
         tf_example = tfrecord_example(
