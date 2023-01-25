@@ -46,8 +46,7 @@ def get_args(**kwargs):
         'results_dir': None,
         'n_classes': None,
         'split_dir': None,
-        'data_root_dir': None,
-        'micro_average': False
+        'data_root_dir': None
     }
     for k in kwargs:
         args_dict[k] = kwargs[k]
