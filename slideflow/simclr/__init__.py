@@ -16,7 +16,7 @@ def get_args(**kwargs):
         'eval_split': 'validation',
         'eval_batch_size': 256
     }
-    print('this version')
+    print('this version2')
     for k in kwargs:
         args_dict[k] = kwargs[k]
     args = types.SimpleNamespace(**args_dict)

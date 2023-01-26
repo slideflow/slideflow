@@ -3226,6 +3226,7 @@ class Project:
             num_classes=len(unique_labels)
         )
 
+        print('this version2')
         simclr.run_simclr(
             builder, 
             simclr_args=simclr_args,
