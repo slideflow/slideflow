@@ -3155,7 +3155,8 @@ class Project:
         dataset: Dataset,
         val_fraction: float = 0.2,
         splits: str = 'simclr_splits.json', # FIXME: do we want same splits.json ? 
-        **kwargs # 
+        simclr_args: Optional[SimpleNamespace] = None,
+        **kwargs
     ) -> None:
         """Train SimCLR model, saved in SimCLR/{exp_name}/models
             directory
@@ -3168,20 +3169,23 @@ class Project:
             val_fraction (float): 
             splits (str): splits file name, if exists the splits defined are 
                 used otherwise it is created
+            # TODO:
             
         
-        Keyword Args: SimCLR flags 
-            FIXME: how do we want to pass SimCLR parameters?
+        Keyword Args: SimCLR flags # TODO:
+            FIXME: how do we want to pass SimCLR parameters?  # TODO:
 
         Examples
             Train with a couple of SimCLR flags specified
 
                 >>> P = sf.Project.from_prompt('/project/path')
                 >>> dataset = P.dataset(tile_px=299, tile_um=302)
-                >>> P.train_simclr('name', 'case_control', dataset, 
+                >>> P.train_simclr('name', 'outcomes', dataset, 
                 ...     train_epochs=1,
                 ...     use_tpu=False
                 ... )
+
+            # TODO: take a look at clam
         """
 
         import slideflow.simclr as simclr
@@ -3192,6 +3196,11 @@ class Project:
         model_dir = os.path.join(simCLR_dir, 'models')
         if not exists(model_dir):
             os.makedirs(model_dir)
+        
+        # get base SimCLR args/settings if not provided
+        if not simclr_args:
+            simclr_args = simclr.get_args()
+        assert isinstance(simclr_args, SimpleNamespace)
 
         # Load the ground-truth labels for each slide
         labels, unique_labels = dataset.labels(outcomes)
@@ -3217,10 +3226,12 @@ class Project:
             num_classes=len(unique_labels)
         )
 
-        # add model_dir to kwargs
-        kwargs['model_dir'] = model_dir
-
-        simclr.run_simclr(builder, flags=kwargs)
+        simclr.run_simclr(
+            builder, 
+            simclr_args=simclr_args,
+            model_dir=model_dir,
+            **kwargs
+        )
 
 
     def train_clam(
