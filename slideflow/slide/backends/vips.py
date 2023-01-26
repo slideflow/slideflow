@@ -157,10 +157,12 @@ def tile_worker(
     if not args.normalizer:
         normalizer = None
     else:
-        normalizer = sf.norm.autoselect(
-            method=args.normalizer,
-            source=args.normalizer_source
-        )
+        # Libvips with spawn multiprocessing
+        # is not compatible with Tensorflow-native stain normalization
+        # due to GPU memory issues
+        normalizer = sf.norm.StainNormalizer(args.normalizer)  # type: ignore
+        if args.normalizer_source is not None:
+            normalizer.fit(args.normalizer_source)
 
     # Read the target downsample region now, if we were
     # filtering at a different level
@@ -192,9 +194,10 @@ def tile_worker(
                     image = normalizer.jpeg_to_jpeg(image)
                 else:
                     raise ValueError(f"Unknown image format {args.img_format}")
-            except Exception:
+            except Exception as e:
                 # The image could not be normalized,
                 # which happens when a tile is primarily one solid color
+                log.debug(f'Normalization error: {e}')
                 return None
     else:
         # Read regions into memory and convert to numpy arrays
