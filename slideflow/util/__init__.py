@@ -907,11 +907,11 @@ def tfrecord_heatmap(
         bottom=False,
         labelbottom=False
     )
-    log.info('Generating thumbnail...')
+    log.debug('Generating thumbnail...')
     thumb = wsi.thumb(mpp=5)
-    log.info('Saving thumbnail....')
+    log.debug('Saving thumbnail....')
     thumb.save(join(outdir, f'{slide_name}' + '.png'))
-    log.info('Generating figure...')
+    log.debug('Generating figure...')
     implot = ax.imshow(thumb, zorder=0)
     extent = implot.get_extent()
     extent_x = extent[1] * (1-fraction_dead_x)

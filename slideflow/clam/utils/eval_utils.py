@@ -8,6 +8,7 @@ import torch.nn.functional as F
 from sklearn.metrics import auc, roc_auc_score, roc_curve
 from sklearn.preprocessing import label_binarize
 
+from slideflow import log
 from slideflow.clam.models.model_clam import CLAM_MB, CLAM_SB
 from slideflow.clam.models.model_mil import MIL_fc, MIL_fc_mc
 from slideflow.clam.utils import *
@@ -15,7 +16,6 @@ from slideflow.clam.utils.core_utils import Accuracy_Logger
 
 
 def initiate_model(args, ckpt_path):
-	print('Init Model')
 	model_dict = {"dropout": args.drop_out, 'n_classes': args.n_classes}
 
 	if args.model_size is not None and args.model_type in ['clam_sb', 'clam_mb']:
@@ -31,7 +31,7 @@ def initiate_model(args, ckpt_path):
 		else:
 			model = MIL_fc(**model_dict)
 
-	print_network(model)
+	log.info(network_summary(model))
 
 	ckpt = torch.load(ckpt_path)
 	ckpt_clean = {}
@@ -48,11 +48,11 @@ def initiate_model(args, ckpt_path):
 def eval(dataset, args, ckpt_path):
 	model = initiate_model(args, ckpt_path)
 
-	print('Init Loaders')
+	log.debug('Init Loaders')
 	loader = get_simple_loader(dataset)
 	patient_results, test_error, auc, df, _ = summary(model, loader, args)
-	print('test_error: ', test_error)
-	print('auc: ', auc)
+	log.info('test_error: ', test_error)
+	log.info('auc: ', auc)
 	return model, patient_results, test_error, auc, df
 
 def summary(model, loader, args):

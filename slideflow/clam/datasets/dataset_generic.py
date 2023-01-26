@@ -1,7 +1,6 @@
 from __future__ import division, print_function
 
 import os
-
 import h5py
 import numpy as np
 import pandas as pd
@@ -10,6 +9,7 @@ from scipy import stats
 from torch.utils.data import Dataset
 
 from slideflow.clam.utils import generate_split, nth
+from slideflow import log
 
 
 class ClamError(Exception):
@@ -31,7 +31,6 @@ def save_splits(split_datasets, column_keys, filename, boolean_style=False):
         df = pd.DataFrame(bool_array, index=index, columns = ['train', 'val', 'test'])
 
     df.to_csv(filename)
-    print()
 
 class Generic_WSI_Classification_Dataset(Dataset):
     def __init__(self,
@@ -146,13 +145,12 @@ class Generic_WSI_Classification_Dataset(Dataset):
             return len(self.slide_data)
 
     def summarize(self):
-        print("label column: {}".format(self.label_col))
-        print("label dictionary: {}".format(self.label_dict))
-        print("number of classes: {}".format(self.num_classes))
-        print("slide-level counts: ", '\n', self.slide_data['label'].value_counts(sort = False))
+        log.info("Dataset summary")
+        log.info("Outcome: {}".format(self.label_col))
+        log.info("Labels:  {}".format(self.label_dict))
         for i in range(self.num_classes):
-            print('Patient-LVL; Number of samples registered in class %d: %d' % (i, self.patient_cls_ids[i].shape[0]))
-            print('Slide-LVL; Number of samples registered in class %d: %d' % (i, self.slide_cls_ids[i].shape[0]))
+            log.info('Patient in class %d: %d' % (i, self.patient_cls_ids[i].shape[0]))
+            log.info('Slides  in class %d: %d' % (i, self.slide_cls_ids[i].shape[0]))
 
     def create_splits(self, k = 3, val_num = (25, 25), test_num = (40, 40), label_frac = 1.0, custom_test_ids = None):
         settings = {
@@ -279,30 +277,27 @@ class Generic_WSI_Classification_Dataset(Dataset):
             df = pd.DataFrame(np.full((len(index), len(columns)), 0, dtype=np.int32), index= index,
                             columns= columns)
 
-        count = len(self.train_ids)
-        print('\nnumber of training samples: {}'.format(count))
+        log.info('Number of training samples: {}'.format(len(self.train_ids)))
         labels = self.getlabel(self.train_ids)
         unique, counts = np.unique(labels, return_counts=True)
         for u in range(len(unique)):
-            print('number of samples in cls {}: {}'.format(unique[u], counts[u]))
+            log.info('number of samples in cls {}: {}'.format(unique[u], counts[u]))
             if return_descriptor:
                 df.loc[index[u], 'train'] = counts[u]
 
-        count = len(self.val_ids)
-        print('\nnumber of val samples: {}'.format(count))
+        log.info('Number of val samples: {}'.format(len(self.val_ids)))
         labels = self.getlabel(self.val_ids)
         unique, counts = np.unique(labels, return_counts=True)
         for u in range(len(unique)):
-            print('number of samples in cls {}: {}'.format(unique[u], counts[u]))
+            log.info('number of samples in cls {}: {}'.format(unique[u], counts[u]))
             if return_descriptor:
                 df.loc[index[u], 'val'] = counts[u]
 
-        count = len(self.test_ids)
-        print('\nnumber of test samples: {}'.format(count))
+        log.info('\nNumber of test samples: {}'.format(len(self.test_ids)))
         labels = self.getlabel(self.test_ids)
         unique, counts = np.unique(labels, return_counts=True)
         for u in range(len(unique)):
-            print('number of samples in cls {}: {}'.format(unique[u], counts[u]))
+            log.info('number of samples in cls {}: {}'.format(unique[u], counts[u]))
             if return_descriptor:
                 df.loc[index[u], 'test'] = counts[u]
 
