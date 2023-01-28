@@ -127,8 +127,9 @@ class CLAM_SB(nn.Module):
 			top_p_ids = torch.topk(A, self.k_sample)[1][-1]
 		except RuntimeError as e:
 			raise RuntimeError(
-				f"Error selecting top_k: {e}. Verify that all slides have "
-				"at least 8 tiles (min_tiles=8)."
+				f"Error selecting top_k from sample with shape {A.shape}. "
+                f"Verify that all slides have at least {self.k_sample} tiles "
+                f"(min_tiles={self.k_sample}). Error: {e}"
 			)
 		top_p = torch.index_select(h, dim=0, index=top_p_ids)
 		top_n_ids = torch.topk(-A, self.k_sample, dim=1)[1][-1]
@@ -152,8 +153,9 @@ class CLAM_SB(nn.Module):
 			top_p_ids = torch.topk(A, self.k_sample)[1][-1]
 		except RuntimeError as e:
 			raise RuntimeError(
-				f"Error selecting top_k: {e}. Verify that all slides have "
-				"at least 8 tiles (min_tiles=8)."
+				f"Error selecting top_k from sample with shape {A.shape}. "
+                f"Verify that all slides have at least {self.k_sample} tiles "
+                f"(min_tiles={self.k_sample}). Error: {e}"
 			)
 		top_p = torch.index_select(h, dim=0, index=top_p_ids)
 		p_targets = self.create_negative_targets(self.k_sample, device)
