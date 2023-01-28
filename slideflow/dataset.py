@@ -588,6 +588,13 @@ class Dataset:
                     f_ann = f_ann.loc[f_ann[fb].notna()]
                     f_ann = f_ann.loc[~f_ann[fb].isin(sf.util.EMPTY_ANNOTATIONS)]
 
+            # Filter out slides that do not meet minimum number of tiles
+            if self.min_tiles:
+                manifest = self.manifest(key='name', filter=False)
+                man_slides = [s for s in manifest
+                              if manifest[s]['total'] >= self.min_tiles]
+                f_ann = f_ann.loc[f_ann.slide.isin(man_slides)]
+
             return f_ann
         else:
             return None
