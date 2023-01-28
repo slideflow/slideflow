@@ -251,7 +251,7 @@ def train_loop_clam(epoch, model, loader, optimizer, n_classes, bag_weight, writ
         inst_logger.log_batch(inst_preds, inst_labels)
         train_loss += loss_value
         if (batch_idx + 1) % 20 == 0:
-            log.info('batch {} | loss: {:.4f}, instance_loss: {:.4f}, weighted_loss: {:.4f}'.format(
+            log.debug('batch {} | loss: {:.4f}, instance_loss: {:.4f}, weighted_loss: {:.4f}'.format(
                 batch_idx, loss_value, instance_loss_value, total_loss.item()
             ))
 
@@ -275,12 +275,12 @@ def train_loop_clam(epoch, model, loader, optimizer, n_classes, bag_weight, writ
     if inst_count > 0:
         for i in range(2):
             acc, correct, count = inst_logger.get_summary(i)
-            log.info('[green]Epoch {} (train)[/]: class {} cluster acc: {} ({}/{})'.format(
+            log.debug('[green]Epoch {} (train)[/]: class {} cluster acc: {} ({}/{})'.format(
                 epoch, i, acc, correct, count
             ))
     for i in range(n_classes):
         acc, correct, count = acc_logger.get_summary(i)
-        log.info('[green]Epoch {} (train)[/]: class {} acc: {} ({}/{})'.format(epoch, i, acc, correct, count))
+        log.debug('[green]Epoch {} (train)[/]: class {} acc: {} ({}/{})'.format(epoch, i, acc, correct, count))
         if writer and acc is not None:
             writer.add_scalar('train/class_{}_acc'.format(i), acc, epoch)
 
@@ -455,7 +455,7 @@ def validate_clam(cur, epoch, model, loader, n_classes, early_stopping = None, w
         val_inst_loss /= inst_count
         for i in range(2):
             acc, correct, count = inst_logger.get_summary(i)
-            log.info('[purple]Epoch {} (eval)[/]: class {} cluster acc: {} ({}/{})'.format(
+            log.debug('[purple]Epoch {} (eval)[/]: class {} cluster acc: {} ({}/{})'.format(
                 epoch, i, acc, correct, count
             ))
 
@@ -469,7 +469,7 @@ def validate_clam(cur, epoch, model, loader, n_classes, early_stopping = None, w
 
     for i in range(n_classes):
         acc, correct, count = acc_logger.get_summary(i)
-        log.info('[purple]Epoch {} (eval)[/]: class {} acc: {} ({}/{})'.format(epoch, i, acc, correct, count))
+        log.debug('[purple]Epoch {} (eval)[/]: class {} acc: {} ({}/{})'.format(epoch, i, acc, correct, count))
 
         if writer and acc is not None:
             writer.add_scalar('val/class_{}_acc'.format(i), acc, epoch)

@@ -845,6 +845,11 @@ class SlideMap:
             with open(path, 'wb') as f:
                 pickle.dump(self.umap, f)
                 log.info(f"Wrote UMAP cache to [green]{path}")
+        self.save_cache(join(path, 'slidemap.parquet'))
+        np.savez(
+            join(path, 'range_clip.npz'),
+            range=self._umap_normalized_range,
+            clip=self._umap_normalized_clip)
 
     def save_encoder(self, path: str) -> None:
         """Save Parametric UMAP encoder."""

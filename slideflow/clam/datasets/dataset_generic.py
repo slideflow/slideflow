@@ -5,9 +5,10 @@ import h5py
 import numpy as np
 import pandas as pd
 import torch
+
+from typing import Union
 from scipy import stats
 from torch.utils.data import Dataset
-
 from slideflow.clam.utils import generate_split, nth
 from slideflow import log
 
@@ -34,18 +35,19 @@ def save_splits(split_datasets, column_keys, filename, boolean_style=False):
 
 class Generic_WSI_Classification_Dataset(Dataset):
     def __init__(self,
-        csv_path = 'dataset_csv/ccrcc_clean.csv',
-        shuffle = False,
-        seed = 7,
-        print_info = True,
+        annotations: Union[str, pd.DataFrame] = None,
+        shuffle: bool = False,
+        seed: int = 7,
+        print_info: bool = True,
         label_dict = {},
         filter_dict = {},
-        ignore=[],
-        patient_strat=False,
+        ignore = [],
+        patient_strat = False,
         label_col = None,
         patient_voting = 'max',
-        lasthalf = False
-        ):
+        lasthalf = False,
+        csv_path = 'dataset_csv/ccrcc_clean.csv',
+    ):
         """
         Args:
             csv_file (string): Path to the csv file with annotations.
@@ -55,6 +57,14 @@ class Generic_WSI_Classification_Dataset(Dataset):
             label_dict (dict): Dictionary with key, value pairs for converting str labels to int
             ignore (list): List containing class labels to ignore
         """
+        if annotations is None and csv_path is not None:
+            annotations = csv_path
+            log.warning(
+                "Deprecation warning: 'csv_path' is deprecated for "
+                "Generic_WSI_Classification_Dataset and will be removed in a "
+                "future version. Please use 'annotations' instead."
+            )
+
         self.lasthalf = lasthalf
         self.label_dict = label_dict
         self.num_classes = len(set(self.label_dict.values()))
@@ -67,7 +77,12 @@ class Generic_WSI_Classification_Dataset(Dataset):
             label_col = 'label'
         self.label_col = label_col
 
-        slide_data = pd.read_csv(csv_path, dtype=str)
+        if isinstance(annotations, str):
+            slide_data = pd.read_csv(annotations, dtype=str)
+        elif isinstance(annotations, pd.DataFrame):
+            slide_data = annotations
+        else:
+            raise ValueError(f"Unrecognized type for annotations: {type(annotations)}")
         slide_data = self.filter_df(slide_data, filter_dict)
         slide_data = self.df_prep(slide_data, self.label_dict, ignore, self.label_col)
 
@@ -96,12 +111,12 @@ class Generic_WSI_Classification_Dataset(Dataset):
             self.slide_cls_ids[i] = np.where(self.slide_data['label'] == i)[0]
 
     def patient_data_prep(self, patient_voting='max'):
-        patients = np.unique(np.array(self.slide_data['patient'])) # get unique patients
+        patients = self.slide_data['patient'].unique() # get unique patients
         patient_labels = []
 
         for p in patients:
             locations = self.slide_data[self.slide_data['patient'] == p].index.tolist()
-            assert len(locations) > 0
+            assert len(locations) > 0, f"No data found for patient {p}"
             label = self.slide_data['label'][locations].values
             if patient_voting == 'max':
                 label = label.max() # get patient label (MIL convention)

@@ -1264,7 +1264,7 @@ class Project:
                 writer.writerow(row)
 
         clam_dataset = Generic_MIL_Dataset(
-            csv_path=join(eval_dir, 'eval_annotations.csv'),
+            annotations=dataset.filtered_annotations,
             data_dir=pt_files,
             shuffle=False,
             seed=args.seed,
@@ -3332,7 +3332,7 @@ class Project:
 
         # Create CLAM dataset
         clam_dataset = Generic_MIL_Dataset(
-            csv_path=self.annotations,
+            annotations=self.annotations,
             data_dir=pt_files,
             shuffle=False,
             seed=clam_args.seed,
