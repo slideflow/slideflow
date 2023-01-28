@@ -3332,7 +3332,7 @@ class Project:
 
         # Create CLAM dataset
         clam_dataset = Generic_MIL_Dataset(
-            annotations=self.annotations,
+            annotations=dataset.filtered_annotations,
             data_dir=pt_files,
             shuffle=False,
             seed=clam_args.seed,
