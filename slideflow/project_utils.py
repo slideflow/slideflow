@@ -2,12 +2,14 @@
 
 import logging
 import os
+import sys
 import pandas as pd
 from collections import defaultdict
 from functools import wraps
-from os.path import dirname, exists, join, realpath
+from os.path import dirname, exists, join, realpath, isdir
 from types import SimpleNamespace
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+import shutil
 
 import slideflow as sf
 from slideflow import errors
@@ -274,9 +276,9 @@ def create_ensemble_dataframe(
     ensemble_path: str,
     member_id: int,
     kfold_path: str,
-    kfold_int: int,
-    epoch: int,
-    level: str
+    level: str,
+    kfold_int: Optional[int] = None,
+    epoch: Optional[int] = None
 ) -> pd.DataFrame:
     """Create an ensemble prediction dataframe from a given ensemble member.
 
@@ -288,16 +290,23 @@ def create_ensemble_dataframe(
         member_id (int): ID of the ensemble member.
         kfold_path (str): Path to target k-fold model for a specific member
             of the prediction ensemble.
-        kfold_int (int): K-fold ID.
-        epoch (int): Epoch.
         level (str): Prediction level, either 'slide', 'patient', or 'tile'.
+
+    Keyword Args:
+        kfold_int (int, optional): K-fold ID. Defaults to None
+        epoch (int, optional): Epoch. Defaults to None
 
     Returns:
         DataFrame of ensemble predictions.
+
     """
     # Find the specified predictions file for the ensemble member.
-    pred_file = find_predictions(kfold_path, level=level, epoch=epoch)
-    save_format = detect_predictions_format(pred_file)
+    if kfold_int is None or epoch is None:
+        pred_file = find_matching_file(kfold_path, f"{level}_predictions")
+        save_format = predict_file_type(kfold_path)
+    else:
+        pred_file = find_predictions(kfold_path, level=level, epoch=epoch)
+        save_format = detect_predictions_format(pred_file)
 
     # Load the predictions into a dataframe.
     df = sf.util.load_predictions(pred_file)
@@ -321,10 +330,16 @@ def create_ensemble_dataframe(
         df = df.reset_index()
 
     # Save ensemble dataframe
-    out_path = join(
-        ensemble_path,
-        f'ensemble_{level}_predictions_kfold{kfold_int}_epoch{epoch}'
-    )
+    if kfold_int is None or epoch is None:
+        out_path = join(
+            ensemble_path,
+            f'ensemble_{level}_predictions'
+        )
+    else:
+        out_path = join(
+            ensemble_path,
+            f'ensemble_{level}_predictions_kfold{kfold_int}_epoch{epoch}'
+        )
     save_dataframe(df, out_path, format=save_format)
     return df
 
@@ -333,9 +348,9 @@ def add_to_ensemble_dataframe(
     ensemble_path: str,
     member_id: int,
     kfold_path: str,
-    kfold_int: int,
-    epoch: int,
-    level: str
+    level: str,
+    kfold_int: Optional[int] = None,
+    epoch: Optional[int] = None
 ) -> pd.DataFrame:
     """Add predictions from a given member to the ensemble predictions dataframe.
 
@@ -348,35 +363,60 @@ def add_to_ensemble_dataframe(
         member_id (int): ID of the ensemble member.
         kfold_path (str): Path to target k-fold model for a specific member
             of the prediction ensemble.
-        kfold_int (int): K-fold ID.
-        epoch (int): Epoch.
         level (str): Prediction level, either 'slide', 'patient', or 'tile'.
-
+    
+    Keyword Args:
+        kfold_int (int, optional): K-fold ID. Defaults to None
+        epoch (int, optional): Epoch. Defaults to None
+        
     Returns:
         DataFrame of ensemble predictions.
+
     """
     # Find and load the ensemble predictions.
-    pred_file = find_matching_file(
-        ensemble_path,
-        f"ensemble_{level}_predictions_kfold{kfold_int}_epoch{epoch}",
-        allow_missing=True)
+    if kfold_int is None or epoch is None:
+        pred_file = find_matching_file(
+            ensemble_path, 
+            f"ensemble_{level}_predictions",
+            allow_missing=True
+        )
+    else:
+        pred_file = find_matching_file(
+            ensemble_path,
+            f"ensemble_{level}_predictions_kfold{kfold_int}_epoch{epoch}",
+            allow_missing=True)
 
     # If the dataframe has not yet been created, create it.
     if not pred_file:
-        return create_ensemble_dataframe(
-            ensemble_path=ensemble_path,
-            member_id=member_id,
-            kfold_path=kfold_path,
-            kfold_int=kfold_int,
-            epoch=epoch,
-            level=level
-        )
-    save_format = detect_predictions_format(pred_file)
-    df = sf.util.load_predictions(pred_file)
+        if kfold_int is None or epoch is None:
+            return create_ensemble_dataframe(
+                ensemble_path=ensemble_path,
+                member_id=member_id,
+                kfold_path=kfold_path,
+                level=level
+            )
+        else:
+            return create_ensemble_dataframe(
+                ensemble_path=ensemble_path,
+                member_id=member_id,
+                kfold_path=kfold_path,
+                kfold_int=kfold_int,
+                epoch=epoch,
+                level=level
+            )
 
     # Find and load the member predictions.
-    member_file = find_predictions(kfold_path, level=level, epoch=epoch)  # slide_file_name
+    if kfold_int is None or epoch is None:
+        member_file = find_matching_file(
+            kfold_path,
+            f"{level}_predictions"
+        )
+    else:
+        member_file = find_predictions(kfold_path, level=level, epoch=epoch)  # slide_file_name
+    
     member_df = sf.util.load_predictions(member_file)
+    save_format = detect_predictions_format(pred_file)
+    df = sf.util.load_predictions(pred_file)
 
     # Drop empty column ??
     if 'Unnamed: 0' in member_df.columns:
@@ -403,51 +443,64 @@ def add_to_ensemble_dataframe(
         right_on=right_headers
     )
     df.drop(columns=right_headers, inplace=True)
-    if level == 'tile':
+
+    if "patient" in df.columns:
         df.drop(columns=[f'patient_ens{member_id+1}'], inplace=True)
 
     # Save dataframe.
-    out_path = join(
-        ensemble_path,
-        f'ensemble_{level}_predictions_kfold{kfold_int}_epoch{epoch}'
-    )
+    if kfold_int is None or epoch is None:
+        out_path = join(
+            ensemble_path,
+            f'ensemble_{level}_predictions'
+        )
+    else:
+        out_path = join(
+            ensemble_path,
+            f'ensemble_{level}_predictions_kfold{kfold_int}_epoch{epoch}'
+        )
     save_dataframe(df, out_path, format=save_format)
     return df
 
 
 def update_ensemble_dataframe_headers(
     ensemble_path: str,
-    kfold_int: int,
-    epoch: int,
     level: str,
+    kfold_int: Optional[int] = None,
+    epoch: Optional[int] = None
 ) -> pd.DataFrame:
     """Updates headers in the specified ensemble dataframe.
 
     Args:
-        ensemble_path (str): Path to root ensemble directory.
-        kfold_int (int): K-fold ID.
-        epoch (int): Epoch.
-        level (str): Prediction level, either 'slide', 'patient', or 'tile'.
-
+        ensemble_path (str): Path to root ensemble directory.  
+        level (str, optional): Prediction level, either 'slide', 'patient', 
+            or'tile'.
+        
+    Keyword Args:
+        epoch (int, optional): Epoch. Defaults to None
+        kfold_int (int, optional): K-fold ID. Defaults to None
+        
     Returns:
         DataFrame of ensemble predictions, with renamed headers.
 
     """
     # Find and load the ensemble predictions.
-    pred_file = find_matching_file(
-        ensemble_path,
-        f"ensemble_{level}_predictions_kfold{kfold_int}_epoch{epoch}"
-    )
+    if kfold_int is None or epoch is None:
+        pred_file = find_matching_file(
+            ensemble_path, 
+            f"ensemble_{level}_predictions"
+        )
+    else:
+        pred_file = find_matching_file(
+            ensemble_path,
+            f"ensemble_{level}_predictions_kfold{kfold_int}_epoch{epoch}"
+        )
     save_format = detect_predictions_format(pred_file)
     df = sf.util.load_predictions(pred_file)
 
     # Rename main tile/patient/slide headers.
-    if level == 'tile':
-        headers_to_rename = ["slide", "loc_x", "loc_y", "patient"]
-    else:
-        headers_to_rename = [level]
-    for to_rename in headers_to_rename:
-        df.rename(columns={f"{to_rename}_ens1": to_rename}, inplace=True)
+    for colname in ["slide", "loc_x", "loc_y", "patient"]:
+        if f"{colname}_ens1" in df.columns:
+            df.rename(columns={f"{colname}_ens1": colname}, inplace=True)
 
     # Update the remaining headers, including an ensemble average.
     ensemble_headers = df.columns.tolist()
@@ -457,15 +510,21 @@ def update_ensemble_dataframe_headers(
         df[header] = df.loc[:, matching_ensemble_headers].mean(axis=1)
 
     # Move the patient column to the beginning.
-    if level == 'tile':
+    if "patient" in df.columns:
         patient_col = df.pop("patient")
         df.insert(0, "patient", patient_col)
 
     # Save dataframe.
-    out_path = join(
-        ensemble_path,
-        f'ensemble_{level}_predictions_kfold{kfold_int}_epoch{epoch}'
-    )
+    if kfold_int is None or epoch is None:
+        out_path = join(
+            ensemble_path,
+            f'ensemble_{level}_predictions'
+        )
+    else:
+        out_path = join(
+            ensemble_path,
+            f'ensemble_{level}_predictions_kfold{kfold_int}_epoch{epoch}'
+        )
     save_dataframe(df, out_path, format=save_format)
     return df
 
@@ -494,6 +553,7 @@ def find_predictions(
         OSError: If a valid file is not found, and ``allow_missing=False``.
 
         ValueError: If multiple files are found.
+
     """
     assert level in ('patient', 'slide', 'tile')
     return find_matching_file(
@@ -514,6 +574,7 @@ def save_dataframe(df: pd.DataFrame, filename: str, format: str):
 
     Returns:
         None
+
     """
     if format == "csv":
         df.to_csv(f"{filename}.csv", index=False)
@@ -548,6 +609,25 @@ def detect_predictions_format(path: str):
         return sf.util.path_to_ext(path)
 
 
+def predict_file_type(path: str) -> str:
+    """ To return the format of a given predictions dataframe.
+
+    Args:
+        path (str): Path to predictions file.
+
+    Returns:
+        str: format of predictions file (e.g. 'csv', 'parquet', 'feather')
+    """
+    filenames = [x for x in os.listdir(path)
+        if "predictions" in x]
+    if len(filenames) == 0:
+        raise FileNotFoundError
+    else:
+        filename = filenames[0]
+
+    return detect_predictions_format(filename)
+
+
 def find_matching_file(path: str, filename: str, allow_missing: bool = False):
     """Find a file at the given directory which startswith the given filename.
 
@@ -578,6 +658,64 @@ def find_matching_file(path: str, filename: str, allow_missing: bool = False):
             f'Multiple files matching "{filename}" found at {path}'
         )
     return results[0]
+
+
+def get_matching_directory(curr_path: str, label: str) -> str:
+    """Finding the path to the directory that has the term 'lable' in 
+        its name and is present in curr_path
+
+    Args:
+        curr_path (str): The path to the directory to seach in.
+        lable (str): The string that should be present in the returned 
+            directory path
+        
+    Returns:
+        str: Path to matching file.
+            
+    """
+    list_of_dirs = _sorted_subdirectories(curr_path)
+    try:
+        curr_dir = [x for x in list_of_dirs
+            if f'{label}' in str(x).split("/")[-1]]
+        if len(curr_dir) > 1:
+            raise ValueError(
+                f'Multiple files matching "{label}" found at {curr_path}'
+            )
+        if len(curr_dir) == 0:
+            raise IndexError(f'Directory matching "{label}" does not exist')
+    except IndexError:
+        raise IndexError(f'Directory matching "{label}" does not exist')
+
+    return curr_dir[0]
+
+def get_first_nested_directory(path):
+    """To return the first element of a sorted list of paths to all the 
+    directories in 'path'
+
+    Args:
+        path (str): The path to the root directory
+    
+    Returns:
+        Path to a directory
+
+    """
+    return _sorted_subdirectories(path)[0]
+
+def _sorted_subdirectories(path):
+    """To return a sorted list of paths to all the directories in 'path'
+
+    Args:
+        path (str): The path to the root directory
+    
+    Returns:
+        List of paths
+
+    """
+    return sorted([
+        join(path, x) for x in os.listdir(path)
+        if isdir(join(path, x))
+    ])
+
 
 # -----------------------------------------------------------------------------
 

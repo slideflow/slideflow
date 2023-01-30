@@ -2395,78 +2395,54 @@ class Project:
             epoch_number (int, optional): The epoch number to be considered
                 to run the prediction. By default it sets to the first epoch
                 present in the selected k-fold folder.
-        """
+            All keyword arguments accepted by :meth:`slideflow.Project.predict`
 
-        innitial_eval_dir = self.eval_dir
-        file_type = ""
-        header_list_slide = []
-        header_list_tile = []
+        """
+        if not exists(model):
+            raise OSError(f"Path {model} not found")
+
+        _innitial_eval_dir = self.eval_dir
 
         config = sf.util.get_model_config(model)
-        outcomes = config['outcomes']
-        outcomes = f'{"-".join(outcomes)}'
+        outcomes = f"{'-'.join(config['outcomes'])}"
         model_name = f"eval-ensemble-{outcomes}"
         main_eval_dir = sf.util.get_new_model_dir(self.eval_dir, model_name)
         self.eval_dir = main_eval_dir
 
-        # List of ensemble directories
-        ensemble_dirs = sorted([
+        # Path to each ensemble member.
+        member_paths = sorted([
             join(model, x) for x in os.listdir(model)
             if isdir(join(model, x))
         ])
 
-        for j in range(len(ensemble_dirs)):
+        # for each ens poath
+        for member_id, member_path in enumerate(member_paths):
 
-            i = ensemble_dirs[j]
-
-            # List of k-fold directories
-            kfold_dirs = sorted([
-                join(i, x) for x in os.listdir(i)
-                if isdir(join(i, x))
-            ])
-
-            # If k-fold number not given
-            if kfold_number == None:
-                kfold_dir = kfold_dirs[0]
+            # Getting the path to the desired kfold directory
+            if not kfold_number:
+                kfold_dir_path = project_utils.get_first_nested_directory(member_path)
             else:
-                try:
-                    kfold_dir = [x for x in kfold_dirs
-                        if f'kfold{kfold_number}' in str(x)][0]
-                    if len(kfold_dir) == 0:
-                        sys.exit(f"kfold_number {kfold_number} doesn't exist")
-                except IndexError:
-                    sys.exit(f"kfold_number {kfold_number} doesn't exist")
-
-            # List of epoch directories
-            epoch_dirs = sorted([
-                join(kfold_dir, x) for x in os.listdir(kfold_dir)
-                if isdir(join(kfold_dir, x))
-            ])
-
-            # If epoch number not given
-            if epoch_number == None:
-                epoch_dir = epoch_dirs[0]
+                kfold_dir_path = project_utils.get_matching_directory(member_path, f'kfold{kfold_number}')
+            
+            # Getting the path to the desired epoch directory for prediction
+            if not epoch_number:
+                prediction_path = project_utils.get_first_nested_directory(kfold_dir_path)
             else:
-                try:
-                    epoch_dir = [x for x in epoch_dirs
-                        if f'epoch{epoch_number}' in str(x)]
-                    if len(epoch_dir) == 0:
-                        sys.exit(f"epoch_number {epoch_number} doesn't exist")
-                except IndexError:
-                    sys.exit(f"epoch_number {epoch_number} doesn't exist")
+                prediction_path = project_utils.get_matching_directory(kfold_dir_path, f'epoch{epoch_number}')
 
-            prediction_path = epoch_dir[0]
-
-            ens_folder_name = f"ensemble_{j+1}"
-            eval_dir = sf.util.get_new_model_dir(self.eval_dir, ens_folder_name)
+            eval_dir = sf.util.get_new_model_dir(
+                self.eval_dir,
+                f"ensemble_{member_id+1}"
+            )
             self.eval_dir = eval_dir
 
             self.predict(prediction_path, *args, **kwargs)
 
-            if j == 0:
+            if member_id == 0:
                 # Creating the root directory files
                 _, from_path = sf.util.get_valid_model_dir(eval_dir)
                 to_path = main_eval_dir
+                # kfold_path = f"{self.eval_dir}/{from_path[0]}"
 
                 shutil.copyfile(
                     f"{self.eval_dir}/{from_path[0]}/slide_manifest.csv",
@@ -2476,155 +2452,38 @@ class Project:
                     f"{self.eval_dir}/{from_path[0]}/params.json",
                     f"{to_path}/params.json"
                 )
-
-                # Checking the stored file format
-                filenames = os.listdir(f"{self.eval_dir}/{from_path[0]}")
-                count_csv = len([ filename for filename in filenames
-                    if filename.endswith(".csv") ])
-                count_parquet = len([ filename for filename in filenames
-                    if filename.endswith(".parquet.gzip") ])
-                count_feather = len([ filename for filename in filenames
-                    if filename.endswith(".feather") ])
-
-                if count_csv > 1:
-                    file_type = "csv"
-                if count_parquet > 0 and count_feather == 0:
-                    file_type = "parquet"
-                if count_feather > 0 and count_parquet == 0:
-                    file_type = "feather"
-
-                # For slide_predicitons
-                main_df_slide = convert_file_to_df(
-                    f"{self.eval_dir}/{from_path[0]}/slide_predictions",
-                    file_type
-                )
-                main_df_tile = convert_file_to_df(
-                    f"{self.eval_dir}/{from_path[0]}/tile_predictions",
-                    file_type
-                )
-
-                if file_type == "csv":
-                    main_df_slide = main_df_slide.drop(columns=['Unnamed: 0'])
-                    main_df_tile = main_df_tile.drop(columns=['Unnamed: 0'])
-
-                main_df_slide = main_df_slide.sort_values(by=["slide"])
-                header_list_slide = main_df_slide.columns.tolist()
-                new_ens_headers_slide = [s + f"_ens{j+1}" for s in header_list_slide]
-                header_change_dict_slide = dict(zip(header_list_slide, new_ens_headers_slide))
-                main_df_slide.rename(columns=header_change_dict_slide,inplace=True)
-
-                main_df_tile = main_df_tile.sort_values(by=["slide","loc_x", "loc_y"])
-                header_list_tile = main_df_tile.columns.tolist()
-                new_ens_headers_tile = [s + f"_ens{j+1}" for s in header_list_tile]
-                header_change_dict_tile = dict(zip(header_list_tile, new_ens_headers_tile))
-                main_df_tile.rename(columns=header_change_dict_tile,inplace=True)
-
-                convert_df_to_file(
-                    main_df_slide,
-                    f"{main_eval_dir}/ensemble_slide_predictions",
-                    file_type,
-                    first_iter = True
-                )
-                convert_df_to_file(
-                    main_df_tile,
-                    f"{main_eval_dir}/ensemble_tile_predictions",
-                    file_type,
-                    first_iter = True
-                )
-
+                
+                # Create (or add to) the ensemble dataframe.
+                for level in ('slide', 'tile'):
+                    project_utils.add_to_ensemble_dataframe(
+                        ensemble_path = to_path,
+                        kfold_path = f"{self.eval_dir}/{from_path[0]}",
+                        # file_name = f"{level}_predictions",
+                        # save_format = file_type,
+                        level = level,
+                        member_id = member_id
+                    )   
             else:
-                # Merging each ensemble into the root prediction file
-                main_df_slide = convert_file_to_df(
-                    f"{main_eval_dir}/ensemble_slide_predictions",
-                    file_type
-                )
-                to_merge_csv_slide = convert_file_to_df(
-                    f"{self.eval_dir}/{from_path[0]}/slide_predictions",
-                    file_type
-                )
-                main_df_tile = convert_file_to_df(
-                    f"{main_eval_dir}/ensemble_tile_predictions",
-                    file_type
-                )
-                to_merge_csv_tile = convert_file_to_df(
-                    f"{self.eval_dir}/{from_path[0]}/tile_predictions",
-                    file_type
-                )
-
-                if file_type == "csv":
-                    to_merge_csv_slide = to_merge_csv_slide.drop(columns=['Unnamed: 0'])
-                    to_merge_csv_tile = to_merge_csv_tile.drop(columns=['Unnamed: 0'])
-
-                header_list_slide = to_merge_csv_slide.columns.tolist()
-                new_ens_headers_slide = [s + f"_ens{j+1}" for s in header_list_slide]
-                header_change_dict_slide = dict(zip(header_list_slide, new_ens_headers_slide))
-                to_merge_csv_slide.rename(columns=header_change_dict_slide,inplace=True)
-                main_df_slide = pd.merge(main_df_slide, to_merge_csv_slide,
-                    how="inner", left_on=["slide_ens1"], right_on=[f"slide_ens{j+1}"])
-                main_df_slide = main_df_slide.drop(columns=[f"slide_ens{j+1}"])
-
-                header_list_tile = to_merge_csv_tile.columns.tolist()
-                new_ens_headers_tile = [s + f"_ens{j+1}" for s in header_list_tile]
-                header_change_dict_tile = dict(zip(header_list_tile, new_ens_headers_tile))
-                to_merge_csv_tile.rename(columns=header_change_dict_tile,inplace=True)
-                main_df_tile = pd.merge(main_df_tile, to_merge_csv_tile,
-                    how="inner", left_on=["slide_ens1","loc_x_ens1", "loc_y_ens1"],
-                    right_on=[f"slide_ens{j+1}", f"loc_x_ens{j+1}", f"loc_y_ens{j+1}"])
-                main_df_tile = main_df_tile.drop(columns=[f"slide_ens{j+1}", f"loc_x_ens{j+1}", f"loc_y_ens{j+1}"])
-
-                convert_df_to_file(
-                    main_df_slide,
-                    f"{main_eval_dir}/ensemble_slide_predictions",
-                    file_type
-                )
-                convert_df_to_file(
-                    main_df_tile,
-                    f"{main_eval_dir}/ensemble_tile_predictions",
-                    file_type
-                )
+                for level in ('slide', 'tile'):
+                    project_utils.add_to_ensemble_dataframe(
+                        ensemble_path = to_path,
+                        kfold_path = f"{self.eval_dir}/{from_path[0]}",
+                        # file_name = f"{level}_predictions",
+                        # save_format = file_type,
+                        level = level,
+                        member_id = member_id
+                    )
 
             self.eval_dir = main_eval_dir
 
         # Creating new ensemble columns and renamiming fixed columns
-        main_df_slide = convert_file_to_df(
-            f"{main_eval_dir}/ensemble_slide_predictions",
-            file_type
-        )
-        main_df_tile = convert_file_to_df(
-            f"{main_eval_dir}/ensemble_tile_predictions",
-            file_type
-        )
-
-        slide_level_headers = main_df_slide.columns.tolist()
-        for i in header_list_slide:
-            if i == "slide":
-                main_df_slide = main_df_slide.rename(columns={"slide_ens1": i})
-            else:
-                group_columns = [col_name for col_name in slide_level_headers
-                    if i in col_name]
-                main_df_slide[i] = main_df_slide.loc[:, group_columns].mean(axis = 1)
-
-        tile_level_headers = main_df_tile.columns.tolist()
-        for i in header_list_tile:
-            if i in ["slide", "loc_x", "loc_y"]:
-                main_df_tile = main_df_tile.rename(columns={f"{i}_ens1": i})
-            else:
-                group_columns = [col_name for col_name in tile_level_headers
-                    if i in col_name]
-                main_df_tile[i] = main_df_tile.loc[:, group_columns].mean(axis = 1)
-
-        convert_df_to_file(
-            main_df_slide,
-            f"{main_eval_dir}/ensemble_slide_predictions",
-            file_type
-        )
-        convert_df_to_file(
-            main_df_tile,
-            f"{main_eval_dir}/ensemble_tile_predictions",
-            file_type
-        )
-
-        self.eval_dir = innitial_eval_dir
+        for level in ('tile', 'slide'):
+            project_utils.update_ensemble_dataframe_headers(
+                ensemble_path=main_eval_dir,
+                level=level,
+            )
+    # ---------------------------------------------------------------
+        self.eval_dir = _innitial_eval_dir
 
 
     @auto_dataset
@@ -3067,6 +2926,7 @@ class Project:
                         level=level
                     )
 
+
     def train_ensemble(
         self,
         outcomes: Union[str, List[str]],
@@ -3125,6 +2985,7 @@ class Project:
         self.ensemble_train_predictions(ensemble_path)
         self.models_dir = _initial_models_dir
         return ensemble_results
+
 
     def train(
         self,
