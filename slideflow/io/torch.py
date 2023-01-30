@@ -18,7 +18,7 @@ from slideflow.io import convert_dtype
 from slideflow.io.io_utils import detect_tfrecord_format
 from slideflow.tfrecord.torch.dataset import MultiTFRecordDataset
 from slideflow.tfrecord.iterator_utils import RandomSampler
-from slideflow.util import Labels, log, to_onehot
+from slideflow.util import Labels, log, to_onehot, tfrecord2idx
 from rich.progress import Progress
 
 import torch
@@ -900,16 +900,12 @@ def interleave(
 
             def load_index(tfr):
                 tfr = tfr.decode('utf-8')
-                index_name = join(dirname(tfr),
-                                  sf.util.path_to_name(tfr)+'.index')
-                if not exists(index_name):
+                try:
+                    index = tfrecord2idx.load_index(tfr)
+                except OSError:
                     raise errors.TFRecordsError(
                         f"Could not find index path for TFRecord {tfr}"
                     )
-                if os.stat(index_name).st_size == 0:
-                    index = None
-                else:
-                    index = np.loadtxt(index_name, dtype=np.int64)
                 return index
 
             if pool is None:

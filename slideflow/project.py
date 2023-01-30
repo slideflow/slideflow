@@ -2080,7 +2080,8 @@ class Project:
             expanded (bool): Controls tile assignment on grid spaces.
                 If False, tile assignment is strict.
                 If True, allows displaying nearby tiles if a grid is empty.
-                Defaults to False.
+                Defaults to False. Warning: this argument is deprecated as
+                of version 1.5, and will be removed in a future version.
             leniency (float): UMAP leniency. Defaults to 1.5.
 
         Returns:
@@ -2260,7 +2261,8 @@ class Project:
             expanded (bool): Controls tile assignment on grid spaces.
                 If False, tile assignment is strict.
                 If True, allows displaying nearby tiles if a grid is empty.
-                Defaults to False.
+                Defaults to False. Warning: this argument is deprecated as
+                of version 1.5, and will be removed in a future version.
             leniency (float): UMAP leniency. Defaults to 1.5.
         """
 

@@ -39,7 +39,7 @@ class SlideMap:
 
         Args:
             slides (list(str)): List of slide names
-            cache (str, optional): Path to PKL file to cache activations.
+            cache (str, optional): Path to parquet file to cache activations.
                 Defaults to None (caching disabled).
         """
         if slides is None and cache is None:
@@ -88,7 +88,7 @@ class SlideMap:
                 in the DataFrame provided to the argument 'data'.
             data (DataFrame, optional): Optional DataFrame which can be used
                 to supply the 'x', 'y', 'slides', and 'tfr_index' data.
-            cache (str, optional): Path to PKL file to cache coordinates.
+            cache (str, optional): Path to parquet file to cache coordinates.
                 Defaults to None (caching disabled).
         """
         # Read and verify provided input
@@ -147,7 +147,7 @@ class SlideMap:
                 presence of cache.
             map_slide (str, optional): Either None, 'centroid', or 'average'.
                 If None, will map all tiles from each slide. Defaults to None.
-            cache (str, optional): Path to PKL file to cache coordinates.
+            cache (str, optional): Path to parquet file to cache coordinates.
                 Defaults to None (caching disabled).
             umap_dim (int, optional): Number of dimensions for UMAP. Defaults
                 to 2.
@@ -820,7 +820,7 @@ class SlideMap:
         log.info(f"Saved 3D UMAP to [green]{filename}")
 
     def save_cache(self, path: Optional[str] = None) -> None:
-        """Save cache of coordinates to PKL file.
+        """Save cache of coordinates to parquet file.
 
         Args:
             path (str, optional): Save cache to this location. If None,
@@ -833,7 +833,7 @@ class SlideMap:
             log.info(f"Wrote slide map cache to [green]{path}")
 
     def save_umap(self, path: str) -> None:
-        """Save cache of UMAP to PKL file.
+        """Save cache of UMAP to parquet file.
 
         Args:
             path (str, optional): Save cache to this location. If None,
@@ -872,7 +872,7 @@ class SlideMap:
                 log.info(f"Loaded UMAP cache from [green]{path}")
 
     def load_cache(self, path: Optional[str] = None) -> bool:
-        """Load coordinates from PKL cache.
+        """Load coordinates from parquet cache.
 
         Args:
             path (str, optional): Load cache from this location. If None,

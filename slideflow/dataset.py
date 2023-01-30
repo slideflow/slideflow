@@ -913,16 +913,17 @@ class Dataset:
             None
 
         """
-        def create_index(filename):
+        def create_index(tfrecord):
             nonlocal force
             index_name = join(
-                dirname(filename),
-                path_to_name(filename)+'.index'
+                dirname(tfrecord),
+                path_to_name(tfrecord)+'.index'
             )
-            if not exists(index_name) or force:
-                tfrecord2idx.create_index(filename, index_name)
+            if not tfrecord2idx.find_index(tfrecord) or force:
+                tfrecord2idx.create_index(tfrecord, index_name)
+
         pool = DPool(16)
-        for _ in track(pool.imap(create_index, self.tfrecords()),
+        for _ in track(pool.imap_unordered(create_index, self.tfrecords()),
                       description='Creating index files...',
                       total=len(self.tfrecords()),
                       transient=True):
@@ -1941,14 +1942,8 @@ class Dataset:
         indices = {}
 
         def load_index(tfr):
-            index_name = join(dirname(tfr), path_to_name(tfr)+'.index')
             tfr_name = path_to_name(tfr)
-            if not exists(index_name):
-                raise OSError(f"Could not find index path for TFRecord {tfr}")
-            if os.stat(index_name).st_size == 0:
-                index = None
-            else:
-                index = np.loadtxt(index_name, dtype=np.int64)
+            index = tfrecord2idx.load_index(tfr)
             return tfr_name, index
 
         log.debug("Loading indices...")
