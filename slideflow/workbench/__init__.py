@@ -1462,9 +1462,11 @@ class AsyncRenderer:
                 self._renderer_obj = renderer.Renderer(device=self.device)
                 for _renderer in self._addl_render:
                     self._renderer_obj.add_renderer(_renderer)
-            self._model, self._saliency, self._umap_encoders = _load_model_and_saliency(self._model_path, device=self.device)
+            self._model, self._saliency, _umap_encoders = _load_model_and_saliency(self._model_path, device=self.device)
             self._renderer_obj._model = self._model
             self._renderer_obj._saliency = self._saliency
+            if _umap_encoders is not None:
+                self._umap_encoders = _umap_encoders
             self._renderer_obj._umap_encoders = self._umap_encoders
 
     def clear_model(self):

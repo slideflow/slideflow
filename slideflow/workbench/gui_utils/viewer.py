@@ -45,7 +45,7 @@ class Viewer:
         self.height             = height
         self.bilinear           = bilinear
         self.mipmap             = mipmap
-        self.view_zoom          = 1,
+        self.view_zoom          = 1
         self.viz                = viz
 
         # Window offset for the display
@@ -68,7 +68,7 @@ class Viewer:
 
     @property
     def view_offset(self) -> Tuple[int, int]:
-        """Offset for the displayed thumbnail in the viewer."""
+        """Offset for the image being displayed in the viewer."""
         if self.view is not None:
             return ((self.width - self.view.shape[1]) / 2,
                     (self.height - self.view.shape[0]) / 2)

@@ -30,7 +30,7 @@ class SlideViewer(Viewer):
         self._tile_um       = wsi.tile_um
         self._max_w         = None  # Used for late rendering
         self._max_h         = None  # Used for late rendering
-        self.show_scale = True
+        self.show_scale     = True
 
         # Create initial display
         wsi_ratio = self.dimensions[0] / self.dimensions[1]
