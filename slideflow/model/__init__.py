@@ -379,8 +379,13 @@ class DatasetFeatures:
             )
         elif is_simclr:
             import tensorflow as tf
-            from slideflow.simclr import SimCLR
-            combined_model = SimCLR(2)
+            from slideflow.simclr import SimCLR, get_args
+
+            simCLR_args = get_args() # FIXME:M
+            # these need them to come from a file that saves the model's parameters
+            # same for build_distributed_dataset ~L438
+            combined_model = SimCLR(2, simCLR_args)
+            
             combined_model.num_features = 128
             combined_model.num_logits = 2
             checkpoint = tf.train.Checkpoint(
@@ -431,7 +436,7 @@ class DatasetFeatures:
                 )
             )
             dataloader = build_distributed_dataset(
-                builder, batch_size, False, strategy, None
+                builder, batch_size, False, strategy, None, simCLR_args
             )
         elif sf.model.is_tensorflow_model(model):
             dataloader = self.dataset.tensorflow(

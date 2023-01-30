@@ -3151,10 +3151,10 @@ class Project:
     def train_simclr(
         self,
         exp_name: str,
-        outcomes: Union[str, List[str]], # FIXME: can we actually have a list of outcomes in simCLR?
+        outcomes: Union[str, List[str]], # FIXME:M can we actually have a list of outcomes in simCLR?
         dataset: Dataset,
         val_fraction: float = 0.2,
-        splits: str = 'simclr_splits.json', # FIXME: do we want same splits.json ? 
+        splits: str = 'simclr_splits.json',
         simclr_args: Optional[SimpleNamespace] = None,
         **kwargs
     ) -> None:
@@ -3169,23 +3169,24 @@ class Project:
             val_fraction (float): 
             splits (str): splits file name, if exists the splits defined are 
                 used otherwise it is created
-            # TODO:
-            
-        
-        Keyword Args: SimCLR flags # TODO:
-            FIXME: how do we want to pass SimCLR parameters?  # TODO:
+            simCLR_args (optional): Namespace with SimCLR arguments, as provided
+                by :func:`slideflow.simclr.get_args`.
+
+        Keyword Args:
+            All other keyword arguments for :meth:`slideflow.simclr.run_simclr()`
+
+        Returns:
+            None
 
         Examples
-            Train with a couple of SimCLR flags specified
+            Train SimCLR with train_batch_size=256 and no TPU
 
+                >>> import slideflow.simclr as simclr
                 >>> P = sf.Project.from_prompt('/project/path')
+                >>> simclr_args = simclr.get_args(train_batch_size=256)
                 >>> dataset = P.dataset(tile_px=299, tile_um=302)
                 >>> P.train_simclr('name', 'outcomes', dataset, 
-                ...     train_epochs=1,
-                ...     use_tpu=False
-                ... )
-
-            # TODO: take a look at clam
+                ...     simclr_args=simclr_args, use_tpu=False)
         """
 
         import slideflow.simclr as simclr
@@ -3226,10 +3227,9 @@ class Project:
             num_classes=len(unique_labels)
         )
 
-        print('this version2')
         simclr.run_simclr(
-            builder, 
-            simclr_args=simclr_args,
+            simclr_args,
+            builder=builder,
             model_dir=model_dir,
             **kwargs
         )
