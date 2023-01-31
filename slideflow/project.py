@@ -6,7 +6,6 @@ import json
 import multiprocessing
 import numpy as np
 import os
-import sys
 import re
 import pickle
 import pandas as pd
@@ -18,11 +17,12 @@ from typing import (TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple,
                     Union)
 
 import slideflow as sf
-from slideflow import errors, project_utils
-from slideflow.dataset import Dataset
-from slideflow.model import ModelParams
-from slideflow.project_utils import auto_dataset, get_validation_settings
-from slideflow.util import log, path_to_name
+from . import errors, project_utils
+from .util import log, path_to_name
+from .dataset import Dataset
+from .model import ModelParams
+from .project_utils import (auto_dataset, get_validation_settings,
+                            get_first_nested_directory, get_matching_directory)
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -525,7 +525,6 @@ class Project:
         results_dict: Union[Dict, DictProxy],
         training_kwargs: Dict,
         balance_headers: Optional[Union[str, List[str]]],
-        ensemble: bool,
         **kwargs
     ) -> None:
         '''Trains a model(s) using the specified hyperparameters.
@@ -552,7 +551,6 @@ class Project:
             results_dict (dict): Multiprocessing-friendly dict for sending
                 results from isolated training processes
             training_kwargs (dict): Keyword arguments for Trainer.train().
-            ensemble (bool): To know if traing is running to save an ensemble of models.
         '''
 
         # --- Prepare dataset ---------------------------------------------
@@ -659,7 +657,7 @@ class Project:
         # --- Train on a specific K-fold --------------------------------------
         for k in valid_k:
             s_args.k = k
-            self._train_split(dataset, hp, val_settings, s_args, ensemble)
+            self._train_split(dataset, hp, val_settings, s_args)
 
         # --- Record results --------------------------------------------------
         if (not val_settings.source
@@ -684,7 +682,6 @@ class Project:
         hp: ModelParams,
         val_settings: SimpleNamespace,
         s_args: SimpleNamespace,
-        ensemble: bool
     ) -> None:
         '''Trains a model for a given training/validation split.
 
@@ -694,7 +691,6 @@ class Project:
             hp (:class:`slideflow.ModelParams`): Model parameters.
             val_settings (:class:`types.SimpleNamspace`): Validation settings.
             s_args (:class:`types.SimpleNamspace`): Training settings.
-            ensemble (bool): To know if traing is running to save an ensemble of models.
         '''
 
         # Log current model name and k-fold iteration, if applicable
@@ -2374,13 +2370,11 @@ class Project:
         else:
             raise errors.ProjectError('Unable to find settings.json.')
 
-
     def predict_ensemble(
         self,
         model: str,
-        kfold_number: Optional[int] = None,
-        epoch_number: Optional[int] = None,
-        *args,
+        k: Optional[int] = None,
+        epoch: Optional[int] = None,
         **kwargs
     ) -> None:
         """Evaluates a saved ensemble model on a given set of tfrecords.
@@ -2389,20 +2383,18 @@ class Project:
             model (str): Path to ensemble model to evaluate.
 
         Keyword Args:
-            kfold_number (int, optional): The k-fold number to be considered
+            k (int, optional): The k-fold number to be considered
                 to run the prediction. By default it sets to the first k-fold
                 present in the ensemble folder.
-            epoch_number (int, optional): The epoch number to be considered
+            epoch (int, optional): The epoch number to be considered
                 to run the prediction. By default it sets to the first epoch
                 present in the selected k-fold folder.
             All keyword arguments accepted by :meth:`slideflow.Project.predict`
-
         """
         if not exists(model):
             raise OSError(f"Path {model} not found")
 
-        _innitial_eval_dir = self.eval_dir
-
+        _initial_eval_dir = self.eval_dir
         config = sf.util.get_model_config(model)
         outcomes = f"{'-'.join(config['outcomes'])}"
         model_name = f"eval-ensemble-{outcomes}"
@@ -2415,76 +2407,51 @@ class Project:
             if isdir(join(model, x))
         ])
 
-        # for each ens poath
+        # Generate predictions from each ensemble member,
+        # and merge predictions into a single dataframe.
         for member_id, member_path in enumerate(member_paths):
-
-            # Getting the path to the desired kfold directory
-            if not kfold_number:
-                kfold_dir_path = project_utils.get_first_nested_directory(member_path)
+            if not k:
+                _k_path = get_first_nested_directory(member_path)
+                prediction_path = get_first_nested_directory(_k_path)
             else:
-                kfold_dir_path = project_utils.get_matching_directory(member_path, f'kfold{kfold_number}')
-            
-            # Getting the path to the desired epoch directory for prediction
-            if not epoch_number:
-                prediction_path = project_utils.get_first_nested_directory(kfold_dir_path)
-            else:
-                prediction_path = project_utils.get_matching_directory(kfold_dir_path, f'epoch{epoch_number}')
+                _k_path = get_matching_directory(member_path, f'kfold{k}')
+                prediction_path = get_matching_directory(_k_path, f'epoch{epoch}')
 
-            eval_dir = sf.util.get_new_model_dir(
+            # Update the current evaluation directory.
+            self.eval_dir = sf.util.get_new_model_dir(
                 self.eval_dir,
                 f"ensemble_{member_id+1}"
             )
-            self.eval_dir = eval_dir
+            self.predict(prediction_path, **kwargs)
 
-            self.predict(prediction_path, *args, **kwargs)
-
+            # If this is the first ensemble member, copy the slide manifest
+            # and params.json file into the ensemble prediction folder.
             if member_id == 0:
-                # Creating the root directory files
-                _, from_path = sf.util.get_valid_model_dir(eval_dir)
-                to_path = main_eval_dir
-                # kfold_path = f"{self.eval_dir}/{from_path[0]}"
-
+                _, from_path = sf.util.get_valid_model_dir(self.eval_dir)
                 shutil.copyfile(
                     f"{self.eval_dir}/{from_path[0]}/slide_manifest.csv",
-                    f"{to_path}/slide_manifest.csv"
+                    f"{main_eval_dir}/slide_manifest.csv"
                 )
                 shutil.copyfile(
                     f"{self.eval_dir}/{from_path[0]}/params.json",
-                    f"{to_path}/params.json"
+                    f"{main_eval_dir}/params.json"
                 )
-                
-                # Create (or add to) the ensemble dataframe.
-                for level in ('slide', 'tile'):
-                    project_utils.add_to_ensemble_dataframe(
-                        ensemble_path = to_path,
-                        kfold_path = f"{self.eval_dir}/{from_path[0]}",
-                        # file_name = f"{level}_predictions",
-                        # save_format = file_type,
-                        level = level,
-                        member_id = member_id
-                    )   
-            else:
-                for level in ('slide', 'tile'):
-                    project_utils.add_to_ensemble_dataframe(
-                        ensemble_path = to_path,
-                        kfold_path = f"{self.eval_dir}/{from_path[0]}",
-                        # file_name = f"{level}_predictions",
-                        # save_format = file_type,
-                        level = level,
-                        member_id = member_id
-                    )
+            # Create (or add to) the ensemble dataframe.
+            for level in ('slide', 'tile'):
+                project_utils.add_to_ensemble_dataframe(
+                    ensemble_path = main_eval_dir,
+                    kfold_path = f"{self.eval_dir}/{from_path[0]}",
+                    level = level,
+                    member_id = member_id
+                )
 
-            self.eval_dir = main_eval_dir
-
-        # Creating new ensemble columns and renamiming fixed columns
+        # Create new ensemble columns and rename fixed columns.
         for level in ('tile', 'slide'):
             project_utils.update_ensemble_dataframe_headers(
                 ensemble_path=main_eval_dir,
                 level=level,
             )
-    # ---------------------------------------------------------------
-        self.eval_dir = _innitial_eval_dir
-
+        self.eval_dir = _initial_eval_dir
 
     @auto_dataset
     def predict(
@@ -2737,7 +2704,6 @@ class Project:
         """Saves current project configuration as "settings.json"."""
         sf.util.write_json(self._settings, join(self.root, 'settings.json'))
 
-
     def _get_smac_runner(
         self,
         outcomes: Union[str, List[str]],
@@ -2872,14 +2838,13 @@ class Project:
         print(best_config)
         return best_config
 
-
     def ensemble_train_predictions(self, ensemble_path: str) -> None:
-        """Ensemble the predictions for a model trained using train_ensemble().
+        """Merge predictions for a given ensemble of models.
 
         Args:
-            ensemble_path (str): Path to directory containing ensemble members.
+            ensemble_path (str): Path to directory containing ensemble members,
+                as generated by :meth:`slideflow.Project.train_ensemble()`.
         """
-
         if not exists(join(ensemble_path, 'params.json')):
             raise OSError("Could not find ensemble params.json.")
 
@@ -2925,7 +2890,6 @@ class Project:
                         epoch=epoch,
                         level=level
                     )
-
 
     def train_ensemble(
         self,
@@ -2986,7 +2950,6 @@ class Project:
         self.models_dir = _initial_models_dir
         return ensemble_results
 
-
     def train(
         self,
         outcomes: Union[str, List[str]],
@@ -3006,7 +2969,6 @@ class Project:
         allow_tf32: bool = False,
         load_method: str = 'full',
         balance_headers: Optional[Union[str, List[str]]] = None,
-        ensemble: bool = False,
         **training_kwargs: Any
     ) -> Dict:
         """Train model(s) using a given set of parameters, outcomes, and inputs.
@@ -3098,8 +3060,6 @@ class Project:
                 training monitoring. Defaults to False.
             validation_steps (int): Number of steps of validation to perform
                 each time doing a mid-epoch validation check. Defaults to 200.
-            ensemble (bool): To know if traing is called to save an ensemble
-                of models.
 
         Returns:
             Dict with model names mapped to train_acc, val_loss, and val_acc
@@ -3125,7 +3085,6 @@ class Project:
                 >>> P.train('outcome', params=hp, ...)
 
         """
-
         # Prepare outcomes
         if not isinstance(outcomes, list):
             outcomes = [outcomes]
@@ -3209,7 +3168,6 @@ class Project:
                 training_kwargs=training_kwargs,
                 results_dict=results_dict,
                 load_method=load_method,
-                ensemble = ensemble
             )
         # Print summary of all models
         log.info('Training complete; validation accuracies:')
@@ -3233,7 +3191,6 @@ class Project:
                     for m in final_val_metrics:
                         log.info(f'{m}: {final_val_metrics[m]}')
         return dict(results_dict)
-
 
     def train_clam(
         self,

@@ -2,14 +2,12 @@
 
 import logging
 import os
-import sys
 import pandas as pd
 from collections import defaultdict
 from functools import wraps
 from os.path import dirname, exists, join, realpath, isdir
 from types import SimpleNamespace
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
-import shutil
 
 import slideflow as sf
 from slideflow import errors
@@ -364,11 +362,11 @@ def add_to_ensemble_dataframe(
         kfold_path (str): Path to target k-fold model for a specific member
             of the prediction ensemble.
         level (str): Prediction level, either 'slide', 'patient', or 'tile'.
-    
+
     Keyword Args:
         kfold_int (int, optional): K-fold ID. Defaults to None
         epoch (int, optional): Epoch. Defaults to None
-        
+
     Returns:
         DataFrame of ensemble predictions.
 
@@ -376,7 +374,7 @@ def add_to_ensemble_dataframe(
     # Find and load the ensemble predictions.
     if kfold_int is None or epoch is None:
         pred_file = find_matching_file(
-            ensemble_path, 
+            ensemble_path,
             f"ensemble_{level}_predictions",
             allow_missing=True
         )
@@ -413,7 +411,7 @@ def add_to_ensemble_dataframe(
         )
     else:
         member_file = find_predictions(kfold_path, level=level, epoch=epoch)  # slide_file_name
-    
+
     member_df = sf.util.load_predictions(member_file)
     save_format = detect_predictions_format(pred_file)
     df = sf.util.load_predictions(pred_file)
@@ -471,14 +469,14 @@ def update_ensemble_dataframe_headers(
     """Updates headers in the specified ensemble dataframe.
 
     Args:
-        ensemble_path (str): Path to root ensemble directory.  
-        level (str, optional): Prediction level, either 'slide', 'patient', 
+        ensemble_path (str): Path to root ensemble directory.
+        level (str, optional): Prediction level, either 'slide', 'patient',
             or'tile'.
-        
+
     Keyword Args:
         epoch (int, optional): Epoch. Defaults to None
         kfold_int (int, optional): K-fold ID. Defaults to None
-        
+
     Returns:
         DataFrame of ensemble predictions, with renamed headers.
 
@@ -486,7 +484,7 @@ def update_ensemble_dataframe_headers(
     # Find and load the ensemble predictions.
     if kfold_int is None or epoch is None:
         pred_file = find_matching_file(
-            ensemble_path, 
+            ensemble_path,
             f"ensemble_{level}_predictions"
         )
     else:
@@ -661,17 +659,17 @@ def find_matching_file(path: str, filename: str, allow_missing: bool = False):
 
 
 def get_matching_directory(curr_path: str, label: str) -> str:
-    """Finding the path to the directory that has the term 'lable' in 
+    """Finding the path to the directory that has the term 'lable' in
         its name and is present in curr_path
 
     Args:
         curr_path (str): The path to the directory to seach in.
-        lable (str): The string that should be present in the returned 
+        lable (str): The string that should be present in the returned
             directory path
-        
+
     Returns:
         str: Path to matching file.
-            
+
     """
     list_of_dirs = _sorted_subdirectories(curr_path)
     try:
@@ -689,12 +687,12 @@ def get_matching_directory(curr_path: str, label: str) -> str:
     return curr_dir[0]
 
 def get_first_nested_directory(path):
-    """To return the first element of a sorted list of paths to all the 
+    """To return the first element of a sorted list of paths to all the
     directories in 'path'
 
     Args:
         path (str): The path to the root directory
-    
+
     Returns:
         Path to a directory
 
@@ -706,7 +704,7 @@ def _sorted_subdirectories(path):
 
     Args:
         path (str): The path to the root directory
-    
+
     Returns:
         List of paths
 
