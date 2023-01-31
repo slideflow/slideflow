@@ -911,7 +911,6 @@ class Dataset:
 
         Returns:
             None
-
         """
         def create_index(tfrecord):
             nonlocal force
@@ -2073,6 +2072,19 @@ class Dataset:
                 elif isinstance(ret._filter_blank, dict):
                     del ret._filter_blank[ret._filter_blank.index(f)]
         return ret
+
+    def rebuild_index(self) -> None:
+        """Rebuilds index files for TFRecords.
+
+        Equivalent to ``Dataset.build_index(force=True)``.
+
+        Args:
+            None
+
+        Returns:
+            None
+        """
+        self.build_index(force=True)
 
     def resize_tfrecords(self, tile_px: int) -> None:
         """Resizes images in a set of TFRecords to a given pixel size.

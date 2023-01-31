@@ -2077,11 +2077,7 @@ class Project:
             figsize (Tuple[int, int], optional): Figure size. Defaults to
                 (200, 200).
             num_tiles_x (int): Specifies the size of the mosaic map grid.
-            expanded (bool): Controls tile assignment on grid spaces.
-                If False, tile assignment is strict.
-                If True, allows displaying nearby tiles if a grid is empty.
-                Defaults to False. Warning: this argument is deprecated as
-                of version 1.5, and will be removed in a future version.
+            expanded (bool): Deprecated argument.
             leniency (float): UMAP leniency. Defaults to 1.5.
 
         Returns:
@@ -2258,11 +2254,7 @@ class Project:
             figsize (Tuple[int, int], optional): Figure size. Defaults to
                 (200, 200).
             num_tiles_x (int): Specifies the size of the mosaic map grid.
-            expanded (bool): Controls tile assignment on grid spaces.
-                If False, tile assignment is strict.
-                If True, allows displaying nearby tiles if a grid is empty.
-                Defaults to False. Warning: this argument is deprecated as
-                of version 1.5, and will be removed in a future version.
+            expanded (bool): Deprecated argument.
             leniency (float): UMAP leniency. Defaults to 1.5.
         """
 
@@ -2338,7 +2330,7 @@ class Project:
         mosaic = sf.Mosaic(
             umap,
             tfrecords=dataset.tfrecords(),
-            tile_select='centroid' if use_optimal_tile else 'nearest',
+            tile_select='centroid' if use_optimal_tile else 'first',
             **kwargs
         )
         return mosaic
