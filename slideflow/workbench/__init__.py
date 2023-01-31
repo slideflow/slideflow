@@ -704,6 +704,11 @@ class Workbench(imgui_window.ImguiWindow):
         if self._control_down and action == glfw.PRESS and key == glfw.KEY_BACKSLASH:
             self.reset_tile_zoom()
 
+        for widget in self.widgets:
+            if hasattr(widget, 'keyboard_callback'):
+                widget.keyboard_callback(key, action)
+
+
     def _handle_user_input(self):
         """Handle user input to support clicking/dragging the main viewer."""
 
