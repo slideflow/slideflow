@@ -125,7 +125,7 @@ def process_image(
     *args: Any,
     standardize: bool = False,
     augment: Union[bool, str] = False,
-    tile_px: Optional[int] = None
+    size: Optional[int] = None
 ) -> Tuple[Union[Dict, tf.Tensor], ...]:
     """Applies augmentations and/or standardization to an image Tensor."""
 
@@ -133,6 +133,8 @@ def process_image(
         image = record['tile_image']
     else:
         image = record
+    if size is not None:
+        image.set_shape([size, size, 3])
     if augment is True or (isinstance(augment, str) and 'j' in augment):
         # Augment with random compession
         image = tf.cond(tf.random.uniform(
@@ -190,8 +192,6 @@ def process_image(
         ...
     if standardize:
         image = tf.image.per_image_standardization(image)
-    if tile_px:
-        image.set_shape([tile_px, tile_px, 3])
 
     if isinstance(record, dict):
         to_return = {k: v for k, v in record.items() if k != 'tile_image'}
@@ -388,6 +388,7 @@ def interleave(
     tile_um: Optional[int] = None,
     rois: Optional[List[str]] = None,
     roi_method: str = 'auto',
+    pool: Optional["mp.pool.Pool"] = None,
     **decode_kwargs: Any
 ) -> Iterable:
 
@@ -486,7 +487,10 @@ def interleave(
                 return tuple([record[f] for f in features_to_return])
 
             # Load slides and apply Otsu's thresholding
-            pool = mp.Pool(16 if os.cpu_count is None else os.cpu_count())
+            if pool is None and sf.slide_backend() == 'cucim':
+                pool = mp.Pool(8 if os.cpu_count is None else os.cpu_count())
+            elif pool is None:
+                pool = mp.dummy.Pool(16 if os.cpu_count is None else os.cpu_count())
             wsi_list = []
             to_remove = []
             otsu_list = []
@@ -594,7 +598,7 @@ def interleave(
                 process_image,
                 standardize=standardize,
                 augment=augment,
-                tile_px=img_size
+                size=img_size
             ),
             num_parallel_calls=tf.data.AUTOTUNE,
             deterministic=deterministic

@@ -55,10 +55,10 @@ setuptools.setup(
     install_requires=[
         'gast>=0.3.3',
         'scipy',
-        'scikit-learn>=1.1',
+        'scikit-learn',
         'matplotlib>=3.2',
         'imageio',
-        'opencv-python',
+        'opencv-python-headless',
         'shapely',
         'umap-learn',
         'seaborn<0.12',
@@ -76,7 +76,7 @@ setuptools.setup(
         'numpy<1.22',
         'tabulate',
 		'rasterio',
-        'smac',
+        'smac==1.4.0',
         'ConfigSpace',
         'pyarrow',
         'ninja',
@@ -86,12 +86,14 @@ setuptools.setup(
         'pyopengl',
         'glfw',
         'saliency',
-        'pyperclip'
+        'pyperclip',
+        'requests',
+        'parameterized',
     ],
     extras_require={
         'tf': [
             'tensorflow>=2.7,<2.10',
-            'tensorflow_probability'
+            'tensorflow_probability<0.18'
         ],
         'torch': [
             'torch',
@@ -99,10 +101,12 @@ setuptools.setup(
             'pretrainedmodels'
         ],
         'dev': [
-            'parameterized',
             'sphinx',
             'sphinx-markdown-tables',
             'sphinxcontrib-video'
+        ],
+        'cucim': [
+            'cucim'
         ]
     },
 )

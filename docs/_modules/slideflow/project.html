@@ -6,24 +6,24 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-
+  
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>slideflow.project &mdash; slideflow 1.4.0 documentation</title>
+  
 
-  <title>slideflow.project &mdash; slideflow 1.3.0 documentation</title>
+  
+  
+  
+  
 
+  
 
+  
+  
+    
 
-
-
-
-
-
-
-
-
-
-
-
+  
 
   <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
   <!-- <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" /> -->
@@ -32,11 +32,11 @@
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
   <!-- Google Analytics -->
-
+  
   <!-- End Google Analytics -->
+  
 
-
-
+  
   <script src="../../_static/js/modernizr.min.js"></script>
 
   <!-- Preload the theme fonts -->
@@ -99,9 +99,9 @@
 
 <body class="pytorch-body">
 
+   
 
-
-
+    
 
     <div class="table-of-contents-link-wrapper">
       <span>Table of Contents</span>
@@ -112,21 +112,21 @@
       <div class="pytorch-side-scroll">
         <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           <div class="pytorch-left-menu-search">
+            
 
-
-
-
-
+            
+              
+              
                 <div class="version">
-                  1.3
+                  1.4
                 </div>
+              
+            
+
+            
 
 
-
-
-
-
-
+  
 
 
 <div role="search">
@@ -137,15 +137,15 @@
   </form>
 </div>
 
-
+            
           </div>
 
-
-
-
-
-
-
+          
+            
+            
+              
+            
+            
               <p class="caption" role="heading"><span class="caption-text">Overview</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
@@ -177,6 +177,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../mosaic.html">slideflow.mosaic</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../norm.html">slideflow.norm</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../slide.html">slideflow.slide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../slide_qc.html">slideflow.slide.qc</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../stats.html">slideflow.stats</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../util.html">slideflow.util</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../workbench.html">slideflow.workbench</a></li>
@@ -191,8 +192,8 @@
 <li class="toctree-l1"><a class="reference internal" href="../../tutorial6.html">Tutorial 6: Custom slide filtering</a></li>
 </ul>
 
-
-
+            
+          
         </div>
       </div>
     </nav>
@@ -200,7 +201,7 @@
     <div class="pytorch-container">
       <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
         <div class="pytorch-breadcrumbs-wrapper">
-
+          
 
 
 
@@ -219,28 +220,28 @@
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="pytorch-breadcrumbs">
-
+    
       <li>
         <a href="../../index.html">
-
+          
             Docs
-
+          
         </a> &gt;
       </li>
 
-
+        
           <li><a href="../index.html">Module code</a> &gt;</li>
-
+        
       <li>slideflow.project</li>
-
-
+    
+    
       <li class="pytorch-breadcrumbs-aside">
-
+        
       </li>
-
+    
   </ul>
 
-
+  
 </div>
         </div>
 
@@ -252,13 +253,13 @@
       <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
         <div class="pytorch-content-left">
 
-
-
+        
+          
           <div class="rst-content">
-
+          
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
-
+              
   <h1>Source code for slideflow.project</h1><div class="highlight"><pre>
 <span></span><span class="kn">import</span> <span class="nn">copy</span>
 <span class="kn">import</span> <span class="nn">csv</span>
@@ -267,9 +268,12 @@
 <span class="kn">import</span> <span class="nn">multiprocessing</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">shutil</span>
 <span class="kn">import</span> <span class="nn">pickle</span>
+<span class="kn">import</span> <span class="nn">tarfile</span>
+<span class="kn">from</span> <span class="nn">tqdm</span> <span class="kn">import</span> <span class="n">tqdm</span>
 <span class="kn">from</span> <span class="nn">multiprocessing.managers</span> <span class="kn">import</span> <span class="n">DictProxy</span>
-<span class="kn">from</span> <span class="nn">os.path</span> <span class="kn">import</span> <span class="n">basename</span><span class="p">,</span> <span class="n">exists</span><span class="p">,</span> <span class="n">join</span>
+<span class="kn">from</span> <span class="nn">os.path</span> <span class="kn">import</span> <span class="n">basename</span><span class="p">,</span> <span class="n">exists</span><span class="p">,</span> <span class="n">join</span><span class="p">,</span> <span class="n">dirname</span>
 <span class="kn">from</span> <span class="nn">statistics</span> <span class="kn">import</span> <span class="n">mean</span>
 <span class="kn">from</span> <span class="nn">types</span> <span class="kn">import</span> <span class="n">SimpleNamespace</span>
 <span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="p">(</span><span class="n">TYPE_CHECKING</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span>
@@ -280,7 +284,7 @@
 <span class="kn">from</span> <span class="nn">slideflow.dataset</span> <span class="kn">import</span> <span class="n">Dataset</span>
 <span class="kn">from</span> <span class="nn">slideflow.model</span> <span class="kn">import</span> <span class="n">ModelParams</span>
 <span class="kn">from</span> <span class="nn">slideflow.project_utils</span> <span class="kn">import</span> <span class="n">auto_dataset</span><span class="p">,</span> <span class="n">get_validation_settings</span>
-<span class="kn">from</span> <span class="nn">slideflow.util</span> <span class="kn">import</span> <span class="n">log</span><span class="p">,</span> <span class="n">path_to_name</span>
+<span class="kn">from</span> <span class="nn">slideflow.util</span> <span class="kn">import</span> <span class="n">log</span><span class="p">,</span> <span class="n">path_to_name</span><span class="p">,</span> <span class="n">path_to_ext</span>
 
 <span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
     <span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
@@ -342,9 +346,9 @@
 
         <span class="bp">self</span><span class="o">.</span><span class="n">root</span> <span class="o">=</span> <span class="n">root</span>
 
-        <span class="k">if</span> <span class="n">exists</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">root</span><span class="p">,</span> <span class="s1">&#39;settings.json&#39;</span><span class="p">))</span> <span class="ow">and</span> <span class="n">kwargs</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">is_project</span><span class="p">(</span><span class="n">root</span><span class="p">)</span> <span class="ow">and</span> <span class="n">kwargs</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">ProjectError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Project already exists at </span><span class="si">{</span><span class="n">root</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="k">elif</span> <span class="n">exists</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">root</span><span class="p">,</span> <span class="s1">&#39;settings.json&#39;</span><span class="p">)):</span>
+        <span class="k">elif</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">is_project</span><span class="p">(</span><span class="n">root</span><span class="p">):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">load_project</span><span class="p">(</span><span class="n">root</span><span class="p">)</span>
         <span class="k">elif</span> <span class="n">kwargs</span><span class="p">:</span>
             <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Creating project at </span><span class="si">{</span><span class="n">root</span><span class="si">}</span><span class="s2">...&quot;</span><span class="p">)</span>
@@ -377,7 +381,7 @@
 <span class="sd">            root (str): Path to project directory.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">exists</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">root</span><span class="p">,</span> <span class="s1">&#39;settings.json&#39;</span><span class="p">)):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">is_project</span><span class="p">(</span><span class="n">root</span><span class="p">):</span>
             <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Setting up new project at &quot;</span><span class="si">{</span><span class="n">root</span><span class="si">}</span><span class="s1">&quot;&#39;</span><span class="p">)</span>
             <span class="n">project_utils</span><span class="o">.</span><span class="n">interactive_project_setup</span><span class="p">(</span><span class="n">root</span><span class="p">)</span>
         <span class="n">obj</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">(</span><span class="n">root</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
@@ -783,6 +787,7 @@
         <span class="n">results_dict</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Dict</span><span class="p">,</span> <span class="n">DictProxy</span><span class="p">],</span>
         <span class="n">training_kwargs</span><span class="p">:</span> <span class="n">Dict</span><span class="p">,</span>
         <span class="n">balance_headers</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]],</span>
+        <span class="n">process_isolate</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
         <span class="o">**</span><span class="n">kwargs</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&#39;&#39;&#39;Trains a model(s) using the specified hyperparameters.</span>
@@ -909,6 +914,7 @@
             <span class="n">results_dict</span><span class="o">=</span><span class="n">results_dict</span><span class="p">,</span>
             <span class="n">bal_headers</span><span class="o">=</span><span class="n">balance_headers</span><span class="p">,</span>
             <span class="n">input_header</span><span class="o">=</span><span class="n">input_header</span><span class="p">,</span>
+            <span class="n">process_isolate</span><span class="o">=</span><span class="n">process_isolate</span><span class="p">,</span>
             <span class="o">**</span><span class="n">kwargs</span>
         <span class="p">)</span>
 
@@ -1112,15 +1118,24 @@
             <span class="s1">&#39;neptune_workspace&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">neptune_workspace</span><span class="p">,</span>
             <span class="s1">&#39;load_method&#39;</span><span class="p">:</span> <span class="n">s_args</span><span class="o">.</span><span class="n">load_method</span>
         <span class="p">}</span>
-        <span class="n">process</span> <span class="o">=</span> <span class="n">s_args</span><span class="o">.</span><span class="n">ctx</span><span class="o">.</span><span class="n">Process</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="n">project_utils</span><span class="o">.</span><span class="n">_train_worker</span><span class="p">,</span>
-                                     <span class="n">args</span><span class="o">=</span><span class="p">((</span><span class="n">train_dts</span><span class="p">,</span> <span class="n">val_dts</span><span class="p">),</span>
-                                           <span class="n">model_kwargs</span><span class="p">,</span>
-                                           <span class="n">s_args</span><span class="o">.</span><span class="n">training_kwargs</span><span class="p">,</span>
-                                           <span class="n">s_args</span><span class="o">.</span><span class="n">results_dict</span><span class="p">,</span>
-                                           <span class="bp">self</span><span class="o">.</span><span class="n">verbosity</span><span class="p">))</span>
-        <span class="n">process</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
-        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Spawning training process (PID: </span><span class="si">{</span><span class="n">process</span><span class="o">.</span><span class="n">pid</span><span class="si">}</span><span class="s1">)&#39;</span><span class="p">)</span>
-        <span class="n">process</span><span class="o">.</span><span class="n">join</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">s_args</span><span class="o">.</span><span class="n">process_isolate</span><span class="p">:</span>
+            <span class="n">process</span> <span class="o">=</span> <span class="n">s_args</span><span class="o">.</span><span class="n">ctx</span><span class="o">.</span><span class="n">Process</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="n">project_utils</span><span class="o">.</span><span class="n">_train_worker</span><span class="p">,</span>
+                                        <span class="n">args</span><span class="o">=</span><span class="p">((</span><span class="n">train_dts</span><span class="p">,</span> <span class="n">val_dts</span><span class="p">),</span>
+                                            <span class="n">model_kwargs</span><span class="p">,</span>
+                                            <span class="n">s_args</span><span class="o">.</span><span class="n">training_kwargs</span><span class="p">,</span>
+                                            <span class="n">s_args</span><span class="o">.</span><span class="n">results_dict</span><span class="p">,</span>
+                                            <span class="bp">self</span><span class="o">.</span><span class="n">verbosity</span><span class="p">))</span>
+            <span class="n">process</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Spawning training process (PID: </span><span class="si">{</span><span class="n">process</span><span class="o">.</span><span class="n">pid</span><span class="si">}</span><span class="s1">)&#39;</span><span class="p">)</span>
+            <span class="n">process</span><span class="o">.</span><span class="n">join</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">project_utils</span><span class="o">.</span><span class="n">_train_worker</span><span class="p">(</span>
+                <span class="p">(</span><span class="n">train_dts</span><span class="p">,</span> <span class="n">val_dts</span><span class="p">),</span>
+                <span class="n">model_kwargs</span><span class="p">,</span>
+                <span class="n">s_args</span><span class="o">.</span><span class="n">training_kwargs</span><span class="p">,</span>
+                <span class="n">s_args</span><span class="o">.</span><span class="n">results_dict</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">verbosity</span>
+            <span class="p">)</span>
 
 <div class="viewcode-block" id="Project.add_source"><a class="viewcode-back" href="../../project.html#slideflow.Project.add_source">[docs]</a>    <span class="k">def</span> <span class="nf">add_source</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
@@ -1604,7 +1619,7 @@
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">dataset</span><span class="p">:</span> <span class="n">Dataset</span><span class="p">,</span>
         <span class="o">*</span><span class="p">,</span>
-        <span class="n">model</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;stylegan2&#39;</span><span class="p">,</span>
+        <span class="n">model</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;stylegan3&#39;</span><span class="p">,</span>
         <span class="n">outcomes</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">exp_label</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">mirror</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
@@ -1962,8 +1977,8 @@
 
             <span class="k">if</span> <span class="n">sf</span><span class="o">.</span><span class="n">backend</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;torch&#39;</span><span class="p">:</span>
                 <span class="kn">import</span> <span class="nn">torch</span>
-                <span class="n">model</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">device</span><span class="p">(</span><span class="s1">&#39;cuda&#39;</span><span class="p">))</span>
-                <span class="n">model</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
+                <span class="n">model</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">device</span><span class="p">(</span><span class="s1">&#39;cuda&#39;</span><span class="p">))</span>  <span class="c1"># type: ignore</span>
+                <span class="n">model</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>  <span class="c1"># type: ignore</span>
         <span class="k">elif</span> <span class="ow">not</span> <span class="n">exists</span><span class="p">(</span><span class="n">model</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
                 <span class="sa">f</span><span class="s2">&quot;&#39;</span><span class="si">{</span><span class="n">model</span><span class="si">}</span><span class="s2">&#39; is neither a path to a saved model nor the name &quot;</span>
@@ -2016,7 +2031,7 @@
         <span class="n">outdir</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">resolution</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;low&#39;</span><span class="p">,</span>
         <span class="n">batch_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">32</span><span class="p">,</span>
-        <span class="n">roi_method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;inside&#39;</span><span class="p">,</span>
+        <span class="n">roi_method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;auto&#39;</span><span class="p">,</span>
         <span class="n">num_threads</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">img_format</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;auto&#39;</span><span class="p">,</span>
         <span class="n">skip_completed</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
@@ -2614,7 +2629,7 @@
         <span class="sd">&quot;&quot;&quot;Loads a saved and pre-configured project from the specified path.&quot;&quot;&quot;</span>
 
         <span class="c1"># Enable logging</span>
-        <span class="k">if</span> <span class="n">exists</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;settings.json&#39;</span><span class="p">)):</span>
+        <span class="k">if</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">is_project</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_settings</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">load_json</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;settings.json&#39;</span><span class="p">))</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">ProjectError</span><span class="p">(</span><span class="s1">&#39;Unable to find settings.json.&#39;</span><span class="p">)</span></div>
@@ -3024,6 +3039,7 @@
         <span class="n">allow_tf32</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
         <span class="n">load_method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;full&#39;</span><span class="p">,</span>
         <span class="n">balance_headers</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">process_isolate</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
         <span class="o">**</span><span class="n">training_kwargs</span><span class="p">:</span> <span class="n">Any</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Train model(s) using a given set of parameters, outcomes, and inputs.</span>
@@ -3223,7 +3239,8 @@
                 <span class="n">balance_headers</span><span class="o">=</span><span class="n">balance_headers</span><span class="p">,</span>
                 <span class="n">training_kwargs</span><span class="o">=</span><span class="n">training_kwargs</span><span class="p">,</span>
                 <span class="n">results_dict</span><span class="o">=</span><span class="n">results_dict</span><span class="p">,</span>
-                <span class="n">load_method</span><span class="o">=</span><span class="n">load_method</span>
+                <span class="n">load_method</span><span class="o">=</span><span class="n">load_method</span><span class="p">,</span>
+                <span class="n">process_isolate</span><span class="o">=</span><span class="n">process_isolate</span>
             <span class="p">)</span>
         <span class="c1"># Print summary of all models</span>
         <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Training complete; validation accuracies:&#39;</span><span class="p">)</span>
@@ -3457,19 +3474,164 @@
                         <span class="n">tile_dict</span><span class="o">=</span><span class="n">attention_dict</span><span class="p">,</span>
                         <span class="n">outdir</span><span class="o">=</span><span class="n">heatmaps_dir</span>
                     <span class="p">)</span></div></div>
+
+<span class="c1"># -----------------------------------------------------------------------------</span>
+
+<span class="k">def</span> <span class="nf">create</span><span class="p">(</span>
+    <span class="n">root</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">cfg</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">],</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">download</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">md5</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="o">**</span><span class="n">kwargs</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Project&quot;</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Create a project at the existing folder from a given configuration.</span>
+
+<span class="sd">    Supports both manual project creation via keyword arguments, and setting</span>
+<span class="sd">    up a project through a specified configuration. The configuration may be</span>
+<span class="sd">    a dictionary or a path to a JSON file containing a dictionary. It must</span>
+<span class="sd">    have the key &#39;annotations&#39;, which includes a path to an annotations file,</span>
+<span class="sd">    and may optionally have the following arguments:</span>
+
+<span class="sd">        - &#39;name&#39;        Name for the project and dataset.</span>
+<span class="sd">        - &#39;rois&#39;        Path to .tar.gz file containing compressed ROIs.</span>
+<span class="sd">        - &#39;slides&#39;      Path in which slides will be stored.</span>
+<span class="sd">        - &#39;tiles&#39;       Path in which extracted tiles will be stored.</span>
+<span class="sd">        - &#39;tfrecords&#39;   Path in which TFRecords will be stored.</span>
+
+<span class="sd">    Annotations files are copied into the created project folder.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        root (str): Path at which the Project will be set up.</span>
+<span class="sd">        cfg (dict, str): Path to configuration file (JSON), or a dictionary,</span>
+<span class="sd">            containing the key &quot;annotations&quot;, and optionally with the keys</span>
+<span class="sd">            &quot;name&quot;, &quot;rois&quot;, &quot;slides&quot;, &quot;tiles&quot;, or &quot;tfrecords&quot;.</span>
+
+<span class="sd">    Keyword Args:</span>
+<span class="sd">        download (bool): Download any missing slides from the Genomic Data</span>
+<span class="sd">            Commons (GDC) automatically, using slide names stored in the</span>
+<span class="sd">            annotations file.</span>
+<span class="sd">        md5 (bool): Perform MD5 hash verification for all slides using</span>
+<span class="sd">            the GDC (TCGA) MD5 manifest, which will be automatically downloaded.</span>
+<span class="sd">        name (str): Set the project name. This has higher priority than the</span>
+<span class="sd">            supplied configuration, which will be ignored.</span>
+<span class="sd">        slides (str): Set the destination folder for slides. This has higher</span>
+<span class="sd">            priority than the supplied configuration, which will be ignored.</span>
+<span class="sd">        tiles (str): Set the destination folder for tiles. This has higher</span>
+<span class="sd">            priority than the supplied configuration, which will be ignored.</span>
+<span class="sd">        tfrecords (str): Set the destination for TFRecords. This has higher</span>
+<span class="sd">            priority than the supplied configuration, which will be ignored.</span>
+<span class="sd">        roi_dest (str): Set the destination folder for ROIs.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        slideflow.Project</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># Initial verification</span>
+    <span class="k">if</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">is_project</span><span class="p">(</span><span class="n">root</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">OSError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;A project already exists at </span><span class="si">{</span><span class="n">root</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">cfg</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+        <span class="n">cfg</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">EasyDict</span><span class="p">(</span><span class="n">cfg</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">cfg</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="n">cfg_path</span> <span class="o">=</span> <span class="n">cfg</span>
+        <span class="n">cfg</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">EasyDict</span><span class="p">(</span><span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">load_json</span><span class="p">(</span><span class="n">cfg</span><span class="p">))</span>
+
+        <span class="c1"># Resolve relative paths in configuration file</span>
+        <span class="k">if</span> <span class="s1">&#39;annotations&#39;</span> <span class="ow">in</span> <span class="n">cfg</span> <span class="ow">and</span> <span class="n">exists</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">dirname</span><span class="p">(</span><span class="n">cfg_path</span><span class="p">),</span>
+                                                <span class="n">cfg</span><span class="o">.</span><span class="n">annotations</span><span class="p">)):</span>
+            <span class="n">cfg</span><span class="o">.</span><span class="n">annotations</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">dirname</span><span class="p">(</span><span class="n">cfg_path</span><span class="p">),</span> <span class="n">cfg</span><span class="o">.</span><span class="n">annotations</span><span class="p">)</span>
+        <span class="k">if</span> <span class="s1">&#39;rois&#39;</span> <span class="ow">in</span> <span class="n">cfg</span> <span class="ow">and</span> <span class="n">exists</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">dirname</span><span class="p">(</span><span class="n">cfg_path</span><span class="p">),</span> <span class="n">cfg</span><span class="o">.</span><span class="n">rois</span><span class="p">)):</span>
+            <span class="n">cfg</span><span class="o">.</span><span class="n">rois</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">dirname</span><span class="p">(</span><span class="n">cfg_path</span><span class="p">),</span> <span class="n">cfg</span><span class="o">.</span><span class="n">rois</span><span class="p">)</span>
+    <span class="k">if</span> <span class="s1">&#39;annotations&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">cfg</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;&#39;annotations&#39; must be provided in configuration.&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="s1">&#39;name&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">cfg</span><span class="p">:</span>
+        <span class="n">cfg</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;MyProject&quot;</span>
+    <span class="k">if</span> <span class="s1">&#39;slides&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">cfg</span><span class="p">:</span>
+        <span class="n">cfg</span><span class="o">.</span><span class="n">slides</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">root</span><span class="p">,</span> <span class="s1">&#39;slides&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="s1">&#39;tiles&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">cfg</span><span class="p">:</span>
+        <span class="n">cfg</span><span class="o">.</span><span class="n">tiles</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">root</span><span class="p">,</span> <span class="s1">&#39;tiles&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="s1">&#39;tfrecords&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">cfg</span><span class="p">:</span>
+        <span class="n">cfg</span><span class="o">.</span><span class="n">tfrecords</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">root</span><span class="p">,</span> <span class="s1">&#39;tfrecords&#39;</span><span class="p">)</span>
+    <span class="n">cfg</span><span class="o">.</span><span class="n">roi_dest</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">slides</span><span class="p">,</span> <span class="s1">&#39;rois&#39;</span><span class="p">)</span>
+
+    <span class="c1"># Overwrite any project configuration with user-specified keyword arguments</span>
+    <span class="n">cfg</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="c1"># Set up project at the given directory.</span>
+    <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Setting up project at </span><span class="si">{</span><span class="n">root</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">P</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">Project</span><span class="p">(</span><span class="n">root</span><span class="p">,</span> <span class="n">annotations</span><span class="o">=</span><span class="n">join</span><span class="p">(</span><span class="n">root</span><span class="p">,</span> <span class="n">basename</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">annotations</span><span class="p">)))</span>
+    <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">annotations</span><span class="p">,</span> <span class="n">root</span><span class="p">)</span>
+    <span class="n">P</span><span class="o">.</span><span class="n">add_source</span><span class="p">(</span>
+        <span class="n">cfg</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+        <span class="n">slides</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">slides</span><span class="p">,</span>
+        <span class="n">roi</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">roi_dest</span><span class="p">,</span>
+        <span class="n">tiles</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">tiles</span><span class="p">,</span>
+        <span class="n">tfrecords</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">tfrecords</span><span class="p">)</span>
+
+    <span class="c1"># Set up ROIs, if provided.</span>
+    <span class="k">if</span> <span class="s1">&#39;rois&#39;</span> <span class="ow">in</span> <span class="n">cfg</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">exists</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">roi_dest</span><span class="p">):</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">roi_dest</span><span class="p">)</span>
+    <span class="k">if</span> <span class="s1">&#39;rois&#39;</span> <span class="ow">in</span> <span class="n">cfg</span> <span class="ow">and</span> <span class="n">exists</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">rois</span><span class="p">)</span> <span class="ow">and</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">rois</span><span class="p">):</span>
+        <span class="c1"># Search the folder for CSV files and copy to the project ROI directory.</span>
+        <span class="n">to_copy</span> <span class="o">=</span> <span class="p">[</span><span class="n">r</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">rois</span><span class="p">)</span> <span class="k">if</span> <span class="n">path_to_ext</span><span class="p">(</span><span class="n">r</span><span class="p">)</span> <span class="o">==</span> <span class="s1">&#39;csv&#39;</span><span class="p">]</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Copying </span><span class="si">{}</span><span class="s2"> ROIs from </span><span class="si">{}</span><span class="s2"> to </span><span class="si">{}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="nb">len</span><span class="p">(</span><span class="n">to_copy</span><span class="p">),</span>
+            <span class="n">cfg</span><span class="o">.</span><span class="n">rois</span><span class="p">,</span>
+            <span class="n">cfg</span><span class="o">.</span><span class="n">roi_dest</span>
+        <span class="p">))</span>
+        <span class="k">for</span> <span class="n">roi</span> <span class="ow">in</span> <span class="n">to_copy</span><span class="p">:</span>
+            <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">rois</span><span class="p">,</span> <span class="n">roi</span><span class="p">),</span> <span class="n">cfg</span><span class="o">.</span><span class="n">roi_dest</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="s1">&#39;rois&#39;</span> <span class="ow">in</span> <span class="n">cfg</span> <span class="ow">and</span> <span class="n">exists</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">rois</span><span class="p">)</span> <span class="ow">and</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">rois</span><span class="p">):</span>
+        <span class="c1"># Assume ROIs is a tarfile - extract at destination.</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Extrating ROIs from tarfile at </span><span class="si">{</span><span class="n">cfg</span><span class="o">.</span><span class="n">rois</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+        <span class="n">roi_file</span> <span class="o">=</span> <span class="n">tarfile</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">rois</span><span class="p">)</span>
+        <span class="n">roi_file</span><span class="o">.</span><span class="n">extractall</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">roi_dest</span><span class="p">)</span>
+
+    <span class="c1"># Download slides from GDC (TCGA), if specified.</span>
+    <span class="k">if</span> <span class="n">download</span><span class="p">:</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">get_gdc_manifest</span><span class="p">()</span>
+        <span class="n">slide_manifest</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">filename</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">df</span><span class="o">.</span><span class="n">id</span><span class="o">.</span><span class="n">values</span><span class="p">))</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">exists</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">slides</span><span class="p">):</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">slides</span><span class="p">)</span>
+        <span class="n">to_download</span> <span class="o">=</span> <span class="p">[</span><span class="n">s</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">P</span><span class="o">.</span><span class="n">dataset</span><span class="p">()</span><span class="o">.</span><span class="n">slides</span><span class="p">()</span>
+                       <span class="k">if</span> <span class="ow">not</span> <span class="n">exists</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">slides</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">s</span><span class="si">}</span><span class="s1">.svs&#39;</span><span class="p">))]</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">slide</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">to_download</span><span class="p">):</span>
+            <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">download_from_tcga</span><span class="p">(</span>
+                <span class="n">slide_manifest</span><span class="p">[</span><span class="n">slide</span><span class="o">+</span><span class="s2">&quot;.svs&quot;</span><span class="p">],</span>
+                <span class="n">dest</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">slides</span><span class="p">,</span>
+                <span class="n">message</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Downloading </span><span class="si">{</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s2"> of </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">to_download</span><span class="p">)</span><span class="si">}</span><span class="s2">...&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Perform MD5 hash verification of slides using the GDC manifest.</span>
+    <span class="k">if</span> <span class="n">md5</span><span class="p">:</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">get_gdc_manifest</span><span class="p">()</span>
+        <span class="n">md5_manifest</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">filename</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">df</span><span class="o">.</span><span class="n">md5</span><span class="o">.</span><span class="n">values</span><span class="p">))</span>
+
+        <span class="n">slides_with_md5</span> <span class="o">=</span> <span class="p">[</span><span class="n">s</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">slides</span><span class="p">)</span>
+                           <span class="k">if</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">md5_manifest</span><span class="p">]</span>
+        <span class="n">failed_md5</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">slide</span> <span class="ow">in</span> <span class="n">tqdm</span><span class="p">(</span><span class="n">slides_with_md5</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">md5</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">slides</span><span class="p">,</span> <span class="n">slide</span><span class="p">))</span> <span class="o">!=</span> <span class="n">md5_manifest</span><span class="p">[</span><span class="n">slide</span><span class="p">]:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Slide </span><span class="si">{</span><span class="n">slide</span><span class="si">}</span><span class="s2"> failed MD5 verification&quot;</span><span class="p">)</span>
+                <span class="n">failed_md5</span> <span class="o">+=</span> <span class="p">[</span><span class="n">slide</span><span class="p">]</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">failed_md5</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;All </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">slides_with_md5</span><span class="p">)</span><span class="si">}</span><span class="s2"> slides passed MD5 verification.&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Warning: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">failed_md5</span><span class="p">)</span><span class="si">}</span><span class="s2"> slides failed MD5 verification:&quot;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">P</span>
 </pre></div>
 
              </article>
-
+             
             </div>
             <footer>
+  
 
-
-
+  
 
     <hr>
 
-
+  
 
   <div role="contentinfo">
     <p>
@@ -3477,11 +3639,11 @@
 
     </p>
   </div>
-
+    
       <div>
         Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
       </div>
-
+     
 
 </footer>
 
@@ -3491,19 +3653,19 @@
         <div class="pytorch-content-right" id="pytorch-content-right">
           <div class="pytorch-right-menu" id="pytorch-right-menu">
             <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
-
+              
             </div>
           </div>
         </div>
       </section>
     </div>
 
+  
 
 
+  
 
-
-
-
+     
        <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
          <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
          <script src="../../_static/jquery.js"></script>
@@ -3511,9 +3673,9 @@
          <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
          <script src="../../_static/doctools.js"></script>
          <script src="../../_static/sphinx_highlight.js"></script>
+     
 
-
-
+  
 
   <script type="text/javascript" src="../../_static/js/vendor/popper.min.js"></script>
   <script type="text/javascript" src="../../_static/js/vendor/bootstrap.min.js"></script>
@@ -3524,7 +3686,7 @@
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script>
+  </script> 
 
   <!-- Begin Footer -->
 

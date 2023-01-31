@@ -22,6 +22,8 @@ from . import gl_utils
 
 #----------------------------------------------------------------------------
 
+_SPINNER_ARRAY = ['.  ', '.. ', '...', ' ..', '  .', '   ']
+
 class ImguiWindow(glfw_window.GlfwWindow):
     def __init__(
         self,
@@ -112,11 +114,17 @@ class ImguiWindow(glfw_window.GlfwWindow):
                 self.icon(toast.icon, sameline=True)
             if toast.title:
                 imgui.text(toast.title)
+                if toast.spinner:
+                    imgui.same_line()
+                    imgui.text(_SPINNER_ARRAY[int(time.time()/0.05) % len(_SPINNER_ARRAY)])
                 if toast.message:
                     imgui.separator()
             if toast.message:
                 imgui.push_text_wrap_pos()
                 imgui.text(toast.message)
+                if toast.spinner and not toast.title:
+                    imgui.same_line()
+                    imgui.text(_SPINNER_ARRAY[int(time.time()/0.05) % len(_SPINNER_ARRAY)])
                 imgui.pop_text_wrap_pos()
             toast._height = imgui.get_window_height()
             imgui.end()
@@ -170,15 +178,13 @@ class ImguiWindow(glfw_window.GlfwWindow):
             self._imgui_context = None
         super().close()
 
-    def create_toast(self, message=None, title=None, icon=None):
+    def create_toast(self, message=None, title=None, icon=None, **kwargs):
         if message is None and title is None and icon is None:
             raise ValueError("Must supply either message, title, or icon to "
                              "create_toast()")
-        self._toasts.append(Toast(
-            message=message,
-            title=title,
-            icon=icon,
-        ))
+        toast = Toast(message=message, title=title, icon=icon, **kwargs)
+        self._toasts.append(toast)
+        return toast
 
     def icon(self, name, sameline=False):
         imgui.image(self._icon_textures[name].gl_id, self.font_size, self.font_size)
@@ -218,40 +224,55 @@ class Toast:
     msg_duration = 4
     fade_duration = 0.25
 
-    def __init__(self, message, title, icon):
+    def __init__(self, message, title, icon, sticky=False, spinner=False):
         if icon and title is None:
             title = icon.capitalize()
         self._alpha = 0
         self._height = None
         self._default_message_height = 75
         self._create_time = time.time()
+        self._start_fade_time = None
+        self.spinner = spinner
         self.message = message
         self.title = title
         self.icon = icon
+        self.sticky = sticky
 
     def __str__(self):
-        return "<Toast message={!r}, title={!r}, icon={!r}, alpha={!r}".format(
+        return "<Toast message={!r}, title={!r}, icon={!r}, alpha={!r}, sticky={!r}, spinner={!r}".format(
             self.message,
             self.title,
             self.icon,
-            self.alpha
+            self.alpha,
+            self.sticky,
+            self.spinner
         )
 
     @property
     def alpha(self):
         elapsed = time.time() - self._create_time
+
+        # Fading in
         if elapsed < self.fade_duration:
             return (elapsed / self.fade_duration)
-        elif elapsed < (self.fade_duration + self.msg_duration):
+
+        # Waiting
+        elif self.sticky or (elapsed < (self.fade_duration + self.msg_duration)):
             return 1
+
+        # Fading out
         elif elapsed < (self.fade_duration * 2 + self.msg_duration):
-            return 1 - ((elapsed - (self.fade_duration + self.msg_duration)) / self.fade_duration)
+            if self._start_fade_time is None:
+                self._start_fade_time = time.time()
+            return 1 - ((time.time() - self._start_fade_time) / self.fade_duration)
+
+        # Removed
         else:
             return 0
 
     @property
     def expired(self):
-        return (time.time() - self._create_time) > (self.msg_duration + self.fade_duration * 2)
+        return not self.sticky and (time.time() - self._create_time) > (self.msg_duration + self.fade_duration * 2)
 
     @property
     def height(self):
@@ -269,6 +290,10 @@ class Toast:
     @property
     def width(self):
         return 400
+
+    def done(self):
+        self.sticky = False
+        self.msg_duration = 0
 
 #----------------------------------------------------------------------------
 # Wrapper class for GlfwRenderer to fix a mouse wheel bug on Linux,

@@ -384,7 +384,11 @@ class ModelParams(_base._ModelParams):
         return model
 
     def model_type(self) -> str:
-        if self.loss == 'NLL':
+        """Returns 'linear', 'categorical', or 'cph', reflecting the loss."""
+        #check if loss is custom_[type] and returns type
+        if self.loss.startswith('custom'):
+            return self.loss[7:]
+        elif self.loss == 'NLL':
             return 'cph'
         elif self.loss in self.LinearLossDict:
             return 'linear'
@@ -412,10 +416,8 @@ class Trainer:
         hp: ModelParams,
         outdir: str,
         labels: Dict[str, Any],
-        patients: Dict[str, str],
         slide_input: Optional[Dict[str, Any]] = None,
         name: str = 'Trainer',
-        manifest: Optional[Dict[str, int]] = None,
         feature_sizes: Optional[List[int]] = None,
         feature_names: Optional[List[str]] = None,
         outcome_names: Optional[List[str]] = None,
@@ -425,7 +427,8 @@ class Trainer:
         use_neptune: bool = False,
         neptune_api: Optional[str] = None,
         neptune_workspace: Optional[str] = None,
-        load_method: str = 'full'
+        load_method: str = 'full',
+        custom_objects: Optional[Dict[str, Any]] = None,
     ):
         """Sets base configuration, preparing model inputs and outputs.
 
@@ -434,15 +437,10 @@ class Trainer:
             outdir (str): Destination for event logs and checkpoints.
             labels (dict): Dict mapping slide names to outcome labels (int or
                 float format).
-            patients (dict): Dict mapping slide names to patient ID, as some
-                patients may have multiple slides. If not provided, assumes
-                1:1 mapping between slide names and patients.
             slide_input (dict): Dict mapping slide names to additional
                 slide-level input, concatenated after post-conv.
             name (str, optional): Optional name describing the model, used for
                 model saving. Defaults to None.
-            manifest (dict, optional): Manifest dictionary mapping TFRecords to
-                number of tiles. Defaults to None.
             feature_sizes (list, optional): List of sizes of input features.
                 Required if providing additional input features as model input.
             feature_names (list, optional): List of names for input features.
@@ -471,9 +469,8 @@ class Trainer:
         self.hp = hp
         self.outdir = outdir
         self.labels = labels
-        self.patients = patients
+        self.patients = dict()  # type: Dict[str, str]
         self.name = name
-        self.manifest = manifest
         self.model = None  # type: Optional[torch.nn.Module]
         self.inference_model = None  # type: Optional[torch.nn.Module]
         self.mixed_precision = mixed_precision
@@ -483,6 +480,9 @@ class Trainer:
         self.use_tensorboard: bool
         self.writer: SummaryWriter
         self._reset_training_params()
+
+        if custom_objects is not None:
+            log.warn("custom_objects argument ignored in PyTorch backend.")
 
         # Enable or disable Tensorflow-32
         # Allows PyTorch to internally use tf32 for matmul and convolutions
@@ -712,6 +712,17 @@ class Trainer:
                 self.ema_two_checks_prior = self.ema_one_check_prior
                 self.ema_one_check_prior = self.last_ema
         return ''
+
+    def _detect_patients(self, *args):
+        self.patients = dict()
+        for dataset in args:
+            if args is None:
+                continue
+            dataset_patients = dataset.patients()
+            if not dataset_patients:
+                self.patients.update({s: s for s in self.slides})
+            else:
+                self.patients.update(dataset_patients)
 
     def _empty_corrects(self) -> Union[int, Dict[str, int]]:
         if self.multi_outcome:
@@ -1153,7 +1164,7 @@ class Trainer:
         name = self.name if self.name else 'trained_model'
         save_path = os.path.join(self.outdir, f'{name}_epoch{self.epoch}.zip')
         torch.save(self.model.state_dict(), save_path)
-        log.info(f"Model saved to [green]{save_path}[/")
+        log.info(f"Model saved to [green]{save_path}")
 
     def _close_dataloaders(self):
         """Close dataloaders, ensuring threads have joined."""
@@ -1410,6 +1421,8 @@ class Trainer:
         if format not in ('csv', 'feather', 'parquet'):
             raise ValueError(f"Unrecognized format {format}")
 
+        self._detect_patients(dataset)
+
         # Verify image format
         self._verify_img_format(dataset)
 
@@ -1424,8 +1437,10 @@ class Trainer:
         self.model.eval()
         self._log_manifest(None, dataset, labels=None)
 
-        if from_wsi:
+        if from_wsi and sf.slide_backend() == 'libvips':
             pool = mp.Pool(os.cpu_count() if os.cpu_count() else 8)
+        elif from_wsi:
+            pool = mp.dummy.Pool(os.cpu_count() if os.cpu_count() else 8)
         else:
             pool = None
         if not batch_size:
@@ -1437,7 +1452,7 @@ class Trainer:
             incl_labels=False,
             from_wsi=from_wsi,
             roi_method=roi_method,
-            pool=pool,)
+            pool=pool)
 
         log.info('Generating predictions...')
         torch_args = types.SimpleNamespace(
@@ -1516,11 +1531,14 @@ class Trainer:
             self.validation_batch_size = batch_size
         if not self.model:
             raise errors.ModelNotLoadedError
-        if from_wsi:
+        if from_wsi and sf.slide_backend() == 'libvips':
             pool = mp.Pool(os.cpu_count() if os.cpu_count() else 8)
+        elif from_wsi:
+            pool = mp.dummy.Pool(os.cpu_count() if os.cpu_count() else 8)
         else:
             pool = None
 
+        self._detect_patients(dataset)
         self._verify_img_format(dataset)
         self._fit_normalizer(norm_fit)
         self.model.to(self.device)
@@ -1655,6 +1673,7 @@ class Trainer:
             )
         results = {'epochs': defaultdict(dict)}  # type: Dict[str, Any]
         starting_epoch = max(starting_epoch, 1)
+        self._detect_patients(train_dts, val_dts)
         self._reset_training_params()
         self.validation_batch_size = validation_batch_size
         self.validate_on_batch = validate_on_batch
@@ -1664,8 +1683,10 @@ class Trainer:
         self.use_tensorboard = use_tensorboard
         self.log_frequency = log_frequency
 
-        if from_wsi:
+        if from_wsi and sf.slide_backend() == 'libvips':
             pool = mp.Pool(os.cpu_count() if os.cpu_count() else 8)
+        elif from_wsi:
+            pool = mp.dummy.Pool(os.cpu_count() if os.cpu_count() else 8)
         else:
             pool = None
 

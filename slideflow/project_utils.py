@@ -226,11 +226,11 @@ def get_validation_settings(**kwargs: Any) -> SimpleNamespace:
 
 def add_source(
     name: str,
-    slides: str,
-    roi: str,
-    tiles: str,
-    tfrecords: str,
-    path: str
+    path: str,
+    slides: Optional[str] = None,
+    roi: Optional[str] = None,
+    tiles: Optional[str] = None,
+    tfrecords: Optional[str] = None,
 ) -> None:
     """Adds a dataset source to a dataset configuration file.
 

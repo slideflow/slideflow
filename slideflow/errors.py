@@ -101,6 +101,10 @@ class EmptyTFRecordsError(Exception):
     pass
 
 
+class InvalidTFRecordIndex(Exception):
+    pass
+
+
 # --- Slide errors ------------------------------------------------------------
 class SlideError(Exception):
     pass

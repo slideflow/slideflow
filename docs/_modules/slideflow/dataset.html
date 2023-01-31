@@ -6,24 +6,24 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-
+  
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>slideflow.dataset &mdash; slideflow 1.4.0 documentation</title>
+  
 
-  <title>slideflow.dataset &mdash; slideflow 1.3.0 documentation</title>
+  
+  
+  
+  
 
+  
 
+  
+  
+    
 
-
-
-
-
-
-
-
-
-
-
-
+  
 
   <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
   <!-- <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" /> -->
@@ -32,11 +32,11 @@
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
   <!-- Google Analytics -->
-
+  
   <!-- End Google Analytics -->
+  
 
-
-
+  
   <script src="../../_static/js/modernizr.min.js"></script>
 
   <!-- Preload the theme fonts -->
@@ -99,9 +99,9 @@
 
 <body class="pytorch-body">
 
+   
 
-
-
+    
 
     <div class="table-of-contents-link-wrapper">
       <span>Table of Contents</span>
@@ -112,21 +112,21 @@
       <div class="pytorch-side-scroll">
         <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           <div class="pytorch-left-menu-search">
+            
 
-
-
-
-
+            
+              
+              
                 <div class="version">
-                  1.3
+                  1.4
                 </div>
+              
+            
+
+            
 
 
-
-
-
-
-
+  
 
 
 <div role="search">
@@ -137,15 +137,15 @@
   </form>
 </div>
 
-
+            
           </div>
 
-
-
-
-
-
-
+          
+            
+            
+              
+            
+            
               <p class="caption" role="heading"><span class="caption-text">Overview</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
@@ -177,6 +177,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../mosaic.html">slideflow.mosaic</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../norm.html">slideflow.norm</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../slide.html">slideflow.slide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../slide_qc.html">slideflow.slide.qc</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../stats.html">slideflow.stats</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../util.html">slideflow.util</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../workbench.html">slideflow.workbench</a></li>
@@ -191,8 +192,8 @@
 <li class="toctree-l1"><a class="reference internal" href="../../tutorial6.html">Tutorial 6: Custom slide filtering</a></li>
 </ul>
 
-
-
+            
+          
         </div>
       </div>
     </nav>
@@ -200,7 +201,7 @@
     <div class="pytorch-container">
       <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
         <div class="pytorch-breadcrumbs-wrapper">
-
+          
 
 
 
@@ -219,28 +220,28 @@
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="pytorch-breadcrumbs">
-
+    
       <li>
         <a href="../../index.html">
-
+          
             Docs
-
+          
         </a> &gt;
       </li>
 
-
+        
           <li><a href="../index.html">Module code</a> &gt;</li>
-
+        
       <li>slideflow.dataset</li>
-
-
+    
+    
       <li class="pytorch-breadcrumbs-aside">
-
+        
       </li>
-
+    
   </ul>
 
-
+  
 </div>
         </div>
 
@@ -252,13 +253,13 @@
       <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
         <div class="pytorch-content-left">
 
-
-
+        
+          
           <div class="rst-content">
-
+          
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
-
+              
   <h1>Source code for slideflow.dataset</h1><div class="highlight"><pre>
 <span></span><span class="sd">&#39;&#39;&#39;Module for the `sf.Dataset` class and its associated functions.</span>
 
@@ -352,15 +353,15 @@
 <span class="kn">import</span> <span class="nn">threading</span>
 <span class="kn">import</span> <span class="nn">time</span>
 <span class="kn">import</span> <span class="nn">types</span>
+<span class="kn">import</span> <span class="nn">tempfile</span>
 <span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">defaultdict</span>
 <span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span>
-<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span>
 <span class="kn">from</span> <span class="nn">glob</span> <span class="kn">import</span> <span class="n">glob</span>
 <span class="kn">from</span> <span class="nn">multiprocessing.dummy</span> <span class="kn">import</span> <span class="n">Pool</span> <span class="k">as</span> <span class="n">DPool</span>
 <span class="kn">from</span> <span class="nn">os.path</span> <span class="kn">import</span> <span class="n">basename</span><span class="p">,</span> <span class="n">dirname</span><span class="p">,</span> <span class="n">exists</span><span class="p">,</span> <span class="n">isdir</span><span class="p">,</span> <span class="n">join</span>
 <span class="kn">from</span> <span class="nn">queue</span> <span class="kn">import</span> <span class="n">Queue</span>
 <span class="kn">from</span> <span class="nn">random</span> <span class="kn">import</span> <span class="n">shuffle</span>
-<span class="kn">from</span> <span class="nn">tabulate</span> <span class="kn">import</span> <span class="n">tabulate</span>
+<span class="kn">from</span> <span class="nn">tabulate</span> <span class="kn">import</span> <span class="n">tabulate</span>  <span class="c1"># type: ignore[import]</span>
 <span class="kn">from</span> <span class="nn">pprint</span> <span class="kn">import</span> <span class="n">pformat</span>
 <span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="p">(</span><span class="n">TYPE_CHECKING</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span>
                     <span class="n">Union</span><span class="p">)</span>
@@ -368,6 +369,7 @@
 <span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
 <span class="kn">import</span> <span class="nn">shapely.geometry</span> <span class="k">as</span> <span class="nn">sg</span>
 <span class="kn">from</span> <span class="nn">rich.progress</span> <span class="kn">import</span> <span class="n">track</span><span class="p">,</span> <span class="n">Progress</span>
+<span class="kn">from</span> <span class="nn">tqdm</span> <span class="kn">import</span> <span class="n">tqdm</span>
 
 <span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
 <span class="kn">from</span> <span class="nn">slideflow</span> <span class="kn">import</span> <span class="n">errors</span>
@@ -1094,6 +1096,79 @@
             <span class="k">pass</span>
         <span class="n">pool</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></div>
 
+<div class="viewcode-block" id="Dataset.check_duplicates"><a class="viewcode-back" href="../../dataset.html#slideflow.Dataset.check_duplicates">[docs]</a>    <span class="k">def</span> <span class="nf">check_duplicates</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">dataset</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="s2">&quot;Dataset&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">px</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">64</span><span class="p">,</span>
+        <span class="n">mse_thresh</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">100</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]:</span>
+        <span class="sd">&quot;&quot;&quot;Checks for duplicate slides by comparing slide thumbnails.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            dataset (`slideflow.dataset.Dataset`, optional): Also check for</span>
+<span class="sd">                duplicate slides between this dataset and the provided dataset.</span>
+<span class="sd">            px (int): Pixel size at which to compare thumbnails. Defaults to 64.</span>
+<span class="sd">            mse_thresh (int): MSE threshold below which an image pair is</span>
+<span class="sd">                considered duplicate. Defaults to 100.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            List[str], optional: List of path pairs of possibly duplicate slides.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">import</span> <span class="nn">cv2</span>
+
+        <span class="n">thumbs</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">dups</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">def</span> <span class="nf">mse</span><span class="p">(</span><span class="n">imageA</span><span class="p">,</span> <span class="n">imageB</span><span class="p">):</span>
+            <span class="sd">&quot;&quot;&quot;Calulate the mean squared error between two image matrices.&quot;&quot;&quot;</span>
+            <span class="n">err</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">((</span><span class="n">imageA</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float&quot;</span><span class="p">)</span> <span class="o">-</span> <span class="n">imageB</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float&quot;</span><span class="p">))</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>
+            <span class="n">err</span> <span class="o">/=</span> <span class="nb">float</span><span class="p">(</span><span class="n">imageA</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">imageA</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+            <span class="k">return</span> <span class="n">err</span>
+
+        <span class="k">def</span> <span class="nf">img_from_path</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+            <span class="sd">&quot;&quot;&quot;Read and resize an image.&quot;&quot;&quot;</span>
+            <span class="n">img</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">imdecode</span><span class="p">(</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">fromfile</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">),</span>
+                <span class="n">cv2</span><span class="o">.</span><span class="n">IMREAD_UNCHANGED</span><span class="p">)</span>
+            <span class="n">img</span> <span class="o">=</span> <span class="n">img</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">0</span><span class="p">:</span><span class="mi">3</span><span class="p">]</span>
+            <span class="k">return</span> <span class="n">cv2</span><span class="o">.</span><span class="n">resize</span><span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="n">dsize</span><span class="o">=</span><span class="p">(</span><span class="n">px</span><span class="p">,</span> <span class="n">px</span><span class="p">),</span> <span class="n">interpolation</span><span class="o">=</span><span class="n">cv2</span><span class="o">.</span><span class="n">INTER_CUBIC</span><span class="p">)</span>
+
+        <span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">TemporaryDirectory</span><span class="p">()</span> <span class="k">as</span> <span class="n">temp_dir</span><span class="p">:</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">temp_dir</span><span class="p">,</span> <span class="s1">&#39;this_dataset&#39;</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">thumbnails</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">temp_dir</span><span class="p">,</span> <span class="s1">&#39;this_dataset&#39;</span><span class="p">))</span>
+            <span class="k">if</span> <span class="n">dataset</span><span class="p">:</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">temp_dir</span><span class="p">,</span> <span class="s1">&#39;other_dataset&#39;</span><span class="p">))</span>
+                <span class="n">dataset</span><span class="o">.</span><span class="n">thumbnails</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">temp_dir</span><span class="p">,</span> <span class="s1">&#39;other_dataset&#39;</span><span class="p">))</span>
+            <span class="k">for</span> <span class="n">subdir</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="n">temp_dir</span><span class="p">):</span>
+                <span class="n">files</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">temp_dir</span><span class="p">,</span> <span class="n">subdir</span><span class="p">))</span>
+                <span class="k">for</span> <span class="n">filename</span> <span class="ow">in</span> <span class="n">tqdm</span><span class="p">(</span><span class="n">files</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Scanning for duplicates...&quot;</span><span class="p">):</span>
+                    <span class="k">if</span> <span class="n">dataset</span> <span class="ow">and</span> <span class="n">subdir</span> <span class="o">==</span> <span class="s1">&#39;other_dataset&#39;</span><span class="p">:</span>
+                        <span class="n">wsi_path</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">find_slide</span><span class="p">(</span><span class="n">slide</span><span class="o">=</span><span class="n">path_to_name</span><span class="p">(</span><span class="n">filename</span><span class="p">))</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">wsi_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">find_slide</span><span class="p">(</span><span class="n">slide</span><span class="o">=</span><span class="n">path_to_name</span><span class="p">(</span><span class="n">filename</span><span class="p">))</span>
+                    <span class="k">assert</span> <span class="n">wsi_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+                    <span class="n">img</span> <span class="o">=</span> <span class="n">img_from_path</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">temp_dir</span><span class="p">,</span> <span class="n">subdir</span><span class="p">,</span> <span class="n">filename</span><span class="p">))</span>
+                    <span class="n">thumbs</span><span class="p">[</span><span class="n">wsi_path</span><span class="p">]</span> <span class="o">=</span> <span class="n">img</span>
+
+                    <span class="c1"># Check if this thumbnail has a duplicate</span>
+                    <span class="k">for</span> <span class="n">existing_img</span> <span class="ow">in</span> <span class="n">thumbs</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="n">wsi_path</span> <span class="o">!=</span> <span class="n">existing_img</span><span class="p">:</span>
+                            <span class="n">img2</span> <span class="o">=</span> <span class="n">thumbs</span><span class="p">[</span><span class="n">existing_img</span><span class="p">]</span>
+                            <span class="n">img_mse</span> <span class="o">=</span> <span class="n">mse</span><span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="n">img2</span><span class="p">)</span>
+                            <span class="k">if</span> <span class="n">img_mse</span> <span class="o">&lt;</span> <span class="n">mse_thresh</span><span class="p">:</span>
+                                <span class="n">tqdm</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;Possible duplicates: &#39;</span>
+                                           <span class="s1">&#39;</span><span class="si">{}</span><span class="s1"> and </span><span class="si">{}</span><span class="s1"> (MSE: </span><span class="si">{}</span><span class="s1">)&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                                    <span class="n">wsi_path</span><span class="p">,</span>
+                                    <span class="n">existing_img</span><span class="p">,</span>
+                                    <span class="n">mse</span><span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="n">img2</span><span class="p">)</span>
+                                <span class="p">))</span>
+                                <span class="n">dups</span> <span class="o">+=</span> <span class="p">[(</span><span class="n">wsi_path</span><span class="p">,</span> <span class="n">existing_img</span><span class="p">)]</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">dups</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;No duplicates found.&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">dups</span><span class="p">)</span><span class="si">}</span><span class="s2"> possible duplicates found.&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">dups</span></div>
+
 <div class="viewcode-block" id="Dataset.clear_filters"><a class="viewcode-back" href="../../dataset.html#slideflow.Dataset.clear_filters">[docs]</a>    <span class="k">def</span> <span class="nf">clear_filters</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Dataset&quot;</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Returns a dataset with all filters cleared.</span>
 
@@ -1530,6 +1605,7 @@
                     <span class="n">pdf_report</span><span class="o">.</span><span class="n">save</span><span class="p">(</span>
                         <span class="n">join</span><span class="p">(</span><span class="n">pdf_dir</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;tile_extraction_report-</span><span class="si">{</span><span class="n">_time</span><span class="si">}</span><span class="s1">.pdf&#39;</span><span class="p">)</span>
                     <span class="p">)</span>
+                    <span class="n">pdf_report</span><span class="o">.</span><span class="n">update_csv</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">pdf_dir</span><span class="p">,</span> <span class="s1">&#39;extraction_report.csv&#39;</span><span class="p">))</span>
                     <span class="n">warn_path</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">pdf_dir</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;warn_report-</span><span class="si">{</span><span class="n">_time</span><span class="si">}</span><span class="s1">.txt&#39;</span><span class="p">)</span>
                     <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">warn_path</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">warn_f</span><span class="p">:</span>
                         <span class="n">warn_f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">pdf_report</span><span class="o">.</span><span class="n">warn_txt</span><span class="p">)</span>
@@ -1830,7 +1906,7 @@
                 <span class="n">dup_vals</span> <span class="o">=</span> <span class="n">pt_assign</span><span class="p">[</span><span class="n">pt_assign</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="n">pt</span><span class="p">][:,</span> <span class="mi">1</span><span class="p">]</span>
                 <span class="n">dups</span> <span class="o">=</span> <span class="s2">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="n">d</span><span class="p">)</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">dup_vals</span><span class="p">])</span>
                 <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
-                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">pt</span><span class="si">}</span><span class="s2"> has multiple labels (header </span><span class="si">{</span><span class="n">header</span><span class="si">}</span><span class="s2">): </span><span class="si">{</span><span class="n">dups</span><span class="si">}</span><span class="s2">&quot;</span>
+                    <span class="sa">f</span><span class="s1">&#39;Patient &quot;</span><span class="si">{</span><span class="n">pt</span><span class="si">}</span><span class="s1">&quot; has multiple labels (header </span><span class="si">{</span><span class="n">header</span><span class="si">}</span><span class="s1">): </span><span class="si">{</span><span class="n">dups</span><span class="si">}</span><span class="s1">&#39;</span>
                 <span class="p">)</span>
 
             <span class="c1"># Assemble results dictionary</span>
@@ -2000,8 +2076,10 @@
 <span class="sd">            tile_px (int): Target pixel size for resizing TFRecord images.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
-        <span class="k">if</span> <span class="n">sf</span><span class="o">.</span><span class="n">backend</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;torch&#39;</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Not implemented for PyTorch backend.&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">tf_available</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
+                <span class="s2">&quot;Dataset.resize_tfrecords() requires Tensorflow, which is &quot;</span>
+                <span class="s2">&quot;not installed.&quot;</span><span class="p">)</span>
 
         <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Resizing TFRecord tiles to (</span><span class="si">{</span><span class="n">tile_px</span><span class="si">}</span><span class="s1">, </span><span class="si">{</span><span class="n">tile_px</span><span class="si">}</span><span class="s1">)&#39;</span><span class="p">)</span>
         <span class="n">tfrecords_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tfrecords</span><span class="p">()</span>
@@ -2252,12 +2330,16 @@
                 <span class="n">patients_with_roi</span><span class="p">[</span><span class="n">p</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
 
         <span class="c1"># Print summary.</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">annotations</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">num_patients</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">annotations</span><span class="o">.</span><span class="n">patient</span><span class="o">.</span><span class="n">unique</span><span class="p">())</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">num_patients</span> <span class="o">=</span> <span class="mi">0</span>
         <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Overview:&quot;</span><span class="p">)</span>
         <span class="n">table</span> <span class="o">=</span> <span class="p">[(</span><span class="s2">&quot;Configuration file:&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">),</span>
                 <span class="p">(</span><span class="s2">&quot;Tile size (px):&quot;</span><span class="p">,</span>     <span class="bp">self</span><span class="o">.</span><span class="n">tile_px</span><span class="p">),</span>
                 <span class="p">(</span><span class="s2">&quot;Tile size (um):&quot;</span><span class="p">,</span>     <span class="bp">self</span><span class="o">.</span><span class="n">tile_um</span><span class="p">),</span>
                 <span class="p">(</span><span class="s2">&quot;Slides:&quot;</span><span class="p">,</span>             <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">slides</span><span class="p">())),</span>
-                <span class="p">(</span><span class="s2">&quot;Patients:&quot;</span><span class="p">,</span>           <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">annotations</span><span class="o">.</span><span class="n">patient</span><span class="o">.</span><span class="n">unique</span><span class="p">())),</span>
+                <span class="p">(</span><span class="s2">&quot;Patients:&quot;</span><span class="p">,</span>           <span class="n">num_patients</span><span class="p">),</span>
                 <span class="p">(</span><span class="s2">&quot;Slides with ROIs:&quot;</span><span class="p">,</span>   <span class="nb">len</span><span class="p">([</span><span class="n">s</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">slides_with_roi</span>
                                              <span class="k">if</span> <span class="n">slides_with_roi</span><span class="p">[</span><span class="n">s</span><span class="p">]])),</span>
                 <span class="p">(</span><span class="s2">&quot;Patients with ROIs:&quot;</span><span class="p">,</span> <span class="nb">len</span><span class="p">([</span><span class="n">p</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">patients_with_roi</span>
@@ -2629,12 +2711,11 @@
 <span class="sd">                embedded in the slide file, downsampling is permitted to</span>
 <span class="sd">                accelerate thumbnail calculation.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Generating thumbnails...&#39;</span><span class="p">)</span>
         <span class="n">slide_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slide_paths</span><span class="p">()</span>
         <span class="n">rois</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rois</span><span class="p">()</span>
         <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Saving thumbnails to [green]</span><span class="si">{</span><span class="n">outdir</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-        <span class="k">for</span> <span class="n">slide_path</span> <span class="ow">in</span> <span class="n">slide_list</span><span class="p">:</span>
-            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Working on [green]</span><span class="si">{</span><span class="n">path_to_name</span><span class="p">(</span><span class="n">slide_path</span><span class="p">)</span><span class="si">}</span><span class="s1">[/]...&#39;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">slide_path</span> <span class="ow">in</span> <span class="n">tqdm</span><span class="p">(</span><span class="n">slide_list</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Generating thumbnails...&quot;</span><span class="p">):</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Working on [green]</span><span class="si">{</span><span class="n">path_to_name</span><span class="p">(</span><span class="n">slide_path</span><span class="p">)</span><span class="si">}</span><span class="s1">[/]...&#39;</span><span class="p">)</span>
             <span class="k">try</span><span class="p">:</span>
                 <span class="n">whole_slide</span> <span class="o">=</span> <span class="n">WSI</span><span class="p">(</span><span class="n">slide_path</span><span class="p">,</span>
                                   <span class="n">tile_px</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span>
@@ -2642,9 +2723,11 @@
                                   <span class="n">stride_div</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
                                   <span class="n">enable_downsample</span><span class="o">=</span><span class="n">enable_downsample</span><span class="p">,</span>
                                   <span class="n">rois</span><span class="o">=</span><span class="n">rois</span><span class="p">,</span>
-                                  <span class="n">roi_method</span><span class="o">=</span><span class="s1">&#39;inside&#39;</span> <span class="k">if</span> <span class="n">roi</span> <span class="k">else</span> <span class="s1">&#39;auto&#39;</span><span class="p">)</span>
+                                  <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
             <span class="k">except</span> <span class="n">errors</span><span class="o">.</span><span class="n">MissingROIError</span><span class="p">:</span>
                 <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Skipping </span><span class="si">{</span><span class="n">whole_slide</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">; missing ROI&quot;</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Error generating thumbnail for </span><span class="si">{</span><span class="n">whole_slide</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">roi</span><span class="p">:</span>
                 <span class="n">thumb</span> <span class="o">=</span> <span class="n">whole_slide</span><span class="o">.</span><span class="n">thumb</span><span class="p">(</span><span class="n">rois</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
@@ -2974,7 +3057,8 @@
                     <span class="s2">&quot;At least one patient is in both val and training sets.&quot;</span>
                 <span class="p">)</span>
 
-            <span class="c1"># Return list of tfrecords</span>
+        <span class="c1"># Assemble list of tfrecords</span>
+        <span class="k">if</span> <span class="n">val_strategy</span> <span class="o">!=</span> <span class="s1">&#39;none&#39;</span><span class="p">:</span>
             <span class="n">val_tfrecords</span> <span class="o">=</span> <span class="p">[</span>
                 <span class="n">tfr</span> <span class="k">for</span> <span class="n">tfr</span> <span class="ow">in</span> <span class="n">tfrecord_dir_list</span>
                 <span class="k">if</span> <span class="n">path_to_name</span><span class="p">(</span><span class="n">tfr</span><span class="p">)</span> <span class="ow">in</span> <span class="n">val_slides</span>
@@ -2983,6 +3067,7 @@
                 <span class="n">tfr</span> <span class="k">for</span> <span class="n">tfr</span> <span class="ow">in</span> <span class="n">tfrecord_dir_list</span>
                 <span class="k">if</span> <span class="n">path_to_name</span><span class="p">(</span><span class="n">tfr</span><span class="p">)</span> <span class="ow">in</span> <span class="n">train_slides</span>
             <span class="p">]</span>
+
         <span class="k">assert</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">val_tfrecords</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">val_slides</span><span class="p">))</span>
         <span class="k">assert</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">training_tfrecords</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">train_slides</span><span class="p">))</span>
         <span class="n">training_dts</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
@@ -3293,16 +3378,16 @@
 </pre></div>
 
              </article>
-
+             
             </div>
             <footer>
+  
 
-
-
+  
 
     <hr>
 
-
+  
 
   <div role="contentinfo">
     <p>
@@ -3310,11 +3395,11 @@
 
     </p>
   </div>
-
+    
       <div>
         Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
       </div>
-
+     
 
 </footer>
 
@@ -3324,19 +3409,19 @@
         <div class="pytorch-content-right" id="pytorch-content-right">
           <div class="pytorch-right-menu" id="pytorch-right-menu">
             <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
-
+              
             </div>
           </div>
         </div>
       </section>
     </div>
 
+  
 
 
+  
 
-
-
-
+     
        <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
          <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
          <script src="../../_static/jquery.js"></script>
@@ -3344,9 +3429,9 @@
          <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
          <script src="../../_static/doctools.js"></script>
          <script src="../../_static/sphinx_highlight.js"></script>
+     
 
-
-
+  
 
   <script type="text/javascript" src="../../_static/js/vendor/popper.min.js"></script>
   <script type="text/javascript" src="../../_static/js/vendor/bootstrap.min.js"></script>
@@ -3357,7 +3442,7 @@
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script>
+  </script> 
 
   <!-- Begin Footer -->
 

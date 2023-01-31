@@ -463,7 +463,7 @@ class Heatmap:
     def plot_uncertainty(
         self,
         heatmap_alpha: float = 0.6,
-        cmap: str = 'coowarm',
+        cmap: str = 'coolwarm',
         interpolation: str = 'none',
         ax: Optional["Axes"] = None,
         **thumb_kwargs
@@ -726,13 +726,9 @@ class ModelHeatmap(Heatmap):
         tile_px: Optional[int] = None,
         tile_um: Optional[int] = None,
         stride_div: Optional[int] = None,
-        roi_dir: Optional[str] = None,
-        rois: Optional[List[str]] = None,
-        roi_method: str = 'auto',
         batch_size: int = 32,
         num_threads: Optional[int] = None,
         num_processes: Optional[int] = None,
-        enable_downsample: bool = True,
         generate: bool = True,
         normalizer: Optional[sf.norm.StainNormalizer] = None,
         uq: bool = False,

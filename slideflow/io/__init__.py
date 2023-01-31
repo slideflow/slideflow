@@ -139,7 +139,7 @@ def get_tfrecord_by_index(
             continue
     log.error(
         f"Unable to find record: index {index} in {sf.util.green(tfrecord)}"
-        " ({total} total records)"
+        f" ({total} total records)"
     )
     return False, False
 

@@ -2,10 +2,10 @@ numpy<1.22
 gast>=0.3.3
 tensorflow>=2.7,<2.10
 scipy
-scikit-learn>=1.1
+scikit-learn
 matplotlib>=3.2
 imageio
-opencv-python
+opencv-python-headless
 shapely
 umap-learn
 seaborn<0.12
@@ -29,11 +29,11 @@ h5py
 tabulate
 saliency
 rasterio
-smac
+smac==1.4.0
 ConfigSpace
 pyarrow
 ninja
-tensorflow_probability
+tensorflow_probability<0.18
 rich
 pillow>=6.0.0
 imgui
@@ -42,3 +42,6 @@ glfw
 saliency
 parameterized
 pyperclip
+requests
+cucim
+versioneer

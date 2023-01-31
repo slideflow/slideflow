@@ -31,6 +31,10 @@ import slideflow.grad
 from slideflow.workbench.utils import EasyDict, _load_model_and_saliency
 from slideflow import log
 
+OVERLAY_GRID    = 0
+OVERLAY_WSI     = 1
+OVERLAY_VIEW    = 2
+
 #----------------------------------------------------------------------------
 
 def stylegan_widgets(advanced: bool = True) -> List[Any]:
@@ -87,8 +91,6 @@ class Workbench(imgui_window.ImguiWindow):
         self._heatmap_tex_obj   = None
         self._wsi_tex_obj       = None
         self._wsi_tex_img       = None
-        self._overlay_tex_img   = None
-        self._overlay_tex_obj   = None
         self._about_tex_obj     = None
         self._predictions       = None
         self._model_path        = None
@@ -123,6 +125,7 @@ class Workbench(imgui_window.ImguiWindow):
         self._show_tile_preview = False
         self._tile_preview_is_new = True
         self._tile_preview_image_is_new = True
+        self._show_overlays     = True
 
         # Widget interface.
         self.wsi                = None
@@ -147,6 +150,8 @@ class Workbench(imgui_window.ImguiWindow):
         self.button_w           = 0
         self.x                  = None
         self.y                  = None
+        self.mouse_x            = None
+        self.mouse_y            = None
         self.menu_bar_height    = self.font_size + self.spacing
 
         # Core widgets.
@@ -175,7 +180,8 @@ class Workbench(imgui_window.ImguiWindow):
         """An overlay (e.g. tile filter or heatmap) is currently being shown
         over the main view.
         """
-        return self.slide_widget.show_overlay or self.heatmap_widget.show
+        return ((self.slide_widget.show_overlay or self.heatmap_widget.show)
+                and self._show_overlays)
 
     @property
     def model(self):
@@ -255,6 +261,8 @@ class Workbench(imgui_window.ImguiWindow):
         self.wsi_thumb = None
         self.x = None
         self.y = None
+        self.mouse_x = None
+        self.mouse_y = None
         self.clear_result()
         self._async_renderer._live_updates = False
 
@@ -262,8 +270,14 @@ class Workbench(imgui_window.ImguiWindow):
         """Draw the About dialog."""
         if self._show_about:
             import platform
-            import pyvips
-            from pyvips.base import version as lv
+            try:
+                import pyvips
+                from pyvips.base import version as lv
+                libvips_version = f'{lv(0)}.{lv(1)}.{lv(2)}'
+                pyvips_version = pyvips.__version__
+            except Exception:
+                libvips_version = 'NA'
+                pyvips_version = 'NA'
 
             imgui.open_popup('about_popup')
             version_width = imgui.calc_text_size("Version: " + sf.__version__).x
@@ -274,8 +288,9 @@ class Workbench(imgui_window.ImguiWindow):
 
             about_text =  f"Version: {sf.__version__}\n"
             about_text += f"Python: {platform.python_version()}\n"
-            about_text += f"Libvips: {lv(0)}.{lv(1)}.{lv(2)}\n"
-            about_text += f"Pyvips: {pyvips.__version__}\n"
+            about_text += f"Slide Backend: {sf.slide_backend()}\n"
+            about_text += f"Libvips: {libvips_version}\n"
+            about_text += f"Pyvips: {pyvips_version}\n"
             about_text += f"OS: {platform.system()} {platform.release()}\n"
 
             if imgui.begin_popup('about_popup'):
@@ -334,40 +349,44 @@ class Workbench(imgui_window.ImguiWindow):
             drawing_control_pane = False
 
         # --- Core widgets (always rendered, not always shown) ----------------
-        header_height = self.font_size + self.spacing * 2
+        header_height = self.font_size + (self.spacing * 2)
         self._control_size = self.spacing * 4
 
         # Slide widget
         if (self.P or self.wsi) and self._show_control:
             expanded, _visible = imgui_utils.collapsing_header('Whole-slide image', default=True)
+            self._control_size += header_height
         else:
             expanded = False
         self.slide_widget(expanded and self._show_control)
-        self._control_size += self.slide_widget.content_height + header_height
+        self._control_size += self.slide_widget.content_height
 
         # Project widget
         if self.P and self._show_control:
             expanded, _visible = imgui_utils.collapsing_header('Project', default=True)
+            self._control_size += header_height
         else:
             expanded = False
         self.project_widget(expanded and self._show_control)
-        self._control_size += self.project_widget.content_height + header_height
+        self._control_size += self.project_widget.content_height
 
         # Model widget
         if (self.P or self._model_path) and self._show_control:
             expanded, _visible = imgui_utils.collapsing_header('Model & tile predictions', default=True)
+            self._control_size += header_height
         else:
             expanded = False
         self.model_widget(expanded and self._show_control)
-        self._control_size += self.model_widget.content_height + header_height
+        self._control_size += self.model_widget.content_height
 
         # Heatmap / prediction widget
         if self.viewer is not None and self._model_config is not None and self._show_control:
             expanded, _visible = imgui_utils.collapsing_header('Heatmap & slide prediction', default=True)
+            self._control_size += header_height
         else:
             expanded = False
         self.heatmap_widget(expanded and self._show_control)
-        self._control_size += self.heatmap_widget.content_height + header_height
+        self._control_size += self.heatmap_widget.content_height
 
         # ---------------------------------------------------------------------
 
@@ -422,25 +441,17 @@ class Workbench(imgui_window.ImguiWindow):
                 if self._refresh_view and inp.dx is None and not inp.wheel:
                     self.viewer.refresh_view()
                     self._refresh_view = False
+            self.mouse_x, self.mouse_y = self.viewer.display_coords_to_wsi_coords(inp.cx, inp.cy, offset=False)
 
         # Render slide view.
         self.viewer.render(max_w, max_h)
 
         # Render overlay heatmap.
         if self.overlay is not None and self.show_overlay:
-            if self._overlay_tex_img is not self.overlay:
-                self._overlay_tex_img = self.overlay
-                if self._overlay_tex_obj is None or not self._overlay_tex_obj.is_compatible(image=self._overlay_tex_img):
-                    if self._overlay_tex_obj is not None:
-                        self._tex_to_delete += [self._overlay_tex_obj]
-                    self._overlay_tex_obj = gl_utils.Texture(image=self._overlay_tex_img, bilinear=False, mipmap=False)
-                else:
-                    self._overlay_tex_obj.update(self._overlay_tex_img)
-            if self._overlay_wsi_dim is None:
-                self._overlay_wsi_dim = self.viewer.dimensions
-            h_zoom = (self._overlay_wsi_dim[0] / self.overlay.shape[1]) / self.viewer.view_zoom
-            h_pos = self.viewer.wsi_coords_to_display_coords(*self._overlay_offset_wsi_dim)
-            self._overlay_tex_obj.draw(pos=h_pos, zoom=h_zoom, align=0.5, rint=True, anchor='topleft')
+            self.viewer.render_overlay(
+                self.overlay,
+                dim=self._overlay_wsi_dim,
+                offset=self._overlay_offset_wsi_dim)
 
         # Calculate location for model display.
         if (self._model_path
@@ -693,6 +704,11 @@ class Workbench(imgui_window.ImguiWindow):
         if self._control_down and action == glfw.PRESS and key == glfw.KEY_BACKSLASH:
             self.reset_tile_zoom()
 
+        for widget in self.widgets:
+            if hasattr(widget, 'keyboard_callback'):
+                widget.keyboard_callback(key, action)
+
+
     def _handle_user_input(self):
         """Handle user input to support clicking/dragging the main viewer."""
 
@@ -747,20 +763,25 @@ class Workbench(imgui_window.ImguiWindow):
             rois = self.P.dataset().rois()
         else:
             rois = None
+        if sf.slide_backend() == 'cucim':
+            reader_kwargs = dict(num_workers=os.cpu_count())
+        else:
+            reader_kwargs = {}
         self.wsi = sf.WSI(
             path,
             tile_px=(self.tile_px if self.tile_px else 256),
             tile_um=(self.tile_um if self.tile_um else 512),
             stride_div=stride,
             rois=rois,
-            vips_cache=dict(
+            cache_kw=dict(
                 tile_width=512,
                 tile_height=512,
                 max_tiles=-1,
                 threaded=True,
                 persistent=True
             ),
-            verbose=False)
+            verbose=False,
+            **reader_kwargs)
         self.set_viewer(wsi_utils.SlideViewer(self.wsi, **self._viewer_kwargs()))
 
     def _render_prediction_message(self, message: str) -> None:
@@ -811,7 +832,8 @@ class Workbench(imgui_window.ImguiWindow):
             height=self.content_frame_height - self.offset_y_pixels,
             x_offset=self.offset_x_pixels,
             y_offset=self.offset_y_pixels,
-            normalizer=(self._normalizer if self._normalize_wsi else None)
+            normalizer=(self._normalizer if self._normalize_wsi else None),
+            viz=self
         )
 
     def _widgets_by_header(self) -> List[Tuple[str, List[Any]]]:
@@ -882,22 +904,27 @@ class Workbench(imgui_window.ImguiWindow):
 
     def autoload(self, path, ignore_errors=False):
         """Automatically load a path, detecting if the path is a slide, model, or project."""
+        sf.log.info(f"Attempting to load {path}")
         if sf.util.is_project(path):
             self.load_project(path, ignore_errors=ignore_errors)
         elif sf.util.is_slide(path):
             self.load_slide(path, ignore_errors=ignore_errors)
         elif sf.util.is_model(path):
             self.load_model(path, ignore_errors=ignore_errors)
+        elif path.endswith('npz'):
+            self.load_heatmap(path)
         else:
             # See if any widgets implement a drag_and_drop_hook() method
             for widget in self.widgets:
+                sf.log.info(f"Attempting load with widget {widget}")
                 if hasattr(widget, 'drag_and_drop_hook'):
                     widget.drag_and_drop_hook(path)
 
     def clear_overlay(self) -> None:
         """Remove the currently overlay image."""
-        self._overlay_tex_img = None
         self.overlay = None
+        if self.viewer is not None:
+            self.viewer.clear_overlay()
 
     def clear_result(self) -> None:
         """Clear all shown results and images."""
@@ -932,8 +959,8 @@ class Workbench(imgui_window.ImguiWindow):
         self._norm_tex_obj      = None
         self._heatmap_tex_img   = None
         self._heatmap_tex_obj   = None
-        self._overlay_tex_img   = None
-        self._overlay_tex_obj   = None
+        if self.viewer is not None:
+            self.viewer.clear_overlay()
 
     def close(self) -> None:
         """Close the application and renderer."""
@@ -1299,6 +1326,33 @@ class Workbench(imgui_window.ImguiWindow):
         """Set a message for display."""
         self._message = msg
 
+    def set_overlay(self, overlay: np.ndarray, method: int) -> None:
+        """Configure the overlay to be applied to the current view screen."""
+        if self.viewer is None:
+            raise ValueError("Unable to set overlay; viewer not loaded.")
+        self.overlay = overlay
+        if method == OVERLAY_WSI:
+            # Overlay maps to the entire whole-slide image,
+            # with no offset needed.
+            self._overlay_wsi_dim = self.wsi.dimensions
+            self._overlay_offset_wsi_dim = (0, 0)
+        elif method == OVERLAY_GRID:
+            # Overlay was generated from the slide's grid, meaning
+            # that we need to apply an offset to ensure the overlay
+            # lines up apppropriately.
+            full_extract = int(self.wsi.tile_um / self.wsi.mpp)
+            wsi_stride = int(full_extract / self.wsi.stride_div)
+            self._overlay_wsi_dim = (wsi_stride * (self.overlay.shape[1]),
+                                     wsi_stride * (self.overlay.shape[0]))
+            self._overlay_offset_wsi_dim = (full_extract/2 - wsi_stride/2, full_extract/2 - wsi_stride/2)
+        elif method == OVERLAY_VIEW:
+            # Overlay should only apply to the area of the WSI
+            # currently in view.
+            self._overlay_wsi_dim = self.viewer.wsi_window_size
+            self._overlay_offset_wsi_dim = self.viewer.origin
+        else:
+            raise ValueError(f"Unrecognized method {method}")
+
     def set_viewer(self, viewer: Any) -> None:
         """Set the main viewer."""
         log.debug("Setting viewer to {}".format(viewer))
@@ -1413,9 +1467,11 @@ class AsyncRenderer:
                 self._renderer_obj = renderer.Renderer(device=self.device)
                 for _renderer in self._addl_render:
                     self._renderer_obj.add_renderer(_renderer)
-            self._model, self._saliency, self._umap_encoders = _load_model_and_saliency(self._model_path, device=self.device)
+            self._model, self._saliency, _umap_encoders = _load_model_and_saliency(self._model_path, device=self.device)
             self._renderer_obj._model = self._model
             self._renderer_obj._saliency = self._saliency
+            if _umap_encoders is not None:
+                self._umap_encoders = _umap_encoders
             self._renderer_obj._umap_encoders = self._umap_encoders
 
     def clear_model(self):

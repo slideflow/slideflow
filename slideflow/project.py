@@ -6,11 +6,14 @@ import json
 import multiprocessing
 import numpy as np
 import os
+import shutil
 import pickle
 import pandas as pd
-from contextlib import contextmanager
-from multiprocessing.managers import DictProxy
+import tarfile
+from tqdm import tqdm
 from os.path import basename, exists, join, isdir, dirname
+from multiprocessing.managers import DictProxy
+from contextlib import contextmanager
 from statistics import mean
 from types import SimpleNamespace
 from typing import (TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple,
@@ -18,17 +21,17 @@ from typing import (TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple,
 
 import slideflow as sf
 from . import errors, project_utils
-from .util import log, path_to_name
+from .util import log, path_to_name, path_to_ext
 from .dataset import Dataset
 from .model import ModelParams
 from .project_utils import (auto_dataset, get_validation_settings,
                             get_first_nested_directory, get_matching_directory)
 
 if TYPE_CHECKING:
-    import pandas as pd
-    from ConfigSpace import ConfigurationSpace
-
     from slideflow.model import DatasetFeatures, Trainer
+    from slideflow.slide import SlideReport
+    from ConfigSpace import ConfigurationSpace, Configuration
+    from smac.facade.smac_bb_facade import SMAC4BB
 
 
 class Project:
@@ -342,7 +345,8 @@ class Project:
         mixed_precision: bool = True,
         allow_tf32: bool = False,
         input_header: Optional[Union[str, List[str]]] = None,
-        load_method: str = 'full'
+        load_method: str = 'full',
+        custom_objects: Optional[Dict[str, Any]] = None,
     ) -> Tuple["Trainer", Dataset]:
         """Prepares a :class:`slideflow.model.Trainer` for eval or prediction.
 
@@ -375,6 +379,8 @@ class Project:
                 ``Model.load_weights()``. Loading with 'full' may improve
                 compatibility across Slideflow versions. Loading with 'weights'
                 may improve compatibility across hardware & environments.
+            custom_objects (dict, Optional): Dictionary mapping names
+                (strings) to custom classes or functions. Defaults to None.
 
         Returns:
             A tuple containing
@@ -499,9 +505,7 @@ class Project:
             outdir=model_dir,
             labels=labels,
             config=eval_config,
-            patients=dataset.patients(),
             slide_input=slide_inp,
-            manifest=dataset.manifest(),
             mixed_precision=mixed_precision,
             allow_tf32=allow_tf32,
             feature_names=input_header,
@@ -510,7 +514,8 @@ class Project:
             use_neptune=self.use_neptune,
             neptune_api=self.neptune_api,
             neptune_workspace=self.neptune_workspace,
-            load_method=load_method
+            load_method=load_method,
+            custom_objects=custom_objects,
         )
         if isinstance(model, str):
             trainer.load(model)
@@ -543,6 +548,7 @@ class Project:
         results_dict: Union[Dict, DictProxy],
         training_kwargs: Dict,
         balance_headers: Optional[Union[str, List[str]]],
+        process_isolate: bool = False,
         **kwargs
     ) -> None:
         '''Trains a model(s) using the specified hyperparameters.
@@ -623,7 +629,7 @@ class Project:
             val_settings.k = [val_settings.k]
         if val_settings.strategy == 'k-fold-manual':
             _, unique_k = dataset.labels(k_header, format='name')
-            valid_k = [int(kf) for kf in unique_k]
+            valid_k = [kf for kf in unique_k]
             k_fold = len(valid_k)
             log.info(f"Manual folds: {', '.join([str(ks) for ks in valid_k])}")
             if val_settings.k:
@@ -669,6 +675,7 @@ class Project:
             results_dict=results_dict,
             bal_headers=balance_headers,
             input_header=input_header,
+            process_isolate=process_isolate,
             **kwargs
         )
 
@@ -722,7 +729,6 @@ class Project:
         log.info(f'Val settings: {json.dumps(vars(val_settings), indent=2)}')
 
         # --- Set up validation data ------------------------------------------
-        manifest = dataset.manifest()
         from_wsi = ('from_wsi' in s_args.training_kwargs
                     and s_args.training_kwargs['from_wsi'])
 
@@ -856,13 +862,11 @@ class Project:
         model_kwargs = {
             'hp': hp,
             'name': full_name,
-            'manifest': manifest,
             'feature_names': s_args.input_header,
             'feature_sizes': feature_sizes,
             'outcome_names': s_args.outcomes,
             'outdir': model_dir,
             'config': config,
-            'patients': dataset.patients(),
             'slide_input': slide_inp,
             'labels': s_args.labels,
             'mixed_precision': s_args.mixed_precision,
@@ -872,7 +876,7 @@ class Project:
             'neptune_workspace': self.neptune_workspace,
             'load_method': s_args.load_method
         }
-        if hp.model != 'custom':
+        if s_args.process_isolate:
             process = s_args.ctx.Process(target=project_utils._train_worker,
                                         args=((train_dts, val_dts),
                                             model_kwargs,
@@ -895,10 +899,10 @@ class Project:
         self,
         name: str,
         *,
-        slides: str,
-        roi: str,
-        tiles: str,
-        tfrecords: str,
+        slides: Optional[str] = None,
+        roi: Optional[str] = None,
+        tiles: Optional[str] = None,
+        tfrecords: Optional[str] = None,
         path: Optional[str] = None
     ) -> None:
         """Adds a dataset source to the dataset configuration file.
@@ -907,17 +911,28 @@ class Project:
             name (str): Dataset source name.
 
         Keyword Args:
-            slides (str): Path to directory containing slides.
-            roi (str): Path to directory containing CSV ROIs.
-            tiles (str): Path to directory for storing extracted tiles.
-            tfrecords (str): Path to directory for storing TFRecords of tiles.
+            slides (str, optional): Path to directory containing slides.
+                Defaults to None.
+            roi (str, optional): Path to directory containing CSV ROIs.
+                Defaults to None.
+            tiles (str, optional): Path to directory for loose extracted tiles
+                images (*.jpg, *.png). Defaults to None.
+            tfrecords (str, optional): Path to directory for storing TFRecords
+                of tiles. Defaults to None.
             path (str, optional): Path to dataset configuration file.
-                Defaults to None. If not provided, uses project default.
+                If not provided, uses project default. Defaults to None.
         """
 
         if not path:
             path = self.dataset_config
-        project_utils.add_source(name, slides, roi, tiles, tfrecords, path)
+        project_utils.add_source(
+            name,
+            path=path,
+            slides=slides,
+            roi=roi,
+            tiles=tiles,
+            tfrecords=tfrecords,
+        )
         if name not in self.sources:
             self.sources += [name]
         self.save()
@@ -926,6 +941,59 @@ class Project:
         """Automatically associate patients with slides in the annotations."""
         dataset = self.dataset(tile_px=0, tile_um=0, verification=None)
         dataset.update_annotations_with_slidenames(self.annotations)
+
+    def cell_segmentation(
+        self,
+        dest: Optional[str] = None,
+        *,
+        filters: Optional[Dict] = None,
+        filter_blank: Optional[Union[str, List[str]]] = None,
+        sources: Union[str, List[str]],
+        **kwargs
+    ) -> None:
+        """Perform cell segmentation on slides, saving segmentation masks.
+
+        Args:
+            dest (str): Destination in which to save cell segmentation masks.
+                If None, will save masks in same folder as slides.
+                Defaults to None.
+
+        Keyword args:
+            sources (List[str]): List of dataset sources to include from
+                configuration file.
+            window_size (int): Window size at which to segment cells across
+                a whole-slide image. Defaults to 256.
+            mpp (float): Microns-per-pixel at which cells should be segmented.
+                Defaults to 0.5.
+            qc (str): Slide-level quality control method to use before
+                performing cell segmentation. Defaults to "Otsu".
+            model (str, :class:`cellpose.models.Cellpose`): Cellpose model to use
+                for cell segmentation. May be any valid cellpose model. Defaults
+                to 'cyto2'.
+            diameter (int, optional): Cell segmentation diameter. If None, will auto-detect.
+                Defaults to None.
+            batch_size (int): Batch size for cell segmentation. Defaults to 8.
+            gpus (int, list(int)): GPUs to use for cell segmentation.
+                Defaults to 0 (first GPU).
+            num_workers (int, optional): Number of workers.
+                Defaults to 2 * num_gpus.
+
+        Returns:
+            None
+        """
+        if dest is None:
+            dest = join(self.root, 'masks')
+            if not exists(dest):
+                os.makedirs(dest)
+        dataset = self.dataset(
+            None,
+            None,
+            filters=filters,
+            filter_blank=filter_blank,
+            verification='slides',
+            sources=sources,
+        )
+        dataset.cell_segmentation(dest, **kwargs)
 
     def create_blank_annotations(
         self,
@@ -1031,6 +1099,7 @@ class Project:
         allow_tf32: bool = False,
         input_header: Optional[Union[str, List[str]]] = None,
         load_method: str = 'full',
+        custom_objects: Optional[Dict[str, Any]] = None,
         **kwargs: Any
     ) -> Dict:
         """Evaluates a saved model on a given set of tfrecords.
@@ -1079,6 +1148,8 @@ class Project:
                 patient-level predictions at each evaluation. May be 'csv',
                 'feather', or 'parquet'. If False, will not save predictions.
                 Defaults to 'parquet'.
+            custom_objects (dict, Optional): Dictionary mapping names
+                (strings) to custom classes or functions. Defaults to None.
             **kwargs: Additional keyword arguments to the `Trainer.evaluate()`
                 function.
 
@@ -1097,7 +1168,8 @@ class Project:
             input_header=input_header,
             mixed_precision=mixed_precision,
             allow_tf32=allow_tf32,
-            load_method=load_method
+            load_method=load_method,
+            custom_objects=custom_objects,
         )
         return trainer.evaluate(eval_dts, **kwargs)
 
@@ -1181,6 +1253,14 @@ class Project:
         args_dict = sf.util.load_json(join(exp_name, 'experiment.json'))
         args = SimpleNamespace(**args_dict)
         args.save_dir = eval_dir
+        # Update any missing arguments with current defaults
+        _default_args = clam.get_args()
+        for _a in _default_args.__dict__:
+            if not hasattr(args, _a):
+                _default = getattr(_default_args, _a)
+                log.info(f"Argument {_a} not found in CLAM model configuration "
+                         f"file; using default value of {_default}.")
+                setattr(args, _a, _default)
 
         dataset = self.dataset(
             tile_px=tile_px,
@@ -1205,7 +1285,7 @@ class Project:
                 writer.writerow(row)
 
         clam_dataset = Generic_MIL_Dataset(
-            csv_path=join(eval_dir, 'eval_annotations.csv'),
+            annotations=dataset.filtered_annotations,
             data_dir=pt_files,
             shuffle=False,
             seed=args.seed,
@@ -1255,6 +1335,48 @@ class Project:
                     outdir=heatmaps_dir
                 )
 
+    def extract_cells(
+        self,
+        tile_px: int,
+        tile_um: Union[int, str],
+        masks_path: Optional[str] = None,
+        *,
+        filters: Optional[Dict] = None,
+        filter_blank: Optional[Union[str, List[str]]] = None,
+        **kwargs: Any
+    ) -> Dict[str, "SlideReport"]:
+        """Extract images of cells from slides, with a tile at each cell
+        centroid. Requires that cells have already been segmented with
+        ``Project.cell_segmentation()``.
+
+        Args:
+            tile_px (int): Size of tiles to extract at cell centroids (pixels).
+            tile_um (int or str): Size of tiles to extract, in microns (int) or
+                magnification (str, e.g. "20x").
+            masks_path (str, optional): Location of saved masks. If None, will
+                look in project default (subfolder '/masks'). Defaults to None.
+
+        Keyword Args:
+            apply_masks (bool): Apply cell segmentation masks to the extracted
+                tiles. Defaults to True.
+
+            All other keyword arguments for :meth:`Project.extract_tiles()`.
+
+        Returns:
+            Dictionary mapping slide paths to each slide's SlideReport
+            (:class:`slideflow.slide.report.SlideReport`)
+        """
+        if masks_path is None:
+            masks_path = join(self.root, 'masks')
+        dataset = self.dataset(
+            tile_px,
+            tile_um,
+            filters=filters,
+            filter_blank=filter_blank,
+            verification='slides'
+        )
+        return dataset.extract_cells(masks_path=masks_path, **kwargs)
+
     def extract_tiles(
         self,
         tile_px: int,
@@ -1263,7 +1385,7 @@ class Project:
         filters: Optional[Dict] = None,
         filter_blank: Optional[Union[str, List[str]]] = None,
         **kwargs: Any
-    ) -> None:
+    ) -> Dict[str, "SlideReport"]:
         """Extracts tiles from slides. Preferred use is calling
         :func:`slideflow.dataset.Dataset.extract_tiles` on a
         :class:`slideflow.dataset.Dataset` directly.
@@ -1367,7 +1489,7 @@ class Project:
             filter_blank=filter_blank,
             verification='slides'
         )
-        dataset.extract_tiles(**kwargs)
+        return dataset.extract_tiles(**kwargs)
 
     def gan_train(
         self,
@@ -1785,7 +1907,7 @@ class Project:
         outdir: Optional[str] = None,
         resolution: str = 'low',
         batch_size: int = 32,
-        roi_method: str = 'inside',
+        roi_method: str = 'auto',
         num_threads: Optional[int] = None,
         img_format: str = 'auto',
         skip_completed: bool = False,
@@ -1976,10 +2098,7 @@ class Project:
             figsize (Tuple[int, int], optional): Figure size. Defaults to
                 (200, 200).
             num_tiles_x (int): Specifies the size of the mosaic map grid.
-            expanded (bool): Controls tile assignment on grid spaces.
-                If False, tile assignment is strict.
-                If True, allows displaying nearby tiles if a grid is empty.
-                Defaults to False.
+            expanded (bool): Deprecated argument.
             leniency (float): UMAP leniency. Defaults to 1.5.
 
         Returns:
@@ -2104,7 +2223,7 @@ class Project:
 
         mosaic = sf.Mosaic(
             umap,
-            dataset.tfrecords(),
+            tfrecords=dataset.tfrecords(),
             normalizer=(df.normalizer if use_norm else None),
             **kwargs
         )
@@ -2156,10 +2275,7 @@ class Project:
             figsize (Tuple[int, int], optional): Figure size. Defaults to
                 (200, 200).
             num_tiles_x (int): Specifies the size of the mosaic map grid.
-            expanded (bool): Controls tile assignment on grid spaces.
-                If False, tile assignment is strict.
-                If True, allows displaying nearby tiles if a grid is empty.
-                Defaults to False.
+            expanded (bool): Deprecated argument.
             leniency (float): UMAP leniency. Defaults to 1.5.
         """
 
@@ -2234,8 +2350,8 @@ class Project:
 
         mosaic = sf.Mosaic(
             umap,
-            dataset.tfrecords(),
-            tile_select='centroid' if use_optimal_tile else 'nearest',
+            tfrecords=dataset.tfrecords(),
+            tile_select='centroid' if use_optimal_tile else 'first',
             **kwargs
         )
         return mosaic
@@ -2484,8 +2600,9 @@ class Project:
         mixed_precision: bool = True,
         allow_tf32: bool = False,
         load_method: str = 'full',
+        custom_objects: Optional[Dict[str, Any]] = None,
         **kwargs: Any
-    ) -> "pd.DataFrame":
+    ) -> pd.DataFrame:
         """Evaluates a saved model on a given set of tfrecords.
 
         Args:
@@ -2531,6 +2648,8 @@ class Project:
                 ``Model.load_weights()``. Loading with 'full' may improve
                 compatibility across Slideflow versions. Loading with 'weights'
                 may improve compatibility across hardware & environments.
+            custom_objects (dict, Optional): Dictionary mapping names
+                (strings) to custom classes or functions. Defaults to None.
 
         Returns:
             Dictionary of predictions dataframes, with the keys 'tile', 'slide',
@@ -2549,7 +2668,8 @@ class Project:
             input_header=input_header,
             mixed_precision=mixed_precision,
             allow_tf32=allow_tf32,
-            load_method=load_method
+            load_method=load_method,
+            custom_objects=custom_objects,
         )
         results = trainer.predict(
             dataset=eval_dts,
@@ -2746,13 +2866,25 @@ class Project:
         def smac_runner(config):
             """SMAC tae_runner function."""
 
-            # Load hyperparameters from SMAC configuration and train model.
-            params.load_dict(dict(config))
+            # Load hyperparameters from SMAC configuration, handling "None".
+            c = dict(config)
+            if 'normalizer' in c and c['normalizer'].lower() == 'none':
+                c['normalizer'] = None
+            if 'normalizer_source' in c and c['normalizer_source'].lower() == 'none':
+                c['normalizer_source'] = None
+
+            # Train model.
+            pretty = json.dumps(c, indent=2)
+            log.info(f"Training model with config={pretty}")
+            params.load_dict(c)
+            _prior_logging_level = sf.getLoggingLevel()
+            sf.setLoggingLevel(40)
             results = self.train(
                 outcomes=outcomes,
                 params=params,
                 **train_kwargs
             )
+            sf.setLoggingLevel(_prior_logging_level)
 
             # Interpret results.
             model_name = list(results.keys())[0]
@@ -2763,7 +2895,7 @@ class Project:
 
             # Determine metric for optimization.
             if callable(metric):
-                return metric(epoch_results)
+                result = metric(epoch_results)
             elif metric not in epoch_results:
                 raise errors.SMACError(f"Metric '{metric}' not returned from "
                                        "training, unable to optimize.")
@@ -2772,7 +2904,12 @@ class Project:
                     raise errors.SMACError(
                         f"Unable to interpret metric {metric} (epoch results: "
                         f"{epoch_results})")
-                return 1 - mean(epoch_results[metric][outcomes])
+                result = 1 - mean(epoch_results[metric][outcomes])
+            log.info("[green]Result ({})[/]: {:.4f}".format(
+                'custom' if callable(metric) else f'1-{metric}',
+                result
+            ))
+            return result
 
         return smac_runner
 
@@ -2781,11 +2918,15 @@ class Project:
         outcomes: Union[str, List[str]],
         params: ModelParams,
         smac_configspace: "ConfigurationSpace",
+        exp_label: str = "SMAC",
         smac_limit: int = 10,
         smac_metric: str = 'tile_auc',
+        save_checkpoints: bool = False,
+        save_model: bool = False,
+        save_predictions: Union[bool, str] = False,
         **train_kwargs: Any
-    ) -> None:
-        """Train a model using SMAC3 bayesian hyperparameter optimization.
+    ) -> Tuple["Configuration", pd.DataFrame]:
+        """Train a model using SMAC3 Bayesian hyperparameter optimization.
 
         The hyperparameter optimization is performed with
         `SMAC3 <https://automl.github.io/SMAC3/master/>`_. Start by setting the
@@ -2811,29 +2952,45 @@ class Project:
             params (ModelParams): Model parameters for training.
             smac_configspace (ConfigurationSpace): ConfigurationSpace to
                 determine the SMAC optimization.
-            smac_limit (int): Max number of function evaluations to perform
-                during optimization. Defaults to 10.
+            smac_limit (int): Max number of models to train during optimization.
+                Defaults to 10.
             smac_metric (str, optional): Metric to monitor for optimization.
                 May either be a callable function or a str. If a callable
                 function, must accept the epoch results dict and return a
                 float value. If a str, must be a valid metric, such as
                 'tile_auc', 'patient_auc', 'r_squared', etc.
                 Defaults to 'tile_auc'.
+            save_checkpoints (bool): Save model checkpoints. Defaults to False.
+            save_model (bool): Save each trained model. Defaults to False.
+            save_predictions (bool or str, optional): Save tile, slide, and
+                patient-level predictions at each evaluation. May be 'csv',
+                'feather', or 'parquet'. If False, will not save predictions.
+                Defaults to False.
 
         Returns:
             Configuration: Optimal hyperparameter configuration returned
-            by SMAC4BB.optimize()
+            by SMAC4BB.optimize().
+
+            pd.DataFrame: History of hyperparameters resulting metrics.
         """
 
         from smac.facade.smac_bb_facade import SMAC4BB
         from smac.scenario.scenario import Scenario
 
+        # Perform SMAC search in a single model folder.
+        smac_path = sf.util.get_new_model_dir(self.models_dir, exp_label)
+        _initial_models_dir = self.models_dir
+        self.models_dir = smac_path
+
         # Create SMAC scenario.
-        scenario = Scenario({
-            'run_obj': 'quality', # Optimize quality (alternatively: runtime)
-            'runcount-limit': smac_limit,  # Max number of function evaluations
-            'cs': smac_configspace
-        })
+        scenario = Scenario(
+            {'run_obj': 'quality', # Optimize quality (alternatively: runtime)
+             'runcount-limit': smac_limit,  # Max number of function evaluations
+             'cs': smac_configspace},
+            {'output_dir': self.models_dir})
+        train_kwargs['save_checkpoints'] = save_checkpoints
+        train_kwargs['save_model'] = save_model
+        train_kwargs['save_predictions'] = save_predictions
         smac = SMAC4BB(
             scenario=scenario,
             tae_runner=self._get_smac_runner(
@@ -2844,11 +3001,28 @@ class Project:
             )
         )
 
+        # Log.
+        log.info("Performing Bayesian hyperparameter optimization with SMAC")
+        log.info(
+            "=== SMAC config ==========================================\n"
+            "[bold]Base parameters:[/]\n"
+            f"{params}\n\n"
+            "[bold]Configuration space:[/]\n"
+            f"{smac_configspace}\n"
+            "=========================================================="
+        )
+
         # Optimize.
         best_config = smac.optimize()
-        log.info("Results of SMAC optimization:")
-        print(best_config)
-        return best_config
+        log.info(f"Best configuration after SMAC optimization: {best_config}")
+
+        # Process history and write to dataframe.
+        configs = smac.runhistory.get_all_configs()
+        history = pd.DataFrame([c.get_dictionary() for c in configs])
+        history['metric'] = [smac.runhistory.get_cost(c) for c in configs]
+        history.to_csv(join(self.models_dir, 'run_history.csv'), index=False)
+        self.models_dir = _initial_models_dir
+        return best_config, history
 
     def train_ensemble(
         self,
@@ -2929,6 +3103,7 @@ class Project:
         allow_tf32: bool = False,
         load_method: str = 'full',
         balance_headers: Optional[Union[str, List[str]]] = None,
+        process_isolate: bool = False,
         **training_kwargs: Any
     ) -> Dict:
         """Train model(s) using a given set of parameters, outcomes, and inputs.
@@ -3128,6 +3303,7 @@ class Project:
                 training_kwargs=training_kwargs,
                 results_dict=results_dict,
                 load_method=load_method,
+                process_isolate=process_isolate
             )
         # Print summary of all models
         log.info('Training complete; validation accuracies:')
@@ -3135,7 +3311,7 @@ class Project:
             if 'epochs' not in results_dict[model]:
                 continue
             ep_res = results_dict[model]['epochs']
-            epochs = [e for e in ep_res if 'epoch' in ep_res.keys()]
+            epochs = [e for e in ep_res if 'epoch' in e]
             try:
                 last = max([int(e.split('epoch')[-1]) for e in epochs])
                 final_train_metrics = ep_res[f'epoch{last}']['train_metrics']
@@ -3306,7 +3482,7 @@ class Project:
 
         # Create CLAM dataset
         clam_dataset = Generic_MIL_Dataset(
-            csv_path=self.annotations,
+            annotations=dataset.filtered_annotations,
             data_dir=pt_files,
             shuffle=False,
             seed=clam_args.seed,
@@ -3361,3 +3537,148 @@ class Project:
                         tile_dict=attention_dict,
                         outdir=heatmaps_dir
                     )
+
+# -----------------------------------------------------------------------------
+
+def create(
+    root: str,
+    cfg: Union[str, Dict],
+    *,
+    download: bool = False,
+    md5: bool = False,
+    **kwargs
+) -> "Project":
+    """Create a project at the existing folder from a given configuration.
+
+    Supports both manual project creation via keyword arguments, and setting
+    up a project through a specified configuration. The configuration may be
+    a dictionary or a path to a JSON file containing a dictionary. It must
+    have the key 'annotations', which includes a path to an annotations file,
+    and may optionally have the following arguments:
+
+        - 'name'        Name for the project and dataset.
+        - 'rois'        Path to .tar.gz file containing compressed ROIs.
+        - 'slides'      Path in which slides will be stored.
+        - 'tiles'       Path in which extracted tiles will be stored.
+        - 'tfrecords'   Path in which TFRecords will be stored.
+
+    Annotations files are copied into the created project folder.
+
+    Args:
+        root (str): Path at which the Project will be set up.
+        cfg (dict, str): Path to configuration file (JSON), or a dictionary,
+            containing the key "annotations", and optionally with the keys
+            "name", "rois", "slides", "tiles", or "tfrecords".
+
+    Keyword Args:
+        download (bool): Download any missing slides from the Genomic Data
+            Commons (GDC) automatically, using slide names stored in the
+            annotations file.
+        md5 (bool): Perform MD5 hash verification for all slides using
+            the GDC (TCGA) MD5 manifest, which will be automatically downloaded.
+        name (str): Set the project name. This has higher priority than the
+            supplied configuration, which will be ignored.
+        slides (str): Set the destination folder for slides. This has higher
+            priority than the supplied configuration, which will be ignored.
+        tiles (str): Set the destination folder for tiles. This has higher
+            priority than the supplied configuration, which will be ignored.
+        tfrecords (str): Set the destination for TFRecords. This has higher
+            priority than the supplied configuration, which will be ignored.
+        roi_dest (str): Set the destination folder for ROIs.
+
+    Returns:
+        slideflow.Project
+    """
+
+    # Initial verification
+    if sf.util.is_project(root):
+        raise OSError(f"A project already exists at {root}")
+    if isinstance(cfg, dict):
+        cfg = sf.util.EasyDict(cfg)
+    if isinstance(cfg, str):
+        cfg_path = cfg
+        cfg = sf.util.EasyDict(sf.util.load_json(cfg))
+
+        # Resolve relative paths in configuration file
+        if 'annotations' in cfg and exists(join(dirname(cfg_path),
+                                                cfg.annotations)):
+            cfg.annotations = join(dirname(cfg_path), cfg.annotations)
+        if 'rois' in cfg and exists(join(dirname(cfg_path), cfg.rois)):
+            cfg.rois = join(dirname(cfg_path), cfg.rois)
+    if 'annotations' not in cfg:
+        raise ValueError("'annotations' must be provided in configuration.")
+    if 'name' not in cfg:
+        cfg.name = "MyProject"
+    if 'slides' not in cfg:
+        cfg.slides = join(root, 'slides')
+    if 'tiles' not in cfg:
+        cfg.tiles = join(root, 'tiles')
+    if 'tfrecords' not in cfg:
+        cfg.tfrecords = join(root, 'tfrecords')
+    cfg.roi_dest = join(cfg.slides, 'rois')
+
+    # Overwrite any project configuration with user-specified keyword arguments
+    cfg.update(kwargs)
+
+    # Set up project at the given directory.
+    log.info(f"Setting up project at {root}")
+    P = sf.Project(root, annotations=join(root, basename(cfg.annotations)))
+    shutil.copy(cfg.annotations, root)
+    P.add_source(
+        cfg.name,
+        slides=cfg.slides,
+        roi=cfg.roi_dest,
+        tiles=cfg.tiles,
+        tfrecords=cfg.tfrecords)
+
+    # Set up ROIs, if provided.
+    if 'rois' in cfg and not exists(cfg.roi_dest):
+        os.makedirs(cfg.roi_dest)
+    if 'rois' in cfg and exists(cfg.rois) and os.path.isdir(cfg.rois):
+        # Search the folder for CSV files and copy to the project ROI directory.
+        to_copy = [r for r in os.listdir(cfg.rois) if path_to_ext(r) == 'csv']
+        log.info("Copying {} ROIs from {} to {}.".format(
+            len(to_copy),
+            cfg.rois,
+            cfg.roi_dest
+        ))
+        for roi in to_copy:
+            shutil.copy(join(cfg.rois, roi), cfg.roi_dest)
+    elif 'rois' in cfg and exists(cfg.rois) and os.path.isfile(cfg.rois):
+        # Assume ROIs is a tarfile - extract at destination.
+        log.info(f"Extrating ROIs from tarfile at {cfg.rois}.")
+        roi_file = tarfile.open(cfg.rois)
+        roi_file.extractall(cfg.roi_dest)
+
+    # Download slides from GDC (TCGA), if specified.
+    if download:
+        df = sf.util.get_gdc_manifest()
+        slide_manifest = dict(zip(df.filename.values, df.id.values))
+        if not exists(cfg.slides):
+            os.makedirs(cfg.slides)
+        to_download = [s for s in P.dataset().slides()
+                       if not exists(join(cfg.slides, f'{s}.svs'))]
+        for i, slide in enumerate(to_download):
+            sf.util.download_from_tcga(
+                slide_manifest[slide+".svs"],
+                dest=cfg.slides,
+                message=f"Downloading {i+1} of {len(to_download)}...")
+
+    # Perform MD5 hash verification of slides using the GDC manifest.
+    if md5:
+        df = sf.util.get_gdc_manifest()
+        md5_manifest = dict(zip(df.filename.values, df.md5.values))
+
+        slides_with_md5 = [s for s in os.listdir(cfg.slides)
+                           if s in md5_manifest]
+        failed_md5 = []
+        for slide in tqdm(slides_with_md5):
+            if sf.util.md5(join(cfg.slides, slide)) != md5_manifest[slide]:
+                log.info(f"Slide {slide} failed MD5 verification")
+                failed_md5 += [slide]
+        if not failed_md5:
+            log.info(f"All {len(slides_with_md5)} slides passed MD5 verification.")
+        else:
+            log.warn(f"Warning: {len(failed_md5)} slides failed MD5 verification:")
+
+    return P

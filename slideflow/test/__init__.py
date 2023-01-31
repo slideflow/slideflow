@@ -116,11 +116,15 @@ class TestSuite:
         tail = '' if sf.backend() == 'tensorflow' else '.zip'
         for run in sorted(prev_run_dirs, reverse=True):
             if run[6:] == name:
-                return join(
+                model_name = join(
                     self.project.models_dir,
                     run,
                     f'{name}_epoch{epoch}'+tail,
                 )
+                if not exists(model_name):
+                    raise OSError(f"Unable to find trained model {name}")
+                else:
+                    return model_name
         raise OSError(f"Unable to find trained model {name}")
 
     def setup_hp(
@@ -337,6 +341,7 @@ class TestSuite:
     def test_training(
         self,
         categorical: bool = True,
+        resume: bool = True,
         uq: bool = True,
         multi_categorical: bool = True,
         linear: bool = True,
@@ -378,8 +383,50 @@ class TestSuite:
             # Test categorical outcome
             self.train_perf(**train_kwargs)
 
+        if resume:
+            # Test resuming training
+            with TaskWrapper("Training with resume...") as test:
+                try:
+                    to_resume = self._get_model('category1-manual_hp-TEST-HPSweep1-kfold1')
+                    if sf.backend() == 'tensorflow':
+                        resume_kw = dict(
+                            resume_training=to_resume,
+                        )
+                    else:
+                        resume_kw = dict(
+                            checkpoint=to_resume
+                        )
+                except OSError:
+                    log.warning("Could not find categorical model for testing resume_training")
+                    resume_kw = dict()
+                    test.skip()
+                else:
+                    try:
+                        hp = self.setup_hp('categorical', sweep=False, uq=False)
+                        results = self.project.train(
+                            exp_label='resume',
+                            outcomes='category1',
+                            val_k=1,
+                            params=hp,
+                            validate_on_batch=10,
+                            steps_per_epoch_override=20,
+                            save_predictions=True,
+                            pretrain=None,
+                            **resume_kw,
+                            **train_kwargs
+                        )
+                        _assert_valid_results(results)
+                    except Exception as e:
+                        log.error(traceback.format_exc())
+                        test.fail()
+
         if uq:
             # Test categorical outcome with UQ
+            try:
+                # Use pretrained model if possible, for testing
+                to_resume = self._get_model('category1-manual_hp-TEST-HPSweep0-kfold1')
+            except OSError:
+                to_resume = None  # type: ignore
             msg = "Training single categorical outcome with UQ..."
             with TaskWrapper(msg) as test:
                 try:
@@ -392,7 +439,7 @@ class TestSuite:
                         validate_on_batch=10,
                         steps_per_epoch_override=20,
                         save_predictions=True,
-                        pretrain=None,
+                        pretrain=to_resume,
                         **train_kwargs
                     )
                     _assert_valid_results(results)
@@ -801,9 +848,12 @@ class TestSuite:
 
         try:
             import tensorflow as tf
-            physical_devices = tf.config.list_physical_devices('GPU')
-            for p in physical_devices:
-                tf.config.experimental.set_memory_growth(p, True)
+            gpus = tf.config.experimental.list_physical_devices('GPU')
+            for gpu in gpus:
+                try:
+                    tf.config.experimental.set_memory_growth(gpu, True)
+                except RuntimeError:
+                    pass
         except ImportError:
             pass
 

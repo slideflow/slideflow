@@ -6,24 +6,24 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-
+  
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>slideflow.slide &mdash; slideflow 1.4.0 documentation</title>
+  
 
-  <title>slideflow.slide &mdash; slideflow 1.3.0 documentation</title>
+  
+  
+  
+  
 
+  
 
+  
+  
+    
 
-
-
-
-
-
-
-
-
-
-
-
+  
 
   <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
   <!-- <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" /> -->
@@ -32,11 +32,11 @@
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
   <!-- Google Analytics -->
-
+  
   <!-- End Google Analytics -->
+  
 
-
-
+  
   <script src="../../_static/js/modernizr.min.js"></script>
 
   <!-- Preload the theme fonts -->
@@ -99,9 +99,9 @@
 
 <body class="pytorch-body">
 
+   
 
-
-
+    
 
     <div class="table-of-contents-link-wrapper">
       <span>Table of Contents</span>
@@ -112,21 +112,21 @@
       <div class="pytorch-side-scroll">
         <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           <div class="pytorch-left-menu-search">
+            
 
-
-
-
-
+            
+              
+              
                 <div class="version">
-                  1.3
+                  1.4
                 </div>
+              
+            
+
+            
 
 
-
-
-
-
-
+  
 
 
 <div role="search">
@@ -137,15 +137,15 @@
   </form>
 </div>
 
-
+            
           </div>
 
-
-
-
-
-
-
+          
+            
+            
+              
+            
+            
               <p class="caption" role="heading"><span class="caption-text">Overview</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
@@ -177,6 +177,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../mosaic.html">slideflow.mosaic</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../norm.html">slideflow.norm</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../slide.html">slideflow.slide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../slide_qc.html">slideflow.slide.qc</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../stats.html">slideflow.stats</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../util.html">slideflow.util</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../workbench.html">slideflow.workbench</a></li>
@@ -191,8 +192,8 @@
 <li class="toctree-l1"><a class="reference internal" href="../../tutorial6.html">Tutorial 6: Custom slide filtering</a></li>
 </ul>
 
-
-
+            
+          
         </div>
       </div>
     </nav>
@@ -200,7 +201,7 @@
     <div class="pytorch-container">
       <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
         <div class="pytorch-breadcrumbs-wrapper">
-
+          
 
 
 
@@ -219,28 +220,28 @@
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="pytorch-breadcrumbs">
-
+    
       <li>
         <a href="../../index.html">
-
+          
             Docs
-
+          
         </a> &gt;
       </li>
 
-
+        
           <li><a href="../index.html">Module code</a> &gt;</li>
-
+        
       <li>slideflow.slide</li>
-
-
+    
+    
       <li class="pytorch-breadcrumbs-aside">
-
+        
       </li>
-
+    
   </ul>
 
-
+  
 </div>
         </div>
 
@@ -252,25 +253,21 @@
       <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
         <div class="pytorch-content-left">
 
-
-
+        
+          
           <div class="rst-content">
-
+          
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
-
+              
   <h1>Source code for slideflow.slide</h1><div class="highlight"><pre>
 <span></span><span class="sd">&#39;&#39;&#39;This module includes tools to convolutionally section whole slide images</span>
 <span class="sd">into tiles. These tessellated tiles can be exported as PNG or JPG as raw</span>
-<span class="sd">images or stored in the binary format TFRecords, with or without augmentation.</span>
-
-<span class="sd">Requires: libvips (https://libvips.github.io/libvips/).&#39;&#39;&#39;</span>
+<span class="sd">images or stored in the binary format TFRecords, with or without augmentation.&#39;&#39;&#39;</span>
 
 <span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">absolute_import</span><span class="p">,</span> <span class="n">division</span><span class="p">,</span> <span class="n">print_function</span>
 
-<span class="kn">import</span> <span class="nn">re</span>
 <span class="kn">import</span> <span class="nn">csv</span>
-<span class="kn">import</span> <span class="nn">io</span>
 <span class="kn">import</span> <span class="nn">json</span>
 <span class="kn">import</span> <span class="nn">multiprocessing</span> <span class="k">as</span> <span class="nn">mp</span>
 <span class="kn">import</span> <span class="nn">os</span>
@@ -280,7 +277,8 @@
 <span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span>
 <span class="kn">from</span> <span class="nn">os.path</span> <span class="kn">import</span> <span class="n">exists</span><span class="p">,</span> <span class="n">join</span>
 <span class="kn">from</span> <span class="nn">types</span> <span class="kn">import</span> <span class="n">SimpleNamespace</span>
-<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="p">(</span><span class="n">Any</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span>
+                    <span class="n">TYPE_CHECKING</span><span class="p">)</span>
 
 <span class="kn">import</span> <span class="nn">cv2</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
@@ -291,63 +289,21 @@
 <span class="kn">import</span> <span class="nn">skimage</span>
 <span class="kn">import</span> <span class="nn">skimage.filters</span>
 <span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
-<span class="kn">from</span> <span class="nn">PIL</span> <span class="kn">import</span> <span class="n">Image</span><span class="p">,</span> <span class="n">ImageDraw</span><span class="p">,</span> <span class="n">UnidentifiedImageError</span>
+<span class="kn">import</span> <span class="nn">slideflow.slide.qc</span>
+<span class="kn">from</span> <span class="nn">PIL</span> <span class="kn">import</span> <span class="n">Image</span><span class="p">,</span> <span class="n">ImageDraw</span>
+<span class="kn">from</span> <span class="nn">rich.progress</span> <span class="kn">import</span> <span class="n">Progress</span>
 <span class="kn">from</span> <span class="nn">skimage</span> <span class="kn">import</span> <span class="n">img_as_ubyte</span>
-<span class="kn">from</span> <span class="nn">skimage.color</span> <span class="kn">import</span> <span class="n">rgb2gray</span>
 <span class="kn">from</span> <span class="nn">slideflow</span> <span class="kn">import</span> <span class="n">errors</span>
-<span class="kn">from</span> <span class="nn">slideflow.slide.report</span> <span class="kn">import</span> <span class="n">ExtractionPDF</span>  <span class="c1"># noqa F401</span>
-<span class="kn">from</span> <span class="nn">slideflow.slide.report</span> <span class="kn">import</span> <span class="n">ExtractionReport</span><span class="p">,</span> <span class="n">SlideReport</span>
 <span class="kn">from</span> <span class="nn">slideflow.util</span> <span class="kn">import</span> <span class="n">SUPPORTED_FORMATS</span>  <span class="c1"># noqa F401</span>
 <span class="kn">from</span> <span class="nn">slideflow.util</span> <span class="kn">import</span> <span class="n">log</span><span class="p">,</span> <span class="n">path_to_name</span>  <span class="c1"># noqa F401</span>
-<span class="kn">from</span> <span class="nn">rich.progress</span> <span class="kn">import</span> <span class="n">Progress</span>
 
-<span class="k">try</span><span class="p">:</span>
-    <span class="kn">import</span> <span class="nn">pyvips</span> <span class="k">as</span> <span class="nn">vips</span>
-<span class="k">except</span> <span class="p">(</span><span class="ne">ModuleNotFoundError</span><span class="p">,</span> <span class="ne">OSError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-    <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Unable to load vips; slide processing will be unavailable. &quot;</span>
-              <span class="sa">f</span><span class="s2">&quot;Error raised: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">.report</span> <span class="kn">import</span> <span class="n">ExtractionPDF</span>  <span class="c1"># noqa F401</span>
+<span class="kn">from</span> <span class="nn">.report</span> <span class="kn">import</span> <span class="n">ExtractionReport</span><span class="p">,</span> <span class="n">SlideReport</span>
+<span class="kn">from</span> <span class="nn">.utils</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="kn">from</span> <span class="nn">.backends</span> <span class="kn">import</span> <span class="n">tile_worker</span><span class="p">,</span> <span class="n">wsi_reader</span>
 
 <span class="n">warnings</span><span class="o">.</span><span class="n">simplefilter</span><span class="p">(</span><span class="s1">&#39;ignore&#39;</span><span class="p">,</span> <span class="n">Image</span><span class="o">.</span><span class="n">DecompressionBombWarning</span><span class="p">)</span>
 <span class="n">Image</span><span class="o">.</span><span class="n">MAX_IMAGE_PIXELS</span> <span class="o">=</span> <span class="mi">100000000000</span>
-<span class="n">DEFAULT_JPG_MPP</span> <span class="o">=</span> <span class="mi">1</span>
-<span class="n">OPS_LEVEL_COUNT</span> <span class="o">=</span> <span class="s1">&#39;openslide.level-count&#39;</span>
-<span class="n">OPS_MPP_X</span> <span class="o">=</span> <span class="s1">&#39;openslide.mpp-x&#39;</span>
-<span class="n">OPS_VENDOR</span> <span class="o">=</span> <span class="s1">&#39;openslide.vendor&#39;</span>
-<span class="n">TIF_EXIF_KEY_MPP</span> <span class="o">=</span> <span class="mi">65326</span>
-<span class="n">OPS_WIDTH</span> <span class="o">=</span> <span class="s1">&#39;width&#39;</span>
-<span class="n">OPS_HEIGHT</span> <span class="o">=</span> <span class="s1">&#39;height&#39;</span>
-<span class="n">DEFAULT_WHITESPACE_THRESHOLD</span> <span class="o">=</span> <span class="mi">230</span>
-<span class="n">DEFAULT_WHITESPACE_FRACTION</span> <span class="o">=</span> <span class="mf">1.0</span>
-<span class="n">DEFAULT_GRAYSPACE_THRESHOLD</span> <span class="o">=</span> <span class="mf">0.05</span>
-<span class="n">DEFAULT_GRAYSPACE_FRACTION</span> <span class="o">=</span> <span class="mf">0.6</span>
-<span class="n">FORCE_CALCULATE_WHITESPACE</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
-<span class="n">FORCE_CALCULATE_GRAYSPACE</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
-
-
-<span class="k">def</span> <span class="nf">OPS_LEVEL_HEIGHT</span><span class="p">(</span><span class="n">level</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-    <span class="k">return</span> <span class="sa">f</span><span class="s1">&#39;openslide.level[</span><span class="si">{</span><span class="n">level</span><span class="si">}</span><span class="s1">].height&#39;</span>
-
-
-<span class="k">def</span> <span class="nf">OPS_LEVEL_WIDTH</span><span class="p">(</span><span class="n">level</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-    <span class="k">return</span> <span class="sa">f</span><span class="s1">&#39;openslide.level[</span><span class="si">{</span><span class="n">level</span><span class="si">}</span><span class="s1">].width&#39;</span>
-
-
-<span class="k">def</span> <span class="nf">OPS_LEVEL_DOWNSAMPLE</span><span class="p">(</span><span class="n">level</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-    <span class="k">return</span> <span class="sa">f</span><span class="s1">&#39;openslide.level[</span><span class="si">{</span><span class="n">level</span><span class="si">}</span><span class="s1">].downsample&#39;</span>
-
-
-<span class="n">VIPS_FORMAT_TO_DTYPE</span> <span class="o">=</span> <span class="p">{</span>
-    <span class="s1">&#39;uchar&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">,</span>
-    <span class="s1">&#39;char&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">int8</span><span class="p">,</span>
-    <span class="s1">&#39;ushort&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">uint16</span><span class="p">,</span>
-    <span class="s1">&#39;short&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">int16</span><span class="p">,</span>
-    <span class="s1">&#39;uint&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">uint32</span><span class="p">,</span>
-    <span class="s1">&#39;int&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">int32</span><span class="p">,</span>
-    <span class="s1">&#39;float&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span>
-    <span class="s1">&#39;double&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">,</span>
-    <span class="s1">&#39;complex&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">complex64</span><span class="p">,</span>
-    <span class="s1">&#39;dpcomplex&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">complex128</span><span class="p">,</span>
-<span class="p">}</span>
 
 
 <span class="k">def</span> <span class="nf">_update_kw_with_defaults</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
@@ -387,251 +343,6 @@
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown image format </span><span class="si">{</span><span class="n">img_format</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
 
-<span class="k">def</span> <span class="nf">_draw_roi</span><span class="p">(</span>
-    <span class="n">img</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
-    <span class="n">coords</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
-    <span class="sd">&quot;&quot;&quot;Draw ROIs on image.</span>
-
-<span class="sd">    Args:</span>
-<span class="sd">        img (Union[np.ndarray, str]): Image.</span>
-<span class="sd">        coords (List[List[int]]): ROI coordinates.</span>
-
-<span class="sd">    Returns:</span>
-<span class="sd">        np.ndarray: Image as numpy array.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">annPolys</span> <span class="o">=</span> <span class="p">[</span><span class="n">sg</span><span class="o">.</span><span class="n">Polygon</span><span class="p">(</span><span class="n">b</span><span class="p">)</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">coords</span><span class="p">]</span>
-    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
-        <span class="n">annotated_img</span> <span class="o">=</span> <span class="n">Image</span><span class="o">.</span><span class="n">fromarray</span><span class="p">(</span><span class="n">img</span><span class="p">)</span>
-    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
-        <span class="n">annotated_img</span> <span class="o">=</span> <span class="n">Image</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">io</span><span class="o">.</span><span class="n">BytesIO</span><span class="p">(</span><span class="n">img</span><span class="p">))</span>  <span class="c1"># type: ignore</span>
-    <span class="n">draw</span> <span class="o">=</span> <span class="n">ImageDraw</span><span class="o">.</span><span class="n">Draw</span><span class="p">(</span><span class="n">annotated_img</span><span class="p">)</span>
-    <span class="k">for</span> <span class="n">poly</span> <span class="ow">in</span> <span class="n">annPolys</span><span class="p">:</span>
-        <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">poly</span><span class="o">.</span><span class="n">exterior</span><span class="o">.</span><span class="n">coords</span><span class="o">.</span><span class="n">xy</span>
-        <span class="n">zipped</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="n">y</span><span class="o">.</span><span class="n">tolist</span><span class="p">()))</span>
-        <span class="n">draw</span><span class="o">.</span><span class="n">line</span><span class="p">(</span><span class="n">zipped</span><span class="p">,</span> <span class="n">joint</span><span class="o">=</span><span class="s1">&#39;curve&#39;</span><span class="p">,</span> <span class="n">fill</span><span class="o">=</span><span class="s1">&#39;red&#39;</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">annotated_img</span><span class="p">)</span>
-
-
-<span class="k">def</span> <span class="nf">_roi_coords_from_image</span><span class="p">(</span>
-    <span class="n">c</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span>
-    <span class="n">args</span><span class="p">:</span> <span class="n">SimpleNamespace</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="n">List</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">],</span> <span class="n">List</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]]]:</span>
-    <span class="c1"># Scale ROI according to downsample level</span>
-    <span class="n">extract_scale</span> <span class="o">=</span> <span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">extract_px</span> <span class="o">/</span> <span class="n">args</span><span class="o">.</span><span class="n">full_extract_px</span><span class="p">)</span>
-
-    <span class="c1"># Scale ROI according to image resizing</span>
-    <span class="n">resize_scale</span> <span class="o">=</span> <span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">tile_px</span> <span class="o">/</span> <span class="n">args</span><span class="o">.</span><span class="n">extract_px</span><span class="p">)</span>
-
-    <span class="k">def</span> <span class="nf">proc_ann</span><span class="p">(</span><span class="n">ann</span><span class="p">):</span>
-        <span class="c1"># Scale to full image size</span>
-        <span class="n">coord</span> <span class="o">=</span> <span class="n">ann</span><span class="o">.</span><span class="n">coordinates</span>
-        <span class="c1"># Offset coordinates to extraction window</span>
-        <span class="n">coord</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">coord</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="o">-</span><span class="mi">1</span> <span class="o">*</span> <span class="n">c</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="o">-</span><span class="mi">1</span> <span class="o">*</span> <span class="n">c</span><span class="p">[</span><span class="mi">1</span><span class="p">]]))</span>
-        <span class="c1"># Rescale according to downsampling and resizing</span>
-        <span class="n">coord</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span><span class="n">coord</span><span class="p">,</span> <span class="p">(</span><span class="n">extract_scale</span> <span class="o">*</span> <span class="n">resize_scale</span><span class="p">))</span>
-        <span class="k">return</span> <span class="n">coord</span>
-
-    <span class="c1"># Filter out ROIs not in this tile</span>
-    <span class="n">coords</span> <span class="o">=</span> <span class="p">[]</span>
-    <span class="n">ll</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
-    <span class="n">ur</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">args</span><span class="o">.</span><span class="n">tile_px</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">tile_px</span><span class="p">])</span>
-    <span class="k">for</span> <span class="n">roi</span> <span class="ow">in</span> <span class="n">args</span><span class="o">.</span><span class="n">rois</span><span class="p">:</span>
-        <span class="n">coord</span> <span class="o">=</span> <span class="n">proc_ann</span><span class="p">(</span><span class="n">roi</span><span class="p">)</span>
-        <span class="n">idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">logical_and</span><span class="p">(</span><span class="n">ll</span> <span class="o">&lt;=</span> <span class="n">coord</span><span class="p">,</span> <span class="n">coord</span> <span class="o">&lt;=</span> <span class="n">ur</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
-        <span class="n">coords_in_tile</span> <span class="o">=</span> <span class="n">coord</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">coords_in_tile</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">3</span><span class="p">:</span>
-            <span class="n">coords</span> <span class="o">+=</span> <span class="p">[</span><span class="n">coords_in_tile</span><span class="p">]</span>
-
-    <span class="c1"># Convert ROI to bounding box that fits within tile</span>
-    <span class="n">boxes</span> <span class="o">=</span> <span class="p">[]</span>
-    <span class="n">yolo_anns</span> <span class="o">=</span> <span class="p">[]</span>
-    <span class="k">for</span> <span class="n">coord</span> <span class="ow">in</span> <span class="n">coords</span><span class="p">:</span>
-        <span class="n">max_vals</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">coord</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-        <span class="n">min_vals</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">coord</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-        <span class="n">max_x</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">max_vals</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">args</span><span class="o">.</span><span class="n">tile_px</span><span class="p">)</span>
-        <span class="n">max_y</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">max_vals</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">args</span><span class="o">.</span><span class="n">tile_px</span><span class="p">)</span>
-        <span class="n">min_x</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">min_vals</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">0</span><span class="p">)</span>
-        <span class="n">min_y</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">min_vals</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
-        <span class="n">width</span> <span class="o">=</span> <span class="p">(</span><span class="n">max_x</span> <span class="o">-</span> <span class="n">min_x</span><span class="p">)</span> <span class="o">/</span> <span class="n">args</span><span class="o">.</span><span class="n">tile_px</span>
-        <span class="n">height</span> <span class="o">=</span> <span class="p">(</span><span class="n">max_y</span> <span class="o">-</span> <span class="n">min_y</span><span class="p">)</span> <span class="o">/</span> <span class="n">args</span><span class="o">.</span><span class="n">tile_px</span>
-        <span class="n">x_center</span> <span class="o">=</span> <span class="p">((</span><span class="n">max_x</span> <span class="o">+</span> <span class="n">min_x</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="n">args</span><span class="o">.</span><span class="n">tile_px</span>
-        <span class="n">y_center</span> <span class="o">=</span> <span class="p">((</span><span class="n">max_y</span> <span class="o">+</span> <span class="n">min_y</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="n">args</span><span class="o">.</span><span class="n">tile_px</span>
-        <span class="n">yolo_anns</span> <span class="o">+=</span> <span class="p">[[</span><span class="n">x_center</span><span class="p">,</span> <span class="n">y_center</span><span class="p">,</span> <span class="n">width</span><span class="p">,</span> <span class="n">height</span><span class="p">]]</span>
-        <span class="n">boxes</span> <span class="o">+=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span>
-            <span class="p">[</span><span class="n">min_x</span><span class="p">,</span> <span class="n">min_y</span><span class="p">],</span>
-            <span class="p">[</span><span class="n">min_x</span><span class="p">,</span> <span class="n">max_y</span><span class="p">],</span>
-            <span class="p">[</span><span class="n">max_x</span><span class="p">,</span> <span class="n">max_y</span><span class="p">],</span>
-            <span class="p">[</span><span class="n">max_x</span><span class="p">,</span> <span class="n">min_y</span><span class="p">]</span>
-        <span class="p">])]</span>
-    <span class="k">return</span> <span class="n">coords</span><span class="p">,</span> <span class="n">boxes</span><span class="p">,</span> <span class="n">yolo_anns</span>
-
-
-<span class="k">def</span> <span class="nf">_wsi_extraction_worker</span><span class="p">(</span>
-    <span class="n">c</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span>
-    <span class="n">args</span><span class="p">:</span> <span class="n">SimpleNamespace</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">]]:</span>
-    <span class="sd">&#39;&#39;&#39;Multiprocessing worker for WSI. Extracts tile at given coordinates.&#39;&#39;&#39;</span>
-
-    <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">grid_x</span><span class="p">,</span> <span class="n">grid_y</span> <span class="o">=</span> <span class="n">c</span>
-    <span class="n">x_coord</span> <span class="o">=</span> <span class="nb">int</span><span class="p">((</span><span class="n">x</span> <span class="o">+</span> <span class="n">args</span><span class="o">.</span><span class="n">full_extract_px</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="n">args</span><span class="o">.</span><span class="n">roi_scale</span><span class="p">)</span>
-    <span class="n">y_coord</span> <span class="o">=</span> <span class="nb">int</span><span class="p">((</span><span class="n">y</span> <span class="o">+</span> <span class="n">args</span><span class="o">.</span><span class="n">full_extract_px</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="n">args</span><span class="o">.</span><span class="n">roi_scale</span><span class="p">)</span>
-
-    <span class="c1"># If downsampling is enabled, read image from highest level</span>
-    <span class="c1"># to perform filtering; otherwise filter from our target level</span>
-    <span class="n">slide</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">vips_wrapper</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">mpp_override</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">vips_cache</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">whitespace_fraction</span> <span class="o">&lt;</span> <span class="mi">1</span> <span class="ow">or</span> <span class="n">args</span><span class="o">.</span><span class="n">grayspace_fraction</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
-        <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">filter_downsample_ratio</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
-            <span class="n">filter_extract_px</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">extract_px</span> <span class="o">//</span> <span class="n">args</span><span class="o">.</span><span class="n">filter_downsample_ratio</span>
-            <span class="n">filter_region</span> <span class="o">=</span> <span class="n">slide</span><span class="o">.</span><span class="n">read_region</span><span class="p">(</span>
-                <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">),</span>
-                <span class="n">args</span><span class="o">.</span><span class="n">filter_downsample_level</span><span class="p">,</span>
-                <span class="p">(</span><span class="n">filter_extract_px</span><span class="p">,</span> <span class="n">filter_extract_px</span><span class="p">)</span>
-            <span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="c1"># Read the region and resize to target size</span>
-            <span class="n">filter_region</span> <span class="o">=</span> <span class="n">slide</span><span class="o">.</span><span class="n">read_region</span><span class="p">(</span>
-                <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">),</span>
-                <span class="n">args</span><span class="o">.</span><span class="n">downsample_level</span><span class="p">,</span>
-                <span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">extract_px</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">extract_px</span><span class="p">)</span>
-            <span class="p">)</span>
-        <span class="c1"># Perform whitespace filtering [Libvips]</span>
-        <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">whitespace_fraction</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
-            <span class="n">ws_fraction</span> <span class="o">=</span> <span class="n">filter_region</span><span class="o">.</span><span class="n">bandmean</span><span class="p">()</span><span class="o">.</span><span class="n">relational_const</span><span class="p">(</span>
-                <span class="s1">&#39;more&#39;</span><span class="p">,</span>
-                <span class="n">args</span><span class="o">.</span><span class="n">whitespace_threshold</span>
-            <span class="p">)</span><span class="o">.</span><span class="n">avg</span><span class="p">()</span> <span class="o">/</span> <span class="mi">255</span>
-            <span class="k">if</span> <span class="p">(</span><span class="n">ws_fraction</span> <span class="o">&gt;</span> <span class="n">args</span><span class="o">.</span><span class="n">whitespace_fraction</span>
-               <span class="ow">and</span> <span class="n">args</span><span class="o">.</span><span class="n">whitespace_fraction</span> <span class="o">!=</span> <span class="n">FORCE_CALCULATE_WHITESPACE</span><span class="p">):</span>
-                <span class="k">return</span> <span class="kc">None</span>
-
-        <span class="c1"># Perform grayspace filtering [Libvips]</span>
-        <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">grayspace_fraction</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
-            <span class="n">hsv_region</span> <span class="o">=</span> <span class="n">filter_region</span><span class="o">.</span><span class="n">sRGB2HSV</span><span class="p">()</span>
-            <span class="n">gs_fraction</span> <span class="o">=</span> <span class="n">hsv_region</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">relational_const</span><span class="p">(</span>
-                <span class="s1">&#39;less&#39;</span><span class="p">,</span>
-                <span class="n">args</span><span class="o">.</span><span class="n">grayspace_threshold</span><span class="o">*</span><span class="mi">255</span>
-            <span class="p">)</span><span class="o">.</span><span class="n">avg</span><span class="p">()</span> <span class="o">/</span> <span class="mi">255</span>
-            <span class="k">if</span> <span class="p">(</span><span class="n">gs_fraction</span> <span class="o">&gt;</span> <span class="n">args</span><span class="o">.</span><span class="n">grayspace_fraction</span>
-               <span class="ow">and</span> <span class="n">args</span><span class="o">.</span><span class="n">whitespace_fraction</span> <span class="o">!=</span> <span class="n">FORCE_CALCULATE_WHITESPACE</span><span class="p">):</span>
-                <span class="k">return</span> <span class="kc">None</span>
-
-    <span class="c1"># Prepare return dict with WS/GS fraction</span>
-    <span class="n">return_dict</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;loc&#39;</span><span class="p">:</span> <span class="p">[</span><span class="n">x_coord</span><span class="p">,</span> <span class="n">y_coord</span><span class="p">]}</span>  <span class="c1"># type: Dict[str, Any]</span>
-    <span class="n">return_dict</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;grid&#39;</span><span class="p">:</span> <span class="p">[</span><span class="n">grid_x</span><span class="p">,</span> <span class="n">grid_y</span><span class="p">]})</span>
-    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">grayspace_fraction</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
-        <span class="n">return_dict</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;gs_fraction&#39;</span><span class="p">:</span> <span class="n">gs_fraction</span><span class="p">})</span>
-    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">whitespace_fraction</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
-        <span class="n">return_dict</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;ws_fraction&#39;</span><span class="p">:</span> <span class="n">ws_fraction</span><span class="p">})</span>
-
-    <span class="c1"># If dry run, return without the image</span>
-    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">dry_run</span><span class="p">:</span>
-        <span class="n">return_dict</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;loc&#39;</span><span class="p">:</span> <span class="p">[</span><span class="n">x_coord</span><span class="p">,</span> <span class="n">y_coord</span><span class="p">]})</span>
-        <span class="k">return</span> <span class="n">return_dict</span>
-
-    <span class="c1"># Normalizer</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">args</span><span class="o">.</span><span class="n">normalizer</span><span class="p">:</span>
-        <span class="n">normalizer</span> <span class="o">=</span> <span class="kc">None</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="n">normalizer</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">norm</span><span class="o">.</span><span class="n">autoselect</span><span class="p">(</span>
-            <span class="n">method</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">normalizer</span><span class="p">,</span>
-            <span class="n">source</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">normalizer_source</span>
-        <span class="p">)</span>
-
-    <span class="c1"># Read the target downsample region now, if we were</span>
-    <span class="c1"># filtering at a different level</span>
-    <span class="n">region</span> <span class="o">=</span> <span class="n">slide</span><span class="o">.</span><span class="n">read_region</span><span class="p">(</span>
-        <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">),</span>
-        <span class="n">args</span><span class="o">.</span><span class="n">downsample_level</span><span class="p">,</span>
-        <span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">extract_px</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">extract_px</span><span class="p">)</span>
-    <span class="p">)</span>
-    <span class="k">if</span> <span class="n">region</span><span class="o">.</span><span class="n">bands</span> <span class="o">==</span> <span class="mi">4</span><span class="p">:</span>
-        <span class="n">region</span> <span class="o">=</span> <span class="n">region</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>  <span class="c1"># removes alpha</span>
-    <span class="k">if</span> <span class="nb">int</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">tile_px</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">int</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">extract_px</span><span class="p">):</span>
-        <span class="n">region</span> <span class="o">=</span> <span class="n">region</span><span class="o">.</span><span class="n">resize</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">tile_px</span><span class="o">/</span><span class="n">args</span><span class="o">.</span><span class="n">extract_px</span><span class="p">)</span>
-    <span class="k">assert</span><span class="p">(</span><span class="n">region</span><span class="o">.</span><span class="n">width</span> <span class="o">==</span> <span class="n">region</span><span class="o">.</span><span class="n">height</span> <span class="o">==</span> <span class="n">args</span><span class="o">.</span><span class="n">tile_px</span><span class="p">)</span>
-
-    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">img_format</span> <span class="o">!=</span> <span class="s1">&#39;numpy&#39;</span><span class="p">:</span>
-        <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">img_format</span> <span class="o">==</span> <span class="s1">&#39;png&#39;</span><span class="p">:</span>
-            <span class="n">image</span> <span class="o">=</span> <span class="n">region</span><span class="o">.</span><span class="n">pngsave_buffer</span><span class="p">()</span>
-        <span class="k">elif</span> <span class="n">args</span><span class="o">.</span><span class="n">img_format</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;jpg&#39;</span><span class="p">,</span> <span class="s1">&#39;jpeg&#39;</span><span class="p">):</span>
-            <span class="n">image</span> <span class="o">=</span> <span class="n">region</span><span class="o">.</span><span class="n">jpegsave_buffer</span><span class="p">()</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown image format </span><span class="si">{</span><span class="n">args</span><span class="o">.</span><span class="n">img_format</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-
-        <span class="c1"># Apply normalization</span>
-        <span class="k">if</span> <span class="n">normalizer</span><span class="p">:</span>
-            <span class="k">try</span><span class="p">:</span>
-                <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">img_format</span> <span class="o">==</span> <span class="s1">&#39;png&#39;</span><span class="p">:</span>
-                    <span class="n">image</span> <span class="o">=</span> <span class="n">normalizer</span><span class="o">.</span><span class="n">png_to_png</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
-                <span class="k">elif</span> <span class="n">args</span><span class="o">.</span><span class="n">img_format</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;jpg&#39;</span><span class="p">,</span> <span class="s1">&#39;jpeg&#39;</span><span class="p">):</span>
-                    <span class="n">image</span> <span class="o">=</span> <span class="n">normalizer</span><span class="o">.</span><span class="n">jpeg_to_jpeg</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
-                <span class="k">else</span><span class="p">:</span>
-                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown image format </span><span class="si">{</span><span class="n">args</span><span class="o">.</span><span class="n">img_format</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-            <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
-                <span class="c1"># The image could not be normalized,</span>
-                <span class="c1"># which happens when a tile is primarily one solid color</span>
-                <span class="k">return</span> <span class="kc">None</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="c1"># Read regions into memory and convert to numpy arrays</span>
-        <span class="n">image</span> <span class="o">=</span> <span class="n">vips2numpy</span><span class="p">(</span><span class="n">region</span><span class="p">)</span>
-
-        <span class="c1"># Apply normalization</span>
-        <span class="k">if</span> <span class="n">normalizer</span><span class="p">:</span>
-            <span class="k">try</span><span class="p">:</span>
-                <span class="n">image</span> <span class="o">=</span> <span class="n">normalizer</span><span class="o">.</span><span class="n">rgb_to_rgb</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
-            <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
-                <span class="c1"># The image could not be normalized,</span>
-                <span class="c1"># which happens when a tile is primarily one solid color</span>
-                <span class="k">return</span> <span class="kc">None</span>
-
-    <span class="c1"># Include ROI / bounding box processing.</span>
-    <span class="c1"># Used to visualize ROIs on extracted tiles, or to generate YoloV5 labels.</span>
-    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">yolo</span> <span class="ow">or</span> <span class="n">args</span><span class="o">.</span><span class="n">draw_roi</span><span class="p">:</span>
-        <span class="n">coords</span><span class="p">,</span> <span class="n">boxes</span><span class="p">,</span> <span class="n">yolo_anns</span> <span class="o">=</span> <span class="n">_roi_coords_from_image</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">draw_roi</span><span class="p">:</span>
-        <span class="n">image</span> <span class="o">=</span> <span class="n">_draw_roi</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">coords</span><span class="p">)</span>
-
-    <span class="n">return_dict</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;image&#39;</span><span class="p">:</span> <span class="n">image</span><span class="p">})</span>
-    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">yolo</span><span class="p">:</span>
-        <span class="n">return_dict</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;yolo&#39;</span><span class="p">:</span> <span class="n">yolo_anns</span><span class="p">})</span>
-    <span class="k">return</span> <span class="n">return_dict</span>
-
-
-<span class="k">def</span> <span class="nf">vips2numpy</span><span class="p">(</span><span class="n">vi</span><span class="p">:</span> <span class="s2">&quot;vips.Image&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
-    <span class="sd">&#39;&#39;&#39;Converts a VIPS image into a numpy array&#39;&#39;&#39;</span>
-    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">(</span><span class="n">buffer</span><span class="o">=</span><span class="n">vi</span><span class="o">.</span><span class="n">write_to_memory</span><span class="p">(),</span>
-                      <span class="n">dtype</span><span class="o">=</span><span class="n">VIPS_FORMAT_TO_DTYPE</span><span class="p">[</span><span class="n">vi</span><span class="o">.</span><span class="n">format</span><span class="p">],</span>
-                      <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">vi</span><span class="o">.</span><span class="n">height</span><span class="p">,</span> <span class="n">vi</span><span class="o">.</span><span class="n">width</span><span class="p">,</span> <span class="n">vi</span><span class="o">.</span><span class="n">bands</span><span class="p">])</span>
-
-
-<span class="k">def</span> <span class="nf">vips_resize</span><span class="p">(</span>
-    <span class="n">img</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
-    <span class="n">crop_width</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-    <span class="n">target_px</span><span class="p">:</span> <span class="nb">int</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
-    <span class="sd">&quot;&quot;&quot;Resizes and crops an image using libvips.resize()</span>
-
-<span class="sd">    Args:</span>
-<span class="sd">        img (np.ndarray): Image.</span>
-<span class="sd">        crop_width (int): Height/width of image crop (before resize).</span>
-<span class="sd">        target_px (int): Target size of final image after resizing.</span>
-
-<span class="sd">    Returns:</span>
-<span class="sd">        np.ndarray: Resized image.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">img_data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ascontiguousarray</span><span class="p">(</span><span class="n">img</span><span class="p">)</span><span class="o">.</span><span class="n">data</span>
-    <span class="n">vips_image</span> <span class="o">=</span> <span class="n">vips</span><span class="o">.</span><span class="n">Image</span><span class="o">.</span><span class="n">new_from_memory</span><span class="p">(</span>
-        <span class="n">img_data</span><span class="p">,</span>
-        <span class="n">crop_width</span><span class="p">,</span>
-        <span class="n">crop_width</span><span class="p">,</span>
-        <span class="n">bands</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
-        <span class="nb">format</span><span class="o">=</span><span class="s2">&quot;uchar&quot;</span>
-    <span class="p">)</span>
-    <span class="n">vips_image</span> <span class="o">=</span> <span class="n">vips_image</span><span class="o">.</span><span class="n">resize</span><span class="p">(</span><span class="n">target_px</span><span class="o">/</span><span class="n">crop_width</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">vips2numpy</span><span class="p">(</span><span class="n">vips_image</span><span class="p">)</span>
-
-
 <span class="k">def</span> <span class="nf">log_extraction_params</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
     <span class="sd">&#39;&#39;&#39;Logs tile extraction parameters.&#39;&#39;&#39;</span>
 
@@ -665,285 +376,6 @@
         <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Grayspace defined as HSV avg &lt; </span><span class="si">{</span><span class="n">gs_t</span><span class="si">}</span><span class="s1"> </span><span class="si">{</span><span class="n">excl</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
 
 
-<span class="k">class</span> <span class="nc">_VIPSWrapper</span><span class="p">:</span>
-
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
-        <span class="bp">self</span><span class="p">,</span>
-        <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-        <span class="n">mpp</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">cache_kw</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="sd">&#39;&#39;&#39;Wrapper for VIPS to preserve openslide-like functions.&#39;&#39;&#39;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">path</span> <span class="o">=</span> <span class="n">path</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">cache_kw</span> <span class="o">=</span> <span class="n">cache_kw</span> <span class="k">if</span> <span class="n">cache_kw</span> <span class="k">else</span> <span class="p">{}</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">loaded_downsample_levels</span> <span class="o">=</span> <span class="p">{}</span>  <span class="c1"># type: Dict[int, &quot;vips.Image&quot;]</span>
-        <span class="n">loaded_image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_downsample_level</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
-
-        <span class="c1"># Load image properties</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">properties</span> <span class="o">=</span> <span class="p">{}</span>
-        <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">loaded_image</span><span class="o">.</span><span class="n">get_fields</span><span class="p">():</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">properties</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">field</span><span class="p">:</span> <span class="n">loaded_image</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">field</span><span class="p">)})</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">dimensions</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="n">OPS_WIDTH</span><span class="p">]),</span>
-            <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="n">OPS_HEIGHT</span><span class="p">])</span>
-        <span class="p">)</span>
-        <span class="c1"># If Openslide MPP is not available, try reading from metadata</span>
-        <span class="k">if</span> <span class="n">mpp</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Setting MPP to </span><span class="si">{</span><span class="n">mpp</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="n">OPS_MPP_X</span><span class="p">]</span> <span class="o">=</span> <span class="n">mpp</span>
-        <span class="k">elif</span> <span class="n">OPS_MPP_X</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">properties</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
-            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
-                <span class="s2">&quot;Microns-Per-Pixel (MPP) not found, Searching EXIF&quot;</span>
-            <span class="p">)</span>
-            <span class="k">try</span><span class="p">:</span>
-                <span class="k">with</span> <span class="n">Image</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">path</span><span class="p">)</span> <span class="k">as</span> <span class="n">img</span><span class="p">:</span>
-                    <span class="k">if</span> <span class="n">TIF_EXIF_KEY_MPP</span> <span class="ow">in</span> <span class="n">img</span><span class="o">.</span><span class="n">tag</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
-                        <span class="n">_mpp</span> <span class="o">=</span> <span class="n">img</span><span class="o">.</span><span class="n">tag</span><span class="p">[</span><span class="n">TIF_EXIF_KEY_MPP</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
-                        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
-                            <span class="sa">f</span><span class="s2">&quot;Using MPP </span><span class="si">{</span><span class="n">_mpp</span><span class="si">}</span><span class="s2"> per EXIF </span><span class="si">{</span><span class="n">TIF_EXIF_KEY_MPP</span><span class="si">}</span><span class="s2">&quot;</span>
-                        <span class="p">)</span>
-                        <span class="bp">self</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="n">OPS_MPP_X</span><span class="p">]</span> <span class="o">=</span> <span class="n">_mpp</span>
-                    <span class="k">elif</span> <span class="p">(</span><span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">path_to_ext</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;svs&#39;</span>
-                          <span class="ow">and</span> <span class="s1">&#39;image-description&#39;</span> <span class="ow">in</span> <span class="n">loaded_image</span><span class="o">.</span><span class="n">get_fields</span><span class="p">()):</span>
-                          <span class="n">img_des</span> <span class="o">=</span> <span class="n">loaded_image</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;image-description&#39;</span><span class="p">)</span>
-                          <span class="n">_mpp</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;(?&lt;=MPP\s\=\s)0\.\d+&#39;</span><span class="p">,</span> <span class="n">img_des</span><span class="p">)</span>
-                          <span class="k">if</span> <span class="n">_mpp</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
-                                <span class="sa">f</span><span class="s2">&quot;Using MPP </span><span class="si">{</span><span class="n">_mpp</span><span class="si">}</span><span class="s2"> from &#39;image-description&#39; for SCN&quot;</span>
-                                <span class="s2">&quot;-converted SVS format&quot;</span>
-                            <span class="p">)</span>
-                            <span class="bp">self</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="n">OPS_MPP_X</span><span class="p">]</span> <span class="o">=</span> <span class="n">_mpp</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-                    <span class="k">elif</span> <span class="p">(</span><span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">path_to_ext</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;tif&#39;</span><span class="p">,</span> <span class="s1">&#39;tiff&#39;</span><span class="p">)</span>
-                          <span class="ow">and</span> <span class="s1">&#39;xres&#39;</span> <span class="ow">in</span> <span class="n">loaded_image</span><span class="o">.</span><span class="n">get_fields</span><span class="p">()):</span>
-                        <span class="n">xres</span> <span class="o">=</span> <span class="n">loaded_image</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;xres&#39;</span><span class="p">)</span>  <span class="c1"># 4000.0</span>
-                        <span class="k">if</span> <span class="p">(</span><span class="n">xres</span> <span class="o">==</span> <span class="mf">4000.0</span>
-                           <span class="ow">and</span> <span class="n">loaded_image</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;resolution-unit&#39;</span><span class="p">)</span> <span class="o">==</span> <span class="s1">&#39;cm&#39;</span><span class="p">):</span>
-                            <span class="c1"># xres = xres # though resolution from tiffinfo</span>
-                            <span class="c1"># says 40000 pixels/cm, for some reason the xres</span>
-                            <span class="c1"># val is 4000.0, so multipley by 10.</span>
-                            <span class="c1"># Convert from pixels/cm to cm/pixels, then convert</span>
-                            <span class="c1"># to microns by multiplying by 1000</span>
-                            <span class="n">mpp_x</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span><span class="o">/</span><span class="n">xres</span><span class="p">)</span> <span class="o">*</span> <span class="mi">1000</span>
-                            <span class="bp">self</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="n">OPS_MPP_X</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">mpp_x</span><span class="p">)</span>
-                            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
-                                <span class="sa">f</span><span class="s2">&quot;Using MPP </span><span class="si">{</span><span class="n">mpp_x</span><span class="si">}</span><span class="s2"> per TIFF &#39;xres&#39; field&quot;</span>
-                                <span class="sa">f</span><span class="s2">&quot; </span><span class="si">{</span><span class="n">loaded_image</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;xres&#39;</span><span class="p">)</span><span class="si">}</span><span class="s2"> and &quot;</span>
-                                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">loaded_image</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;resolution-unit&#39;</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
-                            <span class="p">)</span>
-                    <span class="k">else</span><span class="p">:</span>
-                        <span class="n">name</span> <span class="o">=</span> <span class="n">path_to_name</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
-                        <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
-                            <span class="sa">f</span><span class="s2">&quot;Missing Microns-Per-Pixel (MPP) for </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span>
-                        <span class="p">)</span>
-            <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
-                <span class="n">mpp</span> <span class="o">=</span> <span class="n">DEFAULT_JPG_MPP</span>
-                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Could not detect microns-per-pixel; using default </span><span class="si">{</span><span class="n">mpp</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="n">OPS_MPP_X</span><span class="p">]</span> <span class="o">=</span> <span class="n">mpp</span>
-            <span class="k">except</span> <span class="n">UnidentifiedImageError</span><span class="p">:</span>
-                <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
-                    <span class="sa">f</span><span class="s2">&quot;PIL error; unable to read slide </span><span class="si">{</span><span class="n">path_to_name</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="si">}</span><span class="s2">.&quot;</span>
-                <span class="p">)</span>
-
-        <span class="k">if</span> <span class="n">OPS_LEVEL_COUNT</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">properties</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">level_count</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="n">OPS_LEVEL_COUNT</span><span class="p">])</span>
-            <span class="c1"># Calculate level metadata</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">levels</span> <span class="o">=</span> <span class="p">[]</span>   <span class="c1"># type: List[Dict[str, Any]]</span>
-            <span class="k">for</span> <span class="n">lev</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">level_count</span><span class="p">):</span>
-                <span class="n">width</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">loaded_image</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">OPS_LEVEL_WIDTH</span><span class="p">(</span><span class="n">lev</span><span class="p">)))</span>
-                <span class="n">height</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">loaded_image</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">OPS_LEVEL_HEIGHT</span><span class="p">(</span><span class="n">lev</span><span class="p">)))</span>
-                <span class="n">downsample</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">loaded_image</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">OPS_LEVEL_DOWNSAMPLE</span><span class="p">(</span><span class="n">lev</span><span class="p">)))</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">levels</span> <span class="o">+=</span> <span class="p">[{</span>
-                    <span class="s1">&#39;dimensions&#39;</span><span class="p">:</span> <span class="p">(</span><span class="n">width</span><span class="p">,</span> <span class="n">height</span><span class="p">),</span>
-                    <span class="s1">&#39;width&#39;</span><span class="p">:</span> <span class="n">width</span><span class="p">,</span>
-                    <span class="s1">&#39;height&#39;</span><span class="p">:</span> <span class="n">height</span><span class="p">,</span>
-                    <span class="s1">&#39;downsample&#39;</span><span class="p">:</span> <span class="n">downsample</span>
-                <span class="p">}]</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">level_count</span> <span class="o">=</span> <span class="mi">1</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">levels</span> <span class="o">=</span> <span class="p">[{</span>
-                    <span class="s1">&#39;dimensions&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">dimensions</span><span class="p">,</span>
-                    <span class="s1">&#39;width&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">dimensions</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
-                    <span class="s1">&#39;height&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">dimensions</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
-                    <span class="s1">&#39;downsample&#39;</span><span class="p">:</span> <span class="mi">1</span>
-                <span class="p">}]</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">level_downsamples</span> <span class="o">=</span> <span class="p">[</span><span class="n">lev</span><span class="p">[</span><span class="s1">&#39;downsample&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">lev</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">levels</span><span class="p">]</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">level_dimensions</span> <span class="o">=</span> <span class="p">[</span><span class="n">lev</span><span class="p">[</span><span class="s1">&#39;dimensions&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">lev</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">levels</span><span class="p">]</span>
-
-    <span class="k">def</span> <span class="nf">best_level_for_downsample</span><span class="p">(</span>
-        <span class="bp">self</span><span class="p">,</span>
-        <span class="n">downsample</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
-        <span class="sd">&#39;&#39;&#39;Return lowest magnification level with a downsample level lower than</span>
-<span class="sd">        the given target.</span>
-
-<span class="sd">        Args:</span>
-<span class="sd">            downsample (float): Ratio of target resolution to resolution</span>
-<span class="sd">                at the highest magnification level. The downsample level of the</span>
-<span class="sd">                highest magnification layer is equal to 1.</span>
-<span class="sd">            levels (list(int), optional): Valid levels to search. Defaults to</span>
-<span class="sd">                None (search all levels).</span>
-
-<span class="sd">        Returns:</span>
-<span class="sd">            int:    Optimal downsample level.&#39;&#39;&#39;</span>
-        <span class="n">max_downsample</span> <span class="o">=</span> <span class="mi">0</span>
-        <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">level_downsamples</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">d</span> <span class="o">&lt;</span> <span class="n">downsample</span><span class="p">:</span>
-                <span class="n">max_downsample</span> <span class="o">=</span> <span class="n">d</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="n">max_level</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">level_downsamples</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">max_downsample</span><span class="p">)</span>
-        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
-            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Error attempting to read level </span><span class="si">{</span><span class="n">max_downsample</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-            <span class="k">return</span> <span class="mi">0</span>
-        <span class="k">return</span> <span class="n">max_level</span>
-
-    <span class="k">def</span> <span class="nf">load_downsample_level</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">level</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;vips.Image&quot;</span><span class="p">:</span>
-        <span class="n">downsampled_image</span> <span class="o">=</span> <span class="n">vips</span><span class="o">.</span><span class="n">Image</span><span class="o">.</span><span class="n">new_from_file</span><span class="p">(</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="p">,</span>
-            <span class="n">level</span><span class="o">=</span><span class="n">level</span><span class="p">,</span>
-            <span class="n">fail</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-            <span class="n">access</span><span class="o">=</span><span class="n">vips</span><span class="o">.</span><span class="n">enums</span><span class="o">.</span><span class="n">Access</span><span class="o">.</span><span class="n">RANDOM</span>
-        <span class="p">)</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cache_kw</span><span class="p">:</span>
-            <span class="n">downsampled_image</span> <span class="o">=</span> <span class="n">downsampled_image</span><span class="o">.</span><span class="n">tilecache</span><span class="p">(</span><span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">cache_kw</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">loaded_downsample_levels</span><span class="o">.</span><span class="n">update</span><span class="p">({</span>
-            <span class="n">level</span><span class="p">:</span> <span class="n">downsampled_image</span>
-        <span class="p">})</span>
-        <span class="k">return</span> <span class="n">downsampled_image</span>
-
-    <span class="k">def</span> <span class="nf">get_downsampled_image</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">level</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;vips.Image&quot;</span><span class="p">:</span>
-        <span class="sd">&#39;&#39;&#39;Returns a VIPS image of a given downsample.&#39;&#39;&#39;</span>
-        <span class="k">if</span> <span class="n">level</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">levels</span><span class="p">)):</span>
-            <span class="k">if</span> <span class="n">level</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">loaded_downsample_levels</span><span class="p">:</span>
-                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">loaded_downsample_levels</span><span class="p">[</span><span class="n">level</span><span class="p">]</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_downsample_level</span><span class="p">(</span><span class="n">level</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">return</span> <span class="kc">False</span>
-
-    <span class="k">def</span> <span class="nf">read_region</span><span class="p">(</span>
-        <span class="bp">self</span><span class="p">,</span>
-        <span class="n">base_level_dim</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span>
-        <span class="n">downsample_level</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-        <span class="n">extract_size</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;vips.Image&quot;</span><span class="p">:</span>
-        <span class="sd">&quot;&quot;&quot;Extracts a region from the image at the given downsample level.</span>
-
-<span class="sd">        Args:</span>
-<span class="sd">            base_level_dim (Tuple[int, int]): Top-left location of the region</span>
-<span class="sd">                to extract, using downsample layer coordinates (x, y)</span>
-<span class="sd">            downsample_level (int): Downsample level to read.</span>
-<span class="sd">            extract_size (Tuple[int, int]): Size of the region to read</span>
-<span class="sd">                (width, height) using base layer coordinates.</span>
-
-<span class="sd">        Returns:</span>
-<span class="sd">            vips.Image: VIPS image.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">base_level_x</span><span class="p">,</span> <span class="n">base_level_y</span> <span class="o">=</span> <span class="n">base_level_dim</span>
-        <span class="n">extract_width</span><span class="p">,</span> <span class="n">extract_height</span> <span class="o">=</span> <span class="n">extract_size</span>
-        <span class="n">downsample_factor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">level_downsamples</span><span class="p">[</span><span class="n">downsample_level</span><span class="p">]</span>
-        <span class="n">downsample_x</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">base_level_x</span> <span class="o">/</span> <span class="n">downsample_factor</span><span class="p">)</span>
-        <span class="n">downsample_y</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">base_level_y</span> <span class="o">/</span> <span class="n">downsample_factor</span><span class="p">)</span>
-        <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_downsampled_image</span><span class="p">(</span><span class="n">downsample_level</span><span class="p">)</span>
-        <span class="n">region</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">crop</span><span class="p">(</span>
-            <span class="n">downsample_x</span><span class="p">,</span>
-            <span class="n">downsample_y</span><span class="p">,</span>
-            <span class="n">extract_width</span><span class="p">,</span>
-            <span class="n">extract_height</span>
-        <span class="p">)</span>
-        <span class="k">return</span> <span class="n">region</span>
-
-    <span class="k">def</span> <span class="nf">read_from_pyramid</span><span class="p">(</span>
-        <span class="bp">self</span><span class="p">,</span>
-        <span class="n">top_left</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span>
-        <span class="n">window_size</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span>
-        <span class="n">target_size</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">target_downsample</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;vips.Image&quot;</span><span class="p">:</span>
-        <span class="sd">&quot;&quot;&quot;Reads a region from the image. Performance is accelerated by</span>
-<span class="sd">        pyramid downsample layers, if available.</span>
-
-<span class="sd">        Args:</span>
-<span class="sd">            top_left (Tuple[int, int]): Top-left location of the region to</span>
-<span class="sd">                extract, using base layer coordinates (x, y).</span>
-<span class="sd">            window_size (Tuple[int, int]): Size of the region to read (width,</span>
-<span class="sd">                height) using base layer coordinates.</span>
-<span class="sd">            target_size (Tuple[int, int]): Resize the region to this target</span>
-<span class="sd">                size (width, height).</span>
-
-<span class="sd">        Returns:</span>
-<span class="sd">            vips.Image: VIPS image. Dimensions will equal target_size unless</span>
-<span class="sd">            the window includes an area of the image which is out of bounds.</span>
-<span class="sd">            In this case, the returned image will be cropped.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="n">target_size</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">target_downsample</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Must supply either target_size or &quot;</span>
-                             <span class="s2">&quot;target_downsample to read_from_pyramid()&quot;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">target_downsample</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">target_downsample</span> <span class="o">=</span> <span class="n">window_size</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">/</span> <span class="n">target_size</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-
-        <span class="n">ds_level</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">best_level_for_downsample</span><span class="p">(</span><span class="n">target_downsample</span><span class="p">)</span>
-        <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_downsampled_image</span><span class="p">(</span><span class="n">ds_level</span><span class="p">)</span>
-        <span class="n">resize_factor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">level_downsamples</span><span class="p">[</span><span class="n">ds_level</span><span class="p">]</span> <span class="o">/</span> <span class="n">target_downsample</span>
-        <span class="n">image</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">resize</span><span class="p">(</span><span class="n">resize_factor</span><span class="p">)</span>
-
-        <span class="k">if</span> <span class="n">target_size</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">image</span><span class="o">.</span><span class="n">crop</span><span class="p">(</span>
-                <span class="nb">int</span><span class="p">(</span><span class="n">top_left</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">/</span> <span class="n">target_downsample</span><span class="p">),</span>
-                <span class="nb">int</span><span class="p">(</span><span class="n">top_left</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">/</span> <span class="n">target_downsample</span><span class="p">),</span>
-                <span class="nb">min</span><span class="p">(</span><span class="n">target_size</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">image</span><span class="o">.</span><span class="n">width</span><span class="p">),</span>
-                <span class="nb">min</span><span class="p">(</span><span class="n">target_size</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">image</span><span class="o">.</span><span class="n">height</span><span class="p">)</span>
-            <span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">image</span>
-
-<span class="k">class</span> <span class="nc">_JPGslideToVIPS</span><span class="p">(</span><span class="n">_VIPSWrapper</span><span class="p">):</span>
-    <span class="sd">&#39;&#39;&#39;Wrapper for JPG files, which do not possess separate levels, to</span>
-<span class="sd">    preserve openslide-like functions.&#39;&#39;&#39;</span>
-
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">mpp</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">cache_kw</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">path</span> <span class="o">=</span> <span class="n">path</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">full_image</span> <span class="o">=</span> <span class="n">vips</span><span class="o">.</span><span class="n">Image</span><span class="o">.</span><span class="n">new_from_file</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">cache_kw</span> <span class="o">=</span> <span class="n">cache_kw</span> <span class="k">if</span> <span class="n">cache_kw</span> <span class="k">else</span> <span class="p">{}</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">full_image</span><span class="o">.</span><span class="n">hasalpha</span><span class="p">():</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">full_image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">full_image</span><span class="o">.</span><span class="n">addalpha</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">properties</span> <span class="o">=</span> <span class="p">{}</span>
-        <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">full_image</span><span class="o">.</span><span class="n">get_fields</span><span class="p">():</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">properties</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">field</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">full_image</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">field</span><span class="p">)})</span>
-        <span class="n">width</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="n">OPS_WIDTH</span><span class="p">])</span>
-        <span class="n">height</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="n">OPS_HEIGHT</span><span class="p">])</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">dimensions</span> <span class="o">=</span> <span class="p">(</span><span class="n">width</span><span class="p">,</span> <span class="n">height</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">level_count</span> <span class="o">=</span> <span class="mi">1</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">loaded_downsample_levels</span> <span class="o">=</span> <span class="p">{</span>
-            <span class="mi">0</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">full_image</span>
-        <span class="p">}</span>
-        <span class="c1"># Calculate level metadata</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">levels</span> <span class="o">=</span> <span class="p">[{</span>
-            <span class="s1">&#39;dimensions&#39;</span><span class="p">:</span> <span class="p">(</span><span class="n">width</span><span class="p">,</span> <span class="n">height</span><span class="p">),</span>
-            <span class="s1">&#39;width&#39;</span><span class="p">:</span> <span class="n">width</span><span class="p">,</span>
-            <span class="s1">&#39;height&#39;</span><span class="p">:</span> <span class="n">height</span><span class="p">,</span>
-            <span class="s1">&#39;downsample&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
-        <span class="p">}]</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">level_downsamples</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">]</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">level_dimensions</span> <span class="o">=</span> <span class="p">[(</span><span class="n">width</span><span class="p">,</span> <span class="n">height</span><span class="p">)]</span>
-
-        <span class="c1"># MPP data</span>
-        <span class="k">if</span> <span class="n">mpp</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Setting MPP to </span><span class="si">{</span><span class="n">mpp</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="n">OPS_MPP_X</span><span class="p">]</span> <span class="o">=</span> <span class="n">mpp</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">try</span><span class="p">:</span>
-                <span class="k">with</span> <span class="n">Image</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">path</span><span class="p">)</span> <span class="k">as</span> <span class="n">img</span><span class="p">:</span>
-                    <span class="n">exif_data</span> <span class="o">=</span> <span class="n">img</span><span class="o">.</span><span class="n">getexif</span><span class="p">()</span>
-                    <span class="k">if</span> <span class="n">TIF_EXIF_KEY_MPP</span> <span class="ow">in</span> <span class="n">exif_data</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
-                        <span class="n">_mpp</span> <span class="o">=</span> <span class="n">exif_data</span><span class="p">[</span><span class="n">TIF_EXIF_KEY_MPP</span><span class="p">]</span>
-                        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Using MPP </span><span class="si">{</span><span class="n">_mpp</span><span class="si">}</span><span class="s2"> per EXIF field </span><span class="si">{</span><span class="n">TIF_EXIF_KEY_MPP</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-                        <span class="bp">self</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="n">OPS_MPP_X</span><span class="p">]</span> <span class="o">=</span> <span class="n">_mpp</span>
-                    <span class="k">else</span><span class="p">:</span>
-                        <span class="k">raise</span> <span class="ne">AttributeError</span>
-            <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
-                <span class="n">mpp</span> <span class="o">=</span> <span class="n">DEFAULT_JPG_MPP</span>
-                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Could not detect microns-per-pixel; using default </span><span class="si">{</span><span class="n">mpp</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="n">OPS_MPP_X</span><span class="p">]</span> <span class="o">=</span> <span class="n">mpp</span>
 <span class="k">class</span> <span class="nc">ROI</span><span class="p">:</span>
     <span class="sd">&#39;&#39;&#39;Object container for ROI annotations.&#39;&#39;&#39;</span>
 
@@ -985,7 +417,7 @@
         <span class="n">enable_downsample</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
         <span class="n">pb</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Progress</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">mpp</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">vips_cache</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="o">**</span><span class="n">reader_kwargs</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">pb</span> <span class="o">=</span> <span class="n">pb</span>
@@ -996,9 +428,9 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">thumb_image</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># type: Optional[Image.Image]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">stride_div</span> <span class="o">=</span> <span class="n">stride_div</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">path</span> <span class="o">=</span> <span class="n">path</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">qc_mask</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">qc_masks</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rois</span> <span class="o">=</span> <span class="p">[]</span>  <span class="c1"># type: List</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">qc_mpp</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># type: Optional[float]</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">qc_method</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># type: Optional[str]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">blur_burden</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># type: Optional[float]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">roi_scale</span> <span class="o">=</span> <span class="mi">1</span>  <span class="c1"># type: float</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">roi_method</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># type: Optional[str]</span>
@@ -1006,7 +438,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">filetype</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">path_to_ext</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">__slide</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_mpp_override</span> <span class="o">=</span> <span class="n">mpp</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_vips_cache_kw</span> <span class="o">=</span> <span class="n">vips_cache</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_reader_kwargs</span> <span class="o">=</span> <span class="n">reader_kwargs</span>
 
         <span class="c1"># Initiate supported slide reader</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
@@ -1018,7 +450,7 @@
 
         <span class="c1"># Collect basic slide information</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">mpp</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="n">OPS_MPP_X</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">mpp</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">mpp</span><span class="p">)</span>
         <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">SlideLoadError</span><span class="p">(</span>
                 <span class="sa">f</span><span class="s2">&quot;Slide [green]</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">[/] missing MPP (</span><span class="si">{</span><span class="n">OPS_MPP_X</span><span class="si">}</span><span class="s2">)&quot;</span>
@@ -1088,13 +520,6 @@
         <span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">state</span><span class="p">)</span>
 
     <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">_vips_wrapper</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">filetype</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;jpg&#39;</span><span class="p">,</span> <span class="s1">&#39;jpeg&#39;</span><span class="p">):</span>
-            <span class="k">return</span> <span class="n">_JPGslideToVIPS</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">_VIPSWrapper</span>
-
-    <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">dimensions</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]:</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">dimensions</span>
 
@@ -1110,20 +535,36 @@
             <span class="k">return</span> <span class="kc">None</span>
 
     <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">slide</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">_VIPSWrapper</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">slide</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="s2">&quot;_JPGReader&quot;</span><span class="p">,</span> <span class="s2">&quot;_SlideReader&quot;</span><span class="p">]:</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">__slide</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__slide</span>
-
         <span class="k">try</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">__slide</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_vips_wrapper</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__slide</span> <span class="o">=</span> <span class="n">wsi_reader</span><span class="p">(</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="p">,</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">_mpp_override</span><span class="p">,</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">_vips_cache_kw</span><span class="p">)</span>
+                <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">_reader_kwargs</span><span class="p">)</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__slide</span>  <span class="c1"># type: ignore</span>
-        <span class="k">except</span> <span class="n">vips</span><span class="o">.</span><span class="n">error</span><span class="o">.</span><span class="n">Error</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">SlideLoadError</span><span class="p">(</span>
                 <span class="sa">f</span><span class="s2">&quot;Error loading slide </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">shortname</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span>
             <span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">qc_mask</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;Returns union of all QC masks.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">qc_masks</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">qc_masks</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">qc_masks</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">_</span><span class="p">,</span> <span class="n">smallest</span> <span class="o">=</span> <span class="nb">min</span><span class="p">((</span><span class="n">m</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">idx</span><span class="p">)</span>
+                               <span class="k">for</span> <span class="p">(</span><span class="n">idx</span><span class="p">,</span> <span class="n">m</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">qc_masks</span><span class="p">))</span>
+            <span class="n">shape</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">qc_masks</span><span class="p">[</span><span class="n">smallest</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span>
+            <span class="n">mask</span> <span class="o">=</span> <span class="n">skimage</span><span class="o">.</span><span class="n">transform</span><span class="o">.</span><span class="n">resize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">qc_masks</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">shape</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">bool</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">_next</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">qc_masks</span><span class="p">[</span><span class="mi">1</span><span class="p">:]:</span>
+                <span class="n">_next</span> <span class="o">=</span> <span class="n">skimage</span><span class="o">.</span><span class="n">transform</span><span class="o">.</span><span class="n">resize</span><span class="p">(</span><span class="n">_next</span><span class="p">,</span> <span class="n">shape</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">bool</span><span class="p">)</span>
+                <span class="n">mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">logical_or</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="n">_next</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">mask</span>
 
     <span class="k">def</span> <span class="nf">_build_coord</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">raise</span> <span class="ne">NotImplementedError</span>
@@ -1138,17 +579,18 @@
 
     <span class="k">def</span> <span class="nf">remove_qc</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_build_coord</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">qc_method</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">qc_masks</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;QC removed from slide </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">shortname</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">qc</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
-        <span class="n">method</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">method</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">Callable</span><span class="p">]],</span>
+        <span class="o">*</span><span class="p">,</span>
         <span class="n">blur_radius</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span>
         <span class="n">blur_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.02</span><span class="p">,</span>
         <span class="n">filter_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.6</span><span class="p">,</span>
         <span class="n">blur_mpp</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">4</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Image</span><span class="o">.</span><span class="n">Image</span><span class="p">:</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Image</span><span class="o">.</span><span class="n">Image</span><span class="p">]:</span>
         <span class="sd">&quot;&quot;&quot;Applies quality control to a slide, performing filtering based on</span>
 <span class="sd">        a whole-slide image thumbnail.</span>
 
@@ -1158,104 +600,43 @@
 <span class="sd">        &#39;both&#39; applies both methods of filtering.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            method (str): Quality control method, &#39;blur&#39;, &#39;otsu&#39;, or &#39;both&#39;.</span>
-<span class="sd">            blur_radius (int, optional): Blur radius.</span>
-<span class="sd">            blur_threshold (float, optional): Blur threshold.</span>
-<span class="sd">            filter_threshold (float, optional): Percent of a tile detected as</span>
+<span class="sd">            method (str, Callable, list(Callable)): Quality control method(s).</span>
+<span class="sd">                If a string, may be &#39;blur&#39;, &#39;otsu&#39;, or &#39;both&#39;.</span>
+<span class="sd">                If a callable (or list of callables), each must accept a sf.WSI</span>
+<span class="sd">                object and return a np.ndarray (dtype=np.bool).</span>
+<span class="sd">            blur_radius (int, optional): Blur radius. Only used if method is</span>
+<span class="sd">                &#39;blur&#39; or &#39;both&#39;.</span>
+<span class="sd">            blur_threshold (float, optional): Blur threshold. Only used if</span>
+<span class="sd">                method is &#39;blur&#39; or &#39;both.&#39;</span>
+<span class="sd">            filter_threshold (float): Percent of a tile detected as</span>
 <span class="sd">                background that will trigger a tile to be discarded.</span>
 <span class="sd">                Defaults to 0.6.</span>
 <span class="sd">            blur_mpp (float, optional): Size of WSI thumbnail on which to</span>
 <span class="sd">                perform blur QC, in microns-per-pixel. Defaults to 4</span>
-<span class="sd">                (equivalent magnification = 2.5 X).</span>
+<span class="sd">                (equivalent magnification = 2.5 X). Only used if method is</span>
+<span class="sd">                &#39;blur&#39; or &#39;both&#39;.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Image: Image of applied QC mask.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-
-        <span class="k">if</span> <span class="n">method</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;blur&#39;</span><span class="p">,</span> <span class="s1">&#39;otsu&#39;</span><span class="p">,</span> <span class="s1">&#39;both&#39;</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">method</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="n">method</span> <span class="o">==</span> <span class="s1">&#39;otsu&#39;</span><span class="p">:</span>
+            <span class="n">method</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">qc</span><span class="o">.</span><span class="n">Otsu</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">method</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="n">method</span> <span class="o">==</span> <span class="s1">&#39;blur&#39;</span><span class="p">:</span>
+            <span class="n">method</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">qc</span><span class="o">.</span><span class="n">Gaussian</span><span class="p">(</span><span class="n">mpp</span><span class="o">=</span><span class="n">blur_mpp</span><span class="p">,</span> <span class="n">sigma</span><span class="o">=</span><span class="n">blur_radius</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="n">blur_threshold</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">method</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="n">method</span> <span class="o">==</span> <span class="s1">&#39;both&#39;</span><span class="p">:</span>
+            <span class="n">method</span> <span class="o">=</span> <span class="p">[</span><span class="n">sf</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">qc</span><span class="o">.</span><span class="n">Otsu</span><span class="p">(),</span>
+                      <span class="n">sf</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">qc</span><span class="o">.</span><span class="n">Gaussian</span><span class="p">(</span><span class="n">mpp</span><span class="o">=</span><span class="n">blur_mpp</span><span class="p">,</span> <span class="n">sigma</span><span class="o">=</span><span class="n">blur_radius</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="n">blur_threshold</span><span class="p">)]</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">method</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
             <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">QCError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown QC method </span><span class="si">{</span><span class="n">method</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">method</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="n">method</span> <span class="o">=</span> <span class="p">[</span><span class="n">method</span><span class="p">]</span>
+
         <span class="n">starttime</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">qc_method</span> <span class="o">=</span> <span class="n">method</span>
-
-        <span class="c1"># Blur QC must be performed at a set microns-per-pixel rather than</span>
-        <span class="c1"># downsample level, as blur detection is much for sensitive to</span>
-        <span class="c1"># effective magnification than Otsu&#39;s thresholding</span>
-        <span class="k">if</span> <span class="n">method</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;blur&#39;</span><span class="p">,</span> <span class="s1">&#39;both&#39;</span><span class="p">):</span>
-            <span class="n">thumb</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">thumb</span><span class="p">(</span><span class="n">mpp</span><span class="o">=</span><span class="n">blur_mpp</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">thumb</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">QCError</span><span class="p">(</span>
-                    <span class="sa">f</span><span class="s2">&quot;Thumbnail error for slide </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">shortname</span><span class="si">}</span><span class="s2">, QC failed&quot;</span>
-                <span class="p">)</span>
-            <span class="n">thumb</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">thumb</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">thumb</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="mi">4</span><span class="p">:</span>
-                <span class="n">thumb</span> <span class="o">=</span> <span class="n">thumb</span><span class="p">[:,</span> <span class="p">:,</span> <span class="p">:</span><span class="mi">3</span><span class="p">]</span>
-            <span class="n">gray</span> <span class="o">=</span> <span class="n">rgb2gray</span><span class="p">(</span><span class="n">thumb</span><span class="p">)</span>
-            <span class="n">img_laplace</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">skimage</span><span class="o">.</span><span class="n">filters</span><span class="o">.</span><span class="n">laplace</span><span class="p">(</span><span class="n">gray</span><span class="p">))</span>
-            <span class="n">gaussian</span> <span class="o">=</span> <span class="n">skimage</span><span class="o">.</span><span class="n">filters</span><span class="o">.</span><span class="n">gaussian</span><span class="p">(</span><span class="n">img_laplace</span><span class="p">,</span> <span class="n">sigma</span><span class="o">=</span><span class="n">blur_radius</span><span class="p">)</span>
-            <span class="n">blur_mask</span> <span class="o">=</span> <span class="n">gaussian</span> <span class="o">&lt;=</span> <span class="n">blur_threshold</span>
-            <span class="n">lev</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">level_count</span> <span class="o">-</span> <span class="mi">1</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">qc_mask</span> <span class="o">=</span> <span class="n">blur_mask</span>
-
-        <span class="c1"># Otsu&#39;s thresholding can be done on the lowest downsample level</span>
-        <span class="k">if</span> <span class="n">method</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;otsu&#39;</span><span class="p">,</span> <span class="s1">&#39;both&#39;</span><span class="p">):</span>
-            <span class="n">lev</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">level_count</span> <span class="o">-</span> <span class="mi">1</span>
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_vips_wrapper</span> <span class="o">==</span> <span class="n">_JPGslideToVIPS</span><span class="p">:</span>
-                <span class="n">otsu_thumb</span> <span class="o">=</span> <span class="n">vips</span><span class="o">.</span><span class="n">Image</span><span class="o">.</span><span class="n">new_from_file</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="n">fail</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">otsu_thumb</span> <span class="o">=</span> <span class="n">vips</span><span class="o">.</span><span class="n">Image</span><span class="o">.</span><span class="n">new_from_file</span><span class="p">(</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="p">,</span>
-                    <span class="n">fail</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-                    <span class="n">access</span><span class="o">=</span><span class="n">vips</span><span class="o">.</span><span class="n">enums</span><span class="o">.</span><span class="n">Access</span><span class="o">.</span><span class="n">RANDOM</span><span class="p">,</span>
-                    <span class="n">level</span><span class="o">=</span><span class="n">lev</span>
-                <span class="p">)</span>
-            <span class="k">try</span><span class="p">:</span>
-                <span class="n">otsu_thumb</span> <span class="o">=</span> <span class="n">vips2numpy</span><span class="p">(</span><span class="n">otsu_thumb</span><span class="p">)</span>
-            <span class="k">except</span> <span class="n">vips</span><span class="o">.</span><span class="n">error</span><span class="o">.</span><span class="n">Error</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">QCError</span><span class="p">(</span>
-                    <span class="sa">f</span><span class="s2">&quot;Thumbnail error for slide </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">shortname</span><span class="si">}</span><span class="s2">, QC failed&quot;</span>
-                <span class="p">)</span>
-            <span class="k">if</span> <span class="n">otsu_thumb</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="mi">4</span><span class="p">:</span>
-                <span class="n">otsu_thumb</span> <span class="o">=</span> <span class="n">otsu_thumb</span><span class="p">[:,</span> <span class="p">:,</span> <span class="p">:</span><span class="mi">3</span><span class="p">]</span>
-
-            <span class="c1"># Only apply Otsu thresholding within ROI, if present</span>
-            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">annPolys</span><span class="p">):</span>
-                <span class="n">ofact</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">roi_scale</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">level_downsamples</span><span class="p">[</span><span class="n">lev</span><span class="p">]</span>
-                <span class="n">roi_mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">otsu_thumb</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">otsu_thumb</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
-                <span class="n">scaled_polys</span> <span class="o">=</span> <span class="p">[</span>
-                    <span class="n">sa</span><span class="o">.</span><span class="n">scale</span><span class="p">(</span><span class="n">poly</span><span class="p">,</span> <span class="n">xfact</span><span class="o">=</span><span class="n">ofact</span><span class="p">,</span> <span class="n">yfact</span><span class="o">=</span><span class="n">ofact</span><span class="p">,</span> <span class="n">origin</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
-                    <span class="k">for</span> <span class="n">poly</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">annPolys</span>
-                <span class="p">]</span>
-                <span class="n">roi_mask</span> <span class="o">=</span> <span class="n">rasterio</span><span class="o">.</span><span class="n">features</span><span class="o">.</span><span class="n">rasterize</span><span class="p">(</span>
-                    <span class="n">scaled_polys</span><span class="p">,</span>
-                    <span class="n">out_shape</span><span class="o">=</span><span class="n">otsu_thumb</span><span class="o">.</span><span class="n">shape</span><span class="p">[:</span><span class="mi">2</span><span class="p">]</span>
-                <span class="p">)</span>
-                <span class="n">otsu_thumb</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">bitwise_or</span><span class="p">(</span>
-                    <span class="n">otsu_thumb</span><span class="p">,</span>
-                    <span class="n">otsu_thumb</span><span class="p">,</span>
-                    <span class="n">mask</span><span class="o">=</span><span class="n">roi_mask</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
-                <span class="p">)</span>
-            <span class="n">hsv_img</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">cvtColor</span><span class="p">(</span><span class="n">otsu_thumb</span><span class="p">,</span> <span class="n">cv2</span><span class="o">.</span><span class="n">COLOR_RGB2HSV</span><span class="p">)</span>
-            <span class="n">img_med</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">medianBlur</span><span class="p">(</span><span class="n">hsv_img</span><span class="p">[:,</span> <span class="p">:,</span> <span class="mi">1</span><span class="p">],</span> <span class="mi">7</span><span class="p">)</span>
-            <span class="n">flags</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">THRESH_OTSU</span><span class="o">+</span><span class="n">cv2</span><span class="o">.</span><span class="n">THRESH_BINARY_INV</span>
-            <span class="n">_</span><span class="p">,</span> <span class="n">otsu_mask</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">threshold</span><span class="p">(</span><span class="n">img_med</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">255</span><span class="p">,</span> <span class="n">flags</span><span class="p">)</span>
-            <span class="n">otsu_mask</span> <span class="o">=</span> <span class="n">otsu_mask</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">bool</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">qc_mask</span> <span class="o">=</span> <span class="n">otsu_mask</span>
-
-        <span class="c1"># If performing both, ensure the mask sizes are equivalent (shrinks to</span>
-        <span class="c1"># the size of the smaller mask - Otsu)</span>
-        <span class="k">if</span> <span class="n">method</span> <span class="o">==</span> <span class="s1">&#39;both&#39;</span><span class="p">:</span>
-            <span class="n">blur_mask</span> <span class="o">=</span> <span class="n">skimage</span><span class="o">.</span><span class="n">transform</span><span class="o">.</span><span class="n">resize</span><span class="p">(</span><span class="n">blur_mask</span><span class="p">,</span> <span class="n">otsu_mask</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
-            <span class="n">blur_mask</span> <span class="o">=</span> <span class="n">blur_mask</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">bool</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">qc_mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">logical_or</span><span class="p">(</span><span class="n">blur_mask</span><span class="p">,</span> <span class="n">otsu_mask</span><span class="p">)</span>
-            <span class="n">blur</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">count_nonzero</span><span class="p">(</span>
-                <span class="n">np</span><span class="o">.</span><span class="n">logical_and</span><span class="p">(</span>
-                    <span class="n">blur_mask</span><span class="p">,</span>
-                    <span class="n">np</span><span class="o">.</span><span class="n">logical_xor</span><span class="p">(</span><span class="n">blur_mask</span><span class="p">,</span> <span class="n">otsu_mask</span><span class="p">)</span>
-                <span class="p">)</span>
-            <span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">blur_burden</span> <span class="o">=</span> <span class="n">blur</span> <span class="o">/</span> <span class="p">(</span><span class="n">blur_mask</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">blur_mask</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
-            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Blur burden: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">blur_burden</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-
-        <span class="c1"># Filter coordinates</span>
-        <span class="n">img</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">apply_qc_mask</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">qc_mask</span><span class="p">,</span> <span class="n">filter_threshold</span><span class="o">=</span><span class="n">filter_threshold</span><span class="p">)</span>
+        <span class="n">img</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">for</span> <span class="n">qc</span> <span class="ow">in</span> <span class="n">method</span><span class="p">:</span>
+            <span class="n">mask</span> <span class="o">=</span> <span class="n">qc</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">mask</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">img</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">apply_qc_mask</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="n">filter_threshold</span><span class="o">=</span><span class="n">filter_threshold</span><span class="p">)</span>
         <span class="n">dur</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;(time: </span><span class="si">{</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span><span class="o">-</span><span class="n">starttime</span><span class="si">:</span><span class="s1">.2f</span><span class="si">}</span><span class="s1">s)&#39;</span>
         <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;QC (</span><span class="si">{</span><span class="n">method</span><span class="si">}</span><span class="s1">) complete for slide </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">shortname</span><span class="si">}</span><span class="s1"> </span><span class="si">{</span><span class="n">dur</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">img</span>
@@ -1265,8 +646,17 @@
         <span class="n">mask</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
         <span class="n">filter_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.6</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Image</span><span class="p">:</span>
-        <span class="sd">&quot;&quot;&quot;Apply custom slide-level QC by filtering grid coordinates.&quot;&quot;&quot;</span>
+        <span class="sd">&quot;&quot;&quot;Apply custom slide-level QC by filtering grid coordinates.</span>
 
+<span class="sd">        Args:</span>
+<span class="sd">            mask (np.ndarray): Boolean QC mask.</span>
+<span class="sd">            filter_threshold (float): Percent of a tile detected as</span>
+<span class="sd">                background that will trigger a tile to be discarded.</span>
+<span class="sd">                Defaults to 0.6.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Image: Image of applied QC mask.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span>
         <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">mask</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span>
         <span class="k">assert</span> <span class="n">mask</span><span class="o">.</span><span class="n">dtype</span> <span class="o">==</span> <span class="nb">bool</span>
@@ -1281,12 +671,17 @@
             <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">submask</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">filter_threshold</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">grid</span><span class="p">[</span><span class="n">xi</span><span class="p">,</span> <span class="n">yi</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">qc_mask</span> <span class="o">=</span> <span class="n">mask</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">qc_masks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">mask</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">qc_mpp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mpp</span> <span class="o">*</span> <span class="n">downsample</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">estimated_num_tiles</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">grid</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
         <span class="k">return</span> <span class="n">Image</span><span class="o">.</span><span class="n">fromarray</span><span class="p">(</span><span class="n">img_as_ubyte</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">qc_mask</span><span class="p">))</span>
 
-    <span class="k">def</span> <span class="nf">square_thumb</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">width</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">512</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Image</span><span class="o">.</span><span class="n">Image</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">square_thumb</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">width</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">512</span><span class="p">,</span>
+        <span class="n">use_associated_image</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Image</span><span class="o">.</span><span class="n">Image</span><span class="p">:</span>
         <span class="sd">&#39;&#39;&#39;Returns a square thumbnail of the slide, with black bar borders.</span>
 
 <span class="sd">        Args:</span>
@@ -1295,23 +690,12 @@
 <span class="sd">        Returns:</span>
 <span class="sd">            PIL image</span>
 <span class="sd">        &#39;&#39;&#39;</span>
-        <span class="c1"># Get thumbnail image and dimensions via fastest method available</span>
-        <span class="n">associated_images</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="s1">&#39;slide-associated-images&#39;</span><span class="p">]</span>
-        <span class="k">if</span> <span class="p">(</span><span class="s1">&#39;slide-associated-images&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">properties</span>
-           <span class="ow">and</span> <span class="s1">&#39;thumbnail&#39;</span> <span class="ow">in</span> <span class="n">associated_images</span><span class="p">):</span>
-            <span class="n">vips_thumb</span> <span class="o">=</span> <span class="n">vips</span><span class="o">.</span><span class="n">Image</span><span class="o">.</span><span class="n">openslideload</span><span class="p">(</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">path</span><span class="p">,</span>
-                <span class="n">associated</span><span class="o">=</span><span class="s1">&#39;thumbnail&#39;</span>
-            <span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">level</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">level_count</span><span class="o">-</span><span class="mi">2</span><span class="p">)</span>
-            <span class="n">vips_thumb</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">get_downsampled_image</span><span class="p">(</span><span class="n">level</span><span class="p">)</span>
-
-        <span class="n">height</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">width</span> <span class="o">/</span> <span class="p">(</span><span class="n">vips_thumb</span><span class="o">.</span><span class="n">width</span> <span class="o">/</span> <span class="n">vips_thumb</span><span class="o">.</span><span class="n">height</span><span class="p">))</span>
-        <span class="n">np_thumb</span> <span class="o">=</span> <span class="n">vips2numpy</span><span class="p">(</span><span class="n">vips_thumb</span><span class="p">)</span>
-        <span class="n">thumb</span> <span class="o">=</span> <span class="n">Image</span><span class="o">.</span><span class="n">fromarray</span><span class="p">(</span><span class="n">np_thumb</span><span class="p">)</span><span class="o">.</span><span class="n">resize</span><span class="p">((</span><span class="n">width</span><span class="p">,</span> <span class="n">height</span><span class="p">))</span>
-
-        <span class="c1"># Standardize to square with black borders as needed</span>
+        <span class="n">thumb</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">thumb</span><span class="p">(</span>
+            <span class="n">width</span><span class="o">=</span><span class="n">width</span><span class="p">,</span>
+            <span class="n">use_associated_image</span><span class="o">=</span><span class="n">use_associated_image</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">height</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">width</span> <span class="o">/</span> <span class="p">(</span><span class="n">thumb</span><span class="o">.</span><span class="n">width</span> <span class="o">/</span> <span class="n">thumb</span><span class="o">.</span><span class="n">height</span><span class="p">))</span>
+        <span class="n">thumb</span> <span class="o">=</span> <span class="n">thumb</span><span class="o">.</span><span class="n">resize</span><span class="p">((</span><span class="n">width</span><span class="p">,</span> <span class="n">height</span><span class="p">))</span>
         <span class="n">square_thumb</span> <span class="o">=</span> <span class="n">Image</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="s2">&quot;RGB&quot;</span><span class="p">,</span> <span class="p">(</span><span class="n">width</span><span class="p">,</span> <span class="n">width</span><span class="p">))</span>
         <span class="n">square_thumb</span><span class="o">.</span><span class="n">paste</span><span class="p">(</span><span class="n">thumb</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">int</span><span class="p">((</span><span class="n">width</span><span class="o">-</span><span class="n">height</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span><span class="p">)))</span>
         <span class="k">return</span> <span class="n">square_thumb</span>
@@ -1321,9 +705,9 @@
         <span class="n">mpp</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">width</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">coords</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">rois</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-        <span class="n">linewidth</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">2</span><span class="p">,</span>
-        <span class="n">color</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;black&#39;</span>
+        <span class="n">rect_linewidth</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">2</span><span class="p">,</span>
+        <span class="n">rect_color</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;black&#39;</span><span class="p">,</span>
+        <span class="n">use_associated_image</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Image</span><span class="o">.</span><span class="n">Image</span><span class="p">:</span>
         <span class="sd">&#39;&#39;&#39;Returns PIL thumbnail of the slide.</span>
 
@@ -1335,6 +719,8 @@
 <span class="sd">            coords (list(int), optional): List of tile extraction coordinates</span>
 <span class="sd">                to show as rectangles on the thumbnail, in [(x_center,</span>
 <span class="sd">                y_center), ...] format. Defaults to None.</span>
+<span class="sd">            use_associated_image (bool): Use the associated thumbnail image</span>
+<span class="sd">                in the slide, rather than reading from a pyramid layer.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            PIL image</span>
@@ -1360,23 +746,12 @@
         <span class="c1"># Calculate appropriate height</span>
         <span class="n">height</span> <span class="o">=</span> <span class="nb">int</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">mpp</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">dimensions</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="o">/</span> <span class="n">mpp</span><span class="p">)</span>
 
-        <span class="c1"># Get thumb via libvips &amp; convert PIL Image</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">vendor</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">vendor</span> <span class="o">==</span> <span class="s1">&#39;leica&#39;</span><span class="p">:</span>
-            <span class="c1"># The libvips thumbnail function does not work appropriately</span>
-            <span class="c1"># with Leica SCN images, so a downsample level must be</span>
-            <span class="c1"># manually specified.</span>
-            <span class="n">thumbnail</span> <span class="o">=</span> <span class="n">vips</span><span class="o">.</span><span class="n">Image</span><span class="o">.</span><span class="n">new_from_file</span><span class="p">(</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="p">,</span>
-                <span class="n">fail</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-                <span class="n">access</span><span class="o">=</span><span class="n">vips</span><span class="o">.</span><span class="n">enums</span><span class="o">.</span><span class="n">Access</span><span class="o">.</span><span class="n">RANDOM</span><span class="p">,</span>
-                <span class="n">level</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">level_count</span><span class="o">-</span><span class="mi">1</span>
-            <span class="p">)</span>
+        <span class="k">if</span> <span class="n">use_associated_image</span><span class="p">:</span>
+            <span class="n">thumb_kw</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">associated</span><span class="o">=</span><span class="s1">&#39;thumbnail&#39;</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">thumbnail</span> <span class="o">=</span> <span class="n">vips</span><span class="o">.</span><span class="n">Image</span><span class="o">.</span><span class="n">thumbnail</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="n">width</span><span class="p">)</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="n">np_thumb</span> <span class="o">=</span> <span class="n">vips2numpy</span><span class="p">(</span><span class="n">thumbnail</span><span class="p">)</span>
-        <span class="k">except</span> <span class="n">vips</span><span class="o">.</span><span class="n">error</span><span class="o">.</span><span class="n">Error</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">SlideLoadError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Error loading slide thumbnail: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">thumb_kw</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">level_count</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="n">width</span><span class="p">)</span>
+
+        <span class="n">np_thumb</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">thumbnail</span><span class="p">(</span><span class="o">**</span><span class="n">thumb_kw</span><span class="p">)</span>
         <span class="n">image</span> <span class="o">=</span> <span class="n">Image</span><span class="o">.</span><span class="n">fromarray</span><span class="p">(</span><span class="n">np_thumb</span><span class="p">)</span><span class="o">.</span><span class="n">resize</span><span class="p">((</span><span class="n">width</span><span class="p">,</span> <span class="n">height</span><span class="p">))</span>
 
         <span class="k">if</span> <span class="n">coords</span><span class="p">:</span>
@@ -1386,7 +761,7 @@
             <span class="k">for</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span> <span class="ow">in</span> <span class="n">coords</span><span class="p">:</span>  <span class="c1"># type: ignore</span>
                 <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">x</span> <span class="o">*</span> <span class="n">ratio</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">roi_scale</span><span class="p">,</span> <span class="n">y</span> <span class="o">*</span> <span class="n">ratio</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">roi_scale</span>  <span class="c1"># type: ignore</span>
                 <span class="n">coords</span> <span class="o">=</span> <span class="p">(</span><span class="n">x</span><span class="o">-</span><span class="n">wh</span><span class="p">,</span> <span class="n">y</span><span class="o">-</span><span class="n">wh</span><span class="p">,</span> <span class="n">x</span><span class="o">+</span><span class="n">wh</span><span class="p">,</span> <span class="n">y</span><span class="o">+</span><span class="n">wh</span><span class="p">)</span>  <span class="c1"># type: ignore</span>
-                <span class="n">draw</span><span class="o">.</span><span class="n">rectangle</span><span class="p">(</span><span class="n">coords</span><span class="p">,</span> <span class="n">outline</span><span class="o">=</span><span class="s1">&#39;black&#39;</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+                <span class="n">draw</span><span class="o">.</span><span class="n">rectangle</span><span class="p">(</span><span class="n">coords</span><span class="p">,</span> <span class="n">outline</span><span class="o">=</span><span class="n">rect_color</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="n">rect_linewidth</span><span class="p">)</span>
             <span class="k">return</span> <span class="n">image</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">image</span>
@@ -1599,7 +974,8 @@
                 <span class="n">blur_burden</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">blur_burden</span><span class="p">,</span>
                 <span class="n">num_tiles</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">locations</span><span class="p">),</span>
                 <span class="n">qc_mask</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">qc_mask</span><span class="p">,</span>
-                <span class="n">locations</span><span class="o">=</span><span class="n">df</span>
+                <span class="n">locations</span><span class="o">=</span><span class="n">df</span><span class="p">,</span>
+                <span class="n">num_rois</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">roi_method</span> <span class="o">==</span> <span class="s1">&#39;ignore&#39;</span> <span class="k">else</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rois</span><span class="p">))</span>
             <span class="p">)</span>
             <span class="n">slide_report</span> <span class="o">=</span> <span class="n">SlideReport</span><span class="p">(</span>
                 <span class="n">sample_tiles</span><span class="p">,</span>
@@ -1736,7 +1112,6 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">estimated_num_tiles</span> <span class="o">=</span> <span class="mi">0</span>  <span class="c1"># type: int</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">annPolys</span> <span class="o">=</span> <span class="p">[]</span>  <span class="c1"># type: List</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">roi_scale</span> <span class="o">=</span> <span class="mi">10</span>  <span class="c1"># type: float</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">rois</span> <span class="o">=</span> <span class="p">[]</span>  <span class="c1"># type: List</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">roi_method</span> <span class="o">=</span> <span class="n">roi_method</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">randomize_origin</span> <span class="o">=</span> <span class="n">randomize_origin</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span> <span class="o">=</span> <span class="n">verbose</span>
@@ -1845,13 +1220,12 @@
             <span class="k">return</span> <span class="kc">None</span>
 
         <span class="c1"># Extract the numpy image at this grid location.</span>
-        <span class="n">image_dict</span> <span class="o">=</span> <span class="n">_wsi_extraction_worker</span><span class="p">(</span>
+        <span class="n">image_dict</span> <span class="o">=</span> <span class="n">tile_worker</span><span class="p">(</span>
             <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">grid_x</span><span class="p">,</span> <span class="n">grid_y</span><span class="p">),</span>
             <span class="n">SimpleNamespace</span><span class="p">(</span>
                 <span class="n">full_extract_px</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">full_extract_px</span><span class="p">,</span>
-                <span class="n">vips_wrapper</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_vips_wrapper</span><span class="p">,</span>
                 <span class="n">mpp_override</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_mpp_override</span><span class="p">,</span>
-                <span class="n">vips_cache</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_vips_cache_kw</span><span class="p">,</span>
+                <span class="n">reader_kwargs</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_reader_kwargs</span><span class="p">,</span>
                 <span class="n">roi_scale</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">roi_scale</span><span class="p">,</span>
                 <span class="n">rois</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rois</span><span class="p">,</span>
                 <span class="n">grid</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">grid</span><span class="p">,</span>
@@ -2126,9 +1500,8 @@
 
         <span class="n">w_args</span> <span class="o">=</span> <span class="n">SimpleNamespace</span><span class="p">(</span><span class="o">**</span><span class="p">{</span>
             <span class="s1">&#39;full_extract_px&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">full_extract_px</span><span class="p">,</span>
-            <span class="s1">&#39;vips_wrapper&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_vips_wrapper</span><span class="p">,</span>
             <span class="s1">&#39;mpp_override&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mpp_override</span><span class="p">,</span>
-            <span class="s1">&#39;vips_cache&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_vips_cache_kw</span><span class="p">,</span>
+            <span class="s1">&#39;reader_kwargs&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reader_kwargs</span><span class="p">,</span>
             <span class="s1">&#39;roi_scale&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">roi_scale</span><span class="p">,</span>
             <span class="s1">&#39;rois&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">rois</span><span class="p">,</span>
             <span class="s1">&#39;grid&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">grid</span><span class="p">,</span>
@@ -2192,7 +1565,7 @@
                     <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Building generator without multithreading&quot;</span><span class="p">)</span>
                     <span class="k">def</span> <span class="nf">_generator</span><span class="p">():</span>
                         <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">non_roi_coord</span><span class="p">:</span>
-                            <span class="k">yield</span> <span class="n">_wsi_extraction_worker</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="n">w_args</span><span class="p">)</span>
+                            <span class="k">yield</span> <span class="n">tile_worker</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="n">w_args</span><span class="p">)</span>
                     <span class="n">i_mapped</span> <span class="o">=</span> <span class="n">_generator</span><span class="p">()</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Building generator with a shared pool&quot;</span><span class="p">)</span>
@@ -2211,14 +1584,14 @@
                     <span class="k">def</span> <span class="nf">_generator</span><span class="p">():</span>
                         <span class="k">for</span> <span class="n">batch</span> <span class="ow">in</span> <span class="n">batched_coord</span><span class="p">:</span>
                             <span class="k">yield from</span> <span class="n">pool</span><span class="o">.</span><span class="n">imap</span><span class="p">(</span>
-                                <span class="n">partial</span><span class="p">(</span><span class="n">_wsi_extraction_worker</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="n">w_args</span><span class="p">),</span>
+                                <span class="n">partial</span><span class="p">(</span><span class="n">tile_worker</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="n">w_args</span><span class="p">),</span>
                                 <span class="n">batch</span>
                             <span class="p">)</span>
                     <span class="n">i_mapped</span> <span class="o">=</span> <span class="n">_generator</span><span class="p">()</span>
 
                 <span class="k">else</span><span class="p">:</span>
                     <span class="n">i_mapped</span> <span class="o">=</span> <span class="n">pool</span><span class="o">.</span><span class="n">imap</span><span class="p">(</span>
-                        <span class="n">partial</span><span class="p">(</span><span class="n">_wsi_extraction_worker</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="n">w_args</span><span class="p">),</span>
+                        <span class="n">partial</span><span class="p">(</span><span class="n">tile_worker</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="n">w_args</span><span class="p">),</span>
                         <span class="n">non_roi_coord</span><span class="p">,</span>
                     <span class="p">)</span>
             <span class="k">for</span> <span class="n">e</span><span class="p">,</span> <span class="n">result</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">i_mapped</span><span class="p">):</span>
@@ -2252,7 +1625,8 @@
         <span class="n">coords</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">rois</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
         <span class="n">linewidth</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">2</span><span class="p">,</span>
-        <span class="n">color</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;black&#39;</span>
+        <span class="n">color</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;black&#39;</span><span class="p">,</span>
+        <span class="n">use_associated_image</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Image</span><span class="o">.</span><span class="n">Image</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Returns PIL Image of thumbnail with ROI overlay.</span>
 
@@ -2286,7 +1660,11 @@
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">roi_scale</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dimensions</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">/</span> <span class="n">width</span>  <span class="c1"># type: ignore</span>
 
-        <span class="n">thumb</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">thumb</span><span class="p">(</span><span class="n">mpp</span><span class="o">=</span><span class="n">mpp</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="n">width</span><span class="p">,</span> <span class="n">coords</span><span class="o">=</span><span class="n">coords</span><span class="p">)</span>
+        <span class="n">thumb</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">thumb</span><span class="p">(</span>
+            <span class="n">mpp</span><span class="o">=</span><span class="n">mpp</span><span class="p">,</span>
+            <span class="n">width</span><span class="o">=</span><span class="n">width</span><span class="p">,</span>
+            <span class="n">coords</span><span class="o">=</span><span class="n">coords</span><span class="p">,</span>
+            <span class="n">use_associated_image</span><span class="o">=</span><span class="n">use_associated_image</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">rois</span><span class="p">:</span>
             <span class="n">annPolys</span> <span class="o">=</span> <span class="p">[</span>
@@ -2461,6 +1839,7 @@
         <span class="n">incl_slidenames</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
         <span class="n">incl_loc</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">shuffle</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">infinite</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
         <span class="o">**</span><span class="n">kwargs</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Create a PyTorch iterator which extractes tiles from this slide.</span>
@@ -2492,27 +1871,30 @@
         <span class="kn">import</span> <span class="nn">torch</span>
 
         <span class="k">def</span> <span class="nf">tile_generator</span><span class="p">():</span>
-            <span class="k">for</span> <span class="n">image_dict</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">build_generator</span><span class="p">(</span>
-                <span class="n">shuffle</span><span class="o">=</span><span class="n">shuffle</span><span class="p">,</span>
-                <span class="n">show_progress</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-                <span class="n">img_format</span><span class="o">=</span><span class="n">img_format</span><span class="p">,</span>
-                <span class="o">**</span><span class="n">kwargs</span>
-            <span class="p">)():</span>
-                <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">incl_slidenames</span> <span class="ow">or</span> <span class="n">incl_loc</span><span class="p">):</span>
-                    <span class="k">yield</span> <span class="n">torch</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">image_dict</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">])</span>
-                <span class="k">else</span><span class="p">:</span>
-                    <span class="n">to_return</span> <span class="o">=</span> <span class="p">{</span>
-                        <span class="s1">&#39;image_raw&#39;</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">image_dict</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">])</span>
-                    <span class="p">}</span>
-                    <span class="k">if</span> <span class="n">incl_slidenames</span><span class="p">:</span>
-                        <span class="n">to_return</span><span class="p">[</span><span class="s1">&#39;slide&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span>
-                    <span class="k">if</span> <span class="n">incl_loc</span> <span class="o">==</span> <span class="s1">&#39;coord&#39;</span> <span class="ow">or</span> <span class="n">incl_loc</span> <span class="o">==</span> <span class="kc">True</span><span class="p">:</span>
-                        <span class="n">to_return</span><span class="p">[</span><span class="s1">&#39;loc_x&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">image_dict</span><span class="p">[</span><span class="s1">&#39;loc&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
-                        <span class="n">to_return</span><span class="p">[</span><span class="s1">&#39;loc_y&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">image_dict</span><span class="p">[</span><span class="s1">&#39;loc&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span>
-                    <span class="k">if</span> <span class="n">incl_loc</span> <span class="o">==</span> <span class="s1">&#39;grid&#39;</span><span class="p">:</span>
-                        <span class="n">to_return</span><span class="p">[</span><span class="s1">&#39;loc_x&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">image_dict</span><span class="p">[</span><span class="s1">&#39;grid&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
-                        <span class="n">to_return</span><span class="p">[</span><span class="s1">&#39;loc_y&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">image_dict</span><span class="p">[</span><span class="s1">&#39;grid&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span>
-                    <span class="k">yield</span> <span class="n">to_return</span>
+            <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">image_dict</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">build_generator</span><span class="p">(</span>
+                    <span class="n">shuffle</span><span class="o">=</span><span class="n">shuffle</span><span class="p">,</span>
+                    <span class="n">show_progress</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                    <span class="n">img_format</span><span class="o">=</span><span class="n">img_format</span><span class="p">,</span>
+                    <span class="o">**</span><span class="n">kwargs</span>
+                <span class="p">)():</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">incl_slidenames</span> <span class="ow">or</span> <span class="n">incl_loc</span><span class="p">):</span>
+                        <span class="k">yield</span> <span class="n">torch</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">image_dict</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">])</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">to_return</span> <span class="o">=</span> <span class="p">{</span>
+                            <span class="s1">&#39;image_raw&#39;</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">image_dict</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">])</span>
+                        <span class="p">}</span>
+                        <span class="k">if</span> <span class="n">incl_slidenames</span><span class="p">:</span>
+                            <span class="n">to_return</span><span class="p">[</span><span class="s1">&#39;slide&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span>
+                        <span class="k">if</span> <span class="n">incl_loc</span> <span class="o">==</span> <span class="s1">&#39;coord&#39;</span> <span class="ow">or</span> <span class="n">incl_loc</span> <span class="o">==</span> <span class="kc">True</span><span class="p">:</span>
+                            <span class="n">to_return</span><span class="p">[</span><span class="s1">&#39;loc_x&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">image_dict</span><span class="p">[</span><span class="s1">&#39;loc&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+                            <span class="n">to_return</span><span class="p">[</span><span class="s1">&#39;loc_y&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">image_dict</span><span class="p">[</span><span class="s1">&#39;loc&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span>
+                        <span class="k">if</span> <span class="n">incl_loc</span> <span class="o">==</span> <span class="s1">&#39;grid&#39;</span><span class="p">:</span>
+                            <span class="n">to_return</span><span class="p">[</span><span class="s1">&#39;loc_x&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">image_dict</span><span class="p">[</span><span class="s1">&#39;grid&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+                            <span class="n">to_return</span><span class="p">[</span><span class="s1">&#39;loc_y&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">image_dict</span><span class="p">[</span><span class="s1">&#39;grid&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span>
+                        <span class="k">yield</span> <span class="n">to_return</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">infinite</span><span class="p">:</span>
+                    <span class="k">break</span>
 
         <span class="k">return</span> <span class="n">tile_generator</span><span class="p">()</span></div></div>
 
@@ -2608,9 +1990,10 @@
         <span class="n">region</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">read_region</span><span class="p">(</span>
             <span class="p">(</span><span class="n">region_x_min</span><span class="p">,</span> <span class="n">region_y_min</span><span class="p">),</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">downsample_level</span><span class="p">,</span>
-            <span class="p">(</span><span class="n">region_width</span><span class="p">,</span> <span class="n">region_height</span><span class="p">)</span>
+            <span class="p">(</span><span class="n">region_width</span><span class="p">,</span> <span class="n">region_height</span><span class="p">),</span>
+            <span class="n">to_numpy</span><span class="o">=</span><span class="kc">True</span>
         <span class="p">)</span>
-        <span class="n">extracted</span> <span class="o">=</span> <span class="n">vips2numpy</span><span class="p">(</span><span class="n">region</span><span class="p">)[:,</span> <span class="p">:,</span> <span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">extracted</span> <span class="o">=</span> <span class="n">region</span><span class="p">[:,</span> <span class="p">:,</span> <span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
         <span class="n">relative_box</span> <span class="o">=</span> <span class="p">((</span><span class="n">box</span> <span class="o">-</span> <span class="p">[</span><span class="n">region_x_min</span><span class="p">,</span> <span class="n">region_y_min</span><span class="p">])</span>
                         <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">downsample_factor</span><span class="p">)</span>
 
@@ -2989,16 +2372,16 @@
 </pre></div>
 
              </article>
-
+             
             </div>
             <footer>
+  
 
-
-
+  
 
     <hr>
 
-
+  
 
   <div role="contentinfo">
     <p>
@@ -3006,11 +2389,11 @@
 
     </p>
   </div>
-
+    
       <div>
         Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
       </div>
-
+     
 
 </footer>
 
@@ -3020,19 +2403,19 @@
         <div class="pytorch-content-right" id="pytorch-content-right">
           <div class="pytorch-right-menu" id="pytorch-right-menu">
             <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
-
+              
             </div>
           </div>
         </div>
       </section>
     </div>
 
+  
 
 
+  
 
-
-
-
+     
        <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
          <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
          <script src="../../_static/jquery.js"></script>
@@ -3040,9 +2423,9 @@
          <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
          <script src="../../_static/doctools.js"></script>
          <script src="../../_static/sphinx_highlight.js"></script>
+     
 
-
-
+  
 
   <script type="text/javascript" src="../../_static/js/vendor/popper.min.js"></script>
   <script type="text/javascript" src="../../_static/js/vendor/bootstrap.min.js"></script>
@@ -3053,7 +2436,7 @@
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script>
+  </script> 
 
   <!-- Begin Footer -->
 

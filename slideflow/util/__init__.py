@@ -8,6 +8,9 @@ import re
 import shutil
 import sys
 import requests
+import tarfile
+import hashlib
+import pandas as pd
 from rich import progress
 from rich.logging import RichHandler
 from rich.highlighter import NullHighlighter
@@ -25,10 +28,11 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 import numpy as np
 import pandas as pd
 import slideflow as sf
-from slideflow.util import log_utils
 from slideflow import errors
-from slideflow.util import example_pb2
-from slideflow.util.colors import *  # noqa F403,F401 - Here for compatibility
+from . import example_pb2, log_utils
+from .colors import *  # noqa F403,F401 - Here for compatibility
+from .smac_utils import (broad_search_space, shallow_search_space,
+                         create_search_space)
 
 tf_available = importlib.util.find_spec('tensorflow')
 torch_available = importlib.util.find_spec('torch')
@@ -161,14 +165,16 @@ class TileExtractionProgress(Progress):
 
 # --- Slideflow header --------------------------------------------------------
 
-def header(console=None):
+def about(console=None):
     if console is None:
         console = Console()
-    color = 'yellow' if sf.backend() == 'tensorflow' else 'purple'
+    col1 = 'yellow' if sf.backend() == 'tensorflow' else 'purple'
+    col2 = 'green' if sf.slide_backend() == 'cucim' else 'cyan'
     console.print(
         Panel(f"[white bold]Slideflow[/]"
               f"\nVersion: {sf.__version__}"
-              f"\nBackend: [{color}]{sf.backend()}[/]"
+              f"\nBackend: [{col1}]{sf.backend()}[/]"
+              f"\nSlide Backend: [{col2}]{sf.slide_backend()}[/]"
               "\n[blue]https://slideflow.dev[/]",
               border_style='purple'),
         justify='center')
@@ -212,7 +218,53 @@ def download_from_tcga(
                 running_total_mb += file_size_mb - running_total_mb  # type: ignore
                 pbar.update(file_size_mb - running_total_mb)
 
+
+def get_gdc_manifest() -> pd.DataFrame:
+    sf_cache = os.path.expanduser('~/.slideflow/')
+    if not exists(sf_cache):
+        os.makedirs(sf_cache)
+    manifest = join(sf_cache, 'gdc_manifest.tsv')
+    if not exists(manifest):
+        tar = 'gdc_manifest.tar.xz'
+        r = requests.get(f'https://raw.githubusercontent.com/jamesdolezal/slideflow/1.4.0/datasets/{tar}')
+        open(join(sf_cache, tar), 'wb').write(r.content)
+        tarfile.open(join(sf_cache, tar)).extractall(sf_cache)
+        os.remove(join(sf_cache, tar))
+        if not exists(manifest):
+            log.error("Failed to download GDC manifest.")
+    return pd.read_csv(manifest, delimiter='\t')
+
+
 # --- Utility functions and classes -------------------------------------------
+
+class EasyDict(dict):
+    """Convenience class that behaves like a dict but allows access
+    with the attribute syntax."""
+
+    def __getattr__(self, name: str) -> Any:
+        try:
+            return self[name]
+        except KeyError:
+            raise AttributeError(name)
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        self[name] = value
+
+    def __delattr__(self, name: str) -> None:
+        del self[name]
+
+
+def md5(path: str) -> str:
+    """Calculate and return MD5 checksum for a file."""
+    m = hashlib.md5()
+    with open(path, 'rb') as f:
+        chunk = f.read(4096)
+        # No walrus for Python 3.7 :(
+        while chunk:
+            m.update(chunk)
+            chunk = f.read(4096)
+    return m.hexdigest()
+
 
 def model_backend(model):
     if sf.util.torch_available and 'torch' in sys.modules:
@@ -228,6 +280,7 @@ def model_backend(model):
             return 'tflite'
     raise ValueError(f"Unable to interpret model {model}")
 
+
 def detuple(arg1: Any, args: tuple) -> Any:
     if len(args):
         return tuple([arg1] + list(args))
@@ -240,6 +293,19 @@ def batch(iterable: List, n: int = 1) -> Iterable:
     l = len(iterable)
     for ndx in range(0, l, n):
         yield iterable[ndx:min(ndx + n, l)]
+
+
+def batch_generator(iterable: Iterable, n: int = 1) -> Iterable:
+    """Separates an interable into batches of maximum size `n`."""
+    batch = []
+    for item in iterable:
+        batch.append(item)
+        if len(batch) == n:
+            yield batch
+            batch = []
+    if len(batch):
+        yield batch
+    return
 
 
 def as_list(arg1: Any) -> List[Any]:
@@ -288,6 +354,13 @@ def is_torch_model_path(path: str) -> bool:
     return (os.path.isfile(path)
             and sf.util.path_to_ext(path).lower() == 'zip'
             and exists(join(dirname(path), 'params.json')))
+
+
+def is_simclr_model_path(path: Any) -> bool:
+    """Checks if the given path is a valid Slideflow/Tensorflow model."""
+    return (isinstance(path, str)
+            and isdir(path)
+            and exists(join(path, 'flags.json')))
 
 
 def assert_is_mag(arg1: str):
@@ -777,8 +850,10 @@ def tfrecord_heatmap(
     log.debug('Loaded tile values')
     log.debug(f'Min: {min(vals)}\t Max:{max(vals)}')
 
-    scaled_x = [(xi * wsi.roi_scale) - wsi.full_extract_px/2 for xi in x]
-    scaled_y = [(yi * wsi.roi_scale) - wsi.full_extract_px/2 for yi in y]
+    roi_scaling = True
+    scale = wsi.roi_scale if roi_scaling else 1
+    scaled_x = [(xi * scale) - wsi.full_extract_px/2 for xi in x]
+    scaled_y = [(yi * scale) - wsi.full_extract_px/2 for yi in y]
 
     log.debug('Loaded CSV coordinates:')
     log.debug(f'Min x: {min(x)}\t Max x: {max(x)}')
@@ -833,11 +908,11 @@ def tfrecord_heatmap(
         bottom=False,
         labelbottom=False
     )
-    log.info('Generating thumbnail...')
+    log.debug('Generating thumbnail...')
     thumb = wsi.thumb(mpp=5)
-    log.info('Saving thumbnail....')
+    log.debug('Saving thumbnail....')
     thumb.save(join(outdir, f'{slide_name}' + '.png'))
-    log.info('Generating figure...')
+    log.debug('Generating figure...')
     implot = ax.imshow(thumb, zorder=0)
     extent = implot.get_extent()
     extent_x = extent[1] * (1-fraction_dead_x)

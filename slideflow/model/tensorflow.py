@@ -5,6 +5,7 @@ from __future__ import absolute_import, division, print_function
 import atexit
 import inspect
 import json
+import logging
 import os
 import shutil
 from os.path import dirname, exists, join
@@ -25,6 +26,21 @@ from . import tensorflow_utils as tf_utils
 from . import adv_utils
 from .base import log_manifest, no_scope
 from .tensorflow_utils import unwrap, flatten, eval_from_model  # type: ignore
+
+# Set the tensorflow logger
+if sf.getLoggingLevel() == logging.DEBUG:
+    logging.getLogger('tensorflow').setLevel(logging.DEBUG)
+    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '0'
+else:
+    logging.getLogger('tensorflow').setLevel(logging.ERROR)
+    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+
+gpus = tf.config.experimental.list_physical_devices('GPU')
+for gpu in gpus:
+    try:
+        tf.config.experimental.set_memory_growth(gpu, True)
+    except RuntimeError:
+        pass
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -603,7 +619,10 @@ class ModelParams(_base._ModelParams):
 
     def model_type(self) -> str:
         """Returns 'linear', 'categorical', or 'cph', reflecting the loss."""
-        if self.loss == 'negative_log_likelihood':
+        #check if loss is custom_[type] and returns type
+        if self.loss.startswith('custom'):
+            return self.loss[7:]
+        elif self.loss == 'negative_log_likelihood':
             return 'cph'
         elif self.loss in self.LinearLossDict:
             return 'linear'
@@ -984,10 +1003,8 @@ class Trainer:
         hp: ModelParams,
         outdir: str,
         labels: Dict[str, Any],
-        patients: Dict[str, str],
         slide_input: Optional[Dict[str, Any]] = None,
         name: str = 'Trainer',
-        manifest: Optional[Dict[str, int]] = None,
         feature_sizes: Optional[List[int]] = None,
         feature_names: Optional[List[str]] = None,
         outcome_names: Optional[List[str]] = None,
@@ -997,7 +1014,8 @@ class Trainer:
         use_neptune: bool = False,
         neptune_api: Optional[str] = None,
         neptune_workspace: Optional[str] = None,
-        load_method: str = 'full'
+        load_method: str = 'full',
+        custom_objects: Optional[Dict[str, Any]] = None,
     ) -> None:
 
         """Sets base configuration, preparing model inputs and outputs.
@@ -1007,15 +1025,10 @@ class Trainer:
             outdir (str): Path for event logs and checkpoints.
             labels (dict): Dict mapping slide names to outcome labels (int or
                 float format).
-            patients (dict): Dict mapping slide names to patient ID, as some
-                patients may have multiple slides. If not provided, assumes 1:1
-                mapping between slide names and patients.
             slide_input (dict): Dict mapping slide names to additional
                 slide-level input, concatenated after post-conv.
             name (str, optional): Optional name describing the model, used for
                 model saving. Defaults to 'Trainer'.
-            manifest (dict, optional): Manifest dictionary mapping TFRecords to
-                number of tiles. Defaults to None.
             feature_sizes (list, optional): List of sizes of input features.
                 Required if providing additional input features as input to
                 the model.
@@ -1043,6 +1056,8 @@ class Trainer:
                 Defaults to None.
             neptune_workspace (str, optional): Neptune workspace.
                 Defaults to None.
+            custom_objects (dict, Optional): Dictionary mapping names
+                (strings) to custom classes or functions. Defaults to None.
         """
 
         if load_method not in ('full', 'weights'):
@@ -1050,7 +1065,6 @@ class Trainer:
                              "either 'full' or 'weights'.")
 
         self.outdir = outdir
-        self.manifest = manifest
         self.tile_px = hp.tile_px
         self.labels = labels
         self.hp = hp
@@ -1066,11 +1080,8 @@ class Trainer:
         self.annotations_tables = []
         self.eval_callback = _PredictionAndEvaluationCallback  # type: tf.keras.callbacks.Callback
         self.load_method = load_method
-
-        if patients:
-            self.patients = patients
-        else:
-            self.patients = {s: s for s in self.slides}
+        self.custom_objects = custom_objects
+        self.patients = dict()
 
         if not os.path.exists(outdir):
             os.makedirs(outdir)
@@ -1251,6 +1262,17 @@ class Trainer:
         self.model.layers[0].trainable = True
         return toplayer_model.history
 
+    def _detect_patients(self, *args):
+        self.patients = dict()
+        for dataset in args:
+            if args is None:
+                continue
+            dataset_patients = dataset.patients()
+            if not dataset_patients:
+                self.patients.update({s: s for s in self.slides})
+            else:
+                self.patients.update(dataset_patients)
+
     def _interleave_kwargs(self, **kwargs) -> Dict[str, Any]:
         args = SimpleNamespace(
             labels=self._parse_tfrecord_labels,
@@ -1285,7 +1307,11 @@ class Trainer:
                     dataset.img_format))
 
     def load(self, model: str) -> tf.keras.Model:
-        self.model = load(model, method=self.load_method)
+        self.model = load(
+            model,
+            method=self.load_method,
+            custom_objects=self.custom_objects
+        )
 
     def predict(
         self,
@@ -1328,6 +1354,8 @@ class Trainer:
 
         if format not in ('csv', 'feather', 'parquet'):
             raise ValueError(f"Unrecognized format {format}")
+
+        self._detect_patients(dataset)
 
         # Verify image format
         self._verify_img_format(dataset)
@@ -1415,6 +1443,8 @@ class Trainer:
             if not isinstance(uq, bool):
                 raise ValueError(f"Unrecognized value {uq} for uq")
             self.hp.uq = uq
+
+        self._detect_patients(dataset)
 
         # Verify image format
         self._verify_img_format(dataset)
@@ -1598,6 +1628,8 @@ class Trainer:
             raise errors.ModelError(f"Incompatible models: {hp_model} (hp) and "
                                     f"{self._model_type} (model)")
 
+        self._detect_patients(train_dts, val_dts)
+
         # Clear prior Tensorflow graph to free memory
         tf.keras.backend.clear_session()
         results_log = os.path.join(self.outdir, 'results_log.csv')
@@ -1620,6 +1652,12 @@ class Trainer:
                 config = sf.util.load_json(config_path)
             config['norm_fit'] = self.normalizer.get_fit(as_list=True)
             sf.util.write_json(config, config_path)
+
+        # Prepare multiprocessing pool if from_wsi=True
+        if from_wsi:
+            pool = mp.Pool(8 if os.cpu_count is None else os.cpu_count())
+        else:
+            pool = None
 
         # Save training / validation manifest
         if val_dts is None:
@@ -1664,7 +1702,7 @@ class Trainer:
         with strategy.scope() if strategy else no_scope():
             # Build model from ModelParams
             if resume_training:
-                self.model = tf.keras.load_model(resume_training)
+                self.model = load(resume_training, method='full')
             else:
                 model = self.hp.build_model(
                     labels=self.labels,
@@ -1682,6 +1720,7 @@ class Trainer:
                     infinite=True,
                     augment=self.hp.augment,
                     from_wsi=from_wsi,
+                    pool=pool,
                     roi_method=roi_method
                 )
                 train_data = train_dts.tensorflow(drop_last=True, **t_kwargs)
@@ -1700,6 +1739,7 @@ class Trainer:
                         infinite=False,
                         augment=False,
                         from_wsi=from_wsi,
+                        pool=pool,
                         roi_method=roi_method
                     )
                     validation_data = val_dts.tensorflow(
@@ -1834,6 +1874,11 @@ class Trainer:
             if self.use_neptune and self.neptune_run is not None:
                 self.neptune_run['results'] = results['epochs']
                 self.neptune_run.stop()
+
+            # Cleanup
+            if pool is not None:
+                pool.close()
+                
             return results
 
 
@@ -2437,7 +2482,10 @@ class UncertaintyInterface(Features):
             return logits, uncertainty
 
 
-def load(path: str, method: str = 'full'):
+def load(
+    path: str,
+    method: str = 'full',
+    custom_objects: Optional[Dict[str, Any]] = None,):
     """Load Tensorflow model from location.
 
     Args:
@@ -2450,6 +2498,8 @@ def load(path: str, method: str = 'full'):
             ``Model.load_weights()``. Loading with 'full' may improve
             compatibility across Slideflow versions. Loading with 'weights'
             may improve compatibility across hardware & environments.
+        custom_objects (dict, Optional): Dictionary mapping names
+            (strings) to custom classes or functions. Defaults to None.
 
     Returns:
         tf.keras.models.Model: Loaded model.
@@ -2459,7 +2509,7 @@ def load(path: str, method: str = 'full'):
                          "either 'full' or 'weights'")
     log.debug(f"Loading model with method='{method}'")
     if method == 'full':
-        return tf.keras.models.load_model(path)
+        return tf.keras.models.load_model(path, custom_objects=custom_objects)
     else:
         config = sf.util.get_model_config(path)
         hp = ModelParams.from_dict(config['hp'])

@@ -6,24 +6,24 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-
+  
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>slideflow.workbench &mdash; slideflow 1.4.0 documentation</title>
+  
 
-  <title>slideflow.workbench &mdash; slideflow 1.3.0 documentation</title>
+  
+  
+  
+  
 
+  
 
+  
+  
+    
 
-
-
-
-
-
-
-
-
-
-
-
+  
 
   <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
   <!-- <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" /> -->
@@ -32,11 +32,11 @@
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
   <!-- Google Analytics -->
-
+  
   <!-- End Google Analytics -->
+  
 
-
-
+  
   <script src="../../_static/js/modernizr.min.js"></script>
 
   <!-- Preload the theme fonts -->
@@ -99,9 +99,9 @@
 
 <body class="pytorch-body">
 
+   
 
-
-
+    
 
     <div class="table-of-contents-link-wrapper">
       <span>Table of Contents</span>
@@ -112,21 +112,21 @@
       <div class="pytorch-side-scroll">
         <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           <div class="pytorch-left-menu-search">
+            
 
-
-
-
-
+            
+              
+              
                 <div class="version">
-                  1.3
+                  1.4
                 </div>
+              
+            
+
+            
 
 
-
-
-
-
-
+  
 
 
 <div role="search">
@@ -137,15 +137,15 @@
   </form>
 </div>
 
-
+            
           </div>
 
-
-
-
-
-
-
+          
+            
+            
+              
+            
+            
               <p class="caption" role="heading"><span class="caption-text">Overview</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
@@ -177,6 +177,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../mosaic.html">slideflow.mosaic</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../norm.html">slideflow.norm</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../slide.html">slideflow.slide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../slide_qc.html">slideflow.slide.qc</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../stats.html">slideflow.stats</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../util.html">slideflow.util</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../workbench.html">slideflow.workbench</a></li>
@@ -191,8 +192,8 @@
 <li class="toctree-l1"><a class="reference internal" href="../../tutorial6.html">Tutorial 6: Custom slide filtering</a></li>
 </ul>
 
-
-
+            
+          
         </div>
       </div>
     </nav>
@@ -200,7 +201,7 @@
     <div class="pytorch-container">
       <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
         <div class="pytorch-breadcrumbs-wrapper">
-
+          
 
 
 
@@ -219,28 +220,28 @@
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="pytorch-breadcrumbs">
-
+    
       <li>
         <a href="../../index.html">
-
+          
             Docs
-
+          
         </a> &gt;
       </li>
 
-
+        
           <li><a href="../index.html">Module code</a> &gt;</li>
-
+        
       <li>slideflow.workbench</li>
-
-
+    
+    
       <li class="pytorch-breadcrumbs-aside">
-
+        
       </li>
-
+    
   </ul>
 
-
+  
 </div>
         </div>
 
@@ -252,13 +253,13 @@
       <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
         <div class="pytorch-content-left">
 
-
-
+        
+          
           <div class="rst-content">
-
+          
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
-
+              
   <h1>Source code for slideflow.workbench</h1><div class="highlight"><pre>
 <span></span><span class="kn">import</span> <span class="nn">os</span>
 <span class="kn">import</span> <span class="nn">time</span>
@@ -267,6 +268,7 @@
 <span class="kn">import</span> <span class="nn">webbrowser</span>
 <span class="kn">import</span> <span class="nn">pyperclip</span>
 <span class="kn">import</span> <span class="nn">imgui</span>
+<span class="kn">import</span> <span class="nn">glfw</span>
 <span class="kn">import</span> <span class="nn">OpenGL.GL</span> <span class="k">as</span> <span class="nn">gl</span>
 
 <span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Tuple</span>
@@ -394,6 +396,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">box_y</span>              <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">tile_px</span>            <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">tile_um</span>            <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tile_zoom</span>          <span class="o">=</span> <span class="mi">1</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">heatmap</span>            <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">rendered_heatmap</span>   <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">overlay</span>            <span class="o">=</span> <span class="kc">None</span>
@@ -467,6 +470,15 @@
         <span class="sd">&quot;&quot;&quot;Main window offset (y), in pixels.&quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">offset_y</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">pixel_ratio</span><span class="p">)</span>
 
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">has_controls_to_render</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">P</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+            <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">wsi</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+            <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">_model_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+            <span class="ow">or</span> <span class="nb">any</span><span class="p">(</span><span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="s1">&#39;visible&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">w</span><span class="o">.</span><span class="n">visible</span> <span class="k">for</span> <span class="n">w</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">widgets</span><span class="p">)</span>
+        <span class="p">)</span>
+
     <span class="c1"># --- Internals -----------------------------------------------------------</span>
 
     <span class="k">def</span> <span class="nf">_adjust_font_size</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
@@ -476,10 +488,15 @@
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">font_size</span> <span class="o">!=</span> <span class="n">old</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">skip_frame</span><span class="p">()</span> <span class="c1"># Layout changed.</span>
 
+    <span class="k">def</span> <span class="nf">_clear_textures</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">tex</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tex_to_delete</span><span class="p">:</span>
+            <span class="n">tex</span><span class="o">.</span><span class="n">delete</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_tex_to_delete</span> <span class="o">=</span> <span class="p">[]</span>
+
     <span class="k">def</span> <span class="nf">_close_model_now</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Close the currently loaded model now.&quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_async_renderer</span><span class="o">.</span><span class="n">clear_result</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_use_model</span>   <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_use_model</span>         <span class="o">=</span> <span class="kc">False</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_use_uncertainty</span>   <span class="o">=</span> <span class="kc">False</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_use_saliency</span>      <span class="o">=</span> <span class="kc">False</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_model_path</span>        <span class="o">=</span> <span class="kc">None</span>
@@ -502,27 +519,33 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">x</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">y</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">clear_result</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_wsi_tex_obj</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_async_renderer</span><span class="o">.</span><span class="n">_live_updates</span> <span class="o">=</span> <span class="kc">False</span>
 
     <span class="k">def</span> <span class="nf">_draw_about_dialog</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Draw the About dialog.&quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_show_about</span><span class="p">:</span>
             <span class="kn">import</span> <span class="nn">platform</span>
-            <span class="kn">import</span> <span class="nn">pyvips</span>
-            <span class="kn">from</span> <span class="nn">pyvips.base</span> <span class="kn">import</span> <span class="n">version</span> <span class="k">as</span> <span class="n">lv</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="kn">import</span> <span class="nn">pyvips</span>
+                <span class="kn">from</span> <span class="nn">pyvips.base</span> <span class="kn">import</span> <span class="n">version</span> <span class="k">as</span> <span class="n">lv</span>
+                <span class="n">libvips_version</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">lv</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="si">}</span><span class="s1">.</span><span class="si">{</span><span class="n">lv</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="si">}</span><span class="s1">.</span><span class="si">{</span><span class="n">lv</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span>
+                <span class="n">pyvips_version</span> <span class="o">=</span> <span class="n">pyvips</span><span class="o">.</span><span class="n">__version__</span>
+            <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                <span class="n">libvips_version</span> <span class="o">=</span> <span class="s1">&#39;NA&#39;</span>
+                <span class="n">pyvips_version</span> <span class="o">=</span> <span class="s1">&#39;NA&#39;</span>
 
             <span class="n">imgui</span><span class="o">.</span><span class="n">open_popup</span><span class="p">(</span><span class="s1">&#39;about_popup&#39;</span><span class="p">)</span>
-            <span class="n">width</span> <span class="o">=</span> <span class="mi">200</span>
+            <span class="n">version_width</span> <span class="o">=</span> <span class="n">imgui</span><span class="o">.</span><span class="n">calc_text_size</span><span class="p">(</span><span class="s2">&quot;Version: &quot;</span> <span class="o">+</span> <span class="n">sf</span><span class="o">.</span><span class="n">__version__</span><span class="p">)</span><span class="o">.</span><span class="n">x</span>
+            <span class="n">width</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">200</span><span class="p">,</span> <span class="n">version_width</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">spacing</span><span class="p">)</span>
             <span class="n">height</span> <span class="o">=</span> <span class="mi">315</span>
             <span class="n">imgui</span><span class="o">.</span><span class="n">set_next_window_content_size</span><span class="p">(</span><span class="n">width</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
             <span class="n">imgui</span><span class="o">.</span><span class="n">set_next_window_position</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">content_width</span><span class="o">/</span><span class="mi">2</span> <span class="o">-</span> <span class="n">width</span><span class="o">/</span><span class="mi">2</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">content_height</span><span class="o">/</span><span class="mi">2</span> <span class="o">-</span> <span class="n">height</span><span class="o">/</span><span class="mi">2</span><span class="p">)</span>
 
             <span class="n">about_text</span> <span class="o">=</span>  <span class="sa">f</span><span class="s2">&quot;Version: </span><span class="si">{</span><span class="n">sf</span><span class="o">.</span><span class="n">__version__</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span>
-            <span class="n">about_text</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;Commit: </span><span class="si">{</span><span class="n">sf</span><span class="o">.</span><span class="n">__gitcommit__</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span>
             <span class="n">about_text</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;Python: </span><span class="si">{</span><span class="n">platform</span><span class="o">.</span><span class="n">python_version</span><span class="p">()</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span>
-            <span class="n">about_text</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;Libvips: </span><span class="si">{</span><span class="n">lv</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">lv</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">lv</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span>
-            <span class="n">about_text</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;Pyvips: </span><span class="si">{</span><span class="n">pyvips</span><span class="o">.</span><span class="n">__version__</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span>
+            <span class="n">about_text</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;Slide Backend: </span><span class="si">{</span><span class="n">sf</span><span class="o">.</span><span class="n">slide_backend</span><span class="p">()</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span>
+            <span class="n">about_text</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;Libvips: </span><span class="si">{</span><span class="n">libvips_version</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span>
+            <span class="n">about_text</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;Pyvips: </span><span class="si">{</span><span class="n">pyvips_version</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span>
             <span class="n">about_text</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;OS: </span><span class="si">{</span><span class="n">platform</span><span class="o">.</span><span class="n">system</span><span class="p">()</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">platform</span><span class="o">.</span><span class="n">release</span><span class="p">()</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span>
 
             <span class="k">if</span> <span class="n">imgui</span><span class="o">.</span><span class="n">begin_popup</span><span class="p">(</span><span class="s1">&#39;about_popup&#39;</span><span class="p">):</span>
@@ -554,13 +577,7 @@
     <span class="k">def</span> <span class="nf">_draw_control_pane</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Draw the control pane and widgets.&quot;&quot;&quot;</span>
 
-        <span class="n">has_controls_to_render</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">P</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
-            <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">wsi</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
-            <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">_model_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
-            <span class="ow">or</span> <span class="nb">any</span><span class="p">(</span><span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="s1">&#39;visible&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">w</span><span class="o">.</span><span class="n">visible</span> <span class="k">for</span> <span class="n">w</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">widgets</span><span class="p">)</span>
-        <span class="p">)</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">has_controls_to_render</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_controls_to_render</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">pane_w</span> <span class="o">=</span> <span class="mi">0</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">_pane_w</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">font_size</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pane_w_div</span>
@@ -578,48 +595,69 @@
                     <span class="n">closable</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
                     <span class="n">flags</span><span class="o">=</span><span class="p">(</span><span class="n">imgui</span><span class="o">.</span><span class="n">WINDOW_NO_COLLAPSE</span> <span class="o">|</span> <span class="n">imgui</span><span class="o">.</span><span class="n">WINDOW_ALWAYS_AUTO_RESIZE</span><span class="p">)</span>
                 <span class="p">)</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_show_control</span> <span class="ow">and</span> <span class="n">has_controls_to_render</span><span class="p">:</span>
+
+        <span class="c1"># Hide control pane if there are no widgets to show</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_show_control</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_controls_to_render</span><span class="p">:</span>
+            <span class="n">drawing_control_pane</span> <span class="o">=</span> <span class="kc">True</span>
             <span class="n">_</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_show_control</span> <span class="o">=</span> <span class="n">imgui</span><span class="o">.</span><span class="n">begin</span><span class="p">(</span><span class="s1">&#39;Control Pane&#39;</span><span class="p">,</span> <span class="o">**</span><span class="n">control_kw</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">drawing_control_pane</span> <span class="o">=</span> <span class="kc">False</span>
 
-            <span class="c1"># Core widgets.</span>
-            <span class="n">header_height</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">font_size</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">spacing</span> <span class="o">*</span> <span class="mi">2</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_control_size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">spacing</span> <span class="o">*</span> <span class="mi">4</span>
+        <span class="c1"># --- Core widgets (always rendered, not always shown) ----------------</span>
+        <span class="n">header_height</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">font_size</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">spacing</span> <span class="o">*</span> <span class="mi">2</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_control_size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">spacing</span> <span class="o">*</span> <span class="mi">4</span>
 
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">P</span><span class="p">:</span>
-                <span class="n">expanded</span><span class="p">,</span> <span class="n">_visible</span> <span class="o">=</span> <span class="n">imgui_utils</span><span class="o">.</span><span class="n">collapsing_header</span><span class="p">(</span><span class="s1">&#39;Slideflow project&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">project_widget</span><span class="p">(</span><span class="n">expanded</span><span class="p">)</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">_control_size</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">project_widget</span><span class="o">.</span><span class="n">content_height</span> <span class="o">+</span> <span class="n">header_height</span>
+        <span class="c1"># Slide widget</span>
+        <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">P</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">wsi</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_show_control</span><span class="p">:</span>
+            <span class="n">expanded</span><span class="p">,</span> <span class="n">_visible</span> <span class="o">=</span> <span class="n">imgui_utils</span><span class="o">.</span><span class="n">collapsing_header</span><span class="p">(</span><span class="s1">&#39;Whole-slide image&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">expanded</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">slide_widget</span><span class="p">(</span><span class="n">expanded</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_show_control</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_control_size</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slide_widget</span><span class="o">.</span><span class="n">content_height</span> <span class="o">+</span> <span class="n">header_height</span>
 
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">P</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">wsi</span><span class="p">:</span>
-                <span class="n">expanded</span><span class="p">,</span> <span class="n">_visible</span> <span class="o">=</span> <span class="n">imgui_utils</span><span class="o">.</span><span class="n">collapsing_header</span><span class="p">(</span><span class="s1">&#39;Whole-slide image&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">slide_widget</span><span class="p">(</span><span class="n">expanded</span><span class="p">)</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">_control_size</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slide_widget</span><span class="o">.</span><span class="n">content_height</span> <span class="o">+</span> <span class="n">header_height</span>
+        <span class="c1"># Project widget</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">P</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_show_control</span><span class="p">:</span>
+            <span class="n">expanded</span><span class="p">,</span> <span class="n">_visible</span> <span class="o">=</span> <span class="n">imgui_utils</span><span class="o">.</span><span class="n">collapsing_header</span><span class="p">(</span><span class="s1">&#39;Project&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">expanded</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">project_widget</span><span class="p">(</span><span class="n">expanded</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_show_control</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_control_size</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">project_widget</span><span class="o">.</span><span class="n">content_height</span> <span class="o">+</span> <span class="n">header_height</span>
 
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">P</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">_model_path</span><span class="p">:</span>
-                <span class="n">expanded</span><span class="p">,</span> <span class="n">_visible</span> <span class="o">=</span> <span class="n">imgui_utils</span><span class="o">.</span><span class="n">collapsing_header</span><span class="p">(</span><span class="s1">&#39;Model &amp; tile predictions&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">model_widget</span><span class="p">(</span><span class="n">expanded</span><span class="p">)</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">_control_size</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_widget</span><span class="o">.</span><span class="n">content_height</span> <span class="o">+</span> <span class="n">header_height</span>
+        <span class="c1"># Model widget</span>
+        <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">P</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">_model_path</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_show_control</span><span class="p">:</span>
+            <span class="n">expanded</span><span class="p">,</span> <span class="n">_visible</span> <span class="o">=</span> <span class="n">imgui_utils</span><span class="o">.</span><span class="n">collapsing_header</span><span class="p">(</span><span class="s1">&#39;Model &amp; tile predictions&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">expanded</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model_widget</span><span class="p">(</span><span class="n">expanded</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_show_control</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_control_size</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_widget</span><span class="o">.</span><span class="n">content_height</span> <span class="o">+</span> <span class="n">header_height</span>
 
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">viewer</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_model_config</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="n">expanded</span><span class="p">,</span> <span class="n">_visible</span> <span class="o">=</span> <span class="n">imgui_utils</span><span class="o">.</span><span class="n">collapsing_header</span><span class="p">(</span><span class="s1">&#39;Heatmap &amp; slide prediction&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">heatmap_widget</span><span class="p">(</span><span class="n">expanded</span><span class="p">)</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">_control_size</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">heatmap_widget</span><span class="o">.</span><span class="n">content_height</span> <span class="o">+</span> <span class="n">header_height</span>
+        <span class="c1"># Heatmap / prediction widget</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">viewer</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_model_config</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_show_control</span><span class="p">:</span>
+            <span class="n">expanded</span><span class="p">,</span> <span class="n">_visible</span> <span class="o">=</span> <span class="n">imgui_utils</span><span class="o">.</span><span class="n">collapsing_header</span><span class="p">(</span><span class="s1">&#39;Heatmap &amp; slide prediction&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">expanded</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">heatmap_widget</span><span class="p">(</span><span class="n">expanded</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_show_control</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_control_size</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">heatmap_widget</span><span class="o">.</span><span class="n">content_height</span> <span class="o">+</span> <span class="n">header_height</span>
 
-            <span class="c1"># User-defined widgets</span>
-            <span class="k">for</span> <span class="n">header</span><span class="p">,</span> <span class="n">widgets</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_widgets_by_header</span><span class="p">():</span>
-                <span class="k">if</span> <span class="n">header</span><span class="p">:</span>
-                    <span class="n">expanded</span><span class="p">,</span> <span class="n">_visible</span> <span class="o">=</span> <span class="n">imgui_utils</span><span class="o">.</span><span class="n">collapsing_header</span><span class="p">(</span><span class="n">header</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">_control_size</span> <span class="o">+=</span> <span class="n">header_height</span>
-                <span class="k">else</span><span class="p">:</span>
-                    <span class="n">expanded</span> <span class="o">=</span> <span class="kc">True</span>
-                <span class="k">for</span> <span class="n">widget</span> <span class="ow">in</span> <span class="n">widgets</span><span class="p">:</span>
-                    <span class="n">widget</span><span class="p">(</span><span class="n">expanded</span><span class="p">)</span>
-                    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">widget</span><span class="p">,</span> <span class="s1">&#39;content_height&#39;</span><span class="p">):</span>
-                        <span class="bp">self</span><span class="o">.</span><span class="n">_control_size</span> <span class="o">+=</span> <span class="n">widget</span><span class="o">.</span><span class="n">content_height</span>
+        <span class="c1"># ---------------------------------------------------------------------</span>
 
-            <span class="bp">self</span><span class="o">.</span><span class="n">_render_control_pane_contents</span><span class="p">()</span>
+        <span class="c1"># User-defined widgets</span>
+        <span class="k">for</span> <span class="n">header</span><span class="p">,</span> <span class="n">widgets</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_widgets_by_header</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">header</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_show_control</span><span class="p">:</span>
+                <span class="n">expanded</span><span class="p">,</span> <span class="n">_visible</span> <span class="o">=</span> <span class="n">imgui_utils</span><span class="o">.</span><span class="n">collapsing_header</span><span class="p">(</span><span class="n">header</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_control_size</span> <span class="o">+=</span> <span class="n">header_height</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">expanded</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="k">for</span> <span class="n">widget</span> <span class="ow">in</span> <span class="n">widgets</span><span class="p">:</span>
+                <span class="n">widget</span><span class="p">(</span><span class="n">expanded</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_show_control</span><span class="p">)</span>
+                <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">widget</span><span class="p">,</span> <span class="s1">&#39;content_height&#39;</span><span class="p">):</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_control_size</span> <span class="o">+=</span> <span class="n">widget</span><span class="o">.</span><span class="n">content_height</span>
+
+        <span class="c1"># Render control panel contents, if the control pane is shown.</span>
+        <span class="k">if</span> <span class="n">drawing_control_pane</span><span class="p">:</span>
             <span class="n">imgui</span><span class="o">.</span><span class="n">end</span><span class="p">()</span>
-        <span class="k">elif</span> <span class="ow">not</span> <span class="n">has_controls_to_render</span><span class="p">:</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_controls_to_render</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">result</span><span class="o">.</span><span class="n">message</span> <span class="o">=</span> <span class="s1">&#39;Load a slide with File -&gt; &quot;Open Slide...&quot;&#39;</span>
 
     <span class="k">def</span> <span class="nf">_draw_main_view</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">inp</span><span class="p">:</span> <span class="n">EasyDict</span><span class="p">,</span> <span class="n">window_changed</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
@@ -707,20 +745,13 @@
             <span class="c1"># --- File --------------------------------------------------------</span>
             <span class="k">if</span> <span class="n">imgui</span><span class="o">.</span><span class="n">begin_menu</span><span class="p">(</span><span class="s1">&#39;File&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">):</span>
                 <span class="k">if</span> <span class="n">imgui</span><span class="o">.</span><span class="n">menu_item</span><span class="p">(</span><span class="s1">&#39;Open Project...&#39;</span><span class="p">,</span> <span class="s1">&#39;Ctrl+P&#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]:</span>
-                    <span class="n">project_path</span> <span class="o">=</span> <span class="n">askdirectory</span><span class="p">()</span>
-                    <span class="k">if</span> <span class="n">project_path</span><span class="p">:</span>
-                        <span class="bp">self</span><span class="o">.</span><span class="n">load_project</span><span class="p">(</span><span class="n">project_path</span><span class="p">,</span> <span class="n">ignore_errors</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">ask_load_project</span><span class="p">()</span>
                 <span class="k">if</span> <span class="n">imgui</span><span class="o">.</span><span class="n">menu_item</span><span class="p">(</span><span class="s1">&#39;Open Slide...&#39;</span><span class="p">,</span> <span class="s1">&#39;Ctrl+O&#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]:</span>
-                    <span class="n">slide_path</span> <span class="o">=</span> <span class="n">askopenfilename</span><span class="p">()</span>
-                    <span class="k">if</span> <span class="n">slide_path</span><span class="p">:</span>
-                        <span class="bp">self</span><span class="o">.</span><span class="n">load_slide</span><span class="p">(</span><span class="n">slide_path</span><span class="p">,</span> <span class="n">ignore_errors</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">ask_load_slide</span><span class="p">()</span>
                 <span class="k">if</span> <span class="n">imgui</span><span class="o">.</span><span class="n">menu_item</span><span class="p">(</span><span class="s1">&#39;Load Model...&#39;</span><span class="p">,</span> <span class="s1">&#39;Ctrl+M&#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]:</span>
-                    <span class="k">if</span> <span class="n">sf</span><span class="o">.</span><span class="n">backend</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;tensorflow&#39;</span><span class="p">:</span>
-                        <span class="n">model_path</span> <span class="o">=</span> <span class="n">askdirectory</span><span class="p">()</span>
-                    <span class="k">else</span><span class="p">:</span>
-                        <span class="n">model_path</span> <span class="o">=</span> <span class="n">askopenfilename</span><span class="p">()</span>
-                    <span class="k">if</span> <span class="n">model_path</span><span class="p">:</span>
-                        <span class="bp">self</span><span class="o">.</span><span class="n">load_model</span><span class="p">(</span><span class="n">model_path</span><span class="p">,</span> <span class="n">ignore_errors</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">ask_load_model</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">imgui</span><span class="o">.</span><span class="n">menu_item</span><span class="p">(</span><span class="s1">&#39;Load Heatmap...&#39;</span><span class="p">,</span> <span class="s1">&#39;Ctrl+H&#39;</span><span class="p">,</span> <span class="n">enabled</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_model_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)[</span><span class="mi">1</span><span class="p">]:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">ask_load_heatmap</span><span class="p">()</span>
                 <span class="n">imgui</span><span class="o">.</span><span class="n">separator</span><span class="p">()</span>
                 <span class="k">if</span> <span class="n">imgui</span><span class="o">.</span><span class="n">begin_menu</span><span class="p">(</span><span class="s1">&#39;Export...&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">):</span>
                     <span class="k">if</span> <span class="n">imgui</span><span class="o">.</span><span class="n">menu_item</span><span class="p">(</span><span class="s1">&#39;Main view&#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]:</span>
@@ -755,19 +786,43 @@
                 <span class="n">imgui</span><span class="o">.</span><span class="n">end_menu</span><span class="p">()</span>
 
             <span class="c1"># --- View --------------------------------------------------------</span>
+            <span class="n">has_wsi</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">viewer</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">viewer</span><span class="p">,</span> <span class="n">wsi_utils</span><span class="o">.</span><span class="n">SlideViewer</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">imgui</span><span class="o">.</span><span class="n">begin_menu</span><span class="p">(</span><span class="s1">&#39;View&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">):</span>
-                <span class="k">if</span> <span class="n">imgui</span><span class="o">.</span><span class="n">menu_item</span><span class="p">(</span><span class="s1">&#39;Fullscreen&#39;</span><span class="p">,</span> <span class="s1">&#39;Ctrl+F&#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]:</span>
+                <span class="k">if</span> <span class="n">imgui</span><span class="o">.</span><span class="n">menu_item</span><span class="p">(</span><span class="s1">&#39;Fullscreen&#39;</span><span class="p">,</span> <span class="s1">&#39;Ctrl+F&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]:</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">toggle_fullscreen</span><span class="p">()</span>
-                <span class="k">if</span> <span class="n">imgui</span><span class="o">.</span><span class="n">menu_item</span><span class="p">(</span><span class="s1">&#39;Dock Controls&#39;</span><span class="p">,</span> <span class="s1">&#39;Ctrl+Shift+D&#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]:</span>
+                <span class="k">if</span> <span class="n">imgui</span><span class="o">.</span><span class="n">menu_item</span><span class="p">(</span><span class="s1">&#39;Dock Controls&#39;</span><span class="p">,</span> <span class="s1">&#39;Ctrl+Shift+D&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]:</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">_dock_control</span> <span class="o">=</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dock_control</span>
-                <span class="k">if</span> <span class="n">imgui</span><span class="o">.</span><span class="n">menu_item</span><span class="p">(</span><span class="s1">&#39;Toggle Controls&#39;</span><span class="p">,</span> <span class="s1">&#39;Ctrl+Shift+C&#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]:</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">_show_control</span> <span class="o">=</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_show_control</span>
-                <span class="k">if</span> <span class="n">imgui</span><span class="o">.</span><span class="n">menu_item</span><span class="p">(</span><span class="s1">&#39;Toggle Performance&#39;</span><span class="p">,</span> <span class="s1">&#39;Ctrl+Shift+P&#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]:</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">_show_performance</span> <span class="o">=</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_show_performance</span>
                 <span class="n">imgui</span><span class="o">.</span><span class="n">separator</span><span class="p">()</span>
-                <span class="k">if</span> <span class="n">imgui</span><span class="o">.</span><span class="n">menu_item</span><span class="p">(</span><span class="s1">&#39;Toggle tile preview&#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]:</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">_show_tile_preview</span> <span class="o">=</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_show_tile_preview</span>
-                <span class="n">imgui</span><span class="o">.</span><span class="n">menu_item</span><span class="p">(</span><span class="s1">&#39;Toggle camera view&#39;</span><span class="p">,</span> <span class="n">enabled</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+                <span class="c1"># --- Show sub-menu -------------------------------------------</span>
+                <span class="k">if</span> <span class="n">imgui</span><span class="o">.</span><span class="n">begin_menu</span><span class="p">(</span><span class="s1">&#39;Show&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">):</span>
+                    <span class="k">if</span> <span class="n">imgui</span><span class="o">.</span><span class="n">menu_item</span><span class="p">(</span><span class="s1">&#39;Control Pane&#39;</span><span class="p">,</span> <span class="s1">&#39;Ctrl+Shift+C&#39;</span><span class="p">,</span> <span class="n">selected</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_show_control</span><span class="p">)[</span><span class="mi">0</span><span class="p">]:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">_show_control</span> <span class="o">=</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_show_control</span>
+                    <span class="k">if</span> <span class="n">imgui</span><span class="o">.</span><span class="n">menu_item</span><span class="p">(</span><span class="s1">&#39;Performance&#39;</span><span class="p">,</span> <span class="s1">&#39;Ctrl+Shift+P&#39;</span><span class="p">,</span> <span class="n">selected</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_show_performance</span><span class="p">)[</span><span class="mi">0</span><span class="p">]:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">_show_performance</span> <span class="o">=</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_show_performance</span>
+                    <span class="k">if</span> <span class="n">imgui</span><span class="o">.</span><span class="n">menu_item</span><span class="p">(</span><span class="s1">&#39;Tile Preview&#39;</span><span class="p">,</span> <span class="s1">&#39;Ctrl+Shift+T&#39;</span><span class="p">,</span> <span class="n">selected</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_show_tile_preview</span><span class="p">)[</span><span class="mi">0</span><span class="p">]:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">_show_tile_preview</span> <span class="o">=</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_show_tile_preview</span>
+                    <span class="n">imgui</span><span class="o">.</span><span class="n">separator</span><span class="p">()</span>
+                    <span class="k">if</span> <span class="n">imgui</span><span class="o">.</span><span class="n">menu_item</span><span class="p">(</span><span class="s1">&#39;WSI Scale&#39;</span><span class="p">,</span> <span class="n">selected</span><span class="o">=</span><span class="p">(</span><span class="n">has_wsi</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">viewer</span><span class="o">.</span><span class="n">show_scale</span><span class="p">),</span> <span class="n">enabled</span><span class="o">=</span><span class="n">has_wsi</span><span class="p">)[</span><span class="mi">0</span><span class="p">]:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">viewer</span><span class="o">.</span><span class="n">show_scale</span> <span class="o">=</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">viewer</span><span class="o">.</span><span class="n">show_scale</span>
+                    <span class="n">imgui</span><span class="o">.</span><span class="n">separator</span><span class="p">()</span>
+                    <span class="n">imgui</span><span class="o">.</span><span class="n">menu_item</span><span class="p">(</span><span class="s1">&#39;Camera View&#39;</span><span class="p">,</span> <span class="n">enabled</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+                    <span class="n">imgui</span><span class="o">.</span><span class="n">end_menu</span><span class="p">()</span>
+                <span class="c1"># -------------------------------------------------------------</span>
+
+                <span class="n">imgui</span><span class="o">.</span><span class="n">separator</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">imgui</span><span class="o">.</span><span class="n">menu_item</span><span class="p">(</span><span class="s1">&#39;Increase Font Size&#39;</span><span class="p">,</span> <span class="s1">&#39;Ctrl+=&#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">increase_font_size</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">imgui</span><span class="o">.</span><span class="n">menu_item</span><span class="p">(</span><span class="s1">&#39;Decrease Font Size&#39;</span><span class="p">,</span> <span class="s1">&#39;Ctrl+-&#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">decrease_font_size</span><span class="p">()</span>
+
+                <span class="n">imgui</span><span class="o">.</span><span class="n">separator</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">imgui</span><span class="o">.</span><span class="n">menu_item</span><span class="p">(</span><span class="s1">&#39;Increase Tile Zoom&#39;</span><span class="p">,</span> <span class="s1">&#39;Ctrl+]&#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">increase_tile_zoom</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">imgui</span><span class="o">.</span><span class="n">menu_item</span><span class="p">(</span><span class="s1">&#39;Decrease Tile Zoom&#39;</span><span class="p">,</span> <span class="s1">&#39;Ctrl+[&#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">decrease_tile_zoom</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">imgui</span><span class="o">.</span><span class="n">menu_item</span><span class="p">(</span><span class="s1">&#39;Reset Tile Zoom&#39;</span><span class="p">,</span> <span class="s1">&#39;Ctrl+</span><span class="se">\\</span><span class="s1">&#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">reset_tile_zoom</span><span class="p">()</span>
 
                 <span class="c1"># Widgets with &quot;View&quot; menu.</span>
                 <span class="k">for</span> <span class="n">w</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">widgets</span><span class="p">:</span>
@@ -779,7 +834,8 @@
 
             <span class="c1"># --- Help --------------------------------------------------------</span>
             <span class="k">if</span> <span class="n">imgui</span><span class="o">.</span><span class="n">begin_menu</span><span class="p">(</span><span class="s1">&#39;Help&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">):</span>
-                <span class="n">imgui</span><span class="o">.</span><span class="n">menu_item</span><span class="p">(</span><span class="s1">&#39;Get Started&#39;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">imgui</span><span class="o">.</span><span class="n">menu_item</span><span class="p">(</span><span class="s1">&#39;Get Started&#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]:</span>
+                    <span class="n">webbrowser</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s1">&#39;https://slideflow.dev/workbench_tools.html&#39;</span><span class="p">)</span>
                 <span class="k">if</span> <span class="n">imgui</span><span class="o">.</span><span class="n">menu_item</span><span class="p">(</span><span class="s1">&#39;Documentation&#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]:</span>
                     <span class="n">webbrowser</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s1">&#39;https://slideflow.dev&#39;</span><span class="p">)</span>
 
@@ -839,8 +895,8 @@
                 <span class="n">width</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">font_size</span> <span class="o">*</span> <span class="mi">8</span>
                 <span class="n">height</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">font_size</span> <span class="o">*</span> <span class="mi">3</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="n">raw_img_w</span> <span class="o">=</span> <span class="mi">0</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">has_raw_image</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tex_img</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-                <span class="n">norm_img_w</span> <span class="o">=</span> <span class="mi">0</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">has_norm_image</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">_norm_tex_img</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="n">raw_img_w</span> <span class="o">=</span> <span class="mi">0</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">has_raw_image</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tex_img</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_zoom</span>
+                <span class="n">norm_img_w</span> <span class="o">=</span> <span class="mi">0</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">has_norm_image</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">_norm_tex_img</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_zoom</span>
                 <span class="n">height</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">font_size</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">+</span> <span class="nb">max</span><span class="p">(</span><span class="n">raw_img_w</span><span class="p">,</span> <span class="n">norm_img_w</span><span class="p">)</span>
                 <span class="n">width</span> <span class="o">=</span> <span class="n">raw_img_w</span> <span class="o">+</span> <span class="n">norm_img_w</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">spacing</span>
 
@@ -875,10 +931,42 @@
             <span class="n">imgui</span><span class="o">.</span><span class="n">same_line</span><span class="p">()</span>
             <span class="n">imgui</span><span class="o">.</span><span class="n">end</span><span class="p">()</span>
 
+    <span class="k">def</span> <span class="nf">_glfw_key_callback</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">_window</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">_scancode</span><span class="p">,</span> <span class="n">action</span><span class="p">,</span> <span class="n">_mods</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Callback for handling keyboard input.&quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">_glfw_key_callback</span><span class="p">(</span><span class="n">_window</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">_scancode</span><span class="p">,</span> <span class="n">action</span><span class="p">,</span> <span class="n">_mods</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_control_down</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_shift_down</span> <span class="ow">and</span> <span class="n">action</span> <span class="o">==</span> <span class="n">glfw</span><span class="o">.</span><span class="n">PRESS</span> <span class="ow">and</span> <span class="n">key</span> <span class="o">==</span> <span class="n">glfw</span><span class="o">.</span><span class="n">KEY_C</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_show_control</span> <span class="o">=</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_show_control</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_control_down</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_shift_down</span> <span class="ow">and</span> <span class="n">action</span> <span class="o">==</span> <span class="n">glfw</span><span class="o">.</span><span class="n">PRESS</span> <span class="ow">and</span> <span class="n">key</span> <span class="o">==</span> <span class="n">glfw</span><span class="o">.</span><span class="n">KEY_D</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_dock_control</span> <span class="o">=</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dock_control</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_control_down</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_shift_down</span> <span class="ow">and</span> <span class="n">action</span> <span class="o">==</span> <span class="n">glfw</span><span class="o">.</span><span class="n">PRESS</span> <span class="ow">and</span> <span class="n">key</span> <span class="o">==</span> <span class="n">glfw</span><span class="o">.</span><span class="n">KEY_P</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_show_performance</span> <span class="o">=</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_show_performance</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_control_down</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_shift_down</span> <span class="ow">and</span> <span class="n">action</span> <span class="o">==</span> <span class="n">glfw</span><span class="o">.</span><span class="n">PRESS</span> <span class="ow">and</span> <span class="n">key</span> <span class="o">==</span> <span class="n">glfw</span><span class="o">.</span><span class="n">KEY_T</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_show_tile_preview</span> <span class="o">=</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_show_tile_preview</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_control_down</span> <span class="ow">and</span> <span class="n">action</span> <span class="o">==</span> <span class="n">glfw</span><span class="o">.</span><span class="n">PRESS</span> <span class="ow">and</span> <span class="n">key</span> <span class="o">==</span> <span class="n">glfw</span><span class="o">.</span><span class="n">KEY_Q</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_exit_trigger</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_control_down</span> <span class="ow">and</span> <span class="n">action</span> <span class="o">==</span> <span class="n">glfw</span><span class="o">.</span><span class="n">PRESS</span> <span class="ow">and</span> <span class="n">key</span> <span class="o">==</span> <span class="n">glfw</span><span class="o">.</span><span class="n">KEY_O</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ask_load_slide</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_control_down</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_shift_down</span> <span class="ow">and</span> <span class="n">action</span> <span class="o">==</span> <span class="n">glfw</span><span class="o">.</span><span class="n">PRESS</span> <span class="ow">and</span> <span class="n">key</span> <span class="o">==</span> <span class="n">glfw</span><span class="o">.</span><span class="n">KEY_P</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ask_load_project</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_control_down</span> <span class="ow">and</span> <span class="n">action</span> <span class="o">==</span> <span class="n">glfw</span><span class="o">.</span><span class="n">PRESS</span> <span class="ow">and</span> <span class="n">key</span> <span class="o">==</span> <span class="n">glfw</span><span class="o">.</span><span class="n">KEY_M</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ask_load_model</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_control_down</span> <span class="ow">and</span> <span class="n">action</span> <span class="o">==</span> <span class="n">glfw</span><span class="o">.</span><span class="n">PRESS</span> <span class="ow">and</span> <span class="n">key</span> <span class="o">==</span> <span class="n">glfw</span><span class="o">.</span><span class="n">KEY_H</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ask_load_heatmap</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_control_down</span> <span class="ow">and</span> <span class="n">action</span> <span class="o">==</span> <span class="n">glfw</span><span class="o">.</span><span class="n">PRESS</span> <span class="ow">and</span> <span class="n">key</span> <span class="o">==</span> <span class="n">glfw</span><span class="o">.</span><span class="n">KEY_SPACE</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">heatmap_widget</span><span class="o">.</span><span class="n">show</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_control_down</span> <span class="ow">and</span> <span class="n">action</span> <span class="o">==</span> <span class="n">glfw</span><span class="o">.</span><span class="n">RELEASE</span> <span class="ow">and</span> <span class="n">key</span> <span class="o">==</span> <span class="n">glfw</span><span class="o">.</span><span class="n">KEY_SPACE</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">heatmap_widget</span><span class="o">.</span><span class="n">show</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_control_down</span> <span class="ow">and</span> <span class="n">action</span> <span class="o">==</span> <span class="n">glfw</span><span class="o">.</span><span class="n">PRESS</span> <span class="ow">and</span> <span class="n">key</span> <span class="o">==</span> <span class="n">glfw</span><span class="o">.</span><span class="n">KEY_LEFT_BRACKET</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">decrease_tile_zoom</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_control_down</span> <span class="ow">and</span> <span class="n">action</span> <span class="o">==</span> <span class="n">glfw</span><span class="o">.</span><span class="n">PRESS</span> <span class="ow">and</span> <span class="n">key</span> <span class="o">==</span> <span class="n">glfw</span><span class="o">.</span><span class="n">KEY_RIGHT_BRACKET</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">increase_tile_zoom</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_control_down</span> <span class="ow">and</span> <span class="n">action</span> <span class="o">==</span> <span class="n">glfw</span><span class="o">.</span><span class="n">PRESS</span> <span class="ow">and</span> <span class="n">key</span> <span class="o">==</span> <span class="n">glfw</span><span class="o">.</span><span class="n">KEY_BACKSLASH</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">reset_tile_zoom</span><span class="p">()</span>
+
     <span class="k">def</span> <span class="nf">_handle_user_input</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Handle user input to support clicking/dragging the main viewer.&quot;&quot;&quot;</span>
 
-        <span class="c1"># Detect mouse dragging in the thumbnail display.</span>
+        <span class="c1"># Detect right mouse click in the main display.</span>
         <span class="n">clicking</span><span class="p">,</span> <span class="n">cx</span><span class="p">,</span> <span class="n">cy</span><span class="p">,</span> <span class="n">wheel</span> <span class="o">=</span> <span class="n">imgui_utils</span><span class="o">.</span><span class="n">click_hidden_window</span><span class="p">(</span>
             <span class="s1">&#39;##result_area&#39;</span><span class="p">,</span>
             <span class="n">x</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">offset_x</span><span class="p">,</span>
@@ -886,6 +974,7 @@
             <span class="n">width</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">content_width</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">offset_x</span><span class="p">,</span>
             <span class="n">height</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">content_height</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">offset_y</span><span class="p">,</span>
             <span class="n">mouse_idx</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="c1"># Detect dragging with left mouse in the main display.</span>
         <span class="n">dragging</span><span class="p">,</span> <span class="n">dx</span><span class="p">,</span> <span class="n">dy</span> <span class="o">=</span> <span class="n">imgui_utils</span><span class="o">.</span><span class="n">drag_hidden_window</span><span class="p">(</span>
             <span class="s1">&#39;##result_area&#39;</span><span class="p">,</span>
             <span class="n">x</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">offset_x</span><span class="p">,</span>
@@ -894,10 +983,10 @@
             <span class="n">height</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">content_height</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">offset_y</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">EasyDict</span><span class="p">(</span>
             <span class="n">clicking</span><span class="o">=</span><span class="n">clicking</span><span class="p">,</span>
+            <span class="n">dragging</span><span class="o">=</span><span class="n">dragging</span><span class="p">,</span>
+            <span class="n">wheel</span><span class="o">=</span><span class="n">wheel</span><span class="p">,</span>
             <span class="n">cx</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">cx</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">pixel_ratio</span><span class="p">),</span>
             <span class="n">cy</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">cy</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">pixel_ratio</span><span class="p">),</span>
-            <span class="n">wheel</span><span class="o">=</span><span class="n">wheel</span><span class="p">,</span>
-            <span class="n">dragging</span><span class="o">=</span><span class="n">dragging</span><span class="p">,</span>
             <span class="n">dx</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">dx</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">pixel_ratio</span><span class="p">),</span>
             <span class="n">dy</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">dy</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">pixel_ratio</span><span class="p">)</span>
         <span class="p">)</span>
@@ -918,7 +1007,6 @@
 <span class="sd">                slide.</span>
 <span class="sd">            use_rois (bool): Use ROIs from the loaded project, if available.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">wsi</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">return</span>
         <span class="k">if</span> <span class="n">path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
@@ -929,20 +1017,25 @@
             <span class="n">rois</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">P</span><span class="o">.</span><span class="n">dataset</span><span class="p">()</span><span class="o">.</span><span class="n">rois</span><span class="p">()</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">rois</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">sf</span><span class="o">.</span><span class="n">slide_backend</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;cucim&#39;</span><span class="p">:</span>
+            <span class="n">reader_kwargs</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">num_workers</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">cpu_count</span><span class="p">())</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">reader_kwargs</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">wsi</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">WSI</span><span class="p">(</span>
             <span class="n">path</span><span class="p">,</span>
             <span class="n">tile_px</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tile_px</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_px</span> <span class="k">else</span> <span class="mi">256</span><span class="p">),</span>
             <span class="n">tile_um</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tile_um</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_um</span> <span class="k">else</span> <span class="mi">512</span><span class="p">),</span>
             <span class="n">stride_div</span><span class="o">=</span><span class="n">stride</span><span class="p">,</span>
             <span class="n">rois</span><span class="o">=</span><span class="n">rois</span><span class="p">,</span>
-            <span class="n">vips_cache</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span>
+            <span class="n">cache_kw</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span>
                 <span class="n">tile_width</span><span class="o">=</span><span class="mi">512</span><span class="p">,</span>
                 <span class="n">tile_height</span><span class="o">=</span><span class="mi">512</span><span class="p">,</span>
                 <span class="n">max_tiles</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span>
                 <span class="n">threaded</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
                 <span class="n">persistent</span><span class="o">=</span><span class="kc">True</span>
             <span class="p">),</span>
-            <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+            <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">reader_kwargs</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">set_viewer</span><span class="p">(</span><span class="n">wsi_utils</span><span class="o">.</span><span class="n">SlideViewer</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">wsi</span><span class="p">,</span> <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">_viewer_kwargs</span><span class="p">()))</span>
 
     <span class="k">def</span> <span class="nf">_render_prediction_message</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
@@ -1028,18 +1121,65 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">_addl_renderers</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">renderer</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_async_renderer</span><span class="o">.</span><span class="n">add_to_render_pipeline</span><span class="p">(</span><span class="n">renderer</span><span class="p">)</span></div>
 
+<div class="viewcode-block" id="Workbench.ask_load_heatmap"><a class="viewcode-back" href="../../workbench.html#slideflow.workbench.Workbench.ask_load_heatmap">[docs]</a>    <span class="k">def</span> <span class="nf">ask_load_heatmap</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Prompt user for location of exported heatmap (*.npz) and load.&quot;&quot;&quot;</span>
+        <span class="n">npz_path</span> <span class="o">=</span> <span class="n">askopenfilename</span><span class="p">(</span><span class="n">title</span><span class="o">=</span><span class="s2">&quot;Load heatmap...&quot;</span><span class="p">,</span> <span class="n">filetypes</span><span class="o">=</span><span class="p">[(</span><span class="s2">&quot;*.npz&quot;</span><span class="p">,</span> <span class="s2">&quot;*.npz&quot;</span><span class="p">)])</span>
+        <span class="k">if</span> <span class="n">npz_path</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">load_heatmap</span><span class="p">(</span><span class="n">npz_path</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Workbench.ask_load_model"><a class="viewcode-back" href="../../workbench.html#slideflow.workbench.Workbench.ask_load_model">[docs]</a>    <span class="k">def</span> <span class="nf">ask_load_model</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Prompt user for location of a model and load.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">sf</span><span class="o">.</span><span class="n">backend</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;tensorflow&#39;</span><span class="p">:</span>
+            <span class="n">model_path</span> <span class="o">=</span> <span class="n">askdirectory</span><span class="p">(</span><span class="n">title</span><span class="o">=</span><span class="s2">&quot;Load model (directory)...&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">model_path</span> <span class="o">=</span> <span class="n">askopenfilename</span><span class="p">(</span><span class="n">title</span><span class="o">=</span><span class="s2">&quot;Load model...&quot;</span><span class="p">,</span> <span class="n">filetypes</span><span class="o">=</span><span class="p">[(</span><span class="s2">&quot;zip&quot;</span><span class="p">,</span> <span class="s2">&quot;.zip&quot;</span><span class="p">),</span> <span class="p">(</span><span class="s2">&quot;All files&quot;</span><span class="p">,</span> <span class="s2">&quot;.*&quot;</span><span class="p">)])</span>
+        <span class="k">if</span> <span class="n">model_path</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">load_model</span><span class="p">(</span><span class="n">model_path</span><span class="p">,</span> <span class="n">ignore_errors</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Workbench.ask_load_project"><a class="viewcode-back" href="../../workbench.html#slideflow.workbench.Workbench.ask_load_project">[docs]</a>    <span class="k">def</span> <span class="nf">ask_load_project</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Prompt user for location of a project and load.&quot;&quot;&quot;</span>
+        <span class="n">project_path</span> <span class="o">=</span> <span class="n">askdirectory</span><span class="p">(</span><span class="n">title</span><span class="o">=</span><span class="s2">&quot;Load project (directory)...&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">project_path</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">load_project</span><span class="p">(</span><span class="n">project_path</span><span class="p">,</span> <span class="n">ignore_errors</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Workbench.ask_load_slide"><a class="viewcode-back" href="../../workbench.html#slideflow.workbench.Workbench.ask_load_slide">[docs]</a>    <span class="k">def</span> <span class="nf">ask_load_slide</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Prompt user for location of a slide and load.&quot;&quot;&quot;</span>
+        <span class="n">slide_path</span> <span class="o">=</span> <span class="n">askopenfilename</span><span class="p">(</span><span class="n">title</span><span class="o">=</span><span class="s2">&quot;Load slide...&quot;</span><span class="p">,</span> <span class="n">filetypes</span><span class="o">=</span><span class="p">[(</span><span class="s2">&quot;Aperio ScanScope&quot;</span><span class="p">,</span> <span class="p">(</span><span class="s2">&quot;*.svs&quot;</span><span class="p">,</span> <span class="s2">&quot;*.svslide&quot;</span><span class="p">)),</span>
+                                                                       <span class="p">(</span><span class="s2">&quot;Hamamatsu&quot;</span><span class="p">,</span> <span class="p">(</span><span class="s2">&quot;*.ndpi&quot;</span><span class="p">,</span> <span class="s2">&quot;*.vms&quot;</span><span class="p">,</span> <span class="s2">&quot;*.vmu&quot;</span><span class="p">)),</span>
+                                                                       <span class="p">(</span><span class="s2">&quot;Leica&quot;</span><span class="p">,</span> <span class="s2">&quot;*.scn&quot;</span><span class="p">),</span>
+                                                                       <span class="p">(</span><span class="s2">&quot;MIRAX&quot;</span><span class="p">,</span> <span class="s2">&quot;*.mrxs&quot;</span><span class="p">),</span>
+                                                                       <span class="p">(</span><span class="s2">&quot;Roche, Ventana&quot;</span><span class="p">,</span> <span class="s2">&quot;*.bif&quot;</span><span class="p">),</span>
+                                                                       <span class="p">(</span><span class="s2">&quot;Pyramid TIFF&quot;</span><span class="p">,</span> <span class="p">(</span><span class="s2">&quot;*.tiff&quot;</span><span class="p">,</span> <span class="s2">&quot;*.tif&quot;</span><span class="p">)),</span>
+                                                                       <span class="p">(</span><span class="s2">&quot;JPEG&quot;</span><span class="p">,</span> <span class="p">(</span><span class="s2">&quot;.jpg&quot;</span><span class="p">,</span> <span class="s2">&quot;*.jpeg&quot;</span><span class="p">)),</span>
+                                                                       <span class="p">(</span><span class="s2">&quot;All files&quot;</span><span class="p">,</span> <span class="s2">&quot;.*&quot;</span><span class="p">)])</span>
+        <span class="k">if</span> <span class="n">slide_path</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">load_slide</span><span class="p">(</span><span class="n">slide_path</span><span class="p">,</span> <span class="n">ignore_errors</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Workbench.autoload"><a class="viewcode-back" href="../../workbench.html#slideflow.workbench.Workbench.autoload">[docs]</a>    <span class="k">def</span> <span class="nf">autoload</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">ignore_errors</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Automatically load a path, detecting if the path is a slide, model, or project.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">is_project</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">load_project</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">ignore_errors</span><span class="o">=</span><span class="n">ignore_errors</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">is_slide</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">load_slide</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">ignore_errors</span><span class="o">=</span><span class="n">ignore_errors</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">is_model</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">load_model</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">ignore_errors</span><span class="o">=</span><span class="n">ignore_errors</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># See if any widgets implement a drag_and_drop_hook() method</span>
+            <span class="k">for</span> <span class="n">widget</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">widgets</span><span class="p">:</span>
+                <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">widget</span><span class="p">,</span> <span class="s1">&#39;drag_and_drop_hook&#39;</span><span class="p">):</span>
+                    <span class="n">widget</span><span class="o">.</span><span class="n">drag_and_drop_hook</span><span class="p">(</span><span class="n">path</span><span class="p">)</span></div>
+
 <div class="viewcode-block" id="Workbench.clear_overlay"><a class="viewcode-back" href="../../workbench.html#slideflow.workbench.Workbench.clear_overlay">[docs]</a>    <span class="k">def</span> <span class="nf">clear_overlay</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Remove the currently overlay image.&quot;&quot;&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_overlay_tex_img</span>   <span class="o">=</span> <span class="kc">None</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">overlay</span>            <span class="o">=</span> <span class="kc">None</span></div>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_overlay_tex_img</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">overlay</span> <span class="o">=</span> <span class="kc">None</span></div>
 
 <div class="viewcode-block" id="Workbench.clear_result"><a class="viewcode-back" href="../../workbench.html#slideflow.workbench.Workbench.clear_result">[docs]</a>    <span class="k">def</span> <span class="nf">clear_result</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Clear all shown results and images.&quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">clear_model_results</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">clear_overlay</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">result</span>             <span class="o">=</span> <span class="n">EasyDict</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_wsi_tex_img</span>       <span class="o">=</span> <span class="kc">None</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_wsi_tex_obj</span>       <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">result</span> <span class="o">=</span> <span class="n">EasyDict</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_wsi_tex_img</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">viewer</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">viewer</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span></div>
 
@@ -1123,6 +1263,12 @@
                           <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">_content_height</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">content_height</span>
                           <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pane_w</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pane_w</span><span class="p">)</span>
 
+        <span class="c1"># Process drag-and-drop files</span>
+        <span class="n">paths</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pop_drag_and_drop_paths</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">paths</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">paths</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">autoload</span><span class="p">(</span><span class="n">paths</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">ignore_errors</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_clear_textures</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_draw_menu_bar</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_draw_control_pane</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_draw_performance_pane</span><span class="p">()</span>
@@ -1183,6 +1329,10 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">viewer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">viewer</span>
         <span class="c1"># ---------------------------------------------------------------------</span>
+
+        <span class="c1"># Render control pane contents.</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_show_control</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_controls_to_render</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_render_control_pane_contents</span><span class="p">()</span>
 
         <span class="c1"># Render user widgets.</span>
         <span class="k">for</span> <span class="n">widget</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">widgets</span><span class="p">:</span>
@@ -1252,14 +1402,13 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">close_model</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_should_close_slide</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">close_slide</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_adjust_font_size</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">end_frame</span><span class="p">()</span></div>
 
 <div class="viewcode-block" id="Workbench.get_default_widgets"><a class="viewcode-back" href="../../workbench.html#slideflow.workbench.Workbench.get_default_widgets">[docs]</a>    <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">get_default_widgets</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">]:</span>
         <span class="sd">&quot;&quot;&quot;Returns a list of the default non-mandatory widgets.&quot;&quot;&quot;</span>
 
-        <span class="kn">from</span> <span class="nn">slideflow.workbench.layer_umap_widget</span> <span class="kn">import</span> <span class="n">LayerWidget</span>
+        <span class="kn">from</span> <span class="nn">slideflow.workbench.layer_umap_widget</span> <span class="kn">import</span> <span class="n">LayerUMAPWidget</span>
         <span class="k">return</span> <span class="p">[</span><span class="n">LayerUMAPWidget</span><span class="p">]</span></div>
 
 <div class="viewcode-block" id="Workbench.get_renderer"><a class="viewcode-back" href="../../workbench.html#slideflow.workbench.Workbench.get_renderer">[docs]</a>    <span class="k">def</span> <span class="nf">get_renderer</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
@@ -1276,6 +1425,33 @@
                 <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_model_config</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
                 <span class="ow">and</span> <span class="s1">&#39;uq&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_model_config</span><span class="p">[</span><span class="s1">&#39;hp&#39;</span><span class="p">]</span>
                 <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_model_config</span><span class="p">[</span><span class="s1">&#39;hp&#39;</span><span class="p">][</span><span class="s1">&#39;uq&#39;</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="Workbench.increase_tile_zoom"><a class="viewcode-back" href="../../workbench.html#slideflow.workbench.Workbench.increase_tile_zoom">[docs]</a>    <span class="k">def</span> <span class="nf">increase_tile_zoom</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Increase zoom of tile view two-fold.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tile_zoom</span> <span class="o">*=</span> <span class="mi">2</span></div>
+
+<div class="viewcode-block" id="Workbench.decrease_tile_zoom"><a class="viewcode-back" href="../../workbench.html#slideflow.workbench.Workbench.decrease_tile_zoom">[docs]</a>    <span class="k">def</span> <span class="nf">decrease_tile_zoom</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Decrease zoom of tile view by half.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tile_zoom</span> <span class="o">/=</span> <span class="mi">2</span></div>
+
+<div class="viewcode-block" id="Workbench.reset_tile_zoom"><a class="viewcode-back" href="../../workbench.html#slideflow.workbench.Workbench.reset_tile_zoom">[docs]</a>    <span class="k">def</span> <span class="nf">reset_tile_zoom</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Reset tile zoom level.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tile_zoom</span> <span class="o">=</span> <span class="mi">1</span></div>
+
+<div class="viewcode-block" id="Workbench.load_heatmap"><a class="viewcode-back" href="../../workbench.html#slideflow.workbench.Workbench.load_heatmap">[docs]</a>    <span class="k">def</span> <span class="nf">load_heatmap</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Load a saved heatmap (*.npz).</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            path (str): Path to exported heatmap in *.npz format, as generated</span>
+<span class="sd">                by Heatmap.save() or Heatmap.save_npz().</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">heatmap_widget</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">create_toast</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Loaded heatmap at </span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">icon</span><span class="o">=</span><span class="s2">&quot;success&quot;</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Exception raised loading heatmap: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">create_toast</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Error loading heatmap at </span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">icon</span><span class="o">=</span><span class="s2">&quot;error&quot;</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="Workbench.load_model"><a class="viewcode-back" href="../../workbench.html#slideflow.workbench.Workbench.load_model">[docs]</a>    <span class="k">def</span> <span class="nf">load_model</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">ignore_errors</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Load the given model.</span>
@@ -1559,16 +1735,16 @@
 </pre></div>
 
              </article>
-
+             
             </div>
             <footer>
+  
 
-
-
+  
 
     <hr>
 
-
+  
 
   <div role="contentinfo">
     <p>
@@ -1576,11 +1752,11 @@
 
     </p>
   </div>
-
+    
       <div>
         Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
       </div>
-
+     
 
 </footer>
 
@@ -1590,19 +1766,19 @@
         <div class="pytorch-content-right" id="pytorch-content-right">
           <div class="pytorch-right-menu" id="pytorch-right-menu">
             <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
-
+              
             </div>
           </div>
         </div>
       </section>
     </div>
 
+  
 
 
+  
 
-
-
-
+     
        <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
          <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
          <script src="../../_static/jquery.js"></script>
@@ -1610,9 +1786,9 @@
          <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
          <script src="../../_static/doctools.js"></script>
          <script src="../../_static/sphinx_highlight.js"></script>
+     
 
-
-
+  
 
   <script type="text/javascript" src="../../_static/js/vendor/popper.min.js"></script>
   <script type="text/javascript" src="../../_static/js/vendor/bootstrap.min.js"></script>
@@ -1623,7 +1799,7 @@
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script>
+  </script> 
 
   <!-- Begin Footer -->
 

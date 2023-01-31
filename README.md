@@ -3,7 +3,7 @@
 [![Python application](https://github.com/jamesdolezal/slideflow/actions/workflows/python-app.yml/badge.svg?branch=master)](https://github.com/jamesdolezal/slideflow/actions/workflows/python-app.yml)
 [![PyPI version](https://badge.fury.io/py/slideflow.svg)](https://badge.fury.io/py/slideflow)
 
-Slideflow provides a unified API for building and testing deep learning models for digital pathology, supporting both Tensorflow and PyTorch.
+Slideflow is a deep learning library for digital pathology that provides a unified API for building, training, and testing models using Tensorflow or PyTorch.
 
 Slideflow includes tools for **whole-slide image processing** and tile extraction, **customizable deep learning model training** with dozens of supported architectures, **explainability tools** including heatmaps, mosaic maps, GANs, and saliency maps, **analysis of activations** from model layers, **uncertainty quantification**, and more. A variety of fast, optimized whole-slide image processing tools are included, including background filtering, blur/artifact detection, [stain normalization](https://slideflow.dev/norm.html), and efficient storage in `*.tfrecords` format. Model training is easy and highly configurable, with an easy drop-in API for training custom architectures. For external training loops, Slideflow can be used as an image processing backend, serving an optimized `tf.data.Dataset` or `torch.utils.data.DataLoader` to read and process slide images and perform real-time stain normalization.
 
@@ -20,31 +20,33 @@ Slideflow has been used by:
 - [Partin et al](https://arxiv.org/abs/2204.11678) [arXiv], 2022
 - [Dolezal et al](https://ascopubs.org/doi/abs/10.1200/JCO.2022.40.16_suppl.8549) [abstract], 2022
 - [Howard et al](https://www.biorxiv.org/content/10.1101/2022.07.07.499039v1) [bioRxiv], 2022
+- [Dolezal et al](https://arxiv.org/abs/2211.06522) [arXiv], 2022
 
 Full documentation with example tutorials can be found at [slideflow.dev](https://www.slideflow.dev/).
 
 ## Requirements
-- Python >= 3.7
-- [Libvips](https://libvips.github.io/libvips/) >= 8.9.
-- [OpenSlide](https://openslide.org/download/)
+- Python >= 3.7 (<3.10 if using [cuCIM](https://docs.rapids.ai/api/cucim/stable/))
 - [Tensorflow](https://www.tensorflow.org/) 2.5-2.9 _or_ [PyTorch](https://pytorch.org/) 1.9-1.12
-- [QuPath](https://qupath.github.io/) [_optional_] - Used for pathologist ROIs
-- Linear solver [_optional_] - Used for preserved-site cross-validation
+
+### Optional
+- [Libvips](https://libvips.github.io/libvips/) >= 8.9 (alternative slide reader, adds support for *.scn, *.mrxs, *.ndpi, *.vms, and *.vmu files).
+- [QuPath](https://qupath.github.io/) (for pathologist ROIs)
+- Linear solver (for preserved-site cross-validation)
   - [CPLEX](https://www.ibm.com/docs/en/icos/12.10.0?topic=v12100-installing-cplex-optimization-studio) 20.1.0 with [Python API](https://www.ibm.com/docs/en/icos/12.10.0?topic=cplex-setting-up-python-api)
   - _or_ [Pyomo](http://www.pyomo.org/installation) with [Bonmin](https://anaconda.org/conda-forge/coinbonmin) solver
 
-## Updates (1.3.2)
-Please see the [Version 1.3.2 Release Notes](https://github.com/jamesdolezal/slideflow/releases/tag/1.3.2) for a summary of the latest updates and fixes in the latest release.
 
 ## Installation
-Slideflow can be installed with PyPI, as a Docker container, or run from source. 
+Slideflow can be installed with PyPI, as a Docker container, or run from source.
 
 ### Method 1: Install via pip
 
 ```
 pip3 install --upgrade setuptools pip wheel
-pip3 install slideflow
+pip3 install slideflow[cucim] cupy-cuda11x
 ```
+
+The `cupy` package name depends on the installed CUDA version; [see here](https://docs.cupy.dev/en/stable/install.html#installing-cupy) for installation instructions. `cupy` is not required if using Libvips.
 
 ### Method 2: Docker image
 
@@ -72,11 +74,45 @@ cd slideflow
 conda env create -f environment.yml
 conda activate slideflow
 python setup.py bdist_wheel
-pip install dist/slideflow*
+pip install dist/slideflow* cupy-cuda11x
 ```
 
+## Configuration
+
+### Deep learning (Tensorflow vs. PyTorch)
+
+Slideflow supports both Tensorflow and PyTorch, defaulting to Tensorflow if both are available. You can specify the backend to use with the environmental variable `SF_BACKEND`. For example:
+
+```
+export SF_BACKEND=torch
+```
+
+### Slide reading (cuCIM vs. Libvips)
+
+By default, Slideflow reads whole-slide images using [cuCIM](https://docs.rapids.ai/api/cucim/stable/). Although much faster than other openslide-based frameworks, it supports fewer slide scanner formats. Slideflow also includes a [Libvips](https://libvips.github.io/libvips/) backend, which adds support for *.scn, *.mrxs, *.ndpi, *.vms, and *.vmu files. You can set the active slide backend with the environmental variable `SF_SLIDE_BACKEND`:
+
+```
+export SF_SLIDE_BACKEND=libvips
+```
+
+
 ## Getting started
-Slideflow experiments are organized into [Projects](https://slideflow.dev/project_setup.html), which supervise storage of whole-slide images, extracted tiles, and patient-level annotations. To create a new project, create an instance of the `slideflow.Project` class, supplying a pre-configured set of patient-level annotations in CSV format:
+Slideflow experiments are organized into [Projects](https://slideflow.dev/project_setup.html), which supervise storage of whole-slide images, extracted tiles, and patient-level annotations. The fastest way to get started is to use one of our preconfigured projects, which will automatically download slides from the Genomic Data Commons. Download one of our [dataset folders](https://github.com/jamesdolezal/slideflow/tree/dev/datasets), and supply the `*.json` file to the project creation function:
+
+```python
+import slideflow as sf
+
+P = sf.project.create(
+  '/project/destination',
+  cfg='datasets/thyroid_brs/thyroid_brs.json',
+  download=True,
+  md5=True
+)
+```
+
+After the slides have been downloaded and verified, you can skip to [Extract tiles from slides](#extract-tiles-from-slides).
+
+Alternatively, to create a new custom project, create an instance of the `slideflow.Project` class and supply patient-level annotations in CSV format:
 
 ```python
 import slideflow as sf
@@ -163,7 +199,7 @@ James Dolezal, Sara Kochanny, & Frederick Howard. (2022). Slideflow: A Unified D
   author       = {James Dolezal and
                   Sara Kochanny and
                   Frederick Howard},
-  title        = {{Slideflow: A Unified Deep Learning Pipeline for 
+  title        = {{Slideflow: A Unified Deep Learning Pipeline for
                    Digital Histology}},
   month        = oct,
   year         = 2022,

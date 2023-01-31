@@ -57,13 +57,14 @@ Then, simply replace ``Project.train()`` with :meth:`slideflow.Project.smac_sear
 
 .. code-block:: python
 
-    P.train(..., smac_configspace=cs)
+    P.smac_search(..., smac_configspace=cs)
 
 Available hyperparameters are listed in the :class:`slideflow.model.ModelParams` documentation.
 
 .. note::
 
     If you are using a continuous variable as an outcome measure, be sure to use a linear loss function. Linear loss functions can be viewed in ``slideflow.model.ModelParams.LinearLossDict``, and all available loss functions are in ``slideflow.model.ModelParams.AllLossDict``.
+
 
 Begin training
 **************
@@ -115,6 +116,42 @@ Models can also be trained to a time series outcome using CPH and negative log l
 
 .. note::
     CPH models are currently unavailable with the PyTorch backend. PyTorch support for CPH outcomes is in development.
+
+Customizing model or loss
+*************************
+
+Slideflow supports dozens of model architectures, but you can also train with a custom architecture, as demonstrated in :ref:`tutorial3`.
+
+Similarly, you can also train with a custom loss function by supplying a dictionary to the ``loss`` argument in ``ModelParams``, with the keys ``type`` (which must be either ``'categorical'``, ``'linear'``, or ``'cph'``) and ``fn`` (a callable loss function).
+
+For Tensorflow/Keras, the loss function must accept arguments ``y_true, y_pred``. For linear losses, ``y_true`` may need to be cast to ``tf.float32``. An example custom linear loss is given below:
+
+.. code-block:: python
+
+  # Custom Tensorflow loss
+  def custom_linear_loss(y_true, y_pred):
+    y_true = tf.cast(y_true, tf.float32)
+    squared_difference = tf.square(y_true - y_pred)
+    return tf.reduce_mean(squared_difference, axis=-1)
+
+
+For PyTorch, the loss function must return a nested loss function with arguments ``output, target``. An example linear loss is given below:
+
+.. code-block:: python
+
+  # Custom PyTorch loss
+  def custom_linear_loss():
+    def loss_fn(output, target):
+      return torch.mean((target - output) ** 2)
+    return loss_fn
+
+
+In both cases, the loss function is applied as follows:
+
+.. code-block:: python
+
+  hp = sf.ModelParams(..., loss={'type': 'linear', 'fn': custom_linear_loss})
+
 
 Distributed training across GPUs
 ********************************

@@ -11,11 +11,12 @@ from slideflow import log
 if sf.util.tf_available:
     import tensorflow as tf
     physical_devices = tf.config.list_physical_devices('GPU')
-    try:
-        for device in physical_devices:
-            tf.config.experimental.set_memory_growth(device, True)
-    except Exception:
-        pass
+    gpus = tf.config.experimental.list_physical_devices('GPU')
+    for gpu in gpus:
+        try:
+            tf.config.experimental.set_memory_growth(gpu, True)
+        except RuntimeError:
+            pass
 if sf.util.torch_available:
     import slideflow.model.torch
 

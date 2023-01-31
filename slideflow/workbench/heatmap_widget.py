@@ -50,14 +50,17 @@ class HeatmapWidget:
         self._heatmap_sum           = 0
         self._heatmap_grid          = None
         self._heatmap_thread        = None
+        self._heatmap_toast         = None
         self._colormaps             = plt.colormaps()
         self._rendering_message     = "Calculating heatmap..."
 
     def _create_heatmap(self):
         viz = self.viz
         self.reset()
-        mp_key = 'num_threads' if viz.low_memory else 'num_processes'
-        mp_kw = {mp_key: os.cpu_count()}
+        if viz.low_memory or sf.slide_backend() == 'cucim':
+            mp_kw = dict(num_threads=os.cpu_count())
+        else:
+            mp_kw = dict(num_processes=os.cpu_count())
         viz.heatmap = sf.heatmap.ModelHeatmap(
             viz.wsi,
             viz.model,
@@ -67,6 +70,15 @@ class HeatmapWidget:
             uq=viz.has_uq(),
             **mp_kw
         )
+
+    def drag_and_drop(self, path, ignore_errors=True):
+        if path.endswith('npz'):
+            try:
+                self.load(path)
+            except Exception:
+                sf.log.debug(f"Unable to load {path} as heatmap.")
+                if not ignore_errors:
+                    raise
 
     def generate_heatmap(self):
         """Create and generate a heatmap asynchronously."""
@@ -110,6 +122,10 @@ class HeatmapWidget:
             self._button_pressed = False
             self._heatmap_thread = None
             self.viz.clear_message(self._rendering_message)
+            if self._heatmap_toast is not None:
+                self._heatmap_toast.done()
+                self._heatmap_toast = None
+            self.viz.create_toast("Heatmap complete.", icon="success")
 
     def render_heatmap(self):
         """Render the current heatmap."""
@@ -151,14 +167,8 @@ class HeatmapWidget:
             alpha_channel = np.full(self.viz.rendered_heatmap.shape[0:2],
                                     int(self.alpha * 255),
                                     dtype=np.uint8)
-            self.viz.overlay = np.dstack((self.viz.rendered_heatmap[:, :, 0:3],
-                                                  alpha_channel))
-            full_extract = int(self.viz.wsi.tile_um / self.viz.wsi.mpp)
-            wsi_stride = int(full_extract / self.viz.wsi.stride_div)
-            self.viz._overlay_wsi_dim = (wsi_stride * (self.viz.overlay.shape[1]),
-                                         wsi_stride * (self.viz.overlay.shape[0]))
-            self.viz._overlay_offset_wsi_dim = (full_extract/2 - wsi_stride/2, full_extract/2 - wsi_stride/2)
-
+            overlay = np.dstack((self.viz.rendered_heatmap[:, :, 0:3], alpha_channel))
+            self.viz.set_overlay(overlay, method=sf.workbench.OVERLAY_GRID)
 
     @imgui_utils.scoped_by_object_id
     def __call__(self, show=True):
@@ -225,6 +235,12 @@ class HeatmapWidget:
                 _button_text = ('Generate' if not self._button_pressed else "Working...")
                 if imgui_utils.button(_button_text, width=viz.button_w, enabled=(not self._button_pressed)):
                     self.viz.set_message(self._rendering_message)
+                    self._heatmap_toast = self.viz.create_toast(
+                        title="Calculating heatmap",
+                        icon='info',
+                        sticky=True,
+                        spinner=True
+                    )
                     _thread = threading.Thread(target=self.generate_heatmap)
                     _thread.start()
                     self.show = True

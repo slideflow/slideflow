@@ -48,6 +48,7 @@ The ``slideflow`` package includes a ``Project`` class to help coordinate projec
    mosaic
    norm
    slide
+   slide_qc
    stats
    util
    workbench
