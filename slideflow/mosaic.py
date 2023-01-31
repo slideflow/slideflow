@@ -451,18 +451,14 @@ class Mosaic:
         # Build the grid
         x_points = self.points.x.values
         y_points = self.points.y.values
-        _x_width = x_points.max() - x_points.min()
-        _y_width = y_points.max() - y_points.min()
-        buffer = (_x_width + _y_width)/2 * 0.05
-        max_x = max(x_points) + buffer
-        min_x = min(x_points) - buffer
-        max_y = max(y_points) + buffer
-        min_y = min(y_points) - buffer
+        max_x = x_points.max()
+        min_x = x_points.min()
+        max_y = y_points.max()
+        min_y = y_points.min()
         log.debug(f'Loaded {len(self.points)} points.')
 
         self.tile_size = (max_x - min_x) / self.num_tiles_x
         self.num_tiles_y = int((max_y - min_y) / self.tile_size)
-        max_distance = math.sqrt(2*((self.tile_size/2)**2)) * leniency
 
         log.info("Building grid")
         self.grid_idx = np.reshape(np.dstack(np.indices((self.num_tiles_x, self.num_tiles_y))), (self.num_tiles_x * self.num_tiles_y, 2))
@@ -472,8 +468,8 @@ class Mosaic:
         points_added = 0
         x_bins = np.arange(min_x, max_x, ((max_x - min_x) / self.num_tiles_x))
         y_bins = np.arange(min_y, max_y, ((max_y - min_y) / self.num_tiles_y))
-        self.points['grid_x'] = np.digitize(self.points.x.values, x_bins)
-        self.points['grid_y'] = np.digitize(self.points.y.values, y_bins)
+        self.points['grid_x'] = np.digitize(self.points.x.values, x_bins, right=True)
+        self.points['grid_y'] = np.digitize(self.points.y.values, y_bins, right=True)
         self.points['selected'] = False
         log.debug(f'{points_added} points added to grid')
 
