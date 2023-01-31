@@ -12,20 +12,19 @@ from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
-import multiprocessing as mp
+import tensorflow as tf
 import slideflow as sf
 import slideflow.model.base as _base
 import slideflow.util.neptune_utils
 from packaging import version
 from slideflow import errors
-from slideflow.model import tensorflow_utils as tf_utils
-from slideflow.model.base import log_manifest, no_scope
-from slideflow.model.tensorflow_utils import unwrap, flatten  # type: ignore
 from slideflow.util import log, NormFit
-
-import tensorflow as tf
 from tensorflow.keras import applications as kapps
-from slideflow.model.tensorflow_utils import eval_from_model
+
+from . import tensorflow_utils as tf_utils
+from . import adv_utils
+from .base import log_manifest, no_scope
+from .tensorflow_utils import unwrap, flatten, eval_from_model  # type: ignore
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -1508,20 +1507,6 @@ class Trainer:
 
         return results
 
-    def _convert_dts_to_adv_dict(
-        self,
-        dataset: tf.data.Dataset,
-        image_input_name: str = 'tile_image',
-        label_input_name: str = 'label'
-    ) -> tf.data.Dataset:
-        """Convert a dataset into the format expected by the adversarial wrapper."""
-
-        def convert_to_dictionaries(image, label):
-            return {image_input_name: image["tile_image"], label_input_name: label}
-
-        return dataset.map(convert_to_dictionaries)
-
-
     def train(
         self,
         train_dts: "sf.Dataset",
@@ -1780,6 +1765,7 @@ class Trainer:
             # Create callbacks for early stopping, checkpoint saving,
             # summaries, and history
             if adversarial:
+                # Adversarial training does not presently support callbacks
                 callbacks = []
             else:
                 val_callback = self.eval_callback(self, cb_args)
@@ -1813,42 +1799,20 @@ class Trainer:
                 )
 
             if adversarial:
-                try:
-                    import neural_structured_learning as nsl
-                except ImportError:
-                    raise ImportError(
-                        'Adversarial training requires the package '
-                        '"neural_structured_learning", which could not be found.'
-                    )
-                # Wrap the model with adversarial regularization,
-                # using tensorflow/neural-structured-learning
-                adv_config = nsl.configs.make_adv_reg_config(
-                    multiplier=0.2,
-                    adv_step_size=0.05,
-                    adv_grad_norm='infinity'
-                )
-                adv_model = nsl.keras.AdversarialRegularization(
-                    self.model,
-                    adv_config=adv_config
-                )
-                adv_model.compile(
-                    optimizer='adam', # Cannot use hp.get_opt(), as this will result in a LossScaleOptimizer wrapping error
-                    loss=self.hp.get_loss(),
-                    metrics=['acc']
-                )
                 # Convert the dataset into the image/label format expected
                 # by the adversarial wrapper
-                train_data = self._convert_dts_to_adv_dict(train_data)
-                _model_to_train = adv_model
-                log.debug("Adversarial wrapping complete.")
+                train_data = adv_utils.convert_dataset(train_data)
+                _model = adv_utils.make_adversarial_model(
+                    self.model, self.hp.get_loss()
+                )
             else:
                 self._compile_model()
-                _model_to_train = self.model
+                _model = self.model
 
             # Train the model
             log.info('Beginning training')
             try:
-                _model_to_train.fit(
+                _model.fit(
                     train_data,
                     steps_per_epoch=steps_per_epoch,
                     epochs=total_epochs,
@@ -1857,15 +1821,12 @@ class Trainer:
                     callbacks=callbacks
                 )
                 if adversarial and save_model:
-                    model_path = os.path.join(
-                        self.outdir,
-                        f'{self.name}_adversarial_epoch_{self.epoch_count}'
-                    )
-                    _model_to_train.save(model_path)
-                    log.info('Model saved')
-                    results = {}
-                    return results
-
+                    # Manually save and generate empty results,
+                    # as adversarial training currently does not support
+                    # callbacks.
+                    _model_name = f'{self.name}_adv_epoch_{total_epochs}'
+                    _model.save(join(self.outdir, _model_name))
+                    return {}
             except tf.errors.ResourceExhaustedError as e:
                 log.error(f"Training failed for [bold]{self.name}[/]. "
                           f"Error: \n {e}")
