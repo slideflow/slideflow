@@ -356,10 +356,14 @@ def is_torch_model_path(path: str) -> bool:
 
 
 def is_simclr_model_path(path: Any) -> bool:
-    """Checks if the given path is a valid Slideflow/Tensorflow model."""
-    return (isinstance(path, str)
-            and isdir(path)
-            and exists(join(path, 'flags.json')))
+    """Checks if the given path is a valid SimCLR model or checkpoint."""
+    is_model =  (isinstance(path, str)
+                 and isdir(path)
+                 and exists(join(path, 'args.json')))
+    is_checkpoint = (isinstance(path, str)
+                     and path.endswith('.ckpt')
+                     and exists(join(dirname(path), 'args.json')))
+    return is_model or is_checkpoint
 
 
 def assert_is_mag(arg1: str):

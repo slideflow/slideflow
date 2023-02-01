@@ -9,7 +9,6 @@ from .simclr.tf2 import (
     run,
     build_saved_model,
     load,
-    load_model_or_checkpoint,
     perform_evaluation,
     run_simclr,
     save,
@@ -19,4 +18,4 @@ from .simclr.tf2.data import (
     DatasetBuilder,
     build_distributed_dataset,
     get_preprocess_fn)
-from .simclr.tf2.utils import load_model_args, get_args
+from .simclr.tf2.utils import load_model_args, get_args, SimCLR_Args

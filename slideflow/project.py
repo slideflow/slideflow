@@ -27,6 +27,7 @@ from slideflow.util import log, path_to_name, path_to_ext
 if TYPE_CHECKING:
     from slideflow.model import DatasetFeatures, Trainer
     from slideflow.slide import SlideReport
+    from slideflow import simclr
     from ConfigSpace import ConfigurationSpace, Configuration
     from smac.facade.smac_bb_facade import SMAC4BB
 
@@ -3151,11 +3152,11 @@ class Project:
     def train_simclr(
         self,
         exp_name: str,
-        outcomes: Union[str, List[str]], # FIXME:M can we actually have a list of outcomes in simCLR?
-        dataset: Dataset,
-        val_fraction: float = 0.2,
-        splits: str = 'simclr_splits.json',
-        simclr_args: Optional[SimpleNamespace] = None,
+        train_dataset: Dataset,
+        val_dataset: Optional[Dataset] = None,
+        *,
+        outcomes: Optional[Union[str, List[str]]] = None,
+        simclr_args: Optional["simclr.SimCLR_Args"] = None,
         **kwargs
     ) -> None:
         """Train SimCLR model, saved in SimCLR/{exp_name}/models
@@ -3192,41 +3193,23 @@ class Project:
         from slideflow import simclr
 
         # Set up SimCLR experiment data directory
-        simCLR_dir = join(self.root, 'simCLR', exp_name)
-        splits_path = os.path.join(simCLR_dir, splits)
-        model_dir = os.path.join(simCLR_dir, 'models')
-        if not exists(model_dir):
-            os.makedirs(model_dir)
+        simclr_dir = join(self.root, 'simclr', exp_name)
+        if not exists(simclr_dir):
+            os.makedirs(simclr_dir)
 
         # get base SimCLR args/settings if not provided
         if not simclr_args:
             simclr_args = simclr.get_args()
-        assert isinstance(simclr_args, SimpleNamespace)
-
-        # Load the ground-truth labels for each slide
-        labels, unique_labels = dataset.labels(outcomes)
-
-        # Create or load a validation dataset.
-        train_dts, val_dts = dataset.train_val_split(
-            'categorical',             # Type of model FIXME: should this be a parameter?
-            labels=labels,             # Ground truth labels
-            val_strategy='fixed',      # Not a cross-fold split, just single split FIXME: par?
-            val_fraction=val_fraction, # Fraction of data for validation
-            splits = splits_path # Save directory for split
-        )
-
-        log.info(f"Training dataset size: {train_dts.num_tiles}")
-        log.info(f"Validation dataset size: {val_dts.num_tiles}")
+        assert isinstance(simclr_args, simclr.SimCLR_Args)
 
         # Create dataset builder, which SimCLR will use to create
         # the input pipeline for training
         builder = simclr.DatasetBuilder(
-            train_dts=train_dts.balance(strategy='slide'),
-            val_dts=val_dts.balance(strategy='slide'),
-            labels=labels,
-            num_classes=len(unique_labels)
+            train_dts=train_dataset,
+            val_dts=val_dataset,
+            labels=outcomes,
         )
-        simclr.run_simclr(simclr_args, builder, model_dir=model_dir, **kwargs)
+        simclr.run_simclr(simclr_args, builder, model_dir=simclr_dir, **kwargs)
 
 
     def train_clam(
