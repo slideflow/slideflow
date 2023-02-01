@@ -378,21 +378,11 @@ class DatasetFeatures:
                 layers=layers
             )
         elif is_simclr:
-            import tensorflow as tf
-            from slideflow.simclr import SimCLR, get_args
-
-            simCLR_args = get_args() # FIXME:M
-            # these need them to come from a file that saves the model's parameters
-            # same for build_distributed_dataset ~L438
-            combined_model = SimCLR(2, simCLR_args)
-            
-            combined_model.num_features = 128
-            combined_model.num_logits = 2
-            checkpoint = tf.train.Checkpoint(
-                model=combined_model,
-                global_step=tf.Variable(0, dtype=tf.int64)
-            )
-            checkpoint.restore(model).expect_partial()
+            from slideflow import simclr
+            simclr_args = simclr.load_model_args(model)
+            combined_model = simclr.load_model_or_checkpoint(model)
+            combined_model.num_features = simclr_args.proj_out_dim
+            combined_model.num_logits = simclr_args.num_classes
         elif isinstance(model, str):
             combined_model = sf.model.Features(model, **feat_kw)
         elif sf.model.is_tensorflow_model(model):
@@ -425,9 +415,9 @@ class DatasetFeatures:
             'normalizer': self.normalizer
         }
         if is_simclr:
-            from slideflow.simclr import SlideflowBuilder, build_distributed_dataset
+            from slideflow.simclr import DatasetBuilder, build_distributed_dataset
             strategy = tf.distribute.OneDeviceStrategy('gpu:0')
-            builder = SlideflowBuilder(
+            builder = DatasetBuilder(
                 val_dts=self.dataset,
                 dataset_kwargs=dict(
                     incl_slidenames=True,
@@ -436,7 +426,11 @@ class DatasetFeatures:
                 )
             )
             dataloader = build_distributed_dataset(
-                builder, batch_size, False, strategy, None, simCLR_args
+                builder,
+                batch_size,
+                is_training=False,
+                strategy=strategy,
+                simclr_args=simclr_args
             )
         elif sf.model.is_tensorflow_model(model):
             dataloader = self.dataset.tensorflow(

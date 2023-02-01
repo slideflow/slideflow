@@ -3160,14 +3160,14 @@ class Project:
     ) -> None:
         """Train SimCLR model, saved in SimCLR/{exp_name}/models
             directory
-        
+
         Args:
             exp_name (str): Name of experiment. Makes SimCLR/{exp_name} folder.]
             outcomes (str): Annotation column which specifies the outcome.
             dataset (:class:`slideflow.dataset.Dataset`): Dataset object from
                 which to generate activations.
-            val_fraction (float): 
-            splits (str): splits file name, if exists the splits defined are 
+            val_fraction (float):
+            splits (str): splits file name, if exists the splits defined are
                 used otherwise it is created
             simCLR_args (optional): Namespace with SimCLR arguments, as provided
                 by :func:`slideflow.simclr.get_args`.
@@ -3185,19 +3185,19 @@ class Project:
                 >>> P = sf.Project.from_prompt('/project/path')
                 >>> simclr_args = simclr.get_args(train_batch_size=256)
                 >>> dataset = P.dataset(tile_px=299, tile_um=302)
-                >>> P.train_simclr('name', 'outcomes', dataset, 
+                >>> P.train_simclr('name', 'outcomes', dataset,
                 ...     simclr_args=simclr_args, use_tpu=False)
         """
 
-        import slideflow.simclr as simclr
+        from slideflow import simclr
 
         # Set up SimCLR experiment data directory
         simCLR_dir = join(self.root, 'simCLR', exp_name)
-        splits_path = os.path.join(simCLR_dir, splits) 
+        splits_path = os.path.join(simCLR_dir, splits)
         model_dir = os.path.join(simCLR_dir, 'models')
         if not exists(model_dir):
             os.makedirs(model_dir)
-        
+
         # get base SimCLR args/settings if not provided
         if not simclr_args:
             simclr_args = simclr.get_args()
@@ -3220,19 +3220,13 @@ class Project:
 
         # Create dataset builder, which SimCLR will use to create
         # the input pipeline for training
-        builder = simclr.SlideflowBuilder(
+        builder = simclr.DatasetBuilder(
             train_dts=train_dts.balance(strategy='slide'),
             val_dts=val_dts.balance(strategy='slide'),
             labels=labels,
             num_classes=len(unique_labels)
         )
-
-        simclr.run_simclr(
-            simclr_args,
-            builder=builder,
-            model_dir=model_dir,
-            **kwargs
-        )
+        simclr.run_simclr(simclr_args, builder, model_dir=model_dir, **kwargs)
 
 
     def train_clam(
