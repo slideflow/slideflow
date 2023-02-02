@@ -2805,9 +2805,18 @@ class Dataset:
                 tfr for tfr in tfrecord_dir_list
                 if path_to_name(tfr) in train_slides
             ]
-
-        assert(len(val_tfrecords) == len(val_slides))
-        assert(len(training_tfrecords) == len(train_slides))
+        if not len(val_tfrecords) == len(val_slides):
+            raise errors.DatasetError(
+                f"Number of validation tfrecords ({len(val_tfrecords)}) does not "
+                f"match the number of validation slides ({len(val_slides)}). "
+                "This may happen if multiple tfrecords were found for some slides."
+            )
+        if not len(training_tfrecords) == len(train_slides):
+            raise errors.DatasetError(
+                f"Number of training tfrecords ({len(val_tfrecords)}) does not "
+                f"match the number of training slides ({len(val_slides)}). "
+                "This may happen if multiple tfrecords were found for some slides."
+            )
         training_dts = copy.deepcopy(self)
         training_dts = training_dts.filter(filters={'slide': train_slides})
         val_dts = copy.deepcopy(self)
