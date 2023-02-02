@@ -1,28 +1,31 @@
 import copy
 import csv
 import itertools
+import shutil
 import json
 import multiprocessing
 import numpy as np
 import os
 import shutil
 import pickle
-import tarfile
 import pandas as pd
+import tarfile
 from tqdm import tqdm
+from os.path import basename, exists, join, isdir, dirname
 from multiprocessing.managers import DictProxy
-from os.path import basename, exists, join, dirname
+from contextlib import contextmanager
 from statistics import mean
 from types import SimpleNamespace
 from typing import (TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple,
                     Union)
 
 import slideflow as sf
-from slideflow import errors, project_utils
-from slideflow.dataset import Dataset
-from slideflow.model import ModelParams
-from slideflow.project_utils import auto_dataset, get_validation_settings
-from slideflow.util import log, path_to_name, path_to_ext
+from . import errors, project_utils
+from .util import log, path_to_name, path_to_ext
+from .dataset import Dataset
+from .model import ModelParams
+from .project_utils import (auto_dataset, get_validation_settings,
+                            get_first_nested_directory, get_matching_directory)
 
 if TYPE_CHECKING:
     from slideflow.model import DatasetFeatures, Trainer
@@ -245,6 +248,24 @@ class Project:
         if not isinstance(v, list) or any([not isinstance(v, str) for v in v]):
             raise errors.ProjectError("'sources' must be a list of str")
         self._settings['sources'] = v
+
+    @contextmanager
+    def _set_eval_dir(self, path: str):
+        _initial = self.eval_dir
+        self.eval_dir = path
+        try:
+            yield
+        finally:
+            self.eval_dir = _initial
+
+    @contextmanager
+    def _set_models_dir(self, path: str):
+        _initial = self.models_dir
+        self.models_dir = path
+        try:
+            yield
+        finally:
+            self.models_dir = _initial
 
     def _read_relative_path(self, path: str) -> str:
         """Converts relative path within project directory to global path."""
@@ -685,7 +706,7 @@ class Project:
         dataset: Dataset,
         hp: ModelParams,
         val_settings: SimpleNamespace,
-        s_args: SimpleNamespace
+        s_args: SimpleNamespace,
     ) -> None:
         '''Trains a model for a given training/validation split.
 
@@ -2483,6 +2504,85 @@ class Project:
         else:
             raise errors.ProjectError('Unable to find settings.json.')
 
+    def predict_ensemble(
+        self,
+        model: str,
+        k: Optional[int] = None,
+        epoch: Optional[int] = None,
+        **kwargs
+    ) -> None:
+        """Evaluates a saved ensemble model on a given set of tfrecords.
+
+        Args:
+            model (str): Path to ensemble model to evaluate.
+
+        Keyword Args:
+            k (int, optional): The k-fold number to be considered
+                to run the prediction. By default it sets to the first k-fold
+                present in the ensemble folder.
+            epoch (int, optional): The epoch number to be considered
+                to run the prediction. By default it sets to the first epoch
+                present in the selected k-fold folder.
+            All keyword arguments accepted by :meth:`slideflow.Project.predict`
+        """
+        if not exists(model):
+            raise OSError(f"Path {model} not found")
+
+        config = sf.util.get_model_config(model)
+        outcomes = f"{'-'.join(config['outcomes'])}"
+        model_name = f"eval-ensemble-{outcomes}"
+        main_eval_dir = sf.util.get_new_model_dir(self.eval_dir, model_name)
+
+        member_paths = sorted([
+            join(model, x) for x in os.listdir(model)
+            if isdir(join(model, x))
+        ])
+        # Generate predictions from each ensemble member,
+        # and merge predictions into a single dataframe.
+        for member_id, member_path in enumerate(member_paths):
+            if k:
+                _k_path = get_matching_directory(member_path, f'kfold{k}')
+            else:
+                _k_path = get_first_nested_directory(member_path)
+            if epoch:
+                prediction_path = get_matching_directory(_k_path, f'epoch{epoch}')
+            else:
+                prediction_path = get_first_nested_directory(_k_path)
+
+            # Update the current evaluation directory.
+            member_eval_dir = sf.util.get_new_model_dir(
+                main_eval_dir,
+                f"ensemble_{member_id+1}"
+            )
+            with self._set_eval_dir(member_eval_dir):
+                self.predict(prediction_path, **kwargs)
+                # If this is the first ensemble member, copy the slide manifest
+                # and params.json file into the ensemble prediction folder.
+                if member_id == 0:
+                    _, from_path = sf.util.get_valid_model_dir(self.eval_dir)
+                    shutil.copyfile(
+                        join(self.eval_dir, from_path[0], "slide_manifest.csv"),
+                        join(main_eval_dir, "slide_manifest.csv")
+                    )
+                    shutil.copyfile(
+                        join(self.eval_dir, from_path[0], "params.json"),
+                        join(main_eval_dir, "slide_manifest.csv")
+                    )
+                # Create (or add to) the ensemble dataframe.
+                for level in ('slide', 'tile'):
+                    project_utils.add_to_ensemble_dataframe(
+                        ensemble_path=main_eval_dir,
+                        kfold_path=join(self.eval_dir, from_path[0]),
+                        level=level,
+                        member_id=member_id
+                    )
+        # Create new ensemble columns and rename fixed columns.
+        for level in ('tile', 'slide'):
+            project_utils.update_ensemble_dataframe_headers(
+                ensemble_path=main_eval_dir,
+                level=level,
+            )
+
     @auto_dataset
     def predict(
         self,
@@ -2738,7 +2838,6 @@ class Project:
         """Saves current project configuration as "settings.json"."""
         sf.util.write_json(self._settings, join(self.root, 'settings.json'))
 
-
     def _get_smac_runner(
         self,
         outcomes: Union[str, List[str]],
@@ -2927,6 +3026,69 @@ class Project:
         self.models_dir = _initial_models_dir
         return best_config, history
 
+    def train_ensemble(
+        self,
+        outcomes: Union[str, List[str]],
+        n_ensembles: int = 5,
+        **kwargs
+    ) -> List[Dict]:
+        """Train an ensemble of model(s) using a given set of parameters,
+        outcomes, and inputs by calling the train function ``n_ensembles``
+        of times.
+
+        Args:
+            outcomes (str or list(str)): Outcome label annotation header(s).
+            n_ensembles (int): Total models needed in the ensemble.
+                Defaults to 5.
+
+        Keyword Args:
+            All keyword arguments accepted by :meth:`slideflow.Project.train`
+
+        Returns:
+            List of dictionaries of length ``n_ensembles``, containing training
+            results for each member of the ensemble.
+        """
+
+        if isinstance(outcomes, list):
+            ensemble_name = f"{'-'.join(outcomes)}-ensemble"
+        else:
+            ensemble_name = f"{outcomes}-ensemble"
+        ensemble_path = sf.util.get_new_model_dir(self.models_dir, ensemble_name)
+        ensemble_results = []
+
+        for i in range(n_ensembles):
+            # Create the ensemble member folder, which will hold each
+            # k-fold model for the given ensemble member.
+            member_path = sf.util.get_new_model_dir(
+                ensemble_path,
+                f"ensemble_{i+1}")
+            with self._set_models_dir(member_path):
+                result = self.train(outcomes, **kwargs)
+                ensemble_results.append(result)
+
+        # Copy the slide manifest and params.json file
+        # into the parent ensemble folder.
+        _, member_models = sf.util.get_valid_model_dir(member_path)
+        if len(member_models):
+            try:
+                shutil.copyfile(
+                    join(member_path, member_models[0], "slide_manifest.csv"),
+                    join(ensemble_path, "slide_manifest.csv"))
+                shutil.copyfile(
+                    join(member_path, member_models[0], "params.json"),
+                    join(ensemble_path, "params.json"))
+            except OSError:
+                log.error("Unable to find ensemble slide manifest and params.json.")
+        else:
+            log.error("Unable to find ensemble slide manifest and params.json.")
+
+        # Merge predictions from each ensemble.
+        if "save_predictions" in kwargs:
+            if not kwargs['save_predictions']:
+                return ensemble_results
+        project_utils.ensemble_train_predictions(ensemble_path)
+        return ensemble_results
+
     def train(
         self,
         outcomes: Union[str, List[str]],
@@ -3063,7 +3225,6 @@ class Project:
                 >>> P.train('outcome', params=hp, ...)
 
         """
-
         # Prepare outcomes
         if not isinstance(outcomes, list):
             outcomes = [outcomes]
