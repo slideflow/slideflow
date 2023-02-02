@@ -16,6 +16,7 @@ import numpy as np
 import tensorflow as tf
 import slideflow as sf
 import slideflow.model.base as _base
+import multiprocessing as mp
 import slideflow.util.neptune_utils
 from packaging import version
 from slideflow import errors
