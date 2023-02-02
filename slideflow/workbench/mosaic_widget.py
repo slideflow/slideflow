@@ -1,4 +1,3 @@
-import time
 import os
 import glfw
 import numpy as np
@@ -8,7 +7,11 @@ import slideflow as sf
 import multiprocessing as mp
 from os.path import join, exists
 from slideflow import log
-from typing import Optional
+from typing import Optional, Tuple, List
+from PIL import Image
+from io import BytesIO
+import matplotlib.pyplot as plt
+import matplotlib.image as mpl_image
 
 from .gui_utils import imgui_utils, gl_utils, viewer
 from .utils import EasyDict
@@ -64,6 +67,8 @@ class MosaicViewer(viewer.Viewer):
 
     def render(self, max_w: int, max_h: int) -> None:
         """Render the mosaic map."""
+        if self.size < min(max_w, max_h):
+            self.zoomed = False
         if not self.zoomed:
             self.size = min(max_w, max_h)
             if max_w > self.size:
@@ -111,19 +116,60 @@ class MosaicViewer(viewer.Viewer):
 
 #----------------------------------------------------------------------------
 
+class AnnotationCapture:
+
+    def __init__(self, mouse_idx=1):
+        self.clicking = False
+        self.mouse_idx = mouse_idx
+        self.annotation_points = []
+
+    def capture(
+        self,
+        x_range: Tuple[int, int],
+        y_range: Tuple[int, int]
+    ) -> Tuple[Optional[List[Tuple[int, int]]], bool]:
+        """Captures a mouse annotation in the given range.
+
+        Args:
+            x_range (tuple(int, int)): Range of pixels to capture an annotation,
+                in the horizontal dimension.
+            y_range (tuple(int, int)): Range of pixels to capture an annotation,
+                in the horizontal dimension.
+
+        Returns:
+            A list of tuple with (x, y) coordinates for the annotation.
+
+            A boolean indicating whether the annotation is finished (True)
+            or still being drawn (False).
+        """
+        min_x, max_x = x_range[0], x_range[1]
+        min_y, max_y = y_range[0], y_range[1]
+        mouse_down = imgui.is_mouse_down(self.mouse_idx)
+        mouse_x, mouse_y = imgui.get_mouse_pos()
+        in_range = (max_x >= mouse_x) and (mouse_x >= min_x) and (max_y >= mouse_y) and (mouse_y >= min_y)
+        if not mouse_down and not self.clicking:
+            return None, False
+        elif not mouse_down:
+            self.clicking = False
+            to_return = self.annotation_points
+            self.annotation_points = []
+            return to_return, True
+        elif not self.clicking and not in_range:
+            return None, False
+        else:
+            self.clicking = True
+            adj_x = min(max(mouse_x - min_x, 0), max_x - min_x)
+            adj_y = min(max(mouse_y - min_y, 0), max_y - min_y)
+            self.annotation_points.append((adj_x, adj_y))
+            return self.annotation_points, False
+
+
 class MosaicWidget:
     def __init__(self, viz, width=800, s=3, debug=False):
         self.viz            = viz
         self.show           = True
         self.content_height = 0
-        self._umap_path     = None
-        self._umap_layers   = []
-        self.coords         = dict()
-        self._plot_images   = dict()
-        self._plot_transforms = dict()
-        self._bottom_left   = dict()
-        self._top_right     = dict()
-        self._umap_width    = dict()
+        self.coords         = None
         self.visible        = False
         self.width          = 800
         self.show           = s
@@ -132,37 +178,39 @@ class MosaicWidget:
         self.slidemap       = None
         self.num_tiles_x    = 50
         self.pool           = None
+        self.annotation_capture = AnnotationCapture()
+        self._umap_path     = None
+        self._plot_images   = None
+        self._plot_transforms = None
+        self._bottom_left   = None
+        self._top_right     = None
+        self._umap_width    = None
+        self._late_render_annotations = []
 
 
     def _plot_coords(self):
-        import matplotlib.pyplot as plt
-        from PIL import Image
-        from io import BytesIO
-        import matplotlib.image as mpl_image
+        # Create figure
+        x, y = self.coords[:, 0], self.coords[:, 1]
+        fig = plt.figure(figsize=(self.width/self.dpi, self.width/self.dpi), dpi=self.dpi)
+        plt.scatter(x, y, s=0.2)
+        plt.axis('off')
+        plt.subplots_adjust(0, 0, 1, 1, 0, 0)
+        plt.tight_layout()
+        ax = plt.gca()
 
-        for layer_name in self.coords:
-            # Create figure
-            x, y = self.coords[layer_name][:, 0], self.coords[layer_name][:, 1]
-            fig = plt.figure(figsize=(self.width/self.dpi, self.width/self.dpi), dpi=self.dpi)
-            plt.scatter(x, y, s=0.2)
-            plt.axis('off')
-            plt.subplots_adjust(0, 0, 1, 1, 0, 0)
-            plt.tight_layout()
-            ax = plt.gca()
+        # Convert figure as texture
+        stream = BytesIO()
+        plt.savefig(stream, format='raw', transparent=True, dpi=self.dpi)
+        pilImage = Image.frombytes('RGBA', size=(self.width, self.width), data=stream.getvalue())
+        image_array = mpl_image.pil_to_array(pilImage)
+        tex_obj = self._tex_obj = gl_utils.Texture(image=image_array, bilinear=False, mipmap=False)
+        self._plot_images = tex_obj.gl_id
+        self._plot_transforms = ax.transData.transform
 
-            # Convert figure as texture
-            stream = BytesIO()
-            plt.savefig(stream, format='raw', transparent=True, dpi=self.dpi)
-            pilImage = Image.frombytes('RGBA', size=(self.width, self.width), data=stream.getvalue())
-            image_array = mpl_image.pil_to_array(pilImage)
-            tex_obj = self._tex_obj = gl_utils.Texture(image=image_array, bilinear=False, mipmap=False)
-            self._plot_images[layer_name] = tex_obj.gl_id
-            self._plot_transforms[layer_name] = ax.transData.transform
-
-            # Save origin / key information for the images
-            self._bottom_left[layer_name] = ax.transData.transform([self.coords[layer_name][:, 0].min(), self.coords[layer_name][:, 1].min()])
-            self._top_right[layer_name] = ax.transData.transform([self.coords[layer_name][:, 0].max(), self.coords[layer_name][:, 1].max()])
-            self._umap_width[layer_name] = self._top_right[layer_name][0] - self._bottom_left[layer_name][0]
+        # Save origin / key information for the images
+        self._bottom_left = ax.transData.transform([self.coords[:, 0].min(), self.coords[:, 1].min()])
+        self._top_right = ax.transData.transform([self.coords[:, 0].max(), self.coords[:, 1].max()])
+        self._umap_width = self._top_right[0] - self._bottom_left[0]
 
     @property
     def mosaic_kwargs(self):
@@ -193,23 +241,18 @@ class MosaicWidget:
     def load_umap(self, path, model, layers='postconv', subsample=500):
         if path != self._umap_path:
             self._umap_path = path
-            self.coords = {}
             if path is not None and exists(join(path, 'encoder')):
-                self._umap_layers = ['umap']
-                layer = 'umap'
                 df = pd.read_parquet(join(path, 'slidemap.parquet'))
-                self.coords[layer] = np.stack((df.x.values, df.y.values), axis=1)
-                if subsample and self.coords[layer].shape[0] > subsample:
-                    idx = np.random.choice(self.coords[layer].shape[0], subsample)
-                    self.coords[layer] = self.coords[layer][idx]
+                self.coords = np.stack((df.x.values, df.y.values), axis=1)
+                if subsample and self.coords.shape[0] > subsample:
+                    idx = np.random.choice(self.coords.shape[0], subsample)
+                    self.coords = self.coords[idx]
                 features_model, input_tensor = self.load_model(model, layers=layers)
                 self.viz._umap_encoders = self.load_umap_encoder(path, features_model, input_tensor)
                 self.viz._async_renderer._umap_encoders = self.viz._umap_encoders
                 self._plot_coords()
                 self.slidemap = sf.SlideMap(cache=join(self._umap_path, 'slidemap.parquet'))
-                log.info(f"Loaded UMAP; displaying {self.coords[layer].shape[0]} points.")
-            else:
-                self._umap_layers = []
+                log.info(f"Loaded UMAP; displaying {self.coords.shape[0]} points.")
 
     def generate_mosaic(self, tfrecords):
         if self.pool is None:
@@ -258,97 +301,97 @@ class MosaicWidget:
         )
         return EasyDict(
             encoder=encoder_model,
-            layers=['umap'],
-            range={'umap': np.load(join(path, 'range_clip.npz'))['range']},
-            clip={'umap': np.load(join(path, 'range_clip.npz'))['clip']}
+            layers=['mosaic_umap'],
+            range={'mosaic_umap': np.load(join(path, 'range_clip.npz'))['range']},
+            clip={'mosaic_umap': np.load(join(path, 'range_clip.npz'))['clip']}
         )
 
     def view_menu_options(self):
-        if imgui.menu_item('Toggle Layer UMAPs', enabled=bool(self._umap_layers))[1]:
+        if imgui.menu_item('Toggle Mosaic UMAP', enabled=(self.coords is not None))[1]:
             self.show = not self.show
+
+    def late_render(self):
+        for _ in range(len(self._late_render_annotations)):
+            annotation = self._late_render_annotations.pop()
+            gl_utils.draw_roi(annotation, color=1, alpha=1, linewidth=3)
+
+    def render_annotation(self, annotation, origin):
+        self._late_render_annotations.append(np.array(annotation) + origin)
 
     def render(self):
         viz = self.viz
 
         #self.refresh_umap_path(viz._umap_path)
-        viz.args.use_umap_encoders = len(self._umap_layers) > 0
+        viz.args.use_umap_encoders = self.coords is not None
 
         # --- Draw plot with OpenGL ---------------------------------------
 
-        if self.show and self._umap_layers:
-            imgui.set_next_window_size((self.width+viz.spacing) * len(self._umap_layers) + viz.spacing, self.width+50)
+        if self.show and (self.coords is not None):
+            imgui.set_next_window_size(self.width, self.width)
             _, self.show = imgui.begin("##layer_plot", closable=True, flags=(imgui.WINDOW_NO_COLLAPSE | imgui.WINDOW_NO_RESIZE))
-            _tx, _ty = imgui.get_window_position()
-            _ty += 45
+            tx, ty = imgui.get_window_position()
+            draw_list = imgui.get_window_draw_list()
+            transform_fn = self._plot_transforms
+            draw_list.add_image(self._plot_images, (tx, ty), (tx+self.width, ty+self.width))
 
-            for i, layer_name in enumerate(self._umap_layers):
-                # Draw labeled bounding box
-                tx = (self.width * i) + _tx + viz.spacing
-                ty = _ty
-                draw_list = imgui.get_window_draw_list()
-                draw_list.add_text(
-                    tx + 10,
-                    ty - 20,
-                    imgui.get_color_u32_rgba(1, 1, 1, 1),
-                    layer_name)
+            # Draw the bottom-left (red) and top_right (green)
+            # coordinate points, to verify alignment
+            left_x = self._bottom_left[0]
+            right_x = self._top_right[0]
+            bottom_y = self.width - self._bottom_left[1]
+            top_y = self.width - self._top_right[1]
+            self.debug=True
+            if self.debug:
+                draw_list.add_circle_filled(
+                    tx + left_x,
+                    ty + bottom_y,
+                    self.s,
+                    imgui.get_color_u32_rgba(1, 0, 0, 1)
+                )
+                draw_list.add_circle_filled(
+                    tx + right_x,
+                    ty + top_y,
+                    self.s,
+                    imgui.get_color_u32_rgba(0, 1, 0, 1)
+                )
+
+            # Draw mosaic map view
+            if isinstance(viz.viewer, MosaicViewer) and viz.viewer.zoomed:
+                mosaic_ratio = viz.viewer.size / self._umap_width
+                _x_off = viz.viewer.mosaic_x_offset / mosaic_ratio
+                _y_off = viz.viewer.mosaic_y_offset / mosaic_ratio
+                _w = viz.viewer.width / mosaic_ratio
+                _h = viz.viewer.height / mosaic_ratio
                 draw_list.add_rect(
-                    tx,
-                    ty,
-                    tx + self.width,
-                    ty + self.width,
-                    imgui.get_color_u32_rgba(1, 1, 1, 1),
-                    thickness=1)
-                transform_fn = self._plot_transforms[layer_name]
-                draw_list.add_image(self._plot_images[layer_name], (tx, ty), (tx+self.width, ty+self.width))
+                    tx + left_x - _x_off,
+                    ty + top_y  - _y_off,
+                    tx + left_x - _x_off + _w,
+                    ty + top_y  - _y_off + _h ,
+                    imgui.get_color_u32_rgba(1, 0, 0, 1),
+                    thickness=2
+                )
 
-                # Draw the bottom-left (red) and top_right (green)
-                # coordinate points, to verify alignment
-                left_x = self._bottom_left[layer_name][0]
-                right_x = self._top_right[layer_name][0]
-                bottom_y = self.width - self._bottom_left[layer_name][1]
-                top_y = self.width - self._top_right[layer_name][1]
-                self.debug=True
-                if self.debug:
-                    draw_list.add_circle_filled(
-                        tx + left_x,
-                        ty + bottom_y,
-                        self.s,
-                        imgui.get_color_u32_rgba(1, 0, 0, 1)
-                    )
-                    draw_list.add_circle_filled(
-                        tx + right_x,
-                        ty + top_y,
-                        self.s,
-                        imgui.get_color_u32_rgba(0, 1, 0, 1)
-                    )
-
-                # Draw mosaic map view
-                if isinstance(viz.viewer, MosaicViewer) and viz.viewer.zoomed:
-                    mosaic_ratio = viz.viewer.size / self._umap_width[layer_name]
-                    _x_off = viz.viewer.mosaic_x_offset / mosaic_ratio
-                    _y_off = viz.viewer.mosaic_y_offset / mosaic_ratio
-                    _w = viz.viewer.width / mosaic_ratio
-                    _h = viz.viewer.height / mosaic_ratio
-                    draw_list.add_rect(
-                        tx + left_x - _x_off,
-                        ty + top_y  - _y_off,
-                        tx + left_x - _x_off + _w,
-                        ty + top_y  - _y_off + _h ,
-                        imgui.get_color_u32_rgba(1, 0, 0, 1),
-                        thickness=2
-                    )
-
-                # Plot location of tile
-                if 'umap_coords' in viz.result and viz.result.umap_coords:
-                    fc = viz.result.umap_coords[layer_name]
-                    transformed = transform_fn(fc)
-                    draw_list.add_circle_filled(
-                        tx + transformed[0],
-                        ty + self.width - transformed[1],
-                        self.s * 2,
-                        imgui.get_color_u32_rgba(1, 0, 0, 1)
-                    )
+            # Plot location of tile
+            if 'umap_coords' in viz.result and viz.result.umap_coords:
+                fc = viz.result.umap_coords['mosaic_umap']
+                transformed = transform_fn(fc)
+                draw_list.add_circle_filled(
+                    tx + transformed[0],
+                    ty + self.width - transformed[1],
+                    self.s * 2,
+                    imgui.get_color_u32_rgba(1, 0, 0, 1)
+                )
             imgui.end()
+
+            # Capture mouse input
+            new_annotation, finished = self.annotation_capture.capture(
+                x_range=(tx, tx+self.width),
+                y_range=(ty, ty+self.width)
+            )
+            if new_annotation is not None:
+                self.render_annotation(new_annotation, origin=(tx, ty))
+            if finished:
+                print("Captured new annotation!:", new_annotation)
 
     @imgui_utils.scoped_by_object_id
     def __call__(self, show=True):

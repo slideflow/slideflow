@@ -170,9 +170,8 @@ def drag_hidden_window(label, x, y, width, height, enabled=True):
 
 def click_previous_control(mouse_idx=0, enabled=True):
     clicking = False
-    if imgui.is_mouse_down(mouse_idx):
-        if enabled:
-            clicking = True
+    if imgui.is_mouse_down(mouse_idx) and enabled:
+        clicking = True
     cx, cy = imgui.get_mouse_pos() # or position
     return clicking, cx, cy
 

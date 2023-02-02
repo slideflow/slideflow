@@ -47,6 +47,7 @@ class ImguiWindow(glfw_window.GlfwWindow):
         self._cur_font_size  = max(font_sizes)
         self._font_scaling   = self.pixel_ratio
         self._toasts         = []
+        self.widgets         = []
 
         # Delete leftover imgui.ini to avoid unexpected behavior.
         if os.path.isfile('imgui.ini'):
@@ -196,6 +197,9 @@ class ImguiWindow(glfw_window.GlfwWindow):
         imgui.render()
         imgui.end_frame()
         self._imgui_renderer.render(imgui.get_draw_data())
+        for widget in self.widgets:
+            if hasattr(widget, 'late_render'):
+                widget.late_render()
         super().end_frame()
 
     def set_font_size(self, target): # Applied on next frame.
