@@ -8,6 +8,7 @@
 
 import contextlib
 import imgui
+from typing import Optional, List, Tuple
 
 #----------------------------------------------------------------------------
 
@@ -192,3 +193,58 @@ def click_hidden_window(label, x, y, width, height, enabled=True, mouse_idx=0):
     imgui.end()
     imgui.pop_style_color(2)
     return clicking, cx-x, cy-y, wheel
+
+#----------------------------------------------------------------------------
+
+class AnnotationCapture:
+
+    def __init__(self, mouse_idx=1):
+        """Capture an annotation on screen with clicking and dragging.
+
+        Args:
+            mouse_idx (int): Mouse index to trigger click-and-drag.
+                Defaults to 1 (right click).
+        """
+        self.clicking = False
+        self.mouse_idx = mouse_idx
+        self.annotation_points = []
+
+    def capture(
+        self,
+        x_range: Tuple[int, int],
+        y_range: Tuple[int, int]
+    ) -> Tuple[Optional[List[Tuple[int, int]]], bool]:
+        """Captures a mouse annotation in the given range.
+
+        Args:
+            x_range (tuple(int, int)): Range of pixels to capture an annotation,
+                in the horizontal dimension.
+            y_range (tuple(int, int)): Range of pixels to capture an annotation,
+                in the horizontal dimension.
+
+        Returns:
+            A list of tuple with (x, y) coordinates for the annotation.
+
+            A boolean indicating whether the annotation is finished (True)
+            or still being drawn (False).
+        """
+        min_x, max_x = x_range[0], x_range[1]
+        min_y, max_y = y_range[0], y_range[1]
+        mouse_down = imgui.is_mouse_down(self.mouse_idx)
+        mouse_x, mouse_y = imgui.get_mouse_pos()
+        in_range = (max_x >= mouse_x) and (mouse_x >= min_x) and (max_y >= mouse_y) and (mouse_y >= min_y)
+        if not mouse_down and not self.clicking:
+            return None, False
+        elif not mouse_down:
+            self.clicking = False
+            to_return = self.annotation_points
+            self.annotation_points = []
+            return to_return, True
+        elif not self.clicking and not in_range:
+            return None, False
+        else:
+            self.clicking = True
+            adj_x = min(max(mouse_x - min_x, 0), max_x - min_x)
+            adj_y = min(max(mouse_y - min_y, 0), max_y - min_y)
+            self.annotation_points.append((adj_x, adj_y))
+            return self.annotation_points, False

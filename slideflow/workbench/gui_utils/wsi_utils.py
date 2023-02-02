@@ -481,6 +481,22 @@ class SlideViewer(Viewer):
             sf.log.error("Attempted to set tile_um={}, existing={}".format(tile_um, self.tile_um))
             raise NotImplementedError
 
+    def update(self, width: int, height: int, x_offset: int, y_offset: int, **kwargs) -> None:
+        """Update the viewer with a new width, height, and offset."""
+        should_refresh = ((width, height, x_offset, y_offset)
+                          != (self.width, self.height, self.x_offset, self.y_offset))
+        if should_refresh:
+            new_origin = self.display_coords_to_wsi_coords(x_offset, y_offset)
+        self.width = width
+        self.height = height
+        self.x_offset = x_offset
+        self.y_offset = y_offset
+        if should_refresh:
+            # Keep the current WSI view stable if the offset changes
+            # (e.g. showing/hiding the control pane)
+            view_params = self._calculate_view_params(new_origin)
+            self.refresh_view(view_params)
+
     def zoom(self, cx: int, cy: int, dz: float) -> None:
         """Zoom the slide display.
 

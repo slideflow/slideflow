@@ -1031,8 +1031,6 @@ class Workbench(imgui_window.ImguiWindow):
         # Re-generate WSI view if the window size changed, or if we don't
         # yet have a SlideViewer initialized.
         if window_changed:
-            if self.viewer:
-                self.reload_viewer()
             self._content_width  = self.content_width
             self._content_height = self.content_height
             self._pane_w = self.pane_w
@@ -1043,6 +1041,7 @@ class Workbench(imgui_window.ImguiWindow):
 
         # Main display.
         if self.viewer:
+            self.viewer.update(**self._viewer_kwargs())
             self._draw_main_view(user_input, window_changed)
 
         # --- Render arguments ------------------------------------------------

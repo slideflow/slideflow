@@ -1,3 +1,4 @@
+import time
 import os
 import glfw
 import numpy as np
@@ -12,6 +13,7 @@ from PIL import Image
 from io import BytesIO
 import matplotlib.pyplot as plt
 import matplotlib.image as mpl_image
+from slideflow.slide import wsi_reader
 
 from .gui_utils import imgui_utils, gl_utils, viewer
 from .utils import EasyDict
@@ -39,17 +41,36 @@ class MosaicViewer(viewer.Viewer):
     movable = True
     live    = False
 
-    def __init__(self, mosaic, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, mosaic, width, height, slides=None, **kwargs):
+        super().__init__(width, height, **kwargs)
         self.mosaic = mosaic
         self.mosaic_x_offset = 0
         self.mosaic_y_offset = 0
+        self.preview_width = 400
+        self.preview_height = 400
+        self.preview_texture = None
         self.zoomed = False
         self.size = 0
+        self.slides = {sf.util.path_to_name(s): s for s in slides}
+        self._hovering_index = None
+        self._hovering_time = None
+        self._wsi_preview = None
 
     @property
     def view_offset(self):
         return (self.mosaic_x_offset, self.mosaic_y_offset)
+
+    def get_slide_path(self, slide: str) -> Optional[str]:
+        if self.viz.P is not None:
+            return self.viz.P.dataset(filters={'slide': slide}).slide_paths()[0]
+        elif slide in self.slides:
+            return self.slides[slide]
+        else:
+            return None
+
+    def get_mouse_pos(self) -> Tuple[int, int]:
+        x, y = imgui.get_mouse_pos()
+        return x - self.x_offset, y - self.y_offset
 
     def move(self, dx: float, dy: float) -> None:
         if not self.zoomed:
@@ -62,8 +83,52 @@ class MosaicViewer(viewer.Viewer):
     def refresh_view(self, view_params: Optional[EasyDict] = None) -> None:
         pass
 
-    def reset_view(self, max_w: int, max_h: int):
+    def reset_view(self, max_w: int, max_h: int) -> None:
         pass
+
+    def render_tooltip(self, grid_x: int, grid_y: int) -> None:
+        if self._hovering_index != (grid_x, grid_y):
+            self._hovering_index = (grid_x, grid_y)
+            self._hovering_time = time.time()
+            self._wsi_preview = None
+        elif time.time() > (self._hovering_time + 0.5):
+            # Create a tooltip for the mosaic grid.
+            # First, start by finding the associated tile.
+            sel = self.mosaic.selected_points()
+            point = sel.loc[((sel.grid_x == grid_x) & (sel.grid_y == grid_y))]
+            slide = point.slide.values[0]
+            location = point.location.values[0]
+            slide_path = self.get_slide_path(slide)
+            if slide_path is None:
+                imgui.set_tooltip(f"Mosaic grid: ({grid_x}, {grid_y})\n{slide}: {location}")
+                return
+
+            # Get WSI preview at the tile location.
+            if self._wsi_preview is None:
+                reader = wsi_reader(slide_path)
+                self._wsi_preview = reader.read_from_pyramid(
+                    (location[0] - self.preview_width/2, location[1] - self.preview_height/2),
+                    (self.preview_width, self.preview_height),
+                    (self.preview_width, self.preview_height),
+                    convert='numpy'
+                )
+                if self.preview_texture is None:
+                    self.preview_texture = gl_utils.Texture(image=self._wsi_preview, bilinear=True, mipmap=False)
+                else:
+                    self.preview_texture.update(self._wsi_preview)
+
+            # Create the WSI preview window.
+            flags = (imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_TITLE_BAR | imgui.WINDOW_NO_SCROLLBAR)
+            mouse_x, mouse_y = imgui.get_mouse_pos()
+            imgui.set_next_window_position(mouse_x+10, mouse_y+10)
+            imgui.set_next_window_size(
+                self.preview_width + self.viz.spacing*2,
+                self.preview_height + self.viz.spacing + imgui.get_text_line_height_with_spacing()*2
+            )
+            imgui.begin("##mosaic_tooltip", flags=flags)
+            imgui.text(f"Mosaic grid: ({grid_x}, {grid_y})\n{slide}: {location}")
+            imgui.image(self.preview_texture.gl_id, self.preview_width, self.preview_height)
+            imgui.end()
 
     def render(self, max_w: int, max_h: int) -> None:
         """Render the mosaic map."""
@@ -82,24 +147,37 @@ class MosaicViewer(viewer.Viewer):
 
         image_size = int(self.size / self.mosaic.num_tiles_x)
         imgui.set_next_window_bg_alpha(0)
+        mouse_x, mouse_y = self.get_mouse_pos()
+        _hov_x, _hov_y = None, None
 
         # Set the window position by the offset, in points (not pixels)
         imgui.set_next_window_position(self.viz.offset_x, self.viz.offset_y)
         imgui.set_next_window_size(max_w, max_h)
-        imgui.begin("Mosaic", flags=(imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_TITLE_BAR | imgui.WINDOW_NO_SCROLLBAR | imgui.WINDOW_NO_FOCUS_ON_APPEARING | imgui.WINDOW_NO_BRING_TO_FRONT_ON_FOCUS))
+        imgui.begin("Mosaic", flags=(imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_TITLE_BAR | imgui.WINDOW_NO_SCROLLBAR | imgui.WINDOW_NO_BRING_TO_FRONT_ON_FOCUS))
         for (x, y), image in self.mosaic.grid_images.items():
+            pos = (
+                self.mosaic_x_offset + x * image_size,
+                self.mosaic_y_offset + self.size - (y * image_size)
+            )
+            out_of_view = ((pos[0] + image_size < 0)
+                           or (pos[1] + image_size < 0)
+                           or pos[0] > max_w
+                           or pos[1] > max_h)
+            if out_of_view:
+                continue
             if isinstance(image, np.ndarray):
                 self.mosaic.grid_images[(x, y)] = gl_utils.Texture(
                     image=image, bilinear=True, mipmap=False
                 )
             gl_id = self.mosaic.grid_images[(x, y)].gl_id
-            pos = (
-                self.mosaic_x_offset + x * image_size,
-                self.mosaic_y_offset + self.size - (y * image_size)
-            )
             imgui.set_cursor_pos(pos)
             imgui.image(gl_id, image_size, image_size)
+            if ((mouse_x > pos[0] and mouse_x < pos[0] + image_size)
+               and (mouse_y > pos[1] and mouse_y < pos[1] + image_size)):
+                _hov_x, _hov_y = x, y
         imgui.end()
+        if _hov_x is not None:
+            self.render_tooltip(_hov_x, _hov_y)
         if 'message' in self.viz.result:
             del self.viz.result.message
 
@@ -116,54 +194,6 @@ class MosaicViewer(viewer.Viewer):
 
 #----------------------------------------------------------------------------
 
-class AnnotationCapture:
-
-    def __init__(self, mouse_idx=1):
-        self.clicking = False
-        self.mouse_idx = mouse_idx
-        self.annotation_points = []
-
-    def capture(
-        self,
-        x_range: Tuple[int, int],
-        y_range: Tuple[int, int]
-    ) -> Tuple[Optional[List[Tuple[int, int]]], bool]:
-        """Captures a mouse annotation in the given range.
-
-        Args:
-            x_range (tuple(int, int)): Range of pixels to capture an annotation,
-                in the horizontal dimension.
-            y_range (tuple(int, int)): Range of pixels to capture an annotation,
-                in the horizontal dimension.
-
-        Returns:
-            A list of tuple with (x, y) coordinates for the annotation.
-
-            A boolean indicating whether the annotation is finished (True)
-            or still being drawn (False).
-        """
-        min_x, max_x = x_range[0], x_range[1]
-        min_y, max_y = y_range[0], y_range[1]
-        mouse_down = imgui.is_mouse_down(self.mouse_idx)
-        mouse_x, mouse_y = imgui.get_mouse_pos()
-        in_range = (max_x >= mouse_x) and (mouse_x >= min_x) and (max_y >= mouse_y) and (mouse_y >= min_y)
-        if not mouse_down and not self.clicking:
-            return None, False
-        elif not mouse_down:
-            self.clicking = False
-            to_return = self.annotation_points
-            self.annotation_points = []
-            return to_return, True
-        elif not self.clicking and not in_range:
-            return None, False
-        else:
-            self.clicking = True
-            adj_x = min(max(mouse_x - min_x, 0), max_x - min_x)
-            adj_y = min(max(mouse_y - min_y, 0), max_y - min_y)
-            self.annotation_points.append((adj_x, adj_y))
-            return self.annotation_points, False
-
-
 class MosaicWidget:
     def __init__(self, viz, width=800, s=3, debug=False):
         self.viz            = viz
@@ -178,7 +208,7 @@ class MosaicWidget:
         self.slidemap       = None
         self.num_tiles_x    = 50
         self.pool           = None
-        self.annotation_capture = AnnotationCapture()
+        self.annotator      = imgui_utils.AnnotationCapture()
         self._umap_path     = None
         self._plot_images   = None
         self._plot_transforms = None
@@ -208,8 +238,8 @@ class MosaicWidget:
         self._plot_transforms = ax.transData.transform
 
         # Save origin / key information for the images
-        self._bottom_left = ax.transData.transform([self.coords[:, 0].min(), self.coords[:, 1].min()])
-        self._top_right = ax.transData.transform([self.coords[:, 0].max(), self.coords[:, 1].max()])
+        self._bottom_left = np.round(ax.transData.transform([self.coords[:, 0].min(), self.coords[:, 1].min()]))
+        self._top_right = np.round(ax.transData.transform([self.coords[:, 0].max(), self.coords[:, 1].max()]))
         self._umap_width = self._top_right[0] - self._bottom_left[0]
 
     @property
@@ -254,13 +284,13 @@ class MosaicWidget:
                 self.slidemap = sf.SlideMap(cache=join(self._umap_path, 'slidemap.parquet'))
                 log.info(f"Loaded UMAP; displaying {self.coords.shape[0]} points.")
 
-    def generate_mosaic(self, tfrecords):
+    def generate_mosaic(self, tfrecords, slides=None):
         if self.pool is None:
             ctx = mp.get_context('fork')
             self.pool = ctx.Pool(os.cpu_count())
         self.mosaic = OpenGLMosaic(self.slidemap, tfrecords=tfrecords, **self.mosaic_kwargs)
         self.mosaic.plot()
-        self.viz.set_viewer(MosaicViewer(self.mosaic, **self.viz._viewer_kwargs()))
+        self.viz.set_viewer(MosaicViewer(self.mosaic, slides=slides, **self.viz._viewer_kwargs()))
 
     def load_model(self, path, layers='postconv', **kwargs):
         is_simclr = sf.util.is_simclr_model_path(path)
@@ -320,8 +350,6 @@ class MosaicWidget:
 
     def render(self):
         viz = self.viz
-
-        #self.refresh_umap_path(viz._umap_path)
         viz.args.use_umap_encoders = self.coords is not None
 
         # --- Draw plot with OpenGL ---------------------------------------
@@ -384,17 +412,18 @@ class MosaicWidget:
             imgui.end()
 
             # Capture mouse input
-            new_annotation, finished = self.annotation_capture.capture(
-                x_range=(tx, tx+self.width),
-                y_range=(ty, ty+self.width)
+            new_annotation, finished = self.annotator.capture(
+                x_range=(tx+left_x, tx+right_x),
+                y_range=(ty+top_y, ty+bottom_y)
             )
             if new_annotation is not None:
-                self.render_annotation(new_annotation, origin=(tx, ty))
+                self.render_annotation(new_annotation, origin=(tx+left_x, ty+top_y))
             if finished:
-                print("Captured new annotation!:", new_annotation)
+                ...
 
     @imgui_utils.scoped_by_object_id
     def __call__(self, show=True):
         return
 
 #----------------------------------------------------------------------------
+
