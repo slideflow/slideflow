@@ -23,7 +23,6 @@ from slideflow.util import log, NormFit
 from tensorflow.keras import applications as kapps
 
 from . import tensorflow_utils as tf_utils
-from . import adv_utils
 from .base import log_manifest, no_scope
 from .tensorflow_utils import unwrap, flatten, eval_from_model  # type: ignore
 
@@ -1561,7 +1560,6 @@ class Trainer:
         norm_fit: Optional[NormFit] = None,
         from_wsi: bool = False,
         roi_method: str = 'auto',
-        adversarial: bool = False
     ):
         """Builds and trains a model from hyperparameters.
 
@@ -1616,8 +1614,6 @@ class Trainer:
                 parameters (e.g. target_means, target_stds) to values
                 (np.ndarray). If not provided, will fit normalizer using
                 model params (if applicable). Defaults to None.
-            adversarial (bool): Train with adversarial regularization,
-                using neural-structured-learning.
 
         Returns:
             dict: Nested results dict with metrics for each evaluated epoch.
@@ -1804,27 +1800,23 @@ class Trainer:
 
             # Create callbacks for early stopping, checkpoint saving,
             # summaries, and history
-            if adversarial:
-                # Adversarial training does not presently support callbacks
-                callbacks = []
-            else:
-                val_callback = self.eval_callback(self, cb_args)
-                callbacks = [tf.keras.callbacks.History(), val_callback]
-                if save_checkpoints:
-                    cp_callback = tf.keras.callbacks.ModelCheckpoint(
-                        os.path.join(self.outdir, 'cp.ckpt'),
-                        save_weights_only=True,
-                        verbose=(sf.getLoggingLevel() <= 20)
-                    )
-                    callbacks += [cp_callback]
-                if use_tensorboard:
-                    tensorboard_callback = tf.keras.callbacks.TensorBoard(
-                        log_dir=self.outdir,
-                        histogram_freq=0,
-                        write_graph=False,
-                        update_freq=log_frequency
-                    )
-                    callbacks += [tensorboard_callback]
+            val_callback = self.eval_callback(self, cb_args)
+            callbacks = [tf.keras.callbacks.History(), val_callback]
+            if save_checkpoints:
+                cp_callback = tf.keras.callbacks.ModelCheckpoint(
+                    os.path.join(self.outdir, 'cp.ckpt'),
+                    save_weights_only=True,
+                    verbose=(sf.getLoggingLevel() <= 20)
+                )
+                callbacks += [cp_callback]
+            if use_tensorboard:
+                tensorboard_callback = tf.keras.callbacks.TensorBoard(
+                    log_dir=self.outdir,
+                    histogram_freq=0,
+                    write_graph=False,
+                    update_freq=log_frequency
+                )
+                callbacks += [tensorboard_callback]
 
             # Retrain top layer only, if using transfer learning and
             # not resuming training
@@ -1837,22 +1829,12 @@ class Trainer:
                     callbacks=None,
                     epochs=self.hp.toplayer_epochs
                 )
-
-            if adversarial:
-                # Convert the dataset into the image/label format expected
-                # by the adversarial wrapper
-                train_data = adv_utils.convert_dataset(train_data)
-                _model = adv_utils.make_adversarial_model(
-                    self.model, self.hp.get_loss()
-                )
-            else:
-                self._compile_model()
-                _model = self.model
+            self._compile_model()
 
             # Train the model
             log.info('Beginning training')
             try:
-                _model.fit(
+                self.model.fit(
                     train_data,
                     steps_per_epoch=steps_per_epoch,
                     epochs=total_epochs,
@@ -1860,13 +1842,6 @@ class Trainer:
                     initial_epoch=self.hp.toplayer_epochs,
                     callbacks=callbacks
                 )
-                if adversarial and save_model:
-                    # Manually save and generate empty results,
-                    # as adversarial training currently does not support
-                    # callbacks.
-                    _model_name = f'{self.name}_adv_epoch_{total_epochs}'
-                    _model.save(join(self.outdir, _model_name))
-                    return {}
             except tf.errors.ResourceExhaustedError as e:
                 log.error(f"Training failed for [bold]{self.name}[/]. "
                           f"Error: \n {e}")
@@ -1878,7 +1853,7 @@ class Trainer:
             # Cleanup
             if pool is not None:
                 pool.close()
-                
+
             return results
 
 

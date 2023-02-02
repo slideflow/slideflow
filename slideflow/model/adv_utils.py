@@ -16,6 +16,17 @@ def convert_dataset(
     return dataset.map(convert_to_dictionaries)
 
 def make_adversarial_model(model, loss):
+    """Convert a model into a model with adversarial regularization.
+
+    This step replaces model.compile().
+
+    Example:
+
+        train_data = convert_dataset(train_data)
+        _model = adv_utils.make_adversarial_model(
+            model, hp.get_loss()
+        )
+    """
     # Delayed imports
     try:
         import neural_structured_learning as nsl
