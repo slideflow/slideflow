@@ -2540,8 +2540,14 @@ class Project:
         # Generate predictions from each ensemble member,
         # and merge predictions into a single dataframe.
         for member_id, member_path in enumerate(member_paths):
-            if not k:
+            if not k and not epoch:
                 _k_path = get_first_nested_directory(member_path)
+                prediction_path = get_first_nested_directory(_k_path)
+            elif not k and epoch:
+                _k_path = get_first_nested_directory(member_path)
+                prediction_path = get_matching_directory(_k_path, f'epoch{epoch}')
+            elif k and not epoch:
+                _k_path = get_matching_directory(member_path, f'kfold{k}')
                 prediction_path = get_first_nested_directory(_k_path)
             else:
                 _k_path = get_matching_directory(member_path, f'kfold{k}')
@@ -3081,6 +3087,9 @@ class Project:
             log.error("Unable to find ensemble slide manifest and params.json.")
 
         # Merge predictions from each ensemble.
+        if "save_predictions" in kwargs:
+            if not kwargs['save_predictions']:
+                return ensemble_results
         project_utils.ensemble_train_predictions(ensemble_path)
         return ensemble_results
 
