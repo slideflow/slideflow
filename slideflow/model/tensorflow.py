@@ -13,20 +13,18 @@ from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
-import multiprocessing as mp
+import tensorflow as tf
 import slideflow as sf
 import slideflow.model.base as _base
 import slideflow.util.neptune_utils
 from packaging import version
 from slideflow import errors
-from slideflow.model import tensorflow_utils as tf_utils
-from slideflow.model.base import log_manifest, no_scope
-from slideflow.model.tensorflow_utils import unwrap, flatten  # type: ignore
 from slideflow.util import log, NormFit
-
-import tensorflow as tf
 from tensorflow.keras import applications as kapps
-from slideflow.model.tensorflow_utils import eval_from_model
+
+from . import tensorflow_utils as tf_utils
+from .base import log_manifest, no_scope
+from .tensorflow_utils import unwrap, flatten, eval_from_model  # type: ignore
 
 # Set the tensorflow logger
 if sf.getLoggingLevel() == logging.DEBUG:
@@ -1427,6 +1425,7 @@ class Trainer:
                 augment=False
             )
             tf_dts_w_slidenames = dataset.tensorflow(
+                incl_loc=True,
                 incl_slidenames=True,
                 from_wsi=from_wsi,
                 roi_method=roi_method,
@@ -1880,8 +1879,9 @@ class Trainer:
                     callbacks=None,
                     epochs=self.hp.toplayer_epochs
                 )
-            # Train the model
             self._compile_model()
+
+            # Train the model
             log.info('Beginning training')
             try:
                 self.model.fit(

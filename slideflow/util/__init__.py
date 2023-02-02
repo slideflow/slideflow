@@ -26,6 +26,7 @@ from tqdm import tqdm
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
 import numpy as np
+import pandas as pd
 import slideflow as sf
 from slideflow import errors
 from . import example_pb2, log_utils
@@ -945,13 +946,32 @@ def tfrecord_heatmap(
     return stats
 
 
-def get_new_model_dir(root: str, model_name: str) -> str:
+def get_valid_model_dir(root: str) -> List:
+    '''
+    This function returns the path of the first indented directory from root.
+    This only works when the indented folder name starts with a 5 digit number,
+    like "00000%".
+
+    Examples
+        If the root has 3 files:
+        root/00000-foldername/
+        root/00001-foldername/
+        root/00002-foldername/
+
+        The function returns "root/00000-foldername/"
+    '''
+
     prev_run_dirs = [
         x for x in os.listdir(root)
         if isdir(join(root, x))
     ]
-    prev_run_ids = [re.match(r'^\d+', x) for x in prev_run_dirs]  # type: List
+    prev_run_ids = [re.match(r'^\d+', x) for x in prev_run_dirs]
     prev_run_ids = [int(x.group()) for x in prev_run_ids if x is not None]
+    return prev_run_ids, prev_run_dirs
+
+
+def get_new_model_dir(root: str, model_name: str) -> str:
+    prev_run_ids, prev_run_dirs = get_valid_model_dir(root)
     cur_id = max(prev_run_ids, default=-1) + 1
     model_dir = os.path.join(root, f'{cur_id:05d}-{model_name}')
     assert not os.path.exists(model_dir)
@@ -1041,3 +1061,22 @@ def extract_feature_dict(
         processed_features[key] = get_value(typename, typename_mapping, key)
 
     return processed_features
+
+
+def load_predictions(path: str, **kwargs) -> pd.DataFrame:
+    """Loads a 'csv', 'parquet' or 'feather' file to a pandas dataframe.
+
+    Args:
+        path (str): Path to the file to be read.
+
+    Returns:
+        df (pd.DataFrame): The dataframe read from the path.
+    """
+    if path.endswith("csv"):
+        return pd.read_csv(f"{path}", **kwargs)
+    elif path.endswith("parquet") or path.endswith("gzip"):
+        return pd.read_parquet(f"{path}", **kwargs)
+    elif path.endswith("feather"):
+        return pd.read_feather(f"{path}", **kwargs)
+    else:
+        raise ValueError(f'Unrecognized extension "{path_to_ext(path)}"')
