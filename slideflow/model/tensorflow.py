@@ -1311,7 +1311,7 @@ class Trainer:
     def _detect_patients(self, *args):
         self.patients = dict()
         for dataset in args:
-            if args is None:
+            if dataset is None:
                 continue
             dataset_patients = dataset.patients()
             if not dataset_patients:
