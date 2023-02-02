@@ -2540,18 +2540,14 @@ class Project:
         # Generate predictions from each ensemble member,
         # and merge predictions into a single dataframe.
         for member_id, member_path in enumerate(member_paths):
-            if not k and not epoch:
-                _k_path = get_first_nested_directory(member_path)
-                prediction_path = get_first_nested_directory(_k_path)
-            elif not k and epoch:
-                _k_path = get_first_nested_directory(member_path)
-                prediction_path = get_matching_directory(_k_path, f'epoch{epoch}')
-            elif k and not epoch:
+            if k:
                 _k_path = get_matching_directory(member_path, f'kfold{k}')
-                prediction_path = get_first_nested_directory(_k_path)
             else:
-                _k_path = get_matching_directory(member_path, f'kfold{k}')
+                _k_path = get_first_nested_directory(member_path)
+            if epoch:
                 prediction_path = get_matching_directory(_k_path, f'epoch{epoch}')
+            else:
+                prediction_path = get_first_nested_directory(_k_path)
 
             # Update the current evaluation directory.
             member_eval_dir = sf.util.get_new_model_dir(
