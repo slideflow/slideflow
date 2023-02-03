@@ -1,10 +1,14 @@
 """Utility functions for slideflow.Project."""
 
-import logging
+import re
 import os
+import requests
+import tempfile
+import logging
+import pandas as pd
 from collections import defaultdict
 from functools import wraps
-from os.path import dirname, exists, join, realpath
+from os.path import dirname, exists, join, realpath, isdir
 from types import SimpleNamespace
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
@@ -206,7 +210,15 @@ def get_validation_settings(**kwargs: Any) -> SimpleNamespace:
         'source': None,
         'annotations': None,
         'filters': None,
+        'dataset': None,
     }
+    if 'dataset' in kwargs and len(kwargs) > 1:
+        raise ValueError(
+            "Cannot supply validation dataset settings if val_dataset "
+            "is supplied. Got: {}".format(
+                ', '.join(['val_'+k for k in kwargs.keys() if k != 'dataset'])
+            )
+        )
     for k in kwargs:
         if k not in args_dict:
             raise ValueError(f"Unrecognized validation setting {k}")
@@ -224,11 +236,11 @@ def get_validation_settings(**kwargs: Any) -> SimpleNamespace:
 
 def add_source(
     name: str,
-    slides: str,
-    roi: str,
-    tiles: str,
-    tfrecords: str,
-    path: str
+    path: str,
+    slides: Optional[str] = None,
+    roi: Optional[str] = None,
+    tiles: Optional[str] = None,
+    tfrecords: Optional[str] = None,
 ) -> None:
     """Adds a dataset source to a dataset configuration file.
 
@@ -266,6 +278,509 @@ def load_sources(path: str) -> Tuple[Dict, List]:
         sources = []
     return sources_data, sources
 
+
+# --- Ensembling utility functions. -------------------------------------------
+
+def create_ensemble_dataframe(
+    ensemble_path: str,
+    member_id: int,
+    kfold_path: str,
+    level: str,
+    kfold_int: Optional[int] = None,
+    epoch: Optional[int] = None
+) -> pd.DataFrame:
+    """Create an ensemble prediction dataframe from a given ensemble member.
+
+    From a given ensemble member (and specified k-fold and epoch), initiates a
+    dataframe for storing predictions for all ensemble members.
+
+    Args:
+        ensemble_path (str): Path to root ensemble directory.
+        member_id (int): ID of the ensemble member.
+        kfold_path (str): Path to target k-fold model for a specific member
+            of the prediction ensemble.
+        level (str): Prediction level, either 'slide', 'patient', or 'tile'.
+
+    Keyword Args:
+        kfold_int (int, optional): K-fold ID. Defaults to None
+        epoch (int, optional): Epoch. Defaults to None
+
+    Returns:
+        DataFrame of ensemble predictions.
+
+    """
+    # Find the specified predictions file for the ensemble member.
+    if kfold_int is None or epoch is None:
+        pred_file = find_matching_file(kfold_path, f"{level}_predictions")
+        save_format = predict_file_type(kfold_path)
+    else:
+        pred_file = find_predictions(kfold_path, level=level, epoch=epoch)
+        save_format = detect_predictions_format(pred_file)
+
+    # Load the predictions into a dataframe.
+    df = sf.util.load_predictions(pred_file)
+
+    # Drop empty column ??
+    if 'Unnamed: 0' in df.columns:
+        df.drop(columns=['Unnamed: 0'], inplace=True)
+
+    # Determine sorting headers.
+    sort_headers = [level] if level != 'tile' else ["slide", "loc_x", "loc_y"]
+
+    # Create ensemble dataframe
+    df = df.sort_values(by=sort_headers)
+    headers = df.columns.tolist()
+    new_headers = [s + f"_ens{member_id+1}" for s in headers]
+    header_change = dict(zip(headers, new_headers))
+    df.rename(columns=header_change, inplace=True)
+
+    # Feather format request resetting index at creation.
+    if save_format == 'feather':
+        df = df.reset_index()
+
+    # Save ensemble dataframe
+    if kfold_int is None or epoch is None:
+        out_path = join(
+            ensemble_path,
+            f'ensemble_{level}_predictions'
+        )
+    else:
+        out_path = join(
+            ensemble_path,
+            f'ensemble_{level}_predictions_kfold{kfold_int}_epoch{epoch}'
+        )
+    save_dataframe(df, out_path, format=save_format)
+    return df
+
+
+def add_to_ensemble_dataframe(
+    ensemble_path: str,
+    member_id: int,
+    kfold_path: str,
+    level: str,
+    kfold_int: Optional[int] = None,
+    epoch: Optional[int] = None
+) -> pd.DataFrame:
+    """Add predictions from a given member to the ensemble predictions dataframe.
+
+    From a given ensemble member (and specified k-fold and epoch), loads model
+    predictions and adds to the dataframe storing predictions for all ensemble
+    members.
+
+    Args:
+        ensemble_path (str): Path to root ensemble directory.
+        member_id (int): ID of the ensemble member.
+        kfold_path (str): Path to target k-fold model for a specific member
+            of the prediction ensemble.
+        level (str): Prediction level, either 'slide', 'patient', or 'tile'.
+
+    Keyword Args:
+        kfold_int (int, optional): K-fold ID. Defaults to None
+        epoch (int, optional): Epoch. Defaults to None
+
+    Returns:
+        DataFrame of ensemble predictions.
+
+    """
+    # Find and load the ensemble predictions.
+    if kfold_int is None or epoch is None:
+        pred_file = find_matching_file(
+            ensemble_path,
+            f"ensemble_{level}_predictions",
+            allow_missing=True
+        )
+    else:
+        pred_file = find_matching_file(
+            ensemble_path,
+            f"ensemble_{level}_predictions_kfold{kfold_int}_epoch{epoch}",
+            allow_missing=True)
+
+    # If the dataframe has not yet been created, create it.
+    if not pred_file:
+        if kfold_int is None or epoch is None:
+            return create_ensemble_dataframe(
+                ensemble_path=ensemble_path,
+                member_id=member_id,
+                kfold_path=kfold_path,
+                level=level
+            )
+        else:
+            return create_ensemble_dataframe(
+                ensemble_path=ensemble_path,
+                member_id=member_id,
+                kfold_path=kfold_path,
+                kfold_int=kfold_int,
+                epoch=epoch,
+                level=level
+            )
+
+    # Find and load the member predictions.
+    if kfold_int is None or epoch is None:
+        member_file = find_matching_file(
+            kfold_path,
+            f"{level}_predictions"
+        )
+    else:
+        member_file = find_predictions(kfold_path, level=level, epoch=epoch)  # slide_file_name
+
+    member_df = sf.util.load_predictions(member_file)
+    save_format = detect_predictions_format(pred_file)
+    df = sf.util.load_predictions(pred_file)
+
+    # Drop empty column ??
+    if 'Unnamed: 0' in member_df.columns:
+        member_df.drop(columns=['Unnamed: 0'], inplace=True)
+
+    # Determine sorting headers.
+    if level == 'tile':
+        left_headers =[f'{h}_ens1' for h in ('slide', 'loc_x', 'loc_y')]
+        right_headers =[f'{h}_ens{member_id+1}' for h in ('slide', 'loc_x', 'loc_y')]
+    else:
+        left_headers = [f'{level}_ens1']
+        right_headers = [f'{level}_ens{member_id+1}']
+
+    # Merge dataframes.
+    member_headers = member_df.columns.tolist()
+    ensemble_headers = [s + f"_ens{member_id+1}" for s in member_headers]
+    header_change = dict(zip(member_headers, ensemble_headers))
+    member_df.rename(columns=header_change, inplace=True)
+    df = pd.merge(
+        df,
+        member_df,
+        how="inner",
+        left_on=left_headers,
+        right_on=right_headers
+    )
+    df.drop(columns=right_headers, inplace=True)
+
+    if "patient" in df.columns:
+        df.drop(columns=[f'patient_ens{member_id+1}'], inplace=True)
+
+    # Save dataframe.
+    if kfold_int is None or epoch is None:
+        out_path = join(
+            ensemble_path,
+            f'ensemble_{level}_predictions'
+        )
+    else:
+        out_path = join(
+            ensemble_path,
+            f'ensemble_{level}_predictions_kfold{kfold_int}_epoch{epoch}'
+        )
+    save_dataframe(df, out_path, format=save_format)
+    return df
+
+
+def update_ensemble_dataframe_headers(
+    ensemble_path: str,
+    level: str,
+    kfold_int: Optional[int] = None,
+    epoch: Optional[int] = None
+) -> pd.DataFrame:
+    """Updates headers in the specified ensemble dataframe.
+
+    Args:
+        ensemble_path (str): Path to root ensemble directory.
+        level (str, optional): Prediction level, either 'slide', 'patient',
+            or'tile'.
+
+    Keyword Args:
+        epoch (int, optional): Epoch. Defaults to None
+        kfold_int (int, optional): K-fold ID. Defaults to None
+
+    Returns:
+        DataFrame of ensemble predictions, with renamed headers.
+
+    """
+    # Find and load the ensemble predictions.
+    if kfold_int is None or epoch is None:
+        pred_file = find_matching_file(
+            ensemble_path,
+            f"ensemble_{level}_predictions"
+        )
+    else:
+        pred_file = find_matching_file(
+            ensemble_path,
+            f"ensemble_{level}_predictions_kfold{kfold_int}_epoch{epoch}"
+        )
+    save_format = detect_predictions_format(pred_file)
+    df = sf.util.load_predictions(pred_file)
+
+    # Rename main tile/patient/slide headers.
+    for colname in ["slide", "loc_x", "loc_y", "patient"]:
+        if f"{colname}_ens1" in df.columns:
+            df.rename(columns={f"{colname}_ens1": colname}, inplace=True)
+
+    # Update the remaining headers, including an ensemble average.
+    ensemble_headers = df.columns.tolist()
+    member_headers = [h[:-5] for h in ensemble_headers if h.endswith('_ens1')]
+    for header in member_headers:
+        matching_ensemble_headers = [h for h in ensemble_headers if header in h]
+        df[header] = df.loc[:, matching_ensemble_headers].mean(axis=1)
+
+    # Move the patient column to the beginning.
+    if "patient" in df.columns:
+        patient_col = df.pop("patient")
+        df.insert(0, "patient", patient_col)
+
+    # Save dataframe.
+    if kfold_int is None or epoch is None:
+        out_path = join(
+            ensemble_path,
+            f'ensemble_{level}_predictions'
+        )
+    else:
+        out_path = join(
+            ensemble_path,
+            f'ensemble_{level}_predictions_kfold{kfold_int}_epoch{epoch}'
+        )
+    save_dataframe(df, out_path, format=save_format)
+    return df
+
+
+def ensemble_train_predictions(ensemble_path: str) -> None:
+    """Merge predictions for a given ensemble of models.
+
+    Args:
+        ensemble_path (str): Path to directory containing ensemble members,
+            as generated by :meth:`slideflow.Project.train_ensemble()`.
+    """
+    if not exists(join(ensemble_path, 'params.json')):
+        raise OSError("Could not find ensemble params.json.")
+
+    # Path to each ensemble member.
+    member_paths = sorted([
+        join(ensemble_path, x) for x in os.listdir(ensemble_path)
+        if isdir(join(ensemble_path, x))
+    ])
+
+    # Model directory names for each k-fold.
+    # Each ensemble member will have these same folders.
+    # For example, "00001-outcome-HP0-kfold1"
+    kfold_dirs = sorted([
+        x for x in os.listdir(member_paths[0])
+        if isdir(join(member_paths[0], x))
+    ])
+
+    # Read the expected epochs from params.json.
+    params = sf.util.load_json(join(ensemble_path, 'params.json'))
+    epochs = params['hp']['epochs']
+
+    for kfold_dir in kfold_dirs:
+        for epoch in epochs:
+            for member_id, member_path in enumerate(member_paths):
+                kfold_path = join(member_path, kfold_dir)
+                kfold_int = int(re.findall(r'\d', kfold_dir)[-1])
+
+                # Create (or add to) the ensemble dataframe.
+                for level in ('tile', 'slide', 'patient'):
+                    add_to_ensemble_dataframe(
+                        ensemble_path=ensemble_path,
+                        member_id=member_id,
+                        kfold_path=kfold_path,
+                        kfold_int=kfold_int,
+                        epoch=epoch,
+                        level=level
+                    )
+
+            for level in ('tile', 'slide', 'patient'):
+                update_ensemble_dataframe_headers(
+                    ensemble_path=ensemble_path,
+                    kfold_int=kfold_int,
+                    epoch=epoch,
+                    level=level
+                )
+
+
+def find_predictions(
+    path: str,
+    level: str,
+    epoch: int,
+    allow_missing: bool = False,
+):
+    """Find a predictions file at the given path.
+
+    Args:
+        path (str): Directory to search.
+        level (str): 'patient', 'slide', or 'tile'.
+        epoch (int): Epoch number.
+
+    Keyword Args:
+        allow_missing (bool): Do not raise an error if a match is not
+            found. Defaults to False.
+
+    Returns:
+        Filename of predictions file
+
+    Raises:
+        OSError: If a valid file is not found, and ``allow_missing=False``.
+
+        ValueError: If multiple files are found.
+
+    """
+    assert level in ('patient', 'slide', 'tile')
+    return find_matching_file(
+        path,
+        f'{level}_predictions_val_epoch{epoch}',
+        allow_missing=allow_missing
+    )
+
+
+def save_dataframe(df: pd.DataFrame, filename: str, format: str):
+    """Saves a given dataframe to a path in the specified format.
+
+    Args:
+        df (pd.DataFrame): Dataframe of predictions.
+        filename (str): Path to destination filename, without extension.
+        format (str): Format in which to save the dataframe, either 'csv',
+            'parquet', or 'feather'.
+
+    Returns:
+        None
+
+    """
+    if format == "csv":
+        df.to_csv(f"{filename}.csv", index=False)
+    elif format == "parquet":
+        df.to_parquet(
+            f"{filename}.parquet.gzip",
+            index=False,
+            compression='gzip')
+    elif format == "feather":
+        df.to_feather(f"{filename}.feather")
+    else:
+        raise ValueError(f"Unrecognized save format: {format}")
+
+
+def detect_predictions_format(path: str):
+    """Detect format of a given predictions dataframe.
+
+    Args:
+        path (str): Path to predictions file.
+
+    Returns:
+        str: format of predictions file (e.g. 'csv', 'parquet', 'feather')
+
+    """
+    if path.endswith("csv"):
+        return 'csv'
+    elif path.endswith("parquet") or path.endswith("gzip"):
+        return 'parquet'
+    elif path.endswith("feather"):
+        return 'feather'
+    else:
+        return sf.util.path_to_ext(path)
+
+
+def predict_file_type(path: str) -> str:
+    """ To return the format of a given predictions dataframe.
+
+    Args:
+        path (str): Path to predictions file.
+
+    Returns:
+        str: format of predictions file (e.g. 'csv', 'parquet', 'feather')
+    """
+    filenames = [x for x in os.listdir(path)
+        if "predictions" in x]
+    if len(filenames) == 0:
+        raise FileNotFoundError
+    else:
+        filename = filenames[0]
+
+    return detect_predictions_format(filename)
+
+
+def find_matching_file(path: str, filename: str, allow_missing: bool = False):
+    """Find a file at the given directory which startswith the given filename.
+
+    Args:
+        path (str): Directory to search.
+        filename (str): Search for files that start with this string.
+        allow_missing (bool): Allow missing files. If True and no file is found,
+            returns None. If False and no matching file is found, will raise
+            an OSError.
+
+    Returns:
+        str: Path to matching file.
+
+    """
+    results = [
+        join(path, f) for f in os.listdir(path)
+        if (f.startswith(filename) and os.path.isfile(join(path, f)))
+    ]
+    if not len(results):
+        if allow_missing:
+            return None
+        else:
+            raise OSError(
+                f'Could not find file matching "{filename}" at {path}'
+            )
+    if len(results) > 1:
+        raise ValueError(
+            f'Multiple files matching "{filename}" found at {path}'
+        )
+    return results[0]
+
+
+def get_matching_directory(curr_path: str, label: str) -> str:
+    """Finding the path to the directory that has the term 'lable' in
+        its name and is present in curr_path
+
+    Args:
+        curr_path (str): The path to the directory to seach in.
+        lable (str): The string that should be present in the returned
+            directory path
+
+    Returns:
+        str: Path to matching file.
+
+    """
+    list_of_dirs = _sorted_subdirectories(curr_path)
+    try:
+        curr_dir = [x for x in list_of_dirs
+            if f'{label}' in str(x).split("/")[-1]]
+        if len(curr_dir) > 1:
+            raise ValueError(
+                f'Multiple files matching "{label}" found at {curr_path}'
+            )
+        if len(curr_dir) == 0:
+            raise IndexError(f'Directory matching "{label}" does not exist')
+    except IndexError:
+        raise IndexError(f'Directory matching "{label}" does not exist')
+
+    return curr_dir[0]
+
+def get_first_nested_directory(path):
+    """To return the first element of a sorted list of paths to all the
+    directories in 'path'
+
+    Args:
+        path (str): The path to the root directory
+
+    Returns:
+        Path to a directory
+
+    """
+    return _sorted_subdirectories(path)[0]
+
+def _sorted_subdirectories(path):
+    """To return a sorted list of paths to all the directories in 'path'
+
+    Args:
+        path (str): The path to the root directory
+
+    Returns:
+        List of paths
+
+    """
+    return sorted([
+        join(path, x) for x in os.listdir(path)
+        if isdir(join(path, x))
+    ])
+
+
+# -----------------------------------------------------------------------------
 
 def interactive_project_setup(project_folder: str) -> Dict:
     """Guides user through project creation at the given folder,
@@ -375,3 +890,41 @@ def interactive_project_setup(project_folder: str) -> Dict:
             actions_file.write(sample_actions)
     log.info('Project configuration saved.')
     return settings
+
+# -----------------------------------------------------------------------------
+
+class _ProjectConfig:
+    def __init__(self):
+        pass
+
+    @classmethod
+    def to_dict(cls):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            log.info(f"Downloading {cls.config_url}")
+            r = requests.get(cls.config_url, allow_redirects=True)
+            config_dest = join(temp_dir, 'config.json')
+            open(config_dest, 'wb').write(r.content)
+            if sf.util.md5(config_dest) != cls.config_md5:
+                raise errors.ChecksumError("Remote config URL failed MD5 checksum.")
+            config = sf.util.load_json(config_dest)
+        config['annotations'] = cls.labels_url
+        config['annotations_md5'] = cls.labels_md5
+        return config
+
+class BreastER(_ProjectConfig):
+    config_url = 'https://raw.githubusercontent.com/jamesdolezal/slideflow/1.4.3/datasets/breast_er/breast_er.json'
+    config_md5 = '6732f7e2473e2d58bc88a7aca1f0e770'
+    labels_url = 'https://raw.githubusercontent.com/jamesdolezal/slideflow/1.4.3/datasets/breast_er/breast_labels.csv'
+    labels_md5 = 'e25028e87760749973ceea691e6d63d7'
+
+class ThyroidBRS(_ProjectConfig):
+    config_url = 'https://raw.githubusercontent.com/jamesdolezal/slideflow/dev/datasets/thyroid_brs/thyroid_brs.json'
+    config_md5 = 'c4fbe83766db8f637780f7881cb1045e'
+    labels_url = 'https://raw.githubusercontent.com/jamesdolezal/slideflow/dev/datasets/thyroid_brs/thyroid_labels.csv'
+    labels_md5 = 'c04f2569dc3a914241fae0d0b644a327'
+
+class LungAdenoSquam(_ProjectConfig):
+    config_url = 'https://raw.githubusercontent.com/jamesdolezal/slideflow/dev/datasets/lung_adeno_squam/lung_adeno_squam.json'
+    config_md5 = '9239d18b66e054132700c08831560669'
+    labels_url = 'https://raw.githubusercontent.com/jamesdolezal/slideflow/dev/datasets/lung_adeno_squam/lung_labels.csv'
+    labels_md5 = '6619d520d707e211b22b477996bcfdcd'

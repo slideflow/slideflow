@@ -96,15 +96,10 @@ def trainer_from_hp(hp: "ModelParams", **kwargs) -> Trainer:
         outdir (str): Path for event logs and checkpoints.
         labels (dict): Dict mapping slide names to outcome labels (int or
             float format).
-        patients (dict): Dict mapping slide names to patient ID, as some
-            patients may have multiple slides. If not provided, assumes 1:1
-            mapping between slide names and patients.
         slide_input (dict): Dict mapping slide names to additional
             slide-level input, concatenated after post-conv.
         name (str, optional): Optional name describing the model, used for
             model saving. Defaults to 'Trainer'.
-        manifest (dict, optional): Manifest dictionary mapping TFRecords to
-            number of tiles. Defaults to None.
         feature_sizes (list, optional): List of sizes of input features.
             Required if providing additional input features as input to
             the model.

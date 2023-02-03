@@ -101,6 +101,10 @@ class EmptyTFRecordsError(Exception):
     pass
 
 
+class InvalidTFRecordIndex(Exception):
+    pass
+
+
 # --- Slide errors ------------------------------------------------------------
 class SlideError(Exception):
     pass
@@ -166,4 +170,7 @@ class ModelParamsNotFoundError(Exception):
         super().__init__('Model parameters file (params.json) not found.')
 
 class SMACError(Exception):
+    pass
+
+class ChecksumError(Exception):
     pass

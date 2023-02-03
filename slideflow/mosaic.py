@@ -1,11 +1,14 @@
 from __future__ import absolute_import, division, print_function
 
+import multiprocessing as mp
+import pandas as pd
 import csv
 import math
 import os
 import sys
 import time
 from functools import partial
+from pandarallel import pandarallel
 from multiprocessing.dummy import Pool as DPool
 from random import shuffle
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union, Iterable
@@ -17,11 +20,66 @@ from rich.progress import track
 import slideflow as sf
 from slideflow import errors
 from slideflow.stats import SlideMap, get_centroid_index
-from slideflow.util import log
+from slideflow.util import log, tfrecord2idx
 from slideflow.stats import get_centroid_index
 
 if TYPE_CHECKING:
     from slideflow.norm import StainNormalizer
+
+# -----------------------------------------------------------------------------
+
+def process_tile_image(args, decode_kwargs):
+    if args is None:
+        return None, None, None, None
+    point_index, x, y, display_size, alpha, image = args
+    if not point_index:
+        return None, None, None, None
+    if isinstance(image, tuple):
+        tfr, tfr_idx = image
+        image = tfrecord2idx.get_record_by_index(tfr, tfr_idx)['image_raw']
+    if image is None:
+        return point_index, None, None, None
+    if sf.model.is_tensorflow_tensor(image):
+        image = image.numpy()
+    image = decode_image(image, **decode_kwargs)
+    extent = [
+        x - display_size/2,
+        x + display_size/2,
+        y - display_size/2,
+        y + display_size/2
+    ]
+    return point_index, image, extent, alpha
+
+def decode_image(
+    image: Union[str, np.ndarray],
+    normalizer: Optional["StainNormalizer"],
+    img_format: str
+) -> np.ndarray:
+    """Internal method to convert an image string (as stored in TFRecords)
+    to an RGB array."""
+
+    if normalizer:
+        try:
+            if isinstance(image, np.ndarray):
+                return normalizer.rgb_to_rgb(image)
+            elif img_format in ('jpg', 'jpeg'):
+                return normalizer.jpeg_to_rgb(image)
+            elif img_format == 'png':
+                return normalizer.png_to_rgb(image)
+        except Exception as e:
+            log.error("Error encountered during image normalization, "
+                        f"displaying image tile non-normalized. {e}")
+    if isinstance(image, np.ndarray):
+        return image
+    else:
+        image_arr = np.fromstring(image, np.uint8)
+        tile_image_bgr = cv2.imdecode(image_arr, cv2.IMREAD_COLOR)
+        return cv2.cvtColor(tile_image_bgr, cv2.COLOR_BGR2RGB)
+
+def find_corresponding_points(row, points):
+    return points.loc[((points.grid_x == row.x) & (points.grid_y == row.y))].index
+
+# -----------------------------------------------------------------------------
 
 class Mosaic:
     """Visualization of plotted image tiles."""
@@ -32,13 +90,9 @@ class Mosaic:
         coords: Optional[Union[Tuple[int, int], np.ndarray]] = None,
         *,
         tfrecords: List[str] = None,
-        leniency: float = 1.5,
-        expanded: bool = False,
-        num_tiles_x: int = 50,
-        tile_select: str = 'nearest',
-        tile_meta: Optional[Dict] = None,
         normalizer: Optional[Union[str, "StainNormalizer"]] = None,
-        normalizer_source: Optional[str] = None
+        normalizer_source: Optional[str] = None,
+        **grid_kwargs
     ) -> None:
         """Generate a mosaic map, which visualizes plotted image tiles.
 
@@ -143,15 +197,15 @@ class Mosaic:
                 ``images`` is either a ``SlideMap`` object or a list of tuples
                 containing ``(slide_name, tfrecord_index)``. Defaults to None.
             leniency (float, optional): UMAP leniency.
-            expanded (bool, optional):If true, will try to fill in blank spots
-                on the UMAP with nearby tiles. Increases generation time.
-                Defaults to False.
+            expanded (bool, optional): Deprecated argument.
             num_tiles_x (int, optional): Mosaic map grid size. Defaults to 50.
-            tile_select (str, optional): Either 'nearest' or 'centroid'.
+            tile_select (str, optional): 'first', 'nearest', or 'centroid'.
                 Determines how to choose a tile for display on each grid space.
-                If 'nearest', will display tile nearest to center of grid.
-                If 'centroid', for each grid, will calculate which tile is
-                nearest to centroid tile_meta. Defaults to 'nearest'.
+                If 'first', will display the first valid tile in a grid space
+                (fastest; recommended). If 'nearest', will display tile nearest
+                to center of grid space. If 'centroid', for each grid, will
+                calculate which tile is nearest to centroid tile_meta.
+                Defaults to 'nearest'.
             tile_meta (dict, optional): Tile metadata, used for tile_select.
                 Dictionary should have slide names as keys, mapped to list of
                 metadata (length of list = number of tiles in slide).
@@ -162,18 +216,12 @@ class Mosaic:
                 If None, normalizer will use slideflow.slide.norm_tile.jpg.
                 Defaults to None.
         """
-
-        if tile_select not in ('nearest', 'centroid'):
-            raise TypeError(f'Unknown tile selection method {tile_select}')
-        else:
-            log.debug(f'Tile selection method: {tile_select}')
-
         self.tile_point_distances = []  # type: List[Dict]
         self.slide_map = None
-        self.num_tiles_x = num_tiles_x
         self.tfrecords = tfrecords
-        self.mapping_method = 'expanded' if expanded else 'strict'
-        log.debug(f'Mapping method: {self.mapping_method}')
+        self.grid_images = {}
+        self.grid_coords = []   # type: np.ndarray
+        self.grid_idx = []      # type: np.ndarray
 
         if isinstance(images, SlideMap):
             if tfrecords is None:
@@ -210,112 +258,7 @@ class Mosaic:
         else:
             self.normalizer = None
 
-        # ---------------------------------------------------------------------
-
-        x_points = [p['coord'][0] for p in self.points]
-        y_points = [p['coord'][1] for p in self.points]
-        _x_width = max(x_points) - min(x_points)
-        _y_width = max(y_points) - min(y_points)
-        buffer = (_x_width + _y_width)/2 * 0.05
-        max_x = max(x_points) + buffer
-        min_x = min(x_points) - buffer
-        max_y = max(y_points) + buffer
-        min_y = min(y_points) - buffer
-        log.debug(f'Loaded {len(self.points)} points.')
-
-        self.tile_size = (max_x - min_x) / self.num_tiles_x
-        self.num_tiles_y = int((max_y - min_y) / self.tile_size)
-        max_distance = math.sqrt(2*((self.tile_size/2)**2)) * leniency
-
-        # Initialize grid
-        self.GRID = []  # type: List[Dict]
-        for j in range(self.num_tiles_y):
-            for i in range(self.num_tiles_x):
-                x = ((self.tile_size/2) + min_x) + (self.tile_size * i)
-                y = ((self.tile_size/2) + min_y) + (self.tile_size * j)
-                self.GRID.append({
-                    'coord': np.array((x, y)),
-                    'x_index': i,
-                    'y_index': j,
-                    'grid_index': len(self.GRID),
-                    'size': self.tile_size,
-                    'points': [],
-                    'nearest_idx': [],
-                    'active': False,
-                    'image': None
-                })
-        # Add point indices to grid
-        points_added = 0
-        for point in self.points:
-            x_index = int((point['coord'][0] - min_x) / self.tile_size)
-            y_index = int((point['coord'][1] - min_y) / self.tile_size)
-            for g in self.GRID:
-                if g['x_index'] == x_index and g['y_index'] == y_index:
-                    g['points'].append(point['global_index'])
-                    points_added += 1
-        for g in self.GRID:
-            shuffle(g['points'])
-        log.debug(f'{points_added} points added to grid')
-
-        # Then, calculate distances from each point to each spot on the grid
-        def calc_distance(tile, global_coords):
-            if self.mapping_method == 'strict':
-                # Calculate distance for each point within the grid tile from
-                # center of the grid tile
-                point_coords = np.asarray([
-                    self.points[global_index]['coord']
-                    for global_index in tile['points']
-                ])
-                if len(point_coords):
-                    if tile_select == 'nearest':
-                        dist = np.linalg.norm(
-                            point_coords - tile['coord'],
-                            ord=2,
-                            axis=1.
-                        )
-                        tile['nearest_idx'] = tile['points'][np.argmin(dist)]
-                    elif not tile_meta:
-                        raise errors.MosaicError(
-                            'Mosaic centroid option requires tile_meta.'
-                        )
-                    else:
-                        meta_from_pts = [
-                            self.points[global_index]['meta']
-                            for global_index in tile['points']
-                        ]
-                        centroid_index = get_centroid_index(meta_from_pts)
-                        tile['nearest_idx'] = tile['points'][centroid_index]
-            elif self.mapping_method == 'expanded':
-                # Calculate distance for each point within the entire grid
-                # from center of the grid tile
-                dist = np.linalg.norm(
-                    global_coords - tile['coord'],
-                    ord=2,
-                    axis=1.
-                )
-                for i, distance in enumerate(dist):
-                    if distance <= max_distance:
-                        self.tile_point_distances.append({
-                            'distance': distance,
-                            'grid_index': tile['grid_index'],
-                            'point_index': self.points[i]['global_index']
-                        })
-        log.info('Calculating tile-point distances...')
-        start = time.time()
-        global_coords = np.asarray([p['coord'] for p in self.points])
-        dist_fn = partial(calc_distance, global_coords=global_coords)
-        pool = DPool(8)
-        for i, _ in track(enumerate(pool.imap_unordered(dist_fn, self.GRID), 1),
-                          total=len(self.GRID)):
-            pass
-        pool.close()
-        pool.join()
-        end = time.time()
-        if sf.getLoggingLevel() <= 20:
-            sys.stdout.write('\r\033[K')
-        log.debug(f'Calculations complete ({end - start:.0f} sec)')
-        if self.mapping_method == 'expanded':
-            self.tile_point_distances.sort(key=lambda d: d['distance'])
+        self.generate_grid(**grid_kwargs)
 
     def _prepare_from_coords(
         self,
@@ -330,7 +273,7 @@ class Mosaic:
             'coord': coords[i],
             'global_index': i,
             'category': 'none',
-            'paired_tile': None,
+            'has_paired_tile': False,
         } for i in range(len(coords))]
 
     def _prepare_from_slidemap(
@@ -343,22 +286,13 @@ class Mosaic:
         log.info('Loading coordinates from SlideMap and plotting points...')
         self.slide_map = slide_map
         self.mapped_tiles = {}  # type: Dict[str, List[int]]
-        self.points = []
-        for i, row in enumerate(slide_map.data.itertuples()):
-            if tile_meta:
-                meta = tile_meta[row.slide][row.tfr_index]
-            else:
-                meta = None
-            self.points.append({
-                'coord': np.array((row.x, row.y)),
-                'global_index': i,
-                'category': 'none',
-                'slide': row.slide,
-                'tfrecord': self._get_tfrecords_from_slide(row.slide),
-                'tfrecord_index': row.tfr_index,
-                'paired_tile': None,
-                'meta': meta
-            })
+        self.points = slide_map.data.copy()
+        self.points['has_paired_tile'] = False
+        self.points['points_index'] = self.points.index
+        self.points['alpha'] = 1.
+        if tile_meta:
+            self.points['meta'] = self.points.apply(lambda row: tile_meta[row.slide][row.tfr_index], axis=1)
+        log.debug("Loading complete.")
 
     def _prepare_from_tuples(
         self,
@@ -379,43 +313,21 @@ class Mosaic:
                 'tfrecord': (tfr if self.tfrecords is None
                              else self._get_tfrecords_from_slide(tfr)),
                 'tfrecord_index': idx,
-                'paired_tile': None,
+                'has_paired_tile': None,
             })
 
-    def _decode_image(self, image: Union[str, np.ndarray]) -> np.ndarray:
-        """Internal method to convert an image string (as stored in TFRecords)
-        to an RGB array."""
-
-        if self.normalizer:
-            try:
-                if isinstance(image, np.ndarray):
-                    return self.normalizer.rgb_to_rgb(image)
-                elif self.img_format in ('jpg', 'jpeg'):
-                    return self.normalizer.jpeg_to_rgb(image)
-                elif self.img_format == 'png':
-                    return self.normalizer.png_to_rgb(image)
-            except Exception as e:
-                log.error("Error encountered during image normalization, "
-                          f"displaying image tile non-normalized. {e}")
-        if isinstance(image, np.ndarray):
-            return image
-        else:
-            image_arr = np.fromstring(image, np.uint8)
-            tile_image_bgr = cv2.imdecode(image_arr, cv2.IMREAD_COLOR)
-            return cv2.cvtColor(tile_image_bgr, cv2.COLOR_BGR2RGB)
-
-    def _get_image_from_point(self, point):
-        if 'tfrecord' in point:
-            tfr = point['tfrecord']
-            tfr_idx = point['tfrecord_index']
+    def _get_image_from_point(self, index):
+        point = self.points.loc[index]
+        if 'tfr_index' in point:
+            tfr = self._get_tfrecords_from_slide(point.slide)
+            tfr_idx = point.tfr_index
             if not tfr:
                 log.error(f"TFRecord {tfr} not found in slide_map")
-            _, tile_image = sf.io.get_tfrecord_by_index(
-                tfr, tfr_idx, decode=False
-            )
+                return None
+            image = tfrecord2idx.get_record_by_index(tfr, tfr_idx)['image_raw']
         else:
-            tile_image = self.images[point['global_index']]
-        return tile_image
+            image = self.images[index]
+        return image
 
     def _get_tfrecords_from_slide(self, slide: str) -> Optional[str]:
         """Using the internal list of TFRecord paths, returns the path to a
@@ -426,37 +338,188 @@ class Mosaic:
         log.error(f'Unable to find TFRecord path for slide [green]{slide}')
         return None
 
-    def _record_point(self, point):
-        if 'tfrecord' in point:
-            tfr, tfr_idx = point['tfrecord'], point['tfrecord_index']
+    '''def _add_patch(self, loc, size, **kwargs):
+        """Add an empty patch to the mosaic grid.
+
+        Args:
+            loc (tuple(int, int)): Location (x, y).
+            size (int): Height/width of patch.
+        """
+        from matplotlib import patches
+        patch = patches.Rectangle(loc, size, size, **kwargs)
+        self.ax.add_patch(patch)'''
+
+    def _initialize_figure(self, figsize, background):
+        import matplotlib.pyplot as plt
+        fig = plt.figure(figsize=figsize)
+        self.ax = fig.add_subplot(111, aspect='equal')
+        self.ax.set_facecolor(background)
+        fig.tight_layout()
+        plt.subplots_adjust(
+            left=0.02,
+            bottom=0,
+            right=0.98,
+            top=1,
+            wspace=0.1,
+            hspace=0
+        )
+        self.ax.set_aspect('equal', 'box')
+        self.ax.set_xticklabels([])
+        self.ax.set_yticklabels([])
+
+    def _plot_tile_image(self, image, extent, alpha=1):
+        return self.ax.imshow(
+            image,
+            aspect='equal',
+            origin='lower',
+            extent=extent,
+            zorder=99,
+            alpha=alpha
+        )
+
+    def _finalize_figure(self):
+        self.ax.autoscale(enable=True, tight=None)
+
+    def _record_point(self, index):
+        point = self.points.loc[index]
+        if 'tfr_index' in point:
+            tfr = self._get_tfrecords_from_slide(point.slide)
+            if tfr is None:
+                return
             if tfr in self.mapped_tiles:
-                self.mapped_tiles[tfr] += [tfr_idx]
+                self.mapped_tiles[tfr] += [point.tfr_index]
             else:
-                self.mapped_tiles[tfr] = [tfr_idx]
+                self.mapped_tiles[tfr] = [point.tfr_index]
         else:
-            self.mapped_tiles += [point['global_index']]
+            self.mapped_tiles += [index]
+
+    @property
+    def decode_kwargs(self):
+        return dict(normalizer=self.normalizer, img_format=self.img_format)
+
+    def points_at_grid_index(self, x, y):
+        return self.points.loc[((self.points.grid_x == x) & (self.points.grid_y == y))]
+
+    def selected_points(self):
+        return self.points.loc[self.points.selected]
 
     def focus(self, tfrecords: Optional[List[str]]) -> None:
         """Highlights certain tiles according to a focus list if list provided,
-        or resets highlighting if no tfrecords provided."""
+        or resets highlighting if no tfrecords provided.
+
+        Deprecated function.
+        """
+        log.warning("Mosaic.focus() is deprecated and will be removed "
+                    "in a future version.")
         if tfrecords:
-            for tile in self.GRID:
-                if not len(tile['points']) or not tile['image']:
-                    continue
-                num_cat, num_other = 0, 0
-                for point_index in tile['points']:
-                    point = self.points[point_index]
-                    if point['tfrecord'] in tfrecords:
-                        num_cat += 1
-                    else:
-                        num_other += 1
-                alpha = num_cat / (num_other + num_cat)
-                tile['image'].set_alpha(alpha)
+            slides = [sf.util.path_to_name(tfr) for tfr in tfrecords]
+            for idx in self.grid_idx:
+                _points = self.points_at_grid_index(x=idx[0], y=idx[1])
+                if not _points.empty:
+                    n_in = len(_points.loc[_points.slide.isin(slides)])
+                    n_not_in = len(_points.loc[~_points.slide.isin(slides)])
+                    alpha = n_in / (n_in + n_not_in)
+                    self.points.loc[_points.index, 'alpha'] = alpha
+                    try:
+                        self.grid_images[(idx[0], idx[1])].set_alpha(alpha)
+                    except KeyError:
+                        log.debug("Unable to set alpha for grid in focus()")
         else:
-            for tile in self.GRID:
-                if not len(tile['points']) or not tile['image']:
-                    continue
-                tile['image'].set_alpha(1)
+            self.points['alpha'] = 1.
+
+    def generate_grid(
+        self,
+        num_tiles_x: int = 50,
+        leniency: float = 1.5,
+        tile_meta: Optional[Dict] = None,
+        tile_select: str = 'first',
+        expanded: bool = False
+    ):
+        """Generate the mosaic map grid."""
+
+        # Initial validation checks
+        if tile_select not in ('nearest', 'centroid', 'first'):
+            raise TypeError(f'Unknown tile selection method {tile_select}')
+        else:
+            log.debug(f'Tile selection method: {tile_select}')
+        if expanded:
+            log.warn("The `expanded` option for Mosaics is deprecated as of "
+                     "version 1.5 and will be ignored.")
+        self.num_tiles_x = num_tiles_x
+        self.grid_images = {}
+
+        # Build the grid
+        x_points = self.points.x.values
+        y_points = self.points.y.values
+        max_x = x_points.max()
+        min_x = x_points.min()
+        max_y = y_points.max()
+        min_y = y_points.min()
+        log.debug(f'Loaded {len(self.points)} points.')
+
+        self.tile_size = (max_x - min_x) / self.num_tiles_x
+        self.num_tiles_y = int((max_y - min_y) / self.tile_size)
+
+        log.info("Building grid")
+        self.grid_idx = np.reshape(np.dstack(np.indices((self.num_tiles_x, self.num_tiles_y))), (self.num_tiles_x * self.num_tiles_y, 2))
+        _grid_offset = np.array([(self.tile_size/2) + min_x, (self.tile_size/2) + min_y])
+        self.grid_coords = (self.grid_idx * self.tile_size) + _grid_offset
+
+        points_added = 0
+        x_bins = np.arange(min_x, max_x, ((max_x - min_x) / self.num_tiles_x))
+        y_bins = np.arange(min_y, max_y, ((max_y - min_y) / self.num_tiles_y))
+        self.points['grid_x'] = np.digitize(self.points.x.values, x_bins, right=True)
+        self.points['grid_y'] = np.digitize(self.points.y.values, y_bins, right=True)
+        self.points['selected'] = False
+        log.debug(f'{points_added} points added to grid')
+
+        # Then, calculate distances from each point to each spot on the grid
+        def select_nearest_points(idx):
+            grid_x, grid_y = self.grid_idx[idx][0], self.grid_idx[idx][1]
+            grid_coords = self.grid_coords[idx]
+            # Calculate distance for each point within the grid tile from
+            # center of the grid tile
+            _points = self.points_at_grid_index(grid_x, grid_y)
+            if not _points.empty:
+                if tile_select == 'nearest':
+                    point_coords = np.stack([_points.x.values, _points.y.values], axis=-1)
+                    dist = np.linalg.norm(
+                        point_coords - grid_coords,
+                        ord=2,
+                        axis=1.
+                    )
+                    self.points.loc[_points.index[np.argmin(dist)], 'selected'] = True
+                elif not tile_meta:
+                    raise errors.MosaicError(
+                        'Mosaic centroid option requires tile_meta.'
+                    )
+                else:
+                    centroid_index = get_centroid_index(_points.meta.values)
+                    self.points.loc[_points.index[centroid_index], 'selected'] = True
+
+        log.info('Selecting tile images...')
+        start = time.time()
+
+        if tile_select == 'first':
+            grid_group = self.points.groupby(['grid_x', 'grid_y'])
+            first_indices = grid_group.nth(0).points_index.values
+            self.points.loc[first_indices, 'selected'] = True
+        elif tile_select == 'nearest':
+            self.points['selected'] = False
+            dist_fn = partial(select_nearest_points)
+            pool = DPool(os.cpu_count())
+            for i, _ in track(enumerate(pool.imap_unordered(dist_fn, range(len(self.grid_idx))), 1), total=len(self.grid_idx)):
+                pass
+            pool.close()
+            pool.join()
+        else:
+            raise ValueError(
+                f'Unrecognized value for tile_select: "{tile_select}"'
+            )
+        end = time.time()
+        if sf.getLoggingLevel() <= 20:
+            sys.stdout.write('\r\033[K')
+        log.debug(f'Tile image selection complete ({end - start:.1f} sec)')
 
     def plot(
         self,
@@ -465,7 +528,8 @@ class Mosaic:
         relative_size: bool = False,
         focus: Optional[List[str]] = None,
         focus_slide: Optional[str] = None,
-        background: str = '#dfdfdf'
+        background: str = '#dfdfdf',
+        pool: Optional[Any] = None,
     ) -> None:
         """Initializes figures and places image tiles.
 
@@ -482,133 +546,79 @@ class Mosaic:
             focus_slide (str, optional): Highlight tiles from this slide.
                 Defaults to None.
         """
-        import matplotlib.pyplot as plt
-        from matplotlib import patches
-
         if (focus is not None or focus_slide is not None) and self.tfrecords is None:
             raise ValueError("Unable to plot with focus; slides/tfrecords not configured.")
 
-        # Initialize figure
-        fig = plt.figure(figsize=figsize)
-        ax = fig.add_subplot(111, aspect='equal')
-        ax.set_facecolor(background)
-        fig.tight_layout()
-        plt.subplots_adjust(
-            left=0.02,
-            bottom=0,
-            right=0.98,
-            top=1,
-            wspace=0.1,
-            hspace=0
-        )
-        ax.set_aspect('equal', 'box')
-        ax.set_xticklabels([])
-        ax.set_yticklabels([])
+        log.debug("Initializing figure...")
+        self._initialize_figure(figsize=figsize, background=background)
+
         # Next, prepare mosaic grid by placing tile outlines
         log.info('Placing tile outlines...')
-        max_grid_density = 1
-        for g in self.GRID:
-            max_grid_density = max(max_grid_density, len(g['points']))
-        for grid_tile in self.GRID:
-            proportion = len(grid_tile['points']) / max_grid_density
-            rect_size = min(proportion * tile_zoom, 1) * self.tile_size
-            x = grid_tile['coord'][0] - (rect_size / 2)
-            y = grid_tile['coord'][1] - (rect_size / 2)
-            tile = patches.Rectangle(
-                (x, y),
-                rect_size,
-                rect_size,
-                fill=True,
-                alpha=1,
-                facecolor='white',
-                edgecolor='#cccccc'
-            )
-            ax.add_patch(tile)
-            grid_tile['size'] = rect_size
-            grid_tile['rectangle'] = tile
-            grid_tile['paired_point'] = None
+        if relative_size:
+            log.warning('The "relative_size" option for Mosaic.plot() is '
+                        'deprecated and will be removed in a future version.')
+            max_grid_density = 1
+            for idx in self.grid_idx:
+                _points = self.points_at_grid_index(x=idx[0], y=idx[1])
+                if not _points.empty:
+                    max_grid_density = max(max_grid_density, len(_points))
+
+        # Reset alpha and display size
+        if focus_slide:
+            self.points['alpha'] = 1.
+        self.points['display_size'] = self.tile_size
+
+        if focus_slide or relative_size:
+            for idx in self.grid_idx:
+                _points = self.points_at_grid_index(x=idx[0], y=idx[1])
+                if not _points.empty and focus_slide:
+                    n_matching = len(_points.loc[_points.slide == focus_slide])
+                    self.points.loc[_points.index, 'alpha'] = n_matching / len(_points)
+                if not _points.empty and relative_size:
+                    proportion = len(_points) / max_grid_density
+                    rect_size = min(proportion * tile_zoom, 1) * self.tile_size
+                    self.points.loc[_points.index, 'display_size'] = rect_size
 
         # Then, pair grid tiles and points according to their distances
         log.info('Placing image tiles...')
-        num_placed = 0
-        if self.mapping_method == 'strict':
-            for tile in track(self.GRID):
-                if not len(tile['points']):
-                    continue
-                closest_point = tile['nearest_idx']
-                point = self.points[closest_point]
-                tile_image = self._get_image_from_point(point)
-                if tile_image is None or tile_image is False:
-                    continue
-                self._record_point(point)
-                if sf.model.is_tensorflow_tensor(tile_image):
-                    tile_image = tile_image.numpy()
-                tile_image = self._decode_image(tile_image)
-                tile_alpha, num_slide, num_other = float(1), 0, 0
-                display_size = self.tile_size
-                if relative_size:
-                    if focus_slide and len(tile['points']):
-                        for point_index in tile['points']:
-                            point = self.points[point_index]
-                            if point['slide'] == focus_slide:
-                                num_slide += 1
-                            else:
-                                num_other += 1
-                        fraction_slide = num_slide / (num_other + num_slide)
-                        tile_alpha = fraction_slide
-                    display_size = tile['size']
-                extent = [
-                    tile['coord'][0] - display_size/2,
-                    tile['coord'][0] + display_size/2,
-                    tile['coord'][1] - display_size/2,
-                    tile['coord'][1] + display_size/2
-                ]
-                image = ax.imshow(
-                    tile_image,
-                    aspect='equal',
-                    origin='lower',
-                    extent=extent,
-                    zorder=99,
-                    alpha=tile_alpha
-                )
-                tile['image'] = image
-                num_placed += 1
-        elif self.mapping_method == 'expanded':
-            for distance_pair in track(self.tile_point_distances,
-                                       total=len(self.tile_point_distances)):
-                # Attempt to place pair, skipping if unable
-                # (due to other prior pair)
-                point = self.points[distance_pair['point_index']]
-                tile = self.GRID[distance_pair['grid_index']]
-                if not (point['paired_tile'] or tile['paired_point']):
-                    tile_image = self._get_image_from_point(point)
-                    if tile_image is None or tile_image is False:
-                        continue
-                    point['paired_tile'] = True
-                    tile['paired_point'] = True
-                    self._record_point(point)
-                    if sf.model.is_tensorflow_tensor(tile_image):
-                        tile_image = tile_image.numpy()
-                    tile_image = self._decode_image(tile_image)
-                    extent = [
-                        tile['coord'][0]-self.tile_size/2,
-                        tile['coord'][0]+self.tile_size/2,
-                        tile['coord'][1]-self.tile_size/2,
-                        tile['coord'][1]+self.tile_size/2
-                    ]
-                    image = ax.imshow(
-                        tile_image,
-                        aspect='equal',
-                        origin='lower',
-                        extent=extent,
-                        zorder=99
-                    )
-                    tile['image'] = image
-                    num_placed += 1
-        log.debug(f'Num placed: {num_placed}')
+        placed = 0
+        start = time.time()
+        to_map = []
+        should_close_pool = False
+        has_tfr = 'tfr_index' in self.points.columns
+        selected_points = self.selected_points()
+
+        for idx, point in selected_points.iterrows():
+            if has_tfr:
+                tfr = self._get_tfrecords_from_slide(point.slide)
+                tfr_idx = point.tfr_index
+                if tfr:
+                    image = (tfr, tfr_idx)
+                else:
+                    log.error(f"TFRecord {tfr} not found in slide_map")
+                    image = None
+            else:
+                image = self.images[idx]
+            to_map.append((idx, point.x, point.y, point.size, point.alpha, image))
+
+        if pool is None:
+            pool = DPool(os.cpu_count())
+            should_close_pool = True
+        for i, (point_idx, image, extent, alpha) in track(enumerate(pool.imap(partial(process_tile_image, decode_kwargs=self.decode_kwargs), to_map)), total=len(selected_points)):
+            if point_idx is not None:
+                self._record_point(point_idx)
+                self._plot_tile_image(image, extent, alpha)
+                point = self.points.loc[point_idx]
+                self.grid_images[(point.grid_x, point.grid_y)] = image
+                placed += 1
+
+        if should_close_pool:
+            pool.close()
+            pool.join()
+        log.debug(f'Tile images placed: {placed} ({time.time()-start:.2f}s)')
         if focus:
             self.focus(focus)
-        ax.autoscale(enable=True, tight=None)
+        self._finalize_figure()
 
     def save(self, filename: str, **kwargs: Any) -> None:
         """Saves the mosaic map figure to the given filename.

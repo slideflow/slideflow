@@ -523,7 +523,7 @@ class _BaseLoader:
             ratio = width / self.dimensions[0]
             wh = (self.full_extract_px * ratio) / 2
             for (x, y) in coords:  # type: ignore
-                x, y = x * ratio * self.roi_scale, y * ratio * self.roi_scale  # type: ignore
+                x, y = x * ratio, y * ratio  # type: ignore
                 coords = (x-wh, y-wh, x+wh, y+wh)  # type: ignore
                 draw.rectangle(coords, outline=rect_color, width=rect_linewidth)
             return image
@@ -794,6 +794,7 @@ class _BaseLoader:
         locations = []
         for tile_dict in generator():
             locations += [tile_dict['loc']]
+        log.debug(f"Previewing with {len(locations)} extracted tile locations.")
         return self.thumb(coords=locations, rois=rois)
 
 
@@ -1644,9 +1645,11 @@ class WSI(_BaseLoader):
                         continue
                     if outer.contains(inner):
                         log.debug(f"Rendering ROI polygon {i} as hole in {o}")
-                        self.annPolys[o] = outer.difference(inner)
-                        outers.append(o)
-                        inners.append(i)
+                        self.annPolys[o] = self.annPolys[o].difference(inner)
+                        if o not in outers:
+                            outers.append(o)
+                        if i not in inners:
+                            inners.append(i)
             self.annPolys = [ann for (i, ann) in enumerate(self.annPolys)
                              if i not in inners]
             roi_area = sum([poly.area for poly in self.annPolys])

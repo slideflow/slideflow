@@ -1,28 +1,33 @@
 import copy
 import csv
 import itertools
+import requests
+import shutil
 import json
 import multiprocessing
 import numpy as np
 import os
 import shutil
 import pickle
-import tarfile
 import pandas as pd
+import tarfile
 from tqdm import tqdm
+from os.path import basename, exists, join, isdir, dirname
 from multiprocessing.managers import DictProxy
-from os.path import basename, exists, join, dirname
+from contextlib import contextmanager
 from statistics import mean
 from types import SimpleNamespace
 from typing import (TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple,
                     Union)
 
 import slideflow as sf
-from slideflow import errors, project_utils
-from slideflow.dataset import Dataset
-from slideflow.model import ModelParams
-from slideflow.project_utils import auto_dataset, get_validation_settings
-from slideflow.util import log, path_to_name, path_to_ext
+from . import errors, project_utils
+from .util import log, path_to_name, path_to_ext
+from .dataset import Dataset
+from .model import ModelParams
+from .project_utils import (auto_dataset, get_validation_settings,
+                            get_first_nested_directory, get_matching_directory,
+                            BreastER, ThyroidBRS, LungAdenoSquam)
 
 if TYPE_CHECKING:
     from slideflow.model import DatasetFeatures, Trainer
@@ -82,21 +87,17 @@ class Project:
             slideflow.errors.ProjectError: if project folder does not exist,
                 or the folder exists but kwargs are provided.
         """
-
         self.root = root
-
         if sf.util.is_project(root) and kwargs:
             raise errors.ProjectError(f"Project already exists at {root}")
         elif sf.util.is_project(root):
             self.load_project(root)
-        elif kwargs:
+        else:
             log.info(f"Creating project at {root}...")
             self._settings = project_utils._project_config(**kwargs)
             if not exists(root):
                 os.makedirs(root)
             self.save()
-        else:
-            raise errors.ProjectError(f"Project folder {root} does not exist.")
 
         # Create directories, if not already made
         if not exists(self.models_dir):
@@ -247,6 +248,24 @@ class Project:
             raise errors.ProjectError("'sources' must be a list of str")
         self._settings['sources'] = v
 
+    @contextmanager
+    def _set_eval_dir(self, path: str):
+        _initial = self.eval_dir
+        self.eval_dir = path
+        try:
+            yield
+        finally:
+            self.eval_dir = _initial
+
+    @contextmanager
+    def _set_models_dir(self, path: str):
+        _initial = self.models_dir
+        self.models_dir = path
+        try:
+            yield
+        finally:
+            self.models_dir = _initial
+
     def _read_relative_path(self, path: str) -> str:
         """Converts relative path within project directory to global path."""
         return sf.util.relative_path(path, self.root)
@@ -325,7 +344,8 @@ class Project:
         mixed_precision: bool = True,
         allow_tf32: bool = False,
         input_header: Optional[Union[str, List[str]]] = None,
-        load_method: str = 'full'
+        load_method: str = 'full',
+        custom_objects: Optional[Dict[str, Any]] = None,
     ) -> Tuple["Trainer", Dataset]:
         """Prepares a :class:`slideflow.model.Trainer` for eval or prediction.
 
@@ -358,6 +378,8 @@ class Project:
                 ``Model.load_weights()``. Loading with 'full' may improve
                 compatibility across Slideflow versions. Loading with 'weights'
                 may improve compatibility across hardware & environments.
+            custom_objects (dict, Optional): Dictionary mapping names
+                (strings) to custom classes or functions. Defaults to None.
 
         Returns:
             A tuple containing
@@ -482,9 +504,7 @@ class Project:
             outdir=model_dir,
             labels=labels,
             config=eval_config,
-            patients=dataset.patients(),
             slide_input=slide_inp,
-            manifest=dataset.manifest(),
             mixed_precision=mixed_precision,
             allow_tf32=allow_tf32,
             feature_names=input_header,
@@ -493,7 +513,8 @@ class Project:
             use_neptune=self.use_neptune,
             neptune_api=self.neptune_api,
             neptune_workspace=self.neptune_workspace,
-            load_method=load_method
+            load_method=load_method,
+            custom_objects=custom_objects,
         )
         if isinstance(model, str):
             trainer.load(model)
@@ -515,6 +536,7 @@ class Project:
         outcomes: List[str],
         val_settings: SimpleNamespace,
         ctx: multiprocessing.context.BaseContext,
+        dataset: Optional[sf.Dataset],
         filters: Optional[Dict],
         filter_blank: Optional[Union[str, List[str]]],
         input_header: Optional[Union[str, List[str]]],
@@ -568,7 +590,17 @@ class Project:
             input_header = [input_header]
         if input_header is not None:
             filter_blank += input_header
-        dataset = self.dataset(hp.tile_px, hp.tile_um)
+        if dataset is None:
+            dataset = self.dataset(hp.tile_px, hp.tile_um)
+        else:
+            if dataset.tile_px != hp.tile_px or dataset.tile_um != hp.tile_um:
+                raise errors.ModelParamsError(
+                    "Dataset tile size (px={}, um={}) does not match provided "
+                    "hyperparameters (px={}, um={})".format(
+                        dataset.tile_px, dataset.tile_um,
+                        hp.tile_px, hp.tile_um
+                    )
+                )
         dataset = dataset.filter(
             filters=filters,
             filter_blank=filter_blank,
@@ -607,7 +639,7 @@ class Project:
             val_settings.k = [val_settings.k]
         if val_settings.strategy == 'k-fold-manual':
             _, unique_k = dataset.labels(k_header, format='name')
-            valid_k = [int(kf) for kf in unique_k]
+            valid_k = [kf for kf in unique_k]
             k_fold = len(valid_k)
             log.info(f"Manual folds: {', '.join([str(ks) for ks in valid_k])}")
             if val_settings.k:
@@ -684,7 +716,7 @@ class Project:
         dataset: Dataset,
         hp: ModelParams,
         val_settings: SimpleNamespace,
-        s_args: SimpleNamespace
+        s_args: SimpleNamespace,
     ) -> None:
         '''Trains a model for a given training/validation split.
 
@@ -704,15 +736,23 @@ class Project:
             print()
         log.info(f'Training model [bold]{s_args.model_name}[/]{k_msg}...')
         log.info(f'Hyperparameters: {hp}')
-        log.info(f'Val settings: {json.dumps(vars(val_settings), indent=2)}')
+        if val_settings.dataset:
+            log.info(f'Val settings: <Dataset manually provided>')
+        else:
+            log.info(f'Val settings: {json.dumps(vars(val_settings), indent=2)}')
 
         # --- Set up validation data ------------------------------------------
-        manifest = dataset.manifest()
         from_wsi = ('from_wsi' in s_args.training_kwargs
                     and s_args.training_kwargs['from_wsi'])
 
         # Use an external validation dataset if supplied
-        if val_settings.source:
+        if val_settings.dataset:
+            train_dts = dataset
+            val_dts = val_settings.dataset
+            is_float = (hp.model_type() in ['linear', 'cph'])
+            val_labels, _ = val_dts.labels(s_args.outcomes, use_float=is_float)
+            s_args.labels.update(val_labels)
+        elif val_settings.source:
             train_dts = dataset
             val_dts = Dataset(
                 tile_px=hp.tile_px,
@@ -841,13 +881,11 @@ class Project:
         model_kwargs = {
             'hp': hp,
             'name': full_name,
-            'manifest': manifest,
             'feature_names': s_args.input_header,
             'feature_sizes': feature_sizes,
             'outcome_names': s_args.outcomes,
             'outdir': model_dir,
             'config': config,
-            'patients': dataset.patients(),
             'slide_input': slide_inp,
             'labels': s_args.labels,
             'mixed_precision': s_args.mixed_precision,
@@ -880,10 +918,10 @@ class Project:
         self,
         name: str,
         *,
-        slides: str,
-        roi: str,
-        tiles: str,
-        tfrecords: str,
+        slides: Optional[str] = None,
+        roi: Optional[str] = None,
+        tiles: Optional[str] = None,
+        tfrecords: Optional[str] = None,
         path: Optional[str] = None
     ) -> None:
         """Adds a dataset source to the dataset configuration file.
@@ -892,17 +930,28 @@ class Project:
             name (str): Dataset source name.
 
         Keyword Args:
-            slides (str): Path to directory containing slides.
-            roi (str): Path to directory containing CSV ROIs.
-            tiles (str): Path to directory for storing extracted tiles.
-            tfrecords (str): Path to directory for storing TFRecords of tiles.
+            slides (str, optional): Path to directory containing slides.
+                Defaults to None.
+            roi (str, optional): Path to directory containing CSV ROIs.
+                Defaults to None.
+            tiles (str, optional): Path to directory for loose extracted tiles
+                images (*.jpg, *.png). Defaults to None.
+            tfrecords (str, optional): Path to directory for storing TFRecords
+                of tiles. Defaults to None.
             path (str, optional): Path to dataset configuration file.
-                Defaults to None. If not provided, uses project default.
+                If not provided, uses project default. Defaults to None.
         """
 
         if not path:
             path = self.dataset_config
-        project_utils.add_source(name, slides, roi, tiles, tfrecords, path)
+        project_utils.add_source(
+            name,
+            path=path,
+            slides=slides,
+            roi=roi,
+            tiles=tiles,
+            tfrecords=tfrecords,
+        )
         if name not in self.sources:
             self.sources += [name]
         self.save()
@@ -918,6 +967,7 @@ class Project:
         *,
         filters: Optional[Dict] = None,
         filter_blank: Optional[Union[str, List[str]]] = None,
+        sources: Union[str, List[str]],
         **kwargs
     ) -> None:
         """Perform cell segmentation on slides, saving segmentation masks.
@@ -928,6 +978,8 @@ class Project:
                 Defaults to None.
 
         Keyword args:
+            sources (List[str]): List of dataset sources to include from
+                configuration file.
             window_size (int): Window size at which to segment cells across
                 a whole-slide image. Defaults to 256.
             mpp (float): Microns-per-pixel at which cells should be segmented.
@@ -957,7 +1009,8 @@ class Project:
             None,
             filters=filters,
             filter_blank=filter_blank,
-            verification='slides'
+            verification='slides',
+            sources=sources,
         )
         dataset.cell_segmentation(dest, **kwargs)
 
@@ -1065,6 +1118,7 @@ class Project:
         allow_tf32: bool = False,
         input_header: Optional[Union[str, List[str]]] = None,
         load_method: str = 'full',
+        custom_objects: Optional[Dict[str, Any]] = None,
         **kwargs: Any
     ) -> Dict:
         """Evaluates a saved model on a given set of tfrecords.
@@ -1113,6 +1167,8 @@ class Project:
                 patient-level predictions at each evaluation. May be 'csv',
                 'feather', or 'parquet'. If False, will not save predictions.
                 Defaults to 'parquet'.
+            custom_objects (dict, Optional): Dictionary mapping names
+                (strings) to custom classes or functions. Defaults to None.
             **kwargs: Additional keyword arguments to the `Trainer.evaluate()`
                 function.
 
@@ -1131,7 +1187,8 @@ class Project:
             input_header=input_header,
             mixed_precision=mixed_precision,
             allow_tf32=allow_tf32,
-            load_method=load_method
+            load_method=load_method,
+            custom_objects=custom_objects,
         )
         return trainer.evaluate(eval_dts, **kwargs)
 
@@ -1215,6 +1272,14 @@ class Project:
         args_dict = sf.util.load_json(join(exp_name, 'experiment.json'))
         args = SimpleNamespace(**args_dict)
         args.save_dir = eval_dir
+        # Update any missing arguments with current defaults
+        _default_args = clam.get_args()
+        for _a in _default_args.__dict__:
+            if not hasattr(args, _a):
+                _default = getattr(_default_args, _a)
+                log.info(f"Argument {_a} not found in CLAM model configuration "
+                         f"file; using default value of {_default}.")
+                setattr(args, _a, _default)
 
         dataset = self.dataset(
             tile_px=tile_px,
@@ -1239,7 +1304,7 @@ class Project:
                 writer.writerow(row)
 
         clam_dataset = Generic_MIL_Dataset(
-            csv_path=join(eval_dir, 'eval_annotations.csv'),
+            annotations=dataset.filtered_annotations,
             data_dir=pt_files,
             shuffle=False,
             seed=args.seed,
@@ -2052,10 +2117,7 @@ class Project:
             figsize (Tuple[int, int], optional): Figure size. Defaults to
                 (200, 200).
             num_tiles_x (int): Specifies the size of the mosaic map grid.
-            expanded (bool): Controls tile assignment on grid spaces.
-                If False, tile assignment is strict.
-                If True, allows displaying nearby tiles if a grid is empty.
-                Defaults to False.
+            expanded (bool): Deprecated argument.
             leniency (float): UMAP leniency. Defaults to 1.5.
 
         Returns:
@@ -2232,10 +2294,7 @@ class Project:
             figsize (Tuple[int, int], optional): Figure size. Defaults to
                 (200, 200).
             num_tiles_x (int): Specifies the size of the mosaic map grid.
-            expanded (bool): Controls tile assignment on grid spaces.
-                If False, tile assignment is strict.
-                If True, allows displaying nearby tiles if a grid is empty.
-                Defaults to False.
+            expanded (bool): Deprecated argument.
             leniency (float): UMAP leniency. Defaults to 1.5.
         """
 
@@ -2311,7 +2370,7 @@ class Project:
         mosaic = sf.Mosaic(
             umap,
             tfrecords=dataset.tfrecords(),
-            tile_select='centroid' if use_optimal_tile else 'nearest',
+            tile_select='centroid' if use_optimal_tile else 'first',
             **kwargs
         )
         return mosaic
@@ -2464,6 +2523,85 @@ class Project:
         else:
             raise errors.ProjectError('Unable to find settings.json.')
 
+    def predict_ensemble(
+        self,
+        model: str,
+        k: Optional[int] = None,
+        epoch: Optional[int] = None,
+        **kwargs
+    ) -> None:
+        """Evaluates a saved ensemble model on a given set of tfrecords.
+
+        Args:
+            model (str): Path to ensemble model to evaluate.
+
+        Keyword Args:
+            k (int, optional): The k-fold number to be considered
+                to run the prediction. By default it sets to the first k-fold
+                present in the ensemble folder.
+            epoch (int, optional): The epoch number to be considered
+                to run the prediction. By default it sets to the first epoch
+                present in the selected k-fold folder.
+            All keyword arguments accepted by :meth:`slideflow.Project.predict`
+        """
+        if not exists(model):
+            raise OSError(f"Path {model} not found")
+
+        config = sf.util.get_model_config(model)
+        outcomes = f"{'-'.join(config['outcomes'])}"
+        model_name = f"eval-ensemble-{outcomes}"
+        main_eval_dir = sf.util.get_new_model_dir(self.eval_dir, model_name)
+
+        member_paths = sorted([
+            join(model, x) for x in os.listdir(model)
+            if isdir(join(model, x))
+        ])
+        # Generate predictions from each ensemble member,
+        # and merge predictions into a single dataframe.
+        for member_id, member_path in enumerate(member_paths):
+            if k:
+                _k_path = get_matching_directory(member_path, f'kfold{k}')
+            else:
+                _k_path = get_first_nested_directory(member_path)
+            if epoch:
+                prediction_path = get_matching_directory(_k_path, f'epoch{epoch}')
+            else:
+                prediction_path = get_first_nested_directory(_k_path)
+
+            # Update the current evaluation directory.
+            member_eval_dir = sf.util.get_new_model_dir(
+                main_eval_dir,
+                f"ensemble_{member_id+1}"
+            )
+            with self._set_eval_dir(member_eval_dir):
+                self.predict(prediction_path, **kwargs)
+                # If this is the first ensemble member, copy the slide manifest
+                # and params.json file into the ensemble prediction folder.
+                if member_id == 0:
+                    _, from_path = sf.util.get_valid_model_dir(self.eval_dir)
+                    shutil.copyfile(
+                        join(self.eval_dir, from_path[0], "slide_manifest.csv"),
+                        join(main_eval_dir, "slide_manifest.csv")
+                    )
+                    shutil.copyfile(
+                        join(self.eval_dir, from_path[0], "params.json"),
+                        join(main_eval_dir, "slide_manifest.csv")
+                    )
+                # Create (or add to) the ensemble dataframe.
+                for level in ('slide', 'tile'):
+                    project_utils.add_to_ensemble_dataframe(
+                        ensemble_path=main_eval_dir,
+                        kfold_path=join(self.eval_dir, from_path[0]),
+                        level=level,
+                        member_id=member_id
+                    )
+        # Create new ensemble columns and rename fixed columns.
+        for level in ('tile', 'slide'):
+            project_utils.update_ensemble_dataframe_headers(
+                ensemble_path=main_eval_dir,
+                level=level,
+            )
+
     @auto_dataset
     def predict(
         self,
@@ -2483,6 +2621,7 @@ class Project:
         mixed_precision: bool = True,
         allow_tf32: bool = False,
         load_method: str = 'full',
+        custom_objects: Optional[Dict[str, Any]] = None,
         **kwargs: Any
     ) -> pd.DataFrame:
         """Evaluates a saved model on a given set of tfrecords.
@@ -2530,6 +2669,8 @@ class Project:
                 ``Model.load_weights()``. Loading with 'full' may improve
                 compatibility across Slideflow versions. Loading with 'weights'
                 may improve compatibility across hardware & environments.
+            custom_objects (dict, Optional): Dictionary mapping names
+                (strings) to custom classes or functions. Defaults to None.
 
         Returns:
             Dictionary of predictions dataframes, with the keys 'tile', 'slide',
@@ -2548,7 +2689,8 @@ class Project:
             input_header=input_header,
             mixed_precision=mixed_precision,
             allow_tf32=allow_tf32,
-            load_method=load_method
+            load_method=load_method,
+            custom_objects=custom_objects,
         )
         results = trainer.predict(
             dataset=eval_dts,
@@ -2714,7 +2856,6 @@ class Project:
     def save(self) -> None:
         """Saves current project configuration as "settings.json"."""
         sf.util.write_json(self._settings, join(self.root, 'settings.json'))
-
 
     def _get_smac_runner(
         self,
@@ -2904,6 +3045,69 @@ class Project:
         self.models_dir = _initial_models_dir
         return best_config, history
 
+    def train_ensemble(
+        self,
+        outcomes: Union[str, List[str]],
+        n_ensembles: int = 5,
+        **kwargs
+    ) -> List[Dict]:
+        """Train an ensemble of model(s) using a given set of parameters,
+        outcomes, and inputs by calling the train function ``n_ensembles``
+        of times.
+
+        Args:
+            outcomes (str or list(str)): Outcome label annotation header(s).
+            n_ensembles (int): Total models needed in the ensemble.
+                Defaults to 5.
+
+        Keyword Args:
+            All keyword arguments accepted by :meth:`slideflow.Project.train`
+
+        Returns:
+            List of dictionaries of length ``n_ensembles``, containing training
+            results for each member of the ensemble.
+        """
+
+        if isinstance(outcomes, list):
+            ensemble_name = f"{'-'.join(outcomes)}-ensemble"
+        else:
+            ensemble_name = f"{outcomes}-ensemble"
+        ensemble_path = sf.util.get_new_model_dir(self.models_dir, ensemble_name)
+        ensemble_results = []
+
+        for i in range(n_ensembles):
+            # Create the ensemble member folder, which will hold each
+            # k-fold model for the given ensemble member.
+            member_path = sf.util.get_new_model_dir(
+                ensemble_path,
+                f"ensemble_{i+1}")
+            with self._set_models_dir(member_path):
+                result = self.train(outcomes, **kwargs)
+                ensemble_results.append(result)
+
+        # Copy the slide manifest and params.json file
+        # into the parent ensemble folder.
+        _, member_models = sf.util.get_valid_model_dir(member_path)
+        if len(member_models):
+            try:
+                shutil.copyfile(
+                    join(member_path, member_models[0], "slide_manifest.csv"),
+                    join(ensemble_path, "slide_manifest.csv"))
+                shutil.copyfile(
+                    join(member_path, member_models[0], "params.json"),
+                    join(ensemble_path, "params.json"))
+            except OSError:
+                log.error("Unable to find ensemble slide manifest and params.json.")
+        else:
+            log.error("Unable to find ensemble slide manifest and params.json.")
+
+        # Merge predictions from each ensemble.
+        if "save_predictions" in kwargs:
+            if not kwargs['save_predictions']:
+                return ensemble_results
+        project_utils.ensemble_train_predictions(ensemble_path)
+        return ensemble_results
+
     def train(
         self,
         outcomes: Union[str, List[str]],
@@ -2912,6 +3116,7 @@ class Project:
                       List[ModelParams],
                       Dict[str, ModelParams]],
         *,
+        dataset: Optional[sf.Dataset] = None,
         exp_label: Optional[str] = None,
         filters: Optional[Dict] = None,
         filter_blank: Optional[Union[str, List[str]]] = None,
@@ -3040,7 +3245,6 @@ class Project:
                 >>> P.train('outcome', params=hp, ...)
 
         """
-
         # Prepare outcomes
         if not isinstance(outcomes, list):
             outcomes = [outcomes]
@@ -3112,6 +3316,7 @@ class Project:
                 outcomes=outcomes,
                 val_settings=val_settings,
                 ctx=ctx,
+                dataset=dataset,
                 filters=filters,
                 filter_blank=filter_blank,
                 input_header=input_header,
@@ -3366,7 +3571,7 @@ class Project:
 
         # Create CLAM dataset
         clam_dataset = Generic_MIL_Dataset(
-            csv_path=self.annotations,
+            annotations=dataset.filtered_annotations,
             data_dir=pt_files,
             shuffle=False,
             seed=clam_args.seed,
@@ -3424,9 +3629,13 @@ class Project:
 
 # -----------------------------------------------------------------------------
 
+def load(root: str) -> "Project":
+    """Load a project at the given root directory."""
+    return Project(root)
+
 def create(
     root: str,
-    cfg: Union[str, Dict],
+    cfg: Optional[Union[str, Dict]] = None,
     *,
     download: bool = False,
     md5: bool = False,
@@ -3469,10 +3678,21 @@ def create(
         tfrecords (str): Set the destination for TFRecords. This has higher
             priority than the supplied configuration, which will be ignored.
         roi_dest (str): Set the destination folder for ROIs.
+        dataset_config (str): Path to dataset configuration JSON file for the
+            project. Defaults to './datasets.json'.
+        sources (list(str)): List of dataset sources to include in project.
+            Defaults to 'MyProject'.
+        models_dir (str): Path to directory in which to save models.
+            Defaults to './models'.
+        eval_dir (str): Path to directory in which to save evaluations.
+            Defaults to './eval'.
 
     Returns:
         slideflow.Project
     """
+    cfg_names = ('annotations', 'name', 'slides', 'tiles', 'tfrecords', 'roi_dest')
+    proj_kwargs = {k:v for k,v in kwargs.items() if k not in cfg_names}
+    kwargs = {k:v for k,v in kwargs.items() if k in cfg_names}
 
     # Initial verification
     if sf.util.is_project(root):
@@ -3489,8 +3709,10 @@ def create(
             cfg.annotations = join(dirname(cfg_path), cfg.annotations)
         if 'rois' in cfg and exists(join(dirname(cfg_path), cfg.rois)):
             cfg.rois = join(dirname(cfg_path), cfg.rois)
-    if 'annotations' not in cfg:
-        raise ValueError("'annotations' must be provided in configuration.")
+    elif cfg is None:
+        cfg = sf.util.EasyDict(kwargs)
+    elif issubclass(cfg, project_utils._ProjectConfig):
+        cfg = sf.util.EasyDict(cfg.to_dict())
     if 'name' not in cfg:
         cfg.name = "MyProject"
     if 'slides' not in cfg:
@@ -3506,14 +3728,28 @@ def create(
 
     # Set up project at the given directory.
     log.info(f"Setting up project at {root}")
-    P = sf.Project(root, annotations=join(root, basename(cfg.annotations)))
-    shutil.copy(cfg.annotations, root)
+    if 'annotations' in cfg:
+        proj_kwargs['annotations'] = join(root, basename(cfg.annotations))
+    P = sf.Project(root, **proj_kwargs)
+    # Download annotations, if a URL.
+    if 'annotations' in cfg and cfg.annotations.startswith('http'):
+        log.info(f"Downloading {cfg.annotations}")
+        r = requests.get(cfg.annotations)
+        open(proj_kwargs['annotations'], 'wb').write(r.content)
+        if cfg.annotations_md5 != sf.util.md5(proj_kwargs['annotations']):
+            raise errors.ChecksumError("Remote annotations URL failed MD5 checksum.")
+    elif 'annotations' in cfg:
+        shutil.copy(cfg.annotations, root)
     P.add_source(
         cfg.name,
         slides=cfg.slides,
         roi=cfg.roi_dest,
         tiles=cfg.tiles,
         tfrecords=cfg.tfrecords)
+
+    # Create blank annotations file, if not provided.
+    if not exists(P.annotations):
+        P.create_blank_annotations()
 
     # Set up ROIs, if provided.
     if 'rois' in cfg and not exists(cfg.roi_dest):

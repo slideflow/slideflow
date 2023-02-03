@@ -8,6 +8,7 @@ import pdb
 import numpy as np
 import torch
 
+from slideflow import log
 from slideflow.clam.models.model_clam import CLAM_MB, CLAM_SB
 from slideflow.clam.utils import *
 from slideflow.clam.utils.eval_utils import initiate_model as initiate_model
@@ -45,7 +46,7 @@ def infer_single_slide(model, features, label, reverse_label_dict, k=1, silent=F
             raise NotImplementedError
 
         if not silent:
-            print('Y_hat: {}, Y: {}, Y_prob: {}'.format(reverse_label_dict[Y_hat], label, ["{:.4f}".format(p) for p in Y_prob.cpu().flatten()]))
+            log.info('Y_hat: {}, Y: {}, Y_prob: {}'.format(reverse_label_dict[Y_hat], label, ["{:.4f}".format(p) for p in Y_prob.cpu().flatten()]))
 
         probs, ids = torch.topk(Y_prob, k)
         probs = probs[-1].cpu().numpy()
@@ -90,13 +91,12 @@ def export_attention(model_args, ckpt_path, outdir, pt_files, slides, reverse_la
     model_args = argparse.Namespace(**model_args)
 
     # Load model
-    print('\ninitializing CLAM model from checkpoint')
-    print('\nckpt path: {}'.format(ckpt_path))
+    log.info(f'Exporting attention using checkpoint {ckpt_path}')
     model =  initiate_model(model_args, ckpt_path)
 
     # load features
     logits = {s:{'pred':None,'prob':None} for s in slides}
-    print(f"Working on {len(slides)} slides.")
+    log.info(f"Working on {len(slides)} slides.")
 
     for slide in slides:
         csv_save_loc = os.path.join(outdir, f'{slide}.csv')
@@ -113,12 +113,12 @@ def export_attention(model_args, ckpt_path, outdir, pt_files, slides, reverse_la
             writer = csv.writer(csv_file)
             for i, a in enumerate(A):
                 writer.writerow([i, a[0]])
-        print(f'Exported attention scores to {csv_save_loc}')
+        log.info(f'Exported attention scores to [green]{csv_save_loc}[/]')
         del features
 
-    print("\nSlide\tPred\tProb")
+    log.info("\nSlide\tPred\tProb")
     for slide in slides:
-        print(f"{slide}\t{logits[slide]['pred']}\t{logits[slide]['prob']}")
+        log.info(f"{slide}\t{logits[slide]['pred']}\t{logits[slide]['prob']}")
 
     with open(os.path.join(outdir, 'pred_summary.csv'), 'w') as csv_file:
         writer = csv.writer(csv_file)
@@ -126,4 +126,4 @@ def export_attention(model_args, ckpt_path, outdir, pt_files, slides, reverse_la
         writer.writerow(header)
         for slide in slides:
             writer.writerow([slide, logits[slide]['pred'], logits[slide]['prob']])
-    print(f'Exported prediction summary to {os.path.join(outdir, "pred_summary.csv")}')
+    log.info(f'Exported prediction summary to {os.path.join(outdir, "pred_summary.csv")}')

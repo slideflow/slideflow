@@ -50,6 +50,7 @@ class HeatmapWidget:
         self._heatmap_sum           = 0
         self._heatmap_grid          = None
         self._heatmap_thread        = None
+        self._heatmap_toast         = None
         self._colormaps             = plt.colormaps()
         self._rendering_message     = "Calculating heatmap..."
 
@@ -121,6 +122,9 @@ class HeatmapWidget:
             self._button_pressed = False
             self._heatmap_thread = None
             self.viz.clear_message(self._rendering_message)
+            if self._heatmap_toast is not None:
+                self._heatmap_toast.done()
+                self._heatmap_toast = None
             self.viz.create_toast("Heatmap complete.", icon="success")
 
     def render_heatmap(self):
@@ -231,9 +235,11 @@ class HeatmapWidget:
                 _button_text = ('Generate' if not self._button_pressed else "Working...")
                 if imgui_utils.button(_button_text, width=viz.button_w, enabled=(not self._button_pressed)):
                     self.viz.set_message(self._rendering_message)
-                    self.viz.create_toast(
-                        title=self._rendering_message,
+                    self._heatmap_toast = self.viz.create_toast(
+                        title="Calculating heatmap",
                         icon='info',
+                        sticky=True,
+                        spinner=True
                     )
                     _thread = threading.Thread(target=self.generate_heatmap)
                     _thread.start()

@@ -13,20 +13,19 @@ from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
-import multiprocessing as mp
+import tensorflow as tf
 import slideflow as sf
 import slideflow.model.base as _base
+import multiprocessing as mp
 import slideflow.util.neptune_utils
 from packaging import version
 from slideflow import errors
-from slideflow.model import tensorflow_utils as tf_utils
-from slideflow.model.base import log_manifest, no_scope
-from slideflow.model.tensorflow_utils import unwrap, flatten  # type: ignore
 from slideflow.util import log, NormFit
-
-import tensorflow as tf
 from tensorflow.keras import applications as kapps
-from slideflow.model.tensorflow_utils import eval_from_model
+
+from . import tensorflow_utils as tf_utils
+from .base import log_manifest, no_scope
+from .tensorflow_utils import unwrap, flatten, eval_from_model  # type: ignore
 
 # Set the tensorflow logger
 if sf.getLoggingLevel() == logging.DEBUG:
@@ -652,6 +651,10 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
         self.results = {'epochs': {}}  # type: Dict[str, Dict]
         self.neptune_run = self.parent.neptune_run
         self.global_step = 0
+        self.train_summary_writer = tf.summary.create_file_writer(
+            join(self.parent.outdir, 'train'))
+        self.val_summary_writer = tf.summary.create_file_writer(
+            join(self.parent.outdir, 'validation'))
 
         # Circumvents buffer overflow error with Python 3.10.
         # Without this, a buffer overflow error will be encountered when
@@ -662,6 +665,128 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
             import matplotlib.pyplot as plt
             plt.figure()
             plt.close()
+
+    def _log_training_metrics(self, logs):
+        """Log training metrics to Tensorboard/Neptune."""
+        # Log to Tensorboard.
+        for _log in logs:
+            tf.summary.scalar(
+                f'batch_{_log}',
+                data=logs[_log],
+                step=self.global_step)
+        # Log to neptune.
+        if self.neptune_run:
+            self.neptune_run['metrics/train/batch/loss'].log(
+                logs['loss'],
+                step=self.global_step)
+            sf.util.neptune_utils.list_log(
+                self.neptune_run,
+                'metrics/train/batch/accuracy',
+                logs['accuracy'],
+                step=self.global_step)
+
+    def _log_validation_metrics(self, metrics):
+        """Log validation metrics to Tensorboard/Neptune."""
+        # Tensorboard logging for validation metrics
+        with self.val_summary_writer.as_default():
+            for _log in metrics:
+                tf.summary.scalar(
+                    f'batch_{_log}',
+                    data=metrics[_log],
+                    step=self.global_step)
+        # Log to neptune
+        if self.neptune_run:
+            for v in metrics:
+                self.neptune_run[f"metrics/val/batch/{v}"].log(
+                    round(metrics[v], 3),
+                    step=self.global_step
+                )
+            if self.last_ema != -1:
+                self.neptune_run["metrics/val/batch/exp_moving_avg"].log(
+                    round(self.last_ema, 3),
+                    step=self.global_step
+                )
+            self.neptune_run["early_stop/stopped_early"] = False
+
+    def _log_epoch_evaluation(self, epoch_results, metrics, accuracy, loss, logs={}):
+        """Log the end-of-epoch evaluation to CSV, Tensorboard, and Neptune."""
+        epoch = self.epoch_count
+        run = self.neptune_run
+        sf.util.update_results_log(
+            self.cb_args.results_log,
+            'trained_model',
+            {f'epoch{epoch}': epoch_results}
+        )
+        with self.val_summary_writer.as_default():
+            # Note: Tensorboard epoch logging starts with index=0,
+            # whereas all other logging starts with index=1
+            if isinstance(accuracy, (list, tuple, np.ndarray)):
+                for i in range(len(accuracy)):
+                    tf.summary.scalar(f'epoch_accuracy-{i}', data=accuracy[i], step=epoch-1)
+            elif accuracy is not None:
+                tf.summary.scalar(f'epoch_accuracy', data=accuracy, step=epoch-1)
+            if isinstance(loss, (list, tuple, np.ndarray)):
+                for i in range(len(loss)):
+                    tf.summary.scalar(f'epoch_loss-{i}', data=loss[i], step=epoch-1)
+            else:
+                tf.summary.scalar(f'epoch_loss', data=loss, step=epoch-1)
+
+        # Log epoch results to Neptune
+        if run:
+            # Training epoch metrics
+            run['metrics/train/epoch/loss'].log(logs['loss'], step=epoch)
+            sf.util.neptune_utils.list_log(
+                run,
+                'metrics/train/epoch/accuracy',
+                logs['accuracy'],
+                step=epoch
+            )
+            # Validation epoch metrics
+            run['metrics/val/epoch/loss'].log(loss, step=epoch)
+            sf.util.neptune_utils.list_log(
+                run,
+                'metrics/val/epoch/accuracy',
+                accuracy,
+                step=epoch
+            )
+            for metric in metrics:
+                if metrics[metric]['tile'] is None:
+                    continue
+                for outcome in metrics[metric]['tile']:
+                    # If only one outcome, log to metrics/val/epoch/[metric].
+                    # If more than one outcome, log to
+                    # metrics/val/epoch/[metric]/[outcome_name]
+                    def metric_label(s):
+                        if len(metrics[metric]['tile']) == 1:
+                            return f'metrics/val/epoch/{s}_{metric}'
+                        else:
+                            return f'metrics/val/epoch/{s}_{metric}/{outcome}'
+
+                    tile_metric = metrics[metric]['tile'][outcome]
+                    slide_metric = metrics[metric]['slide'][outcome]
+                    patient_metric = metrics[metric]['patient'][outcome]
+
+                    # If only one value for a metric, log to .../[metric]
+                    # If more than one value for a metric (e.g. AUC for each
+                    # category), log to .../[metric]/[i]
+                    sf.util.neptune_utils.list_log(
+                        run,
+                        metric_label('tile'),
+                        tile_metric,
+                        step=epoch
+                    )
+                    sf.util.neptune_utils.list_log(
+                        run,
+                        metric_label('slide'),
+                        slide_metric,
+                        step=epoch
+                    )
+                    sf.util.neptune_utils.list_log(
+                        run,
+                        metric_label('patient'),
+                        patient_metric,
+                        step=epoch
+                    )
 
     def _metrics_from_dataset(
         self,
@@ -728,18 +853,10 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
         self.model.stop_training = self.early_stop
 
     def on_train_batch_end(self, batch: int, logs={}) -> None:
-        # Neptune logging for training metrics
-        if self.neptune_run:
-            self.neptune_run['metrics/train/batch/loss'].log(
-                logs['loss'],
-                step=self.global_step
-            )
-            sf.util.neptune_utils.list_log(
-                self.neptune_run,
-                'metrics/train/batch/accuracy',
-                logs['accuracy'],
-                step=self.global_step
-            )
+        # Tensorboard logging for training metrics
+        if batch > 0 and batch % self.cb_args.log_frequency == 0:
+            #with self.train_summary_writer.as_default():
+            self._log_training_metrics(logs)
 
         # Check if manual early stopping has been triggered
         if (self.hp.early_stop
@@ -802,19 +919,10 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
                 print('\r\033[K', end='')
             self.moving_average += [early_stop_value]
 
-            # Log to neptune
-            if self.neptune_run:
-                for v in val_metrics:
-                    self.neptune_run[f"metrics/val/batch/{v}"].log(
-                        round(val_metrics[v], 3),
-                        step=self.global_step
-                    )
-                if self.last_ema != -1:
-                    self.neptune_run["metrics/val/batch/exp_moving_avg"].log(
-                        round(self.last_ema, 3),
-                        step=self.global_step
-                    )
-                self.neptune_run["early_stop/stopped_early"] = False
+            self._log_validation_metrics(logs)
+            # Log training metrics if not already logged this batch
+            if batch % self.cb_args.log_frequency > 0:
+                self._log_training_metrics(logs)
 
             # Base logging message
             batch_msg = f'[blue]Batch {batch:<5}[/]'
@@ -915,73 +1023,9 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
             self.results['epochs'][f'epoch{epoch}'][f'patient_{m}'] = metrics[m]['patient']
 
         epoch_results = self.results['epochs'][f'epoch{epoch}']
-        sf.util.update_results_log(
-            self.cb_args.results_log,
-            'trained_model',
-            {f'epoch{epoch}': epoch_results}
+        self._log_epoch_evaluation(
+            epoch_results, metrics=metrics, accuracy=acc, loss=loss, logs=logs
         )
-        # Log epoch results to Neptune
-        if self.neptune_run:
-            # Training epoch metrics
-            self.neptune_run['metrics/train/epoch/loss'].log(
-                logs['loss'],
-                step=epoch
-            )
-            sf.util.neptune_utils.list_log(
-                self.neptune_run,
-                'metrics/train/epoch/accuracy',
-                logs['accuracy'],
-                step=epoch
-            )
-            # Validation epoch metrics
-            self.neptune_run['metrics/val/epoch/loss'].log(
-                val_metrics['loss'],
-                step=epoch
-            )
-            sf.util.neptune_utils.list_log(
-                self.neptune_run,
-                'metrics/val/epoch/accuracy',
-                val_metrics['accuracy'],
-                step=epoch
-            )
-            for metric in metrics:
-                if metrics[metric]['tile'] is None:
-                    continue
-                for outcome in metrics[metric]['tile']:
-                    # If only one outcome, log to metrics/val/epoch/[metric].
-                    # If more than one outcome, log to
-                    # metrics/val/epoch/[metric]/[outcome_name]
-                    def metric_label(s):
-                        if len(metrics[metric]['tile']) == 1:
-                            return f'metrics/val/epoch/{s}_{metric}'
-                        else:
-                            return f'metrics/val/epoch/{s}_{metric}/{outcome}'
-
-                    tile_metric = metrics[metric]['tile'][outcome]
-                    slide_metric = metrics[metric]['slide'][outcome]
-                    patient_metric = metrics[metric]['patient'][outcome]
-
-                    # If only one value for a metric, log to .../[metric]
-                    # If more than one value for a metric (e.g. AUC for each
-                    # category), log to .../[metric]/[i]
-                    sf.util.neptune_utils.list_log(
-                        self.neptune_run,
-                        metric_label('tile'),
-                        tile_metric,
-                        step=epoch
-                    )
-                    sf.util.neptune_utils.list_log(
-                        self.neptune_run,
-                        metric_label('slide'),
-                        slide_metric,
-                        step=epoch
-                    )
-                    sf.util.neptune_utils.list_log(
-                        self.neptune_run,
-                        metric_label('patient'),
-                        patient_metric,
-                        step=epoch
-                    )
 
 
 class Trainer:
@@ -1004,10 +1048,8 @@ class Trainer:
         hp: ModelParams,
         outdir: str,
         labels: Dict[str, Any],
-        patients: Dict[str, str],
         slide_input: Optional[Dict[str, Any]] = None,
         name: str = 'Trainer',
-        manifest: Optional[Dict[str, int]] = None,
         feature_sizes: Optional[List[int]] = None,
         feature_names: Optional[List[str]] = None,
         outcome_names: Optional[List[str]] = None,
@@ -1017,7 +1059,8 @@ class Trainer:
         use_neptune: bool = False,
         neptune_api: Optional[str] = None,
         neptune_workspace: Optional[str] = None,
-        load_method: str = 'full'
+        load_method: str = 'full',
+        custom_objects: Optional[Dict[str, Any]] = None,
     ) -> None:
 
         """Sets base configuration, preparing model inputs and outputs.
@@ -1027,15 +1070,10 @@ class Trainer:
             outdir (str): Path for event logs and checkpoints.
             labels (dict): Dict mapping slide names to outcome labels (int or
                 float format).
-            patients (dict): Dict mapping slide names to patient ID, as some
-                patients may have multiple slides. If not provided, assumes 1:1
-                mapping between slide names and patients.
             slide_input (dict): Dict mapping slide names to additional
                 slide-level input, concatenated after post-conv.
             name (str, optional): Optional name describing the model, used for
                 model saving. Defaults to 'Trainer'.
-            manifest (dict, optional): Manifest dictionary mapping TFRecords to
-                number of tiles. Defaults to None.
             feature_sizes (list, optional): List of sizes of input features.
                 Required if providing additional input features as input to
                 the model.
@@ -1063,6 +1101,8 @@ class Trainer:
                 Defaults to None.
             neptune_workspace (str, optional): Neptune workspace.
                 Defaults to None.
+            custom_objects (dict, Optional): Dictionary mapping names
+                (strings) to custom classes or functions. Defaults to None.
         """
 
         if load_method not in ('full', 'weights'):
@@ -1070,7 +1110,6 @@ class Trainer:
                              "either 'full' or 'weights'.")
 
         self.outdir = outdir
-        self.manifest = manifest
         self.tile_px = hp.tile_px
         self.labels = labels
         self.hp = hp
@@ -1086,11 +1125,8 @@ class Trainer:
         self.annotations_tables = []
         self.eval_callback = _PredictionAndEvaluationCallback  # type: tf.keras.callbacks.Callback
         self.load_method = load_method
-
-        if patients:
-            self.patients = patients
-        else:
-            self.patients = {s: s for s in self.slides}
+        self.custom_objects = custom_objects
+        self.patients = dict()
 
         if not os.path.exists(outdir):
             os.makedirs(outdir)
@@ -1271,6 +1307,17 @@ class Trainer:
         self.model.layers[0].trainable = True
         return toplayer_model.history
 
+    def _detect_patients(self, *args):
+        self.patients = dict()
+        for dataset in args:
+            if dataset is None:
+                continue
+            dataset_patients = dataset.patients()
+            if not dataset_patients:
+                self.patients.update({s: s for s in self.slides})
+            else:
+                self.patients.update(dataset_patients)
+
     def _interleave_kwargs(self, **kwargs) -> Dict[str, Any]:
         args = SimpleNamespace(
             labels=self._parse_tfrecord_labels,
@@ -1305,7 +1352,11 @@ class Trainer:
                     dataset.img_format))
 
     def load(self, model: str) -> tf.keras.Model:
-        self.model = load(model, method=self.load_method)
+        self.model = load(
+            model,
+            method=self.load_method,
+            custom_objects=self.custom_objects
+        )
 
     def predict(
         self,
@@ -1349,6 +1400,8 @@ class Trainer:
         if format not in ('csv', 'feather', 'parquet'):
             raise ValueError(f"Unrecognized format {format}")
 
+        self._detect_patients(dataset)
+
         # Verify image format
         self._verify_img_format(dataset)
 
@@ -1373,6 +1426,7 @@ class Trainer:
                 augment=False
             )
             tf_dts_w_slidenames = dataset.tensorflow(
+                incl_loc=True,
                 incl_slidenames=True,
                 from_wsi=from_wsi,
                 roi_method=roi_method,
@@ -1434,6 +1488,8 @@ class Trainer:
             if not isinstance(uq, bool):
                 raise ValueError(f"Unrecognized value {uq} for uq")
             self.hp.uq = uq
+
+        self._detect_patients(dataset)
 
         # Verify image format
         self._verify_img_format(dataset)
@@ -1614,6 +1670,8 @@ class Trainer:
             raise errors.ModelError(f"Incompatible models: {hp_model} (hp) and "
                                     f"{self._model_type} (model)")
 
+        self._detect_patients(train_dts, val_dts)
+
         # Clear prior Tensorflow graph to free memory
         tf.keras.backend.clear_session()
         results_log = os.path.join(self.outdir, 'results_log.csv')
@@ -1783,7 +1841,8 @@ class Trainer:
                 save_predictions=save_predictions,
                 save_model=save_model,
                 results_log=results_log,
-                reduce_method=reduce_method
+                reduce_method=reduce_method,
+                log_frequency=log_frequency
             )
 
             # Create callbacks for early stopping, checkpoint saving,
@@ -1798,11 +1857,15 @@ class Trainer:
                 )
                 callbacks += [cp_callback]
             if use_tensorboard:
+                log.debug(
+                    "Logging with Tensorboard to {} every {} batches.".format(
+                        self.outdir, log_frequency
+                    ))
                 tensorboard_callback = tf.keras.callbacks.TensorBoard(
                     log_dir=self.outdir,
                     histogram_freq=0,
                     write_graph=False,
-                    update_freq=log_frequency
+                    update_freq='batch'
                 )
                 callbacks += [tensorboard_callback]
 
@@ -1817,8 +1880,9 @@ class Trainer:
                     callbacks=None,
                     epochs=self.hp.toplayer_epochs
                 )
-            # Train the model
             self._compile_model()
+
+            # Train the model
             log.info('Beginning training')
             try:
                 self.model.fit(
@@ -2444,7 +2508,10 @@ class UncertaintyInterface(Features):
             return logits, uncertainty
 
 
-def load(path: str, method: str = 'full'):
+def load(
+    path: str,
+    method: str = 'full',
+    custom_objects: Optional[Dict[str, Any]] = None,):
     """Load Tensorflow model from location.
 
     Args:
@@ -2457,6 +2524,8 @@ def load(path: str, method: str = 'full'):
             ``Model.load_weights()``. Loading with 'full' may improve
             compatibility across Slideflow versions. Loading with 'weights'
             may improve compatibility across hardware & environments.
+        custom_objects (dict, Optional): Dictionary mapping names
+            (strings) to custom classes or functions. Defaults to None.
 
     Returns:
         tf.keras.models.Model: Loaded model.
@@ -2466,7 +2535,7 @@ def load(path: str, method: str = 'full'):
                          "either 'full' or 'weights'")
     log.debug(f"Loading model with method='{method}'")
     if method == 'full':
-        return tf.keras.models.load_model(path)
+        return tf.keras.models.load_model(path, custom_objects=custom_objects)
     else:
         config = sf.util.get_model_config(path)
         hp = ModelParams.from_dict(config['hp'])

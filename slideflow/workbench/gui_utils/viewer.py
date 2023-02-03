@@ -45,7 +45,7 @@ class Viewer:
         self.height             = height
         self.bilinear           = bilinear
         self.mipmap             = mipmap
-        self.view_zoom          = 1,
+        self.view_zoom          = 1
         self.viz                = viz
 
         # Window offset for the display
@@ -68,7 +68,7 @@ class Viewer:
 
     @property
     def view_offset(self) -> Tuple[int, int]:
-        """Offset for the displayed thumbnail in the viewer."""
+        """Offset for the image being displayed in the viewer."""
         if self.view is not None:
             return ((self.width - self.view.shape[1]) / 2,
                     (self.height - self.view.shape[0]) / 2)
@@ -322,7 +322,17 @@ class Viewer:
     def set_tile_um(self, tile_um):
         self._tile_um = tile_um
 
-    def update_offset(self, x_offset: int, y_offset: int) -> None:
+    def update(self, width: int, height: int, x_offset: int, y_offset: int, **kwargs) -> None:
+        should_refresh = ((width, height, x_offset, y_offset)
+                          != (self.width, self.height, self.x_offset, self.y_offset))
+        self.width = width
+        self.height = height
+        self.x_offset = x_offset
+        self.y_offset = y_offset
+        if should_refresh:
+            self.refresh_view()
+
+    def update_offset(self, x_offset: int, y_offset: int, refresh: bool = False) -> None:
         """Update the window offset.
 
         Args:
@@ -333,7 +343,8 @@ class Viewer:
         """
         self.x_offset = x_offset
         self.y_offset = y_offset
-        self.refresh_view()
+        if refresh:
+            self.refresh_view()
 
     def wsi_coords_to_display_coords(
         self,

@@ -11,14 +11,15 @@ Slideflow Documentation
 
 Slideflow includes tools for efficient whole-slide image processing, easy and highly customizable model training with uncertainty quantification (UQ), and a number of functional tools to assist with analysis and interpretability, including predictive heatmaps, mosaic maps, GANs, saliency maps, and more. It is built with both `Tensorflow/Keras <https://www.tensorflow.org/>`_ and `PyTorch <https://pytorch.org>`_ backends, with fully cross-compatible TFRecord data storage.
 
-The ``slideflow`` package includes a ``Project`` class to help coordinate project organization and supervise execution of the pipeline.  This documentation starts with a high-level overview of the pipeline, and will include examples of how to execute functions using the ``Project`` class. We also provide several tutorials with examples of how Slideflow can be used on your own data.
+The ``slideflow`` package includes a ``Project`` class to help coordinate project organization and supervise execution of the pipeline.  This documentation starts with a high-level overview of the pipeline, and will include examples of how to perform common tasks using the ``Project`` class. We also provide several tutorials with examples of how Slideflow can be used on your own data.
 
 .. toctree::
    :maxdepth: 2
-   :caption: Overview
+   :caption: Introduction
 
    installation
-   pipeline
+   overview
+   quickstart
    project_setup
    validation
    extract_tiles
@@ -34,7 +35,7 @@ The ``slideflow`` package includes a ``Project`` class to help coordinate projec
 
 .. toctree::
    :maxdepth: 1
-   :caption: Source
+   :caption: API
 
    project
    dataset
