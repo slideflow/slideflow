@@ -86,21 +86,17 @@ class Project:
             slideflow.errors.ProjectError: if project folder does not exist,
                 or the folder exists but kwargs are provided.
         """
-
         self.root = root
-
         if sf.util.is_project(root) and kwargs:
             raise errors.ProjectError(f"Project already exists at {root}")
         elif sf.util.is_project(root):
             self.load_project(root)
-        elif kwargs:
+        else:
             log.info(f"Creating project at {root}...")
             self._settings = project_utils._project_config(**kwargs)
             if not exists(root):
                 os.makedirs(root)
             self.save()
-        else:
-            raise errors.ProjectError(f"Project folder {root} does not exist.")
 
         # Create directories, if not already made
         if not exists(self.models_dir):
@@ -539,6 +535,7 @@ class Project:
         outcomes: List[str],
         val_settings: SimpleNamespace,
         ctx: multiprocessing.context.BaseContext,
+        dataset: Optional[sf.Dataset],
         filters: Optional[Dict],
         filter_blank: Optional[Union[str, List[str]]],
         input_header: Optional[Union[str, List[str]]],
@@ -592,7 +589,17 @@ class Project:
             input_header = [input_header]
         if input_header is not None:
             filter_blank += input_header
-        dataset = self.dataset(hp.tile_px, hp.tile_um)
+        if dataset is None:
+            dataset = self.dataset(hp.tile_px, hp.tile_um)
+        else:
+            if dataset.tile_px != hp.tile_px or dataset.tile_um != hp.tile_um:
+                raise errors.ModelParamsError(
+                    "Dataset tile size (px={}, um={}) does not match provided "
+                    "hyperparameters (px={}, um={})".format(
+                        dataset.tile_px, dataset.tile_um,
+                        hp.tile_px, hp.tile_um
+                    )
+                )
         dataset = dataset.filter(
             filters=filters,
             filter_blank=filter_blank,
@@ -728,14 +735,23 @@ class Project:
             print()
         log.info(f'Training model [bold]{s_args.model_name}[/]{k_msg}...')
         log.info(f'Hyperparameters: {hp}')
-        log.info(f'Val settings: {json.dumps(vars(val_settings), indent=2)}')
+        if val_settings.dataset:
+            log.info(f'Val settings: <Dataset manually provided>')
+        else:
+            log.info(f'Val settings: {json.dumps(vars(val_settings), indent=2)}')
 
         # --- Set up validation data ------------------------------------------
         from_wsi = ('from_wsi' in s_args.training_kwargs
                     and s_args.training_kwargs['from_wsi'])
 
         # Use an external validation dataset if supplied
-        if val_settings.source:
+        if val_settings.dataset:
+            train_dts = dataset
+            val_dts = val_settings.dataset
+            is_float = (hp.model_type() in ['linear', 'cph'])
+            val_labels, _ = val_dts.labels(s_args.outcomes, use_float=is_float)
+            s_args.labels.update(val_labels)
+        elif val_settings.source:
             train_dts = dataset
             val_dts = Dataset(
                 tile_px=hp.tile_px,
@@ -3099,6 +3115,7 @@ class Project:
                       List[ModelParams],
                       Dict[str, ModelParams]],
         *,
+        dataset: Optional[sf.Dataset] = None,
         exp_label: Optional[str] = None,
         filters: Optional[Dict] = None,
         filter_blank: Optional[Union[str, List[str]]] = None,
@@ -3298,6 +3315,7 @@ class Project:
                 outcomes=outcomes,
                 val_settings=val_settings,
                 ctx=ctx,
+                dataset=dataset,
                 filters=filters,
                 filter_blank=filter_blank,
                 input_header=input_header,
@@ -3547,12 +3565,13 @@ class Project:
 
 # -----------------------------------------------------------------------------
 
-def create(self, *args, **kwargs):
-    return create_project(*args, **kwargs)
+def load(root: str) -> "Project":
+    """Load a project at the given root directory."""
+    return Project(root)
 
-def create_project(
+def create(
     root: str,
-    cfg: Union[str, Dict],
+    cfg: Optional[Union[str, Dict]] = None,
     *,
     download: bool = False,
     md5: bool = False,
@@ -3595,10 +3614,21 @@ def create_project(
         tfrecords (str): Set the destination for TFRecords. This has higher
             priority than the supplied configuration, which will be ignored.
         roi_dest (str): Set the destination folder for ROIs.
+        dataset_config (str): Path to dataset configuration JSON file for the
+            project. Defaults to './datasets.json'.
+        sources (list(str)): List of dataset sources to include in project.
+            Defaults to 'MyProject'.
+        models_dir (str): Path to directory in which to save models.
+            Defaults to './models'.
+        eval_dir (str): Path to directory in which to save evaluations.
+            Defaults to './eval'.
 
     Returns:
         slideflow.Project
     """
+    cfg_names = ('annotations', 'name', 'slides', 'tiles', 'tfrecords', 'roi_dest')
+    proj_kwargs = {k:v for k,v in kwargs.items() if k not in cfg_names}
+    kwargs = {k:v for k,v in kwargs.items() if k in cfg_names}
 
     # Initial verification
     if sf.util.is_project(root):
@@ -3615,10 +3645,10 @@ def create_project(
             cfg.annotations = join(dirname(cfg_path), cfg.annotations)
         if 'rois' in cfg and exists(join(dirname(cfg_path), cfg.rois)):
             cfg.rois = join(dirname(cfg_path), cfg.rois)
+    elif cfg is None:
+        cfg = sf.util.EasyDict(kwargs)
     elif issubclass(cfg, project_utils._ProjectConfig):
         cfg = sf.util.EasyDict(cfg.to_dict())
-    if 'annotations' not in cfg:
-        raise ValueError("'annotations' must be provided in configuration.")
     if 'name' not in cfg:
         cfg.name = "MyProject"
     if 'slides' not in cfg:
@@ -3634,15 +3664,17 @@ def create_project(
 
     # Set up project at the given directory.
     log.info(f"Setting up project at {root}")
-    annotation_dest = join(root, basename(cfg.annotations))
-    P = sf.Project(root, annotations=annotation_dest)
+    if 'annotations' in cfg:
+        proj_kwargs['annotations'] = join(root, basename(cfg.annotations))
+    P = sf.Project(root, **proj_kwargs)
     # Download annotations, if a URL.
-    if cfg.annotations.startswith('http'):
+    if 'annotations' in cfg and cfg.annotations.startswith('http'):
+        log.info(f"Downloading {cfg.annotations}")
         r = requests.get(cfg.annotations)
-        open(annotation_dest, 'wb').write(r.content)
-        if cfg.annotations_md5 != sf.util.md5(annotation_dest):
+        open(proj_kwargs['annotations'], 'wb').write(r.content)
+        if cfg.annotations_md5 != sf.util.md5(proj_kwargs['annotations']):
             raise errors.ChecksumError("Remote annotations URL failed MD5 checksum.")
-    else:
+    elif 'annotations' in cfg:
         shutil.copy(cfg.annotations, root)
     P.add_source(
         cfg.name,
@@ -3650,6 +3682,10 @@ def create_project(
         roi=cfg.roi_dest,
         tiles=cfg.tiles,
         tfrecords=cfg.tfrecords)
+
+    # Create blank annotations file, if not provided.
+    if not exists(P.annotations):
+        P.create_blank_annotations()
 
     # Set up ROIs, if provided.
     if 'rois' in cfg and not exists(cfg.roi_dest):

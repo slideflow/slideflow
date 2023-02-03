@@ -2781,16 +2781,16 @@ class Dataset:
         **kwargs: Any
     ) -> Tuple["Dataset", "Dataset"]:
         log.warn(
-            "Dataset.training_validation_split() moved to train_val_split()"
-            ", please update."
+            "Dataset.training_validation_split() is deprecated and will be "
+            "removed in a future version. Please use Dataset.train_val_split()"
         )
         return self.train_val_split(*args, **kwargs)
 
     def train_val_split(
         self,
         model_type: str,
-        labels: Dict,
-        val_strategy: str,
+        labels: Union[Dict, str],
+        val_strategy: str = 'fixed',
         splits: Optional[str] = None,
         val_fraction: Optional[float] = None,
         val_k_fold: Optional[int] = None,
@@ -2809,10 +2809,11 @@ class Dataset:
 
         Args:
             model_type (str): Either 'categorical' or 'linear'.
-            labels (dict):  Dictionary mapping slides to labels. Used for
-                balancing outcome labels in training and validation cohorts.
+            labels (dict):  Either a ictionary mapping slides to labels, or
+                an outcome label (``str``). Used for balancing outcome labels
+                in training and validation cohorts.
             val_strategy (str): Either 'k-fold', 'k-fold-preserved-site',
-                'bootstrap', or 'fixed'.
+                'bootstrap', or 'fixed'. Defaults to 'fixed'.
             splits (str, optional): Path to JSON file containing validation
                 splits. Defaults to None.
             outcome_key (str, optional): Key indicating outcome label in
@@ -2860,6 +2861,8 @@ class Dataset:
             raise errors.DatasetSplitError(
                 f"Must supply val_fraction for strategy {val_strategy}"
             )
+        if isinstance(labels, str):
+            labels = self.labels(labels)[0]
 
         # Prepare dataset
         patients = self.patients()

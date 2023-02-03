@@ -210,7 +210,15 @@ def get_validation_settings(**kwargs: Any) -> SimpleNamespace:
         'source': None,
         'annotations': None,
         'filters': None,
+        'dataset': None,
     }
+    if 'dataset' in kwargs and len(kwargs) > 1:
+        raise ValueError(
+            "Cannot supply validation dataset settings if val_dataset "
+            "is supplied. Got: {}".format(
+                ', '.join(['val_'+k for k in kwargs.keys() if k != 'dataset'])
+            )
+        )
     for k in kwargs:
         if k not in args_dict:
             raise ValueError(f"Unrecognized validation setting {k}")
@@ -892,6 +900,7 @@ class _ProjectConfig:
     @classmethod
     def to_dict(cls):
         with tempfile.TemporaryDirectory() as temp_dir:
+            log.info(f"Downloading {cls.config_url}")
             r = requests.get(cls.config_url, allow_redirects=True)
             config_dest = join(temp_dir, 'config.json')
             open(config_dest, 'wb').write(r.content)
