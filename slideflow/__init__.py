@@ -68,6 +68,6 @@ from slideflow.dataset import Dataset
 from slideflow.heatmap import Heatmap
 from slideflow.model import DatasetFeatures, ModelParams
 from slideflow.mosaic import Mosaic
-from slideflow.project import Project
+from slideflow.project import Project, create_project
 from slideflow.slide import TMA, WSI
 from slideflow.stats import SlideMap

@@ -171,3 +171,6 @@ class ModelParamsNotFoundError(Exception):
 
 class SMACError(Exception):
     pass
+
+class ChecksumError(Exception):
+    pass

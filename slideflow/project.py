@@ -1,6 +1,7 @@
 import copy
 import csv
 import itertools
+import requests
 import shutil
 import json
 import multiprocessing
@@ -25,7 +26,8 @@ from .util import log, path_to_name, path_to_ext
 from .dataset import Dataset
 from .model import ModelParams
 from .project_utils import (auto_dataset, get_validation_settings,
-                            get_first_nested_directory, get_matching_directory)
+                            get_first_nested_directory, get_matching_directory,
+                            BreastER, ThyroidBRS, LungAdenoSquam)
 
 if TYPE_CHECKING:
     from slideflow.model import DatasetFeatures, Trainer
@@ -3545,7 +3547,10 @@ class Project:
 
 # -----------------------------------------------------------------------------
 
-def create(
+def create(self, *args, **kwargs):
+    return create_project(*args, **kwargs)
+
+def create_project(
     root: str,
     cfg: Union[str, Dict],
     *,
@@ -3610,6 +3615,8 @@ def create(
             cfg.annotations = join(dirname(cfg_path), cfg.annotations)
         if 'rois' in cfg and exists(join(dirname(cfg_path), cfg.rois)):
             cfg.rois = join(dirname(cfg_path), cfg.rois)
+    elif issubclass(cfg, project_utils._ProjectConfig):
+        cfg = sf.util.EasyDict(cfg.to_dict())
     if 'annotations' not in cfg:
         raise ValueError("'annotations' must be provided in configuration.")
     if 'name' not in cfg:
@@ -3627,8 +3634,16 @@ def create(
 
     # Set up project at the given directory.
     log.info(f"Setting up project at {root}")
-    P = sf.Project(root, annotations=join(root, basename(cfg.annotations)))
-    shutil.copy(cfg.annotations, root)
+    annotation_dest = join(root, basename(cfg.annotations))
+    P = sf.Project(root, annotations=annotation_dest)
+    # Download annotations, if a URL.
+    if cfg.annotations.startswith('http'):
+        r = requests.get(cfg.annotations)
+        open(annotation_dest, 'wb').write(r.content)
+        if cfg.annotations_md5 != sf.util.md5(annotation_dest):
+            raise errors.ChecksumError("Remote annotations URL failed MD5 checksum.")
+    else:
+        shutil.copy(cfg.annotations, root)
     P.add_source(
         cfg.name,
         slides=cfg.slides,

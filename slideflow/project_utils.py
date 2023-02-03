@@ -2,6 +2,8 @@
 
 import re
 import os
+import requests
+import tempfile
 import logging
 import pandas as pd
 from collections import defaultdict
@@ -880,3 +882,40 @@ def interactive_project_setup(project_folder: str) -> Dict:
             actions_file.write(sample_actions)
     log.info('Project configuration saved.')
     return settings
+
+# -----------------------------------------------------------------------------
+
+class _ProjectConfig:
+    def __init__(self):
+        pass
+
+    @classmethod
+    def to_dict(cls):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            r = requests.get(cls.config_url, allow_redirects=True)
+            config_dest = join(temp_dir, 'config.json')
+            open(config_dest, 'wb').write(r.content)
+            if sf.util.md5(config_dest) != cls.config_md5:
+                raise errors.ChecksumError("Remote config URL failed MD5 checksum.")
+            config = sf.util.load_json(config_dest)
+        config['annotations'] = cls.labels_url
+        config['annotations_md5'] = cls.labels_md5
+        return config
+
+class BreastER(_ProjectConfig):
+    config_url = 'https://raw.githubusercontent.com/jamesdolezal/slideflow/1.4.3/datasets/breast_er/breast_er.json'
+    config_md5 = '6732f7e2473e2d58bc88a7aca1f0e770'
+    labels_url = 'https://raw.githubusercontent.com/jamesdolezal/slideflow/1.4.3/datasets/breast_er/breast_labels.csv'
+    labels_md5 = 'e25028e87760749973ceea691e6d63d7'
+
+class ThyroidBRS(_ProjectConfig):
+    config_url = 'https://raw.githubusercontent.com/jamesdolezal/slideflow/dev/datasets/thyroid_brs/thyroid_brs.json'
+    config_md5 = 'c4fbe83766db8f637780f7881cb1045e'
+    labels_url = 'https://raw.githubusercontent.com/jamesdolezal/slideflow/dev/datasets/thyroid_brs/thyroid_labels.csv'
+    labels_md5 = 'c04f2569dc3a914241fae0d0b644a327'
+
+class LungAdenoSquam(_ProjectConfig):
+    config_url = 'https://raw.githubusercontent.com/jamesdolezal/slideflow/dev/datasets/lung_adeno_squam/lung_adeno_squam.json'
+    config_md5 = '9239d18b66e054132700c08831560669'
+    labels_url = 'https://raw.githubusercontent.com/jamesdolezal/slideflow/dev/datasets/lung_adeno_squam/lung_labels.csv'
+    labels_md5 = '6619d520d707e211b22b477996bcfdcd'
