@@ -49,11 +49,8 @@ if __name__=='__main__':
         formatter_class=argparse.RawTextHelpFormatter
     )
     parser.add_argument(
-        '-p', '--project', required=False, default='/mnt/data/PROJECTS/UPenn_debug', help='Path to project directory.'
+        '-p', '--project', required=True, help='Path to project directory.'
     )
-    # parser.add_argument(
-    #     '-p', '--project', required=True, help='Path to project directory.'
-    # )
     parser.add_argument(
         '-n', '--neptune', action="store_true", help="Use Neptune logger."
     )
