@@ -373,16 +373,11 @@ class DatasetFeatures:
                 layers=layers
             )
         elif is_simclr:
-            import tensorflow as tf
-            from slideflow.simclr import SimCLR
-            combined_model = SimCLR(2)
-            combined_model.num_features = 128
-            combined_model.num_logits = 2
-            checkpoint = tf.train.Checkpoint(
-                model=combined_model,
-                global_step=tf.Variable(0, dtype=tf.int64)
-            )
-            checkpoint.restore(model).expect_partial()
+            from slideflow import simclr
+            simclr_args = simclr.load_model_args(model)
+            combined_model = simclr.load(model)
+            combined_model.num_features = simclr_args.proj_out_dim
+            combined_model.num_logits = simclr_args.num_classes
         elif isinstance(model, str):
             combined_model = sf.model.Features(model, **feat_kw)
         elif sf.model.is_tensorflow_model(model):
@@ -415,9 +410,8 @@ class DatasetFeatures:
             'normalizer': self.normalizer
         }
         if is_simclr:
-            from slideflow.simclr import SlideflowBuilder, build_distributed_dataset
-            strategy = tf.distribute.OneDeviceStrategy('gpu:0')
-            builder = SlideflowBuilder(
+            from slideflow import simclr
+            builder = simclr.DatasetBuilder(
                 val_dts=self.dataset,
                 dataset_kwargs=dict(
                     incl_slidenames=True,
@@ -425,8 +419,10 @@ class DatasetFeatures:
                     normalizer=self.normalizer
                 )
             )
-            dataloader = build_distributed_dataset(
-                builder, batch_size, False, strategy, None
+            dataloader = builder.build_dataset(
+                batch_size,
+                is_training=False,
+                simclr_args=simclr_args
             )
         elif sf.model.is_tensorflow_model(model):
             dataloader = self.dataset.tensorflow(
@@ -496,7 +492,7 @@ class DatasetFeatures:
                 for d, slide in enumerate(decoded_slides):
                     if layers:
                         self.activations[slide].append(batch_act[d])
-                    if include_logits:
+                    if include_logits and logits is not None:
                         self.logits[slide].append(logits[d])
                     if self.uq and include_uncertainty:
                         self.uncertainty[slide].append(uncertainty[d])

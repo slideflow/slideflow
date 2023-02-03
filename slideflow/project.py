@@ -32,6 +32,7 @@ from .project_utils import (auto_dataset, get_validation_settings,
 if TYPE_CHECKING:
     from slideflow.model import DatasetFeatures, Trainer
     from slideflow.slide import SlideReport
+    from slideflow import simclr
     from ConfigSpace import ConfigurationSpace, Configuration
     from smac.facade.smac_bb_facade import SMAC4BB
 
@@ -3352,6 +3353,69 @@ class Project:
                     for m in final_val_metrics:
                         log.info(f'{m}: {final_val_metrics[m]}')
         return dict(results_dict)
+
+    def train_simclr(
+        self,
+        exp_name: str,
+        train_dataset: Dataset,
+        val_dataset: Optional[Dataset] = None,
+        *,
+        outcomes: Optional[Union[str, List[str]]] = None,
+        simclr_args: Optional["simclr.SimCLR_Args"] = None,
+        **kwargs
+    ) -> None:
+        """Train SimCLR model, saved in SimCLR/{exp_name}/models
+            directory
+
+        Args:
+            exp_name (str): Name of experiment. Makes SimCLR/{exp_name} folder.]
+            outcomes (str): Annotation column which specifies the outcome.
+            dataset (:class:`slideflow.dataset.Dataset`): Dataset object from
+                which to generate activations.
+            val_fraction (float):
+            splits (str): splits file name, if exists the splits defined are
+                used otherwise it is created
+            simCLR_args (optional): Namespace with SimCLR arguments, as provided
+                by :func:`slideflow.simclr.get_args`.
+
+        Keyword Args:
+            All other keyword arguments for :meth:`slideflow.simclr.run_simclr()`
+
+        Returns:
+            None
+
+        Examples
+            Train SimCLR with train_batch_size=256 and no TPU
+
+                >>> import slideflow.simclr as simclr
+                >>> P = sf.Project.from_prompt('/project/path')
+                >>> simclr_args = simclr.get_args(train_batch_size=256)
+                >>> dataset = P.dataset(tile_px=299, tile_um=302)
+                >>> P.train_simclr('name', 'outcomes', dataset,
+                ...     simclr_args=simclr_args, use_tpu=False)
+        """
+
+        from slideflow import simclr
+
+        # Set up SimCLR experiment data directory
+        simclr_dir = join(self.root, 'simclr', exp_name)
+        if not exists(simclr_dir):
+            os.makedirs(simclr_dir)
+
+        # get base SimCLR args/settings if not provided
+        if not simclr_args:
+            simclr_args = simclr.get_args()
+        assert isinstance(simclr_args, simclr.SimCLR_Args)
+
+        # Create dataset builder, which SimCLR will use to create
+        # the input pipeline for training
+        builder = simclr.DatasetBuilder(
+            train_dts=train_dataset,
+            val_dts=val_dataset,
+            labels=outcomes,
+        )
+        simclr.run_simclr(simclr_args, builder, model_dir=simclr_dir, **kwargs)
+
 
     def train_clam(
         self,
