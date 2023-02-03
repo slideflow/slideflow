@@ -1,5 +1,5 @@
-Pipeline Overview
-=================
+Overview
+========
 
 .. figure:: overview.png
 

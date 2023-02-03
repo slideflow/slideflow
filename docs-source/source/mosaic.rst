@@ -1,5 +1,7 @@
 .. currentmodule:: slideflow.mosaic
 
+.. _mosaic:
+
 slideflow.mosaic
 ================
 

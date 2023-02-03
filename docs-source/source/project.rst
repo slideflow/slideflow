@@ -1,5 +1,7 @@
 .. currentmodule:: slideflow
 
+.. _project:
+
 slideflow.Project
 =================
 
