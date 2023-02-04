@@ -107,6 +107,13 @@ class TestSuite:
         # Rebuild tfrecord indices
         self.project.dataset(self.tile_px, 1208).build_index(True)
 
+        # Set up training keyword arguments.
+        self.train_kwargs = dict(
+            validate_on_batch=5,
+            steps_per_epoch_override=50,
+            save_predictions=True
+        )
+
     def _get_model(self, name: str, epoch: int = 1) -> str:
         assert self.project is not None
         prev_run_dirs = [
@@ -326,9 +333,6 @@ class TestSuite:
                     exp_label='manual_hp',
                     outcomes='category1',
                     val_k=1,
-                    validate_on_batch=10,
-                    save_predictions=True,
-                    steps_per_epoch_override=20,
                     params='sweep.json',
                     pretrain=None,
                     **train_kwargs
@@ -374,6 +378,9 @@ class TestSuite:
                 additional slide-level input. Defaults to True.
         """
         assert self.project is not None
+        for k in self.train_kwargs:
+            if k not in train_kwargs:
+                train_kwargs[k] = self.train_kwargs[k]
         # Disable checkpoints for tensorflow backend, to save disk space
         if (sf.backend() == 'tensorflow'
            and 'save_checkpoints' not in train_kwargs):
@@ -408,9 +415,6 @@ class TestSuite:
                             outcomes='category1',
                             val_k=1,
                             params=hp,
-                            validate_on_batch=10,
-                            steps_per_epoch_override=20,
-                            save_predictions=True,
                             pretrain=None,
                             **resume_kw,
                             **train_kwargs
@@ -436,9 +440,6 @@ class TestSuite:
                         outcomes='category1',
                         val_k=1,
                         params=hp,
-                        validate_on_batch=10,
-                        steps_per_epoch_override=20,
-                        save_predictions=True,
                         pretrain=to_resume,
                         **train_kwargs
                     )
@@ -455,9 +456,6 @@ class TestSuite:
                         outcomes=['category1', 'category2'],
                         val_k=1,
                         params=self.setup_hp('categorical'),
-                        validate_on_batch=10,
-                        steps_per_epoch_override=20,
-                        save_predictions=True,
                         pretrain=None,
                         **train_kwargs
                     )
@@ -474,9 +472,6 @@ class TestSuite:
                         outcomes=['linear1'],
                         val_k=1,
                         params=self.setup_hp('linear'),
-                        validate_on_batch=10,
-                        steps_per_epoch_override=20,
-                        save_predictions=True,
                         pretrain=None,
                         **train_kwargs
                     )
@@ -493,9 +488,6 @@ class TestSuite:
                         outcomes=['linear1', 'linear2'],
                         val_k=1,
                         params=self.setup_hp('linear'),
-                        validate_on_batch=10,
-                        steps_per_epoch_override=20,
-                        save_predictions=True,
                         pretrain=None,
                         **train_kwargs
                     )
@@ -514,9 +506,6 @@ class TestSuite:
                         input_header='category2',
                         params=self.setup_hp('categorical'),
                         val_k=1,
-                        validate_on_batch=10,
-                        steps_per_epoch_override=20,
-                        save_predictions=True,
                         pretrain=None,
                         **train_kwargs
                     )
@@ -535,9 +524,6 @@ class TestSuite:
                             input_header='event',
                             params=self.setup_hp('cph'),
                             val_k=1,
-                            validate_on_batch=10,
-                            steps_per_epoch_override=20,
-                            save_predictions=True,
                             pretrain=None,
                             **train_kwargs
                         )
@@ -558,9 +544,6 @@ class TestSuite:
                             input_header=['event', 'category1'],
                             params=self.setup_hp('cph'),
                             val_k=1,
-                            validate_on_batch=10,
-                            steps_per_epoch_override=20,
-                            save_predictions=True,
                             pretrain=None,
                             **train_kwargs
                         )
@@ -581,9 +564,6 @@ class TestSuite:
                         outcomes='category1',
                         val_k=1,
                         params=hp,
-                        validate_on_batch=10,
-                        steps_per_epoch_override=20,
-                        save_predictions=True,
                         from_wsi=True,
                         pretrain=None,
                         **train_kwargs
