@@ -9,23 +9,11 @@ The :class:`Dataset` class in this module is used to organize dataset sources, R
 clinical annotations, and dataset processing.
 
 Dataset Organization
----------------------
+--------------------
 
 A *source* is a set of slides, corresponding Regions of Interest (ROI) annotations (if available), and any tiles
-extracted from these slides, either as loose tiles or in the binary TFRecord format. Sources are defined in the
-project dataset configuration JSON file, with the following format:
-
-.. code-block:: json
-
-    {
-        "SOURCE":
-        {
-            "slides": "/directory",
-            "roi": "/directory",
-            "tiles": "/directory",
-            "tfrecords": "/directory",
-        }
-    }
+extracted from these slides. Dataset sources are organized in a configuration file when :ref:`working with Projects <dataset_sources>`,
+but can also be manually configured when creating a :class:`Dataset`.
 
 A single *dataset* can have multiple sources. One example of this might be if you were performing a pan-cancer analysis;
 you would likely have a unique source for each cancer subtype, in order to keep each set of slides and tiles distinct.

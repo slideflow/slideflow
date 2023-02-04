@@ -47,6 +47,8 @@ Once a project has been initialized at a directory, you may then load the projec
     import slideflow as sf
     P = sf.load_project('/path/to/project/directory')
 
+.. _dataset_sources:
+
 Dataset Sources
 ***************
 
@@ -79,7 +81,7 @@ It is possible for a project to have multiple dataset sources - for example, you
     )
 
 .. note::
-    See :ref:`dataset` for more information on working with Datasets.
+    Read more about :ref:`working with datasets <dataset>`.
 
 Annotations
 ***********
