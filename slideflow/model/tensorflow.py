@@ -669,11 +669,12 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
     def _log_training_metrics(self, logs):
         """Log training metrics to Tensorboard/Neptune."""
         # Log to Tensorboard.
-        for _log in logs:
-            tf.summary.scalar(
-                f'batch_{_log}',
-                data=logs[_log],
-                step=self.global_step)
+        with self.train_summary_writer.as_default():
+            for _log in logs:
+                tf.summary.scalar(
+                    f'batch_{_log}',
+                    data=logs[_log],
+                    step=self.global_step)
         # Log to neptune.
         if self.neptune_run:
             self.neptune_run['metrics/train/batch/loss'].log(
@@ -919,7 +920,7 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
                 print('\r\033[K', end='')
             self.moving_average += [early_stop_value]
 
-            self._log_validation_metrics(logs)
+            self._log_validation_metrics(val_metrics)
             # Log training metrics if not already logged this batch
             if batch % self.cb_args.log_frequency > 0:
                 self._log_training_metrics(logs)
