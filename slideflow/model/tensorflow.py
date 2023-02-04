@@ -890,10 +890,13 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
                 verbosity='quiet',
             )
             val_metrics = {'loss': loss}
+            val_log_metrics = {'loss': loss}
             if isinstance(acc, float):
                 val_metrics['accuracy'] = acc
+                val_log_metrics['accuracy'] = acc
             elif acc is not None:
                 val_metrics.update({f'accuracy-{i+1}': acc[i] for i in range(len(acc))})
+                val_log_metrics.update({f'out-{i}_accuracy': acc[i] for i in range(len(acc))})
 
             val_loss = val_metrics['loss']
             self.model.stop_training = False
@@ -920,7 +923,7 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
                 print('\r\033[K', end='')
             self.moving_average += [early_stop_value]
 
-            self._log_validation_metrics(val_metrics)
+            self._log_validation_metrics(val_log_metrics)
             # Log training metrics if not already logged this batch
             if batch % self.cb_args.log_frequency > 0:
                 self._log_training_metrics(logs)
