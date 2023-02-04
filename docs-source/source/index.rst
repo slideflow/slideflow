@@ -21,11 +21,11 @@ The ``slideflow`` package includes a ``Project`` class to help coordinate projec
    overview
    quickstart
    project_setup
-   validation
-   extract_tiles
+   datasets_and_val
+   slide_processing
    training
    evaluation
-   layer_activations
+   posthoc
    workbench_tools
    custom_loops
    uq

@@ -76,11 +76,11 @@ We can use the dataset to get our ER status labels. The :meth:`slideflow.Dataset
 
 We can see the slideflow logs showing us that 234 slides with the outcome label "Negative" were assigned to the numerical outcome "0", and 842 "Positive" slides were assigned "1".
 
-Next, we'll need to split this dataset into a training and validation set. We'll start by training on the first of 3 k-folds for cross-validated training. To split a dataset, use the :meth:`slideflow.Dataset.train_val_split` method. We'll need to provide our labels to ensure that the outcome categories are balanced in the training and validation sets.
+Next, we'll need to split this dataset into a training and validation set. We'll start by training on the first of 3 k-folds for cross-validated training. To split a dataset, use the :meth:`slideflow.Dataset.split` method. We'll need to provide our labels to ensure that the outcome categories are balanced in the training and validation sets.
 
 .. code-block:: python
 
-    >>> train_dts, val_dts = dataset.train_val_split(
+    >>> train_dts, val_dts = dataset.split(
     ...   model_type='categorical',
     ...   labels=labels,
     ...   val_strategy='k-fold',

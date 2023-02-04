@@ -52,7 +52,7 @@ Once a project has been initialized at a directory, you may then load the projec
 Dataset Sources
 ***************
 
-A :ref:`dataset source <dataset>` is a collection of slides, Regions of Interest (ROI) annotations (if available), and extracted tiles. Sources are defined in the project dataset configuration file, which can be shared and used across multiple projects or saved locally within a project directory. These configuration files have the following format:
+A :ref:`dataset source <datasets_and_validation>` is a collection of slides, Regions of Interest (ROI) annotations (if available), and extracted tiles. Sources are defined in the project dataset configuration file, which can be shared and used across multiple projects or saved locally within a project directory. These configuration files have the following format:
 
 .. code-block:: bash
 
@@ -68,7 +68,7 @@ A :ref:`dataset source <dataset>` is a collection of slides, Regions of Interest
 
 When a project is created with :func:`slideflow.create_project`, a dataset source is automatically created. You can change where slides and extracted tiles are stored by editing the project's dataset configuration file.
 
-It is possible for a project to have multiple dataset sources - for example, you may choose to organize data from multiple institutions into separate sources. You can add a new dataset source to a project with ``Project.add_dataset()``, which will update the project dataset configuration file accordingly.
+It is possible for a project to have multiple dataset sources - for example, you may choose to organize data from multiple institutions into separate sources. You can add a new dataset source to a project with :meth:`Project.add_source`, which will update the project dataset configuration file accordingly.
 
 .. code-block:: python
 
@@ -80,8 +80,7 @@ It is possible for a project to have multiple dataset sources - for example, you
       tfrecords="/tfrecords/directory"
     )
 
-.. note::
-    Read more about :ref:`working with datasets <dataset>`.
+Read more about :ref:`working with datasets <datasets_and_validation>`.
 
 Annotations
 ***********

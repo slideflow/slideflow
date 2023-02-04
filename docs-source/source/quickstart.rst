@@ -26,7 +26,7 @@ Read more about :ref:`setting up a project on your own data <project_setup>`.
 Data preparation
 ****************
 
-The core imaging data used in Slideflow are image tiles :ref:`extracted from slides <filtering>` at a specific magnification and pixel resolution. Tile extraction and downstream image processing is handled through the primitive :ref:`slideflow.Dataset <dataset>`. We can request a ``Dataset`` at a given tile size from our project using :meth:`slideflow.Project.dataset`. Tile magnification can be specified in microns (as an ``int``) or as optical magnification (e.g. ``'40x'``).
+The core imaging data used in Slideflow are image tiles :ref:`extracted from slides <filtering>` at a specific magnification and pixel resolution. Tile extraction and downstream image processing is handled through the primitive :ref:`slideflow.Dataset <datasets_and_validation>`. We can request a ``Dataset`` at a given tile size from our project using :meth:`slideflow.Project.dataset`. Tile magnification can be specified in microns (as an ``int``) or as optical magnification (e.g. ``'40x'``).
 
 .. code-block:: python
 
@@ -72,6 +72,7 @@ The core imaging data used in Slideflow are image tiles :ref:`extracted from sli
     │ label     │ 299px_10x                        │
     ╘==============================================╛
 
+    Number of tiles in TFRecords: 18354
     Annotation columns:
     Index(['patient', 'subtype', 'site', 'slide'],
         dtype='object')
@@ -91,18 +92,18 @@ Read more about tile extraction and :ref:`slide processing in Slideflow <filteri
 Held-out test sets
 ------------------
 
-Now that we have our dataset and we've completed the initial tile image processing, we'll split the dataset into a training cohort and a held-out test cohort with :meth:`slideflow.Dataset.train_val_split`. We'll split while balancing the outcome ``'subtype'`` equally in the training and test dataset, with 30% of the data retained in the held-out set.
+Now that we have our dataset and we've completed the initial tile image processing, we'll split the dataset into a training cohort and a held-out test cohort with :meth:`slideflow.Dataset.split`. We'll split while balancing the outcome ``'subtype'`` equally in the training and test dataset, with 30% of the data retained in the held-out set.
 
 .. code-block:: python
 
     # Split our dataset into a training and held-out test set.
-    train_dataset, test_dataset = dataset.train_val_split(
+    train_dataset, test_dataset = dataset.split(
         model_type='categorical',
         labels='subtype',
         val_fraction=0.3
     )
 
-Read more about :ref:`Dataset management <dataset>`.
+Read more about :ref:`Dataset management <datasets_and_validation>`.
 
 Configuring models
 ******************
@@ -127,7 +128,7 @@ Training a model
 
 Models can be trained from these hyperparameter configurations using :meth:`Project.train`. Models can be trained to categorical, multi-categorical, continuous, or time-series outcomes, and the training process is :ref:`highly configurable <training>`. In this case, we are training a binary categorization model to predict the outcome ``'subtype'``, and we will distribute training across multiple GPUs.
 
-By default, Slideflow will train/validate on the full dataset using k-fold cross-validation, but validation settings :ref:`can be customized <training>`. If you would like to restrict training to only a subset of your data - for example, to leave a held-out test set untouched - you can manually specify a dataset for training. In this case, we will train on ``train_dataset``, and allow Slideflow to further split this into training and validation using three-fold cross-validation.
+By default, Slideflow will train/validate on the full dataset using k-fold cross-validation, but validation settings :ref:`can be customized <validation_planning>`. If you would like to restrict training to only a subset of your data - for example, to leave a held-out test set untouched - you can manually specify a dataset for training. In this case, we will train on ``train_dataset``, and allow Slideflow to further split this into training and validation using three-fold cross-validation.
 
 .. code-block:: python
 

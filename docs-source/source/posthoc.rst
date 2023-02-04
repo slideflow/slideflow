@@ -1,7 +1,7 @@
 .. currentmodule:: slideflow.model
 
-Features / Layer Activations
-============================
+Post-hoc Analysis
+=================
 
 Once a model has been fully trained and evaluated, you may use the model to generate features from layer activations to gain better insight into the kinds of image features the model has learned.
 

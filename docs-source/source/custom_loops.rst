@@ -53,4 +53,4 @@ or the :meth:`slideflow.Dataset.tensorflow` method to create a ``tf.data.Dataset
         standardize  = True,     # Standardize images
     )
 
-The returned dataloaders can then be used directly with your external applications.
+The returned dataloaders can then be used directly with your external applications. Read more about :ref:`creating and using dataloaders <dataloaders>`.
