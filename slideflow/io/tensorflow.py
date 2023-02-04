@@ -307,7 +307,9 @@ def get_tfrecord_parser(
         features = tf.io.parse_single_example(record, feature_description)
 
         def process_feature(f):
-            if f not in features and error_if_invalid:
+            if f not in features and f in ('loc_x', 'loc_y'):
+                return None
+            elif f not in features and error_if_invalid:
                 raise errors.TFRecordsError(f"Unknown TFRecord feature {f}")
             elif f not in features:
                 return None

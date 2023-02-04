@@ -345,6 +345,7 @@ def eval_from_model(
     y_true, y_pred, tile_to_slides, locations, y_std = [], [], [], [], []
     num_vals, num_batches, num_outcomes, running_loss = 0, 0, 0, 0
     batch_size = 0
+    loc_missing = False
 
     is_cat = (model_type == 'categorical')
     if not is_cat:
@@ -383,7 +384,11 @@ def eval_from_model(
 
         if incl_loc:
             img, yt, slide, loc_x, loc_y = batch
-            locations += [tf.stack([loc_x, loc_y], axis=-1).numpy()]  # type: ignore
+            if not loc_missing and loc_x is None:
+                log.warning("TFrecord location information not found.")
+                loc_missing = True
+            elif not loc_missing:
+                locations += [tf.stack([loc_x, loc_y], axis=-1).numpy()]  # type: ignore
         else:
             img, yt, slide = batch
 
