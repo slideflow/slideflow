@@ -113,6 +113,73 @@ def log_extraction_params(**kwargs) -> None:
         excl = f'(exclude if >={gs_f*100:.0f}% grayspace)'
         log.debug(f'Grayspace defined as HSV avg < {gs_t} {excl}')
 
+def predict(
+    slide: str,
+    model: str,
+    *,
+    stride_div: int = 1,
+    **kwargs
+) -> Tuple[np.ndarray, Optional[np.ndarray]]:
+    """Generate a whole-slide prediction from a saved model.
+
+    Args:
+        slide (str): Path to slide.
+        model (str): Path to saved model trained in Slideflow.
+
+    Keyword args:
+        stride_div (int, optional): Divisor for stride when convoluting
+                across slide. Defaults to 1.
+        roi_dir (str, optional): Directory in which slide ROI is contained.
+            Defaults to None.
+        rois (list, optional): List of paths to slide ROIs. Alternative to
+            providing roi_dir. Defaults to None.
+        roi_method (str): Either 'inside', 'outside', 'auto', or 'ignore'.
+            Determines how ROIs are used to extract tiles.
+            If 'inside' or 'outside', will extract tiles in/out of an ROI,
+            and raise errors.MissingROIError if an ROI is not available.
+            If 'auto', will extract tiles inside an ROI if available,
+            and across the whole-slide if no ROI is found.
+            If 'ignore', will extract tiles across the whole-slide
+            regardless of whether an ROI is available.
+            Defaults to 'auto'.
+        batch_size (int, optional): Batch size for calculating predictions.
+            Defaults to 32.
+        num_threads (int, optional): Number of tile worker threads. Cannot
+            supply both ``num_threads`` (uses thread pool) and
+            ``num_processes`` (uses multiprocessing pool). Defaults to
+            CPU core count.
+        num_processes (int, optional): Number of child processes to spawn
+            for multiprocessing pool. Defaults to None (does not use
+            multiprocessing).
+        enable_downsample (bool, optional): Enable the use of downsampled
+            slide image layers. Defaults to True.
+        img_format (str, optional): Image format (png, jpg) to use when
+            extracting tiles from slide. Must match the image format
+            the model was trained on. If 'auto', will use the format
+            logged in the model params.json. Defaults to 'auto'.
+        generator_kwargs (dict, optional): Keyword arguments passed to
+            the :meth:`slideflow.WSI.build_generator()`.
+        device (torch.device, optional): PyTorch device. Defaults to
+            initializing a new CUDA device.
+
+    Returns:
+        np.ndarray: Predictions for each outcome, with shape = (n_logits, )
+
+        np.ndarray, optional: Uncertainty for each outcome, if the model was
+        trained with uncertainty, with shape = (n_logits,)
+
+    """
+    from slideflow import Heatmap
+    log.info("Calculating whole-slide prediction...")
+    heatmap = Heatmap(slide, model, generate=True, stride_div=stride_div, **kwargs)
+    preds = heatmap.logits.reshape(-1, heatmap.logits.shape[-1])
+    preds = np.ma.masked_where(preds < 0, preds).mean(axis=0).filled()
+    if heatmap.uncertainty is not None:
+        unc = heatmap.uncertainty.reshape(-1, heatmap.uncertainty.shape[-1])
+        unc = np.ma.masked_where(unc < 0, unc).mean(axis=0).filled()
+        return preds, unc
+    else:
+        return preds
 
 class ROI:
     '''Object container for ROI annotations.'''
@@ -1671,6 +1738,63 @@ class WSI(_BaseLoader):
             self.rois.append(ROI(f"Object{len(self.rois)}"))
             self.rois[-1].add_shape(area_reduced)
         return len(self.rois)
+
+    def predict(
+        self,
+        model: str,
+        **kwargs
+    ) -> Tuple[np.ndarray, Optional[np.ndarray]]:
+        """Generate a whole-slide prediction from a saved model.
+
+        Args:
+            model (str): Path to saved model trained in Slideflow.
+
+        Keyword args:
+            batch_size (int, optional): Batch size for calculating predictions.
+                Defaults to 32.
+            num_threads (int, optional): Number of tile worker threads. Cannot
+                supply both ``num_threads`` (uses thread pool) and
+                ``num_processes`` (uses multiprocessing pool). Defaults to
+                CPU core count.
+            num_processes (int, optional): Number of child processes to spawn
+                for multiprocessing pool. Defaults to None (does not use
+                multiprocessing).
+            img_format (str, optional): Image format (png, jpg) to use when
+                extracting tiles from slide. Must match the image format
+                the model was trained on. If 'auto', will use the format
+                logged in the model params.json. Defaults to 'auto'.
+            device (torch.device, optional): PyTorch device. Defaults to
+                initializing a new CUDA device.
+            generator_kwargs (dict, optional): Keyword arguments passed to
+                the :meth:`slideflow.WSI.build_generator()`.
+
+        Returns:
+            np.ndarray: Predictions for each outcome, with shape = (n_logits, )
+
+            np.ndarray, optional: Uncertainty for each outcome, if the model was
+            trained with uncertainty, with shape = (n_logits,)
+
+        """
+        from slideflow import Heatmap
+
+        config = sf.util.get_model_config(model)
+        if config['tile_px'] != self.tile_px or config['tile_um'] != self.tile_um:
+            raise ValueError(
+                "Slide tile size (tile_px={}, tile_um={}) does not match the "
+                "model (tile_px={}, tile_um={}).".format(
+                    self.tile_px, self.tile_um,
+                    config['tile_px'], config['tile_um']
+            ))
+        log.info("Calculating whole-slide prediction...")
+        heatmap = Heatmap(self, model, generate=True, **kwargs)
+        preds = heatmap.logits.reshape(-1, heatmap.logits.shape[-1])
+        preds = np.ma.masked_where(preds < 0, preds).mean(axis=0).filled()
+        if heatmap.uncertainty is not None:
+            unc = heatmap.uncertainty.reshape(-1, heatmap.uncertainty.shape[-1])
+            unc = np.ma.masked_where(unc < 0, unc).mean(axis=0).filled()
+            return preds, unc
+        else:
+            return preds
 
     def tensorflow(
         self,

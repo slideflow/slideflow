@@ -29,7 +29,7 @@ overview of the structure of the Dataset class is as follows:
   │ ┌─────────┐                │ .filter()
   │ │Filtered │                │ .remove_filter()
   │ │ Dataset │                │ .clear_filters()
-  │ └─────────┘                │ .train_val_split()
+  │ └─────────┘                │ .split()
   │               Full Dataset │
   └────────────────────────────┘
 
@@ -2266,6 +2266,354 @@ class Dataset:
         slides = ann.slide.unique().tolist()
         return slides
 
+    def split(
+        self,
+        model_type: str,
+        labels: Union[Dict, str],
+        val_strategy: str = 'fixed',
+        splits: Optional[str] = None,
+        val_fraction: Optional[float] = None,
+        val_k_fold: Optional[int] = None,
+        k_fold_iter: Optional[int] = None,
+        site_labels: Optional[Dict[str, str]] = None,
+        read_only: bool = False,
+        from_wsi: bool = False,
+    ) -> Tuple["Dataset", "Dataset"]:
+        """From a specified subfolder in the project's main TFRecord folder,
+        prepare a training set and validation set.
+
+        If a validation split has already been prepared (e.g. K-fold iterations
+        were already determined), the previously generated split will be used.
+        Otherwise, create a new split and log the result in the TFRecord
+        directory so future models may use the same split for consistency.
+
+        Args:
+            model_type (str): Either 'categorical' or 'linear'.
+            labels (dict):  Either a ictionary mapping slides to labels, or
+                an outcome label (``str``). Used for balancing outcome labels
+                in training and validation cohorts.
+            val_strategy (str): Either 'k-fold', 'k-fold-preserved-site',
+                'bootstrap', or 'fixed'. Defaults to 'fixed'.
+            splits (str, optional): Path to JSON file containing validation
+                splits. Defaults to None.
+            outcome_key (str, optional): Key indicating outcome label in
+                slide_labels_dict. Defaults to 'outcome_label'.
+            val_fraction (float, optional): Proportion of data for validation.
+                Not used if strategy is k-fold. Defaults to None.
+            val_k_fold (int): K, required if using K-fold validation.
+                Defaults to None.
+            k_fold_iter (int, optional): Which K-fold iteration to generate
+                starting at 1. Fequired if using K-fold validation.
+                Defaults to None.
+            site_labels (dict, optional): Dict mapping patients to site labels.
+                Used for site preserved cross validation.
+            read_only (bool): Prevents writing validation splits to file.
+                Defaults to False.
+
+        Returns:
+            A tuple containing
+
+                :class:`slideflow.Dataset`: Training dataset.
+
+                :class:`slideflow.Dataset`: Validation dataset.
+        """
+        if (not k_fold_iter and val_strategy == 'k-fold'):
+            raise errors.DatasetSplitError(
+                "If strategy is 'k-fold', must supply k_fold_iter "
+                "(int starting at 1)"
+            )
+        if (not val_k_fold and val_strategy == 'k-fold'):
+            raise errors.DatasetSplitError(
+                "If strategy is 'k-fold', must supply val_k_fold (K)"
+            )
+        if val_strategy == 'k-fold-preserved-site' and not site_labels:
+            raise errors.DatasetSplitError(
+                "k-fold-preserved-site requires site_labels (dict of "
+                "patients:sites, or name of annotation column header"
+            )
+        if isinstance(site_labels, str):
+            site_labels, _ = self.labels(site_labels, format='name')
+        if val_strategy == 'k-fold-preserved-site' and site_labels is None:
+            raise errors.DatasetSplitError(
+                f"Must supply site_labels for strategy {val_strategy}"
+            )
+        if val_strategy in ('bootstrap', 'fixed') and val_fraction is None:
+            raise errors.DatasetSplitError(
+                f"Must supply val_fraction for strategy {val_strategy}"
+            )
+        if isinstance(labels, str):
+            labels = self.labels(labels)[0]
+
+        # Prepare dataset
+        patients = self.patients()
+        splits_file = splits
+        training_tfrecords = []
+        val_tfrecords = []
+        accepted_split = None
+        slide_list = list(labels.keys())
+
+        # Assemble dict of patients linking to list of slides & outcome labels
+        # dataset.labels() ensures no duplicate labels for a single patient
+        tfrecord_dir_list = self.tfrecords() if not from_wsi else self.slide_paths()
+        if not len(tfrecord_dir_list) and not from_wsi:
+            raise errors.TFRecordsNotFoundError
+        elif not len(tfrecord_dir_list):
+            raise errors.SlideNotFoundError("No slides found.")
+
+        tfrecord_dir_list_names = [
+            sf.util.path_to_name(tfr) for tfr in tfrecord_dir_list
+        ]
+        patients_dict = {}
+        num_warned = 0
+        for slide in slide_list:
+            patient = slide if not patients else patients[slide]
+            # Skip slides not found in directory
+            if slide not in tfrecord_dir_list_names:
+                log.debug(f"Slide {slide} missing tfrecord, skipping")
+                num_warned += 1
+                continue
+            if patient not in patients_dict:
+                patients_dict[patient] = {
+                    'outcome_label': labels[slide],
+                    'slides': [slide]
+                }
+            elif patients_dict[patient]['outcome_label'] != labels[slide]:
+                ol = patients_dict[patient]['outcome_label']
+                ok = labels[slide]
+                raise errors.DatasetSplitError(
+                    f"Multiple labels found for {patient} ({ol}, {ok})"
+                )
+            else:
+                patients_dict[patient]['slides'] += [slide]
+
+        # Add site labels to the patients dict if doing
+        # preserved-site cross-validation
+        if val_strategy == 'k-fold-preserved-site':
+            assert site_labels is not None
+            site_slide_list = list(site_labels.keys())
+            for slide in site_slide_list:
+                patient = slide if not patients else patients[slide]
+                # Skip slides not found in directory
+                if slide not in tfrecord_dir_list_names:
+                    continue
+                if 'site' not in patients_dict[patient]:
+                    patients_dict[patient]['site'] = site_labels[slide]
+                elif patients_dict[patient]['site'] != site_labels[slide]:
+                    ol = patients_dict[patient]['slide']
+                    ok = site_labels[slide]
+                    _tail = f"{patient} ({ol}, {ok})"
+                    raise errors.DatasetSplitError(
+                        f"Multiple site labels found for {_tail}"
+                    )
+        if num_warned:
+            log.warning(f"{num_warned} slides missing tfrecords, skipping")
+        patients_list = list(patients_dict.keys())
+        sorted_patients = [p for p in patients_list]
+        sorted_patients.sort()
+        shuffle(patients_list)
+
+        # Create and log a validation subset
+        if val_strategy == 'none':
+            log.info("val_strategy is None; skipping validation")
+            train_slides = np.concatenate([
+                patients_dict[patient]['slides']
+                for patient in patients_dict.keys()
+            ]).tolist()
+            val_slides = []
+        elif val_strategy == 'bootstrap':
+            assert val_fraction is not None
+            num_val = int(val_fraction * len(patients_list))
+            log.info(
+                f"Boostrap validation: selecting {num_val} "
+                "patients at random for validation testing"
+            )
+            val_patients = patients_list[0:num_val]
+            train_patients = patients_list[num_val:]
+            if not len(val_patients) or not len(train_patients):
+                raise errors.InsufficientDataForSplitError
+            val_slides = np.concatenate([
+                patients_dict[patient]['slides']
+                for patient in val_patients
+            ]).tolist()
+            train_slides = np.concatenate([
+                patients_dict[patient]['slides']
+                for patient in train_patients
+            ]).tolist()
+        else:
+            # Try to load validation split
+            if (not splits_file or not exists(splits_file)):
+                loaded_splits = []
+            else:
+                loaded_splits = sf.util.load_json(splits_file)
+            for split_id, split in enumerate(loaded_splits):
+                # First, see if strategy is the same
+                if split['strategy'] != val_strategy:
+                    continue
+                # If k-fold, check that k-fold length is the same
+                if (val_strategy in ('k-fold', 'k-fold-preserved-site')
+                   and len(list(split['tfrecords'].keys())) != val_k_fold):
+                    continue
+
+                # Then, check if patient lists are the same
+                sp_pts = list(split['patients'].keys())
+                sp_pts.sort()
+                if sp_pts == sorted_patients:
+                    # Finally, check if outcome variables are the same
+                    c1 = [patients_dict[p]['outcome_label'] for p in sp_pts]
+                    c2 = [split['patients'][p]['outcome_label']for p in sp_pts]
+                    if c1 == c2:
+                        log.info(
+                            f"Using {val_strategy} validation split detected"
+                            f" at [green]{splits_file}[/] (ID: {split_id})"
+                        )
+                        accepted_split = split
+                        break
+
+            # If no split found, create a new one
+            if not accepted_split:
+                if splits_file:
+                    log.info("No compatible train/val split found.")
+                    log.info(f"Logging new split at [green]{splits_file}")
+                else:
+                    log.info("No training/validation splits file provided.")
+                    log.info("Unable to save or load validation splits.")
+                new_split = {
+                    'strategy': val_strategy,
+                    'patients': patients_dict,
+                    'tfrecords': {}
+                }  # type: Any
+                if val_strategy == 'fixed':
+                    assert val_fraction is not None
+                    num_val = int(val_fraction * len(patients_list))
+                    val_patients = patients_list[0:num_val]
+                    train_patients = patients_list[num_val:]
+                    if not len(val_patients) or not len(train_patients):
+                        raise errors.InsufficientDataForSplitError
+                    val_slides = np.concatenate([
+                        patients_dict[patient]['slides']
+                        for patient in val_patients
+                    ]).tolist()
+                    train_slides = np.concatenate([
+                        patients_dict[patient]['slides']
+                        for patient in train_patients
+                    ]).tolist()
+                    new_split['tfrecords']['validation'] = val_slides
+                    new_split['tfrecords']['training'] = train_slides
+
+                elif val_strategy in ('k-fold', 'k-fold-preserved-site'):
+                    assert val_k_fold is not None
+                    if (model_type == 'categorical'
+                       and val_strategy == 'k-fold-preserved-site'):
+                        k_fold_patients = split_patients_preserved_site(
+                            patients_dict,
+                            val_k_fold,
+                            balance='outcome_label'
+                        )
+                    elif model_type == 'categorical':
+                        k_fold_patients = split_patients_balanced(
+                            patients_dict,
+                            val_k_fold,
+                            balance='outcome_label'
+                        )
+                    else:
+                        k_fold_patients = split_patients(
+                            patients_dict, val_k_fold
+                        )
+                    # Verify at least one patient is in each k_fold group
+                    if (len(k_fold_patients) != val_k_fold
+                       or not min([len(pl) for pl in k_fold_patients])):
+                        raise errors.InsufficientDataForSplitError
+                    train_patients = []
+                    for k in range(1, val_k_fold+1):
+                        new_split['tfrecords'][f'k-fold-{k}'] = np.concatenate(
+                            [patients_dict[patient]['slides']
+                             for patient in k_fold_patients[k-1]]
+                        ).tolist()
+                        if k == k_fold_iter:
+                            val_patients = k_fold_patients[k-1]
+                        else:
+                            train_patients += k_fold_patients[k-1]
+                    val_slides = np.concatenate([
+                        patients_dict[patient]['slides']
+                        for patient in val_patients
+                    ]).tolist()
+                    train_slides = np.concatenate([
+                        patients_dict[patient]['slides']
+                        for patient in train_patients
+                    ]).tolist()
+                else:
+                    raise errors.DatasetSplitError(
+                        f"Unknown validation strategy {val_strategy}."
+                    )
+                # Write the new split to log
+                loaded_splits += [new_split]
+                if not read_only and splits_file:
+                    sf.util.write_json(loaded_splits, splits_file)
+            else:
+                # Use existing split
+                if val_strategy == 'fixed':
+                    val_slides = accepted_split['tfrecords']['validation']
+                    train_slides = accepted_split['tfrecords']['training']
+                elif val_strategy in ('k-fold', 'k-fold-preserved-site'):
+                    assert val_k_fold is not None
+                    k_id = f'k-fold-{k_fold_iter}'
+                    val_slides = accepted_split['tfrecords'][k_id]
+                    train_slides = np.concatenate([
+                        accepted_split['tfrecords'][f'k-fold-{ki}']
+                        for ki in range(1, val_k_fold+1)
+                        if ki != k_fold_iter
+                    ]).tolist()
+                else:
+                    raise errors.DatasetSplitError(
+                        f"Unknown val_strategy {val_strategy} requested."
+                    )
+
+            # Perform final integrity check to ensure no patients
+            # are in both training and validation slides
+            if patients:
+                validation_pt = list(set([patients[s] for s in val_slides]))
+                training_pt = list(set([patients[s] for s in train_slides]))
+            else:
+                validation_pt, training_pt = val_slides, train_slides
+            if sum([pt in training_pt for pt in validation_pt]):
+                raise errors.DatasetSplitError(
+                    "At least one patient is in both val and training sets."
+                )
+
+        # Assemble list of tfrecords
+        if val_strategy != 'none':
+            val_tfrecords = [
+                tfr for tfr in tfrecord_dir_list
+                if path_to_name(tfr) in val_slides
+            ]
+            training_tfrecords = [
+                tfr for tfr in tfrecord_dir_list
+                if path_to_name(tfr) in train_slides
+            ]
+        if not len(val_tfrecords) == len(val_slides):
+            raise errors.DatasetError(
+                f"Number of validation tfrecords ({len(val_tfrecords)}) does not "
+                f"match the number of validation slides ({len(val_slides)}). "
+                "This may happen if multiple tfrecords were found for some slides."
+            )
+        if not len(training_tfrecords) == len(train_slides):
+            raise errors.DatasetError(
+                f"Number of training tfrecords ({len(val_tfrecords)}) does not "
+                f"match the number of training slides ({len(val_slides)}). "
+                "This may happen if multiple tfrecords were found for some slides."
+            )
+        training_dts = copy.deepcopy(self)
+        training_dts = training_dts.filter(filters={'slide': train_slides})
+        val_dts = copy.deepcopy(self)
+        val_dts = val_dts.filter(filters={'slide': val_slides})
+        if not from_wsi:
+            assert(sorted(training_dts.tfrecords()) == sorted(training_tfrecords))
+            assert(sorted(val_dts.tfrecords()) == sorted(val_tfrecords))
+        else:
+            assert(sorted(training_dts.slide_paths()) == sorted(training_tfrecords))
+            assert(sorted(val_dts.slide_paths()) == sorted(val_tfrecords))
+        return training_dts, val_dts
+
     def split_tfrecords_by_roi(self, destination: str) -> None:
         """Split dataset tfrecords into separate tfrecords according to ROI.
 
@@ -2386,7 +2734,9 @@ class Dataset:
                 d = self.sources[source]
                 print(tabulate(zip(d.keys(), d.values()),
                                tablefmt="fancy_outline"))
-        print("\nAnnotation columns:")
+
+        print("\nNumber of tiles in TFRecords:", self.num_tiles)
+        print("Annotation columns:")
         print("<NA>" if self.annotations is None else self.annotations.columns)
 
     def tensorflow(
@@ -2782,357 +3132,19 @@ class Dataset:
     ) -> Tuple["Dataset", "Dataset"]:
         log.warn(
             "Dataset.training_validation_split() is deprecated and will be "
-            "removed in a future version. Please use Dataset.train_val_split()"
+            "removed in a future version. Please use Dataset.split()"
         )
-        return self.train_val_split(*args, **kwargs)
+        return self.split(*args, **kwargs)
 
     def train_val_split(
         self,
-        model_type: str,
-        labels: Union[Dict, str],
-        val_strategy: str = 'fixed',
-        splits: Optional[str] = None,
-        val_fraction: Optional[float] = None,
-        val_k_fold: Optional[int] = None,
-        k_fold_iter: Optional[int] = None,
-        site_labels: Optional[Dict[str, str]] = None,
-        read_only: bool = False,
-        from_wsi: bool = False,
+        *args: Any,
+        **kwargs: Any
     ) -> Tuple["Dataset", "Dataset"]:
-        """From a specified subfolder in the project's main TFRecord folder,
-        prepare a training set and validation set.
-
-        If a validation split has already been prepared (e.g. K-fold iterations
-        were already determined), the previously generated split will be used.
-        Otherwise, create a new split and log the result in the TFRecord
-        directory so future models may use the same split for consistency.
-
-        Args:
-            model_type (str): Either 'categorical' or 'linear'.
-            labels (dict):  Either a ictionary mapping slides to labels, or
-                an outcome label (``str``). Used for balancing outcome labels
-                in training and validation cohorts.
-            val_strategy (str): Either 'k-fold', 'k-fold-preserved-site',
-                'bootstrap', or 'fixed'. Defaults to 'fixed'.
-            splits (str, optional): Path to JSON file containing validation
-                splits. Defaults to None.
-            outcome_key (str, optional): Key indicating outcome label in
-                slide_labels_dict. Defaults to 'outcome_label'.
-            val_fraction (float, optional): Proportion of data for validation.
-                Not used if strategy is k-fold. Defaults to None.
-            val_k_fold (int): K, required if using K-fold validation.
-                Defaults to None.
-            k_fold_iter (int, optional): Which K-fold iteration to generate
-                starting at 1. Fequired if using K-fold validation.
-                Defaults to None.
-            site_labels (dict, optional): Dict mapping patients to site labels.
-                Used for site preserved cross validation.
-            read_only (bool): Prevents writing validation splits to file.
-                Defaults to False.
-
-        Returns:
-            A tuple containing
-
-                :class:`slideflow.Dataset`: Training dataset.
-
-                :class:`slideflow.Dataset`: Validation dataset.
-        """
-        if (not k_fold_iter and val_strategy == 'k-fold'):
-            raise errors.DatasetSplitError(
-                "If strategy is 'k-fold', must supply k_fold_iter "
-                "(int starting at 1)"
-            )
-        if (not val_k_fold and val_strategy == 'k-fold'):
-            raise errors.DatasetSplitError(
-                "If strategy is 'k-fold', must supply val_k_fold (K)"
-            )
-        if val_strategy == 'k-fold-preserved-site' and not site_labels:
-            raise errors.DatasetSplitError(
-                "k-fold-preserved-site requires site_labels (dict of "
-                "patients:sites, or name of annotation column header"
-            )
-        if isinstance(site_labels, str):
-            site_labels, _ = self.labels(site_labels, format='name')
-        if val_strategy == 'k-fold-preserved-site' and site_labels is None:
-            raise errors.DatasetSplitError(
-                f"Must supply site_labels for strategy {val_strategy}"
-            )
-        if val_strategy in ('bootstrap', 'fixed') and val_fraction is None:
-            raise errors.DatasetSplitError(
-                f"Must supply val_fraction for strategy {val_strategy}"
-            )
-        if isinstance(labels, str):
-            labels = self.labels(labels)[0]
-
-        # Prepare dataset
-        patients = self.patients()
-        splits_file = splits
-        training_tfrecords = []
-        val_tfrecords = []
-        accepted_split = None
-        slide_list = list(labels.keys())
-
-        # Assemble dict of patients linking to list of slides & outcome labels
-        # dataset.labels() ensures no duplicate labels for a single patient
-        tfrecord_dir_list = self.tfrecords() if not from_wsi else self.slide_paths()
-        if not len(tfrecord_dir_list) and not from_wsi:
-            raise errors.TFRecordsNotFoundError
-        elif not len(tfrecord_dir_list):
-            raise errors.SlideNotFoundError("No slides found.")
-
-        tfrecord_dir_list_names = [
-            sf.util.path_to_name(tfr) for tfr in tfrecord_dir_list
-        ]
-        patients_dict = {}
-        num_warned = 0
-        for slide in slide_list:
-            patient = slide if not patients else patients[slide]
-            # Skip slides not found in directory
-            if slide not in tfrecord_dir_list_names:
-                log.debug(f"Slide {slide} missing tfrecord, skipping")
-                num_warned += 1
-                continue
-            if patient not in patients_dict:
-                patients_dict[patient] = {
-                    'outcome_label': labels[slide],
-                    'slides': [slide]
-                }
-            elif patients_dict[patient]['outcome_label'] != labels[slide]:
-                ol = patients_dict[patient]['outcome_label']
-                ok = labels[slide]
-                raise errors.DatasetSplitError(
-                    f"Multiple labels found for {patient} ({ol}, {ok})"
-                )
-            else:
-                patients_dict[patient]['slides'] += [slide]
-
-        # Add site labels to the patients dict if doing
-        # preserved-site cross-validation
-        if val_strategy == 'k-fold-preserved-site':
-            assert site_labels is not None
-            site_slide_list = list(site_labels.keys())
-            for slide in site_slide_list:
-                patient = slide if not patients else patients[slide]
-                # Skip slides not found in directory
-                if slide not in tfrecord_dir_list_names:
-                    continue
-                if 'site' not in patients_dict[patient]:
-                    patients_dict[patient]['site'] = site_labels[slide]
-                elif patients_dict[patient]['site'] != site_labels[slide]:
-                    ol = patients_dict[patient]['slide']
-                    ok = site_labels[slide]
-                    _tail = f"{patient} ({ol}, {ok})"
-                    raise errors.DatasetSplitError(
-                        f"Multiple site labels found for {_tail}"
-                    )
-        if num_warned:
-            log.warning(f"{num_warned} slides missing tfrecords, skipping")
-        patients_list = list(patients_dict.keys())
-        sorted_patients = [p for p in patients_list]
-        sorted_patients.sort()
-        shuffle(patients_list)
-
-        # Create and log a validation subset
-        if val_strategy == 'none':
-            log.info("val_strategy is None; skipping validation")
-            train_slides = np.concatenate([
-                patients_dict[patient]['slides']
-                for patient in patients_dict.keys()
-            ]).tolist()
-            val_slides = []
-        elif val_strategy == 'bootstrap':
-            assert val_fraction is not None
-            num_val = int(val_fraction * len(patients_list))
-            log.info(
-                f"Boostrap validation: selecting {num_val} "
-                "patients at random for validation testing"
-            )
-            val_patients = patients_list[0:num_val]
-            train_patients = patients_list[num_val:]
-            if not len(val_patients) or not len(train_patients):
-                raise errors.InsufficientDataForSplitError
-            val_slides = np.concatenate([
-                patients_dict[patient]['slides']
-                for patient in val_patients
-            ]).tolist()
-            train_slides = np.concatenate([
-                patients_dict[patient]['slides']
-                for patient in train_patients
-            ]).tolist()
-        else:
-            # Try to load validation split
-            if (not splits_file or not exists(splits_file)):
-                loaded_splits = []
-            else:
-                loaded_splits = sf.util.load_json(splits_file)
-            for split_id, split in enumerate(loaded_splits):
-                # First, see if strategy is the same
-                if split['strategy'] != val_strategy:
-                    continue
-                # If k-fold, check that k-fold length is the same
-                if (val_strategy in ('k-fold', 'k-fold-preserved-site')
-                   and len(list(split['tfrecords'].keys())) != val_k_fold):
-                    continue
-
-                # Then, check if patient lists are the same
-                sp_pts = list(split['patients'].keys())
-                sp_pts.sort()
-                if sp_pts == sorted_patients:
-                    # Finally, check if outcome variables are the same
-                    c1 = [patients_dict[p]['outcome_label'] for p in sp_pts]
-                    c2 = [split['patients'][p]['outcome_label']for p in sp_pts]
-                    if c1 == c2:
-                        log.info(
-                            f"Using {val_strategy} validation split detected"
-                            f" at [green]{splits_file}[/] (ID: {split_id})"
-                        )
-                        accepted_split = split
-                        break
-
-            # If no split found, create a new one
-            if not accepted_split:
-                if splits_file:
-                    log.info("No compatible train/val split found.")
-                    log.info(f"Logging new split at [green]{splits_file}")
-                else:
-                    log.info("No training/validation splits file provided.")
-                    log.info("Unable to save or load validation splits.")
-                new_split = {
-                    'strategy': val_strategy,
-                    'patients': patients_dict,
-                    'tfrecords': {}
-                }  # type: Any
-                if val_strategy == 'fixed':
-                    assert val_fraction is not None
-                    num_val = int(val_fraction * len(patients_list))
-                    val_patients = patients_list[0:num_val]
-                    train_patients = patients_list[num_val:]
-                    if not len(val_patients) or not len(train_patients):
-                        raise errors.InsufficientDataForSplitError
-                    val_slides = np.concatenate([
-                        patients_dict[patient]['slides']
-                        for patient in val_patients
-                    ]).tolist()
-                    train_slides = np.concatenate([
-                        patients_dict[patient]['slides']
-                        for patient in train_patients
-                    ]).tolist()
-                    new_split['tfrecords']['validation'] = val_slides
-                    new_split['tfrecords']['training'] = train_slides
-
-                elif val_strategy in ('k-fold', 'k-fold-preserved-site'):
-                    assert val_k_fold is not None
-                    if (model_type == 'categorical'
-                       and val_strategy == 'k-fold-preserved-site'):
-                        k_fold_patients = split_patients_preserved_site(
-                            patients_dict,
-                            val_k_fold,
-                            balance='outcome_label'
-                        )
-                    elif model_type == 'categorical':
-                        k_fold_patients = split_patients_balanced(
-                            patients_dict,
-                            val_k_fold,
-                            balance='outcome_label'
-                        )
-                    else:
-                        k_fold_patients = split_patients(
-                            patients_dict, val_k_fold
-                        )
-                    # Verify at least one patient is in each k_fold group
-                    if (len(k_fold_patients) != val_k_fold
-                       or not min([len(pl) for pl in k_fold_patients])):
-                        raise errors.InsufficientDataForSplitError
-                    train_patients = []
-                    for k in range(1, val_k_fold+1):
-                        new_split['tfrecords'][f'k-fold-{k}'] = np.concatenate(
-                            [patients_dict[patient]['slides']
-                             for patient in k_fold_patients[k-1]]
-                        ).tolist()
-                        if k == k_fold_iter:
-                            val_patients = k_fold_patients[k-1]
-                        else:
-                            train_patients += k_fold_patients[k-1]
-                    val_slides = np.concatenate([
-                        patients_dict[patient]['slides']
-                        for patient in val_patients
-                    ]).tolist()
-                    train_slides = np.concatenate([
-                        patients_dict[patient]['slides']
-                        for patient in train_patients
-                    ]).tolist()
-                else:
-                    raise errors.DatasetSplitError(
-                        f"Unknown validation strategy {val_strategy}."
-                    )
-                # Write the new split to log
-                loaded_splits += [new_split]
-                if not read_only and splits_file:
-                    sf.util.write_json(loaded_splits, splits_file)
-            else:
-                # Use existing split
-                if val_strategy == 'fixed':
-                    val_slides = accepted_split['tfrecords']['validation']
-                    train_slides = accepted_split['tfrecords']['training']
-                elif val_strategy in ('k-fold', 'k-fold-preserved-site'):
-                    assert val_k_fold is not None
-                    k_id = f'k-fold-{k_fold_iter}'
-                    val_slides = accepted_split['tfrecords'][k_id]
-                    train_slides = np.concatenate([
-                        accepted_split['tfrecords'][f'k-fold-{ki}']
-                        for ki in range(1, val_k_fold+1)
-                        if ki != k_fold_iter
-                    ]).tolist()
-                else:
-                    raise errors.DatasetSplitError(
-                        f"Unknown val_strategy {val_strategy} requested."
-                    )
-
-            # Perform final integrity check to ensure no patients
-            # are in both training and validation slides
-            if patients:
-                validation_pt = list(set([patients[s] for s in val_slides]))
-                training_pt = list(set([patients[s] for s in train_slides]))
-            else:
-                validation_pt, training_pt = val_slides, train_slides
-            if sum([pt in training_pt for pt in validation_pt]):
-                raise errors.DatasetSplitError(
-                    "At least one patient is in both val and training sets."
-                )
-
-        # Assemble list of tfrecords
-        if val_strategy != 'none':
-            val_tfrecords = [
-                tfr for tfr in tfrecord_dir_list
-                if path_to_name(tfr) in val_slides
-            ]
-            training_tfrecords = [
-                tfr for tfr in tfrecord_dir_list
-                if path_to_name(tfr) in train_slides
-            ]
-        if not len(val_tfrecords) == len(val_slides):
-            raise errors.DatasetError(
-                f"Number of validation tfrecords ({len(val_tfrecords)}) does not "
-                f"match the number of validation slides ({len(val_slides)}). "
-                "This may happen if multiple tfrecords were found for some slides."
-            )
-        if not len(training_tfrecords) == len(train_slides):
-            raise errors.DatasetError(
-                f"Number of training tfrecords ({len(val_tfrecords)}) does not "
-                f"match the number of training slides ({len(val_slides)}). "
-                "This may happen if multiple tfrecords were found for some slides."
-            )
-        training_dts = copy.deepcopy(self)
-        training_dts = training_dts.filter(filters={'slide': train_slides})
-        val_dts = copy.deepcopy(self)
-        val_dts = val_dts.filter(filters={'slide': val_slides})
-        if not from_wsi:
-            assert(sorted(training_dts.tfrecords()) == sorted(training_tfrecords))
-            assert(sorted(val_dts.tfrecords()) == sorted(val_tfrecords))
-        else:
-            assert(sorted(training_dts.slide_paths()) == sorted(training_tfrecords))
-            assert(sorted(val_dts.slide_paths()) == sorted(val_tfrecords))
-        return training_dts, val_dts
+        log.warn(
+            "Dataset.train_val_split() is deprecated and will be "
+            "removed in a future version. Please use Dataset.split()"
+        )
 
     def torch(
         self,

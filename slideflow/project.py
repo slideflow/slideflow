@@ -317,7 +317,7 @@ class Project:
         # If using a specific k-fold, load validation plan
         if eval_k_fold:
             log.info(f"Using k-fold iteration {eval_k_fold}")
-            _, eval_dts = dataset.train_val_split(
+            _, eval_dts = dataset.split(
                 hp.model_type(),
                 split_labels,
                 val_strategy=config['validation_strategy'],
@@ -499,7 +499,7 @@ class Project:
 
         # Build a model using the slide list as input
         # and the annotations dictionary as output labels
-        trainer = sf.model.trainer_from_hp(
+        trainer = sf.model.build_trainer(
             hp,
             outdir=model_dir,
             labels=labels,
@@ -786,7 +786,7 @@ class Project:
                 )[0]  # type: Any
             else:
                 site_labels = None
-            train_dts, val_dts = dataset.train_val_split(
+            train_dts, val_dts = dataset.split(
                 hp.model_type(),
                 s_args.split_labels,
                 val_strategy=val_settings.strategy,
@@ -2623,7 +2623,7 @@ class Project:
         load_method: str = 'full',
         custom_objects: Optional[Dict[str, Any]] = None,
         **kwargs: Any
-    ) -> pd.DataFrame:
+    ) -> Dict[str, pd.DataFrame]:
         """Evaluates a saved model on a given set of tfrecords.
 
         Args:
@@ -3502,7 +3502,7 @@ class Project:
             k_train_slides = {}  # type: Dict
             k_val_slides = {}  # type: Dict
             for k in range(clam_args.k):
-                train_dts, val_dts = dataset.train_val_split(
+                train_dts, val_dts = dataset.split(
                     'categorical',
                     labels,
                     val_strategy='k-fold',

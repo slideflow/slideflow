@@ -115,7 +115,7 @@ def _train_worker(
     """Internal function to execute model training in an isolated process."""
     sf.setLoggingLevel(verbosity)
     train_dts, val_dts = datasets
-    trainer = sf.model.trainer_from_hp(**model_kw)
+    trainer = sf.model.build_trainer(**model_kw)
     results = trainer.train(train_dts, val_dts, **training_kw)
     results_dict.update({model_kw['name']: results})
 

@@ -85,17 +85,28 @@ def is_torch_model(arg: Any) -> bool:
         return False
 
 
-def trainer_from_hp(hp: "ModelParams", **kwargs) -> Trainer:
+def trainer_from_hp(*args, **kwargs):
+    log.warn("sf.model.trainer_from_hp() is deprecated. Please use "
+             "sf.model.build_trainer().")
+    return build_trainer(*args, **kwargs)
+
+
+def build_trainer(
+    hp: "ModelParams",
+    outdir: str,
+    labels: Dict[str, Any],
+    **kwargs
+) -> Trainer:
     """From the given :class:`slideflow.model.ModelParams` object, returns
     the appropriate instance of :class:`slideflow.model.Model`.
 
     Args:
         hp (:class:`slideflow.model.ModelParams`): ModelParams object.
-
-    Keyword Args:
         outdir (str): Path for event logs and checkpoints.
         labels (dict): Dict mapping slide names to outcome labels (int or
             float format).
+
+    Keyword Args:
         slide_input (dict): Dict mapping slide names to additional
             slide-level input, concatenated after post-conv.
         name (str, optional): Optional name describing the model, used for
@@ -119,13 +130,23 @@ def trainer_from_hp(hp: "ModelParams", **kwargs) -> Trainer:
             Defaults to None.
         neptune_workspace (str, optional): Neptune workspace.
             Defaults to None.
+        load_method (str): Either 'full' or 'weights'. Method to use
+                when loading a Tensorflow model. If 'full', loads the model with
+                ``tf.keras.models.load_model()``. If 'weights', will read the
+                ``params.json``configuration file, build the model architecture,
+                and then load weights from the given model with
+                ``Model.load_weights()``. Loading with 'full' may improve
+                compatibility across Slideflow versions. Loading with 'weights'
+                may improve compatibility across hardware & environments.
+        custom_objects (dict, Optional): Dictionary mapping names
+                (strings) to custom classes or functions. Defaults to None.
     """
     if hp.model_type() == 'categorical':
-        return Trainer(hp=hp, **kwargs)
+        return Trainer(hp, outdir, labels, **kwargs)
     if hp.model_type() == 'linear':
-        return LinearTrainer(hp=hp, **kwargs)
+        return LinearTrainer(hp, outdir, labels, **kwargs)
     if hp.model_type() == 'cph':
-        return CPHTrainer(hp=hp, **kwargs)
+        return CPHTrainer(hp, outdir, labels, **kwargs)
     else:
         raise ValueError(f"Unknown model type: {hp.model_type()}")
 

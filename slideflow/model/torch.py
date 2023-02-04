@@ -416,6 +416,7 @@ class Trainer:
         hp: ModelParams,
         outdir: str,
         labels: Dict[str, Any],
+        *,
         slide_input: Optional[Dict[str, Any]] = None,
         name: str = 'Trainer',
         feature_sizes: Optional[List[int]] = None,
@@ -444,7 +445,7 @@ class Trainer:
             feature_sizes (list, optional): List of sizes of input features.
                 Required if providing additional input features as model input.
             feature_names (list, optional): List of names for input features.
-            Used when permuting feature importance.
+                Used when permuting feature importance.
             outcome_names (list, optional): Name of each outcome. Defaults to
                 "Outcome {X}" for each outcome.
             mixed_precision (bool, optional): Use FP16 mixed precision (rather
@@ -1388,7 +1389,7 @@ class Trainer:
         format: str = 'parquet',
         from_wsi: bool = False,
         roi_method: str = 'auto',
-    ) -> "pd.DataFrame":
+    ) -> Dict[str, "pd.DataFrame"]:
         """Perform inference on a model, saving predictions.
 
         Args:
@@ -1416,7 +1417,9 @@ class Trainer:
                 Defaults to 'auto'.
 
         Returns:
-            pandas.DataFrame of tile-level predictions.
+            Dict[str, pd.DataFrame]: Dictionary with keys 'tile', 'slide', and
+            'patient', and values containing DataFrames with tile-, slide-,
+            and patient-level predictions.
         """
         if format not in ('csv', 'feather', 'parquet'):
             raise ValueError(f"Unrecognized format {format}")
@@ -1466,6 +1469,7 @@ class Trainer:
             torch_args=torch_args,
             outcome_names=self.outcome_names,
             uq=bool(self.hp.uq),
+            patients=self.patients
         )
         # Save predictions
         sf.stats.metrics.save_dfs(dfs, format=format, outdir=self.outdir)

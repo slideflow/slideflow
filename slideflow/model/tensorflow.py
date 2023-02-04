@@ -1052,6 +1052,7 @@ class Trainer:
         hp: ModelParams,
         outdir: str,
         labels: Dict[str, Any],
+        *,
         slide_input: Optional[Dict[str, Any]] = None,
         name: str = 'Trainer',
         feature_sizes: Optional[List[int]] = None,
@@ -1370,7 +1371,7 @@ class Trainer:
         format: str = 'parquet',
         from_wsi: bool = False,
         roi_method: str = 'auto',
-    ) -> "pd.DataFrame":
+    ) -> Dict[str, "pd.DataFrame"]:
         """Perform inference on a model, saving tile-level predictions.
 
         Args:
@@ -1398,7 +1399,9 @@ class Trainer:
                 Defaults to 'auto'.
 
         Returns:
-            pandas.DataFrame of tile-level predictions.
+            Dict[str, pd.DataFrame]: Dictionary with keys 'tile', 'slide', and
+            'patient', and values containing DataFrames with tile-, slide-,
+            and patient-level predictions.
         """
 
         if format not in ('csv', 'feather', 'parquet'):
@@ -1445,6 +1448,7 @@ class Trainer:
             uq=bool(self.hp.uq),
             num_tiles=dataset.num_tiles,
             outcome_names=self.outcome_names,
+            patients=self.patients
         )
         # Save predictions
         sf.stats.metrics.save_dfs(dfs, format=format, outdir=self.outdir)
@@ -1610,7 +1614,7 @@ class Trainer:
         norm_fit: Optional[NormFit] = None,
         from_wsi: bool = False,
         roi_method: str = 'auto',
-    ):
+    ) -> Dict[str, Any]:
         """Builds and trains a model from hyperparameters.
 
         Args:

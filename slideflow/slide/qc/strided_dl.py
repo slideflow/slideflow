@@ -15,6 +15,7 @@ class StridedDL:
         tile_um: Union[str, int],
         buffer: int = 8,
         verbose: bool = False,
+        pred_threshold: float = 0.5,
         **wsi_kwargs
     ):
         self.buffer = buffer
@@ -24,6 +25,7 @@ class StridedDL:
         self.wsi_kwargs = wsi_kwargs
         self.model = model
         self.pred_idx = pred_idx
+        self.pred_threshold = pred_threshold
 
     def __call__(
         self,
@@ -70,4 +72,4 @@ class StridedDL:
             predictions = y_pred.reshape(b, b)
             focus_mask[grid_i * b: grid_i * b + b, grid_j * b: grid_j * b + b] = predictions
 
-        return focus_mask > 0.5
+        return focus_mask > self.pred_threshold

@@ -22,43 +22,6 @@ The Vahadane normalizer has two numpy implementations available: SPAMS
 (``vahadane_spams``) and sklearn (``vahadane_sklearn``). As of version 1.2.3,
 the sklearn implementation will be used if unspecified (``method='vahadane'``).
 
-Performance
------------
-
-The Numpy implementations contain all functions necessary for normalizing
-Tensors from both Tensorflow and PyTorch, but may be slower than backend-native
-implementations when available. Performance benchmarks for the normalizer
-implementations are given below:
-
-.. list-table:: **Performance Benchmarks** (256 x 256 images, Slideflow 1.2.3, benchmarked on 3960X and A100 40GB)
-    :header-rows: 1
-
-    * -
-      - Tensorflow backend
-      - PyTorch backend
-    * - macenko
-      - 1,295 img/s (**native**)
-      - 1,265 img/s (**native**)
-    * - reinhard
-      - 1,536 img/s (**native**)
-      - 2,246 img/s (**native**)
-    * - reinhard_fast
-      - 8,599 img/s (**native**)
-      - 2,832 img/s (**native**)
-    * - reinhard_mask
-      - 1,537 img/s (**native**)
-      - 2,246 img/s
-    * - reinhard_fast_mask
-      - 7,885 img/s (**native**)
-      - 2,719 img/s
-    * - vahadane_spams
-      - 0.7 img/s
-      - 2.2 img/s
-    * - vahadane_sklearn
-      - 0.9 img/s
-      - 1.0 img/s
-
-
 Use :func:`slideflow.norm.autoselect` to get the fastest available normalizer
 for a given method and active backend (Tensorflow/PyTorch).
 """
