@@ -243,24 +243,27 @@ class SlideMap:
         coordinates = self.umap_transform(node_activations, **umap_kwargs)
 
         # Assemble dataframe
-        locations = np.concatenate([
-            self.df.locations[slide] for slide in self.slides
-        ])
+
         tfrecord_indices = np.concatenate([
-            np.arange(self.df.locations[slide].shape[0])
+            np.arange(self.df.activations[slide].shape[0])
             for slide in self.slides
         ])
         slides = np.array([
             slide
             for slide in self.slides
-            for _ in range(self.df.locations[slide].shape[0])
+            for _ in range(self.df.activations[slide].shape[0])
         ])
         data_dict = {
             'slide': pd.Series(slides),
             'x': pd.Series(coordinates[:, 0]),
             'tfr_index': pd.Series(tfrecord_indices),
-            'location': pd.Series([l for l in locations]).astype(object)
         }
+        if self.df.locations:
+            locations = np.concatenate([
+                self.df.locations[slide] for slide in self.slides
+            ])
+            data_dict['location'] = pd.Series([l for l in locations]).astype(object)
+
         if self.df.logits:
             logits = np.concatenate([
                 self.df.logits[slide] for slide in self.slides
@@ -548,7 +551,9 @@ class SlideMap:
                 metric=metric,
                 **kwargs
             )
-        layout = self.umap.fit_transform(array)  # type: ignore
+            layout = self.umap.fit_transform(array)  # type: ignore
+        else:
+            layout = self.umap.transform(array)  # type: ignore
         (normalized,
          self._umap_normalized_range,
          self._umap_normalized_clip) = normalize_layout(layout)

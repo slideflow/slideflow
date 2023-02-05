@@ -480,17 +480,23 @@ class DatasetFeatures:
                         m.numpy() if not isinstance(m, (list, tuple)) else m
                         for m in model_out
                     ]
-                    batch_loc = np.stack([
-                        batch_loc[0].numpy(),
-                        batch_loc[1].numpy()
-                    ], axis=1)
+                    if batch_loc[0] is not None:
+                        batch_loc = np.stack([
+                            batch_loc[0].numpy(),
+                            batch_loc[1].numpy()
+                        ], axis=1)
+                    else:
+                        batch_loc = None
                 elif sf.model.is_torch_model(model):
                     decoded_slides = batch_slides
                     model_out = [
                         m.cpu().numpy() if not isinstance(m, list) else m
                         for m in model_out
                     ]
-                    batch_loc = np.stack([batch_loc[0], batch_loc[1]], axis=1)
+                    if batch_loc[0] is not None:
+                        batch_loc = np.stack([batch_loc[0], batch_loc[1]], axis=1)
+                    else:
+                        batch_loc = None
 
                 # Process model outputs
                 if is_simclr:
@@ -517,7 +523,8 @@ class DatasetFeatures:
                         self.logits[slide].append(logits[d])
                     if self.uq and include_uncertainty:
                         self.uncertainty[slide].append(uncertainty[d])
-                    self.locations[slide].append(batch_loc[d])
+                    if batch_loc is not None:
+                        self.locations[slide].append(batch_loc[d])
 
         batch_proc_thread = threading.Thread(target=batch_worker, daemon=True)
         batch_proc_thread.start()

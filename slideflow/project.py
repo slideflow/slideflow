@@ -3629,9 +3629,9 @@ class Project:
 
 # -----------------------------------------------------------------------------
 
-def load(root: str) -> "Project":
+def load(root: str, **kwargs) -> "Project":
     """Load a project at the given root directory."""
-    return Project(root)
+    return Project(root, **kwargs)
 
 def create(
     root: str,
