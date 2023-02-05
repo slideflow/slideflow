@@ -86,8 +86,11 @@ def is_torch_model(arg: Any) -> bool:
 
 
 def trainer_from_hp(*args, **kwargs):
-    log.warn("sf.model.trainer_from_hp() is deprecated. Please use "
-             "sf.model.build_trainer().")
+    warnings.warn(
+        "sf.model.trainer_from_hp() is deprecated. Please use "
+        "sf.model.build_trainer().",
+        DeprecationWarning
+    )
     return build_trainer(*args, **kwargs)
 
 
@@ -222,8 +225,10 @@ class DatasetFeatures:
         self,
         model: Union[str, "tf.keras.models.Model", "torch.nn.Module"],
         dataset: "sf.Dataset",
-        annotations: Optional[Labels] = None,
+        *,
+        labels: Optional[Labels] = None,
         cache: Optional[str] = None,
+        annotations: Optional[Labels] = None,
         **kwargs: Any
     ) -> None:
 
@@ -236,9 +241,10 @@ class DatasetFeatures:
             model (str): Path to model from which to calculate activations.
             dataset (:class:`slideflow.Dataset`): Dataset from which to
                 generate activations.
-            annotations (dict, optional): Dict mapping slide names to outcome
+            labels (dict, optional): Dict mapping slide names to outcome
                 categories.
             cache (str, optional): File for PKL cache.
+            annotations: Deprecated.
 
         Keyword Args:
             layers (str): Model layer(s) from which to calculate activations.
@@ -255,12 +261,26 @@ class DatasetFeatures:
         self.num_features = 0
         self.num_logits = 0
         self.manifest = dataset.manifest()
-        self.annotations = annotations
         self.model = model
         self.dataset = dataset
         self.tile_px = dataset.tile_px
         self.tfrecords = np.array(dataset.tfrecords())
         self.slides = sorted([sf.util.path_to_name(t) for t in self.tfrecords])
+
+        if labels is not None and annotations is not None:
+            raise DeprecationWarning(
+                'Cannot supply both "labels" and "annotations" to sf.DatasetFeatures. '
+                '"annotations" is deprecated and has been replaced with "labels".'
+            )
+        elif annotations is not None:
+            warnings.warn(
+                'The "annotations" argument to sf.DatasetFeatures is deprecated.'
+                'Please use the argument "labels" instead.',
+                DeprecationWarning
+            )
+            self.labels = annotations
+        else:
+            self.labels = labels
 
         # Load configuration if model is path to a saved model
         if isinstance(model, str) and sf.util.is_simclr_model_path(model):
@@ -279,18 +299,18 @@ class DatasetFeatures:
             self.normalizer = None
             self.uq = False
 
-        if self.annotations:
-            self.categories = list(set(self.annotations.values()))
+        if self.labels:
+            self.categories = list(set(self.labels.values()))
             if self.activations:
                 for slide in self.slides:
                     try:
                         if self.activations[slide]:
                             used = (self.used_categories
-                                    + [self.annotations[slide]])
+                                    + [self.labels[slide]])
                             self.used_categories = list(set(used))  # type: List[Union[str, int, List[float]]]
                             self.used_categories.sort()
                     except KeyError:
-                        raise KeyError(f"Slide {slide} not in annotations.")
+                        raise KeyError(f"Slide {slide} not in labels.")
                 total = len(self.used_categories)
                 cat_list = ", ".join([str(c) for c in self.used_categories])
                 log.debug(f'Observed categories (total: {total}): {cat_list}')
@@ -332,9 +352,9 @@ class DatasetFeatures:
             log.warning(f'Activations missing for {len(missing)} slides')
 
         # Record which categories have been included in the specified tfrecords
-        if self.categories and self.annotations:
+        if self.categories and self.labels:
             self.used_categories = list(set([
-                self.annotations[slide]
+                self.labels[slide]
                 for slide in self.slides
             ]))
             self.used_categories.sort()
@@ -581,7 +601,7 @@ class DatasetFeatures:
             return np.concatenate([
                 self.activations[pt][:, idx]
                 for pt in self.slides
-                if self.annotations[pt] == c
+                if self.labels[pt] == c
             ])
         return {c: act_by_cat(c) for c in self.used_categories}
 
@@ -633,9 +653,10 @@ class DatasetFeatures:
 
     def export_to_torch(self, *args, **kwargs):
         """Deprecated function; please use `.to_torch()`"""
-        log.warn(
+        warnings.warn(
             "Deprecation warning: DatasetFeatures.export_to_torch() will"
-            " be removed in slideflow>=1.3. Use .to_torch() instead."
+            " be removed in a future version. Use .to_torch() instead.",
+            DeprecationWarning
         )
         self.to_torch(*args, **kwargs)
 
@@ -843,7 +864,7 @@ class DatasetFeatures:
             raise errors.FeaturesError('No annotations loaded')
         if method not in ('mean', 'threshold'):
             raise errors.FeaturesError(f"Stats method {method} unknown")
-        if not self.annotations:
+        if not self.labels:
             raise errors.FeaturesError("No annotations provided, unable"
                                        "to calculate feature stats.")
 
@@ -867,7 +888,7 @@ class DatasetFeatures:
             category_stats += [np.array([
                 activation_stats[slide]
                 for slide in self.slides
-                if self.annotations[slide] == c
+                if self.labels[slide] == c
             ])]
 
         for f in range(self.num_features):
@@ -924,7 +945,7 @@ class DatasetFeatures:
                           + [f'Feature_{n}' for n in pt_sorted_ft])
                 csv_writer.writerow(header)
                 for slide in self.slides:
-                    category = self.annotations[slide]
+                    category = self.labels[slide]
                     row = ([slide, category]
                            + list(activation_stats[slide][pt_sorted_ft]))
                     csv_writer.writerow(row)

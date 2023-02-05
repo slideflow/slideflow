@@ -4,6 +4,7 @@ import csv
 import os
 import sys
 import time
+import warnings
 from functools import partial
 from multiprocessing.dummy import Pool as DPool
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
@@ -404,8 +405,10 @@ class Mosaic:
 
         Deprecated function.
         """
-        log.warning("Mosaic.focus() is deprecated and will be removed "
-                    "in a future version.")
+        warnings.warn(
+            "Mosaic.focus() is deprecated and will be removed in a future version.",
+            DeprecationWarning
+        )
         if tfrecords:
             slides = [sf.util.path_to_name(tfr) for tfr in tfrecords]
             for idx in self.grid_idx:
@@ -438,8 +441,11 @@ class Mosaic:
         else:
             log.debug(f'Tile selection method: {tile_select}')
         if expanded:
-            log.warn("The `expanded` option for Mosaics is deprecated as of "
-                     "version 1.5 and will be ignored.")
+            warnings.warn(
+                "The `expanded` option for Mosaics is deprecated as of "
+                "version 1.5 and will be ignored.",
+                DeprecationWarning
+            )
         self.num_tiles_x = num_tiles_x
         self.grid_images = {}
 
@@ -550,8 +556,11 @@ class Mosaic:
         # Next, prepare mosaic grid by placing tile outlines
         log.info('Placing tile outlines...')
         if relative_size:
-            log.warning('The "relative_size" option for Mosaic.plot() is '
-                        'deprecated and will be removed in a future version.')
+            warnings.warning(
+                'The "relative_size" option for Mosaic.plot() is '
+                'deprecated and will be removed in a future version.',
+                DeprecationWarning
+            )
             max_grid_density = 1
             for idx in self.grid_idx:
                 _points = self.points_at_grid_index(x=idx[0], y=idx[1])

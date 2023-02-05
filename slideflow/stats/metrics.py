@@ -1,6 +1,7 @@
 """Categorical, linear, and CPH metrics for predictions."""
 
 import multiprocessing as mp
+import warnings
 from os.path import join
 from types import SimpleNamespace
 from typing import (TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union,
@@ -435,9 +436,10 @@ def df_from_pred(
 
 
 def eval_from_dataset(*args, **kwargs):
-    log.warning(
+    warnings.warning(
         "`sf.stats.metrics.eval_from_dataset() is deprecated. Please use "
-        "`sf.stats.metrics.eval_dataset()` instead.")
+        "`sf.stats.metrics.eval_dataset()` instead.",
+        DeprecationWarning)
     return eval_dataset(*args, **kwargs)
 
 
@@ -827,9 +829,10 @@ def name_columns(
 
 
 def predict_from_dataset(*args, **kwargs):
-    log.warning(
+    warnings.warning(
         "`sf.stats.metrics.predict_from_dataset() is deprecated. Please use "
-        "`sf.stats.metrics.predict_dataset()` instead.")
+        "`sf.stats.metrics.predict_dataset()` instead.",
+        DeprecationWarning)
     return predict_dataset(*args, **kwargs)
 
 

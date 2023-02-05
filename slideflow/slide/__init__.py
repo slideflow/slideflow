@@ -880,7 +880,6 @@ class WSI(_BaseLoader):
         roi_method: str = 'auto',
         randomize_origin: bool = False,
         pb: Optional[Progress] = None,
-        silent: Optional[bool] = None,
         verbose: bool = True,
         **kwargs
     ) -> None:
@@ -922,12 +921,6 @@ class WSI(_BaseLoader):
             mpp (float, optional): Override the microns-per-pixel value for
                 the slide. Defaults to None (auto-detects).
         """
-
-        if silent is not None:
-            warnings.warn("Argument `silent` is deprecated since 1.3 and will "
-                          "be removed in 1.4. Please use `verbose` instead.")
-            verbose = bool(not silent)
-
         super().__init__(
             path=path,
             tile_px=tile_px,

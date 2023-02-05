@@ -11,6 +11,7 @@ import shutil
 import pickle
 import pandas as pd
 import tarfile
+import warnings
 from tqdm import tqdm
 from os.path import basename, exists, join, isdir, dirname
 from multiprocessing.managers import DictProxy
@@ -1092,13 +1093,6 @@ class Project:
             hp_list += [{f'{label}HPSweep{i}': mp.get_dict()}]
         sf.util.write_json(hp_list, os.path.join(self.root, filename))
         log.info(f'Wrote hp sweep (len {len(sweep)}) to [green]{filename}')
-
-    def create_hyperparameter_sweep(self, *args: Any, **kwargs: Any) -> None:
-        log.warn(
-            "Deprecation warning: Project.create_hyperparameter_sweep() will"
-            " be removed in slideflow>=1.2. Use Project.create_hp_sweep()."
-        )
-        self.create_hp_sweep(*args, **kwargs)
 
     @auto_dataset
     def evaluate(
@@ -2375,56 +2369,6 @@ class Project:
         )
         return mosaic
 
-    def generate_thumbnails(
-        self,
-        size: int = 512,
-        *,
-        dataset: Optional[Dataset] = None,
-        filters: Optional[Dict] = None,
-        filter_blank: Optional[Union[str, List[str]]] = None,
-        roi: bool = False,
-        enable_downsample: bool = True
-    ) -> None:
-        """Generates square slide thumbnails with black borders of fixed size,
-        and saves to project folder.
-
-        Args:
-            size (int, optional): Width/height of thumbnail in pixels.
-                Defaults to 512.
-
-        Keyword Args:
-            dataset (:class:`slideflow.dataset.Dataset`, optional): Dataset
-                from which to generate activations. If not supplied, will
-                calculate activations for all tfrecords at the tile_px/tile_um
-                matching the supplied model, optionally using provided filters
-                and filter_blank.
-            filters (dict, optional): Filters to use when selecting tfrecords.
-                Defaults to None.
-            filter_blank (list, optional): Exclude slides blank in these cols.
-                Defaults to None.
-            roi (bool, optional): Include ROI in the thumbnail images.
-                Defaults to False.
-            enable_downsample (bool, optional): If True and a thumbnail is not
-                embedded in the slide file, downsampling is permitted to
-                accelerate thumbnail calculation.
-        """
-        log.warn(
-            "Deprecation warning: Project.generate_thumbnails() will "
-            "be moved to Dataset.thumbnails() in slideflow>=1.2"
-        )
-        thumb_folder = join(self.root, 'thumbs')
-        if not exists(thumb_folder):
-            os.makedirs(thumb_folder)
-        if dataset is None:
-            dataset = self.dataset(tile_px=0, tile_um=0)
-        dataset = dataset.filter(filters=filters, filter_blank=filter_blank)
-        dataset.thumbnails(
-            thumb_folder,
-            size=size,
-            roi=roi,
-            enable_downsample=enable_downsample
-        )
-
     def generate_tfrecord_heatmap(
         self,
         tfrecord: str,
@@ -2448,10 +2392,6 @@ class Project:
         Returns:
             None
         """
-        log.warn(
-            "Deprecation warning: Project.generate_tfrecord_heatmap() will "
-            "be moved to Dataset.tfrecord_heatmap() in slideflow>=1.2"
-        )
         dataset = self.dataset(tile_px=tile_px, tile_um=tile_um)
         if outdir is None:
             outdir = self.root

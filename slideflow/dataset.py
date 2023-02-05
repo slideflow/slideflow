@@ -91,6 +91,7 @@ import threading
 import time
 import types
 import tempfile
+import warnings
 from collections import defaultdict
 from datetime import datetime
 from glob import glob
@@ -386,44 +387,6 @@ def split_patients(patients_dict: Dict[str, Dict], n: int) -> List[List[str]]:
     patient_list = list(patients_dict.keys())
     shuffle(patient_list)
     return list(sf.util.split_list(patient_list, n))
-
-
-def split_patients_list(
-    patients_dict: Dict[str, Dict],
-    n: int,
-    balance: Optional[str] = None,
-    preserved_site: bool = False
-) -> List[List[str]]:
-    """Splits a dictionary of patients into n groups,
-    balancing according to key "balance" if provided.
-
-    Deprecated function. Preferred use is calling split_patients(),
-    split_patients_balanced(), or split_patients_preserved_site().
-
-    Args:
-        patients_dict (dict): Nested ditionary mapping patient names to
-            dict of outcomes: labels
-        n (int): Number of splits to generate.
-        balance (str, optional): Annotation header to balance splits across.
-        preserved_site (bool, optional): Use site-preserved cross-validation,
-            assuming site information is under the nested dictionary key
-            'site' in patients_dict.
-
-    Returns:
-        List of patient splits
-    """
-
-    log.warn("Deprecation warning: split_patients_list() will be removed in "
-             "slideflow>=1.2. Please use split_patients(), "
-             "split_patients_balanced(), or split_patients_preserved_site().")
-    if not balance:
-        patient_list = list(patients_dict.keys())
-        shuffle(patient_list)
-        return list(sf.util.split_list(patient_list, n))
-    elif preserved_site:
-        return split_patients_preserved_site(patients_dict, n, balance)
-    else:
-        return split_patients_balanced(patients_dict, n, balance)
 
 
 class Dataset:
@@ -3130,9 +3093,10 @@ class Dataset:
         *args: Any,
         **kwargs: Any
     ) -> Tuple["Dataset", "Dataset"]:
-        log.warn(
+        warnings.warn(
             "Dataset.training_validation_split() is deprecated and will be "
-            "removed in a future version. Please use Dataset.split()"
+            "removed in a future version. Please use Dataset.split()",
+            DeprecationWarning
         )
         return self.split(*args, **kwargs)
 
@@ -3141,9 +3105,10 @@ class Dataset:
         *args: Any,
         **kwargs: Any
     ) -> Tuple["Dataset", "Dataset"]:
-        log.warn(
+        warnings.warn(
             "Dataset.train_val_split() is deprecated and will be "
-            "removed in a future version. Please use Dataset.split()"
+            "removed in a future version. Please use Dataset.split()",
+            DeprecationWarning
         )
 
     def torch(
