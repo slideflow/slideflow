@@ -1,17 +1,12 @@
 from __future__ import absolute_import, division, print_function
 
-import multiprocessing as mp
-import pandas as pd
 import csv
-import math
 import os
 import sys
 import time
 from functools import partial
-from pandarallel import pandarallel
 from multiprocessing.dummy import Pool as DPool
-from random import shuffle
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union, Iterable
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import cv2
 import numpy as np
