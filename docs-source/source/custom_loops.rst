@@ -15,7 +15,7 @@ The :class:`slideflow.Dataset` class includes functions to prepare a Tensorflow 
     P = Project('/project/path', ...)
     dts = P.dataset(tile_px=299, tile_um=302)
 
-If you want to perform any balancing, use the ``.balance()`` method:
+If you want to perform any mini-batch balancing, use the ``.balance()`` method:
 
 .. code-block:: python
 

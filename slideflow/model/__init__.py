@@ -1061,13 +1061,25 @@ class DatasetFeatures:
             slide_predictions.update({slide: int(np.argmax(slide_perc))})
         return slide_predictions
 
-    def map_to_predictions(
+    def map_activations(self, **kwargs) -> "sf.SlideMap":
+        """Map activations with UMAP.
+
+        Keyword args:
+            ...
+
+        Returns:
+            sf.SlideMap
+
+        """
+        return sf.SlideMap.from_features(self, **kwargs)
+
+    def map_predictions(
         self,
         x: int = 0,
-        y: int = 0
-    ) -> Tuple[np.ndarray, np.ndarray, List[Dict[str, Any]]]:
-        """Returns coordinates and metadata for tile-level predictions for all
-        tiles, which can be used to create a SlideMap.
+        y: int = 0,
+        **kwargs
+    ) -> "sf.SlideMap":
+        """Map tile predictions onto x/y coordinate space.
 
         Args:
             x (int, optional): Outcome category id for which predictions will
@@ -1075,26 +1087,32 @@ class DatasetFeatures:
             y (int, optional): Outcome category id for which predictions will
                 be mapped to the Y-axis. Defaults to 0.
 
+        Keyword args:
+            cache (str, optional): Path to parquet file to cache coordinates.
+                Defaults to None (caching disabled).
+
         Returns:
-            A tuple containing
+            sf.SlideMap
 
-                np.ndarray:   List of x-axis coordinates (preds for the category 'x')
-
-                np.ndarray:   List of y-axis coordinates (preds for the category 'y')
-
-                list:   List of dict containing tile-level metadata (for SlideMap)
         """
-
-        umap_x, umap_y, umap_meta = [], [], []
+        all_x, all_y, all_slides, all_tfr_idx = [], [], [], []
         for slide in self.slides:
-            for tile_index in range(self.logits[slide].shape[0]):
-                umap_x += [self.logits[slide][tile_index][x]]
-                umap_y += [self.logits[slide][tile_index][y]]
-                umap_meta += [{
-                    'slide': slide,
-                    'index': tile_index
-                }]
-        return np.array(umap_x), np.array(umap_y), umap_meta
+            all_x.append(self.logits[slide].values[:, x])
+            all_y.append(self.logits[slide].values[:, y])
+            all_slides.append([slide for _ in range(self.logits[slide].shape[0])])
+            all_tfr_idx.append(np.arange(self.logits[slide].shape[0]))
+        all_x = np.concatenate(all_x)
+        all_y = np.concatenate(all_y)
+        all_slides = np.concatenate(all_slides)
+        all_tfr_idx = np.concatenate(all_tfr_idx)
+
+        return sf.SlideMap.from_xy(
+            x=all_x,
+            y=all_y,
+            slides=all_slides,
+            tfr_index=all_tfr_idx,
+            **kwargs
+        )
 
     def merge(self, df: "DatasetFeatures") -> None:
         '''Merges with another DatasetFeatures.

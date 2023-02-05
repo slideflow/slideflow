@@ -10,7 +10,7 @@ Slideflow offers tools for training many types of neural networks, including:
 - **Self-supervised pretraining**: Contrastive pretraining with or without labels (e.g. `SimCLR <https://arxiv.org/abs/2002.05709>`_).
 - **Generative adversarial networks**: Models trained to create synthetic images, with optional class conditioning (e.g. `StyleGAN2/3 <https://arxiv.org/abs/1912.04958>`_).
 
-In this section, we will walk through the process of training a weakly supervised tile-based model. :ref:`Multi-instance learning (MIL) <clam>`, :ref:`self-supervised pretraining <simclr>`, and :ref:`generative adversarial networks (GAN) <stylegan>` are described in other sections.
+In this section, we will walk through the process of training a weakly supervised tile-based model. :ref:`Multi-instance learning (MIL) <clam_mil>`, :ref:`self-supervised pretraining <simclr>`, and :ref:`generative adversarial networks (GAN) <stylegan>` are described in other sections.
 
 Prepare hyperparameters
 ***********************
@@ -343,10 +343,10 @@ In both cases, the loss function is applied as follows:
   hp = sf.ModelParams(..., loss={'type': 'linear', 'fn': custom_linear_loss})
 
 
-Distributed training across GPUs
-********************************
+Using multiple GPUs
+*******************
 
-If multiple GPUs are available, training can be distributed by passing the argument ``multi_gpu=True``. If provided, slideflow will use all available (and visible) GPUs for training.
+Slideflow can perform distributed training if multiple GPUs are available. Enable distributed training by passing the argument ``multi_gpu=True``, which will allow Slideflow to use all available (and visible) GPUs.
 
 Monitoring performance
 **********************

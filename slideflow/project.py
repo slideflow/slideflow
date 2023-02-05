@@ -2173,10 +2173,11 @@ class Project:
         umap = sf.SlideMap.from_features(
             df,
             map_slide=map_slide,
-            cache=umap_cache,
             low_memory=low_memory,
             **umap_kwargs
         )
+        if umap_cache:
+            umap.save_coordinates(umap_cache)
         # If displaying centroid AND predictions, show slide-level predictions
         # rather than tile-level predictions
         if (map_slide == 'centroid') and show_prediction is not None:
@@ -2351,7 +2352,7 @@ class Project:
             umap_slides = np.array(slides)
             umap_tfr_idx = np.zeros(len(slides))
 
-        umap = sf.SlideMap.from_precalculated(
+        umap = sf.SlideMap.from_xy(
             x=umap_x,
             y=umap_y,
             slides=umap_slides,
@@ -3296,51 +3297,39 @@ class Project:
 
     def train_simclr(
         self,
-        exp_name: str,
+        simclr_args: "simclr.SimCLR_Args",
         train_dataset: Dataset,
         val_dataset: Optional[Dataset] = None,
         *,
+        exp_label: Optional[str] = None,
         outcomes: Optional[Union[str, List[str]]] = None,
-        simclr_args: Optional["simclr.SimCLR_Args"] = None,
         **kwargs
     ) -> None:
-        """Train SimCLR model, saved in SimCLR/{exp_name}/models
-            directory
+        """Train SimCLR model, with models saved in ``simclr`` folder in the
+        project root directory.
 
         Args:
-            exp_name (str): Name of experiment. Makes SimCLR/{exp_name} folder.]
-            outcomes (str): Annotation column which specifies the outcome.
-            dataset (:class:`slideflow.dataset.Dataset`): Dataset object from
-                which to generate activations.
-            val_fraction (float):
-            splits (str): splits file name, if exists the splits defined are
-                used otherwise it is created
-            simCLR_args (optional): Namespace with SimCLR arguments, as provided
-                by :func:`slideflow.simclr.get_args`.
+            simclr_args (slideflow.simclr.SimCLR_Args, optional): SimCLR
+                arguments, as provided by :func:`slideflow.simclr.get_args()`.
+            train_dataset (:class:`slideflow.Dataset`): Training dataset.
+            val_dataset (:class:`slideflow.Dataset`): Validation dataset.
+                Defaults to None.
 
         Keyword Args:
+            exp_label (str, optional): Experiment label to add model names.
+            outcomes (str, optional): Annotation column which specifies the outcome, for
+                optionally training a supervised head. Defaults to None.
             All other keyword arguments for :meth:`slideflow.simclr.run_simclr()`
 
-        Returns:
-            None
-
-        Examples
-            Train SimCLR with train_batch_size=256 and no TPU
-
-                >>> import slideflow.simclr as simclr
-                >>> P = sf.Project.from_prompt('/project/path')
-                >>> simclr_args = simclr.get_args(train_batch_size=256)
-                >>> dataset = P.dataset(tile_px=299, tile_um=302)
-                >>> P.train_simclr('name', 'outcomes', dataset,
-                ...     simclr_args=simclr_args, use_tpu=False)
         """
-
         from slideflow import simclr
 
         # Set up SimCLR experiment data directory
-        simclr_dir = join(self.root, 'simclr', exp_name)
-        if not exists(simclr_dir):
-            os.makedirs(simclr_dir)
+        if exp_label is None:
+            exp_label = 'simclr'
+        outdir = sf.util.get_new_model_dir(join(self.root, 'simclr'), exp_label)
+        if not exists(outdir):
+            os.makedirs(outdir)
 
         # get base SimCLR args/settings if not provided
         if not simclr_args:
@@ -3354,8 +3343,7 @@ class Project:
             val_dts=val_dataset,
             labels=outcomes,
         )
-        simclr.run_simclr(simclr_args, builder, model_dir=simclr_dir, **kwargs)
-
+        simclr.run_simclr(simclr_args, builder, model_dir=outdir, **kwargs)
 
     def train_clam(
         self,

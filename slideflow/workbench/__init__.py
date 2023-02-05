@@ -9,7 +9,7 @@ import glfw
 import OpenGL.GL as gl
 
 from typing import List, Any, Optional, Dict, Tuple
-from os.path import join, exists
+from os.path import join
 from PIL import Image
 from tkinter import Tk
 from tkinter.filedialog import askopenfilename, askdirectory

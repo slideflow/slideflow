@@ -26,11 +26,12 @@ The ``slideflow`` package includes a ``Project`` class to help coordinate projec
    training
    evaluation
    posthoc
-   workbench_tools
-   custom_loops
    uq
-   stylegan
    clam
+   ssl
+   stylegan
+   custom_loops
+   workbench_tools
    troubleshooting
 
 .. toctree::

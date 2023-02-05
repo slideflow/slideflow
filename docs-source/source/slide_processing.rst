@@ -48,7 +48,7 @@ We offer two methods for annotating ROIs - :ref:`Workbench <workbench>` and `QuP
 
 If you are using QuPath, annotate whole-slide images using the Polygon tool. Then, click **Automate** -> **Show script editor**. In the box that comes up, click **File** -> **Open** and load the ``qupath_roi.groovy`` script (QuPath 0.2 or greater) or ``qupath_roi_legacy.groovy`` (QuPath 0.1.x), scripts `available on GitHub <https://github.com/jamesdolezal/slideflow>`_. Click **Run** -> **Run** if using QuPath 0.2 or greater, or **Run** -> **Run for Project** if using QuPath 0.1.x. ROIs will be exported in CSV format in the QuPath project directory, in the subdirectory "ROI".
 
-Once ROI CSV files are generated, ensure they are placed in the folder expected by your :ref:`Project <project_setup>` or :ref:`Dataset <dataset_and_val>` based on their respective configurations.
+Once ROI CSV files are generated, ensure they are placed in the folder expected by your :ref:`Project <project_setup>` or :ref:`Dataset <datasets_and_validation>` based on their respective configurations.
 
 The ``roi_method`` argument to the ``extract_tiles()`` functions allow you to control how ROIs are used. Options include:
 

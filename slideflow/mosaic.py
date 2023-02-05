@@ -149,35 +149,6 @@ class Mosaic:
                 # Generate mosaic
                 mosaic = Mosaic(slide_map, tfrecords=ftrs.tfrecords)
 
-        Creating a mosaic map requires two components: a set of images and
-        corresponding coordinates. These can either be manually provided,
-        or the mosaic can be configured to dynamically read images from
-        TFRecords as needed, reducing memory requirements.
-
-        The first argument provides the images, and may be any of the following:
-            - A list or array of images (np.ndarray, HxWxC)
-            - A list of tuples, containing (slide_name, tfrecord_index)
-            - A ``slideflow.SlideMap`` object
-
-        The second argument provides the coordinates, and may be any of:
-            - A list or array of (x, y) coordinates for each image
-            - None (if the first argument is a ``SlideMap``, which has coordinates)
-
-        If images are to be read dynamically from tfrecords (with a ``SlideMap``,
-        or by providing tfrecord indices directly), the keyword argument
-        ``tfrecords`` must be specified with paths to tfrecords.
-
-        Examples
-
-            Generate a mosaic map from a list of images and coordinates.
-
-                >>> mosaic = Mosaic(images, coordinates)
-
-            Generate a mosaic map from a SlideMap and list of TFRecord paths.
-
-                >>> sm = SlideMap.from_features(...)
-                >>> mosaic = Mosaic(sm, tfrecords=dataset.tfrecords())
-
         Args:
             images (list(np.ndarray), tuple, :class:`slideflow.SlideMap`):
                 Images from which to generate the mosaic. May be a list or

@@ -66,7 +66,7 @@ def activations_tester(
     umap = SlideMap.from_features(df)
     if not exists(join(project.root, 'stats')):
         os.makedirs(join(project.root, 'stats'))
-    umap.save(join(project.root, 'stats', '2d_umap.png'))
+    umap.save_plot(join(project.root, 'stats', '2d_umap.png'))
     tile_stats, pt_stats, cat_stats = df.stats()
     top_features_by_tile = sorted(
         range(df.num_features),

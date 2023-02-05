@@ -24,18 +24,16 @@ method:
     slide_map = sf.SlideMap.from_features(df)
 
 Alternatively, if you would like to map slides from a dataset in two-dimensional space using pre-calculated *x* and *y*
-coordinates, you can use the ``from_precalculated`` class method. In addition to X and Y, this method requires supplying
+coordinates, you can use the ``from_xy`` class method. In addition to X and Y, this method requires supplying
 tile-level metadata in the form of a list of dicts. Each dict must contain the name of the origin slide and the tile
 index in the slide TFRecord.
 
 .. code-block:: python
 
-    dataset = project.dataset(tile_px=299, tile_um=302)
-    slides = dataset.slides()
     x = np.array(...)
     y = np.array(...)
-    meta = [{'slide': ..., 'index': ...} for i in range(len(x))]
-    slide_map = sf.SlideMap.from_precalculated(slides, x, y, meta)
+    slides = ['slide1', 'slide1', 'slide5', ...]
+    slide_map = sf.SlideMap.from_xy(x=x, y=y, slides=slides)
 
 .. automodule: slideflow.stats
     :imported-members:

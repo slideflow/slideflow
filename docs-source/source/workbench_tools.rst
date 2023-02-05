@@ -1,6 +1,6 @@
 .. _workbench:
 
-Workbench: Visualization Tools
+Workbench: Live Visualization
 ==============================
 
 .. video:: workbench_preview.webm
@@ -11,11 +11,11 @@ Workbench: Visualization Tools
 
 New in Slideflow 1.3, Workbench provides powerful tools for interactive visualization of model predictions for whole-slide images and GAN-generated images. It's also fast - with an OpenGL renderer and highly optimized whole-slide image viewer, you'll get a smooth experience that can even run on a Raspberry Pi.
 
-Run workbench using the ``workbench.py`` script in the main repository folder. A path to a whole-slide image can optionally be provided as the first argument.
+Workbench is run through the ``slideflow.workbench`` module. A path to a whole-slide image can optionally be provided as the first argument.
 
 .. code-block:: bash
 
-    python3 workbench.py /path/to/slide.svs
+    python -m slideflow.workbench
 
 Use the ``--help`` flag to see a list of available arguments.
 
