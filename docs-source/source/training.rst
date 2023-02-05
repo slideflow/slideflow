@@ -35,8 +35,8 @@ See the :class:`slideflow.ModelParams` API documentation for a list of available
 
     If you are using a continuous variable as an outcome measure, be sure to use a linear loss function. Linear loss functions can be viewed in ``slideflow.model.ModelParams.LinearLossDict``, and all available loss functions are in ``slideflow.model.ModelParams.AllLossDict``.
 
-Begin training
-**************
+Training a model
+****************
 
 Slideflow provides two methods for training models: with the high-level :meth:`slideflow.Project.train` function or with the lower-level :class:`slideflow.model.Trainer`. The former provides an easier interface for executing complex training tasks with a single function call, while the latter provides lower-level access for greater customizability.
 
@@ -351,6 +351,9 @@ If multiple GPUs are available, training can be distributed by passing the argum
 Monitoring performance
 **********************
 
+Tensorboard
+-----------
+
 During training, progress can be monitored using Tensorflow's bundled ``Tensorboard`` package by passing the argument ``use_tensorboard=True``. This functionality was disabled by default due to a recent bug in Tensorflow. To use tensorboard to monitor training, execute:
 
 .. code-block:: bash
@@ -358,3 +361,14 @@ During training, progress can be monitored using Tensorflow's bundled ``Tensorbo
     $ tensorboard --logdir=/path/to/model/directory
 
 ... and open http://localhost:6006 in your web browser.
+
+Neptune.ai
+----------
+
+Experiments can be automatically logged with `Neptune.ai <https://app.neptune.ai>`_. To enable logging, first locate your Neptune API token and workspace ID, and configure the environmental variables ``NEPTUNE_API_TOKEN`` and ``NEPTUNE_WORKSPACE``.
+
+With the environmental variables set, Neptune logs are enabled by passing ``use_neptune=True`` to ``sf.load_project``.
+
+.. code-block:: python
+
+    P = sf.load_project('/project/path', use_neptune=True)

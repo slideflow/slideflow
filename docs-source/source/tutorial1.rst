@@ -11,7 +11,7 @@ we will train a model to predict ER status from breast cancer slides.
 Examples will be given assuming project files are in the directory ``/home/er_project`` and slides are in
 ``/home/brca_slides``, although you will need to customize these paths according to your needs.
 
-Project Planning
+Create a Project
 ****************
 
 First, download slides and annotations for the TCGA-BRCA project using the `legacy GDC portal
@@ -19,45 +19,22 @@ First, download slides and annotations for the TCGA-BRCA project using the `lega
 patients. Our outcome of interest is "er_status_by_ihc", of which 1011 have a documented result (either "Positive"
 or "Negative"), giving us our final patient count of 1011.
 
-To create a new project, use the ``run_project.py`` script:
+Create a new project, and pass the path to the downloaded slides to the argument ``slides``.
 
-.. code-block:: bash
+.. code-block:: python
 
-    $ python3 run_project.py -p /home/er_project
+    import slideflow as sf
 
-We will then be taken through an interactive prompt asking for project settings. When prompted, use the
-following settings (mostly defaults):
+    P = sf.create_project(
+        root='/home/er_project',
+        slides='/path/to/slides'
+    )
 
-+-------------------------------+-------------------------------------------------------+
-| **name**                      | Breast_ER                                             |
-+-------------------------------+-------------------------------------------------------+
-| **annotations**               | ./annotations.csv (default)                           |
-+-------------------------------+-------------------------------------------------------+
-| **dataset_config**            | ./datasets.json (default)                             |
-+-------------------------------+-------------------------------------------------------+
-| **sources**                   | BRCA                                                  |
-+-------------------------------+-------------------------------------------------------+
-| **models_dir**                | ./models (default)                                    |
-+-------------------------------+-------------------------------------------------------+
-| **eval_dir**                  | ./eval                                                |
-+-------------------------------+-------------------------------------------------------+
+After the project is created, we can load the project with:
 
-After a blank datasets.json file is created, we will be prompted to add a new dataset source. Use the following
-configuration for the added dataset source:
+.. code-block:: python
 
-+-------------------------------+-------------------------------------------------------+
-| **source**                    | BRCA                                                  |
-+-------------------------------+-------------------------------------------------------+
-| **slides**                    | /home/brca_slides                                     |
-+-------------------------------+-------------------------------------------------------+
-| **roi**                       | /home/brca_slides                                     |
-+-------------------------------+-------------------------------------------------------+
-| **tiles**                     | /home/er_project/tiles                                |
-+-------------------------------+-------------------------------------------------------+
-| **tfrecords**                 | /home/er_project/tfrecords                            |
-+-------------------------------+-------------------------------------------------------+
-
-For simplicity, we will not be using annotated tumor regions of interest (ROI), instead training on whole-slide images.
+    P = sf.load_project('/home/er_project')
 
 Setting up annotations
 **********************
@@ -91,21 +68,18 @@ Your annotations file should look something like:
 | ...                   | ...                | ...       | ...                               |
 +-----------------------+--------------------+-----------+-----------------------------------+
 
+Save this CSV file in your project folder with the name ``annotations.csv``.
 
 Tile extraction
 ***************
 
-The next step is to extract tiles from our slides. Find the sample ``actions.py`` file in the project folder, which we
-will modify and use to execute our pipeline functions. Delete the commented-out examples in this file.
-
-For this example, we will use a 256px x 256px tile size, at 0.5 µm/pixel (128 um). Add the following
-to the project ``actions.py`` file:
+The next step is to extract tiles from our slides. For this example, we will use a 256px x 256px tile size,
+at 0.5 µm/pixel (128 um).
 
 .. code-block:: python
 
-    def main(P):
-        # Extract tiles at 256 pixels, 0.5 um/px
-        P.extract_tiles(tile_px=256, tile_um=128)
+    # Extract tiles at 256 pixels, 0.5 um/px
+    P.extract_tiles(tile_px=256, tile_um=128)
 
 .. hint::
     Tile extraction speed is greatly improved when slides are on an SSD or ramdisk; slides can be automatically
@@ -124,17 +98,13 @@ hyperparameters, which we can configure with :class:`slideflow.model.ModelParams
 
 .. code-block:: python
 
-    def main(P):
-        from slideflow.model import ModelParams
-        ...
-
-        hp = ModelParams(
-            tile_px=256,
-            tile_um=128,
-            model='xception',
-            batch_size=32,
-            epochs=[3]
-        )
+    hp = sf.ModelParams(
+        tile_px=256,
+        tile_um=128,
+        model='xception',
+        batch_size=32,
+        epochs=[3]
+    )
 
 For training, we will use 5-fold cross-validation on the training dataset. To set up training, invoke the
 :meth:`slideflow.Project.train` function with the outcome of interest, our hyperparameters, and our validation plan.
@@ -143,17 +113,14 @@ to only include patients with documented ER status (otherwise a blank "" would b
 
 .. code-block:: python
 
-    def main(P):
-        ...
-
-        # Train with 5-fold cross-validation
-        P.train(
-            'er_status_by_ihc',
-            params=hp,
-            val_k_fold=5,
-            filters={'dataset': ['train'],
-                     'er_status_by_ihc': ['Positive', 'Negative']}
-        )
+    # Train with 5-fold cross-validation
+    P.train(
+        'er_status_by_ihc',
+        params=hp,
+        val_k_fold=5,
+        filters={'dataset': ['train'],
+                    'er_status_by_ihc': ['Positive', 'Negative']}
+    )
 
 After cross validation is complete, we will want to have a model trained across the entire dataset, so we can assess
 performance on our held-out evaluation set. To train a model across the entire training dataset without validation,
@@ -161,59 +128,56 @@ we will set ``val_strategy`` to ``None``:
 
 .. code-block:: python
 
-    def main(P):
-        ...
+    # Train across the entire training dataset
+    P.train(
+        'er_status_by_ihc',
+        params=hp,
+        val_strategy='none',
+        filters={'dataset': ['train'],
+                    'er_status_by_ihc': ['Positive', 'Negative']}
+    )
 
-        # Train across the entire training dataset
-        P.train(
-            'er_status_by_ihc',
-            params=hp,
-            val_strategy='none',
-            filters={'dataset': ['train'],
-                     'er_status_by_ihc': ['Positive', 'Negative']}
-        )
-
-Now, it's time to start our pipeline. To review, our ``actions.py`` file at this point should look like:
+Now, it's time to start our pipeline. To review, our complete script should look like:
 
 .. code-block:: python
 
-    def main(P):
-        from slideflow.model import ModelParams
+    import slideflow as sf
 
-        # Extract tiles at 256 pixels, 0.5 um/px
-        P.extract_tiles(tile_px=256, tile_um=128)
+    # Create a new project
+    P = sf.create_project(
+        root='/home/er_project',
+        slides='/path/to/slides'
+    )
 
-        hp = ModelParams(
-            tile_px=256,
-            tile_um=128,
-            model='xception',
-            batch_size=32,
-            epochs=[3, 5, 10]
-        )
+    # Extract tiles at 256 pixels, 0.5 um/px
+    P.extract_tiles(tile_px=256, tile_um=128)
 
-        # Train with 5-fold cross-validation
-        P.train(
-            'er_status_by_ihc',
-            params=hp,
-            val_k_fold=5,
-            filters={'dataset': ['train'],
-                     'er_status_by_ihc': ['Positive', 'Negative']}
-        )
+    hp = ModelParams(
+        tile_px=256,
+        tile_um=128,
+        model='xception',
+        batch_size=32,
+        epochs=[3, 5, 10]
+    )
 
-        # Train across the entire training dataset
-        P.train(
-            'er_status_by_ihc',
-            params=hp,
-            val_strategy='none',
-            filters={'dataset': ['train'],
-                     'er_status_by_ihc': ['Positive', 'Negative']}
-        )
+    # Train with 5-fold cross-validation
+    P.train(
+        'er_status_by_ihc',
+        params=hp,
+        val_k_fold=5,
+        filters={'dataset': ['train'],
+                    'er_status_by_ihc': ['Positive', 'Negative']}
+    )
 
-To execute these functions, use the ``run_project.py`` script, passing the project directory with the ``-p`` flag.
+    # Train across the entire training dataset
+    P.train(
+        'er_status_by_ihc',
+        params=hp,
+        val_strategy='none',
+        filters={'dataset': ['train'],
+                    'er_status_by_ihc': ['Positive', 'Negative']}
+    )
 
-.. code-block:: bash
-
-    $ python3 run_project.py -p /home/er_project
 
 The final training results should should show an average AUROC of around 0.87, with average AP around 0.83. Tile, slide,
 and patient-level receiver operator curves are saved in the model folder, along with precision-recall curves (not shown):
@@ -239,20 +203,3 @@ Tensorboard-formatted training and validation logs are saved the model directory
     $ tensorboard --logdir=/project_path/models/00001-outcome-HP0
 
 Tensorboard can then be accessed by navigating to ``https://localhost:6006`` in a browser.
-
-Monitoring with Neptune
-***********************
-
-Experiments can be automatically logged with `Neptune.ai <https://app.neptune.ai>`_. To enable logging, first locate your Neptune API token and workspace ID, and configure the environmental variables ``NEPTUNE_API_TOKEN`` and ``NEPTUNE_WORKSPACE``.
-
-With the environmental variables set, Neptune logs are enabled either by passing a ``-n`` flag to the ``run_project.py`` script:
-
-.. code-block:: bash
-
-    $ python3 run_project.py -n -p /project_path/
-
-or by passing ``use_neptune=True`` to the ``slideflow.Project`` class:
-
-.. code-block:: python
-
-    P = sf.Project('/project/path', use_neptune=True)
