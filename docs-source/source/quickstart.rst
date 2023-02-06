@@ -72,7 +72,7 @@ The core imaging data used in Slideflow are image tiles :ref:`extracted from sli
     │ label     │ 299px_10x                        │
     ╘==============================================╛
 
-    Number of tiles in TFRecords: 18354
+    Number of tiles in TFRecords: 0
     Annotation columns:
     Index(['patient', 'subtype', 'site', 'slide'],
         dtype='object')
@@ -165,4 +165,4 @@ Read more about :ref:`model evaluation <evaluation>`.
 Post-hoc analysis
 *****************
 
-Slideflow includes a number of analytical tools for working with trained models. Read more about :ref:`heatmaps <evaluation>`, :ref:`model explainability <stylegan>`, :ref:`analysis of layer activations <mosaic>`, and real-time inference in an interactive :ref:`whole-slide image reader <workbench>`.
+Slideflow includes a number of analytical tools for working with trained models. Read more about :ref:`heatmaps <evaluation>`, :ref:`model explainability <stylegan>`, :ref:`analysis of layer activations <activations>`, and real-time inference in an interactive :ref:`whole-slide image reader <workbench>`.
