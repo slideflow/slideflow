@@ -45,3 +45,4 @@ pyperclip
 requests
 cucim
 versioneer
+cellpose

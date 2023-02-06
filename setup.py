@@ -89,6 +89,7 @@ setuptools.setup(
         'pyperclip',
         'requests',
         'parameterized',
+        'cellpose'
     ],
     extras_require={
         'tf': [
