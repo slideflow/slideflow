@@ -364,8 +364,8 @@ class _ModelParams:
                     "and will be ignored.")
 
         # Model type validations.
-        if (self.model_type() != 'categorical' and ((self.training_balance == 'category') or
-                                                    (self.validation_balance == 'category'))):
+        if (self.model_type() not in ['categorical', 'cph'] and ((self.training_balance == 'category') or
+                                                                (self.validation_balance == 'category'))):
             raise errors.ModelParamsError(
                 f'Cannot combine category-level balancing with model type "{self.model_type()}".'
             )

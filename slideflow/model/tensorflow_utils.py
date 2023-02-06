@@ -414,8 +414,11 @@ def eval_from_model(
                 yt = [yt[f'out-{o}'] for o in range(len(yt))]
                 if loss is not None:
                     loss_val = [loss(yt[i], yp[i]) for i in range(len(yt))]
-                    loss_val = [tf.boolean_mask(l, tf.math.is_finite(l)) for l in loss_val]
-                    batch_loss = tf.math.reduce_sum(loss_val).numpy()
+                    loss_val = [l for l in loss_val if not tf.math.is_nan(l)]
+                    if len(loss_val) == 1:
+                        batch_loss = loss_val[0]
+                    else:
+                        batch_loss = tf.math.reduce_sum(loss_val).numpy()
                     running_loss = (((num_vals - slide.shape[0]) * running_loss) + batch_loss) / num_vals
             else:
                 y_true += [yt.numpy()]

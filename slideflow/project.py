@@ -804,10 +804,21 @@ class Project:
         # ---- Balance and clip datasets --------------------------------------
         if s_args.bal_headers is None:
             s_args.bal_headers = s_args.outcomes
+            if hp.model_type() == 'cph':
+                if isinstance(s_args.input_header, list):
+                    s_args.bal_headers = s_args.input_header[0]
+                else:
+                    s_args.bal_headers = s_args.input_header
+                log.info('Setting balance header to event')
+        if hp.model_type() == 'cph':
+            balance_force = True
+        else:
+            balance_force = False
         if not from_wsi:
             train_dts = train_dts.balance(
                 s_args.bal_headers,
                 hp.training_balance,
+                force=balance_force,
             )
             train_dts = train_dts.clip(s_args.max_tiles)
         elif hp.training_balance not in ('none', None) or s_args.max_tiles:
@@ -817,6 +828,7 @@ class Project:
             val_dts = val_dts.balance(
                 s_args.bal_headers,
                 hp.validation_balance,
+                force=balance_force,
             )
             val_dts = val_dts.clip(s_args.max_tiles)
 
