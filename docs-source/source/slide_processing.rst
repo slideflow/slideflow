@@ -9,7 +9,7 @@ Slide Processing
 
 Whole-slide histopathological images present many challenges for machine learning researchers, as these large gigapixel images may contain out-of-focus regions, pen marks, uneven staining, or varying optical resolutions. Slideflow provides tools for both flexible and computationally efficient slide processing in order to build datasets ready for machine learning applications.
 
-Most tools in Slideflow work with image tiles - extracted sub-regions of a whole-slide image - as the primary data source. For efficiency, image tiles are first buffered into :ref:`TFRecords <tfrecords>` , a binary file format that greatly improves IO throughput. Although training can be performed without using TFRecords (see ***), we recommend tile extraction as the first step for most projects.
+Most tools in Slideflow work with image tiles - extracted sub-regions of a whole-slide image - as the primary data source. For efficiency, image tiles are first buffered into :ref:`TFRecords <tfrecords>` , a binary file format that greatly improves IO throughput. Although training can be performed without using TFRecords (see :ref:`TODO`), we recommend tile extraction as the first step for most projects.
 
 Tile extraction
 ***************
@@ -38,6 +38,10 @@ See the :meth:`slideflow.Dataset.extract_tiles` API documentation for customizat
 
         P.extract_tiles(tile_px=299, tile_um="10x")
 
+Cell segmentation
+*****************
+
+An alternative to extracting tiles in a grid across whole-slide images is extracting tiles at detected cell centroids. This is discussed separately in :ref:`cellseg`.
 
 Regions of Interest
 *******************

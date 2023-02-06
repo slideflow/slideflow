@@ -1,7 +1,5 @@
 .. currentmodule:: slideflow
 
-.. _project:
-
 slideflow
 =========
 

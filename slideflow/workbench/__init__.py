@@ -64,7 +64,7 @@ class Workbench(imgui_window.ImguiWindow):
     ) -> None:
         """Create the main Workbench window.
 
-        Workbench is started by running ``slideflow.workbench`` as a module.
+        Workbench is started by running the workbench module.
 
         .. code-block:: bash
 

@@ -938,13 +938,13 @@ class Project:
             roi (str, optional): Path to directory containing CSV ROIs.
                 Defaults to None.
             tiles (str, optional): Path to directory for loose extracted tiles
-                images (*.jpg, *.png). Defaults to None.
+                images (\*.jpg, \*.png). Defaults to None.
             tfrecords (str, optional): Path to directory for storing TFRecords
                 of tiles. Defaults to None.
             path (str, optional): Path to dataset configuration file.
                 If not provided, uses project default. Defaults to None.
-        """
 
+        """
         if not path:
             path = self.dataset_config
         project_utils.add_source(
@@ -3349,9 +3349,11 @@ class Project:
 
         Keyword Args:
             exp_label (str, optional): Experiment label to add model names.
-            outcomes (str, optional): Annotation column which specifies the outcome, for
-                optionally training a supervised head. Defaults to None.
-            All other keyword arguments for :meth:`slideflow.simclr.run_simclr()`
+            outcomes (str, optional): Annotation column which specifies the
+                outcome, for optionally training a supervised head.
+                Defaults to None.
+            **kwargs: All other keyword arguments for
+                :meth:`slideflow.simclr.run_simclr()`
 
         """
         from slideflow import simclr

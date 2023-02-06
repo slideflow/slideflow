@@ -23,6 +23,7 @@ The ``slideflow`` package includes a ``Project`` class to help coordinate projec
    project_setup
    datasets_and_val
    slide_processing
+   cellseg
    training
    evaluation
    posthoc
@@ -45,6 +46,7 @@ The ``slideflow`` package includes a ``Project`` class to help coordinate projec
    dataset_features
    slidemap
    mosaic
+   slideflow_cellseg
    io
    io_tensorflow
    io_torch

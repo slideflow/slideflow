@@ -1252,12 +1252,12 @@ class Dataset:
         Keyword Args:
             apply_masks (bool): Apply cell segmentation masks to the extracted
                 tiles. Defaults to True.
-
-            All other keyword arguments for :meth:`Dataset.extract_tiles()`.
+            **kwargs: All other keyword arguments for :meth:`Dataset.extract_tiles()`.
 
         Returns:
             Dictionary mapping slide paths to each slide's SlideReport
             (:class:`slideflow.slide.report.SlideReport`)
+
         """
         from slideflow.cellseg.seg_utils import ApplySegmentation
 
@@ -1294,6 +1294,11 @@ class Dataset:
     ) -> Dict[str, SlideReport]:
         """Extract tiles from a group of slides, saving extracted tiles to
         either loose image or in TFRecord binary format.
+
+        Extracted tiles are either saved in TFRecord format
+        (``save_tfrecords=True``, default) or as loose \*.jpg / \*.png images
+        (``save_tiles=True``). TFRecords or image tiles are saved in the
+        the tfrecord and tile directories configured by :class:`slideflow.Dataset`.
 
         Args:
             save_tiles (bool): Save images of extracted tiles to

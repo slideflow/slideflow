@@ -1326,7 +1326,7 @@ class WSI(_BaseLoader):
                 tiles. Defaults to True.
 
         Keyword Args:
-            All keyword arguments are passed to :meth:`WSI.extract_tiles()`.
+            **kwargs: All keyword arguments are passed to :meth:`WSI.extract_tiles()`.
         """
         if self.segmentation is None:
             raise ValueError(

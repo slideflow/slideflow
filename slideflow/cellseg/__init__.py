@@ -28,10 +28,12 @@ from . import seg_utils
 
 if TYPE_CHECKING:
     from rich.progress import Progress, TaskID
+    import shapely.geometry
 
 # -----------------------------------------------------------------------------
 
 class Segmentation:
+
     def __init__(
         self,
         masks: np.ndarray,
@@ -43,12 +45,28 @@ class Segmentation:
         wsi_dim: Optional[Tuple[int, int]] = None,
         wsi_offset: Optional[Tuple[int, int]] = None
     ):
-        """Segmentation mask.
+        """Organizes a collection of cell segmentation masks for a slide.
 
         Args:
             masks (np.ndarray): Array of masks, dtype int32, where 0 represents
                 non-segmented background, and each segmented mask is represented
                 by unique increasing integers.
+
+        Keyword args:
+            slide (slideflow.WSI): If provided, ``Segmentation`` can coordinate
+                extracting tiles at mask centroids. Defaults to None.
+            flows (np.ndarray): Array of flows, dtype float32. Defaults to None.
+            wsi_dim (tuple(int, int)): Size of ``masks`` in the slide
+                pixel space (highest magnification). Used to align the mask
+                array to a corresponding slide. Required for calculating
+                centroids. Defaults to None.
+            wsi_offset (tuple(int, int)): Top-left starting location for
+                ``masks``, in slide pixel space (highest magnification).
+                Used to align the mask array to a corresponding slide.
+                Required for calculating centroids. Defaults to None.
+            styles (np.ndarray): Array of styles, currently ignored.
+            diams (np.ndarray): Array of diameters, currently ignored.
+
         """
         if not isinstance(masks, np.ndarray):
             raise ValueError("First argument (masks) must be a numpy array.")
@@ -62,6 +80,13 @@ class Segmentation:
 
     @classmethod
     def load(cls, path) -> "Segmentation":
+        """Alternate class initializer; load a saved Segmentation from *.zip.
+
+        Args:
+            path (str): Path to *.zip containing saved Segmentation, as created
+                through :meth:`slideflow.cellseg.Segmentation.save`.
+
+        """
         loaded = zarr.load(path)
         if 'masks' not in loaded:
             raise TypeError(f"Unable to load '{path}'; 'masks' index not found.")
@@ -74,20 +99,36 @@ class Segmentation:
         return obj
 
     @property
-    def outlines(self):
+    def outlines(self) -> np.ndarray:
+        """Calculate and return mask outlines as ``np.ndarray``."""
         if self._outlines is None:
             self.calculate_outlines()
         return self._outlines
 
     @property
-    def wsi_ratio(self):
-        """Ratio of WSI base dimension to the mask shape."""
+    def wsi_ratio(self) -> Optional[float]:
+        """Ratio of WSI base dimension to the mask shape.
+
+        Returns `None` if ``wsi_dim`` was not set.
+        """
         if self.wsi_dim is not None:
             return self.wsi_dim[1] / self.masks.shape[0]
         else:
             return None
 
-    def apply_rois(self, scale, annpolys):
+    def apply_rois(
+        self,
+        scale: float,
+        annpolys: List["shapely.geometry.Polygon"]
+    )  -> None:
+        """Apply regions of interest (ROIs), excluding masks outside ROIs.
+
+        Args:
+            scale (float): ROI scale (roi size / WSI base dimension size).
+            annpolys (list(``shapely.geometry.Polygon``)): List of ROI
+                polygons, as available in ``slideflow.WSI.annPolys``.
+
+        """
         roi_seg_scale = scale / self.wsi_ratio
         scaled_polys = [
             sa.scale(
@@ -105,13 +146,20 @@ class Segmentation:
         self.masks *= roi_seg_mask
         self.calculate_centroids(force=True)
 
-    def centroids(self, wsi_dim=False):
+    def centroids(self, wsi_dim: bool = False) -> np.ndarray:
+        """Calculate and return mask centroids.
+
+        Args:
+            wsi_dim (bool): Convert centroids from mask space to WSI space.
+                Requires that ``wsi_dim`` was provided during initialization.
+
+        Returns:
+            A ``np.ndarray`` with shape ``(2, num_masks)``.
+
+        """
         if self._centroids is None:
             self.calculate_centroids()
         if wsi_dim:
-            if self.slide is None:
-                raise ValueError("Unable to calculate wsi_dim for centroids - "
-                                 "slide is not set.")
             if self.wsi_dim is None:
                 raise ValueError("Unable to calculate wsi_dim for centroids - "
                                  "wsi_dim is not set.")
@@ -128,18 +176,42 @@ class Segmentation:
             draw.ellipse((x-3, y-3, x+3, y+3), fill=color)
         return np.asarray(pil_img)
 
-    def calculate_centroids(self, force=False):
+    def calculate_centroids(self, force: bool = False) -> None:
+        """Calculate centroids.
+
+        Centroid values are buffered into ``Segmentation._centroids`` to
+        reduce unnecessary recalculations.
+
+        Args:
+            force (bool): Recalculate centroids, even if calculated before.
+
+        """
         if self._centroids is not None and not force:
             return
         mask_s = seg_utils.sparse_mask(self.masks)
         self._centroids = seg_utils.get_sparse_centroid(self.masks, mask_s)
 
-    def calculate_outlines(self, force=False):
+    def calculate_outlines(self, force: bool = False) -> None:
+        """Calculate mask outlines.
+
+        Mask outlines are buffered into ``Segmentation._outlines`` to
+        reduce unnecessary recalculations.
+
+        Args:
+            force (bool): Recalculate outlines, even if calculated before.
+
+        """
         if self._outlines is not None and not force:
             return
         self._outlines = outlines_list(self.masks)
 
-    def centroid_to_image(self, color='green'):
+    def centroid_to_image(self, color: str = 'green') -> np.ndarray:
+        """Render an image with the location of all centroids as a point.
+
+        Args:
+            color (str): Centroid color. Defaults to 'green'.
+
+        """
         img = np.zeros((self.masks.shape[0], self.masks.shape[1], 3), dtype=np.uint8)
         return self._draw_centroid(img, color=color)
 
@@ -147,15 +219,24 @@ class Segmentation:
         self,
         slide: str,
         tile_px: int = 128,
-        wsi_offset: Tuple[int, int] = (0, 0)
     ) -> Callable:
-        """Return a generator which extracts tiles from a slide at the given centroids."""
+        """Return a generator which extracts tiles from a slide at mask centroids.
+
+        Args:
+            slide (str): Path to a slide.
+            tile_px (int): Height/width of tile to extract at centroids.
+                Defaults to 128.
+
+        Returns:
+            A generator which yields a numpy array, with shape
+                ``(tile_px, tile_px, 3)``, at each mask centroid.
+        """
         reader = sf.slide.wsi_reader(slide)
         factor = reader.dimensions[1] / self.masks.shape[0]
 
         def generator():
             for c in self._centroids:
-                cf = c * factor + wsi_offset
+                cf = c * factor + self.wsi_offset
                 yield reader.read_from_pyramid(
                     (cf[1]-(tile_px/2), cf[0]-(tile_px/2)),
                     (tile_px, tile_px),
@@ -167,6 +248,19 @@ class Segmentation:
         return generator
 
     def mask_to_image(self, centroid=False, color='cyan', centroid_color='green'):
+        """Render an image of all masks.
+
+        Masks are rendered on a black background.
+
+        Args:
+            centroid (bool): Include centroids as points on the image.
+                Defaults to False.
+            color (str): Color of the masks. Defaults to 'cyan'.
+            centroid_color (str): Color of centroid points. Defaults to 'green'.
+
+        Returns:
+            np.ndarray
+        """
         if isinstance(color, str):
             color = [int(c * 255) for c in to_rgb(color)]
         else:
@@ -179,6 +273,17 @@ class Segmentation:
             return img
 
     def outline_to_image(self, centroid=False, color='red', centroid_color='green'):
+        """Render an image with the outlines of all masks.
+
+        Args:
+            centroid (bool): Include centroids as points on the image.
+                Defaults to False.
+            color (str): Color of the mask outlines. Defaults to 'red'.
+            centroid_color (str): Color of centroid points. Defaults to 'green'.
+
+        Returns:
+            np.ndarray
+        """
         empty = np.zeros((self.masks.shape[0], self.masks.shape[1], 3), dtype=np.uint8)
         img = draw_roi(empty, self.outlines, color=color)
         if centroid:
@@ -191,7 +296,18 @@ class Segmentation:
         filename: str,
         centroids: bool = True,
         flows: bool = True
-    ):
+    ) -> None:
+        """Save segmentation masks and metadata to \*.zip.
+
+        A :class:`slideflow.cellseg.Segmentation` object can be loaded from
+        this file with ``.load()``.
+
+        Args:
+            filename (str): Destination filename (ends with \*.zip)
+            centroids (bool): Save centroid locations.
+            flows (bool): Save flows.
+
+        """
         if not filename.endswith('zip'):
             filename += '.zip'
         save_dict = dict(
@@ -395,6 +511,9 @@ def segment_slide(
         tile (bool): Tiles image to decrease GPU/CPU memory usage.
             Defaults to True.
         verbose (bool): Verbose log output at the INFO level. Defaults to True.
+
+    Returns:
+        :class:`slideflow.cellseg.Segmentation`
     """
 
     # Quiet the logger to suppress warnings of empty masks
