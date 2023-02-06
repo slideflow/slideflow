@@ -228,6 +228,7 @@ class _ModelParams:
             'build_model',
             'model_type',
             'validate',
+            'to_dict',
             'from_dict',
             'get_dict',
             'get_loss',

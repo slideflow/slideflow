@@ -886,7 +886,7 @@ def tfrecord_heatmap(
     log.debug('Loaded tile values')
     log.debug(f'Min: {min(vals)}\t Max:{max(vals)}')
 
-    roi_scaling = True
+    roi_scaling = False
     scale = wsi.roi_scale if roi_scaling else 1
     scaled_x = [(xi * scale) - wsi.full_extract_px/2 for xi in x]
     scaled_y = [(yi * scale) - wsi.full_extract_px/2 for yi in y]

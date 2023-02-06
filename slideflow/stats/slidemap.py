@@ -147,7 +147,8 @@ class SlideMap:
             'slide': pd.Series(cols['slides']),
             'tfr_index': pd.Series(cols['tfr_index'])
         })
-        obj = cls(obj_data.slide.unique())
+        obj = cls()
+        obj.slides = obj_data.slide.unique()
         obj.data = obj_data
         obj.parametric_umap = parametric_umap
         return obj
@@ -155,7 +156,7 @@ class SlideMap:
     @classmethod
     def from_features(
         cls,
-        df: "DatasetFeatures",
+        ftrs: "DatasetFeatures",
         *,
         exclude_slides: Optional[List[str]] = None,
         map_slide: Optional[str] = None,
@@ -169,7 +170,7 @@ class SlideMap:
         """Initializes map from dataset features.
 
         Args:
-            df (:class:`slideflow.DatasetFeatures`): DatasetFeatures.
+            ftrs (:class:`slideflow.DatasetFeatures`): DatasetFeatures.
             exclude_slides (list, optional): List of slides to exclude.
             map_slide (str, optional): Either None, 'centroid', or 'average'.
                 If None, will map all tiles from each slide. Defaults to None.
@@ -193,12 +194,13 @@ class SlideMap:
                 f"{map_slide})"
             )
         if not exclude_slides:
-            slides = df.slides
+            slides = ftrs.slides
         else:
-            slides = [s for s in df.slides if s not in exclude_slides]
+            slides = [s for s in ftrs.slides if s not in exclude_slides]
 
-        obj = cls(slides)
-        obj.df = df
+        obj = cls()
+        obj.slides = slides
+        obj.ftrs = ftrs
         obj.umap = umap  # type: ignore
         obj.parametric_umap = parametric_umap
         if map_slide:
