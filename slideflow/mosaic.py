@@ -163,8 +163,6 @@ class Mosaic:
             tfrecords (list(str), optional): TFRecord paths. Required if
                 ``images`` is either a ``SlideMap`` object or a list of tuples
                 containing ``(slide_name, tfrecord_index)``. Defaults to None.
-            leniency (float, optional): UMAP leniency.
-            expanded (bool, optional): Deprecated argument.
             num_tiles_x (int, optional): Mosaic map grid size. Defaults to 50.
             tile_select (str, optional): 'first', 'nearest', or 'centroid'.
                 Determines how to choose a tile for display on each grid space.
@@ -182,6 +180,7 @@ class Mosaic:
             normalizer_source (str, optional): Path to normalizer source image.
                 If None, normalizer will use slideflow.slide.norm_tile.jpg.
                 Defaults to None.
+            expanded (bool, optional): Deprecated argument.
         """
         self.tile_point_distances = []  # type: List[Dict]
         self.slide_map = None
@@ -399,13 +398,26 @@ class Mosaic:
     def generate_grid(
         self,
         num_tiles_x: int = 50,
-        leniency: float = 1.5,
         tile_meta: Optional[Dict] = None,
         tile_select: str = 'first',
-        expanded: bool = False
+        expanded: bool = False    # Deprecated
     ):
-        """Generate the mosaic map grid."""
+        """Generate the mosaic map grid.
 
+        Args:
+            num_tiles_x (int, optional): Mosaic map grid size. Defaults to 50.
+            tile_meta (dict, optional): Tile metadata, used for tile_select.
+                Dictionary should have slide names as keys, mapped to list of
+                metadata (length of list = number of tiles in slide).
+                Defaults to None.
+            tile_select (str, optional): 'first', 'nearest', or 'centroid'.
+                Determines how to choose a tile for display on each grid space.
+                If 'first', will display the first valid tile in a grid space
+                (fastest; recommended). If 'nearest', will display tile nearest
+                to center of grid space. If 'centroid', for each grid, will
+                calculate which tile is nearest to centroid tile_meta.
+                Defaults to 'nearest'.
+        """
         # Initial validation checks
         if tile_select not in ('nearest', 'centroid', 'first'):
             raise TypeError(f'Unknown tile selection method {tile_select}')

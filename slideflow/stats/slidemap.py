@@ -274,13 +274,13 @@ class SlideMap:
             ])
             data_dict['location'] = pd.Series([l for l in locations]).astype(object)
 
-        if self.ftrs.logits:
-            logits = np.concatenate([
-                self.ftrs.logits[slide] for slide in self.slides
+        if self.ftrs.predictions:
+            predictions = np.concatenate([
+                self.ftrs.predictions[slide] for slide in self.slides
             ])
             data_dict.update({
-                'prediction': pd.Series(np.argmax(logits, axis=1)),
-                'logits': pd.Series([l for l in logits]).astype(object),
+                'predicted_class': pd.Series(np.argmax(predictions, axis=1)),
+                'predictions': pd.Series([l for l in predictions]).astype(object),
             })
         if self.ftrs.uq and self.ftrs.uncertainty != {}:  # type: ignore
             uncertainty = np.concatenate([
@@ -367,13 +367,13 @@ class SlideMap:
             'tfr_index': pd.Series(opt_idx[slide] for slide in self.slides),
             'location': pd.Series([l for l in locations]).astype(object)
         }
-        if self.ftrs.logits:
-            logits = np.stack([
-                self.ftrs.logits[slide][opt_idx[slide]] for slide in self.slides
+        if self.ftrs.predictions:
+            predictions = np.stack([
+                self.ftrs.predictions[slide][opt_idx[slide]] for slide in self.slides
             ])
             data_dict.update({
-                'logits': pd.Series([l for l in logits]).astype(object),
-                'prediction': pd.Series(np.argmax(logits, axis=1)),
+                'predictions': pd.Series([l for l in predictions]).astype(object),
+                'predicted_class': pd.Series(np.argmax(predictions, axis=1)),
             })
         if self.ftrs.uq and self.ftrs.uncertainty != {}:  # type: ignore
             uncertainty = np.stack([
@@ -415,7 +415,6 @@ class SlideMap:
                 was created using DatasetFeatures, this argument is not required.
 
         Keyword args:
-            leniency (float, optional): UMAP leniency.
             num_tiles_x (int, optional): Mosaic map grid size. Defaults to 50.
             tile_select (str, optional): 'first', 'nearest', or 'centroid'.
                 Determines how to choose a tile for display on each grid space.
@@ -621,15 +620,15 @@ class SlideMap:
             uq_labels = np.stack(self.data['uncertainty'].values)[:, index]
             self.data['label'] = uq_labels
 
-    def label_by_logits(self, index: int) -> None:
-        """Displays each point with label equal to the logits (linear from 0-1)
+    def label_by_preds(self, index: int) -> None:
+        """Displays each point with label equal to the prediction value (linear from 0-1)
 
         Args:
             index (int): Logit index.
         """
         if 'label' in self.data.columns:
             self.data.drop(columns='label')
-        self.data['label'] = np.stack(self.data['logits'].values)[:, index]
+        self.data['label'] = np.stack(self.data['predictions'].values)[:, index]
 
     def label_by_slide(self, slide_labels: Optional[Dict] = None) -> None:
         """Displays each point as the name of the corresponding slide.
@@ -646,7 +645,7 @@ class SlideMap:
             self.data['label'] = self.data.slide.values
 
     def label(self, meta: str, translate: Optional[Dict] = None) -> None:
-        """Displays each point labeled by tile metadata (e.g. 'prediction')
+        """Displays each point labeled by tile metadata (e.g. 'predicted_class')
 
         Args:
             meta (str): Data column from which to assign labels.

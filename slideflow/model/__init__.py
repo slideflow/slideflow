@@ -210,12 +210,12 @@ class DatasetFeatures:
     PKL cache file to save time in future iterations.
 
     Note:
-        Storing logits along with layer features is optional, to offer the user
-        reduced memory footprint. For example, saving logits for a 10,000 slide
+        Storing predictions along with layer features is optional, to offer the user
+        reduced memory footprint. For example, saving predictions for a 10,000 slide
         dataset with 1000 categorical outcomes would require:
 
         4 bytes/float32-logit
-        * 1000 logits/slide
+        * 1000 predictions/slide
         * 3000 tiles/slide
         * 10000 slides
         ~= 112 GB
@@ -233,9 +233,9 @@ class DatasetFeatures:
     ) -> None:
 
         """Calculates features / layer activations from model, storing to
-        internal parameters `self.activations`, and `self.logits`,
+        internal parameters `self.activations`, and `self.predictions`,
         `self.locations`, dictionaries mapping slides to arrays of activations,
-        logits, and locations for each tiles' constituent tiles.
+        predictions, and locations for each tiles' constituent tiles.
 
         Args:
             model (str): Path to model from which to calculate activations.
@@ -251,15 +251,15 @@ class DatasetFeatures:
                 Defaults to 'postconv'.
             batch_size (int): Batch size for activations calculations.
                 Defaults to 32.
-            include_logits (bool): Calculate and store logits.
+            include_preds (bool): Calculate and store predictions.
                 Defaults to True.
         """
         self.activations = defaultdict(list)  # type: Dict[str, Any]
-        self.logits = defaultdict(list)  # type: Dict[str, Any]
+        self.predictions = defaultdict(list)  # type: Dict[str, Any]
         self.uncertainty = defaultdict(list)  # type: Dict[str, Any]
         self.locations = defaultdict(list)  # type: Dict[str, Any]
         self.num_features = 0
-        self.num_logits = 0
+        self.num_classes = 0
         self.manifest = dataset.manifest()
         self.model = model
         self.dataset = dataset
@@ -372,7 +372,7 @@ class DatasetFeatures:
         self,
         model: Union[str, "tf.keras.models.Model", "torch.nn.Module"],
         layers: Union[str, List[str]] = 'postconv',
-        include_logits: bool = True,
+        include_preds: bool = True,
         include_uncertainty: bool = True,
         batch_size: int = 32,
         cache: Optional[str] = None,
@@ -386,7 +386,7 @@ class DatasetFeatures:
                 layer activations.
             layers (str, optional): Layers from which to generate activations.
                 Defaults to 'postconv'.
-            include_logits (bool, optional): Include logit predictions.
+            include_preds (bool, optional): Include logit predictions.
                 Defaults to True.
             include_uncertainty (bool, optional): Include uncertainty
                 estimation if UQ enabled. Defaults to True.
@@ -405,7 +405,7 @@ class DatasetFeatures:
         # Load model
         feat_kw = dict(
             layers=layers,
-            include_logits=include_logits,
+            include_preds=include_preds,
             **kwargs
         )
         if self.uq and include_uncertainty:
@@ -418,7 +418,7 @@ class DatasetFeatures:
             simclr_args = simclr.load_model_args(model)
             combined_model = simclr.load(model)
             combined_model.num_features = simclr_args.proj_out_dim
-            combined_model.num_logits = simclr_args.num_classes
+            combined_model.num_classes = simclr_args.num_classes
         elif isinstance(model, str):
             combined_model = sf.model.Features(model, **feat_kw)
         elif sf.model.is_tensorflow_model(model):
@@ -433,7 +433,7 @@ class DatasetFeatures:
             raise ValueError(f'Unrecognized model {model}')
 
         self.num_features = combined_model.num_features
-        self.num_logits = 0 if not include_logits else combined_model.num_logits
+        self.num_classes = 0 if not include_preds else combined_model.num_classes
 
         # Calculate final layer activations for each tfrecord
         fla_start_time = time.time()
@@ -481,7 +481,7 @@ class DatasetFeatures:
         else:
             raise ValueError(f"Unrecognized model type: {type(model)}")
 
-        # Worker to process activations/logits, for more efficient throughput
+        # Worker to process activations/predictions, for more efficient throughput
         q = queue.Queue()  # type: queue.Queue
 
         def batch_worker():
@@ -526,8 +526,8 @@ class DatasetFeatures:
                     model_out = model_out[:-1]
                 else:
                     uncertainty = None
-                if include_logits:
-                    logits = model_out[-1]
+                if include_preds:
+                    predictions = model_out[-1]
                     activations = model_out[:-1]
                 else:
                     activations = model_out
@@ -539,8 +539,8 @@ class DatasetFeatures:
                 for d, slide in enumerate(decoded_slides):
                     if layers:
                         self.activations[slide].append(batch_act[d])
-                    if include_logits and logits is not None:
-                        self.logits[slide].append(logits[d])
+                    if include_preds and predictions is not None:
+                        self.predictions[slide].append(predictions[d])
                     if self.uq and include_uncertainty:
                         self.uncertainty[slide].append(uncertainty[d])
                     if batch_loc is not None:
@@ -564,7 +564,7 @@ class DatasetFeatures:
         batch_proc_thread.join()
 
         self.activations = {s: np.stack(v) for s, v in self.activations.items()}
-        self.logits = {s: np.stack(v) for s, v in self.logits.items()}
+        self.predictions = {s: np.stack(v) for s, v in self.predictions.items()}
         self.locations = {s: np.stack(v) for s, v in self.locations.items()}
         self.uncertainty = {s: np.stack(v) for s, v in self.uncertainty.items()}
 
@@ -669,7 +669,7 @@ class DatasetFeatures:
         with open(path, 'wb') as pt_pkl_file:
             pickle.dump(
                 [self.activations,
-                 self.logits,
+                 self.predictions,
                  self.uncertainty,
                  self.locations],
                 pt_pkl_file
@@ -702,17 +702,17 @@ class DatasetFeatures:
 
         with open(filename, 'w') as outfile:
             csvwriter = csv.writer(outfile)
-            logit_header = [f'Logit_{log}' for log in range(self.num_logits)]
+            logit_header = [f'Class_{log}' for log in range(self.num_classes)]
             feature_header = [f'Feature_{f}' for f in range(self.num_features)]
             header = ['Slide'] + logit_header + feature_header
             csvwriter.writerow(header)
             for slide in track(slides):
                 if level == 'tile':
                     for i, tile_act in enumerate(self.activations[slide]):
-                        if self.logits[slide] != []:
+                        if self.predictions[slide] != []:
                             csvwriter.writerow(
                                 [slide]
-                                + self.logits[slide][i].tolist()
+                                + self.predictions[slide][i].tolist()
                                 + tile_act.tolist()
                             )
                         else:
@@ -722,9 +722,9 @@ class DatasetFeatures:
                         self.activations[slide],
                         axis=0
                     ).tolist()
-                    if self.logits[slide] != []:
+                    if self.predictions[slide] != []:
                         logit = meth_fn[method](
-                            self.logits[slide],
+                            self.predictions[slide],
                             axis=0
                         ).tolist()
                         csvwriter.writerow([slide] + logit + act)
@@ -767,12 +767,12 @@ class DatasetFeatures:
     def to_df(
         self
     ) -> pd.core.frame.DataFrame:
-        """Export activations, logits, uncertainty, and locations to
+        """Export activations, predictions, uncertainty, and locations to
         a pandas DataFrame.
 
         Returns:
             pd.core.frame.DataFrame: Dataframe with columns 'activations',
-            'logits', 'uncertainty', and 'locations'.
+            'predictions', 'uncertainty', and 'locations'.
         """
 
         index = [s for s in self.slides
@@ -791,12 +791,12 @@ class DatasetFeatures:
                     for s in self.slides
                     for i in range(len(self.activations[s]))], index=index)
             })
-        if self.logits:
+        if self.predictions:
             df_dict.update({
-                'logits': pd.Series([
-                    self.logits[s][i]
+                'predictions': pd.Series([
+                    self.predictions[s][i]
                     for s in self.slides
-                    for i in range(len(self.logits[s]))], index=index)
+                    for i in range(len(self.predictions[s]))], index=index)
             })
         if self.uncertainty:
             df_dict.update({
@@ -818,13 +818,13 @@ class DatasetFeatures:
         with open(path, 'rb') as pt_pkl_file:
             loaded_pkl = pickle.load(pt_pkl_file)
             self.activations = loaded_pkl[0]
-            self.logits = loaded_pkl[1]
+            self.predictions = loaded_pkl[1]
             self.uncertainty = loaded_pkl[2]
             self.locations = loaded_pkl[3]
             if self.activations:
                 self.num_features = self.activations[self.slides[0]].shape[-1]
-            if self.logits:
-                self.num_logits = self.logits[self.slides[0]].shape[-1]
+            if self.predictions:
+                self.num_classes = self.predictions[self.slides[0]].shape[-1]
 
     def stats(
         self,
@@ -969,21 +969,22 @@ class DatasetFeatures:
                     )
         return tile_stats, pt_stats, category_stats
 
-    def logits_mean(self) -> Dict[str, np.ndarray]:
-        """Calculates the mean logits vector across all tiles in each slide.
+    def softmax_mean(self) -> Dict[str, np.ndarray]:
+        """Calculates the mean prediction vector (post-softmax) across
+        all tiles in each slide.
 
         Returns:
             dict:  This is a dictionary mapping slides to the mean logits
             array for all tiles in each slide.
         """
 
-        return {s: np.mean(v, axis=0) for s, v in self.logits.items()}
+        return {s: np.mean(v, axis=0) for s, v in self.predictions.items()}
 
-    def logits_percent(
+    def softmax_percent(
         self,
         prediction_filter: Optional[List[int]] = None
     ) -> Dict[str, np.ndarray]:
-        """Returns dictionary mapping slides to a vector of length num_logits
+        """Returns dictionary mapping slides to a vector of length num_classes
         with the percent of tiles in each slide predicted to be each outcome.
 
         Args:
@@ -994,7 +995,7 @@ class DatasetFeatures:
 
         Returns:
             dict:  This is a dictionary mapping slides to an array of
-            percentages for each logit, of length num_logits
+            percentages for each logit, of length num_classes
         """
 
         if prediction_filter:
@@ -1002,26 +1003,26 @@ class DatasetFeatures:
                 isinstance(i, int)
                 for i in prediction_filter
             ])
-            assert max(prediction_filter) <= self.num_logits
+            assert max(prediction_filter) <= self.num_classes
         else:
-            prediction_filter = list(range(self.num_logits))
+            prediction_filter = list(range(self.num_classes))
 
         slide_percentages = {}
-        for slide in self.logits:
+        for slide in self.predictions:
             # Find the index of the highest prediction for each tile, only for
             # logits within prediction_filter
             tile_pred = np.argmax(
-                self.logits[slide][:, prediction_filter],
+                self.predictions[slide][:, prediction_filter],
                 axis=1
             )
             slide_perc = np.array([
                 np.count_nonzero(tile_pred == logit) / len(tile_pred)
-                for logit in range(self.num_logits)
+                for logit in range(self.num_classes)
             ])
             slide_percentages.update({slide: slide_perc})
         return slide_percentages
 
-    def logits_predict(
+    def softmax_predict(
         self,
         prediction_filter: Optional[List[int]] = None
     ) -> Dict[str, int]:
@@ -1038,25 +1039,24 @@ class DatasetFeatures:
         Returns:
             dict:  Dictionary mapping slide names to slide-level predictions.
         """
-
         if prediction_filter:
             assert isinstance(prediction_filter, list)
             assert all([isinstance(i, int) for i in prediction_filter])
-            assert max(prediction_filter) <= self.num_logits
+            assert max(prediction_filter) <= self.num_classes
         else:
-            prediction_filter = list(range(self.num_logits))
+            prediction_filter = list(range(self.num_classes))
 
         slide_predictions = {}
-        for slide in self.logits:
+        for slide in self.predictions:
             # Find the index of the highest prediction for each tile, only for
             # logits within prediction_filter
             tile_pred = np.argmax(
-                self.logits[slide][:, prediction_filter],
+                self.predictions[slide][:, prediction_filter],
                 axis=1
             )
             slide_perc = np.array([
                 np.count_nonzero(tile_pred == logit) / len(tile_pred)
-                for logit in range(self.num_logits)
+                for logit in range(self.num_classes)
             ])
             slide_predictions.update({slide: int(np.argmax(slide_perc))})
         return slide_predictions
@@ -1097,10 +1097,10 @@ class DatasetFeatures:
         """
         all_x, all_y, all_slides, all_tfr_idx = [], [], [], []
         for slide in self.slides:
-            all_x.append(self.logits[slide].values[:, x])
-            all_y.append(self.logits[slide].values[:, y])
-            all_slides.append([slide for _ in range(self.logits[slide].shape[0])])
-            all_tfr_idx.append(np.arange(self.logits[slide].shape[0]))
+            all_x.append(self.predictions[slide].values[:, x])
+            all_y.append(self.predictions[slide].values[:, y])
+            all_slides.append([slide for _ in range(self.predictions[slide].shape[0])])
+            all_tfr_idx.append(np.arange(self.predictions[slide].shape[0]))
         all_x = np.concatenate(all_x)
         all_y = np.concatenate(all_y)
         all_slides = np.concatenate(all_slides)
@@ -1126,7 +1126,7 @@ class DatasetFeatures:
         '''
 
         self.activations.update(df.activations)
-        self.logits.update(df.logits)
+        self.predictions.update(df.predictions)
         self.uncertainty.update(df.uncertainty)
         self.locations.update(df.locations)
         self.tfrecords = np.concatenate([self.tfrecords, df.tfrecords])
@@ -1135,7 +1135,7 @@ class DatasetFeatures:
     def remove_slide(self, slide: str) -> None:
         """Removes slide from internally cached activations."""
         del self.activations[slide]
-        del self.logits[slide]
+        del self.predictions[slide]
         del self.uncertainty[slide]
         del self.locations[slide]
         self.tfrecords = np.array([
@@ -1213,3 +1213,26 @@ class DatasetFeatures:
                 image_string = open(join(outdir, str(f), tile_filename), 'wb')
                 image_string.write(image.numpy())
                 image_string.close()
+
+    # --- Deprecated functions ----------------------------------------------------
+
+    def logits_mean(self):
+        warnings.warn(
+            "DatasetFeatures.logits_mean() is deprecated. Please use "
+            "DatasetFeatures.softmax_mean()", DeprecationWarning
+        )
+        return self.softmax_mean()
+
+    def logits_percent(self, *args, **kwargs):
+        warnings.warn(
+            "DatasetFeatures.logits_percent() is deprecated. Please use "
+            "DatasetFeatures.softmax_percent()", DeprecationWarning
+        )
+        return self.softmax_percent(*args, **kwargs)
+
+    def logits_predict(self, *args, **kwargs):
+        warnings.warn(
+            "DatasetFeatures.logits_predict() is deprecated. Please use "
+            "DatasetFeatures.softmax_predict()", DeprecationWarning
+        )
+        return self.softmax_predict(*args, **kwargs)

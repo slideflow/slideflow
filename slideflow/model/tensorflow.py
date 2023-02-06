@@ -406,7 +406,7 @@ class ModelParams(_base._ModelParams):
                 final_dense_layer = tf.keras.layers.Dense(
                     num_classes[c],
                     kernel_regularizer=regularizer,
-                    name=f'prelogits-{c}'
+                    name=f'logits-{c}'
                 )(merged_model)
                 outputs += [
                     tf.keras.layers.Activation(
@@ -419,7 +419,7 @@ class ModelParams(_base._ModelParams):
             final_dense_layer = tf.keras.layers.Dense(
                 num_classes,
                 kernel_regularizer=regularizer,
-                name='prelogits'
+                name='logits'
             )(merged_model)
             outputs = [
                 tf.keras.layers.Activation(
@@ -515,7 +515,7 @@ class ModelParams(_base._ModelParams):
                 final_dense_layer = tf.keras.layers.Dense(
                     num_classes[c],
                     kernel_regularizer=regularizer,
-                    name=f'prelogits-{c}'
+                    name=f'logits-{c}'
                 )(merged_model)
                 outputs += [tf.keras.layers.Activation(
                     activation,
@@ -526,7 +526,7 @@ class ModelParams(_base._ModelParams):
             final_dense_layer = tf.keras.layers.Dense(
                 num_classes,
                 kernel_regularizer=regularizer,
-                name='prelogits'
+                name='logits'
             )(merged_model)
             outputs = [tf.keras.layers.Activation(
                 activation,
@@ -2072,7 +2072,7 @@ class CPHTrainer(LinearTrainer):
 
 
 class Features:
-    """Interface for obtaining logits and features from intermediate layer
+    """Interface for obtaining predictions and features from intermediate layer
     activations from Slideflow models.
 
     Use by calling on either a batch of images (returning outputs for a single
@@ -2115,7 +2115,7 @@ class Features:
         self,
         path: Optional[str],
         layers: Optional[Union[str, List[str]]] = 'postconv',
-        include_logits: bool = False,
+        include_preds: bool = False,
         load_method: str = 'full',
         pooling: Optional[Any] = None
     ) -> None:
@@ -2123,14 +2123,14 @@ class Features:
         outputs feature activations at the designated layers.
 
         Intermediate layers are returned in the order of layers.
-        Logits are returned last.
+        predictions are returned last.
 
         Args:
             path (str): Path to saved Slideflow model.
             layers (list(str), optional): Layers from which to generate
                 activations.  The post-convolution activation layer is accessed
                 via 'postconv'. Defaults to 'postconv'.
-            include_logits (bool, optional): Include logits in output. Will be
+            include_preds (bool, optional): Include predictions in output. Will be
                 returned last. Defaults to False.
             load_method (str): Either 'full' or 'weights'. Method to use
                 when loading a Tensorflow model. If 'full', loads the model with
@@ -2142,7 +2142,7 @@ class Features:
                 may improve compatibility across hardware & environments.
         """
         self.path = path
-        self.num_logits = 0
+        self.num_classes = 0
         self.num_features = 0
         self.num_uncertainty = 0
         self.img_format = None
@@ -2162,7 +2162,7 @@ class Features:
                 else:
                     self.wsi_normalizer.set_fit(**config['norm_fit'])
             self._build(
-                layers=layers, include_logits=include_logits, pooling=pooling  # type: ignore
+                layers=layers, include_preds=include_preds, pooling=pooling  # type: ignore
             )
 
     @classmethod
@@ -2170,7 +2170,7 @@ class Features:
         cls,
         model: tf.keras.Model,
         layers: Optional[Union[str, List[str]]] = 'postconv',
-        include_logits: bool = False,
+        include_preds: bool = False,
         wsi_normalizer: Optional["StainNormalizer"] = None,
         pooling: Optional[Any] = None
     ):
@@ -2178,27 +2178,27 @@ class Features:
         outputs feature activations at the designated layers.
 
         Intermediate layers are returned in the order of layers.
-        Logits are returned last.
+        predictions are returned last.
 
         Args:
             model (:class:`tensorflow.keras.models.Model`): Loaded model.
             layers (list(str), optional): Layers from which to generate
                 activations.  The post-convolution activation layer is accessed
                 via 'postconv'. Defaults to 'postconv'.
-            include_logits (bool, optional): Include logits in output. Will be
+            include_preds (bool, optional): Include predictions in output. Will be
                 returned last. Defaults to False.
             wsi_normalizer (:class:`slideflow.norm.StainNormalizer`): Stain
                 normalizer to use on whole-slide images. Is not used on
                 individual tile datasets via __call__. Defaults to None.
         """
-        obj = cls(None, layers, include_logits)
+        obj = cls(None, layers, include_preds)
         if isinstance(model, tf.keras.models.Model):
             obj._model = model
         else:
             raise errors.ModelError(f"Model {model} is not a valid Tensorflow "
                                     "model.")
         obj._build(
-            layers=layers, include_logits=include_logits, pooling=pooling  # type: ignore
+            layers=layers, include_preds=include_preds, pooling=pooling  # type: ignore
         )
         obj.wsi_normalizer = wsi_normalizer
         return obj
@@ -2208,7 +2208,7 @@ class Features:
         inp: Union[tf.Tensor, "sf.WSI"],
         **kwargs
     ) -> Optional[Union[np.ndarray, tf.Tensor]]:
-        """Process a given input and return features and/or logits.
+        """Process a given input and return features and/or predictions.
         Expects either a batch of images or a :class:`slideflow.WSI`."""
 
         if isinstance(inp, sf.WSI):
@@ -2243,7 +2243,7 @@ class Features:
         if img_format == 'png':  # PNG is lossless; this is equivalent but faster
             log.debug("Using numpy image format instead of PNG")
             img_format = 'numpy'
-        total_out = self.num_features + self.num_logits + self.num_uncertainty
+        total_out = self.num_features + self.num_classes + self.num_uncertainty
         if grid is None:
             features_grid = np.ones((
                     slide.grid.shape[1],
@@ -2358,12 +2358,12 @@ class Features:
     def _build(
         self,
         layers: Optional[Union[str, List[str]]],
-        include_logits: bool = True,
+        include_preds: bool = True,
         pooling: Optional[Any] = None
     ) -> None:
         """Builds the interface model that outputs feature activations at the
-        designated layers and/or logits. Intermediate layers are returned in
-        the order of layers. Logits are returned last."""
+        designated layers and/or predictions. Intermediate layers are returned in
+        the order of layers. predictions are returned last."""
 
         if isinstance(pooling, str):
             if pooling == 'avg':
@@ -2420,7 +2420,7 @@ class Features:
 
         # Build a model that outputs the given layers
         outputs_list = [] if not layers else [outputs[la] for la in layers]
-        if include_logits:
+        if include_preds:
             outputs_list += [self._model.output]
         self.model = tf.keras.models.Model(
             inputs=self._model.input,
@@ -2431,14 +2431,14 @@ class Features:
         if isinstance(self._model.output, list):
             log.warning("Multi-categorical outcomes not yet supported "
                         "for this interface.")
-            self.num_logits = 0
-        elif include_logits:
-            self.num_logits = self._model.output.shape[1]
+            self.num_classes = 0
+        elif include_preds:
+            self.num_classes = self._model.output.shape[1]
         else:
-            self.num_logits = 0
+            self.num_classes = 0
 
-        if include_logits:
-            log.debug(f'Number of logits: {self.num_logits}')
+        if include_preds:
+            log.debug(f'Number of classes: {self.num_classes}')
         log.debug(f'Number of activation features: {self.num_features}')
 
 
@@ -2454,14 +2454,14 @@ class UncertaintyInterface(Features):
         super().__init__(
             path,
             layers=layers,
-            include_logits=True,
+            include_preds=True,
             load_method=load_method,
             pooling=pooling
         )
         # TODO: As the below to-do suggests, this should be updated
         # for multi-class
         self.num_uncertainty = 1
-        if self.num_logits > 2:
+        if self.num_classes > 2:
             log.warn("UncertaintyInterface not yet implemented for multi-class"
                      " models")
 
@@ -2480,7 +2480,7 @@ class UncertaintyInterface(Features):
             raise errors.ModelError(f"Model {model} is not a valid Tensorflow "
                                     "model.")
         obj._build(
-            layers=layers, include_logits=True, pooling=pooling  # type: ignore
+            layers=layers, include_preds=True, pooling=pooling  # type: ignore
         )
         obj.wsi_normalizer = wsi_normalizer
         return obj
@@ -2498,7 +2498,7 @@ class UncertaintyInterface(Features):
                 out_drop[n] += [(yp[n] if self.num_outputs > 1 else yp)]
         for n in range(self.num_outputs):
             out_drop[n] = tf.stack(out_drop[n], axis=0)
-        logits = tf.math.reduce_mean(out_drop[-1], axis=0)
+        predictions = tf.math.reduce_mean(out_drop[-1], axis=0)
 
         # TODO: Only takes STDEV from first outcome category which works for
         # outcomes with 2 categories, but a better solution is needed
@@ -2511,9 +2511,9 @@ class UncertaintyInterface(Features):
                 tf.math.reduce_mean(out_drop[n], axis=0)
                 for n in range(self.num_outputs-1)
             ]
-            return out + [logits, uncertainty]
+            return out + [predictions, uncertainty]
         else:
-            return logits, uncertainty
+            return predictions, uncertainty
 
 
 def load(

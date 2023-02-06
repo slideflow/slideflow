@@ -1749,7 +1749,7 @@ class Project:
                 Defaults to None.
             cache (str): Path to PKL file. Cache activations at this location.
                 Defaults to None.
-            include_logits (bool): Generate and store logit predictions along
+            include_preds (bool): Generate and store logit predictions along
                 with layer activations. Defaults to True.
             batch_size (int): Batch size to use when calculating activations.
                 Defaults to 32.
@@ -1903,7 +1903,7 @@ class Project:
             model=model,
             dataset=dataset,
             layers=layers,
-            include_logits=False,
+            include_preds=False,
         )
         df.to_torch(outdir)
         return outdir
@@ -2112,7 +2112,6 @@ class Project:
                 (200, 200).
             num_tiles_x (int): Specifies the size of the mosaic map grid.
             expanded (bool): Deprecated argument.
-            leniency (float): UMAP leniency. Defaults to 1.5.
 
         Returns:
             :class:`slideflow.Mosaic`: Mosaic object.
@@ -2188,10 +2187,10 @@ class Project:
 
             # Get predictions
             if model_type == 'categorical':
-                s_pred = df.logits_predict()
-                s_perc = df.logits_percent()
+                s_pred = df.softmax_predict()
+                s_perc = df.softmax_percent()
             else:
-                s_pred = s_perc = df.logits_mean()  # type: ignore
+                s_pred = s_perc = df.softmax_mean()  # type: ignore
 
             # If show_prediction is provided (either a number or string),
             # then display ONLY the prediction for the provided category
@@ -2290,7 +2289,6 @@ class Project:
                 (200, 200).
             num_tiles_x (int): Specifies the size of the mosaic map grid.
             expanded (bool): Deprecated argument.
-            leniency (float): UMAP leniency. Defaults to 1.5.
         """
 
         # Setup paths
@@ -2783,7 +2781,7 @@ class Project:
                     log.error(e)
                     continue
                 try:
-                    interface = sf.model.Features(model, include_logits=False)
+                    interface = sf.model.Features(model, include_preds=False)
                     wsi_grid = interface(wsi, img_format=img_format)
 
                     with open(join(outdir, wsi.name+'.pkl'), 'wb') as file:

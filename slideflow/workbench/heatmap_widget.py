@@ -17,9 +17,9 @@ def _apply_cmap(img, cmap):
 
 def process_grid(_heatmap, _grid):
     if _heatmap.uq:
-        logits = _grid[:, :, :-(_heatmap.num_uncertainty)]
+        predictions = _grid[:, :, :-(_heatmap.num_uncertainty)]
         uncertainty = _grid[:, :, -(_heatmap.num_uncertainty):]
-        return logits, uncertainty
+        return predictions, uncertainty
     else:
         return _grid, None
 
@@ -33,19 +33,19 @@ class HeatmapWidget:
         self.alpha                  = 0.5
         self.gain                   = 1.0
         self.show                   = True
-        self.heatmap_logits         = 0
+        self.heatmap_predictions         = 0
         self.heatmap_uncertainty    = 0
-        self.use_logits             = True
+        self.use_predictions             = True
         self.use_uncertainty        = False
         self.cmap_idx               = 0
-        self.logits                 = None
+        self.predictions                 = None
         self.uncertainty            = None
         self.content_height         = 0
         self._generating            = False
         self._button_pressed        = False
-        self._old_logits            = 0
+        self._old_predictions            = 0
         self._old_uncertainty       = 0
-        self._logits_gain           = 1.0
+        self._predictions_gain           = 1.0
         self._uq_gain               = 1.0
         self._heatmap_sum           = 0
         self._heatmap_grid          = None
@@ -101,7 +101,7 @@ class HeatmapWidget:
         if self.viz.heatmap is None:
             self._create_heatmap()
         self.viz.heatmap.load(path)
-        self.logits = self.viz.heatmap.logits
+        self.predictions = self.viz.heatmap.predictions
         self.uncertainty = self.viz.heatmap.uncertainty
         self.render_heatmap()
 
@@ -109,10 +109,10 @@ class HeatmapWidget:
         """Refresh render of the asynchronously generating heatmap."""
 
         if self.viz.heatmap is not None and self._heatmap_grid is not None:
-            logits, uncertainty = process_grid(self.viz.heatmap, self._heatmap_grid)
-            _sum = np.sum(logits)
+            predictions, uncertainty = process_grid(self.viz.heatmap, self._heatmap_grid)
+            _sum = np.sum(predictions)
             if _sum != self._heatmap_sum:
-                self.logits = logits
+                self.predictions = predictions
                 self.uncertainty = uncertainty
                 self.render_heatmap()
                 self._heatmap_sum = _sum
@@ -130,13 +130,13 @@ class HeatmapWidget:
     def render_heatmap(self):
         """Render the current heatmap."""
 
-        self._old_logits = self.heatmap_logits
+        self._old_predictions = self.heatmap_predictions
         self._old_uncertainty = self.heatmap_uncertainty
         if self.viz.heatmap is None:
             return
-        if self.use_logits:
-            heatmap_arr = self.logits[:, :, self.heatmap_logits]
-            gain = self._logits_gain
+        if self.use_predictions:
+            heatmap_arr = self.predictions[:, :, self.heatmap_predictions]
+            gain = self._predictions_gain
         else:
             heatmap_arr = self.uncertainty[:, :, self.heatmap_uncertainty]
             gain = self._uq_gain
@@ -152,12 +152,12 @@ class HeatmapWidget:
         self._heatmap_sum           = 0
         self._heatmap_grid          = None
         self._heatmap_thread        = None
-        self._old_logits            = 0
+        self._old_predictions            = 0
         self._old_uncertainty       = 0
-        self.logits                 = None
+        self.predictions                 = None
         self.uncertainty            = None
         self._generating            = False
-        self.heatmap_logits         = 0
+        self.heatmap_predictions         = 0
         self.heatmap_uncertainty    = 0
 
     def update_transparency(self):
@@ -180,7 +180,7 @@ class HeatmapWidget:
         if show:
             self.content_height = imgui.get_text_line_height_with_spacing() * 13 + viz.spacing * 2
             _cmap_changed = False
-            _uq_logits_switched = False
+            _uq_predictions_switched = False
             bg_color = [0.16, 0.29, 0.48, 0.2]
             dim_color = list(imgui.get_style().colors[imgui.COLOR_TEXT])
             dim_color[-1] *= 0.5
@@ -270,40 +270,40 @@ class HeatmapWidget:
 
                     imgui.same_line(imgui.get_content_region_max()[0] - 1 - viz.button_w)
                     if imgui_utils.button('Reset##gain', width=-1, enabled=True):
-                        if self.use_logits:
+                        if self.use_predictions:
                             self.gain = 1.0
                         else:
                             self.gain = 1.0
                         _gain_changed = True
 
-                # Logits.
-                heatmap_logits_max = 0 if self.logits is None else self.logits.shape[2]-1
-                self.heatmap_logits = min(max(self.heatmap_logits, 0), heatmap_logits_max)
+                # Predictions.
+                heatmap_predictions_max = 0 if self.predictions is None else self.predictions.shape[2]-1
+                self.heatmap_predictions = min(max(self.heatmap_predictions, 0), heatmap_predictions_max)
                 narrow_w = imgui.get_text_line_height_with_spacing()
-                with imgui_utils.grayed_out(heatmap_logits_max == 0):
-                    if imgui.radio_button('##logits_radio', self.use_logits):
+                with imgui_utils.grayed_out(heatmap_predictions_max == 0):
+                    if imgui.radio_button('##predictions_radio', self.use_predictions):
                         if viz.has_uq():
-                            _uq_logits_switched = True
-                            self.use_logits = True
+                            _uq_predictions_switched = True
+                            self.use_predictions = True
 
                     imgui.same_line()
                     with imgui_utils.item_width(-1 - viz.button_w - narrow_w * 2 - viz.spacing * 3):
-                        _changed, self.heatmap_logits = imgui.drag_int('##heatmap_logits',
-                                                                       self.heatmap_logits,
+                        _changed, self.heatmap_predictions = imgui.drag_int('##heatmap_predictions',
+                                                                       self.heatmap_predictions,
                                                                        change_speed=0.05,
                                                                        min_value=0,
-                                                                       max_value=heatmap_logits_max,
-                                                                       format=f'Logits %d/{heatmap_logits_max}')
+                                                                       max_value=heatmap_predictions_max,
+                                                                       format=f'predictions %d/{heatmap_predictions_max}')
                     imgui.same_line()
-                    if imgui_utils.button('-##heatmap_logits', width=narrow_w):
-                        self.heatmap_logits -= 1
+                    if imgui_utils.button('-##heatmap_predictions', width=narrow_w):
+                        self.heatmap_predictions -= 1
                     imgui.same_line()
-                    if imgui_utils.button('+##heatmap_logits', width=narrow_w):
-                        self.heatmap_logits += 1
-                    self.heatmap_logits = min(max(self.heatmap_logits, 0), heatmap_logits_max)
-                    if heatmap_logits_max > 0:
+                    if imgui_utils.button('+##heatmap_predictions', width=narrow_w):
+                        self.heatmap_predictions += 1
+                    self.heatmap_predictions = min(max(self.heatmap_predictions, 0), heatmap_predictions_max)
+                    if heatmap_predictions_max > 0:
                         imgui.same_line()
-                        imgui.text(viz._model_config['outcome_labels'][str(self.heatmap_logits)])
+                        imgui.text(viz._model_config['outcome_labels'][str(self.heatmap_predictions)])
 
                 # Uncertainty.
                 if viz.heatmap is None or self.uncertainty is None:
@@ -314,10 +314,10 @@ class HeatmapWidget:
                 self.heatmap_uncertainty = min(max(self.heatmap_uncertainty, 0), heatmap_uncertainty_max)
                 narrow_w = imgui.get_text_line_height_with_spacing()
                 with imgui_utils.grayed_out(viz.heatmap is None or not viz.has_uq()):
-                    if imgui.radio_button('##uncertainty_radio', not self.use_logits):
+                    if imgui.radio_button('##uncertainty_radio', not self.use_predictions):
                         if viz.has_uq():
-                            _uq_logits_switched = True
-                            self.use_logits = False
+                            _uq_predictions_switched = True
+                            self.use_predictions = False
 
                     imgui.same_line()
                     with imgui_utils.item_width(-1 - viz.button_w - narrow_w * 2 - viz.spacing * 3):
@@ -336,8 +336,8 @@ class HeatmapWidget:
                     self.heatmap_uncertainty = min(max(self.heatmap_uncertainty, 0), heatmap_uncertainty_max)
 
                 _histogram_size = imgui.get_content_region_max()[0] - 1, viz.font_size * 4
-                if viz.heatmap and self.logits is not None:
-                    flattened = self.logits[:, :, self.heatmap_logits].flatten()
+                if viz.heatmap and self.predictions is not None:
+                    flattened = self.predictions[:, :, self.heatmap_predictions].flatten()
                     flattened = flattened[flattened >= 0]
                     _hist, _bin_edges = np.histogram(flattened, range=(0, 1))
                     if flattened.shape[0] > 0:
@@ -385,18 +385,18 @@ class HeatmapWidget:
             if _alpha_changed:
                 self.update_transparency()
             if _gain_changed:
-                if self.use_logits:
-                    self._logits_gain = self.gain
+                if self.use_predictions:
+                    self._predictions_gain = self.gain
                 else:
                     self._uq_gain = self.gain
                 self.render_heatmap()
-            if _uq_logits_switched:
-                self.gain = self._logits_gain if self.use_logits else self._uq_gain
+            if _uq_predictions_switched:
+                self.gain = self._predictions_gain if self.use_predictions else self._uq_gain
                 self.render_heatmap()
             if (_cmap_changed
-               or (self.heatmap_logits != self._old_logits and self.use_logits)
+               or (self.heatmap_predictions != self._old_predictions and self.use_predictions)
                or (self.heatmap_uncertainty != self._old_uncertainty and self.use_uncertainty)
-               or _uq_logits_switched):
+               or _uq_predictions_switched):
                 self.render_heatmap()
         else:
             self.content_height = 0

@@ -52,11 +52,11 @@ If **no balancing** is performed, batches will be assembled by randomly selectin
 Working with layer activations
 ******************************
 
-:class:`slideflow.model.Features` creates an interface to efficiently generate features/layer activations and logits
-from either a batch of images (returning a batch of activations/logits) or a whole-slide image (returning a grid of
-activations/logits).
+:class:`slideflow.model.Features` creates an interface to efficiently generate features/layer activations and predictions
+from either a batch of images (returning a batch of activations/predictions) or a whole-slide image (returning a grid of
+activations/predictions).
 
-:class:`slideflow.DatasetFeatures` calculates features and logits for an entire dataset, storing
+:class:`slideflow.DatasetFeatures` calculates features and predictions for an entire dataset, storing
 result arrays into a dictionary mapping slide names to the generated activations. This buffer of whole-dataset
 activations can then be used for functions requiring analysis of whole-dataset activations, including
 :class:`slideflow.SlideMap` and :class:`slideflow.Mosaic`.

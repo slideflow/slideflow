@@ -15,11 +15,11 @@ Activations at one or more layers of a trained network can be calculated with :c
 Batch of images
 ---------------
 
-:class:`Features` provides an interface for calculating layer activations and logits on a batch of images. The following arguments are available:
+:class:`Features` provides an interface for calculating layer activations and predictions on a batch of images. The following arguments are available:
 
 - ``path``: Path to model, from which layer activations are calculated. Required.
 - ``layers``: Layer(s) at which to calculate activations.
-- ``include_logits``: Also return the final network output (logits)
+- ``include_preds``: Also return the final network output (predictions)
 - ``pooling``: Apply pooling to layer activations, to reduce dimensionality to one dimension.
 
 If ``layers`` is not supplied, activations at the post-convolutional layer will be calculated by default.
@@ -34,12 +34,12 @@ Once initialized, the resulting object can be called on a batch of images and wi
     for img_batch in dataset:
         postconv_activations = sepconv3(img_batch)
 
-If ``layer`` is a list of layer names, activations at each layer will be calculated and concatenated. If ``include_logits`` is ``True``, the interface will also return the final logits:
+If ``layer`` is a list of layer names, activations at each layer will be calculated and concatenated. If ``include_preds`` is ``True``, the interface will also return the final predictions:
 
 .. code-block:: python
 
-    sepconv3_and_logits = sf.model.Features(..., include_logits=True)
-    layer_activations, logits = sepconv3_and_logits(img_batch)
+    sepconv3_and_preds = sf.model.Features(..., include_preds=True)
+    layer_activations, preds = sepconv3_and_preds(img_batch)
 
 .. note::
 
@@ -90,7 +90,7 @@ Alternatively, you can create an instance of this class directly:
       dataset=dataset,
     )
 
-Tile-level feature activations for each slide can be accessed directly from ``DatasetFeatures.activations``, a dict mapping slide names to numpy arrays of shape ``(num_tiles, num_features)``. Logits are stored in ``DatasetFeatures.logits``, a dict mapping slide names to numpy arrays of shape ``(num_tiles, num_logits)``. Tile-level location data (coordinates from which the tiles were taken from their respective source slides) is stored in ``DatasetFeatures.locations``, a dict mapping slide names to numpy arrays of shape ``(num_tiles, 2)`` (``x``, ``y``).
+Tile-level feature activations for each slide can be accessed directly from ``DatasetFeatures.activations``, a dict mapping slide names to numpy arrays of shape ``(num_tiles, num_features)``. Predictions are stored in ``DatasetFeatures.predictions``, a dict mapping slide names to numpy arrays of shape ``(num_tiles, num_classes)``. Tile-level location data (coordinates from which the tiles were taken from their respective source slides) is stored in ``DatasetFeatures.locations``, a dict mapping slide names to numpy arrays of shape ``(num_tiles, 2)`` (``x``, ``y``).
 
 Activations can be exported to a Pandas DataFrame with :meth:`DatasetFeatures.to_df` or exported into PyTorch format (for use with :ref:`multi-instance learning (MIL) <clam_mil>` models) with :meth:`DatasetFeatures.to_torch`
 

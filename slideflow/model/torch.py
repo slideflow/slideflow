@@ -1854,7 +1854,7 @@ class CPHTrainer(Trainer):
 
 
 class Features:
-    """Interface for obtaining logits and features from intermediate layer
+    """Interface for obtaining predictions and features from intermediate layer
     activations from Slideflow models.
 
     Use by calling on either a batch of images (returning outputs for a single
@@ -1898,7 +1898,7 @@ class Features:
         self,
         path: Optional[str],
         layers: Optional[Union[str, List[str]]] = 'postconv',
-        include_logits: bool = False,
+        include_preds: bool = False,
         mixed_precision: bool = True,
         device: Optional[torch.device] = None,
         apply_softmax: bool = True,
@@ -1909,14 +1909,14 @@ class Features:
         outputs feature activations at the designated layers.
 
         Intermediate layers are returned in the order of layers.
-        Logits are returned last.
+        predictions are returned last.
 
         Args:
             path (str): Path to saved Slideflow model.
             layers (list(str), optional): Layers from which to generate
                 activations.  The post-convolution activation layer is accessed
                 via 'postconv'. Defaults to 'postconv'.
-            include_logits (bool, optional): Include logits in output. Will be
+            include_preds (bool, optional): Include predictions in output. Will be
                 returned last. Defaults to False.
             mixed_precision (bool, optional): Use mixed precision.
                 Defaults to True.
@@ -1938,7 +1938,7 @@ class Features:
         if layers and isinstance(layers, str):
             layers = [layers]
         self.path = path
-        self.num_logits = 0
+        self.num_classes = 0
         self.num_features = 0
         self.num_uncertainty = 0
         self.apply_softmax = apply_softmax
@@ -1947,7 +1947,7 @@ class Features:
         # Hook for storing layer activations during model inference
         self.activation = {}  # type: Dict[Any, Tensor]
         self.layers = layers
-        self.include_logits = include_logits
+        self.include_preds = include_preds
         self.device = device if device is not None else torch.device('cuda')
 
         if path is not None:
@@ -1978,7 +1978,7 @@ class Features:
         model: torch.nn.Module,
         tile_px: int,
         layers: Optional[Union[str, List[str]]] = 'postconv',
-        include_logits: bool = False,
+        include_preds: bool = False,
         mixed_precision: bool = True,
         wsi_normalizer: Optional["StainNormalizer"] = None,
         apply_softmax: bool = True,
@@ -1988,7 +1988,7 @@ class Features:
         outputs feature activations at the designated layers.
 
         Intermediate layers are returned in the order of layers.
-        Logits are returned last.
+        predictions are returned last.
 
         Args:
             model (:class:`tensorflow.keras.models.Model`): Loaded model.
@@ -1996,7 +1996,7 @@ class Features:
             layers (list(str), optional): Layers from which to generate
                 activations.  The post-convolution activation layer is accessed
                 via 'postconv'. Defaults to 'postconv'.
-            include_logits (bool, optional): Include logits in output. Will be
+            include_preds (bool, optional): Include predictions in output. Will be
                 returned last. Defaults to False.
             mixed_precision (bool, optional): Use mixed precision.
                 Defaults to True.
@@ -2010,7 +2010,7 @@ class Features:
                 callable PyTorch function.
         """
         device = next(model.parameters()).device
-        obj = cls(None, layers, include_logits, mixed_precision, device)
+        obj = cls(None, layers, include_preds, mixed_precision, device)
         if isinstance(model, torch.nn.Module):
             obj._model = model
             obj._model.eval()
@@ -2032,7 +2032,7 @@ class Features:
         inp: Union[Tensor, "sf.WSI"],
         **kwargs
     ) -> Optional[Union[List[Tensor], np.ndarray]]:
-        """Process a given input and return activations and/or logits. Expects
+        """Process a given input and return activations and/or predictions. Expects
         either a batch of images or a :class:`slideflow.slide.WSI` object."""
 
         if isinstance(inp, sf.slide.WSI):
@@ -2067,7 +2067,7 @@ class Features:
         if img_format == 'png':  # PNG is lossless; this is equivalent but faster
             log.debug("Using numpy image format instead of PNG")
             img_format = 'numpy'
-        total_out = self.num_features + self.num_logits
+        total_out = self.num_features + self.num_classes
         if grid is None:
             features_grid = np.ones((
                     slide.grid.shape[1],
@@ -2145,7 +2145,7 @@ class Features:
                 if la == 'postconv':
                     act = self._postconv_processing(act)
                 layer_activations.append(act)
-        if self.include_logits:
+        if self.include_preds:
             layer_activations += [logits]
         self.activation = {}
         return layer_activations
@@ -2194,8 +2194,8 @@ class Features:
 
     def _build(self, pooling: Optional[Any] = None) -> None:
         """Builds the interface model that outputs feature activations at the
-        designated layers and/or logits. Intermediate layers are returned in
-        the order of layers. Logits are returned last.
+        designated layers and/or predictions. Intermediate layers are returned in
+        the order of layers. predictions are returned last.
 
         Args:
             pooling (Callable or str, optional): PyTorch pooling function to use
@@ -2243,11 +2243,11 @@ class Features:
         # Calculate output and layer sizes
         rand_data = torch.rand(1, 3, self.tile_px, self.tile_px)
         output = self._model(rand_data.to(self.device))
-        self.num_logits = output.shape[1] if self.include_logits else 0
+        self.num_classes = output.shape[1] if self.include_preds else 0
         self.num_features = sum([f.shape[1] for f in self.activation.values()])
 
-        if self.include_logits:
-            log.debug(f'Number of logits: {self.num_logits}')
+        if self.include_preds:
+            log.debug(f'Number of classes: {self.num_classes}')
         log.debug(f'Number of activation features: {self.num_features}')
 
 

@@ -163,16 +163,16 @@ def predict(
             initializing a new CUDA device.
 
     Returns:
-        np.ndarray: Predictions for each outcome, with shape = (n_logits, )
+        np.ndarray: Predictions for each outcome, with shape = (num_classes, )
 
         np.ndarray, optional: Uncertainty for each outcome, if the model was
-        trained with uncertainty, with shape = (n_logits,)
+        trained with uncertainty, with shape = (num_classes,)
 
     """
     from slideflow import Heatmap
     log.info("Calculating whole-slide prediction...")
     heatmap = Heatmap(slide, model, generate=True, stride_div=stride_div, **kwargs)
-    preds = heatmap.logits.reshape(-1, heatmap.logits.shape[-1])
+    preds = heatmap.predictions.reshape(-1, heatmap.predictions.shape[-1])
     preds = np.ma.masked_where(preds < 0, preds).mean(axis=0).filled()
     if heatmap.uncertainty is not None:
         unc = heatmap.uncertainty.reshape(-1, heatmap.uncertainty.shape[-1])
@@ -1762,10 +1762,10 @@ class WSI(_BaseLoader):
                 the :meth:`slideflow.WSI.build_generator()`.
 
         Returns:
-            np.ndarray: Predictions for each outcome, with shape = (n_logits, )
+            np.ndarray: Predictions for each outcome, with shape = (num_classes, )
 
             np.ndarray, optional: Uncertainty for each outcome, if the model was
-            trained with uncertainty, with shape = (n_logits,)
+            trained with uncertainty, with shape = (num_classes,)
 
         """
         from slideflow import Heatmap
@@ -1780,7 +1780,7 @@ class WSI(_BaseLoader):
             ))
         log.info("Calculating whole-slide prediction...")
         heatmap = Heatmap(self, model, generate=True, **kwargs)
-        preds = heatmap.logits.reshape(-1, heatmap.logits.shape[-1])
+        preds = heatmap.predictions.reshape(-1, heatmap.predictions.shape[-1])
         preds = np.ma.masked_where(preds < 0, preds).mean(axis=0).filled()
         if heatmap.uncertainty is not None:
             unc = heatmap.uncertainty.reshape(-1, heatmap.uncertainty.shape[-1])

@@ -84,7 +84,7 @@ You can also generate predictions for a single slide with either :func:`slideflo
 
         array([0.84378019, 0.15622007])
 
-The returned array has the shape ``(n_logits,)``, indicating the whole-slide prediction for each outcome category. If the model was trained with uncertainty quantification, this function will return two arrays; the first with predictions, the second with estimated uncertainty.
+The returned array has the shape ``(num_classes,)``, indicating the whole-slide prediction for each outcome category. If the model was trained with uncertainty quantification, this function will return two arrays; the first with predictions, the second with estimated uncertainty.
 
 Heatmaps
 ********
@@ -155,4 +155,4 @@ Insets showing zoomed-in portions of the heatmap can be added with :meth:`slidef
 
 |
 
-Save rendered heatmaps for each outcome category with :meth:`slideflow.Heatmap.save`. The spatial map of logits, as calculated across the input slide, can be accessed through ``Heatmap.logits``. You can save the numpy array with calculated logits (and uncertainty, if applicable) as an \*.npz file using :meth:`slideflow.Heatmap.save_npz`.
+Save rendered heatmaps for each outcome category with :meth:`slideflow.Heatmap.save`. The spatial map of predictions, as calculated across the input slide, can be accessed through ``Heatmap.predictions``. You can save the numpy array with calculated predictions (and uncertainty, if applicable) as an \*.npz file using :meth:`slideflow.Heatmap.save_npz`.

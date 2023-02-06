@@ -47,8 +47,7 @@ class Heatmap:
         device: Optional["torch.device"] = None,
         **wsi_kwargs
     ) -> None:
-        """Convolutes across a whole slide, calculating logits and saving
-        predictions internally for later use.
+        """Calcualtes tile-level predictions across a whole slide image.
 
         Args:
             slide (str): Path to slide.
@@ -121,7 +120,7 @@ class Heatmap:
             self.interface = sf.model.Features(  # type: ignore
                 model,
                 layers=None,
-                include_logits=True,
+                include_preds=True,
                 **int_kw)
         self.num_threads = num_threads
         self.num_processes = num_processes
@@ -129,10 +128,10 @@ class Heatmap:
         self.device = device
         self.tile_px = model_config['tile_px']
         self.tile_um = model_config['tile_um']
-        self.num_classes = self.interface.num_logits
+        self.num_classes = self.interface.num_classes
         self.num_features = self.interface.num_features
         self.num_uncertainty = self.interface.num_uncertainty
-        self.logits = None
+        self.predictions = None
         self.uncertainty = None
 
         if isinstance(slide, str):
@@ -239,10 +238,10 @@ class Heatmap:
                 **kwargs
             )
             if self.uq:
-                self.logits = out[:, :, :-(self.num_uncertainty)]
+                self.predictions = out[:, :, :-(self.num_uncertainty)]
                 self.uncertainty = out[:, :, -(self.num_uncertainty):]
             else:
-                self.logits = out
+                self.predictions = out
                 self.uncertainty = None
                 log.info(f"Heatmap complete for [green]{self.slide.name}")
 
@@ -251,7 +250,7 @@ class Heatmap:
             grid = np.ones((
                     self.slide.grid.shape[1],
                     self.slide.grid.shape[0],
-                    it.num_features + it.num_logits + it.num_uncertainty),
+                    it.num_features + it.num_classes + it.num_uncertainty),
                 dtype=np.float32)
             grid *= -1
             heatmap_thread = Thread(target=_generate, args=(grid,))
@@ -320,14 +319,14 @@ class Heatmap:
         self.insets = []
 
     def load(self, path: str) -> None:
-        """Load heatmap logits and uncertainty from .npz file.
+        """Load heatmap predictions and uncertainty from .npz file.
 
-        Loads logits from 'logits' in .npz file, and uncertainty from
+        Loads predictions from 'predictions' in .npz file, and uncertainty from
         'uncertainty' if present, as generated from heatmap.save_npz(). This
         function is the same as calling heatmap.load_npz().
 
         Args:
-            path (str, optional): Source .npz file. Must have 'logits' key and
+            path (str, optional): Source .npz file. Must have 'predictions' key and
                 optionally 'uncertainty'.
 
         Returns:
@@ -336,21 +335,25 @@ class Heatmap:
         self.load_npz(path)
 
     def load_npz(self, path: str) -> None:
-        """Load heatmap logits and uncertainty from .npz file.
+        """Load heatmap predictions and uncertainty from .npz file.
 
-        Loads logits from 'logits' in .npz file, and uncertainty from
+        Loads predictions from 'predictions' in .npz file, and uncertainty from
         'uncertainty' if present, as generated from heatmap.save_npz(). This
         function is the same as calling heatmap.load().
 
         Args:
-            path (str, optional): Source .npz file. Must have 'logits' key and
+            path (str, optional): Source .npz file. Must have 'predictions' key and
                 optionally 'uncertainty'.
 
         Returns:
             None
         """
         npzfile = np.load(path)
-        self.logits = npzfile['logits']
+        if ('predictions' not in npzfile) and ('logits' in npzfile):
+            log.warn("Loading predictions from 'logits' key.")
+            self.predictions = npzfile['logits']
+        else:
+            self.predictions = npzfile['predictions']
         if 'uncertainty' in npzfile:
             self.uncertainty = npzfile['uncertainty']
 
@@ -454,7 +457,7 @@ class Heatmap:
                         logit[logit_cmap['g']],
                         logit[logit_cmap['b']])
         ax.imshow(
-            [[map_logit(logit) for logit in row] for row in self.logits],
+            [[map_logit(logit) for logit in row] for row in self.predictions],
             extent=implot.get_extent(),
             interpolation=interpolation,
             zorder=10
@@ -552,7 +555,7 @@ class Heatmap:
         """
         import matplotlib.colors as mcol
 
-        if self.logits is None:
+        if self.predictions is None:
             raise errors.HeatmapError(
                 "Cannot plot Heatmap which is not yet generated; generate with "
                 "either heatmap.generate() or Heatmap(..., generate=True)"
@@ -569,8 +572,8 @@ class Heatmap:
             vmax=vmax
         )
         masked_arr = np.ma.masked_where(
-            self.logits[:, :, class_idx] == -1,
-            self.logits[:, :, class_idx]
+            self.predictions[:, :, class_idx] == -1,
+            self.predictions[:, :, class_idx]
         )
         ax.imshow(
             masked_arr,
@@ -583,9 +586,9 @@ class Heatmap:
         )
 
     def save_npz(self, path: Optional[str] = None) -> str:
-        """Save heatmap logits and uncertainty in .npz format.
+        """Save heatmap predictions and uncertainty in .npz format.
 
-        Saves heatmap logits to 'logits' in the .npz file. If uncertainty
+        Saves heatmap predictions to 'predictions' in the .npz file. If uncertainty
         was calculated, this is saved to 'uncertainty'. A Heatmap instance can
         load a saved .npz file with heatmap.load().
 
@@ -598,7 +601,7 @@ class Heatmap:
         """
         if path is None:
             path = f'{self.slide.name}.npz'
-        np_kwargs = dict(logits=self.logits)
+        np_kwargs = dict(predictions=self.predictions)
         if self.uq:
             np_kwargs['uncertainty'] = self.uncertainty
         np.savez(path, **np_kwargs)
@@ -614,7 +617,7 @@ class Heatmap:
         linewidth: int = 5,
         **kwargs
     ) -> None:
-        """Saves calculated logits as heatmap overlays.
+        """Saves calculated predictions as heatmap overlays.
 
         Args:
             outdir (str): Path to directory in which to save heatmap images.
@@ -649,7 +652,7 @@ class Heatmap:
         """
         import matplotlib.pyplot as plt
 
-        if self.logits is None:
+        if self.predictions is None:
             raise errors.HeatmapError(
                 "Cannot plot Heatmap which is not yet generated; generate with "
                 "either heatmap.generate() or Heatmap(..., generate=True)"
@@ -735,7 +738,7 @@ class ModelHeatmap(Heatmap):
         generator_kwargs: Optional[Dict[str, Any]] = None,
         **wsi_kwargs
     ):
-        """Convolutes across a whole slide, calculating logits and saving
+        """Convolutes across a whole slide, calculating predictions and saving
         predictions internally for later use.
 
         Args:
@@ -837,11 +840,11 @@ class ModelHeatmap(Heatmap):
         elif sf.util.model_backend(model) == 'tensorflow':
             import slideflow.model.tensorflow
             interface_class = sf.model.tensorflow.Features  # type: ignore
-            interface_kw = dict(include_logits=True)
+            interface_kw = dict(include_preds=True)
         elif sf.util.model_backend(model) == 'torch':
             import slideflow.model.torch
             interface_class = sf.model.torch.Features  # type: ignore
-            interface_kw = dict(include_logits=True, tile_px=self.tile_px)
+            interface_kw = dict(include_preds=True, tile_px=self.tile_px)
         else:
             raise ValueError(f"Unable to interpret model {model}")
 
@@ -856,10 +859,10 @@ class ModelHeatmap(Heatmap):
                 layers=None,
                 wsi_normalizer=normalizer,
                 **interface_kw)
-        self.num_classes = self.interface.num_logits
+        self.num_classes = self.interface.num_classes
         self.num_features = self.interface.num_features
         self.num_uncertainty = self.interface.num_uncertainty
-        self.logits = None
+        self.predictions = None
         self.uncertainty = None
 
         if generate:

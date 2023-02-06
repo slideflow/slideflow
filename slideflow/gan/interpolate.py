@@ -225,7 +225,7 @@ class StyleGAN2Interpolator:
         self.features = sf.model.Features(
             path,
             layers=layers,
-            include_logits=True,
+            include_preds=True,
             **kwargs)
         self.normalizer = self.features.wsi_normalizer  # type: ignore
 
