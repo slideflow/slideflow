@@ -460,7 +460,6 @@ def eval_dataset(
     loss: Optional[Callable] = None,
     torch_args: Optional[SimpleNamespace] = None,
     weighted: Optional[bool] = None,
-    tfdir: Optional[str] = None,
 ) -> Tuple[DataFrame, float, float]:
     """Generates predictions and accuracy/loss from a given model and dataset.
 
@@ -700,7 +699,6 @@ def metrics_from_dataset(
     loss: Optional[Callable] = None,
     torch_args: Optional[SimpleNamespace] = None,
     weighted: Optional[bool] = None,
-    tfdir: Optional[str] = None,
     **kwargs
 ) -> Tuple[Dict, float, float]:
 
@@ -749,7 +747,6 @@ def metrics_from_dataset(
         reduce_method=reduce_method,
         torch_args=torch_args,
         weighted=weighted,
-        tfdir=tfdir,
     )
 
     # Save predictions

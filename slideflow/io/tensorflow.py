@@ -669,12 +669,12 @@ def _get_parsed_datasets(
     def final_parser(record):
         if include_loc and weighted_loss:
             image, slide, likelihood, loc_x, loc_y = base_parser(record)
-        elif include_loc and not weighted_loss:
+        elif include_loc:
             image, slide, loc_x, loc_y = base_parser(record)
-        elif not include_loc and weighted_loss:
+        elif weighted_loss:
             image, slide, likelihood = base_parser(record)
         else:
-            image, slide= base_parser(record)
+            image, slide = base_parser(record)
 
         if label_parser:
             if weighted_loss:
@@ -888,8 +888,7 @@ def transform_tfrecord(
             return image_string
 
     for record in dataset:
-        slide, image_raw, loc_x, loc_y, tumor_likelihood = parser(record)  # type: ignore
-        # slide, image_raw, loc_x, loc_y = parser(record)
+        slide, image_raw, loc_x, loc_y = parser(record)  # type: ignore
         slidename = slide if not assign_slide else bytes(assign_slide, 'utf-8')
         image_processed_data = process_image(image_raw)
         tf_example = tfrecord_example(
@@ -897,7 +896,6 @@ def transform_tfrecord(
             image_processed_data,
             loc_x,
             loc_y,
-            tumor_likelihood
         )
         writer.write(tf_example.SerializeToString())
     writer.close()

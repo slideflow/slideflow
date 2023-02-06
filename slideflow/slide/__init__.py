@@ -781,7 +781,7 @@ class _BaseLoader:
                         self.weight_normalizer.tf_to_tf(cv_image), standardize=True
                         )[0]
                 weight = self.weight_model.predict(
-                            tf.expand_dims(image_, 0)
+                            tf.expand_dims(image_, 0), verbose=0, 
                          )[0][1]
 
             if len(sample_tiles) < 10:

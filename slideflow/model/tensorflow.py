@@ -804,10 +804,8 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
     ) -> Tuple[Dict, float, float]:
         try:
             weighted = self.hp.weighted_loss
-            tfdir = os.path.dirname(list(self.parent.manifest.keys())[0])
         except:
             weighted = False
-            tfdir = None
         return sf.stats.metrics_from_dataset(
             self.model,
             model_type=self.hp.model_type(),
@@ -822,7 +820,6 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
             loss=self.hp.get_loss(),
             uq=bool(self.hp.uq),
             weighted=weighted,
-            tfdir=tfdir,
         )
 
     def on_epoch_end(self, epoch: int, logs={}) -> None:
@@ -1588,17 +1585,14 @@ class Trainer:
         )
         try:
             weighted = self.hp.weighted_loss
-            tfdir = os.path.dirname(list(self.manifest.keys())[0])
         except:
             weighted = False
-            tfdir = None
         metrics, acc, loss = sf.stats.metrics_from_dataset(
             save_predictions=save_predictions,
             reduce_method=reduce_method,
             loss=self.hp.get_loss(),
             uq=bool(self.hp.uq),
             weighted=weighted,
-            tfdir=tfdir,
             **metric_kwargs
         )
         results = {'eval': {}}  # type: Dict[str, Dict[str, float]]
