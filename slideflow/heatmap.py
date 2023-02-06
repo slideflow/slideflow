@@ -30,8 +30,7 @@ Inset = namedtuple("Inset", "x y zoom loc mark1 mark2 axes")
 
 
 class Heatmap:
-    """Generates heatmap by calculating predictions from a sliding scale
-    window across a slide."""
+    """Generates a heatmap of predictions across a whole-slide image."""
 
     def __init__(
         self,
@@ -47,7 +46,35 @@ class Heatmap:
         device: Optional["torch.device"] = None,
         **wsi_kwargs
     ) -> None:
-        """Calcualtes tile-level predictions across a whole slide image.
+        """Initialize a heatmap from a path to a slide or a :class:``slideflow.WSI``.
+
+        Examples
+            Create a heatmap from a path to a slide.
+
+                .. code-block:: python
+
+                    model_path = 'path/to/saved_model'
+                    heatmap = sf.Heatmap('slide.svs', model_path)
+
+            Create a heatmap, with grayspace filtering disabled.
+
+                .. code-block:: python
+
+                    heatmap = sf.Heatmap(..., grayspace_fraction=1)
+
+            Create a heatmap from a ``sf.WSI`` object.
+
+                .. code-block:: python
+
+                    # Load a slide
+                    wsi = sf.WSI(tile_px=299, tile_um=302)
+
+                    # Apply Otsu's thresholding to the slide,
+                    # so heatmap is only generated on areas with tissue.
+                    wsi.qc('otsu')
+
+                    # Generate the heatmap
+                    heatmap = sf.Heatmap(wsi, model_path)
 
         Args:
             slide (str): Path to slide.
@@ -208,10 +235,13 @@ class Heatmap:
         asynchronous: bool = False,
         **kwargs
     ) -> Optional[Tuple[np.ndarray, Thread]]:
-        """Generate the heatmap.
+        """Manually generate the heatmap.
+
+        This function is automatically called when creating the heatmap if the
+        heatmap was initialized with ``generate=True`` (default behavior).
 
         Args:
-            threaded (bool, optional): Generate heatmap in a separate thread,
+            asynchronous (bool, optional): Generate heatmap in a separate thread,
                 returning the numpy array which is updated in realtime with
                 heatmap predictions and the heatmap thread. Defaults to False,
                 returning None.
@@ -321,13 +351,11 @@ class Heatmap:
     def load(self, path: str) -> None:
         """Load heatmap predictions and uncertainty from .npz file.
 
-        Loads predictions from 'predictions' in .npz file, and uncertainty from
-        'uncertainty' if present, as generated from heatmap.save_npz(). This
-        function is the same as calling heatmap.load_npz().
+        This function is an alias for :meth:`slideflow.Heatmap.load_npz()`.
 
         Args:
-            path (str, optional): Source .npz file. Must have 'predictions' key and
-                optionally 'uncertainty'.
+            path (str, optional): Source .npz file. Must have 'predictions' key
+                and optionally 'uncertainty'.
 
         Returns:
             None
@@ -337,13 +365,14 @@ class Heatmap:
     def load_npz(self, path: str) -> None:
         """Load heatmap predictions and uncertainty from .npz file.
 
-        Loads predictions from 'predictions' in .npz file, and uncertainty from
-        'uncertainty' if present, as generated from heatmap.save_npz(). This
-        function is the same as calling heatmap.load().
+        Loads predictions from ``'predictions'`` in .npz file, and uncertainty from
+        ``'uncertainty'`` if present, as generated from
+        :meth:`slideflow.Heatmap.save_npz()``. This function is the same as
+        calling ``heatmap.load()``.
 
         Args:
-            path (str, optional): Source .npz file. Must have 'predictions' key and
-                optionally 'uncertainty'.
+            path (str, optional): Source .npz file. Must have 'predictions' key
+                and optionally 'uncertainty'.
 
         Returns:
             None
@@ -528,6 +557,19 @@ class Heatmap:
     ) -> None:
         """Plot a predictive heatmap.
 
+        If in a Jupyter notebook, the heatmap will be displayed in the cell
+        output. If running via script or shell, the heatmap can then be
+        shown on screen using matplotlib ``plt.show()``:
+
+        .. code-block::
+
+            import slideflow as sf
+            import matplotlib.pyplot as plt
+
+            heatmap = sf.Heatmap(...)
+            heatmap.plot()
+            plt.show()
+
         Args:
             class_idx (int): Class index to plot.
             heatmap_alpha (float, optional): Alpha of heatmap overlay.
@@ -588,13 +630,13 @@ class Heatmap:
     def save_npz(self, path: Optional[str] = None) -> str:
         """Save heatmap predictions and uncertainty in .npz format.
 
-        Saves heatmap predictions to 'predictions' in the .npz file. If uncertainty
-        was calculated, this is saved to 'uncertainty'. A Heatmap instance can
-        load a saved .npz file with heatmap.load().
+        Saves heatmap predictions to ``'predictions'`` in the .npz file. If uncertainty
+        was calculated, this is saved to ``'uncertainty'``. A Heatmap instance can
+        load a saved .npz file with :meth:`slideflow.Heatmap.load()`.
 
         Args:
             path (str, optional): Destination filename for .npz file. Defaults
-                to [slidename].npz
+                to {slidename}.npz
 
         Returns:
             str: Path to .npz file.

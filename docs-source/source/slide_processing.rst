@@ -151,7 +151,7 @@ Then, supply this class to the ``qc`` argument as above.
 
 .. code-block:: python
 
-  P.extract_tiles(qc=DeepFocus)
+  P.extract_tiles(qc=DeepFocus())
 
 
 See :ref:`qc` for more information on the API for QC customization.

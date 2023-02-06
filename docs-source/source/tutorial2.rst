@@ -123,7 +123,7 @@ In addition to the above model parameters, our trainer will need the outcome lab
 
 .. code-block:: python
 
-    >>> trainer = sf.model.trainer_from_hp(
+    >>> trainer = sf.model.build_trainer(
     ...   hp=hp,
     ...   outdir='/some/directory',
     ...   labels=labels,

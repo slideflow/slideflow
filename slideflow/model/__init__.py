@@ -101,7 +101,7 @@ def build_trainer(
     **kwargs
 ) -> Trainer:
     """From the given :class:`slideflow.model.ModelParams` object, returns
-    the appropriate instance of :class:`slideflow.model.Model`.
+    the appropriate instance of :class:`slideflow.model.Trainer`.
 
     Args:
         hp (:class:`slideflow.model.ModelParams`): ModelParams object.
@@ -233,8 +233,8 @@ class DatasetFeatures:
     ) -> None:
 
         """Calculates features / layer activations from model, storing to
-        internal parameters `self.activations`, and `self.predictions`,
-        `self.locations`, dictionaries mapping slides to arrays of activations,
+        internal parameters ``self.activations``, and ``self.predictions``,
+        ``self.locations``, dictionaries mapping slides to arrays of activations,
         predictions, and locations for each tiles' constituent tiles.
 
         Args:
@@ -806,7 +806,6 @@ class DatasetFeatures:
                     for i in range(len(self.uncertainty[s]))], index=index)
             })
         return pd.DataFrame(df_dict)
-
 
     def load_cache(self, path: str):
         """Load cached activations from PKL.

@@ -44,6 +44,7 @@ extensions = [
     'sphinxcontrib.video'
 ]
 
+autoclass_content = 'both'
 autosummary_generate = False
 add_module_names = False
 

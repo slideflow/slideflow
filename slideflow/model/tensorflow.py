@@ -1187,7 +1187,7 @@ class Trainer:
         if config is None:
             config = {
                 'slideflow_version': sf.__version__,
-                'hp': self.hp.get_dict(),
+                'hp': self.hp.to_dict(),
                 'backend': sf.backend()
             }
         sf.util.write_json(config, join(self.outdir, 'params.json'))
@@ -1695,7 +1695,7 @@ class Trainer:
             if not exists(config_path):
                 config = {
                     'slideflow_version': sf.__version__,
-                    'hp': self.hp.get_dict(),
+                    'hp': self.hp.to_dict(),
                     'backend': sf.backend()
                 }
             else:

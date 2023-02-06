@@ -111,12 +111,16 @@ class StainNormalizer:
 
                 >>> macenko.fit(target_image)
 
+            Fit the normalizer using a preset configuration.
+
+                >>> macenko.fit('v2')
+
             Fit the normalizer to all images in a Dataset.
 
                 >>> dataset = sf.Dataset(...)
                 >>> macenko.fit(dataset)
 
-            Normalize an image and convert from Tensor to RGB.
+            Normalize an image and convert from Tensor to numpy array (RGB).
 
                 >>> macenko.tf_to_rgb(image)
 

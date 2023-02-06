@@ -490,6 +490,20 @@ def read_and_return_record(
     parser: Callable,
     assign_slide: Optional[str] = None
 ) -> Dict:
+    """Process raw TFRecord bytes into a format that can be written with
+    ``tf.io.TFRecordWriter``.
+
+    Args:
+        record (bytes): Raw TFRecord bytes (unparsed)
+        parser (Callable): TFRecord parser, as returned by
+            :func:`sf.io.get_tfrecord_parser()`
+        assign_slide (str, optional): Slide name to override the record with.
+            Defaults to None.
+
+    Returns:
+        Dictionary mapping record key to a tuple containing (bytes, dtype).
+
+    """
     parsed = parser(record)
     if assign_slide:
         parsed['slide'] = assign_slide

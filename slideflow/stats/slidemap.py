@@ -40,22 +40,30 @@ class SlideMap:
         Can be initialized with three methods: from precalculated X/Y
         coordinates, from a DatasetFeatures object, or from a saved map.
 
-        Examples:
+        Examples
             Build a SlideMap from a DatasetFeatures object
 
-                dts_ftrs = sf.DatasetFeatures(model, dataset)
-                slidemap = sf.SlideMap.from_features(dts_ftrs)
+                .. code-block:: python
+
+                    dts_ftrs = sf.DatasetFeatures(model, dataset)
+                    slidemap = sf.SlideMap.from_features(dts_ftrs)
 
             Build a SlideMap from prespecified coordinates
 
-                x = np.array(...)
-                y = np.array(...)
-                slides = ['slide1', 'slide1', 'slide5', ...]
-                slidemap = sf.SlideMap.from_xy(x=x, y=y, slides=slides)
+                .. code-block:: python
+
+                    x = np.array(...)
+                    y = np.array(...)
+                    slides = ['slide1', 'slide1', 'slide5', ...]
+                    slidemap = sf.SlideMap.from_xy(
+                        x=x, y=y, slides=slides
+                    )
 
             Load a saved SlideMap
 
-                slidemap = sf.SlideMap.load('map.parquet')
+                .. code-block:: python
+
+                    slidemap = sf.SlideMap.load('map.parquet')
 
         Args:
             slides (list(str)): List of slide names

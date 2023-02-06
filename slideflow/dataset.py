@@ -390,43 +390,29 @@ def split_patients(patients_dict: Dict[str, Dict], n: int) -> List[List[str]]:
 
 
 class Dataset:
-    """Object to supervise organization of slides, tfrecords, and tiles
-    across one or more sources in a stored configuration file.
+    """Supervises organization and processing of slides, tfrecords, and tiles.
+
+    Datasets can be comprised of one or more sources, where a source is a
+    combination of slides and any associated regions of interest (ROI) and
+    extracted image tiles (stored as TFRecords or loose images).
 
     Datasets can be created in two ways: either by loading one dataset source,
     or by loading a dataset configuration that contains information about
     multiple dataset sources.
 
     For the first approach, the dataset source configuration is provided via
-    keyword arguments (`tiles`, `tfrecords`, `slides`, and `roi`). Each is a
-    path to a directory containing the respective data.
+    keyword arguments (``tiles``, ``tfrecords``, ``slides``, and ``roi``).
+    Each is a path to a directory containing the respective data.
 
-    For the second approach, the first argument `config` is either a nested
+    For the second approach, the first argument ``config`` is either a nested
     dictionary containing the configuration for multiple dataset sources, or
     a path to a JSON file with this information. The second argument is a list
-    of dataset sources to load (keys from the `config` dictionary).
+    of dataset sources to load (keys from the ``config`` dictionary).
 
     With either approach, slide/patient-level annotations are provided through
-    the `annotations` keyword argument, which can either be a path to a CSV
+    the ``annotations`` keyword argument, which can either be a path to a CSV
     file, or a pandas DataFrame, which must contain at minimum the column
-    'patient'.
-
-    Examples
-        Load a dataset via keyword arguments.
-
-            dataset = Dataset(
-                tfrecords='../path',
-                slides='../path',
-                annotations='../file.csv'
-            )
-
-        Load a dataset configuration file and specify the dataset source(s).
-
-            dataset = Dataset(
-                config='../path/to/config.json',
-                sources=['Lung_Adeno', 'Lung_Squam'],
-                annotations='../file.csv
-            )
+    '`patient`'.
     """
 
     def __init__(
@@ -445,7 +431,28 @@ class Dataset:
         annotations: Optional[Union[str, pd.DataFrame]] = None,
         min_tiles: int = 0,
     ) -> None:
-        """Initializes dataset to organize processed images.
+        """Initialize a Dataset to organize processed images.
+
+        Examples
+            Load a dataset via keyword arguments.
+
+                .. code-block:: python
+
+                    dataset = Dataset(
+                        tfrecords='../path',
+                        slides='../path',
+                        annotations='../file.csv'
+                    )
+
+            Load a dataset configuration file and specify the dataset source(s).
+
+                .. code-block:: python
+
+                    dataset = Dataset(
+                        config='../path/to/config.json',
+                        sources=['Lung_Adeno', 'Lung_Squam'],
+                        annotations='../file.csv
+                    )
 
         Args:
             config (str, dict): Either a dictionary or a path to a JSON file.
@@ -462,6 +469,8 @@ class Dataset:
             tile_px (int): Tile size in pixels.
             tile_um (int or str): Tile size in microns (int) or magnification
                 (str, e.g. "20x").
+
+        Keyword args:
             filters (Optional[Dict], optional): Filters for selecting slides
                 from annotations. Defaults to None.
             filter_blank (Optional[Union[List[str], str]], optional): Omit
@@ -475,7 +484,7 @@ class Dataset:
 
         Raises:
             errors.SourceNotFoundError: If provided source does not exist
-            in the dataset config.
+                in the dataset config.
         """
         if isinstance(tile_um, str):
             sf.util.assert_is_mag(tile_um)
@@ -558,6 +567,7 @@ class Dataset:
 
     @property
     def annotations(self) -> Optional[pd.DataFrame]:
+        """Pandas DataFrame of all loaded clinical annotations."""
         return self._annotations
 
     @property
@@ -592,6 +602,7 @@ class Dataset:
 
     @property
     def filtered_annotations(self) -> pd.DataFrame:
+        """Pandas DataFrame of clinical annotations, after filtering."""
         if self.annotations is not None:
             f_ann = self.annotations
 
@@ -748,10 +759,12 @@ class Dataset:
         strategy: Optional[str] = 'category',
         force: bool = False,
     ) -> "Dataset":
-        """Returns a dataset with prob_weights reflecting balancing per tile,
-        slide, patient, or category.
+        """Returns a dataset with mini-batch balancing configured.
 
-        Saves balancing information to the dataset variable prob_weights, which
+        Mini-batch balancing can be configured at tile, slide, patient, or
+        category levels.
+
+        Balancing information is saved to the attribute ``prob_weights``, which
         is used by the interleaving dataloaders when sampling from tfrecords
         to create a batch.
 
@@ -785,7 +798,7 @@ class Dataset:
                 header appears to be a float.
 
         Returns:
-            balanced :class:`slideflow.dataset.Dataset` object.
+            balanced :class:`slideflow.Dataset` object.
         """
         ret = copy.deepcopy(self)
         manifest = ret.manifest()
@@ -1041,7 +1054,7 @@ class Dataset:
         """Checks for duplicate slides by comparing slide thumbnails.
 
         Args:
-            dataset (`slideflow.dataset.Dataset`, optional): Also check for
+            dataset (`slideflow.Dataset`, optional): Also check for
                 duplicate slides between this dataset and the provided dataset.
             px (int): Pixel size at which to compare thumbnails. Defaults to 64.
             mse_thresh (int): MSE threshold below which an image pair is
@@ -1109,7 +1122,7 @@ class Dataset:
         """Returns a dataset with all filters cleared.
 
         Returns:
-            :class:`slideflow.dataset.Dataset` object.
+            :class:`slideflow.Dataset` object.
         """
 
         ret = copy.deepcopy(self)
@@ -1141,7 +1154,7 @@ class Dataset:
                 Defaults to None.
 
         Returns:
-            clipped :class:`slideflow.dataset.Dataset` object.
+            clipped :class:`slideflow.Dataset` object.
         '''
         if strategy == 'category' and not headers:
             raise errors.DatasetClipError(
@@ -1629,7 +1642,7 @@ class Dataset:
                 minimum number of tiles.
 
         Returns:
-            :class:`slideflow.dataset.Dataset`: Dataset with filter added.
+            :class:`slideflow.Dataset`: Dataset with filter added.
         """
         if len(args) == 1 and 'filters' not in kwargs:
             kwargs['filters'] = args[0]
@@ -2023,7 +2036,7 @@ class Dataset:
                 filter_blank.
 
         Returns:
-            :class:`slideflow.dataset.Dataset`: Dataset with filter removed.
+            :class:`slideflow.Dataset`: Dataset with filter removed.
         """
 
         for kwarg in kwargs:
@@ -2656,11 +2669,13 @@ class Dataset:
                     annPoly.contains(sg.Point(loc_x, loc_y))
                     for annPoly in slide.annPolys
                 ])
-                record_bytes = sf.io.read_and_return_record(record, parser)
+                # Convert from a Tensor -> Numpy array
+                if hasattr(record, 'numpy'):
+                    record = record.numpy()
                 if tile_in_roi:
-                    inside_roi_writer.write(record_bytes)
+                    inside_roi_writer.write(record)
                 else:
-                    outside_roi_writer.write(record_bytes)
+                    outside_roi_writer.write(record)
             inside_roi_writer.close()
             outside_roi_writer.close()
 
@@ -3066,7 +3081,7 @@ class Dataset:
         Args:
             size (int, optional): Width/height of thumbnail in pixels.
                 Defaults to 512.
-            dataset (:class:`slideflow.dataset.Dataset`, optional): Dataset
+            dataset (:class:`slideflow.Dataset`, optional): Dataset
                 from which to generate activations. If not supplied, will
                 calculate activations for all tfrecords at the tile_px/tile_um
                 matching the supplied model, optionally using provided filters
@@ -3232,7 +3247,7 @@ class Dataset:
         """Returns a dataset object with all clips removed.
 
         Returns:
-            :class:`slideflow.dataset.Dataset`: Dataset with clips removed.
+            :class:`slideflow.Dataset`: Dataset with clips removed.
         """
         ret = copy.deepcopy(self)
         ret._clip = {}

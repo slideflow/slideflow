@@ -8,6 +8,36 @@ from slideflow.util import log
 
 
 def generate(*args, method='auto', **kwargs):
+    """Generates site preserved cross-folds, balanced on a given category.
+
+    Preserved-site cross-validation is performed as described in the manuscript
+    https://doi.org/10.1038/s41467-021-24698-1.
+
+    Available solvers include Bonmin and CPLEX. The solver can be manually set
+    with ``method``.  If not provided, the solver will default to CPLEX if
+    available, and Bonmin as a fallback.
+
+    CPLEX is properitary software by IBM.
+
+    Bonmin can be installed with:
+
+        .. code-block:: bash
+
+            conda install -c conda-forge coinbonmin
+
+    Args:
+        data (pandas.DataFrame): Dataframe with slides that must be split into
+            crossfolds.
+        category (str): The column in data to stratify by.
+        k (int): Number of crossfolds for splitting. Defaults to 3.
+        target_column (str): Name for target column to contain the assigned
+            crossfolds for each patient in the output dataframe.
+        timelimit: maximum time to spend solving
+
+    Returns:
+        dataframe with a new column, 'CV3' that contains values 1 - 3,
+        indicating the assigned crossfold
+    """
     if method == 'auto':
         if not sf.util.CPLEX_AVAILABLE:
             log.info("CPLEX solver not found; falling back to pyomo/bonmin.")
@@ -29,7 +59,6 @@ def _generate_bonmin(
     target_column: str = 'CV3',
     timelimit: int = 10
 ) -> pd.DataFrame:
-
     """Generates site preserved cross-folds, balanced on a given category,
     using the bonmin solver.
 

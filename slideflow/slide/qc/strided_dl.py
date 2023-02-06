@@ -18,6 +18,63 @@ class StridedDL:
         pred_threshold: float = 0.5,
         **wsi_kwargs
     ):
+        """QC function which uses a deep learning model to generate a QC mask.
+
+        When this QC method is applied to a slide, the given deep learning model
+        generates predictions across the whole-slide image (using the class index
+        specified by ``pred_idx``). Areas with a prediction above
+        ``pred_threshold`` are masked, to be discarded.
+
+        Examples
+            Create a DeepFocus module that filters out-of-focus tiles.
+
+                .. code-block:: python
+
+                    import slideflow as sf
+                    from slideflow.slide.qc import strided_dl
+                    from deepfocus import deepfocus_v3
+
+                    deepfocus = strided_dl.StridedDL(
+                        model=deepfocus_v3(),
+                        pred_idx=1,
+                        tile_px=64,
+                        tile_um='40x'
+                    )
+                    wsi = sf.WSI(...)
+                    wsi.qc(deepfocus)
+
+
+            Do the same, but using class inheritance.
+
+                .. code-block:: python
+
+                    import slideflow as sf
+                    from slideflow.slide.qc import strided_dl
+                    from deepfocus import deepfocus_v3
+
+                    class DeepFocus(strided_dl.StridedDL):
+
+                        def __init__(self):
+                            model = deepfocus_v3()
+                            checkpoint = '/path/to/checkpoint-ver5'
+                            load_checkpoint(model, checkpoint)
+                            super().__init__(
+                                model=model,
+                                pred_idx=1,
+                                tile_px=64,
+                                tile_um='40x'
+                            )
+
+                    wsi = sf.WSI(...)
+                    deepfocus = DeepFocus()
+                    wsi.qc(deepfocus)
+
+
+        Args:
+            dest (str, optional): Path in which to save the qc mask.
+                If None, will save in the same directory as the slide.
+                Defaults to None.
+        """
         self.buffer = buffer
         self.kernel = tile_px
         self.tile_um = tile_um

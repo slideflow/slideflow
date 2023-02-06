@@ -12,7 +12,47 @@ from typing import Union, Optional
 class Otsu:
 
     def __init__(self, slide_level: Optional[int] = None):
-        """QC via Gaussian filtering.
+        """Prepare Otsu's thresholding algorithm for filtering a slide.
+
+        This method is used to detect areas of tissue and remove background.
+
+        This QC method works by obtaining a thumbnail of a slide, and converting
+        the image into the HSV color space. The HSV image undergoes a median blur
+        using OpenCV with a kernel size of 7, and the image is thresholded
+        using ``cv2.THRESH_OTSU``. This results in a binary mask, which
+        is then applied to the slide for filtering.
+
+        Original paper: https://ieeexplore.ieee.org/document/4310076
+
+        .. warning::
+
+            Otsu's thresholding may give unexpected results with slides
+            that have many large pen marks, erroneously identifying pen marks
+            as tissue and removing the actual tissue as background.
+            This behavior can be circumvented by applying a Gaussian filter
+            before Otsu's thresholding.
+
+            .. code-block:: python
+
+                    import slideflow as sf
+                    from slideflow.slide import qc
+
+                    wsi = sf.WSI(...)
+                    gaussian = qc.Gaussian()
+                    otsu = qc.Otsu()
+                    wsi.qc([gaussian, otsu])
+
+        Examples
+            Apply Otsu's thresholding to a slide.
+
+                .. code-block:: python
+
+                    import slideflow as sf
+                    from slideflow.slide import qc
+
+                    wsi = sf.WSI(...)
+                    otsu = qc.Otsu()
+                    wsi.qc(otsu)
 
         Args:
             level (int): Slide pyramid level at which to perform filtering.

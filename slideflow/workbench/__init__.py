@@ -64,6 +64,12 @@ class Workbench(imgui_window.ImguiWindow):
     ) -> None:
         """Create the main Workbench window.
 
+        Workbench is started by running ``slideflow.workbench`` as a module.
+
+        .. code-block:: bash
+
+            python -m slideflow.workbench
+
         Args:
             low_memory (bool): Enable low memory mode, which uses thread pools
                 instead of multiprocessing pools when applicable to reduce

@@ -7,7 +7,7 @@
 Slideflow Documentation
 =======================
 
-``slideflow`` is a Python package that provides a unified API for building and testing deep learning models for histopathology, supporting both Tensorflow/Keras and PyTorch.
+Slideflow is a Python package that provides a unified API for building and testing deep learning models for histopathology, supporting both Tensorflow/Keras and PyTorch.
 
 Slideflow includes tools for efficient whole-slide image processing, easy and highly customizable model training with uncertainty quantification (UQ), and a number of functional tools to assist with analysis and interpretability, including predictive heatmaps, mosaic maps, GANs, saliency maps, and more. It is built with both `Tensorflow/Keras <https://www.tensorflow.org/>`_ and `PyTorch <https://pytorch.org>`_ backends, with fully cross-compatible TFRecord data storage.
 
@@ -42,14 +42,19 @@ The ``slideflow`` package includes a ``Project`` class to help coordinate projec
    project
    dataset
    heatmap
+   dataset_features
+   slidemap
+   mosaic
    io
    io_tensorflow
    io_torch
    gan
    grad
    model
-   mosaic
+   model_tensorflow
+   model_torch
    norm
+   simclr
    slide
    slide_qc
    stats

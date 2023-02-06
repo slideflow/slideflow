@@ -98,6 +98,8 @@ Performance metrics - including accuracy, loss, etc. - are returned as a diction
 
 At each designated epoch, models are saved in their own folders. Each model directory will include a copy of its hyperparameters in a ``params.json`` file, and a copy of its training/validation slide manifest in ``slide.log``.
 
+.. _training_with_trainer:
+
 Using a Trainer
 ---------------
 

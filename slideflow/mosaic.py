@@ -98,55 +98,61 @@ class Mosaic:
         needed, reducing memory requirements.
 
         The first argument provides the images, and may be any of the following:
-            - A list or array of images (np.ndarray, HxWxC)
-            - A list of tuples, containing ``(slide_name, tfrecord_index)``
-            - A ``slideflow.SlideMap`` object
+
+        - A list or array of images (np.ndarray, HxWxC)
+        - A list of tuples, containing ``(slide_name, tfrecord_index)``
+        - A ``slideflow.SlideMap`` object
 
         The second argument provides the coordinates, and may be any of:
-            - A list or array of (x, y) coordinates for each image
-            - None (if the first argument is a ``SlideMap``, which has coordinates)
+
+        - A list or array of (x, y) coordinates for each image
+        - None (if the first argument is a ``SlideMap``, which has coordinates)
 
         If images are to be read dynamically from tfrecords (with a ``SlideMap``,
         or by providing tfrecord indices directly), the keyword argument
         ``tfrecords`` must be specified with paths to tfrecords.
 
-        .. _Published example 1 (Figure 4):
-            https://doi.org/10.1038/s41379-020-00724-3
+        Published examples:
 
-        .. _Published example 2 (Figure 6):
-            https://doi.org/10.1038/s41467-022-34025-x
+        - Figure 4: https://doi.org/10.1038/s41379-020-00724-3
+        - Figure 6: https://doi.org/10.1038/s41467-022-34025-x
 
         Examples
-
             Generate a mosaic map from a list of images and coordinates.
 
-                # Example data (images are HxWxC, np.ndarray)
-                images = [np.ndarray(...), ...]
-                coords = [(0.2, 0.9), ...]
+                .. code-block:: python
 
-                # Generate the mosaic
-                mosaic = Mosaic(images, coordinates)
+                    # Example data (images are HxWxC, np.ndarray)
+                    images = [np.ndarray(...), ...]
+                    coords = [(0.2, 0.9), ...]
 
-            Generate a mosaic map from tuples of TFRecords and indices.
+                    # Generate the mosaic
+                    mosaic = Mosaic(images, coordinates)
 
-                # Example data
-                tfrecords = ['/path/to/tfrecord`.tfrecords', ...]
-                idx = [253, 112, ...]
-                coords = [(0.2, 0.9), ...]
-                tuples = [(tfr, idx) for tfr, idx in zip(tfrecords, idx)]
+            Generate a mosaic map from tuples of TFRecord paths and indices.
 
-                # Generate mosaic map
-                mosaic = sf.Mosaic(tuples, coords)
+                .. code-block:: python
+
+                    # Example data
+                    paths = ['/path/to/tfrecord.tfrecords', ...]
+                    idx = [253, 112, ...]
+                    coords = [(0.2, 0.9), ...]
+                    tuples = [(tfr, idx) for tfr, i in zip(paths, idx)]
+
+                    # Generate mosaic map
+                    mosaic = sf.Mosaic(tuples, coords)
 
             Generate a mosaic map from a SlideMap and list of TFRecord paths.
 
-                # Prepare a SlideMap from a project
-                P = sf.Project('/project/path')
-                ftrs = P.generate_features('/path/to/model')
-                slide_map = sf.SlideMap.from_features(ftrs)
+                .. code-block:: python
 
-                # Generate mosaic
-                mosaic = Mosaic(slide_map, tfrecords=ftrs.tfrecords)
+                    # Prepare a SlideMap from a project
+                    P = sf.Project('/project/path')
+                    ftrs = P.generate_features('/path/to/model')
+                    slide_map = sf.SlideMap.from_features(ftrs)
+
+                    # Generate mosaic
+                    mosaic = Mosaic(slide_map, tfrecords=ftrs.tfrecords)
 
         Args:
             images (list(np.ndarray), tuple, :class:`slideflow.SlideMap`):
@@ -515,6 +521,19 @@ class Mosaic:
         pool: Optional[Any] = None,
     ) -> None:
         """Initializes figures and places image tiles.
+
+        If in a Jupyter notebook, the heatmap will be displayed in the cell
+        output. If running via script or shell, the heatmap can then be
+        shown on screen using matplotlib ``plt.show()``:
+
+        .. code-block::
+
+            import slideflow as sf
+            import matplotlib.pyplot as plt
+
+            heatmap = sf.Heatmap(...)
+            heatmap.plot()
+            plt.show()
 
         Args:
             figsize (Tuple[int, int], optional): Figure size. Defaults to

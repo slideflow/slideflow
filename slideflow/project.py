@@ -39,47 +39,48 @@ if TYPE_CHECKING:
 
 
 class Project:
-    """Assists with project organization and execution of common tasks.
-
-    If a project exists at the specified directory, the project will be loaded.
-    If a project does not exist, one can be created if a project configuration
-    was provided via keyword arguments.
-
-    *Create a project:*
-
-    .. code-block:: python
-
-        import slideflow as sf
-        P = sf.Project('/project/path', name=..., ...)
-
-    *Load an existing project:*
-
-    .. code-block:: python
-
-        P = sf.Project('/project/path')
-
-    Args:
-        root (str): Path to project directory.
-
-    Keyword Args:
-        name (str): Project name. Defaults to 'MyProject'.
-        annotations (str): Path to annotations CSV file.
-            Defaults to './annotations.csv'
-        dataset_config (str): Path to dataset configuration JSON file.
-            Defaults to './datasets.json'.
-        sources (list(str)): List of dataset sources to include in project.
-            Defaults to 'source1'.
-        models_dir (str): Path to directory in which to save models.
-            Defaults to './models'.
-        eval_dir (str): Path to directory in which to save evaluations.
-            Defaults to './eval'.
-
-    Raises:
-        slideflow.errors.ProjectError: if project folder does not exist,
-            or the folder exists but kwargs are provided.
-    """
+    """Assists with project organization and execution of common tasks."""
 
     def __init__(self, root: str, use_neptune: bool = False, **kwargs) -> None:
+        """The initializer loads or creates a project at a given directory.
+
+        If a project does not exist at the given root directory, one can be
+        created if a project configuration was provided via keyword arguments.
+
+        *Create a project:*
+
+        .. code-block:: python
+
+            import slideflow as sf
+            P = sf.Project('/project/path', name=..., ...)
+
+        *Load an existing project:*
+
+        .. code-block:: python
+
+            P = sf.Project('/project/path')
+
+        Args:
+            root (str): Path to project directory.
+
+        Keyword Args:
+            name (str): Project name. Defaults to 'MyProject'.
+            annotations (str): Path to annotations CSV file.
+                Defaults to './annotations.csv'
+            dataset_config (str): Path to dataset configuration JSON file.
+                Defaults to './datasets.json'.
+            sources (list(str)): List of dataset sources to include in project.
+                Defaults to 'source1'.
+            models_dir (str): Path to directory in which to save models.
+                Defaults to './models'.
+            eval_dir (str): Path to directory in which to save evaluations.
+                Defaults to './eval'.
+
+        Raises:
+            slideflow.errors.ProjectError: if project folder does not exist,
+                or the folder exists but kwargs are provided.
+
+        """
         self.root = root
         if sf.util.is_project(root) and kwargs:
             raise errors.ProjectError(f"Project already exists at {root}")
@@ -226,7 +227,7 @@ class Project:
 
     @property
     def sources(self) -> List[str]:
-        """Returns list of dataset sources active in this project."""
+        """List of dataset sources active in this project."""
         if 'sources' in self._settings:
             return self._settings['sources']
         elif 'datasets' in self._settings:
@@ -492,7 +493,7 @@ class Project:
             'pretrain': None,
             'resume_training': None,
             'checkpoint': checkpoint,
-            'hp': hp.get_dict(),
+            'hp': hp.to_dict(),
             'max_tiles': max_tiles,
             'min_tiles': dataset.min_tiles,
         }
@@ -877,7 +878,7 @@ class Project:
             'validation_k_fold': val_settings.k_fold,
             'k_fold_i': s_args.k,
             'filters': s_args.filters,
-            'hp': hp.get_dict(),
+            'hp': hp.to_dict(),
             'training_kwargs': s_args.training_kwargs,
         }
         model_kwargs = {
@@ -1123,7 +1124,7 @@ class Project:
             if 'epochs' in kwargs:
                 full_params['epochs'] = kwargs['epochs']
             mp = ModelParams(**full_params)
-            hp_list += [{f'{label}HPSweep{i}': mp.get_dict()}]
+            hp_list += [{f'{label}HPSweep{i}': mp.to_dict()}]
         sf.util.write_json(hp_list, os.path.join(self.root, filename))
         log.info(f'Wrote hp sweep (len {len(sweep)}) to [green]{filename}')
 
@@ -2926,7 +2927,7 @@ class Project:
     ) -> Tuple["Configuration", pd.DataFrame]:
         """Train a model using SMAC3 Bayesian hyperparameter optimization.
 
-        See :ref:`Bayesian optimization <bayesian_optimization` for more information.
+        See :ref:`Bayesian optimization <bayesian_optimization>` for more information.
 
         .. note::
 
@@ -3062,8 +3063,8 @@ class Project:
 
         Args:
             outcomes (str or list(str)): Outcome label annotation header(s).
-            params (:class:`slideflow.model.ModelParams`, list, dict, or str):
-                Model parameters for training. May provide one `ModelParams`,
+            params (:class:`slideflow.ModelParams`, list, dict, or str):
+                Model parameters for training. May provide one ``ModelParams``,
                 a list, or dict mapping model names to params. If multiple
                 params are provided, will train models for each. If JSON file
                 is provided, will interpret as a hyperparameter sweep. See
@@ -3091,7 +3092,7 @@ class Project:
             load_method (str): Either 'full' or 'weights'. Method to use
                 when loading a Tensorflow model. If 'full', loads the model with
                 ``tf.keras.models.load_model()``. If 'weights', will read the
-                ``params.json``configuration file, build the model architecture,
+                ``params.json`` configuration file, build the model architecture,
                 and then load weights from the given model with
                 ``Model.load_weights()``. Loading with 'full' may improve
                 compatibility across Slideflow versions. Loading with 'weights'
@@ -3172,7 +3173,7 @@ class Project:
         elif isinstance(params, list):
             if not all([isinstance(hp, ModelParams) for hp in params]):
                 raise errors.ModelParamsError(
-                    'If params is a list, items must be sf.model.ModelParams'
+                    'If params is a list, items must be sf.ModelParams'
                 )
             hp_dict = {f'HP{i}': hp for i, hp in enumerate(params)}
         elif isinstance(params, dict):

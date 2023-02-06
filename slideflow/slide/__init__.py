@@ -113,6 +113,7 @@ def log_extraction_params(**kwargs) -> None:
         excl = f'(exclude if >={gs_f*100:.0f}% grayspace)'
         log.debug(f'Grayspace defined as HSV avg < {gs_t} {excl}')
 
+
 def predict(
     slide: str,
     model: str,
@@ -180,6 +181,7 @@ def predict(
         return preds, unc
     else:
         return preds
+
 
 class ROI:
     '''Object container for ROI annotations.'''
@@ -326,30 +328,47 @@ class _BaseLoader:
 
     @property
     def dimensions(self) -> Tuple[int, int]:
+        """Dimensions of highest-magnification level (width, height)"""
         return self.slide.dimensions
 
     @property
     def levels(self) -> Dict:
+        """List of dict, with metadata for each level.
+
+        Each dict has the keys 'dimensions', 'downsample', 'height', and 'weight'.
+
+        - **'dimensions'**: (height, width) of the level.
+        - **'downsample'**: Downsample level, where higher numbers indicate
+            lower magnification and the highest magnification is 1.
+        - **`height'**: Height of the level.
+        - **`height'**: Width of the level.
+
+        """
         return self.slide.levels
 
     @property
     def level_dimensions(self) -> List[List[int]]:
+        """List of list, with dimensions for each slide level."""
         return self.slide.level_dimensions
 
     @property
     def level_downsamples(self) -> List[float]:
+        """Downsample of each level (starts at 1, increases with lower mag)."""
         return self.slide.level_downsamples
 
     @property
     def level_mpp(self) -> List[float]:
+        """Microns-per-pixel (MPP) for each level."""
         return [d * self.mpp for d in self.level_downsamples]
 
     @property
     def properties(self) -> Dict:
+        """Dictionary of metadata loaded from the slide."""
         return self.slide.properties
 
     @property
     def vendor(self) -> Optional[str]:
+        """Slide scanner vendor, if available."""
         if OPS_VENDOR in self.slide.properties:
             return self.slide.properties[OPS_VENDOR]
         else:
@@ -476,7 +495,7 @@ class _BaseLoader:
         self,
         mask: np.ndarray,
         filter_threshold: float = 0.6,
-    ) -> Image:
+    ) -> "Image":
         """Apply custom slide-level QC by filtering grid coordinates.
 
         Args:

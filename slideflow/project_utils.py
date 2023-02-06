@@ -673,7 +673,7 @@ def detect_predictions_format(path: str):
 
 
 def predict_file_type(path: str) -> str:
-    """ To return the format of a given predictions dataframe.
+    """ \To return the format of a given predictions dataframe.
 
     Args:
         path (str): Path to predictions file.
@@ -751,6 +751,7 @@ def get_matching_directory(curr_path: str, label: str) -> str:
 
     return curr_dir[0]
 
+
 def get_first_nested_directory(path):
     """To return the first element of a sorted list of paths to all the
     directories in 'path'
@@ -763,6 +764,7 @@ def get_first_nested_directory(path):
 
     """
     return _sorted_subdirectories(path)[0]
+
 
 def _sorted_subdirectories(path):
     """To return a sorted list of paths to all the directories in 'path'

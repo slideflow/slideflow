@@ -87,17 +87,27 @@ def convert_dtype(
     Tensorflow Tensors. Images can also be converted from standardized
     float images to RGB uint8 images, and vice versa.
 
-    Supported formats for starting and ending dtype:
-        np.uint8:       Image in RGB (WHC) uint8 format.
-        np.float32:     RGB (WHC) image.
-                        If the source image is a numpy uint8 or torch uint8,
-                        it will be standardized with (img / 127.5) - 1.
-                        If the source image is a tensorflow image,
-                        standardization uses tf.image.per_image_standardization.
-        torch.uint8:    Image in RGB (CWH) uint8 format.
-        torch.float32:  Image converted with (img / 127.5) - 1 and WHC -> CWH.
-        tf.uint8:       Image in RGB (WHC) uint8 format.
-        tf.float32:     Image converted with tf.image.per_image_standardization
+    Supported formats for starting and ending dtype include:
+
+    .. list-table::
+        :widths: 20 80
+        :header-rows: 0
+
+        * - ``np.uint8``
+          - Image in RGB (WHC) uint8 format.
+        * - ``np.float32``
+          - RGB (WHC) image. If the source image is a numpy uint8 or torch uint8,
+            it will be standardized with ``(img / 127.5) - 1``.
+            If the source image is a tensorflow image,
+            standardization uses ``tf.image.per_image_standardization()``.
+        * - ``torch.uint8``
+          - Image in RGB (CWH) uint8 format.
+        * - ``torch.float32``
+          - Image converted with ``(img / 127.5) - 1`` and WHC -> CWH.
+        * - ``tf.uint8``
+          - Image in RGB (WHC) uint8 format.
+        * - ``tf.float32``
+          - Image converted with ``tf.image.per_image_standardization()``
 
     Args:
         img (Any): Input image or batch of images.
@@ -105,7 +115,7 @@ def convert_dtype(
         end_dtype (type): Target dtype for conversion.
 
     Returns:
-        Any: Converted image or batch of images.
+        Converted image or batch of images.
     """
 
     # Import necessary packages

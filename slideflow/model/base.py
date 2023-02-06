@@ -3,6 +3,7 @@
 import csv
 import json
 import os
+import warnings
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 import numpy as np
@@ -58,8 +59,14 @@ class _ModelParams:
         include_top: bool = True,
         drop_images: bool = False
     ) -> None:
+        """Configure a set of training parameters via keyword arguments.
 
-        """Collection of hyperparameters used for model building and training
+        Parameters are configured in the context of the current deep learning
+        backend (Tensorflow or PyTorch), which can be viewed with
+        :func:`slideflow.backend`. While most model parameters are
+        cross-compatible between Tensorflow and PyTorch, some parameters are
+        unique to a backend, so this object should be configured in the same
+        backend that the model will be trained in.
 
         Args:
             tile_px (int, optional): Tile width in pixels. Defaults to 299.
@@ -166,7 +173,7 @@ class _ModelParams:
         return json.dumps(arg_dict, indent=2)
 
     def __eq__(self, other):
-        return self.get_dict() == other.get_dict()
+        return self.to_dict() == other.to_dict()
 
     @classmethod
     def from_dict(cls, hp_dict: Dict) -> "_ModelParams":
@@ -239,12 +246,22 @@ class _ModelParams:
         return args
 
     def get_dict(self) -> Dict[str, Any]:
+        """Deprecated. Alias of ModelParams.to_dict()."""
+        warnings.warn(
+            "ModelParams.get_dict() is deprecated. Please use .to_dict()",
+            DeprecationWarning
+        )
+        return self.to_dict()
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Return a dictionary of configured parameters."""
         d = {}
         for arg in self._get_args():
             d.update({arg: getattr(self, arg)})
         return d
 
     def get_normalizer(self, **kwargs) -> Optional["StainNormalizer"]:
+        """Return a configured :class:`slideflow.StainNormalizer`."""
         if not self.normalizer:
             return None
         else:
