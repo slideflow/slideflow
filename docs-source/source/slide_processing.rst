@@ -82,7 +82,7 @@ To apply Otsu's thresholding to slides before tile extraction, use the ``qc`` ar
   P.extract_tiles(qc=qc.Otsu())
 
 
-You can also apply Otsu's thresholding to a single slide with the :meth:`slideflow.WSI.qc` method. See :ref:`the WSI API documentation` for more information on working with individual slides.
+You can also apply Otsu's thresholding to a single slide with the :meth:`slideflow.WSI.qc` method. See :class:`the WSI API documentation <slideflow.WSI>` for more information on working with individual slides.
 
 .. code-block:: python
 
@@ -274,7 +274,7 @@ Once tiles have been extracted, a PDF report will be generated with a summary an
 
 .. image:: example_report_small.jpg
 
-In addition to viewing reports after tile extraction, you may generate new reports on existing tfrecords with :func:`slideflow.Dataset.tfrecord_report`, by calling this function on a given dataset (see :ref:`dataset` for more information on datasets). For example:
+In addition to viewing reports after tile extraction, you may generate new reports on existing tfrecords with :func:`slideflow.Dataset.tfrecord_report`, by calling this function on a given dataset. For example:
 
 .. code-block:: python
 

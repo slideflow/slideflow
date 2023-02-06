@@ -894,8 +894,8 @@ class Dataset:
 
     def cell_segmentation(
         self,
-        dest: str,
         diam_um: float,
+        dest: str,
         *,
         model: Union["cellpose.models.Cellpose", str] = 'cyto2',
         window_size: int = 256,
@@ -912,27 +912,44 @@ class Dataset:
         """Perform cell segmentation on slides, saving segmentation masks.
 
         Args:
+            diam_um (int, optional): Cell segmentation diameter, in microns.
             dest (str): Destination in which to save cell segmentation masks.
-                If None, will save masks in same folder as slides.
-                Defaults to None.
-            diameter (int, optional): Cell segmentation diameter, in microns.
 
         Keyword args:
-            window_size (int): Window size at which to segment cells across
-                a whole-slide image. Defaults to 256.
-            mpp (float): Microns-per-pixel at which cells should be segmented.
-                Defaults to 0.5.
+            batch_size (int): Batch size for cell segmentation. Defaults to 8.
+            cp_thresh (float): Cell probability threshold. All pixels with value
+                above threshold kept for masks, decrease to find more and larger
+                masks. Defaults to 0.
+            diam_mean (int, optional): Cell diameter to detect, in pixels (without
+                image resizing). If None, uses Cellpose defaults (17 for the
+                'nuclei' model, 30 for all others).
+            downscale (float): Factor by which to downscale generated masks after
+                calculation. Defaults to None (keep masks at original size).
+            flow_threshold (float): Flow error threshold (all cells with errors
+                below threshold are kept). Defaults to 0.4.
+            gpus (int, list(int)): GPUs to use for cell segmentation.
+                Defaults to 0 (first GPU).
+            interp (bool): Interpolate during 2D dynamics. Defaults to True.
             qc (str): Slide-level quality control method to use before
                 performing cell segmentation. Defaults to "Otsu".
             model (str, :class:`cellpose.models.Cellpose`): Cellpose model to use
                 for cell segmentation. May be any valid cellpose model. Defaults
                 to 'cyto2'.
-            batch_size (int): Batch size for cell segmentation. Defaults to 8.
-            gpus (int, list(int)): GPUs to use for cell segmentation.
-                Defaults to 0 (first GPU).
+            mpp (float): Microns-per-pixel at which cells should be segmented.
+                Defaults to 0.5.
             num_workers (int, optional): Number of workers.
                 Defaults to 2 * num_gpus.
-            compress (bool): Compress saved segmentation masks. Defaults to True.
+            save_centroid (bool): Save mask centroids. Increases memory
+                utilization slightly. Defaults to True.
+            save_flow (bool): Save flow values for the whole-slide image.
+                Increases memory utilization. Defaults to False.
+            sources (List[str]): List of dataset sources to include from
+                configuration file.
+            tile (bool): Tiles image to decrease GPU/CPU memory usage.
+                Defaults to True.
+            verbose (bool): Verbose log output at the INFO level. Defaults to True.
+            window_size (int): Window size at which to segment cells across
+                a whole-slide image. Defaults to 256.
 
         Returns:
             None

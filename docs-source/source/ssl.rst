@@ -1,6 +1,6 @@
 .. currentmodule:: slideflow.simclr
 
-.. _simclr:
+.. _simclr_ssl:
 
 Self-Supervised Learning (SSL)
 ==============================

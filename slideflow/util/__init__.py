@@ -78,10 +78,26 @@ log.setLevel(logging.DEBUG)
 
 
 def setLoggingLevel(level):
+    """Set the logging level.
+
+    Uses standard python logging levels:
+
+    - 50: CRITICAL
+    - 40: ERROR
+    - 30: WARNING
+    - 20: INFO
+    - 10: DEBUG
+    - 0:  NOTSET
+
+    Args:
+        level (int): Logging level numeric value.
+
+    """
     log.handlers[0].setLevel(level)
 
 
 def getLoggingLevel():
+    """Return the current logging level."""
     return log.handlers[0].level
 
 
@@ -165,7 +181,23 @@ class TileExtractionProgress(Progress):
 
 # --- Slideflow header --------------------------------------------------------
 
-def about(console=None):
+def about(console=None) -> None:
+    """Print a summary of the slideflow version and active backends.
+
+    Example
+        >>> sf.about()
+        ╭=======================╮
+        │       Slideflow       │
+        │    Version: 1.4.4     │
+        │  Backend: tensorflow  │
+        │ Slide Backend: cucim  │
+        │ https://slideflow.dev │
+        ╰=======================╯
+
+    Args:
+        console (rich.console.Console, optional): Active console, if one exists.
+            Defaults to None.
+    """
     if console is None:
         console = Console()
     col1 = 'yellow' if sf.backend() == 'tensorflow' else 'purple'

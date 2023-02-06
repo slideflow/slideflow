@@ -34,6 +34,7 @@ import slideflow as sf
 # ones.
 extensions = [
     'sphinx.ext.autodoc',
+    'sphinx.ext.autosummary',
     'sphinx.ext.intersphinx',
     'sphinx.ext.todo',
     'sphinx.ext.mathjax',
@@ -42,6 +43,9 @@ extensions = [
     'sphinx_markdown_tables',
     'sphinxcontrib.video'
 ]
+
+autosummary_generate = False
+add_module_names = False
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']

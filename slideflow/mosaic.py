@@ -133,11 +133,10 @@ class Mosaic:
                 tfrecords = ['/path/to/tfrecord`.tfrecords', ...]
                 idx = [253, 112, ...]
                 coords = [(0.2, 0.9), ...]
+                tuples = [(tfr, idx) for tfr, idx in zip(tfrecords, idx)]
 
                 # Generate mosaic map
-                mosaic = sf.Mosaic(
-                    images=[(tfr, idx) for tfr, idx in zip(tfrecords, idx)],
-                    coords=coords)
+                mosaic = sf.Mosaic(tuples, coords)
 
             Generate a mosaic map from a SlideMap and list of TFRecord paths.
 

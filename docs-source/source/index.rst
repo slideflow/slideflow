@@ -38,6 +38,7 @@ The ``slideflow`` package includes a ``Project`` class to help coordinate projec
    :maxdepth: 1
    :caption: API
 
+   slideflow
    project
    dataset
    heatmap

@@ -364,7 +364,7 @@ def segment_slide(
             for cell segmentation. May be any valid cellpose model. Defaults
             to 'cyto2'.
         diam_um (float, optional): Cell diameter to detect, in microns.
-            Determines tile  extraction microns-per-pixel resolution to match
+            Determines tile extraction microns-per-pixel resolution to match
             the given pixel diameter specified by `diam_mean`. Not used if
             `slide` is a `sf.WSI` object.
         diam_mean (int, optional): Cell diameter to detect, in pixels (without
@@ -384,7 +384,7 @@ def segment_slide(
         pb_tasks (list(:class:`rich.progress.TaskID`)): Progress bar tasks.
             Used for external progress bar tracking. Defaults to None.
         show_progress (bool): Show a tqdm progress bar. Defaults to True.
-        save_float (bool): Save flow values for the whole-slide image.
+        save_flow (bool): Save flow values for the whole-slide image.
             Increases memory utilization. Defaults to True.
         cp_thresh (float): Cell probability threshold. All pixels with value
             above threshold kept for masks, decrease to find more and larger

@@ -171,6 +171,8 @@ Finally, we can use :meth:`SlideMap.umap_transform` to project new data into two
 
 Read more about additional :class:`slideflow.SlideMap` functions, including saving, loading, and clustering, in the linked API documentation.
 
+.. _mosaic_map:
+
 Mosaic maps
 ***********
 

@@ -10,7 +10,7 @@ Slideflow offers tools for training many types of neural networks, including:
 - **Self-supervised pretraining**: Contrastive pretraining with or without labels (e.g. `SimCLR <https://arxiv.org/abs/2002.05709>`_).
 - **Generative adversarial networks**: Models trained to create synthetic images, with optional class conditioning (e.g. `StyleGAN2/3 <https://arxiv.org/abs/1912.04958>`_).
 
-In this section, we will walk through the process of training a weakly supervised tile-based model. :ref:`Multi-instance learning (MIL) <clam_mil>`, :ref:`self-supervised pretraining <simclr>`, and :ref:`generative adversarial networks (GAN) <stylegan>` are described in other sections.
+In this section, we will walk through the process of training a weakly supervised tile-based model. :ref:`Multi-instance learning (MIL) <clam_mil>`, :ref:`self-supervised pretraining <simclr_ssl>`, and :ref:`generative adversarial networks (GAN) <stylegan>` are described in other sections.
 
 Prepare hyperparameters
 ***********************
@@ -182,7 +182,7 @@ Use :meth:`slideflow.model.Trainer.train` to train a model using your specified 
         }
       }
 
-Read more about the ``Trainer`` class and available keyword arguments in the :ref:`API documentation <trainer>`.
+Read more about the ``Trainer`` class and available keyword arguments in the :class:`API documentation <slideflow.model.Trainer>`.
 
 Multiple outcomes
 *****************
@@ -245,6 +245,8 @@ The sweep is then executed by passing the JSON path to the ``params`` argument o
 
     P.train(params='sweep.json', ...)
 
+.. _bayesian_optimization:
+
 Bayesian optimization
 ---------------------
 
@@ -306,6 +308,8 @@ Once the search space is determined, you can perform the hyperparameter optimiza
 :meth:`slideflow.Project.smac_search` returns the best configuration and a history of models trained during the search. This history is a Pandas DataFrame with hyperparameters for columns, and a "metric" column with the optimization metric result for each trained model. The run history is also saved in CSV format in the associated model folder.
 
 See the API documentation for available customization via keyword arguments.
+
+.. _custom_loss:
 
 Customizing model or loss
 *************************
