@@ -18,6 +18,8 @@ An example of a mosaic map can be found in Figure 4 of `this paper <https://doi.
 It bears some resemblence to the Activation Atlases created by
 `Google and OpenAI <https://distill.pub/2019/activation-atlas/>`_, without the use of feature inversion.
 
+See :ref:`mosaic_map` for an example of how a mosaic map can be used in the context of a project.
+
 .. autoclass:: Mosaic
 
 Methods

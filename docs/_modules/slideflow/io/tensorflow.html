@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>slideflow.io.tensorflow &mdash; slideflow 1.4.0 documentation</title>
+  <title>slideflow.io.tensorflow &mdash; slideflow 1.4.2+103.gf8770bb4.dirty documentation</title>
   
 
   
@@ -146,36 +146,46 @@
               
             
             
-              <p class="caption" role="heading"><span class="caption-text">Overview</span></p>
+              <p class="caption" role="heading"><span class="caption-text">Introduction</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../pipeline.html">Pipeline Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../overview.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../quickstart.html">Quickstart</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../project_setup.html">Setting up a Project</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../validation.html">Validation Planning</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../extract_tiles.html">Tile Extraction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../datasets_and_val.html">Datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../slide_processing.html">Slide Processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../cellseg.html">Cell Segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../training.html">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../evaluation.html">Evaluation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../layer_activations.html">Features / Layer Activations</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../workbench_tools.html">Workbench: Visualization Tools</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../custom_loops.html">Custom Training Loops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../posthoc.html">Post-hoc Analysis</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../uq.html">Uncertainty Quantification</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../stylegan.html">StyleGAN</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../clam.html">CLAM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../clam.html">Multi-Instance Learning (MIL)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../ssl.html">Self-Supervised Learning (SSL)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../stylegan.html">Generative Networks (GANs)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../custom_loops.html">Custom Training Loops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../workbench_tools.html">Workbench: Live Visualization</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../troubleshooting.html">Troubleshooting</a></li>
 </ul>
-<p class="caption" role="heading"><span class="caption-text">Source</span></p>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
 <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../slideflow.html">slideflow</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../project.html">slideflow.Project</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../dataset.html">slideflow.dataset</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../heatmap.html">slideflow.heatmap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../dataset.html">slideflow.Dataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../heatmap.html">slideflow.Heatmap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../dataset_features.html">slideflow.DatasetFeatures</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../slidemap.html">slideflow.SlideMap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../mosaic.html">slideflow.Mosaic</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../slideflow_cellseg.html">slideflow.cellseg</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../io.html">slideflow.io</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../io_tensorflow.html">slideflow.io.tensorflow</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../io_torch.html">slideflow.io.torch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../gan.html">slideflow.gan</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../grad.html">slideflow.grad</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../model.html">slideflow.model</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../mosaic.html">slideflow.mosaic</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../model_tensorflow.html">slideflow.model.tensorflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../model_torch.html">slideflow.model.torch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../norm.html">slideflow.norm</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../simclr.html">slideflow.simclr</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../slide.html">slideflow.slide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../slide_qc.html">slideflow.slide.qc</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../stats.html">slideflow.stats</a></li>
@@ -301,12 +311,12 @@
 
 
 <span class="k">def</span> <span class="nf">_bytes_feature</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Feature&quot;</span><span class="p">:</span>
-    <span class="sd">&quot;&quot;&quot;Returns a bytes_list from a string / byte.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Returns a bytes_list from a string / byte.&quot;&quot;&quot;</span>
     <span class="k">return</span> <span class="n">tf</span><span class="o">.</span><span class="n">train</span><span class="o">.</span><span class="n">Feature</span><span class="p">(</span><span class="n">bytes_list</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">train</span><span class="o">.</span><span class="n">BytesList</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="p">[</span><span class="n">value</span><span class="p">]))</span>
 
 
 <span class="k">def</span> <span class="nf">_int64_feature</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Feature&quot;</span><span class="p">:</span>
-    <span class="sd">&quot;&quot;&quot;Returns an int64_list from a bool / enum / int / uint.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Returns an int64_list from a bool / enum / int / uint.&quot;&quot;&quot;</span>
     <span class="k">return</span> <span class="n">tf</span><span class="o">.</span><span class="n">train</span><span class="o">.</span><span class="n">Feature</span><span class="p">(</span><span class="n">int64_list</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">train</span><span class="o">.</span><span class="n">Int64List</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="p">[</span><span class="n">value</span><span class="p">]))</span>
 
 
@@ -315,16 +325,29 @@
     <span class="k">return</span> <span class="n">wsi</span>
 
 
-<span class="k">def</span> <span class="nf">read_and_return_record</span><span class="p">(</span>
+<div class="viewcode-block" id="read_and_return_record"><a class="viewcode-back" href="../../../io_tensorflow.html#slideflow.io.read_and_return_record">[docs]</a><span class="k">def</span> <span class="nf">read_and_return_record</span><span class="p">(</span>
     <span class="n">record</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">,</span>
     <span class="n">parser</span><span class="p">:</span> <span class="n">Callable</span><span class="p">,</span>
     <span class="n">assign_slide</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bytes</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Example&quot;</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Process raw TFRecord bytes into a format that can be written with</span>
+<span class="sd">    ``tf.io.TFRecordWriter``.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        record (bytes): Raw TFRecord bytes (unparsed)</span>
+<span class="sd">        parser (Callable): TFRecord parser, as returned by</span>
+<span class="sd">            :func:`sf.io.get_tfrecord_parser()`</span>
+<span class="sd">        assign_slide (str, optional): Slide name to override the record with.</span>
+<span class="sd">            Defaults to None.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Dictionary mapping record key to a tuple containing (bytes, dtype).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">features</span> <span class="o">=</span> <span class="n">parser</span><span class="p">(</span><span class="n">record</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">assign_slide</span><span class="p">:</span>
         <span class="n">features</span><span class="p">[</span><span class="s1">&#39;slide&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">assign_slide</span>
     <span class="n">tf_example</span> <span class="o">=</span> <span class="n">tfrecord_example</span><span class="p">(</span><span class="o">**</span><span class="n">features</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">tf_example</span><span class="o">.</span><span class="n">SerializeToString</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">tf_example</span><span class="o">.</span><span class="n">SerializeToString</span><span class="p">()</span></div>
 
 
 <span class="k">def</span> <span class="nf">_print_record</span><span class="p">(</span><span class="n">filename</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
@@ -340,11 +363,11 @@
     <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">record</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">dataset</span><span class="p">):</span>
         <span class="n">slide</span><span class="p">,</span> <span class="n">loc_x</span><span class="p">,</span> <span class="n">loc_y</span> <span class="o">=</span> <span class="n">parser</span><span class="p">(</span><span class="n">record</span><span class="p">)</span>
         <span class="n">line</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;[magenta]</span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s2">[/]: Record </span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">: Slide: &quot;</span>
-        <span class="n">line</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;[green]</span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">slide</span><span class="p">)</span><span class="si">}</span><span class="s2">[/] Loc: </span><span class="si">{</span><span class="p">(</span><span class="n">loc_x</span><span class="p">,</span> <span class="n">loc_y</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="n">line</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;[green]</span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">slide</span><span class="p">)</span><span class="si">}</span><span class="s2">[/] Loc: </span><span class="si">{</span><span class="p">(</span><span class="n">loc_x</span><span class="p">,</span><span class="w"> </span><span class="n">loc_y</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
         <span class="n">richprint</span><span class="p">(</span><span class="n">line</span><span class="p">)</span>
 
 
-<div class="viewcode-block" id="preprocess_uint8"><a class="viewcode-back" href="../../../io_tensorflow.html#slideflow.io.tensorflow.preprocess_uint8">[docs]</a><span class="nd">@tf</span><span class="o">.</span><span class="n">function</span>
+<div class="viewcode-block" id="preprocess_uint8"><a class="viewcode-back" href="../../../io_tensorflow.html#slideflow.io.preprocess_uint8">[docs]</a><span class="nd">@tf</span><span class="o">.</span><span class="n">function</span>
 <span class="k">def</span> <span class="nf">preprocess_uint8</span><span class="p">(</span>
     <span class="n">img</span><span class="p">:</span> <span class="n">tf</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
     <span class="n">normalizer</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="s2">&quot;StainNormalizer&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -353,7 +376,7 @@
     <span class="n">resize_method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;lanczos3&#39;</span><span class="p">,</span>
     <span class="n">resize_aa</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">tf</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
-    <span class="sd">&quot;&quot;&quot;Process batch of tensorflow images, resizing, normalizing,</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Process batch of tensorflow images, resizing, normalizing,</span>
 <span class="sd">    and standardizing.</span>
 
 <span class="sd">    Args:</span>
@@ -384,19 +407,22 @@
     <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;tile_image&#39;</span><span class="p">:</span> <span class="n">img</span><span class="p">}</span></div>
 
 
-<div class="viewcode-block" id="process_image"><a class="viewcode-back" href="../../../io_tensorflow.html#slideflow.io.tensorflow.process_image">[docs]</a><span class="nd">@tf</span><span class="o">.</span><span class="n">function</span>
+<div class="viewcode-block" id="process_image"><a class="viewcode-back" href="../../../io_tensorflow.html#slideflow.io.process_image">[docs]</a><span class="nd">@tf</span><span class="o">.</span><span class="n">function</span>
 <span class="k">def</span> <span class="nf">process_image</span><span class="p">(</span>
     <span class="n">record</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">tf</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">tf</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]],</span>
     <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
     <span class="n">standardize</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="n">augment</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">bool</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">size</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">Dict</span><span class="p">,</span> <span class="n">tf</span><span class="o">.</span><span class="n">Tensor</span><span class="p">],</span> <span class="o">...</span><span class="p">]:</span>
-    <span class="sd">&quot;&quot;&quot;Applies augmentations and/or standardization to an image Tensor.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Applies augmentations and/or standardization to an image Tensor.&quot;&quot;&quot;</span>
 
     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">record</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
         <span class="n">image</span> <span class="o">=</span> <span class="n">record</span><span class="p">[</span><span class="s1">&#39;tile_image&#39;</span><span class="p">]</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="n">image</span> <span class="o">=</span> <span class="n">record</span>
+    <span class="k">if</span> <span class="n">size</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">image</span><span class="o">.</span><span class="n">set_shape</span><span class="p">([</span><span class="n">size</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="mi">3</span><span class="p">])</span>
     <span class="k">if</span> <span class="n">augment</span> <span class="ow">is</span> <span class="kc">True</span> <span class="ow">or</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">augment</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="s1">&#39;j&#39;</span> <span class="ow">in</span> <span class="n">augment</span><span class="p">):</span>
         <span class="c1"># Augment with random compession</span>
         <span class="n">image</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">cond</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span>
@@ -463,7 +489,7 @@
         <span class="k">return</span> <span class="nb">tuple</span><span class="p">([</span><span class="n">image</span><span class="p">]</span> <span class="o">+</span> <span class="nb">list</span><span class="p">(</span><span class="n">args</span><span class="p">))</span></div>
 
 
-<div class="viewcode-block" id="decode_image"><a class="viewcode-back" href="../../../io_tensorflow.html#slideflow.io.tensorflow.decode_image">[docs]</a><span class="nd">@tf</span><span class="o">.</span><span class="n">function</span>
+<div class="viewcode-block" id="decode_image"><a class="viewcode-back" href="../../../io_tensorflow.html#slideflow.io.decode_image">[docs]</a><span class="nd">@tf</span><span class="o">.</span><span class="n">function</span>
 <span class="k">def</span> <span class="nf">decode_image</span><span class="p">(</span>
     <span class="n">img_string</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">,</span>
     <span class="n">img_type</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
@@ -474,7 +500,7 @@
     <span class="n">resize_aa</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
     <span class="n">size</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">tf</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
-    <span class="sd">&quot;&quot;&quot;Decodes an image.</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Decodes an image.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        img_string (bytes): Image bytes (JPG/PNG).</span>
@@ -514,7 +540,7 @@
     <span class="k">return</span> <span class="n">image</span></div>
 
 
-<div class="viewcode-block" id="get_tfrecord_parser"><a class="viewcode-back" href="../../../io_tensorflow.html#slideflow.io.tensorflow.get_tfrecord_parser">[docs]</a><span class="k">def</span> <span class="nf">get_tfrecord_parser</span><span class="p">(</span>
+<div class="viewcode-block" id="get_tfrecord_parser"><a class="viewcode-back" href="../../../io_tensorflow.html#slideflow.io.get_tfrecord_parser">[docs]</a><span class="k">def</span> <span class="nf">get_tfrecord_parser</span><span class="p">(</span>
     <span class="n">tfrecord_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">features_to_return</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">to_numpy</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
@@ -524,7 +550,7 @@
     <span class="o">**</span><span class="n">decode_kwargs</span><span class="p">:</span> <span class="n">Any</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">]:</span>
 
-    <span class="sd">&quot;&quot;&quot;Returns a tfrecord parsing function based on the specified parameters.</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Returns a tfrecord parsing function based on the specified parameters.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        tfrecord_path (str): Path to tfrecord to parse.</span>
@@ -569,7 +595,9 @@
         <span class="n">features</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">parse_single_example</span><span class="p">(</span><span class="n">record</span><span class="p">,</span> <span class="n">feature_description</span><span class="p">)</span>
 
         <span class="k">def</span> <span class="nf">process_feature</span><span class="p">(</span><span class="n">f</span><span class="p">):</span>
-            <span class="k">if</span> <span class="n">f</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">features</span> <span class="ow">and</span> <span class="n">error_if_invalid</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">f</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">features</span> <span class="ow">and</span> <span class="n">f</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;loc_x&#39;</span><span class="p">,</span> <span class="s1">&#39;loc_y&#39;</span><span class="p">):</span>
+                <span class="k">return</span> <span class="kc">None</span>
+            <span class="k">elif</span> <span class="n">f</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">features</span> <span class="ow">and</span> <span class="n">error_if_invalid</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">TFRecordsError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown TFRecord feature </span><span class="si">{</span><span class="n">f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
             <span class="k">elif</span> <span class="n">f</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">features</span><span class="p">:</span>
                 <span class="k">return</span> <span class="kc">None</span>
@@ -596,8 +624,8 @@
     <span class="k">return</span> <span class="n">parser</span></div>
 
 
-<div class="viewcode-block" id="parser_from_labels"><a class="viewcode-back" href="../../../io_tensorflow.html#slideflow.io.tensorflow.parser_from_labels">[docs]</a><span class="k">def</span> <span class="nf">parser_from_labels</span><span class="p">(</span><span class="n">labels</span><span class="p">:</span> <span class="n">Labels</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">:</span>
-    <span class="sd">&#39;&#39;&#39;Returns a label parsing function used for parsing slides into single</span>
+<div class="viewcode-block" id="parser_from_labels"><a class="viewcode-back" href="../../../io_tensorflow.html#slideflow.io.parser_from_labels">[docs]</a><span class="k">def</span> <span class="nf">parser_from_labels</span><span class="p">(</span><span class="n">labels</span><span class="p">:</span> <span class="n">Labels</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;Returns a label parsing function used for parsing slides into single</span>
 <span class="sd">    or multi-outcome labels.</span>
 <span class="sd">    &#39;&#39;&#39;</span>
     <span class="n">outcome_labels</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">labels</span><span class="o">.</span><span class="n">values</span><span class="p">()))</span>
@@ -627,7 +655,7 @@
     <span class="k">return</span> <span class="n">label_parser</span></div>
 
 
-<div class="viewcode-block" id="interleave"><a class="viewcode-back" href="../../../io_tensorflow.html#slideflow.io.tensorflow.interleave">[docs]</a><span class="k">def</span> <span class="nf">interleave</span><span class="p">(</span>
+<div class="viewcode-block" id="interleave"><a class="viewcode-back" href="../../../io_tensorflow.html#slideflow.io.interleave">[docs]</a><span class="k">def</span> <span class="nf">interleave</span><span class="p">(</span>
     <span class="n">paths</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
     <span class="o">*</span><span class="p">,</span>
     <span class="n">img_size</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
@@ -654,7 +682,7 @@
     <span class="o">**</span><span class="n">decode_kwargs</span><span class="p">:</span> <span class="n">Any</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterable</span><span class="p">:</span>
 
-    <span class="sd">&quot;&quot;&quot;Generates an interleaved dataset from a collection of tfrecord files,</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Generates an interleaved dataset from a collection of tfrecord files,</span>
 <span class="sd">    sampling from tfrecord files randomly according to balancing if provided.</span>
 <span class="sd">    Requires manifest for balancing. Assumes TFRecord files are named by slide.</span>
 
@@ -859,7 +887,8 @@
             <span class="n">partial</span><span class="p">(</span>
                 <span class="n">process_image</span><span class="p">,</span>
                 <span class="n">standardize</span><span class="o">=</span><span class="n">standardize</span><span class="p">,</span>
-                <span class="n">augment</span><span class="o">=</span><span class="n">augment</span>
+                <span class="n">augment</span><span class="o">=</span><span class="n">augment</span><span class="p">,</span>
+                <span class="n">size</span><span class="o">=</span><span class="n">img_size</span>
             <span class="p">),</span>
             <span class="n">num_parallel_calls</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">AUTOTUNE</span><span class="p">,</span>
             <span class="n">deterministic</span><span class="o">=</span><span class="n">deterministic</span>
@@ -881,7 +910,7 @@
     <span class="n">include_loc</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">deterministic</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">tf</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">Dataset</span><span class="p">:</span>
-    <span class="sd">&quot;&quot;&quot;Return a parsed dataset.</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return a parsed dataset.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        tfrecord_dataset (tf.data.Dataset): Dataset to be parsed; should be</span>
@@ -923,13 +952,13 @@
     <span class="p">)</span>
 
 
-<div class="viewcode-block" id="tfrecord_example"><a class="viewcode-back" href="../../../io_tensorflow.html#slideflow.io.tensorflow.tfrecord_example">[docs]</a><span class="k">def</span> <span class="nf">tfrecord_example</span><span class="p">(</span>
+<div class="viewcode-block" id="tfrecord_example"><a class="viewcode-back" href="../../../io_tensorflow.html#slideflow.io.tfrecord_example">[docs]</a><span class="k">def</span> <span class="nf">tfrecord_example</span><span class="p">(</span>
     <span class="n">slide</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">,</span>
     <span class="n">image_raw</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">,</span>
     <span class="n">loc_x</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
     <span class="n">loc_y</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Example&quot;</span><span class="p">:</span>
-    <span class="sd">&#39;&#39;&#39;Returns a Tensorflow Data example for TFRecord storage.&#39;&#39;&#39;</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;Returns a Tensorflow Data example for TFRecord storage.&#39;&#39;&#39;</span>
     <span class="n">feature</span> <span class="o">=</span> <span class="p">{</span>
         <span class="s1">&#39;slide&#39;</span><span class="p">:</span> <span class="n">_bytes_feature</span><span class="p">(</span><span class="n">slide</span><span class="p">),</span>
         <span class="s1">&#39;image_raw&#39;</span><span class="p">:</span> <span class="n">_bytes_feature</span><span class="p">(</span><span class="n">image_raw</span><span class="p">),</span>
@@ -939,19 +968,19 @@
     <span class="k">return</span> <span class="n">tf</span><span class="o">.</span><span class="n">train</span><span class="o">.</span><span class="n">Example</span><span class="p">(</span><span class="n">features</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">train</span><span class="o">.</span><span class="n">Features</span><span class="p">(</span><span class="n">feature</span><span class="o">=</span><span class="n">feature</span><span class="p">))</span></div>
 
 
-<div class="viewcode-block" id="serialized_record"><a class="viewcode-back" href="../../../io_tensorflow.html#slideflow.io.tensorflow.serialized_record">[docs]</a><span class="k">def</span> <span class="nf">serialized_record</span><span class="p">(</span>
+<div class="viewcode-block" id="serialized_record"><a class="viewcode-back" href="../../../io_tensorflow.html#slideflow.io.serialized_record">[docs]</a><span class="k">def</span> <span class="nf">serialized_record</span><span class="p">(</span>
     <span class="n">slide</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">,</span>
     <span class="n">image_raw</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">,</span>
     <span class="n">loc_x</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
     <span class="n">loc_y</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
-    <span class="sd">&#39;&#39;&#39;Returns a serialized example for TFRecord storage, ready to be written</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;Returns a serialized example for TFRecord storage, ready to be written</span>
 <span class="sd">    by a TFRecordWriter.&#39;&#39;&#39;</span>
     <span class="k">return</span> <span class="n">tfrecord_example</span><span class="p">(</span><span class="n">slide</span><span class="p">,</span> <span class="n">image_raw</span><span class="p">,</span> <span class="n">loc_x</span><span class="p">,</span> <span class="n">loc_y</span><span class="p">)</span><span class="o">.</span><span class="n">SerializeToString</span><span class="p">()</span></div>
 
 
-<div class="viewcode-block" id="multi_image_example"><a class="viewcode-back" href="../../../io_tensorflow.html#slideflow.io.tensorflow.multi_image_example">[docs]</a><span class="k">def</span> <span class="nf">multi_image_example</span><span class="p">(</span><span class="n">slide</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">,</span> <span class="n">image_dict</span><span class="p">:</span> <span class="n">Dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Example&quot;</span><span class="p">:</span>
-    <span class="sd">&#39;&#39;&#39;Returns a Tensorflow Data example for storage with multiple images.&#39;&#39;&#39;</span>
+<div class="viewcode-block" id="multi_image_example"><a class="viewcode-back" href="../../../io_tensorflow.html#slideflow.io.multi_image_example">[docs]</a><span class="k">def</span> <span class="nf">multi_image_example</span><span class="p">(</span><span class="n">slide</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">,</span> <span class="n">image_dict</span><span class="p">:</span> <span class="n">Dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Example&quot;</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;Returns a Tensorflow Data example for storage with multiple images.&#39;&#39;&#39;</span>
     <span class="n">feature</span> <span class="o">=</span> <span class="p">{</span>
         <span class="s1">&#39;slide&#39;</span><span class="p">:</span> <span class="n">_bytes_feature</span><span class="p">(</span><span class="n">slide</span><span class="p">)</span>
     <span class="p">}</span>
@@ -962,12 +991,12 @@
     <span class="k">return</span> <span class="n">tf</span><span class="o">.</span><span class="n">train</span><span class="o">.</span><span class="n">Example</span><span class="p">(</span><span class="n">features</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">train</span><span class="o">.</span><span class="n">Features</span><span class="p">(</span><span class="n">feature</span><span class="o">=</span><span class="n">feature</span><span class="p">))</span></div>
 
 
-<div class="viewcode-block" id="join_tfrecord"><a class="viewcode-back" href="../../../io_tensorflow.html#slideflow.io.tensorflow.join_tfrecord">[docs]</a><span class="k">def</span> <span class="nf">join_tfrecord</span><span class="p">(</span>
+<div class="viewcode-block" id="join_tfrecord"><a class="viewcode-back" href="../../../io_tensorflow.html#slideflow.io.join_tfrecord">[docs]</a><span class="k">def</span> <span class="nf">join_tfrecord</span><span class="p">(</span>
     <span class="n">input_folder</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">output_file</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">assign_slide</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-    <span class="sd">&#39;&#39;&#39;Randomly samples from tfrecords in the input folder with shuffling,</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;Randomly samples from tfrecords in the input folder with shuffling,</span>
 <span class="sd">    and combines into a single tfrecord file.&#39;&#39;&#39;</span>
     <span class="n">writer</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">TFRecordWriter</span><span class="p">(</span><span class="n">output_file</span><span class="p">)</span>
     <span class="n">tfrecord_files</span> <span class="o">=</span> <span class="n">glob</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">input_folder</span><span class="p">,</span> <span class="s2">&quot;*.tfrecords&quot;</span><span class="p">))</span>
@@ -1002,8 +1031,8 @@
         <span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="split_tfrecord"><a class="viewcode-back" href="../../../io_tensorflow.html#slideflow.io.tensorflow.split_tfrecord">[docs]</a><span class="k">def</span> <span class="nf">split_tfrecord</span><span class="p">(</span><span class="n">tfrecord_file</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">output_folder</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-    <span class="sd">&#39;&#39;&#39;Splits records from a single tfrecord file into individual tfrecord</span>
+<div class="viewcode-block" id="split_tfrecord"><a class="viewcode-back" href="../../../io_tensorflow.html#slideflow.io.split_tfrecord">[docs]</a><span class="k">def</span> <span class="nf">split_tfrecord</span><span class="p">(</span><span class="n">tfrecord_file</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">output_folder</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;Splits records from a single tfrecord file into individual tfrecord</span>
 <span class="sd">    files by slide.</span>
 <span class="sd">    &#39;&#39;&#39;</span>
     <span class="n">dataset</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">TFRecordDataset</span><span class="p">(</span><span class="n">tfrecord_file</span><span class="p">)</span>
@@ -1030,8 +1059,8 @@
         <span class="n">writers</span><span class="p">[</span><span class="n">slide</span><span class="p">]</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></div>
 
 
-<div class="viewcode-block" id="print_tfrecord"><a class="viewcode-back" href="../../../io_tensorflow.html#slideflow.io.tensorflow.print_tfrecord">[docs]</a><span class="k">def</span> <span class="nf">print_tfrecord</span><span class="p">(</span><span class="n">target</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-    <span class="sd">&#39;&#39;&#39;Prints the slide names (and locations, if present) for records</span>
+<div class="viewcode-block" id="print_tfrecord"><a class="viewcode-back" href="../../../io_tensorflow.html#slideflow.io.print_tfrecord">[docs]</a><span class="k">def</span> <span class="nf">print_tfrecord</span><span class="p">(</span><span class="n">target</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;Prints the slide names (and locations, if present) for records</span>
 <span class="sd">    in the given tfrecord file.</span>
 <span class="sd">    &#39;&#39;&#39;</span>
     <span class="k">if</span> <span class="n">isfile</span><span class="p">(</span><span class="n">target</span><span class="p">):</span>
@@ -1042,8 +1071,8 @@
             <span class="n">_print_record</span><span class="p">(</span><span class="n">tfr</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="checkpoint_to_tf_model"><a class="viewcode-back" href="../../../io_tensorflow.html#slideflow.io.tensorflow.checkpoint_to_tf_model">[docs]</a><span class="k">def</span> <span class="nf">checkpoint_to_tf_model</span><span class="p">(</span><span class="n">models_dir</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">model_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-    <span class="sd">&#39;&#39;&#39;Converts a checkpoint file into a saved model.&#39;&#39;&#39;</span>
+<div class="viewcode-block" id="checkpoint_to_tf_model"><a class="viewcode-back" href="../../../io_tensorflow.html#slideflow.io.checkpoint_to_tf_model">[docs]</a><span class="k">def</span> <span class="nf">checkpoint_to_tf_model</span><span class="p">(</span><span class="n">models_dir</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">model_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;Converts a checkpoint file into a saved model.&#39;&#39;&#39;</span>
 
     <span class="n">checkpoint</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">models_dir</span><span class="p">,</span> <span class="n">model_name</span><span class="p">,</span> <span class="s2">&quot;cp.ckpt&quot;</span><span class="p">)</span>
     <span class="n">tf_model</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">models_dir</span><span class="p">,</span> <span class="n">model_name</span><span class="p">,</span> <span class="s2">&quot;untrained_model&quot;</span><span class="p">)</span>
@@ -1058,14 +1087,14 @@
         <span class="k">pass</span></div>
 
 
-<div class="viewcode-block" id="transform_tfrecord"><a class="viewcode-back" href="../../../io_tensorflow.html#slideflow.io.tensorflow.transform_tfrecord">[docs]</a><span class="k">def</span> <span class="nf">transform_tfrecord</span><span class="p">(</span>
+<div class="viewcode-block" id="transform_tfrecord"><a class="viewcode-back" href="../../../io_tensorflow.html#slideflow.io.transform_tfrecord">[docs]</a><span class="k">def</span> <span class="nf">transform_tfrecord</span><span class="p">(</span>
     <span class="n">origin</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">target</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">assign_slide</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">hue_shift</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">resize</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-    <span class="sd">&#39;&#39;&#39;Transforms images in a single tfrecord. Can perform hue shifting,</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;Transforms images in a single tfrecord. Can perform hue shifting,</span>
 <span class="sd">    resizing, or re-assigning slide label.</span>
 <span class="sd">    &#39;&#39;&#39;</span>
     <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Transforming tiles in tfrecord [green]</span><span class="si">{</span><span class="n">origin</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
@@ -1118,8 +1147,8 @@
     <span class="n">writer</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></div>
 
 
-<div class="viewcode-block" id="shuffle_tfrecord"><a class="viewcode-back" href="../../../io_tensorflow.html#slideflow.io.tensorflow.shuffle_tfrecord">[docs]</a><span class="k">def</span> <span class="nf">shuffle_tfrecord</span><span class="p">(</span><span class="n">target</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-    <span class="sd">&#39;&#39;&#39;Shuffles records in a TFRecord, saving the original to a .old file.&#39;&#39;&#39;</span>
+<div class="viewcode-block" id="shuffle_tfrecord"><a class="viewcode-back" href="../../../io_tensorflow.html#slideflow.io.shuffle_tfrecord">[docs]</a><span class="k">def</span> <span class="nf">shuffle_tfrecord</span><span class="p">(</span><span class="n">target</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;Shuffles records in a TFRecord, saving the original to a .old file.&#39;&#39;&#39;</span>
 
     <span class="n">old_tfrecord</span> <span class="o">=</span> <span class="n">target</span><span class="o">+</span><span class="s2">&quot;.old&quot;</span>
     <span class="n">shutil</span><span class="o">.</span><span class="n">move</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="n">old_tfrecord</span><span class="p">)</span>
@@ -1134,8 +1163,8 @@
     <span class="n">writer</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></div>
 
 
-<div class="viewcode-block" id="shuffle_tfrecords_by_dir"><a class="viewcode-back" href="../../../io_tensorflow.html#slideflow.io.tensorflow.shuffle_tfrecords_by_dir">[docs]</a><span class="k">def</span> <span class="nf">shuffle_tfrecords_by_dir</span><span class="p">(</span><span class="n">directory</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-    <span class="sd">&#39;&#39;&#39;For each TFRecord in a directory, shuffles records in the TFRecord,</span>
+<div class="viewcode-block" id="shuffle_tfrecords_by_dir"><a class="viewcode-back" href="../../../io_tensorflow.html#slideflow.io.shuffle_tfrecords_by_dir">[docs]</a><span class="k">def</span> <span class="nf">shuffle_tfrecords_by_dir</span><span class="p">(</span><span class="n">directory</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;For each TFRecord in a directory, shuffles records in the TFRecord,</span>
 <span class="sd">    saving the original to a .old file.</span>
 <span class="sd">    &#39;&#39;&#39;</span>
     <span class="n">records</span> <span class="o">=</span> <span class="p">[</span><span class="n">tfr</span> <span class="k">for</span> <span class="n">tfr</span> <span class="ow">in</span> <span class="n">listdir</span><span class="p">(</span><span class="n">directory</span><span class="p">)</span> <span class="k">if</span> <span class="n">tfr</span><span class="p">[</span><span class="o">-</span><span class="mi">10</span><span class="p">:]</span> <span class="o">==</span> <span class="s2">&quot;.tfrecords&quot;</span><span class="p">]</span>
@@ -1191,15 +1220,12 @@
      
        <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
          <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
-         <script src="../../../_static/jquery.js"></script>
-         <script src="../../../_static/underscore.js"></script>
-         <script src="../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
          <script src="../../../_static/doctools.js"></script>
          <script src="../../../_static/sphinx_highlight.js"></script>
      
 
   
-
+  <script type="text/javascript" src="../../../_static/js/vendor/jquery-3.6.3.min.js"></script>
   <script type="text/javascript" src="../../../_static/js/vendor/popper.min.js"></script>
   <script type="text/javascript" src="../../../_static/js/vendor/bootstrap.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/list.js/1.5.0/list.min.js"></script>

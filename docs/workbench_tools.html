@@ -10,7 +10,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>Workbench: Visualization Tools &mdash; slideflow 1.4.0 documentation</title>
+  <title>Workbench: Live Visualization &mdash; slideflow 1.4.2+103.gf8770bb4.dirty documentation</title>
 
 
 
@@ -32,8 +32,8 @@
   <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Custom Training Loops" href="custom_loops.html" />
-    <link rel="prev" title="Features / Layer Activations" href="layer_activations.html" />
+    <link rel="next" title="Troubleshooting" href="troubleshooting.html" />
+    <link rel="prev" title="Custom Training Loops" href="custom_loops.html" />
   <!-- Google Analytics -->
 
   <!-- End Google Analytics -->
@@ -149,36 +149,46 @@
 
 
 
-              <p class="caption" role="heading"><span class="caption-text">Overview</span></p>
+              <p class="caption" role="heading"><span class="caption-text">Introduction</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="pipeline.html">Pipeline Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="overview.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quickstart</a></li>
 <li class="toctree-l1"><a class="reference internal" href="project_setup.html">Setting up a Project</a></li>
-<li class="toctree-l1"><a class="reference internal" href="validation.html">Validation Planning</a></li>
-<li class="toctree-l1"><a class="reference internal" href="extract_tiles.html">Tile Extraction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="datasets_and_val.html">Datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="slide_processing.html">Slide Processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cellseg.html">Cell Segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="training.html">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="evaluation.html">Evaluation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="layer_activations.html">Features / Layer Activations</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Workbench: Visualization Tools</a></li>
-<li class="toctree-l1"><a class="reference internal" href="custom_loops.html">Custom Training Loops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="posthoc.html">Post-hoc Analysis</a></li>
 <li class="toctree-l1"><a class="reference internal" href="uq.html">Uncertainty Quantification</a></li>
-<li class="toctree-l1"><a class="reference internal" href="stylegan.html">StyleGAN</a></li>
-<li class="toctree-l1"><a class="reference internal" href="clam.html">CLAM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="clam.html">Multi-Instance Learning (MIL)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ssl.html">Self-Supervised Learning (SSL)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="stylegan.html">Generative Networks (GANs)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="custom_loops.html">Custom Training Loops</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Workbench: Live Visualization</a></li>
 <li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
 </ul>
-<p class="caption" role="heading"><span class="caption-text">Source</span></p>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
 <ul>
+<li class="toctree-l1"><a class="reference internal" href="slideflow.html">slideflow</a></li>
 <li class="toctree-l1"><a class="reference internal" href="project.html">slideflow.Project</a></li>
-<li class="toctree-l1"><a class="reference internal" href="dataset.html">slideflow.dataset</a></li>
-<li class="toctree-l1"><a class="reference internal" href="heatmap.html">slideflow.heatmap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dataset.html">slideflow.Dataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="heatmap.html">slideflow.Heatmap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dataset_features.html">slideflow.DatasetFeatures</a></li>
+<li class="toctree-l1"><a class="reference internal" href="slidemap.html">slideflow.SlideMap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mosaic.html">slideflow.Mosaic</a></li>
+<li class="toctree-l1"><a class="reference internal" href="slideflow_cellseg.html">slideflow.cellseg</a></li>
 <li class="toctree-l1"><a class="reference internal" href="io.html">slideflow.io</a></li>
 <li class="toctree-l1"><a class="reference internal" href="io_tensorflow.html">slideflow.io.tensorflow</a></li>
 <li class="toctree-l1"><a class="reference internal" href="io_torch.html">slideflow.io.torch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="gan.html">slideflow.gan</a></li>
 <li class="toctree-l1"><a class="reference internal" href="grad.html">slideflow.grad</a></li>
 <li class="toctree-l1"><a class="reference internal" href="model.html">slideflow.model</a></li>
-<li class="toctree-l1"><a class="reference internal" href="mosaic.html">slideflow.mosaic</a></li>
+<li class="toctree-l1"><a class="reference internal" href="model_tensorflow.html">slideflow.model.tensorflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="model_torch.html">slideflow.model.torch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="norm.html">slideflow.norm</a></li>
+<li class="toctree-l1"><a class="reference internal" href="simclr.html">slideflow.simclr</a></li>
 <li class="toctree-l1"><a class="reference internal" href="slide.html">slideflow.slide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="slide_qc.html">slideflow.slide.qc</a></li>
 <li class="toctree-l1"><a class="reference internal" href="stats.html">slideflow.stats</a></li>
@@ -233,7 +243,7 @@
       </li>
 
 
-      <li>Workbench: Visualization Tools</li>
+      <li>Workbench: Live Visualization</li>
 
 
       <li class="pytorch-breadcrumbs-aside">
@@ -265,8 +275,8 @@
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
 
-  <section id="workbench-visualization-tools">
-<span id="workbench"></span><h1>Workbench: Visualization Tools<a class="headerlink" href="#workbench-visualization-tools" title="Permalink to this heading">¶</a></h1>
+  <section id="workbench-live-visualization">
+<span id="workbench"></span><h1>Workbench: Live Visualization<a class="headerlink" href="#workbench-live-visualization" title="Permalink to this heading">¶</a></h1>
 
     <video width="100%"  controls autoplay loop>
     <source src="workbench_preview.webm" type="video/webm">
@@ -276,8 +286,8 @@
 <div class="line"><br /></div>
 </div>
 <p>New in Slideflow 1.3, Workbench provides powerful tools for interactive visualization of model predictions for whole-slide images and GAN-generated images. It’s also fast - with an OpenGL renderer and highly optimized whole-slide image viewer, you’ll get a smooth experience that can even run on a Raspberry Pi.</p>
-<p>Run workbench using the <code class="docutils literal notranslate"><span class="pre">workbench.py</span></code> script in the main repository folder. A path to a whole-slide image can optionally be provided as the first argument.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python3 workbench.py /path/to/slide.svs
+<p>Workbench is run through the <code class="docutils literal notranslate"><span class="pre">slideflow.workbench</span></code> module. A path to a whole-slide image can optionally be provided as the first argument.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>-m<span class="w"> </span>slideflow.workbench
 </pre></div>
 </div>
 <p>Use the <code class="docutils literal notranslate"><span class="pre">--help</span></code> flag to see a list of available arguments.</p>
@@ -352,9 +362,13 @@
 <div class="line-block">
 <div class="line"><br /></div>
 </div>
-<p>Once a model is loaded, the heatmap widget can be used to generate and display whole-slide heatmaps and slide predictions. Heatmaps are generated using the settings configured in the slide widget (including stride, tile filter, and slide filter). Click “Generate” in the heatmap widget to create the heatmap. Color scheme can be changed with the dropdown menu, as can the alpha and gain. You can switch which outcome is being displayed as a heatmap by cycling through the available logits. If the model was trained with uncertainty quantification (UQ), click the radio button next to UQ to show uncertainty as a heatmap.</p>
+<p>Once a model is loaded, the heatmap widget can be used to generate and display whole-slide heatmaps and slide predictions. Heatmaps are generated using the settings configured in the slide widget (including stride, tile filter, and slide filter). Click “Generate” in the heatmap widget to create the heatmap. Color scheme can be changed with the dropdown menu, as can the alpha and gain. You can switch which outcome is being displayed as a heatmap by cycling through the available predictions. If the model was trained with uncertainty quantification (UQ), click the radio button next to UQ to show uncertainty as a heatmap.</p>
 <p>The heatmap widget also shows a histogram of tile-level predictions (after filtering), as well as the final slide-level prediction, which is an average of these tile-level predictions.</p>
 <p>By default, heatmaps are calculated with multiprocessing pools. This may come at the cost of heavy memory utilization. To decrease memory utilization at the cost of slower heatmap calculation, switch to low memory mode using the performance widget (described below), or by using the launch flag <code class="docutils literal notranslate"><span class="pre">--low_memory</span></code>.</p>
+</section>
+<section id="cell-segmentation">
+<h2>Cell segmentation<a class="headerlink" href="#cell-segmentation" title="Permalink to this heading">¶</a></h2>
+<p>Workbench also supports interactive cell segmentation with Cellpose, which is enabled using the <code class="docutils literal notranslate"><span class="pre">--cellpose</span></code> flag. Please see <a class="reference internal" href="cellseg.html#cellseg"><span class="std std-ref">Cell Segmentation</span></a> for more information.</p>
 </section>
 <section id="stylegan">
 <h2>StyleGAN<a class="headerlink" href="#stylegan" title="Permalink to this heading">¶</a></h2>
@@ -374,7 +388,7 @@
 <section id="capture-export">
 <h2>Capture &amp; export<a class="headerlink" href="#capture-export" title="Permalink to this heading">¶</a></h2>
 <p>Export contents of the main view to a PNG file with File -&gt; Export -&gt; Main view. Similarly, the extracted image tile shown in the tile preview window can be exported with File -&gt; Export -&gt; Tile view. A screenshot of the entire window interface can be saved with File -&gt; Export -&gt; GUI view.</p>
-<p>Heatmaps can be saved in PNG format with File -&gt; Export -&gt; Heatmap (PNG). Alternatively, heatmaps can also be exported in numpy format (NPZ) with File -&gt; Export -&gt; Heatmap (NPZ). The heatmap of logits will be saved in the exported NPZ file under the key <code class="docutils literal notranslate"><span class="pre">'logit'</span></code>, with the shape <code class="docutils literal notranslate"><span class="pre">(y_dim,</span> <span class="pre">x_dim,</span> <span class="pre">num_logits)</span></code>. If the model was trained with uncertainty, the uncertainty heatmap will be saved under the key <code class="docutils literal notranslate"><span class="pre">'uncertainty'</span></code>.</p>
+<p>Heatmaps can be saved in PNG format with File -&gt; Export -&gt; Heatmap (PNG). Alternatively, heatmaps can also be exported in numpy format (NPZ) with File -&gt; Export -&gt; Heatmap (NPZ). The heatmap of predictions will be saved in the exported NPZ file under the key <code class="docutils literal notranslate"><span class="pre">'logit'</span></code>, with the shape <code class="docutils literal notranslate"><span class="pre">(y_dim,</span> <span class="pre">x_dim,</span> <span class="pre">num_classes)</span></code>. If the model was trained with uncertainty, the uncertainty heatmap will be saved under the key <code class="docutils literal notranslate"><span class="pre">'uncertainty'</span></code>.</p>
 </section>
 <section id="performance-monitoring">
 <h2>Performance monitoring<a class="headerlink" href="#performance-monitoring" title="Permalink to this heading">¶</a></h2>
@@ -394,10 +408,10 @@
 
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
 
-        <a href="custom_loops.html" class="btn btn-neutral float-right" title="Custom Training Loops" accesskey="n" rel="next">Next <img src="_static/images/chevron-right-orange.svg" class="next-page"></a>
+        <a href="troubleshooting.html" class="btn btn-neutral float-right" title="Troubleshooting" accesskey="n" rel="next">Next <img src="_static/images/chevron-right-orange.svg" class="next-page"></a>
 
 
-        <a href="layer_activations.html" class="btn btn-neutral" title="Features / Layer Activations" accesskey="p" rel="prev"><img src="_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
+        <a href="custom_loops.html" class="btn btn-neutral" title="Custom Training Loops" accesskey="p" rel="prev"><img src="_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
 
     </div>
 
@@ -429,7 +443,7 @@
           <div class="pytorch-right-menu" id="pytorch-right-menu">
             <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
               <ul>
-<li><a class="reference internal" href="#">Workbench: Visualization Tools</a><ul>
+<li><a class="reference internal" href="#">Workbench: Live Visualization</a><ul>
 <li><a class="reference internal" href="#layout-design">Layout &amp; design</a><ul>
 <li><a class="reference internal" href="#main-viewer">Main viewer</a></li>
 <li><a class="reference internal" href="#tile-preview">Tile preview</a></li>
@@ -444,6 +458,7 @@
 </li>
 <li><a class="reference internal" href="#models-tile-predictions">Models &amp; tile predictions</a></li>
 <li><a class="reference internal" href="#heatmaps-slide-predictions">Heatmaps &amp; slide predictions</a></li>
+<li><a class="reference internal" href="#cell-segmentation">Cell segmentation</a></li>
 <li><a class="reference internal" href="#stylegan">StyleGAN</a></li>
 <li><a class="reference internal" href="#capture-export">Capture &amp; export</a></li>
 <li><a class="reference internal" href="#performance-monitoring">Performance monitoring</a></li>
@@ -465,15 +480,12 @@
 
        <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
          <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
-         <script src="_static/jquery.js"></script>
-         <script src="_static/underscore.js"></script>
-         <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
          <script src="_static/doctools.js"></script>
          <script src="_static/sphinx_highlight.js"></script>
 
 
 
-
+  <script type="text/javascript" src="_static/js/vendor/jquery-3.6.3.min.js"></script>
   <script type="text/javascript" src="_static/js/vendor/popper.min.js"></script>
   <script type="text/javascript" src="_static/js/vendor/bootstrap.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/list.js/1.5.0/list.min.js"></script>

@@ -515,7 +515,6 @@ window.sideMenus = {
         "#pytorch-right-menu #pytorch-side-scroll-right \
          > ul > li > a.reference.internal"
       );
-
       for (var i = 0; i < titleLinks.length; i++) {
         var link = titleLinks[i];
 
@@ -534,7 +533,6 @@ window.sideMenus = {
       var menuLinks = document.querySelectorAll(
         "#pytorch-right-menu ul li ul li a.reference.internal"
       );
-
       for (var i = 0; i < menuLinks.length; i++) {
         if (
           menuLinks[i].nextElementSibling &&
@@ -633,16 +631,7 @@ window.sideMenus = {
   },
 
   handleLeftMenu: function () {
-    var windowHeight = utilities.windowHeight();
-    var topOfFooterRelativeToWindow = document.getElementById("docs-tutorials-resources").getBoundingClientRect().top;
-
-    if (topOfFooterRelativeToWindow >= windowHeight) {
-      document.getElementById("pytorch-left-menu").style.height = "100%";
-    } else {
-      var howManyPixelsOfTheFooterAreInTheWindow = windowHeight - topOfFooterRelativeToWindow;
-      var leftMenuDifference = howManyPixelsOfTheFooterAreInTheWindow;
-      document.getElementById("pytorch-left-menu").style.height = (windowHeight - leftMenuDifference) + "px";
-    }
+    document.getElementById("pytorch-left-menu").style.height = "100%";
   },
 
   handleRightMenu: function() {

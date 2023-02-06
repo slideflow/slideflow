@@ -1,12 +1,14 @@
-CLAM
-====
+.. _clam_mil:
 
-In addition to standard Tensorflow/Keras model applications, slideflow supports training models with `CLAM <https://github.com/mahmoodlab/CLAM>`_. A slightly modified version of CLAM which supports slideflow dataset and input pipelines is included in ``slideflow.clam``.
+Multi-Instance Learning (MIL)
+=============================
 
-Creating slide activations
-**************************
+In addition to standard tile-based neural networks, slideflow supports training models with the multi-instance learning (MIL) model `CLAM <https://github.com/mahmoodlab/CLAM>`_. A modified version of CLAM which supports slideflow dataset and input pipelines is included in ``slideflow.clam``.
 
-The first step in the CLAM pipeline is generating tile-level activations across whole-slide images. Set ``model`` equal to an imagenet-pretrained model architecture name:
+Generating features
+*******************
+
+The first step in the CLAM pipeline is generating layer activations for tiles extracted from whole-slide images. Set ``model`` equal to an imagenet-pretrained model architecture name:
 
 .. code-block:: python
 

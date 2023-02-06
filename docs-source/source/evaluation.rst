@@ -86,6 +86,8 @@ You can also generate predictions for a single slide with either :func:`slideflo
 
 The returned array has the shape ``(num_classes,)``, indicating the whole-slide prediction for each outcome category. If the model was trained with uncertainty quantification, this function will return two arrays; the first with predictions, the second with estimated uncertainty.
 
+.. _generate_heatmaps:
+
 Heatmaps
 ********
 

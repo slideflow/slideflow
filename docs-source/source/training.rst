@@ -206,6 +206,8 @@ In addition to training using image data, clinical data can also be provided as 
 
 If desired, models can also be trained with clinical input data alone, without images, by using the hyperparameter argument ``drop_images=True``.
 
+.. _hyperparameter_optimization:
+
 Hyperparameter optimization
 ***************************
 

@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>slideflow.io.torch &mdash; slideflow 1.4.0 documentation</title>
+  <title>slideflow.io.torch &mdash; slideflow 1.4.2+103.gf8770bb4.dirty documentation</title>
   
 
   
@@ -146,36 +146,46 @@
               
             
             
-              <p class="caption" role="heading"><span class="caption-text">Overview</span></p>
+              <p class="caption" role="heading"><span class="caption-text">Introduction</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../pipeline.html">Pipeline Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../overview.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../quickstart.html">Quickstart</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../project_setup.html">Setting up a Project</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../validation.html">Validation Planning</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../extract_tiles.html">Tile Extraction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../datasets_and_val.html">Datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../slide_processing.html">Slide Processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../cellseg.html">Cell Segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../training.html">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../evaluation.html">Evaluation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../layer_activations.html">Features / Layer Activations</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../workbench_tools.html">Workbench: Visualization Tools</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../custom_loops.html">Custom Training Loops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../posthoc.html">Post-hoc Analysis</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../uq.html">Uncertainty Quantification</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../stylegan.html">StyleGAN</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../clam.html">CLAM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../clam.html">Multi-Instance Learning (MIL)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../ssl.html">Self-Supervised Learning (SSL)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../stylegan.html">Generative Networks (GANs)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../custom_loops.html">Custom Training Loops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../workbench_tools.html">Workbench: Live Visualization</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../troubleshooting.html">Troubleshooting</a></li>
 </ul>
-<p class="caption" role="heading"><span class="caption-text">Source</span></p>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
 <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../slideflow.html">slideflow</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../project.html">slideflow.Project</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../dataset.html">slideflow.dataset</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../heatmap.html">slideflow.heatmap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../dataset.html">slideflow.Dataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../heatmap.html">slideflow.Heatmap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../dataset_features.html">slideflow.DatasetFeatures</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../slidemap.html">slideflow.SlideMap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../mosaic.html">slideflow.Mosaic</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../slideflow_cellseg.html">slideflow.cellseg</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../io.html">slideflow.io</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../io_tensorflow.html">slideflow.io.tensorflow</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../io_torch.html">slideflow.io.torch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../gan.html">slideflow.gan</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../grad.html">slideflow.grad</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../model.html">slideflow.model</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../mosaic.html">slideflow.mosaic</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../model_tensorflow.html">slideflow.model.tensorflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../model_torch.html">slideflow.model.torch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../norm.html">slideflow.norm</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../simclr.html">slideflow.simclr</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../slide.html">slideflow.slide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../slide_qc.html">slideflow.slide.qc</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../stats.html">slideflow.stats</a></li>
@@ -283,7 +293,7 @@
 <span class="kn">from</span> <span class="nn">slideflow.io.io_utils</span> <span class="kn">import</span> <span class="n">detect_tfrecord_format</span>
 <span class="kn">from</span> <span class="nn">slideflow.tfrecord.torch.dataset</span> <span class="kn">import</span> <span class="n">MultiTFRecordDataset</span>
 <span class="kn">from</span> <span class="nn">slideflow.tfrecord.iterator_utils</span> <span class="kn">import</span> <span class="n">RandomSampler</span>
-<span class="kn">from</span> <span class="nn">slideflow.util</span> <span class="kn">import</span> <span class="n">Labels</span><span class="p">,</span> <span class="n">log</span><span class="p">,</span> <span class="n">to_onehot</span>
+<span class="kn">from</span> <span class="nn">slideflow.util</span> <span class="kn">import</span> <span class="n">Labels</span><span class="p">,</span> <span class="n">log</span><span class="p">,</span> <span class="n">to_onehot</span><span class="p">,</span> <span class="n">tfrecord2idx</span>
 <span class="kn">from</span> <span class="nn">rich.progress</span> <span class="kn">import</span> <span class="n">Progress</span>
 
 <span class="kn">import</span> <span class="nn">torch</span>
@@ -301,12 +311,12 @@
 
 
 <div class="viewcode-block" id="InterleaveIterator"><a class="viewcode-back" href="../../../io_torch.html#slideflow.io.torch.InterleaveIterator">[docs]</a><span class="k">class</span> <span class="nc">InterleaveIterator</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">IterableDataset</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Pytorch Iterable Dataset that interleaves tfrecords with the</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Pytorch Iterable Dataset that interleaves tfrecords with the</span>
 <span class="sd">    interleave() function below. Serves as a bridge between the python</span>
 <span class="sd">    generator returned by interleave() and the pytorch DataLoader class.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-<div class="viewcode-block" id="InterleaveIterator.__init__"><a class="viewcode-back" href="../../../io_torch.html#slideflow.io.torch.InterleaveIterator.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">tfrecords</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
         <span class="n">img_size</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
@@ -335,7 +345,7 @@
         <span class="n">roi_method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;auto&#39;</span><span class="p">,</span>
         <span class="n">pool</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="sd">&quot;&quot;&quot;Pytorch IterableDataset that interleaves tfrecords with</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Pytorch IterableDataset that interleaves tfrecords with</span>
 <span class="sd">        :func:`slideflow.io.torch.interleave`.</span>
 
 <span class="sd">        Args:</span>
@@ -439,7 +449,7 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">unique_labels</span> <span class="o">=</span> <span class="kc">None</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">label_prob</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># type: ignore</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">num_outcomes</span> <span class="o">=</span> <span class="mi">1</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">labels</span> <span class="o">=</span> <span class="n">labels</span></div>
+        <span class="bp">self</span><span class="o">.</span><span class="n">labels</span> <span class="o">=</span> <span class="n">labels</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">name</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
@@ -460,7 +470,7 @@
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">label_shape</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]]:</span>
-        <span class="sd">&quot;&quot;&quot;For use with StyleGAN2&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;For use with StyleGAN2&quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_labels</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">unique_labels</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">unique_labels</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span>
         <span class="k">else</span><span class="p">:</span>
@@ -486,7 +496,7 @@
         <span class="n">loc_x</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">loc_y</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
-        <span class="sd">&quot;&quot;&quot;Parse a standardize PyTorch image (WHC) and slide/location</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Parse a standardize PyTorch image (WHC) and slide/location</span>
 <span class="sd">        information, to a CWH image formatted for model input.&quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">labels</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">label</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">labels</span><span class="p">[</span><span class="n">slide</span><span class="p">]</span>
@@ -566,14 +576,14 @@
         <span class="k">raise</span> <span class="ne">NotImplementedError</span></div>
 
 
-<div class="viewcode-block" id="StyleGAN2Interleaver"><a class="viewcode-back" href="../../../io_torch.html#slideflow.io.torch.StyleGAN2Interleaver">[docs]</a><span class="k">class</span> <span class="nc">StyleGAN2Interleaver</span><span class="p">(</span><span class="n">InterleaveIterator</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Iterator to enable compatibility with StyleGAN2.&quot;&quot;&quot;</span>
+<span class="k">class</span> <span class="nc">StyleGAN2Interleaver</span><span class="p">(</span><span class="n">InterleaveIterator</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Iterator to enable compatibility with StyleGAN2.&quot;&quot;&quot;</span>
 
-<div class="viewcode-block" id="StyleGAN2Interleaver.__init__"><a class="viewcode-back" href="../../../io_torch.html#slideflow.io.torch.StyleGAN2Interleaver.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">resolution</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">xflip</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">resolution</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">xflip</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
-<div class="viewcode-block" id="StyleGAN2Interleaver.get_label"><a class="viewcode-back" href="../../../io_torch.html#slideflow.io.torch.StyleGAN2Interleaver.get_label">[docs]</a>    <span class="k">def</span> <span class="nf">get_label</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">idx</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
-        <span class="sd">&quot;&quot;&quot;Returns a random label. Used for compatibility with StyleGAN2.&quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">get_label</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">idx</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns a random label. Used for compatibility with StyleGAN2.&quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_labels</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_type</span> <span class="o">==</span> <span class="s1">&#39;categorical&#39;</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">random</span><span class="o">.</span><span class="n">choices</span><span class="p">(</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">unique_labels</span><span class="p">,</span>
@@ -583,15 +593,15 @@
         <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_labels</span><span class="p">:</span>
             <span class="k">return</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">rand</span><span class="p">()]</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">1</span><span class="p">,))</span></div></div>
+            <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">1</span><span class="p">,))</span>
 
 
-<div class="viewcode-block" id="LocLabelInterleaver"><a class="viewcode-back" href="../../../io_torch.html#slideflow.io.torch.LocLabelInterleaver">[docs]</a><span class="k">class</span> <span class="nc">LocLabelInterleaver</span><span class="p">(</span><span class="n">StyleGAN2Interleaver</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Pytorch Iterable Dataset that interleaves tfrecords with the</span>
+<span class="k">class</span> <span class="nc">LocLabelInterleaver</span><span class="p">(</span><span class="n">StyleGAN2Interleaver</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Pytorch Iterable Dataset that interleaves tfrecords with the</span>
 <span class="sd">    as the `InterleaveIterator`, but applies tile-specific labels.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-<div class="viewcode-block" id="LocLabelInterleaver.__init__"><a class="viewcode-back" href="../../../io_torch.html#slideflow.io.torch.LocLabelInterleaver.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">loc_labels</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
         <span class="n">resolution</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -599,7 +609,7 @@
         <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
         <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="sd">&quot;&quot;&quot;Initializes an InterleaveIterator modified to use tile-level labels.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initializes an InterleaveIterator modified to use tile-level labels.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            loc_labels (str): Location of parquet-format pandas DataFrame</span>
@@ -616,11 +626,11 @@
 
         <span class="bp">self</span><span class="o">.</span><span class="n">incl_loc</span> <span class="o">=</span> <span class="kc">True</span>
         <span class="n">first_row</span>  <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">df</span><span class="o">.</span><span class="n">itertuples</span><span class="p">())</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_label_shape</span> <span class="o">=</span> <span class="n">first_row</span><span class="o">.</span><span class="n">label</span><span class="o">.</span><span class="n">shape</span></div>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_label_shape</span> <span class="o">=</span> <span class="n">first_row</span><span class="o">.</span><span class="n">label</span><span class="o">.</span><span class="n">shape</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">label_shape</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]]:</span>
-        <span class="sd">&quot;&quot;&quot;For use with StyleGAN2&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;For use with StyleGAN2&quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_label_shape</span>
 
     <span class="k">def</span> <span class="nf">_parser</span><span class="p">(</span>  <span class="c1"># type: ignore</span>
@@ -630,7 +640,7 @@
         <span class="n">loc_x</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
         <span class="n">loc_y</span><span class="p">:</span> <span class="nb">int</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
-        <span class="sd">&quot;&quot;&quot;Parses an image. Labels determined from the tile-level DataFrame.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Parses an image. Labels determined from the tile-level DataFrame.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            image (torch.Tensor): Image.</span>
@@ -653,9 +663,9 @@
             <span class="n">to_return</span> <span class="o">+=</span> <span class="p">[</span><span class="n">slide</span><span class="p">]</span>
         <span class="k">return</span> <span class="n">to_return</span>
 
-<div class="viewcode-block" id="LocLabelInterleaver.get_label"><a class="viewcode-back" href="../../../io_torch.html#slideflow.io.torch.LocLabelInterleaver.get_label">[docs]</a>    <span class="k">def</span> <span class="nf">get_label</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">idx</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
-        <span class="sd">&quot;&quot;&quot;Returns a random label. Used for compatibility with StyleGAN2.&quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">label_shape</span><span class="p">)</span></div></div>
+    <span class="k">def</span> <span class="nf">get_label</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">idx</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns a random label. Used for compatibility with StyleGAN2.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">label_shape</span><span class="p">)</span>
 
 
 <span class="k">def</span> <span class="nf">_get_images_by_dir</span><span class="p">(</span><span class="n">directory</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
@@ -681,7 +691,7 @@
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterable</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">],</span>
                     <span class="n">Tuple</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">],</span>
                     <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]]]]]:</span>
-    <span class="sd">&quot;&quot;&quot;Create an iterator by reading and merging multiple tfrecord datasets.</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Create an iterator by reading and merging multiple tfrecord datasets.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        paths (list of str): List of tfrecord paths.</span>
@@ -734,7 +744,7 @@
 
 
 <div class="viewcode-block" id="auto_gaussian"><a class="viewcode-back" href="../../../io_torch.html#slideflow.io.torch.auto_gaussian">[docs]</a><span class="k">def</span> <span class="nf">auto_gaussian</span><span class="p">(</span><span class="n">image</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">sigma</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
-    <span class="sd">&quot;&quot;&quot;Perform Gaussian blur on an image with a given sigma, automatically</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Perform Gaussian blur on an image with a given sigma, automatically</span>
 <span class="sd">    calculating the appropriate Gaussian kernel size.</span>
 
 <span class="sd">    Args:</span>
@@ -750,16 +760,30 @@
     <span class="k">return</span> <span class="n">torchvision</span><span class="o">.</span><span class="n">transforms</span><span class="o">.</span><span class="n">GaussianBlur</span><span class="p">(</span><span class="n">opt_kernel</span><span class="p">,</span> <span class="n">sigma</span><span class="o">=</span><span class="n">sigma</span><span class="p">)(</span><span class="n">image</span><span class="p">)</span></div>
 
 
-<span class="k">def</span> <span class="nf">read_and_return_record</span><span class="p">(</span>
+<div class="viewcode-block" id="read_and_return_record"><a class="viewcode-back" href="../../../io_torch.html#slideflow.io.torch.read_and_return_record">[docs]</a><span class="k">def</span> <span class="nf">read_and_return_record</span><span class="p">(</span>
     <span class="n">record</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">,</span>
     <span class="n">parser</span><span class="p">:</span> <span class="n">Callable</span><span class="p">,</span>
     <span class="n">assign_slide</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Process raw TFRecord bytes into a format that can be written with</span>
+<span class="sd">    ``tf.io.TFRecordWriter``.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        record (bytes): Raw TFRecord bytes (unparsed)</span>
+<span class="sd">        parser (Callable): TFRecord parser, as returned by</span>
+<span class="sd">            :func:`sf.io.get_tfrecord_parser()`</span>
+<span class="sd">        assign_slide (str, optional): Slide name to override the record with.</span>
+<span class="sd">            Defaults to None.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Dictionary mapping record key to a tuple containing (bytes, dtype).</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">parsed</span> <span class="o">=</span> <span class="n">parser</span><span class="p">(</span><span class="n">record</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">assign_slide</span><span class="p">:</span>
         <span class="n">parsed</span><span class="p">[</span><span class="s1">&#39;slide&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">assign_slide</span>
     <span class="n">parsed</span><span class="p">[</span><span class="s1">&#39;slide&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">parsed</span><span class="p">[</span><span class="s1">&#39;slide&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span>
-    <span class="k">return</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">FEATURE_DESCRIPTION</span><span class="p">[</span><span class="n">k</span><span class="p">])</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">parsed</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+    <span class="k">return</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">FEATURE_DESCRIPTION</span><span class="p">[</span><span class="n">k</span><span class="p">])</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">parsed</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span></div>
 
 
 <div class="viewcode-block" id="serialized_record"><a class="viewcode-back" href="../../../io_torch.html#slideflow.io.torch.serialized_record">[docs]</a><span class="k">def</span> <span class="nf">serialized_record</span><span class="p">(</span>
@@ -768,7 +792,7 @@
     <span class="n">loc_x</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
     <span class="n">loc_y</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
 <span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Returns a serialized example for TFRecord storage, ready to be written</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Returns a serialized example for TFRecord storage, ready to be written</span>
 <span class="sd">    by a TFRecordWriter.&quot;&quot;&quot;</span>
 
     <span class="n">example</span> <span class="o">=</span> <span class="p">{</span>
@@ -788,7 +812,7 @@
     <span class="n">resize_method</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="s2">&quot;InterpolationMode&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">resize_aa</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
-    <span class="sd">&quot;&quot;&quot;Process batch of tensorflow images, resizing, normalizing,</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Process batch of tensorflow images, resizing, normalizing,</span>
 <span class="sd">    and standardizing.</span>
 
 <span class="sd">    Args:</span>
@@ -830,7 +854,7 @@
     <span class="n">augment</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="n">device</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">device</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
-    <span class="sd">&quot;&quot;&quot;Decodes image. Torch implementation; different than sf.io.tensorflow&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Decodes image. Torch implementation; different than sf.io.tensorflow&quot;&quot;&quot;</span>
 
     <span class="k">if</span> <span class="n">img_type</span> <span class="o">!=</span> <span class="s1">&#39;numpy&#39;</span><span class="p">:</span>
         <span class="n">np_data</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">fromstring</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">))</span>
@@ -912,7 +936,7 @@
     <span class="o">**</span><span class="n">kwargs</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">:</span>
 
-    <span class="sd">&quot;&quot;&quot;Gets tfrecord parser using dareblopy reader. Torch implementation;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Gets tfrecord parser using dareblopy reader. Torch implementation;</span>
 <span class="sd">    different than sf.io.tensorflow</span>
 
 <span class="sd">    Args:</span>
@@ -958,7 +982,7 @@
         <span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">parser</span><span class="p">(</span><span class="n">record</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Each item in args is an array with one item, as the dareblopy reader</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Each item in args is an array with one item, as the dareblopy reader</span>
 <span class="sd">        returns items in batches and we have set our batch_size = 1 for</span>
 <span class="sd">        interleaving.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -1015,7 +1039,7 @@
     <span class="n">pool</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">):</span>
 
-    <span class="sd">&quot;&quot;&quot;Returns a generator that interleaves records from a collection of</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Returns a generator that interleaves records from a collection of</span>
 <span class="sd">    tfrecord files, sampling from tfrecord files randomly according to</span>
 <span class="sd">    balancing if provided (requires manifest). Assumes TFRecord files are</span>
 <span class="sd">    named by slide.</span>
@@ -1165,16 +1189,12 @@
 
             <span class="k">def</span> <span class="nf">load_index</span><span class="p">(</span><span class="n">tfr</span><span class="p">):</span>
                 <span class="n">tfr</span> <span class="o">=</span> <span class="n">tfr</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span>
-                <span class="n">index_name</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">dirname</span><span class="p">(</span><span class="n">tfr</span><span class="p">),</span>
-                                  <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">path_to_name</span><span class="p">(</span><span class="n">tfr</span><span class="p">)</span><span class="o">+</span><span class="s1">&#39;.index&#39;</span><span class="p">)</span>
-                <span class="k">if</span> <span class="ow">not</span> <span class="n">exists</span><span class="p">(</span><span class="n">index_name</span><span class="p">):</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">index</span> <span class="o">=</span> <span class="n">tfrecord2idx</span><span class="o">.</span><span class="n">load_index</span><span class="p">(</span><span class="n">tfr</span><span class="p">)</span>
+                <span class="k">except</span> <span class="ne">OSError</span><span class="p">:</span>
                     <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">TFRecordsError</span><span class="p">(</span>
                         <span class="sa">f</span><span class="s2">&quot;Could not find index path for TFRecord </span><span class="si">{</span><span class="n">tfr</span><span class="si">}</span><span class="s2">&quot;</span>
                     <span class="p">)</span>
-                <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">stat</span><span class="p">(</span><span class="n">index_name</span><span class="p">)</span><span class="o">.</span><span class="n">st_size</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-                    <span class="n">index</span> <span class="o">=</span> <span class="kc">None</span>
-                <span class="k">else</span><span class="p">:</span>
-                    <span class="n">index</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="n">index_name</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
                 <span class="k">return</span> <span class="n">index</span>
 
             <span class="k">if</span> <span class="n">pool</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
@@ -1307,7 +1327,7 @@
     <span class="o">**</span><span class="n">kwargs</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">DataLoader</span><span class="p">:</span>
 
-    <span class="sd">&quot;&quot;&quot;Prepares a PyTorch DataLoader with a new InterleaveIterator instance,</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Prepares a PyTorch DataLoader with a new InterleaveIterator instance,</span>
 <span class="sd">    interleaving tfrecords and processing labels and tiles, with support for</span>
 <span class="sd">    scaling the dataset across GPUs and dataset workers.</span>
 
@@ -1451,15 +1471,12 @@
      
        <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
          <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
-         <script src="../../../_static/jquery.js"></script>
-         <script src="../../../_static/underscore.js"></script>
-         <script src="../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
          <script src="../../../_static/doctools.js"></script>
          <script src="../../../_static/sphinx_highlight.js"></script>
      
 
   
-
+  <script type="text/javascript" src="../../../_static/js/vendor/jquery-3.6.3.min.js"></script>
   <script type="text/javascript" src="../../../_static/js/vendor/popper.min.js"></script>
   <script type="text/javascript" src="../../../_static/js/vendor/bootstrap.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/list.js/1.5.0/list.min.js"></script>

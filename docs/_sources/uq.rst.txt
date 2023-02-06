@@ -1,3 +1,5 @@
+.. _uncertainty:
+
 Uncertainty Quantification
 ==========================
 

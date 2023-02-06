@@ -9,7 +9,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>slideflow.util &mdash; slideflow 1.4.0 documentation</title>
+  <title>slideflow.util &mdash; slideflow 1.4.2+103.gf8770bb4.dirty documentation</title>
   
 
   
@@ -146,36 +146,46 @@
               
             
             
-              <p class="caption" role="heading"><span class="caption-text">Overview</span></p>
+              <p class="caption" role="heading"><span class="caption-text">Introduction</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../pipeline.html">Pipeline Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../overview.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../quickstart.html">Quickstart</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../project_setup.html">Setting up a Project</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../validation.html">Validation Planning</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../extract_tiles.html">Tile Extraction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../datasets_and_val.html">Datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../slide_processing.html">Slide Processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../cellseg.html">Cell Segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../training.html">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../evaluation.html">Evaluation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../layer_activations.html">Features / Layer Activations</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../workbench_tools.html">Workbench: Visualization Tools</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../custom_loops.html">Custom Training Loops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../posthoc.html">Post-hoc Analysis</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../uq.html">Uncertainty Quantification</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../stylegan.html">StyleGAN</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../clam.html">CLAM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../clam.html">Multi-Instance Learning (MIL)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../ssl.html">Self-Supervised Learning (SSL)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../stylegan.html">Generative Networks (GANs)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../custom_loops.html">Custom Training Loops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../workbench_tools.html">Workbench: Live Visualization</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../troubleshooting.html">Troubleshooting</a></li>
 </ul>
-<p class="caption" role="heading"><span class="caption-text">Source</span></p>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
 <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../slideflow.html">slideflow</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../project.html">slideflow.Project</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../dataset.html">slideflow.dataset</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../heatmap.html">slideflow.heatmap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dataset.html">slideflow.Dataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../heatmap.html">slideflow.Heatmap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dataset_features.html">slideflow.DatasetFeatures</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../slidemap.html">slideflow.SlideMap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../mosaic.html">slideflow.Mosaic</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../slideflow_cellseg.html">slideflow.cellseg</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../io.html">slideflow.io</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../io_tensorflow.html">slideflow.io.tensorflow</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../io_torch.html">slideflow.io.torch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../gan.html">slideflow.gan</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../grad.html">slideflow.grad</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../model.html">slideflow.model</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../mosaic.html">slideflow.mosaic</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../model_tensorflow.html">slideflow.model.tensorflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../model_torch.html">slideflow.model.torch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../norm.html">slideflow.norm</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../simclr.html">slideflow.simclr</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../slide.html">slideflow.slide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../slide_qc.html">slideflow.slide.qc</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../stats.html">slideflow.stats</a></li>
@@ -289,11 +299,13 @@
 <span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Iterable</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span>
 
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
 <span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
-<span class="kn">from</span> <span class="nn">slideflow.util</span> <span class="kn">import</span> <span class="n">log_utils</span>
 <span class="kn">from</span> <span class="nn">slideflow</span> <span class="kn">import</span> <span class="n">errors</span>
-<span class="kn">from</span> <span class="nn">slideflow.util</span> <span class="kn">import</span> <span class="n">example_pb2</span>
-<span class="kn">from</span> <span class="nn">slideflow.util.colors</span> <span class="kn">import</span> <span class="o">*</span>  <span class="c1"># noqa F403,F401 - Here for compatibility</span>
+<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">example_pb2</span><span class="p">,</span> <span class="n">log_utils</span>
+<span class="kn">from</span> <span class="nn">.colors</span> <span class="kn">import</span> <span class="o">*</span>  <span class="c1"># noqa F403,F401 - Here for compatibility</span>
+<span class="kn">from</span> <span class="nn">.smac_utils</span> <span class="kn">import</span> <span class="p">(</span><span class="n">broad_search_space</span><span class="p">,</span> <span class="n">shallow_search_space</span><span class="p">,</span>
+                         <span class="n">create_search_space</span><span class="p">)</span>
 
 <span class="n">tf_available</span> <span class="o">=</span> <span class="n">importlib</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">find_spec</span><span class="p">(</span><span class="s1">&#39;tensorflow&#39;</span><span class="p">)</span>
 <span class="n">torch_available</span> <span class="o">=</span> <span class="n">importlib</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">find_spec</span><span class="p">(</span><span class="s1">&#39;torch&#39;</span><span class="p">)</span>
@@ -338,12 +350,28 @@
 <span class="n">log</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">DEBUG</span><span class="p">)</span>
 
 
-<span class="k">def</span> <span class="nf">setLoggingLevel</span><span class="p">(</span><span class="n">level</span><span class="p">):</span>
-    <span class="n">log</span><span class="o">.</span><span class="n">handlers</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">level</span><span class="p">)</span>
+<div class="viewcode-block" id="setLoggingLevel"><a class="viewcode-back" href="../../util.html#slideflow.setLoggingLevel">[docs]</a><span class="k">def</span> <span class="nf">setLoggingLevel</span><span class="p">(</span><span class="n">level</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Set the logging level.</span>
+
+<span class="sd">    Uses standard python logging levels:</span>
+
+<span class="sd">    - 50: CRITICAL</span>
+<span class="sd">    - 40: ERROR</span>
+<span class="sd">    - 30: WARNING</span>
+<span class="sd">    - 20: INFO</span>
+<span class="sd">    - 10: DEBUG</span>
+<span class="sd">    - 0:  NOTSET</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        level (int): Logging level numeric value.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">log</span><span class="o">.</span><span class="n">handlers</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">level</span><span class="p">)</span></div>
 
 
-<span class="k">def</span> <span class="nf">getLoggingLevel</span><span class="p">():</span>
-    <span class="k">return</span> <span class="n">log</span><span class="o">.</span><span class="n">handlers</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">level</span>
+<div class="viewcode-block" id="getLoggingLevel"><a class="viewcode-back" href="../../util.html#slideflow.getLoggingLevel">[docs]</a><span class="k">def</span> <span class="nf">getLoggingLevel</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return the current logging level.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">log</span><span class="o">.</span><span class="n">handlers</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">level</span></div>
 
 
 <span class="k">def</span> <span class="nf">addLoggingFileHandler</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
@@ -378,35 +406,35 @@
 <span class="n">log</span><span class="o">.</span><span class="n">propagate</span> <span class="o">=</span> <span class="kc">False</span>
 
 
-<div class="viewcode-block" id="TileExtractionSpeedColumn"><a class="viewcode-back" href="../../util.html#slideflow.util.TileExtractionSpeedColumn">[docs]</a><span class="k">class</span> <span class="nc">TileExtractionSpeedColumn</span><span class="p">(</span><span class="n">progress</span><span class="o">.</span><span class="n">ProgressColumn</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Renders human readable transfer speed.&quot;&quot;&quot;</span>
+<div class="viewcode-block" id="TileExtractionSpeedColumn"><a class="viewcode-back" href="../../util.html#slideflow.TileExtractionSpeedColumn">[docs]</a><span class="k">class</span> <span class="nc">TileExtractionSpeedColumn</span><span class="p">(</span><span class="n">progress</span><span class="o">.</span><span class="n">ProgressColumn</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Renders human readable transfer speed.&quot;&quot;&quot;</span>
 
-<div class="viewcode-block" id="TileExtractionSpeedColumn.render"><a class="viewcode-back" href="../../util.html#slideflow.util.TileExtractionSpeedColumn.render">[docs]</a>    <span class="k">def</span> <span class="nf">render</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task</span><span class="p">:</span> <span class="s2">&quot;progress.Task&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">progress</span><span class="o">.</span><span class="n">Text</span><span class="p">:</span>
-        <span class="sd">&quot;&quot;&quot;Show data transfer speed.&quot;&quot;&quot;</span>
+<div class="viewcode-block" id="TileExtractionSpeedColumn.render"><a class="viewcode-back" href="../../util.html#slideflow.TileExtractionSpeedColumn.render">[docs]</a>    <span class="k">def</span> <span class="nf">render</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task</span><span class="p">:</span> <span class="s2">&quot;progress.Task&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">progress</span><span class="o">.</span><span class="n">Text</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Show data transfer speed.&quot;&quot;&quot;</span>
         <span class="n">speed</span> <span class="o">=</span> <span class="n">task</span><span class="o">.</span><span class="n">finished_speed</span> <span class="ow">or</span> <span class="n">task</span><span class="o">.</span><span class="n">speed</span>
         <span class="k">if</span> <span class="n">speed</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">progress</span><span class="o">.</span><span class="n">Text</span><span class="p">(</span><span class="s2">&quot;?&quot;</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="s2">&quot;progress.data.speed&quot;</span><span class="p">)</span>
         <span class="n">data_speed</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">speed</span><span class="p">)</span><span class="si">}</span><span class="s1"> img&#39;</span>
         <span class="k">return</span> <span class="n">progress</span><span class="o">.</span><span class="n">Text</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">data_speed</span><span class="si">}</span><span class="s2">/s&quot;</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="s2">&quot;progress.data.speed&quot;</span><span class="p">)</span></div></div>
 
-<div class="viewcode-block" id="ImgBatchSpeedColumn"><a class="viewcode-back" href="../../util.html#slideflow.util.ImgBatchSpeedColumn">[docs]</a><span class="k">class</span> <span class="nc">ImgBatchSpeedColumn</span><span class="p">(</span><span class="n">progress</span><span class="o">.</span><span class="n">ProgressColumn</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Renders human readable transfer speed.&quot;&quot;&quot;</span>
+<div class="viewcode-block" id="ImgBatchSpeedColumn"><a class="viewcode-back" href="../../util.html#slideflow.ImgBatchSpeedColumn">[docs]</a><span class="k">class</span> <span class="nc">ImgBatchSpeedColumn</span><span class="p">(</span><span class="n">progress</span><span class="o">.</span><span class="n">ProgressColumn</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Renders human readable transfer speed.&quot;&quot;&quot;</span>
 
-<div class="viewcode-block" id="ImgBatchSpeedColumn.__init__"><a class="viewcode-back" href="../../util.html#slideflow.util.ImgBatchSpeedColumn.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<div class="viewcode-block" id="ImgBatchSpeedColumn.__init__"><a class="viewcode-back" href="../../util.html#slideflow.ImgBatchSpeedColumn.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">batch_size</span> <span class="o">=</span> <span class="n">batch_size</span></div>
 
-<div class="viewcode-block" id="ImgBatchSpeedColumn.render"><a class="viewcode-back" href="../../util.html#slideflow.util.ImgBatchSpeedColumn.render">[docs]</a>    <span class="k">def</span> <span class="nf">render</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task</span><span class="p">:</span> <span class="s2">&quot;progress.Task&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">progress</span><span class="o">.</span><span class="n">Text</span><span class="p">:</span>
-        <span class="sd">&quot;&quot;&quot;Show data transfer speed.&quot;&quot;&quot;</span>
+<div class="viewcode-block" id="ImgBatchSpeedColumn.render"><a class="viewcode-back" href="../../util.html#slideflow.ImgBatchSpeedColumn.render">[docs]</a>    <span class="k">def</span> <span class="nf">render</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task</span><span class="p">:</span> <span class="s2">&quot;progress.Task&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">progress</span><span class="o">.</span><span class="n">Text</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Show data transfer speed.&quot;&quot;&quot;</span>
         <span class="n">speed</span> <span class="o">=</span> <span class="n">task</span><span class="o">.</span><span class="n">finished_speed</span> <span class="ow">or</span> <span class="n">task</span><span class="o">.</span><span class="n">speed</span>
         <span class="k">if</span> <span class="n">speed</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">progress</span><span class="o">.</span><span class="n">Text</span><span class="p">(</span><span class="s2">&quot;?&quot;</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="s2">&quot;progress.data.speed&quot;</span><span class="p">)</span>
-        <span class="n">data_speed</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">speed</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">batch_size</span><span class="p">)</span><span class="si">}</span><span class="s1"> img&#39;</span>
+        <span class="n">data_speed</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">speed</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="bp">self</span><span class="o">.</span><span class="n">batch_size</span><span class="p">)</span><span class="si">}</span><span class="s1"> img&#39;</span>
         <span class="k">return</span> <span class="n">progress</span><span class="o">.</span><span class="n">Text</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">data_speed</span><span class="si">}</span><span class="s2">/s&quot;</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="s2">&quot;progress.data.speed&quot;</span><span class="p">)</span></div></div>
 
 
-<div class="viewcode-block" id="TileExtractionProgress"><a class="viewcode-back" href="../../util.html#slideflow.util.TileExtractionProgress">[docs]</a><span class="k">class</span> <span class="nc">TileExtractionProgress</span><span class="p">(</span><span class="n">Progress</span><span class="p">):</span>
-<div class="viewcode-block" id="TileExtractionProgress.get_renderables"><a class="viewcode-back" href="../../util.html#slideflow.util.TileExtractionProgress.get_renderables">[docs]</a>    <span class="k">def</span> <span class="nf">get_renderables</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="TileExtractionProgress"><a class="viewcode-back" href="../../util.html#slideflow.TileExtractionProgress">[docs]</a><span class="k">class</span> <span class="nc">TileExtractionProgress</span><span class="p">(</span><span class="n">Progress</span><span class="p">):</span>
+<div class="viewcode-block" id="TileExtractionProgress.get_renderables"><a class="viewcode-back" href="../../util.html#slideflow.TileExtractionProgress.get_renderables">[docs]</a>    <span class="k">def</span> <span class="nf">get_renderables</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">for</span> <span class="n">task</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">task</span><span class="o">.</span><span class="n">fields</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;progress_type&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="s1">&#39;speed&#39;</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="p">(</span>
@@ -426,7 +454,23 @@
 
 <span class="c1"># --- Slideflow header --------------------------------------------------------</span>
 
-<span class="k">def</span> <span class="nf">about</span><span class="p">(</span><span class="n">console</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="about"><a class="viewcode-back" href="../../util.html#slideflow.about">[docs]</a><span class="k">def</span> <span class="nf">about</span><span class="p">(</span><span class="n">console</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Print a summary of the slideflow version and active backends.</span>
+
+<span class="sd">    Example</span>
+<span class="sd">        &gt;&gt;&gt; sf.about()</span>
+<span class="sd">        ╭=======================╮</span>
+<span class="sd">        │       Slideflow       │</span>
+<span class="sd">        │    Version: 1.4.4     │</span>
+<span class="sd">        │  Backend: tensorflow  │</span>
+<span class="sd">        │ Slide Backend: cucim  │</span>
+<span class="sd">        │ https://slideflow.dev │</span>
+<span class="sd">        ╰=======================╯</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        console (rich.console.Console, optional): Active console, if one exists.</span>
+<span class="sd">            Defaults to None.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="n">console</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">console</span> <span class="o">=</span> <span class="n">Console</span><span class="p">()</span>
     <span class="n">col1</span> <span class="o">=</span> <span class="s1">&#39;yellow&#39;</span> <span class="k">if</span> <span class="n">sf</span><span class="o">.</span><span class="n">backend</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;tensorflow&#39;</span> <span class="k">else</span> <span class="s1">&#39;purple&#39;</span>
@@ -438,17 +482,17 @@
               <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Slide Backend: [</span><span class="si">{</span><span class="n">col2</span><span class="si">}</span><span class="s2">]</span><span class="si">{</span><span class="n">sf</span><span class="o">.</span><span class="n">slide_backend</span><span class="p">()</span><span class="si">}</span><span class="s2">[/]&quot;</span>
               <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">[blue]https://slideflow.dev[/]&quot;</span><span class="p">,</span>
               <span class="n">border_style</span><span class="o">=</span><span class="s1">&#39;purple&#39;</span><span class="p">),</span>
-        <span class="n">justify</span><span class="o">=</span><span class="s1">&#39;center&#39;</span><span class="p">)</span>
+        <span class="n">justify</span><span class="o">=</span><span class="s1">&#39;center&#39;</span><span class="p">)</span></div>
 
 
 <span class="c1"># --- Data download functions -------------------------------------------------</span>
 
-<div class="viewcode-block" id="download_from_tcga"><a class="viewcode-back" href="../../util.html#slideflow.util.download_from_tcga">[docs]</a><span class="k">def</span> <span class="nf">download_from_tcga</span><span class="p">(</span>
+<div class="viewcode-block" id="download_from_tcga"><a class="viewcode-back" href="../../util.html#slideflow.download_from_tcga">[docs]</a><span class="k">def</span> <span class="nf">download_from_tcga</span><span class="p">(</span>
     <span class="n">uuid</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">dest</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">message</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;Downloading...&#39;</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-    <span class="sd">&quot;&quot;&quot;Download a file from TCGA (GDC) by UUID.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Download a file from TCGA (GDC) by UUID.&quot;&quot;&quot;</span>
     <span class="n">data_endpt</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;https://api.gdc.cancer.gov/data/&quot;</span>
     <span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span>
         <span class="n">data_endpt</span><span class="p">,</span>
@@ -498,8 +542,8 @@
 
 <span class="c1"># --- Utility functions and classes -------------------------------------------</span>
 
-<div class="viewcode-block" id="EasyDict"><a class="viewcode-back" href="../../util.html#slideflow.util.EasyDict">[docs]</a><span class="k">class</span> <span class="nc">EasyDict</span><span class="p">(</span><span class="nb">dict</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Convenience class that behaves like a dict but allows access</span>
+<div class="viewcode-block" id="EasyDict"><a class="viewcode-back" href="../../util.html#slideflow.EasyDict">[docs]</a><span class="k">class</span> <span class="nc">EasyDict</span><span class="p">(</span><span class="nb">dict</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Convenience class that behaves like a dict but allows access</span>
 <span class="sd">    with the attribute syntax.&quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="fm">__getattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
@@ -515,12 +559,15 @@
         <span class="k">del</span> <span class="bp">self</span><span class="p">[</span><span class="n">name</span><span class="p">]</span></div>
 
 
-<div class="viewcode-block" id="md5"><a class="viewcode-back" href="../../util.html#slideflow.util.md5">[docs]</a><span class="k">def</span> <span class="nf">md5</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-    <span class="sd">&quot;&quot;&quot;Calculate and return MD5 checksum for a file.&quot;&quot;&quot;</span>
+<div class="viewcode-block" id="md5"><a class="viewcode-back" href="../../util.html#slideflow.md5">[docs]</a><span class="k">def</span> <span class="nf">md5</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Calculate and return MD5 checksum for a file.&quot;&quot;&quot;</span>
     <span class="n">m</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">md5</span><span class="p">()</span>
     <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-        <span class="k">while</span> <span class="n">chunk</span> <span class="o">:=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="mi">4096</span><span class="p">):</span>
+        <span class="n">chunk</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="mi">4096</span><span class="p">)</span>
+        <span class="c1"># No walrus for Python 3.7 :(</span>
+        <span class="k">while</span> <span class="n">chunk</span><span class="p">:</span>
             <span class="n">m</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span>
+            <span class="n">chunk</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="mi">4096</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">m</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()</span></div>
 
 
@@ -546,11 +593,24 @@
         <span class="k">return</span> <span class="n">arg1</span>
 
 
-<div class="viewcode-block" id="batch"><a class="viewcode-back" href="../../util.html#slideflow.util.batch">[docs]</a><span class="k">def</span> <span class="nf">batch</span><span class="p">(</span><span class="n">iterable</span><span class="p">:</span> <span class="n">List</span><span class="p">,</span> <span class="n">n</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterable</span><span class="p">:</span>
-    <span class="sd">&quot;&quot;&quot;Separates an interable into batches of maximum size `n`.&quot;&quot;&quot;</span>
+<div class="viewcode-block" id="batch"><a class="viewcode-back" href="../../util.html#slideflow.batch">[docs]</a><span class="k">def</span> <span class="nf">batch</span><span class="p">(</span><span class="n">iterable</span><span class="p">:</span> <span class="n">List</span><span class="p">,</span> <span class="n">n</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterable</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Separates an interable into batches of maximum size `n`.&quot;&quot;&quot;</span>
     <span class="n">l</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">iterable</span><span class="p">)</span>
     <span class="k">for</span> <span class="n">ndx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">l</span><span class="p">,</span> <span class="n">n</span><span class="p">):</span>
         <span class="k">yield</span> <span class="n">iterable</span><span class="p">[</span><span class="n">ndx</span><span class="p">:</span><span class="nb">min</span><span class="p">(</span><span class="n">ndx</span> <span class="o">+</span> <span class="n">n</span><span class="p">,</span> <span class="n">l</span><span class="p">)]</span></div>
+
+
+<div class="viewcode-block" id="batch_generator"><a class="viewcode-back" href="../../util.html#slideflow.batch_generator">[docs]</a><span class="k">def</span> <span class="nf">batch_generator</span><span class="p">(</span><span class="n">iterable</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">,</span> <span class="n">n</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterable</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Separates an interable into batches of maximum size `n`.&quot;&quot;&quot;</span>
+    <span class="n">batch</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">iterable</span><span class="p">:</span>
+        <span class="n">batch</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">batch</span><span class="p">)</span> <span class="o">==</span> <span class="n">n</span><span class="p">:</span>
+            <span class="k">yield</span> <span class="n">batch</span>
+            <span class="n">batch</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">batch</span><span class="p">):</span>
+        <span class="k">yield</span> <span class="n">batch</span>
+    <span class="k">return</span></div>
 
 
 <span class="k">def</span> <span class="nf">as_list</span><span class="p">(</span><span class="n">arg1</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">]:</span>
@@ -571,34 +631,45 @@
     <span class="k">return</span> <span class="kc">True</span>
 
 
-<div class="viewcode-block" id="is_model"><a class="viewcode-back" href="../../util.html#slideflow.util.is_model">[docs]</a><span class="k">def</span> <span class="nf">is_model</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-    <span class="sd">&quot;&quot;&quot;Checks if the given path is a valid Slideflow model.&quot;&quot;&quot;</span>
+<div class="viewcode-block" id="is_model"><a class="viewcode-back" href="../../util.html#slideflow.is_model">[docs]</a><span class="k">def</span> <span class="nf">is_model</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Checks if the given path is a valid Slideflow model.&quot;&quot;&quot;</span>
     <span class="k">return</span> <span class="n">is_tensorflow_model_path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span> <span class="ow">or</span> <span class="n">is_torch_model_path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="is_project"><a class="viewcode-back" href="../../util.html#slideflow.util.is_project">[docs]</a><span class="k">def</span> <span class="nf">is_project</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-    <span class="sd">&quot;&quot;&quot;Checks if the given path is a valid Slideflow project.&quot;&quot;&quot;</span>
+<div class="viewcode-block" id="is_project"><a class="viewcode-back" href="../../util.html#slideflow.is_project">[docs]</a><span class="k">def</span> <span class="nf">is_project</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Checks if the given path is a valid Slideflow project.&quot;&quot;&quot;</span>
     <span class="k">return</span> <span class="n">isdir</span><span class="p">(</span><span class="n">path</span><span class="p">)</span> <span class="ow">and</span> <span class="n">exists</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;settings.json&#39;</span><span class="p">))</span></div>
 
 
-<div class="viewcode-block" id="is_slide"><a class="viewcode-back" href="../../util.html#slideflow.util.is_slide">[docs]</a><span class="k">def</span> <span class="nf">is_slide</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-    <span class="sd">&quot;&quot;&quot;Checks if the given path is a supported slide.&quot;&quot;&quot;</span>
+<div class="viewcode-block" id="is_slide"><a class="viewcode-back" href="../../util.html#slideflow.is_slide">[docs]</a><span class="k">def</span> <span class="nf">is_slide</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Checks if the given path is a supported slide.&quot;&quot;&quot;</span>
     <span class="k">return</span> <span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
             <span class="ow">and</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">path_to_ext</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="n">SUPPORTED_FORMATS</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="is_tensorflow_model_path"><a class="viewcode-back" href="../../util.html#slideflow.util.is_tensorflow_model_path">[docs]</a><span class="k">def</span> <span class="nf">is_tensorflow_model_path</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-    <span class="sd">&quot;&quot;&quot;Checks if the given path is a valid Slideflow/Tensorflow model.&quot;&quot;&quot;</span>
+<div class="viewcode-block" id="is_tensorflow_model_path"><a class="viewcode-back" href="../../util.html#slideflow.is_tensorflow_model_path">[docs]</a><span class="k">def</span> <span class="nf">is_tensorflow_model_path</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Checks if the given path is a valid Slideflow/Tensorflow model.&quot;&quot;&quot;</span>
     <span class="k">return</span> <span class="p">(</span><span class="n">isdir</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
             <span class="ow">and</span> <span class="p">(</span><span class="n">exists</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;params.json&#39;</span><span class="p">))</span>
                  <span class="ow">or</span> <span class="n">exists</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">dirname</span><span class="p">(</span><span class="n">path</span><span class="p">),</span> <span class="s1">&#39;params.json&#39;</span><span class="p">))))</span></div>
 
 
-<div class="viewcode-block" id="is_torch_model_path"><a class="viewcode-back" href="../../util.html#slideflow.util.is_torch_model_path">[docs]</a><span class="k">def</span> <span class="nf">is_torch_model_path</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-    <span class="sd">&quot;&quot;&quot;Checks if the given path is a valid Slideflow/PyTorch model.&quot;&quot;&quot;</span>
+<div class="viewcode-block" id="is_torch_model_path"><a class="viewcode-back" href="../../util.html#slideflow.is_torch_model_path">[docs]</a><span class="k">def</span> <span class="nf">is_torch_model_path</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Checks if the given path is a valid Slideflow/PyTorch model.&quot;&quot;&quot;</span>
     <span class="k">return</span> <span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
             <span class="ow">and</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">path_to_ext</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;zip&#39;</span>
             <span class="ow">and</span> <span class="n">exists</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">dirname</span><span class="p">(</span><span class="n">path</span><span class="p">),</span> <span class="s1">&#39;params.json&#39;</span><span class="p">)))</span></div>
+
+
+<div class="viewcode-block" id="is_simclr_model_path"><a class="viewcode-back" href="../../util.html#slideflow.is_simclr_model_path">[docs]</a><span class="k">def</span> <span class="nf">is_simclr_model_path</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Checks if the given path is a valid SimCLR model or checkpoint.&quot;&quot;&quot;</span>
+    <span class="n">is_model</span> <span class="o">=</span>  <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span>
+                 <span class="ow">and</span> <span class="n">isdir</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+                 <span class="ow">and</span> <span class="n">exists</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;args.json&#39;</span><span class="p">)))</span>
+    <span class="n">is_checkpoint</span> <span class="o">=</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span>
+                     <span class="ow">and</span> <span class="n">path</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;.ckpt&#39;</span><span class="p">)</span>
+                     <span class="ow">and</span> <span class="n">exists</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">dirname</span><span class="p">(</span><span class="n">path</span><span class="p">),</span> <span class="s1">&#39;args.json&#39;</span><span class="p">)))</span>
+    <span class="k">return</span> <span class="n">is_model</span> <span class="ow">or</span> <span class="n">is_checkpoint</span></div>
 
 
 <span class="k">def</span> <span class="nf">assert_is_mag</span><span class="p">(</span><span class="n">arg1</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
@@ -617,8 +688,8 @@
         <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">arg1</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;x&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span>
 
 
-<div class="viewcode-block" id="multi_warn"><a class="viewcode-back" href="../../util.html#slideflow.util.multi_warn">[docs]</a><span class="k">def</span> <span class="nf">multi_warn</span><span class="p">(</span><span class="n">arr</span><span class="p">:</span> <span class="n">List</span><span class="p">,</span> <span class="n">compare</span><span class="p">:</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">msg</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Callable</span><span class="p">,</span> <span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
-    <span class="sd">&quot;&quot;&quot;Logs multiple warning</span>
+<div class="viewcode-block" id="multi_warn"><a class="viewcode-back" href="../../util.html#slideflow.multi_warn">[docs]</a><span class="k">def</span> <span class="nf">multi_warn</span><span class="p">(</span><span class="n">arr</span><span class="p">:</span> <span class="n">List</span><span class="p">,</span> <span class="n">compare</span><span class="p">:</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">msg</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Callable</span><span class="p">,</span> <span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Logs multiple warning</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        arr (List): Array to compare.</span>
@@ -643,8 +714,8 @@
     <span class="k">return</span> <span class="n">num_warned</span></div>
 
 
-<div class="viewcode-block" id="to_onehot"><a class="viewcode-back" href="../../util.html#slideflow.util.to_onehot">[docs]</a><span class="k">def</span> <span class="nf">to_onehot</span><span class="p">(</span><span class="n">val</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">max</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
-    <span class="sd">&quot;&quot;&quot;Converts value to one-hot encoding</span>
+<div class="viewcode-block" id="to_onehot"><a class="viewcode-back" href="../../util.html#slideflow.to_onehot">[docs]</a><span class="k">def</span> <span class="nf">to_onehot</span><span class="p">(</span><span class="n">val</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">max</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Converts value to one-hot encoding</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        val (int): Value to encode</span>
@@ -661,8 +732,8 @@
     <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
 
 
-<div class="viewcode-block" id="make_dir"><a class="viewcode-back" href="../../util.html#slideflow.util.make_dir">[docs]</a><span class="k">def</span> <span class="nf">make_dir</span><span class="p">(</span><span class="n">_dir</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-    <span class="sd">&quot;&quot;&quot;Makes a directory if one does not already exist,</span>
+<div class="viewcode-block" id="make_dir"><a class="viewcode-back" href="../../util.html#slideflow.make_dir">[docs]</a><span class="k">def</span> <span class="nf">make_dir</span><span class="p">(</span><span class="n">_dir</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Makes a directory if one does not already exist,</span>
 <span class="sd">    in a manner compatible with multithreading.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">exists</span><span class="p">(</span><span class="n">_dir</span><span class="p">):</span>
@@ -672,8 +743,8 @@
             <span class="k">pass</span></div>
 
 
-<div class="viewcode-block" id="relative_path"><a class="viewcode-back" href="../../util.html#slideflow.util.relative_path">[docs]</a><span class="k">def</span> <span class="nf">relative_path</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">root</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Returns a relative path, from a given root directory.&quot;&quot;&quot;</span>
+<div class="viewcode-block" id="relative_path"><a class="viewcode-back" href="../../util.html#slideflow.relative_path">[docs]</a><span class="k">def</span> <span class="nf">relative_path</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">root</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Returns a relative path, from a given root directory.&quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="n">path</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;.&#39;</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">join</span><span class="p">(</span><span class="n">root</span><span class="p">,</span> <span class="n">path</span><span class="p">[</span><span class="mi">2</span><span class="p">:])</span>
     <span class="k">elif</span> <span class="n">path</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;$ROOT&#39;</span><span class="p">):</span>
@@ -682,8 +753,8 @@
         <span class="k">return</span> <span class="n">path</span></div>
 
 
-<div class="viewcode-block" id="global_path"><a class="viewcode-back" href="../../util.html#slideflow.util.global_path">[docs]</a><span class="k">def</span> <span class="nf">global_path</span><span class="p">(</span><span class="n">root</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">path_string</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
-    <span class="sd">&#39;&#39;&#39;Returns global path from a local path.&#39;&#39;&#39;</span>
+<div class="viewcode-block" id="global_path"><a class="viewcode-back" href="../../util.html#slideflow.global_path">[docs]</a><span class="k">def</span> <span class="nf">global_path</span><span class="p">(</span><span class="n">root</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">path_string</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;Returns global path from a local path.&#39;&#39;&#39;</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">root</span><span class="p">:</span>
         <span class="n">root</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
     <span class="k">if</span> <span class="n">path_string</span> <span class="ow">and</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">path_string</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">)</span> <span class="ow">and</span> <span class="n">path_string</span><span class="p">[:</span><span class="mi">2</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;./&quot;</span><span class="p">:</span>
@@ -703,8 +774,8 @@
         <span class="k">return</span> <span class="n">string</span>
 
 
-<div class="viewcode-block" id="yes_no_input"><a class="viewcode-back" href="../../util.html#slideflow.util.yes_no_input">[docs]</a><span class="k">def</span> <span class="nf">yes_no_input</span><span class="p">(</span><span class="n">prompt</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">default</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;no&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-    <span class="sd">&#39;&#39;&#39;Prompts user for yes/no input.&#39;&#39;&#39;</span>
+<div class="viewcode-block" id="yes_no_input"><a class="viewcode-back" href="../../util.html#slideflow.yes_no_input">[docs]</a><span class="k">def</span> <span class="nf">yes_no_input</span><span class="p">(</span><span class="n">prompt</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">default</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;no&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;Prompts user for yes/no input.&#39;&#39;&#39;</span>
     <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
         <span class="n">response</span> <span class="o">=</span> <span class="nb">input</span><span class="p">(</span><span class="n">prompt</span><span class="p">)</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">response</span> <span class="ow">and</span> <span class="n">default</span><span class="p">:</span>
@@ -715,7 +786,7 @@
             <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Invalid response.&quot;</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="path_input"><a class="viewcode-back" href="../../util.html#slideflow.util.path_input">[docs]</a><span class="k">def</span> <span class="nf">path_input</span><span class="p">(</span>
+<div class="viewcode-block" id="path_input"><a class="viewcode-back" href="../../util.html#slideflow.path_input">[docs]</a><span class="k">def</span> <span class="nf">path_input</span><span class="p">(</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">root</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">default</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -723,7 +794,7 @@
     <span class="n">filetype</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">verify</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-    <span class="sd">&#39;&#39;&#39;Prompts user for directory input.&#39;&#39;&#39;</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;Prompts user for directory input.&#39;&#39;&#39;</span>
     <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
         <span class="n">relative_response</span> <span class="o">=</span> <span class="nb">input</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">prompt</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="n">reponse</span> <span class="o">=</span> <span class="n">global_path</span><span class="p">(</span><span class="n">root</span><span class="p">,</span> <span class="n">relative_response</span><span class="p">)</span>
@@ -751,9 +822,9 @@
         <span class="k">return</span> <span class="n">relative_response</span></div>
 
 
-<div class="viewcode-block" id="choice_input"><a class="viewcode-back" href="../../util.html#slideflow.util.choice_input">[docs]</a><span class="k">def</span> <span class="nf">choice_input</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">valid_choices</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">multi_choice</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+<div class="viewcode-block" id="choice_input"><a class="viewcode-back" href="../../util.html#slideflow.choice_input">[docs]</a><span class="k">def</span> <span class="nf">choice_input</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">valid_choices</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">multi_choice</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
                  <span class="n">input_type</span><span class="o">=</span><span class="nb">str</span><span class="p">):</span>
-    <span class="sd">&#39;&#39;&#39;Prompts user for multi-choice input.&#39;&#39;&#39;</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;Prompts user for multi-choice input.&#39;&#39;&#39;</span>
     <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
         <span class="n">response</span> <span class="o">=</span> <span class="nb">input</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">prompt</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">response</span> <span class="ow">and</span> <span class="n">default</span><span class="p">:</span>
@@ -775,23 +846,23 @@
         <span class="k">return</span> <span class="n">response</span></div>
 
 
-<div class="viewcode-block" id="load_json"><a class="viewcode-back" href="../../util.html#slideflow.util.load_json">[docs]</a><span class="k">def</span> <span class="nf">load_json</span><span class="p">(</span><span class="n">filename</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
-    <span class="sd">&#39;&#39;&#39;Reads JSON data from file.&#39;&#39;&#39;</span>
+<div class="viewcode-block" id="load_json"><a class="viewcode-back" href="../../util.html#slideflow.load_json">[docs]</a><span class="k">def</span> <span class="nf">load_json</span><span class="p">(</span><span class="n">filename</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;Reads JSON data from file.&#39;&#39;&#39;</span>
     <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">data_file</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">data_file</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="write_json"><a class="viewcode-back" href="../../util.html#slideflow.util.write_json">[docs]</a><span class="k">def</span> <span class="nf">write_json</span><span class="p">(</span><span class="n">data</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">filename</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-    <span class="sd">&#39;&#39;&#39;Writes data to JSON file.&#39;&#39;&#39;</span>
+<div class="viewcode-block" id="write_json"><a class="viewcode-back" href="../../util.html#slideflow.write_json">[docs]</a><span class="k">def</span> <span class="nf">write_json</span><span class="p">(</span><span class="n">data</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">filename</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;Writes data to JSON file.&#39;&#39;&#39;</span>
     <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">data_file</span><span class="p">:</span>
         <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">data_file</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="get_slides_from_model_manifest"><a class="viewcode-back" href="../../util.html#slideflow.util.get_slides_from_model_manifest">[docs]</a><span class="k">def</span> <span class="nf">get_slides_from_model_manifest</span><span class="p">(</span>
+<div class="viewcode-block" id="get_slides_from_model_manifest"><a class="viewcode-back" href="../../util.html#slideflow.get_slides_from_model_manifest">[docs]</a><span class="k">def</span> <span class="nf">get_slides_from_model_manifest</span><span class="p">(</span>
     <span class="n">model_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">dataset</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
-    <span class="sd">&quot;&quot;&quot;Get list of slides from a model manifest.</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Get list of slides from a model manifest.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        model_path (str): Path to model from which to load the model manifest.</span>
@@ -825,8 +896,8 @@
     <span class="k">return</span> <span class="n">slides</span></div>
 
 
-<div class="viewcode-block" id="get_gan_config"><a class="viewcode-back" href="../../util.html#slideflow.util.get_gan_config">[docs]</a><span class="k">def</span> <span class="nf">get_gan_config</span><span class="p">(</span><span class="n">model_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
-    <span class="sd">&quot;&quot;&quot;Loads a GAN training_options.json for an associated network PKL.&quot;&quot;&quot;</span>
+<div class="viewcode-block" id="get_gan_config"><a class="viewcode-back" href="../../util.html#slideflow.get_gan_config">[docs]</a><span class="k">def</span> <span class="nf">get_gan_config</span><span class="p">(</span><span class="n">model_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Loads a GAN training_options.json for an associated network PKL.&quot;&quot;&quot;</span>
 
     <span class="k">if</span> <span class="n">exists</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">dirname</span><span class="p">(</span><span class="n">model_path</span><span class="p">),</span> <span class="s1">&#39;training_options.json&#39;</span><span class="p">)):</span>
         <span class="k">return</span> <span class="n">load_json</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">dirname</span><span class="p">(</span><span class="n">model_path</span><span class="p">),</span> <span class="s1">&#39;training_options.json&#39;</span><span class="p">))</span>
@@ -834,8 +905,8 @@
         <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">ModelParamsNotFoundError</span></div>
 
 
-<div class="viewcode-block" id="get_model_config"><a class="viewcode-back" href="../../util.html#slideflow.util.get_model_config">[docs]</a><span class="k">def</span> <span class="nf">get_model_config</span><span class="p">(</span><span class="n">model_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
-    <span class="sd">&quot;&quot;&quot;Loads model configuration JSON file.&quot;&quot;&quot;</span>
+<div class="viewcode-block" id="get_model_config"><a class="viewcode-back" href="../../util.html#slideflow.get_model_config">[docs]</a><span class="k">def</span> <span class="nf">get_model_config</span><span class="p">(</span><span class="n">model_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Loads model configuration JSON file.&quot;&quot;&quot;</span>
 
     <span class="k">if</span> <span class="n">exists</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">model_path</span><span class="p">,</span> <span class="s1">&#39;params.json&#39;</span><span class="p">)):</span>
         <span class="n">config</span> <span class="o">=</span> <span class="n">load_json</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">model_path</span><span class="p">,</span> <span class="s1">&#39;params.json&#39;</span><span class="p">))</span>
@@ -861,10 +932,10 @@
     <span class="k">return</span> <span class="n">config</span></div>
 
 
-<div class="viewcode-block" id="get_model_normalizer"><a class="viewcode-back" href="../../util.html#slideflow.util.get_model_normalizer">[docs]</a><span class="k">def</span> <span class="nf">get_model_normalizer</span><span class="p">(</span>
+<div class="viewcode-block" id="get_model_normalizer"><a class="viewcode-back" href="../../util.html#slideflow.get_model_normalizer">[docs]</a><span class="k">def</span> <span class="nf">get_model_normalizer</span><span class="p">(</span>
     <span class="n">model_path</span><span class="p">:</span> <span class="nb">str</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="s2">&quot;sf.norm.StainNormalizer&quot;</span><span class="p">]:</span>
-    <span class="sd">&quot;&quot;&quot;Loads and fits normalizer using configuration at a model path.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Loads and fits normalizer using configuration at a model path.&quot;&quot;&quot;</span>
 
     <span class="n">config</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">get_model_config</span><span class="p">(</span><span class="n">model_path</span><span class="p">)</span>
 
@@ -888,15 +959,15 @@
     <span class="k">return</span> <span class="n">normalizer</span></div>
 
 
-<div class="viewcode-block" id="get_slide_paths"><a class="viewcode-back" href="../../util.html#slideflow.util.get_slide_paths">[docs]</a><span class="k">def</span> <span class="nf">get_slide_paths</span><span class="p">(</span><span class="n">slides_dir</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
-    <span class="sd">&#39;&#39;&#39;Get all slide paths from a given directory containing slides.&#39;&#39;&#39;</span>
+<div class="viewcode-block" id="get_slide_paths"><a class="viewcode-back" href="../../util.html#slideflow.get_slide_paths">[docs]</a><span class="k">def</span> <span class="nf">get_slide_paths</span><span class="p">(</span><span class="n">slides_dir</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;Get all slide paths from a given directory containing slides.&#39;&#39;&#39;</span>
     <span class="n">slide_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">glob</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">slides_dir</span><span class="p">,</span> <span class="s1">&#39;**/*.*&#39;</span><span class="p">))</span> <span class="k">if</span> <span class="n">is_slide</span><span class="p">(</span><span class="n">i</span><span class="p">)]</span>
     <span class="n">slide_list</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">glob</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">slides_dir</span><span class="p">,</span> <span class="s1">&#39;*.*&#39;</span><span class="p">))</span> <span class="k">if</span> <span class="n">is_slide</span><span class="p">(</span><span class="n">i</span><span class="p">)])</span>
     <span class="k">return</span> <span class="n">slide_list</span></div>
 
 
-<div class="viewcode-block" id="read_annotations"><a class="viewcode-back" href="../../util.html#slideflow.util.read_annotations">[docs]</a><span class="k">def</span> <span class="nf">read_annotations</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">]]:</span>
-    <span class="sd">&#39;&#39;&#39;Read an annotations file.&#39;&#39;&#39;</span>
+<div class="viewcode-block" id="read_annotations"><a class="viewcode-back" href="../../util.html#slideflow.read_annotations">[docs]</a><span class="k">def</span> <span class="nf">read_annotations</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;Read an annotations file.&#39;&#39;&#39;</span>
     <span class="n">results</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">csv_file</span><span class="p">:</span>
         <span class="n">csv_reader</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">reader</span><span class="p">(</span><span class="n">csv_file</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s1">&#39;,&#39;</span><span class="p">)</span>
@@ -916,8 +987,8 @@
     <span class="k">return</span> <span class="n">header</span><span class="p">,</span> <span class="n">results</span></div>
 
 
-<div class="viewcode-block" id="get_relative_tfrecord_paths"><a class="viewcode-back" href="../../util.html#slideflow.util.get_relative_tfrecord_paths">[docs]</a><span class="k">def</span> <span class="nf">get_relative_tfrecord_paths</span><span class="p">(</span><span class="n">root</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">directory</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
-    <span class="sd">&#39;&#39;&#39;Returns relative tfrecord paths with respect to the given directory.&#39;&#39;&#39;</span>
+<div class="viewcode-block" id="get_relative_tfrecord_paths"><a class="viewcode-back" href="../../util.html#slideflow.get_relative_tfrecord_paths">[docs]</a><span class="k">def</span> <span class="nf">get_relative_tfrecord_paths</span><span class="p">(</span><span class="n">root</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">directory</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;Returns relative tfrecord paths with respect to the given directory.&#39;&#39;&#39;</span>
 
     <span class="n">tfrecords</span> <span class="o">=</span> <span class="p">[</span>
         <span class="n">join</span><span class="p">(</span><span class="n">directory</span><span class="p">,</span> <span class="n">f</span><span class="p">)</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">root</span><span class="p">,</span> <span class="n">directory</span><span class="p">))</span>
@@ -946,8 +1017,8 @@
     <span class="k">return</span> <span class="kc">False</span>
 
 
-<div class="viewcode-block" id="path_to_name"><a class="viewcode-back" href="../../util.html#slideflow.util.path_to_name">[docs]</a><span class="k">def</span> <span class="nf">path_to_name</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-    <span class="sd">&#39;&#39;&#39;Returns name of a file, without extension,</span>
+<div class="viewcode-block" id="path_to_name"><a class="viewcode-back" href="../../util.html#slideflow.path_to_name">[docs]</a><span class="k">def</span> <span class="nf">path_to_name</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;Returns name of a file, without extension,</span>
 <span class="sd">    from a given full path string.&#39;&#39;&#39;</span>
     <span class="n">_file</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">_file</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">))</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
@@ -956,8 +1027,8 @@
         <span class="k">return</span> <span class="s1">&#39;.&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">_file</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)[:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span></div>
 
 
-<div class="viewcode-block" id="path_to_ext"><a class="viewcode-back" href="../../util.html#slideflow.util.path_to_ext">[docs]</a><span class="k">def</span> <span class="nf">path_to_ext</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-    <span class="sd">&#39;&#39;&#39;Returns extension of a file path string.&#39;&#39;&#39;</span>
+<div class="viewcode-block" id="path_to_ext"><a class="viewcode-back" href="../../util.html#slideflow.path_to_ext">[docs]</a><span class="k">def</span> <span class="nf">path_to_ext</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;Returns extension of a file path string.&#39;&#39;&#39;</span>
     <span class="n">_file</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">_file</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">))</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
         <span class="k">return</span> <span class="s1">&#39;&#39;</span>
@@ -965,12 +1036,12 @@
         <span class="k">return</span> <span class="n">_file</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span></div>
 
 
-<div class="viewcode-block" id="update_results_log"><a class="viewcode-back" href="../../util.html#slideflow.util.update_results_log">[docs]</a><span class="k">def</span> <span class="nf">update_results_log</span><span class="p">(</span>
+<div class="viewcode-block" id="update_results_log"><a class="viewcode-back" href="../../util.html#slideflow.update_results_log">[docs]</a><span class="k">def</span> <span class="nf">update_results_log</span><span class="p">(</span>
     <span class="n">results_log_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">model_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">results_dict</span><span class="p">:</span> <span class="n">Dict</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-    <span class="sd">&#39;&#39;&#39;Dynamically update results_log when recording training metrics.&#39;&#39;&#39;</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;Dynamically update results_log when recording training metrics.&#39;&#39;&#39;</span>
     <span class="c1"># First, read current results log into a dictionary</span>
     <span class="n">results_log</span> <span class="o">=</span> <span class="p">{}</span>  <span class="c1"># type: Dict[str, Any]</span>
     <span class="k">if</span> <span class="n">exists</span><span class="p">(</span><span class="n">results_log_path</span><span class="p">):</span>
@@ -1028,7 +1099,7 @@
         <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">results_log_path</span><span class="si">}</span><span class="s2">.temp&quot;</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="tfrecord_heatmap"><a class="viewcode-back" href="../../util.html#slideflow.util.tfrecord_heatmap">[docs]</a><span class="k">def</span> <span class="nf">tfrecord_heatmap</span><span class="p">(</span>
+<div class="viewcode-block" id="tfrecord_heatmap"><a class="viewcode-back" href="../../util.html#slideflow.tfrecord_heatmap">[docs]</a><span class="k">def</span> <span class="nf">tfrecord_heatmap</span><span class="p">(</span>
     <span class="n">tfrecord</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">slide</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">tile_px</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
@@ -1037,7 +1108,7 @@
     <span class="n">outdir</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">interpolation</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;bicubic&#39;</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]:</span>
-    <span class="sd">&quot;&quot;&quot;Creates a tfrecord-based WSI heatmap using a dictionary of tile values</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Creates a tfrecord-based WSI heatmap using a dictionary of tile values</span>
 <span class="sd">    for heatmap display.</span>
 
 <span class="sd">    Args:</span>
@@ -1088,8 +1159,10 @@
     <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Loaded tile values&#39;</span><span class="p">)</span>
     <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Min: </span><span class="si">{</span><span class="nb">min</span><span class="p">(</span><span class="n">vals</span><span class="p">)</span><span class="si">}</span><span class="se">\t</span><span class="s1"> Max:</span><span class="si">{</span><span class="nb">max</span><span class="p">(</span><span class="n">vals</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
 
-    <span class="n">scaled_x</span> <span class="o">=</span> <span class="p">[(</span><span class="n">xi</span> <span class="o">*</span> <span class="n">wsi</span><span class="o">.</span><span class="n">roi_scale</span><span class="p">)</span> <span class="o">-</span> <span class="n">wsi</span><span class="o">.</span><span class="n">full_extract_px</span><span class="o">/</span><span class="mi">2</span> <span class="k">for</span> <span class="n">xi</span> <span class="ow">in</span> <span class="n">x</span><span class="p">]</span>
-    <span class="n">scaled_y</span> <span class="o">=</span> <span class="p">[(</span><span class="n">yi</span> <span class="o">*</span> <span class="n">wsi</span><span class="o">.</span><span class="n">roi_scale</span><span class="p">)</span> <span class="o">-</span> <span class="n">wsi</span><span class="o">.</span><span class="n">full_extract_px</span><span class="o">/</span><span class="mi">2</span> <span class="k">for</span> <span class="n">yi</span> <span class="ow">in</span> <span class="n">y</span><span class="p">]</span>
+    <span class="n">roi_scaling</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="n">scale</span> <span class="o">=</span> <span class="n">wsi</span><span class="o">.</span><span class="n">roi_scale</span> <span class="k">if</span> <span class="n">roi_scaling</span> <span class="k">else</span> <span class="mi">1</span>
+    <span class="n">scaled_x</span> <span class="o">=</span> <span class="p">[(</span><span class="n">xi</span> <span class="o">*</span> <span class="n">scale</span><span class="p">)</span> <span class="o">-</span> <span class="n">wsi</span><span class="o">.</span><span class="n">full_extract_px</span><span class="o">/</span><span class="mi">2</span> <span class="k">for</span> <span class="n">xi</span> <span class="ow">in</span> <span class="n">x</span><span class="p">]</span>
+    <span class="n">scaled_y</span> <span class="o">=</span> <span class="p">[(</span><span class="n">yi</span> <span class="o">*</span> <span class="n">scale</span><span class="p">)</span> <span class="o">-</span> <span class="n">wsi</span><span class="o">.</span><span class="n">full_extract_px</span><span class="o">/</span><span class="mi">2</span> <span class="k">for</span> <span class="n">yi</span> <span class="ow">in</span> <span class="n">y</span><span class="p">]</span>
 
     <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Loaded CSV coordinates:&#39;</span><span class="p">)</span>
     <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Min x: </span><span class="si">{</span><span class="nb">min</span><span class="p">(</span><span class="n">x</span><span class="p">)</span><span class="si">}</span><span class="se">\t</span><span class="s1"> Max x: </span><span class="si">{</span><span class="nb">max</span><span class="p">(</span><span class="n">x</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
@@ -1144,11 +1217,11 @@
         <span class="n">bottom</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
         <span class="n">labelbottom</span><span class="o">=</span><span class="kc">False</span>
     <span class="p">)</span>
-    <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Generating thumbnail...&#39;</span><span class="p">)</span>
+    <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Generating thumbnail...&#39;</span><span class="p">)</span>
     <span class="n">thumb</span> <span class="o">=</span> <span class="n">wsi</span><span class="o">.</span><span class="n">thumb</span><span class="p">(</span><span class="n">mpp</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
-    <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Saving thumbnail....&#39;</span><span class="p">)</span>
+    <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Saving thumbnail....&#39;</span><span class="p">)</span>
     <span class="n">thumb</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">slide_name</span><span class="si">}</span><span class="s1">&#39;</span> <span class="o">+</span> <span class="s1">&#39;.png&#39;</span><span class="p">))</span>
-    <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Generating figure...&#39;</span><span class="p">)</span>
+    <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Generating figure...&#39;</span><span class="p">)</span>
     <span class="n">implot</span> <span class="o">=</span> <span class="n">ax</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">thumb</span><span class="p">,</span> <span class="n">zorder</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
     <span class="n">extent</span> <span class="o">=</span> <span class="n">implot</span><span class="o">.</span><span class="n">get_extent</span><span class="p">()</span>
     <span class="n">extent_x</span> <span class="o">=</span> <span class="n">extent</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span><span class="o">-</span><span class="n">fraction_dead_x</span><span class="p">)</span>
@@ -1182,13 +1255,32 @@
     <span class="k">return</span> <span class="n">stats</span></div>
 
 
-<span class="k">def</span> <span class="nf">get_new_model_dir</span><span class="p">(</span><span class="n">root</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">model_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<div class="viewcode-block" id="get_valid_model_dir"><a class="viewcode-back" href="../../util.html#slideflow.get_valid_model_dir">[docs]</a><span class="k">def</span> <span class="nf">get_valid_model_dir</span><span class="p">(</span><span class="n">root</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    This function returns the path of the first indented directory from root.</span>
+<span class="sd">    This only works when the indented folder name starts with a 5 digit number,</span>
+<span class="sd">    like &quot;00000%&quot;.</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">        If the root has 3 files:</span>
+<span class="sd">        root/00000-foldername/</span>
+<span class="sd">        root/00001-foldername/</span>
+<span class="sd">        root/00002-foldername/</span>
+
+<span class="sd">        The function returns &quot;root/00000-foldername/&quot;</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
     <span class="n">prev_run_dirs</span> <span class="o">=</span> <span class="p">[</span>
         <span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="n">root</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">isdir</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">root</span><span class="p">,</span> <span class="n">x</span><span class="p">))</span>
     <span class="p">]</span>
-    <span class="n">prev_run_ids</span> <span class="o">=</span> <span class="p">[</span><span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;^\d+&#39;</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">prev_run_dirs</span><span class="p">]</span>  <span class="c1"># type: List</span>
+    <span class="n">prev_run_ids</span> <span class="o">=</span> <span class="p">[</span><span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;^\d+&#39;</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">prev_run_dirs</span><span class="p">]</span>
     <span class="n">prev_run_ids</span> <span class="o">=</span> <span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">group</span><span class="p">())</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">prev_run_ids</span> <span class="k">if</span> <span class="n">x</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">prev_run_ids</span><span class="p">,</span> <span class="n">prev_run_dirs</span></div>
+
+
+<span class="k">def</span> <span class="nf">get_new_model_dir</span><span class="p">(</span><span class="n">root</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">model_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="n">prev_run_ids</span><span class="p">,</span> <span class="n">prev_run_dirs</span> <span class="o">=</span> <span class="n">get_valid_model_dir</span><span class="p">(</span><span class="n">root</span><span class="p">)</span>
     <span class="n">cur_id</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">prev_run_ids</span><span class="p">,</span> <span class="n">default</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
     <span class="n">model_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">root</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">cur_id</span><span class="si">:</span><span class="s1">05d</span><span class="si">}</span><span class="s1">-</span><span class="si">{</span><span class="n">model_name</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
     <span class="k">assert</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">model_dir</span><span class="p">)</span>
@@ -1196,8 +1288,8 @@
     <span class="k">return</span> <span class="n">model_dir</span>
 
 
-<div class="viewcode-block" id="split_list"><a class="viewcode-back" href="../../util.html#slideflow.util.split_list">[docs]</a><span class="k">def</span> <span class="nf">split_list</span><span class="p">(</span><span class="n">a</span><span class="p">:</span> <span class="n">List</span><span class="p">,</span> <span class="n">n</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">List</span><span class="p">]:</span>
-    <span class="sd">&#39;&#39;&#39;Function to split a list into n components&#39;&#39;&#39;</span>
+<div class="viewcode-block" id="split_list"><a class="viewcode-back" href="../../util.html#slideflow.split_list">[docs]</a><span class="k">def</span> <span class="nf">split_list</span><span class="p">(</span><span class="n">a</span><span class="p">:</span> <span class="n">List</span><span class="p">,</span> <span class="n">n</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">List</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;Function to split a list into n components&#39;&#39;&#39;</span>
     <span class="n">k</span><span class="p">,</span> <span class="n">m</span> <span class="o">=</span> <span class="nb">divmod</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">a</span><span class="p">),</span> <span class="n">n</span><span class="p">)</span>
     <span class="k">return</span> <span class="p">[</span><span class="n">a</span><span class="p">[</span><span class="n">i</span> <span class="o">*</span> <span class="n">k</span> <span class="o">+</span> <span class="nb">min</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">m</span><span class="p">):</span> <span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">k</span> <span class="o">+</span> <span class="nb">min</span><span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">m</span><span class="p">)]</span>
             <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">)]</span></div>
@@ -1278,6 +1370,25 @@
         <span class="n">processed_features</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">get_value</span><span class="p">(</span><span class="n">typename</span><span class="p">,</span> <span class="n">typename_mapping</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span>
 
     <span class="k">return</span> <span class="n">processed_features</span>
+
+
+<div class="viewcode-block" id="load_predictions"><a class="viewcode-back" href="../../util.html#slideflow.load_predictions">[docs]</a><span class="k">def</span> <span class="nf">load_predictions</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Loads a &#39;csv&#39;, &#39;parquet&#39; or &#39;feather&#39; file to a pandas dataframe.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        path (str): Path to the file to be read.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        df (pd.DataFrame): The dataframe read from the path.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">path</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;csv&quot;</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">path</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;parquet&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">path</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;gzip&quot;</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_parquet</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">path</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;feather&quot;</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_feather</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Unrecognized extension &quot;</span><span class="si">{</span><span class="n">path_to_ext</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="si">}</span><span class="s1">&quot;&#39;</span><span class="p">)</span></div>
 </pre></div>
 
              </article>
@@ -1327,15 +1438,12 @@
      
        <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
          <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
-         <script src="../../_static/jquery.js"></script>
-         <script src="../../_static/underscore.js"></script>
-         <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
          <script src="../../_static/doctools.js"></script>
          <script src="../../_static/sphinx_highlight.js"></script>
      
 
   
-
+  <script type="text/javascript" src="../../_static/js/vendor/jquery-3.6.3.min.js"></script>
   <script type="text/javascript" src="../../_static/js/vendor/popper.min.js"></script>
   <script type="text/javascript" src="../../_static/js/vendor/bootstrap.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/list.js/1.5.0/list.min.js"></script>

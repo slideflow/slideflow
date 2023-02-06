@@ -1,0 +1,677 @@
+
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Slide Processing &mdash; slideflow 1.4.2+103.gf8770bb4.dirty documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <!-- <link rel="stylesheet" href="_static/pygments.css" type="text/css" /> -->
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Cell Segmentation" href="cellseg.html" />
+    <link rel="prev" title="Datasets" href="datasets_and_val.html" />
+  <!-- Google Analytics -->
+  
+  <!-- End Google Analytics -->
+  
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+  <!-- Preload the theme fonts -->
+
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-book.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/IBMPlexMono/IBMPlexMono-Medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-medium-italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/IBMPlexMono/IBMPlexMono-SemiBold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+<!-- Preload the katex fonts -->
+
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Math-Italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size1-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size4-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size2-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size3-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Caligraphic-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.15.2/css/all.css" integrity="sha384-vSIIfh2YWi9wW0r9iZe7RJPrKwp6bG+s9QZMoITbCckVJqGCCRhc+ccxNcdpHuYu" crossorigin="anonymous">
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-43E5QNVXH2"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+
+    gtag('js', new Date());
+
+    gtag('config', 'G-43E5QNVXH2');
+  </script>
+</head>
+
+<div class="container-fluid header-holder tutorials-header" id="header-holder">
+  <div class="container">
+    <div class="header-container">
+      <a class="header-logo" href="https://slideflow.dev" aria-label="Slideflow"></a>
+
+      <div class="main-menu">
+        <ul>
+          <li class="active">
+            <a href="https://slideflow.dev">Docs</a>
+          </li>
+
+          <li>
+            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+          </li>
+
+          <li>
+            <a href="https://github.com/jamesdolezal/slideflow">GitHub</a>
+          </li>
+        </ul>
+      </div>
+
+      <a class="main-menu-open-button" href="#" data-behavior="open-mobile-menu"></a>
+    </div>
+  </div>
+</div>
+
+<body class="pytorch-body">
+
+   
+
+    
+
+    <div class="table-of-contents-link-wrapper">
+      <span>Table of Contents</span>
+      <a href="#" class="toggle-table-of-contents" data-behavior="toggle-table-of-contents"></a>
+    </div>
+
+    <nav data-toggle="wy-nav-shift" class="pytorch-left-menu" id="pytorch-left-menu">
+      <div class="pytorch-side-scroll">
+        <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          <div class="pytorch-left-menu-search">
+            
+
+            
+              
+              
+                <div class="version">
+                  1.4
+                </div>
+              
+            
+
+            
+
+
+  
+
+
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search Docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+            
+          </div>
+
+          
+            
+            
+              
+            
+            
+              <p class="caption" role="heading"><span class="caption-text">Introduction</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="overview.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="project_setup.html">Setting up a Project</a></li>
+<li class="toctree-l1"><a class="reference internal" href="datasets_and_val.html">Datasets</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Slide Processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cellseg.html">Cell Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="training.html">Training</a></li>
+<li class="toctree-l1"><a class="reference internal" href="evaluation.html">Evaluation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="posthoc.html">Post-hoc Analysis</a></li>
+<li class="toctree-l1"><a class="reference internal" href="uq.html">Uncertainty Quantification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="clam.html">Multi-Instance Learning (MIL)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ssl.html">Self-Supervised Learning (SSL)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="stylegan.html">Generative Networks (GANs)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="custom_loops.html">Custom Training Loops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="workbench_tools.html">Workbench: Live Visualization</a></li>
+<li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="slideflow.html">slideflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="project.html">slideflow.Project</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dataset.html">slideflow.Dataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="heatmap.html">slideflow.Heatmap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dataset_features.html">slideflow.DatasetFeatures</a></li>
+<li class="toctree-l1"><a class="reference internal" href="slidemap.html">slideflow.SlideMap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mosaic.html">slideflow.Mosaic</a></li>
+<li class="toctree-l1"><a class="reference internal" href="slideflow_cellseg.html">slideflow.cellseg</a></li>
+<li class="toctree-l1"><a class="reference internal" href="io.html">slideflow.io</a></li>
+<li class="toctree-l1"><a class="reference internal" href="io_tensorflow.html">slideflow.io.tensorflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="io_torch.html">slideflow.io.torch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="gan.html">slideflow.gan</a></li>
+<li class="toctree-l1"><a class="reference internal" href="grad.html">slideflow.grad</a></li>
+<li class="toctree-l1"><a class="reference internal" href="model.html">slideflow.model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="model_tensorflow.html">slideflow.model.tensorflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="model_torch.html">slideflow.model.torch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="norm.html">slideflow.norm</a></li>
+<li class="toctree-l1"><a class="reference internal" href="simclr.html">slideflow.simclr</a></li>
+<li class="toctree-l1"><a class="reference internal" href="slide.html">slideflow.slide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="slide_qc.html">slideflow.slide.qc</a></li>
+<li class="toctree-l1"><a class="reference internal" href="stats.html">slideflow.stats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="util.html">slideflow.util</a></li>
+<li class="toctree-l1"><a class="reference internal" href="workbench.html">slideflow.workbench</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="tutorial1.html">Tutorial 1: Model training (simple)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial2.html">Tutorial 2: Model training (advanced)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial3.html">Tutorial 3: Using a custom architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial4.html">Tutorial 4: Model evaluation &amp; heatmaps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial5.html">Tutorial 5: Creating a mosaic map</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial6.html">Tutorial 6: Custom slide filtering</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <div class="pytorch-container">
+      <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
+        <div class="pytorch-breadcrumbs-wrapper">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="pytorch-breadcrumbs">
+    
+      <li>
+        <a href="index.html">
+          
+            Docs
+          
+        </a> &gt;
+      </li>
+
+        
+      <li>Slide Processing</li>
+    
+    
+      <li class="pytorch-breadcrumbs-aside">
+        
+            
+            <a href="_sources/slide_processing.rst.txt" rel="nofollow"><img src="_static/images/view-page-source-icon.svg"></a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+</div>
+        </div>
+
+        <div class="pytorch-shortcuts-wrapper" id="pytorch-shortcuts-wrapper">
+          Shortcuts
+        </div>
+      </div>
+
+      <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
+        <div class="pytorch-content-left">
+
+        
+          
+          <div class="rst-content">
+          
+            <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
+             <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
+              
+  <section id="slide-processing">
+<span id="filtering"></span><h1>Slide Processing<a class="headerlink" href="#slide-processing" title="Permalink to this heading">¶</a></h1>
+<img alt="_images/tile_extraction_overview.png" src="_images/tile_extraction_overview.png" />
+<div class="line-block">
+<div class="line"><br /></div>
+</div>
+<p>Whole-slide histopathological images present many challenges for machine learning researchers, as these large gigapixel images may contain out-of-focus regions, pen marks, uneven staining, or varying optical resolutions. Slideflow provides tools for both flexible and computationally efficient slide processing in order to build datasets ready for machine learning applications.</p>
+<p>Most tools in Slideflow work with image tiles - extracted sub-regions of a whole-slide image - as the primary data source. For efficiency, image tiles are first buffered into <span class="xref std std-ref">TFRecords</span> , a binary file format that greatly improves IO throughput. Although training can be performed without using TFRecords (see <span class="xref std std-ref">TODO</span>), we recommend tile extraction as the first step for most projects.</p>
+<section id="tile-extraction">
+<h2>Tile extraction<a class="headerlink" href="#tile-extraction" title="Permalink to this heading">¶</a></h2>
+<p>Image tiles are extracted from whole-slide images using either <code class="xref py py-meth docutils literal notranslate"><span class="pre">Project.extract_tiles()</span></code> or <code class="xref py py-meth docutils literal notranslate"><span class="pre">Dataset.extract_tiles()</span></code>. When using the Project interface, the only arguments required are <code class="docutils literal notranslate"><span class="pre">tile_px</span></code> and <code class="docutils literal notranslate"><span class="pre">tile_um</span></code>, which determine the size of the extracted image tiles in pixels and microns:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">P</span><span class="o">.</span><span class="n">extract_tiles</span><span class="p">(</span><span class="n">tile_px</span><span class="o">=</span><span class="mi">299</span><span class="p">,</span> <span class="n">tile_um</span><span class="o">=</span><span class="mi">302</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>and when using a <code class="xref py py-class docutils literal notranslate"><span class="pre">Dataset</span></code>, no arguments are required.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">dataset</span><span class="o">.</span><span class="n">extract_tiles</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>Tiles will be extracted at the specified pixel and micron size and stored in TFRecord format. Loose image tiles (*.jpg or *.png format) can also be saved with the argument <code class="docutils literal notranslate"><span class="pre">save_tiles=True</span></code>.</p>
+<p>See the <a class="reference internal" href="dataset.html#slideflow.Dataset.extract_tiles" title="slideflow.Dataset.extract_tiles"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Dataset.extract_tiles()</span></code></a> API documentation for customization options.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Slide scanners may have differing microns-per-pixel (MPP) resolutions, so “10X” magnification from one scanner may be slightly different than “10X” on another scanner. Specifying a fixed <code class="docutils literal notranslate"><span class="pre">tile_um</span></code> ensures all image tiles have both the same pixel size and micron size. This MPP-harmonization step uses the <a class="reference external" href="https://www.libvips.org/API/current/libvips-resample.html#vips-resize">Libvips resize</a> function on extracted images. To disable this step and instead extract tiles at a given <a class="reference external" href="https://dicom.nema.org/dicom/dicomwsi/">downsample layer</a>, set <code class="docutils literal notranslate"><span class="pre">tile_um</span></code> equal to a magnification level rather than micron size:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">P</span><span class="o">.</span><span class="n">extract_tiles</span><span class="p">(</span><span class="n">tile_px</span><span class="o">=</span><span class="mi">299</span><span class="p">,</span> <span class="n">tile_um</span><span class="o">=</span><span class="s2">&quot;10x&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</section>
+<section id="cell-segmentation">
+<h2>Cell segmentation<a class="headerlink" href="#cell-segmentation" title="Permalink to this heading">¶</a></h2>
+<p>An alternative to extracting tiles in a grid across whole-slide images is extracting tiles at detected cell centroids. This is discussed separately in <a class="reference internal" href="cellseg.html#cellseg"><span class="std std-ref">Cell Segmentation</span></a>.</p>
+</section>
+<section id="regions-of-interest">
+<h2>Regions of Interest<a class="headerlink" href="#regions-of-interest" title="Permalink to this heading">¶</a></h2>
+<p>Tile extraction can be optionally restricted based on pathologist-annotated Regions of Interest (ROI), allowing you to enrich your dataset by only using relevant sections of a slide.</p>
+<p>We offer two methods for annotating ROIs - <a class="reference internal" href="workbench_tools.html#workbench"><span class="std std-ref">Workbench</span></a> and <a class="reference external" href="https://qupath.github.io/">QuPath</a>. Please see the Workbench section for instructions on generating ROI annotations using the Slideflow interface.</p>
+<p>If you are using QuPath, annotate whole-slide images using the Polygon tool. Then, click <strong>Automate</strong> -&gt; <strong>Show script editor</strong>. In the box that comes up, click <strong>File</strong> -&gt; <strong>Open</strong> and load the <code class="docutils literal notranslate"><span class="pre">qupath_roi.groovy</span></code> script (QuPath 0.2 or greater) or <code class="docutils literal notranslate"><span class="pre">qupath_roi_legacy.groovy</span></code> (QuPath 0.1.x), scripts <a class="reference external" href="https://github.com/jamesdolezal/slideflow">available on GitHub</a>. Click <strong>Run</strong> -&gt; <strong>Run</strong> if using QuPath 0.2 or greater, or <strong>Run</strong> -&gt; <strong>Run for Project</strong> if using QuPath 0.1.x. ROIs will be exported in CSV format in the QuPath project directory, in the subdirectory “ROI”.</p>
+<p>Once ROI CSV files are generated, ensure they are placed in the folder expected by your <a class="reference internal" href="project_setup.html#project-setup"><span class="std std-ref">Project</span></a> or <a class="reference internal" href="datasets_and_val.html#datasets-and-validation"><span class="std std-ref">Dataset</span></a> based on their respective configurations.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">roi_method</span></code> argument to the <code class="docutils literal notranslate"><span class="pre">extract_tiles()</span></code> functions allow you to control how ROIs are used. Options include:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">'auto'</span></code>: Default behavior. For slides with a valid ROI, extract tiles from within ROIs only. For slides without ROIs, extract from the whole-slide image.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">'inside'</span></code>: Extract from within ROIs, and skip any slides missing ROIs.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">'outside'</span></code>: Extract from outside ROIs, and skip any slides missing ROIs.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">'ignore'</span></code>: Ignore all ROIs, extracting from whole-slide images.</p></li>
+</ul>
+</section>
+<section id="masking-filtering">
+<h2>Masking &amp; Filtering<a class="headerlink" href="#masking-filtering" title="Permalink to this heading">¶</a></h2>
+<p>Slideflow provides two approaches for refining where image tiles should be extracted from whole-slide images: <strong>slide-level masking</strong> and <strong>tile-level filtering</strong>. In these next sections, we’ll review options for both approaches.</p>
+<section id="otsu-s-thresholding">
+<h3>Otsu’s thresholding<a class="headerlink" href="#otsu-s-thresholding" title="Permalink to this heading">¶</a></h3>
+<img alt="_images/otsu.png" src="_images/otsu.png" />
+<div class="line-block">
+<div class="line"><br /></div>
+</div>
+<p>Otsu’s thresholding is a <strong>slide-based method</strong> that distinguishes foreground (tissue) from background (empty slide). Otsu’s thresholding is performed in the HSV colorspace and yields similar results to grayspace filtering, a tile-level filtering method described below.</p>
+<p>To apply Otsu’s thresholding to slides before tile extraction, use the <code class="docutils literal notranslate"><span class="pre">qc</span></code> argument of the <code class="docutils literal notranslate"><span class="pre">.extract_tiles()</span></code> functions.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">slideflow.slide</span> <span class="kn">import</span> <span class="n">qc</span>
+
+<span class="c1"># Use this QC during tile extraction</span>
+<span class="n">P</span><span class="o">.</span><span class="n">extract_tiles</span><span class="p">(</span><span class="n">qc</span><span class="o">=</span><span class="n">qc</span><span class="o">.</span><span class="n">Otsu</span><span class="p">())</span>
+</pre></div>
+</div>
+<p>You can also apply Otsu’s thresholding to a single slide with the <a class="reference internal" href="slide.html#slideflow.WSI.qc" title="slideflow.WSI.qc"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.WSI.qc()</span></code></a> method. See <code class="xref py py-class docutils literal notranslate"><span class="pre">the</span> <span class="pre">WSI</span> <span class="pre">API</span> <span class="pre">documentation</span></code> for more information on working with individual slides.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Apply Otsu&#39;s thresholding to a WSI object</span>
+<span class="n">wsi</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">WSI</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+<span class="n">wsi</span><span class="o">.</span><span class="n">qc</span><span class="p">(</span><span class="n">qc</span><span class="p">)</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</section>
+<section id="gaussian-blur-filtering">
+<h3>Gaussian blur filtering<a class="headerlink" href="#gaussian-blur-filtering" title="Permalink to this heading">¶</a></h3>
+<img alt="_images/blur.png" src="_images/blur.png" />
+<div class="line-block">
+<div class="line"><br /></div>
+</div>
+<p>Gaussian blur masking is another <strong>slide-based method</strong> that can detect pen marks and out-of-focus areas, and is particularly useful for datasets lacking annotated Regions of Interest (ROIs). Gaussian blur masking is applied similarly, using the <code class="docutils literal notranslate"><span class="pre">qc</span></code> argument:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">slideflow.slide</span> <span class="kn">import</span> <span class="n">qc</span>
+
+<span class="c1"># Use this QC during tile extraction</span>
+<span class="n">P</span><span class="o">.</span><span class="n">extract_tiles</span><span class="p">(</span><span class="n">qc</span><span class="o">=</span><span class="n">qc</span><span class="o">.</span><span class="n">Gaussian</span><span class="p">(</span><span class="n">sigma</span><span class="o">=</span><span class="mi">2</span><span class="p">))</span>
+</pre></div>
+</div>
+<p>You can also use multiple slide-level masking methods by providing a list to <code class="docutils literal notranslate"><span class="pre">qc</span></code>.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">slideflow.slide</span> <span class="kn">import</span> <span class="n">qc</span>
+
+<span class="n">qc</span> <span class="o">=</span> <span class="p">[</span>
+  <span class="n">qc</span><span class="o">.</span><span class="n">Otsu</span><span class="p">(),</span>
+  <span class="n">qc</span><span class="o">.</span><span class="n">Gaussian</span><span class="p">(</span><span class="n">sigma</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+<span class="p">]</span>
+<span class="n">P</span><span class="o">.</span><span class="n">extract_tiles</span><span class="p">(</span><span class="n">qc</span><span class="o">=</span><span class="n">qc</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>If both Otsu’s thresholding and blur detection are being used, Slideflow will calculate Blur Burden, a metric used to assess the degree to which non-background tiles are either out-of-focus or contain artifact. In the tile extraction PDF report that is generated (see next section), the distribution of blur burden for slides in the dataset will be plotted on the first page. The report will contain the number of slides meeting criteria for warning, when the blur burden exceeds 5% for a given slide. A text file containing names of slides with high blur burden will be saved in the exported TFRecords directory. These slides should be manually reviewed to ensure they are of high enough quality to include in the dataset.</p>
+</section>
+<section id="deepfocus">
+<h3>DeepFocus<a class="headerlink" href="#deepfocus" title="Permalink to this heading">¶</a></h3>
+<p>Slideflow also provides an interface for using <a class="reference external" href="https://journals.plos.org/plosone/article/file?id=10.1371/journal.pone.0205387&amp;type=printable">DeepFocus</a> or other deep learning models to generate masks. Create a custom slide filter that inherits <a class="reference internal" href="slide_qc.html#slideflow.slide.qc.StridedDL" title="slideflow.slide.qc.StridedDL"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.slide.qc.StridedDL</span></code></a>, and pass to the <code class="docutils literal notranslate"><span class="pre">qc</span></code> arguments as above.</p>
+<p>For example, to use the published DeepFocus model weights referenced above, clone the <a class="reference external" href="https://github.com/jamesdolezal/deepfocus">TF2 fork on GitHub</a> and create the custom class as below:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">slideflow.slide.qc</span> <span class="kn">import</span> <span class="n">strided_dl</span>
+<span class="kn">from</span> <span class="nn">deepfocus.keras_model</span> <span class="kn">import</span> <span class="n">load_checkpoint</span><span class="p">,</span> <span class="n">deepfocus_v3</span>
+
+<span class="k">class</span> <span class="nc">DeepFocus</span><span class="p">(</span><span class="n">strided_dl</span><span class="o">.</span><span class="n">StridedDL</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="n">deepfocus_v3</span><span class="p">()</span>
+        <span class="n">checkpoint</span> <span class="o">=</span> <span class="s1">&#39;/path/to/deepfocus/checkpoints/ver5&#39;</span>
+        <span class="n">load_checkpoint</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">checkpoint</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">model</span><span class="o">=</span><span class="n">model</span><span class="p">,</span>
+            <span class="n">pred_idx</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+            <span class="n">tile_px</span><span class="o">=</span><span class="mi">64</span><span class="p">,</span>
+            <span class="n">tile_um</span><span class="o">=</span><span class="s1">&#39;40x&#39;</span>
+        <span class="p">)</span>
+</pre></div>
+</div>
+<p>Then, supply this class to the <code class="docutils literal notranslate"><span class="pre">qc</span></code> argument as above.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">P</span><span class="o">.</span><span class="n">extract_tiles</span><span class="p">(</span><span class="n">qc</span><span class="o">=</span><span class="n">DeepFocus</span><span class="p">())</span>
+</pre></div>
+</div>
+<p>See <a class="reference internal" href="slide_qc.html#qc"><span class="std std-ref">slideflow.slide.qc</span></a> for more information on the API for QC customization.</p>
+</section>
+<section id="grayspace-filtering">
+<h3>Grayspace filtering<a class="headerlink" href="#grayspace-filtering" title="Permalink to this heading">¶</a></h3>
+<p>Grayspace filtering is a <strong>tile-based method</strong> that detects the amount of grayspace in a given image tile and discards the tile if the content exceeds a set threshold. RGB image tiles are converted to the HSV spectrum, and the fraction of pixels with saturation below a certain threshold is calculated. This filtering is performed separately for each tile as it is being extracted. Relevant arguments for grayspace filtering include:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">grayspace_threshold</span></code>: Saturation value, below which a pixel is considered gray. Range 0-1. Defaults to 0.05.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">grayspace_fraction</span></code>: Image tiles with grayspace above this fraction will be discarded. Defaults to 0.6.</p></li>
+</ul>
+<p>Grayspace filtering is enabled by default, and can be disabled by passing <code class="docutils literal notranslate"><span class="pre">grayspace_fraction=1</span></code> to the <code class="docutils literal notranslate"><span class="pre">.extract_tiles()</span></code> functions.</p>
+<p>Grayspace filtering is similar to Otsu’s thresholding, with both operating in the HSV colorspace. Otsu’s thresholding is ~30% faster than grayspace filtering for slides with accessible downsample layers, but if downsample layers are not stored in a given slide or are inaccessible (e.g. <code class="docutils literal notranslate"><span class="pre">enable_downsample=False</span></code>), grayspace filtering may be faster. Grayspace filtering is more reliable than Otsu’s thresholding for slides with abundant pen marks or other artifact, which can present issues for the Otsu’s thresholding algorithm.</p>
+</section>
+<section id="whitepsace-filtering">
+<h3>Whitepsace filtering<a class="headerlink" href="#whitepsace-filtering" title="Permalink to this heading">¶</a></h3>
+<p>Whitespace filtering is performed similarly to grayspace filtering. Whitespace is calculated using overall brightness for each pixel, then counting the fraction of pixels with a brightness above some threshold. As with grayspace filtering, there are two relevant arguments:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">whitespace_threshold</span></code>: Brightness value, above which a pixel is considered white. Range 0-255. Defaults to 230.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">whitespace_fraction</span></code>: Image tiles with whitespace above this fraction will be discarded. Defaults to 1.0 (disabled).</p></li>
+</ul>
+<p>Whitespace filtering is disabled by default.</p>
+</section>
+</section>
+<section id="stain-normalization">
+<h2>Stain normalization<a class="headerlink" href="#stain-normalization" title="Permalink to this heading">¶</a></h2>
+<img alt="_images/wsi_norm_compare.jpg" src="_images/wsi_norm_compare.jpg" />
+<p>Image tiles can undergo digital Hematoxylin and Eosin (H&amp;E) stain normalization either during tile extraction or in real-time during training. Real-time normalization adds CPU overhead during training and inference but offers greater flexibility, allowing you to test different normalization strategies without re-extracting tiles from your entire dataset.</p>
+<p>Available stain normalization algorithms include:</p>
+<ul class="simple">
+<li><p><strong>macenko</strong>: M. Macenko et al., ‘A method for normalizing histology slides for quantitative analysis’, <em>IEEE International Symposium on Biomedical Imaging: From Nano to Macro</em>, 2009, pp. 1107–1110.</p></li>
+<li><p><strong>vahadane</strong>: A. Vahadane et al., ‘Structure-Preserving Color Normalization and Sparse Stain Separation for Histological Images’, <em>IEEE Transactions on Medical Imaging</em>, vol. 35, no. 8, pp. 1962–1971, Aug. 2016.</p></li>
+<li><p><strong>reinhard</strong>: E. Reinhard, M. Adhikhmin, B. Gooch, and P. Shirley, ‘Color transfer between images’, <em>IEEE Computer Graphics and Applications</em>, vol. 21, no. 5, pp. 34–41, Sep. 2001.</p></li>
+<li><p><strong>reinhard_fast</strong>: A modification of the Reinhard algorithm with the brightness standardization step removed for computational efficiency.</p></li>
+<li><p><strong>reinhard_mask</strong>: Modified Reinhard algorithm, with background/whitespace removed during normalization.</p></li>
+<li><p><strong>reinhard_fast_mask</strong>: Modified Reinhard-Fast algorithm, with background/whitespace removed during normalization.</p></li>
+<li><p><strong>augment</strong>: HSV colorspace augmentation.</p></li>
+</ul>
+<section id="during-tile-extraction">
+<h3>During tile extraction<a class="headerlink" href="#during-tile-extraction" title="Permalink to this heading">¶</a></h3>
+<p>Image tiles can be normalized during tile extraction by using the <code class="docutils literal notranslate"><span class="pre">normalizer</span></code> and <code class="docutils literal notranslate"><span class="pre">normalizer_source</span></code> arguments. <code class="docutils literal notranslate"><span class="pre">normalizer</span></code> is the name of the algorithm. The normalizer source - either a path to a reference image, or a <code class="docutils literal notranslate"><span class="pre">str</span></code> indicating one of our presets (e.g. <code class="docutils literal notranslate"><span class="pre">'v1'</span></code> or <code class="docutils literal notranslate"><span class="pre">'v2'</span></code>) - can also be set with <code class="docutils literal notranslate"><span class="pre">normalizer_source</span></code>.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">P</span><span class="o">.</span><span class="n">extract_tiles</span><span class="p">(</span>
+  <span class="n">tile_px</span><span class="o">=</span><span class="mi">299</span><span class="p">,</span>
+  <span class="n">tile_um</span><span class="o">=</span><span class="mi">302</span><span class="p">,</span>
+  <span class="n">normalizer</span><span class="o">=</span><span class="s1">&#39;reinhard&#39;</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="on-the-fly">
+<h3>On-the-fly<a class="headerlink" href="#on-the-fly" title="Permalink to this heading">¶</a></h3>
+<p>The stain normalization implementations in Slideflow are fast and efficient, with separate Tensorflow-native, PyTorch-native, and Numpy/OpenCV implementations. In most instances, we recommend performing stain normalization on-the-fly as a part of image pre-processing, as this provides flexibility for changing normalization strategies without re-extracting all of your image tiles.</p>
+<p>Real-time normalization can be performed by setting the <code class="docutils literal notranslate"><span class="pre">normalizer</span></code> and/or <code class="docutils literal notranslate"><span class="pre">normalizer_source</span></code> hyperparameters.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">slideflow.model</span> <span class="kn">import</span> <span class="n">ModelParams</span>
+<span class="n">hp</span> <span class="o">=</span> <span class="n">ModelParams</span><span class="p">(</span><span class="o">...</span><span class="p">,</span> <span class="n">normalizer</span><span class="o">=</span><span class="s1">&#39;reinhard&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>If a model was trained using a normalizer, the normalizer algorithm and fit information will be stored in the model metadata file, <code class="docutils literal notranslate"><span class="pre">params.json</span></code>, in the saved model folder. Any Slideflow function that uses this model will automatically process images using the same normalization strategy.</p>
+</section>
+<section id="performance">
+<h3>Performance<a class="headerlink" href="#performance" title="Permalink to this heading">¶</a></h3>
+<p>Slideflow has Tensorflow, PyTorch, and Numpy/OpenCV implementations of stain normalization algorithms. Performance benchmarks for these implementations
+are given below:</p>
+<table class="docutils align-default" id="id2">
+<caption><span class="caption-text"><strong>Performance Benchmarks</strong> (256 x 256 images, Slideflow 1.2.3, benchmarked on 3960X and A100 40GB)</span><a class="headerlink" href="#id2" title="Permalink to this table">¶</a></caption>
+<thead>
+<tr class="row-odd"><th class="head"></th>
+<th class="head"><p>Tensorflow backend</p></th>
+<th class="head"><p>PyTorch backend</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>macenko</p></td>
+<td><p>1,295 img/s (<strong>native</strong>)</p></td>
+<td><p>1,265 img/s (<strong>native</strong>)</p></td>
+</tr>
+<tr class="row-odd"><td><p>reinhard</p></td>
+<td><p>1,536 img/s (<strong>native</strong>)</p></td>
+<td><p>2,246 img/s (<strong>native</strong>)</p></td>
+</tr>
+<tr class="row-even"><td><p>reinhard_fast</p></td>
+<td><p>8,599 img/s (<strong>native</strong>)</p></td>
+<td><p>2,832 img/s (<strong>native</strong>)</p></td>
+</tr>
+<tr class="row-odd"><td><p>reinhard_mask</p></td>
+<td><p>1,537 img/s (<strong>native</strong>)</p></td>
+<td><p>2,246 img/s</p></td>
+</tr>
+<tr class="row-even"><td><p>reinhard_fast_mask</p></td>
+<td><p>7,885 img/s (<strong>native</strong>)</p></td>
+<td><p>2,719 img/s</p></td>
+</tr>
+<tr class="row-odd"><td><p>vahadane_spams</p></td>
+<td><p>0.7 img/s</p></td>
+<td><p>2.2 img/s</p></td>
+</tr>
+<tr class="row-even"><td><p>vahadane_sklearn</p></td>
+<td><p>0.9 img/s</p></td>
+<td><p>1.0 img/s</p></td>
+</tr>
+</tbody>
+</table>
+<p>The normalizer interfaces can also be access directly through <a class="reference internal" href="norm.html#slideflow.norm.StainNormalizer" title="slideflow.norm.StainNormalizer"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.norm.StainNormalizer</span></code></a>. See <a class="reference internal" href="norm.html#module-slideflow.norm" title="slideflow.norm"><code class="xref py py-mod docutils literal notranslate"><span class="pre">slideflow.norm</span></code></a> for examples and more information.</p>
+</section>
+</section>
+<section id="performance-optimization">
+<h2>Performance optimization<a class="headerlink" href="#performance-optimization" title="Permalink to this heading">¶</a></h2>
+<p>As tile extraction is heavily reliant on random access reading, significant performance gains can be experienced by either 1) moving all slides to an SSD, or 2) utilizing an SSD or ramdisk buffer (to which slides will be copied prior to extraction). The use of a ramdisk buffer can improve tile extraction speed by 10-fold or greater! To maximize performance, pass the buffer path to the argument <code class="docutils literal notranslate"><span class="pre">buffer</span></code>.</p>
+</section>
+<section id="extraction-reports">
+<h2>Extraction reports<a class="headerlink" href="#extraction-reports" title="Permalink to this heading">¶</a></h2>
+<p>Once tiles have been extracted, a PDF report will be generated with a summary and sample of tiles extracted from their corresponding slides. An example of such a report is given below. Reviewing this report may enable you to identify data corruption, artifacts with stain normalization, or suboptimal background filtering. The report is saved in the TFRecords directory.</p>
+<img alt="_images/example_report_small.jpg" src="_images/example_report_small.jpg" />
+<p>In addition to viewing reports after tile extraction, you may generate new reports on existing tfrecords with <a class="reference internal" href="dataset.html#slideflow.Dataset.tfrecord_report" title="slideflow.Dataset.tfrecord_report"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.Dataset.tfrecord_report()</span></code></a>, by calling this function on a given dataset. For example:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">dataset</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">dataset</span><span class="p">(</span><span class="n">tile_px</span><span class="o">=</span><span class="mi">299</span><span class="p">,</span> <span class="n">tile_um</span><span class="o">=</span><span class="mi">302</span><span class="p">)</span>
+<span class="n">dataset</span><span class="o">.</span><span class="n">tfrecord_report</span><span class="p">(</span><span class="s2">&quot;/path/to/dest&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>You can also generate reports for slides that have not yet been extracted by passing <code class="docutils literal notranslate"><span class="pre">dry_run=True</span></code> to <a class="reference internal" href="dataset.html#slideflow.Dataset.extract_tiles" title="slideflow.Dataset.extract_tiles"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Dataset.extract_tiles()</span></code></a>.</p>
+</section>
+</section>
+
+
+             </article>
+             
+            </div>
+            <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="cellseg.html" class="btn btn-neutral float-right" title="Cell Segmentation" accesskey="n" rel="next">Next <img src="_static/images/chevron-right-orange.svg" class="next-page"></a>
+      
+      
+        <a href="datasets_and_val.html" class="btn btn-neutral" title="Datasets" accesskey="p" rel="prev"><img src="_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
+      
+    </div>
+  
+
+  
+
+    <hr>
+
+  
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2022, James M Dolezal.
+
+    </p>
+  </div>
+    
+      <div>
+        Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+      </div>
+     
+
+</footer>
+
+          </div>
+        </div>
+
+        <div class="pytorch-content-right" id="pytorch-content-right">
+          <div class="pytorch-right-menu" id="pytorch-right-menu">
+            <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
+              <ul>
+<li><a class="reference internal" href="#">Slide Processing</a><ul>
+<li><a class="reference internal" href="#tile-extraction">Tile extraction</a></li>
+<li><a class="reference internal" href="#cell-segmentation">Cell segmentation</a></li>
+<li><a class="reference internal" href="#regions-of-interest">Regions of Interest</a></li>
+<li><a class="reference internal" href="#masking-filtering">Masking &amp; Filtering</a><ul>
+<li><a class="reference internal" href="#otsu-s-thresholding">Otsu’s thresholding</a></li>
+<li><a class="reference internal" href="#gaussian-blur-filtering">Gaussian blur filtering</a></li>
+<li><a class="reference internal" href="#deepfocus">DeepFocus</a></li>
+<li><a class="reference internal" href="#grayspace-filtering">Grayspace filtering</a></li>
+<li><a class="reference internal" href="#whitepsace-filtering">Whitepsace filtering</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#stain-normalization">Stain normalization</a><ul>
+<li><a class="reference internal" href="#during-tile-extraction">During tile extraction</a></li>
+<li><a class="reference internal" href="#on-the-fly">On-the-fly</a></li>
+<li><a class="reference internal" href="#performance">Performance</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#performance-optimization">Performance optimization</a></li>
+<li><a class="reference internal" href="#extraction-reports">Extraction reports</a></li>
+</ul>
+</li>
+</ul>
+
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+  
+
+
+  
+
+     
+       <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+         <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+         <script src="_static/doctools.js"></script>
+         <script src="_static/sphinx_highlight.js"></script>
+     
+
+  
+  <script type="text/javascript" src="_static/js/vendor/jquery-3.6.3.min.js"></script>
+  <script type="text/javascript" src="_static/js/vendor/popper.min.js"></script>
+  <script type="text/javascript" src="_static/js/vendor/bootstrap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/list.js/1.5.0/list.min.js"></script>
+  <script type="text/javascript" src="_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+  <!-- Begin Footer -->
+
+  <!-- End Footer -->
+
+  <!-- Begin Mobile Menu -->
+
+  <div class="mobile-main-menu">
+    <div class="container-fluid">
+      <div class="container">
+        <div class="mobile-main-menu-header-container">
+          <a class="header-logo" href="https://pytorch.org/" aria-label="PyTorch"></a>
+          <a class="main-menu-close-button" href="#" data-behavior="close-mobile-menu"></a>
+        </div>
+      </div>
+    </div>
+
+    <div class="mobile-main-menu-links-container">
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="https://slideflow.dev">Docs</a>
+          </li>
+
+          <li>
+            <a href="https://slideflow.dev/tutorial1.html">Tutorials</a>
+          </li>
+
+          <li>
+            <a href="https://github.com/jamesdolezal/slideflow">Github</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- End Mobile Menu -->
+
+  <script script type="text/javascript">
+    var collapsedSections = [];
+  </script>
+
+  <script type="text/javascript" src="_static/js/vendor/anchor.min.js"></script>
+
+  <script type="text/javascript">
+    $(document).ready(function() {
+      mobileMenu.bind();
+      mobileTOC.bind();
+      pytorchAnchors.bind();
+      sideMenus.bind();
+      scrollToAnchor.bind();
+      highlightNavigation.bind();
+      mainMenuDropdown.bind();
+      filterTags.bind();
+
+      // Add class to links that have code blocks, since we cannot create links in code blocks
+      $("article.pytorch-article a span.pre").each(function(e) {
+        $(this).closest("a").addClass("has-code");
+      });
+    })
+  </script>
+</body>
+</html>

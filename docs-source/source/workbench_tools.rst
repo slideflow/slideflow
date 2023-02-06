@@ -107,6 +107,11 @@ The heatmap widget also shows a histogram of tile-level predictions (after filte
 
 By default, heatmaps are calculated with multiprocessing pools. This may come at the cost of heavy memory utilization. To decrease memory utilization at the cost of slower heatmap calculation, switch to low memory mode using the performance widget (described below), or by using the launch flag ``--low_memory``.
 
+Cell segmentation
+*****************
+
+Workbench also supports interactive cell segmentation with Cellpose, which is enabled using the ``--cellpose`` flag. Please see :ref:`cellseg` for more information.
+
 StyleGAN
 ********
 
