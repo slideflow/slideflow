@@ -97,48 +97,37 @@ export SF_SLIDE_BACKEND=libvips
 
 
 ## Getting started
-Slideflow experiments are organized into [Projects](https://slideflow.dev/project_setup.html), which supervise storage of whole-slide images, extracted tiles, and patient-level annotations. The fastest way to get started is to use one of our preconfigured projects, which will automatically download slides from the Genomic Data Commons. Download one of our [dataset folders](https://github.com/jamesdolezal/slideflow/tree/dev/datasets), and supply the `*.json` file to the project creation function:
+Slideflow experiments are organized into [Projects](https://slideflow.dev/project_setup), which supervise storage of whole-slide images, extracted tiles, and patient-level annotations. The fastest way to get started is to use one of our preconfigured projects, which will automatically download slides from the Genomic Data Commons:
 
 ```python
 import slideflow as sf
 
-P = sf.project.create(
-  '/project/destination',
-  cfg='datasets/thyroid_brs/thyroid_brs.json',
-  download=True,
-  md5=True
+P = sf.create_project(
+    root='/project/destination',
+    cfg=sf.project.LungAdenoSquam,
+    download=True
 )
 ```
 
 After the slides have been downloaded and verified, you can skip to [Extract tiles from slides](#extract-tiles-from-slides).
 
-Alternatively, to create a new custom project, create an instance of the `slideflow.Project` class and supply patient-level annotations in CSV format:
+Alternatively, to create a new custom project, create an instance of the `slideflow.Project` class, supplying the location of patient-level annotations (CSV), slides, and a destination for TFRecords to be saved:
 
 ```python
 import slideflow as sf
 P = sf.Project(
   '/project/path',
-  annotations="/patient/annotations.csv"
-)
-```
-
-Once the project is created, add a new dataset source with paths to whole-slide images, tumor Region of Interest (ROI) files [if applicable], and paths to where extracted tiles/tfrecords should be stored. This will only need to be done once.
-
-```python
-P.add_source(
-  name="TCGA",
+  annotations="/patient/annotations.csv",
   slides="/slides/directory",
-  roi="/roi/directory",
-  tiles="/tiles/directory",
   tfrecords="/tfrecords/directory"
 )
 ```
 
-This step should attempt to automatically associate slide names with the patient identifiers in your annotations file. After this step has completed, double check that the annotations file has a `slide` column for each annotation entry with the filename (without extension) of the corresponding slide.
+Ensure that the annotations file has a `slide` column for each annotation entry with the filename (without extension) of the corresponding slide.
 
 ## Extract tiles from slides
 
-Next, whole-slide images are segmented into smaller image tiles and saved in `*.tfrecords` format. [Extract tiles](https://slideflow.dev/extract_tiles.html) from slides at a given magnification (width in microns size) and resolution (width in pixels) using `sf.Project.extract_tiles()`:
+Next, whole-slide images are segmented into smaller image tiles and saved in `*.tfrecords` format. [Extract tiles](https://slideflow.dev/slide_processing) from slides at a given magnification (width in microns size) and resolution (width in pixels) using `sf.Project.extract_tiles()`:
 
 ```python
 P.extract_tiles(
@@ -158,7 +147,7 @@ P.extract_tiles(
 
 ## Training models
 
-Once tiles are extracted, models can be [trained](https://slideflow.dev/training.html). Start by configuring a set of [hyperparameters](https://slideflow.dev/model.html#modelparams):
+Once tiles are extracted, models can be [trained](https://slideflow.dev/training). Start by configuring a set of [hyperparameters](https://slideflow.dev/model#modelparams):
 
 ```python
 params = sf.ModelParams(
@@ -171,7 +160,7 @@ params = sf.ModelParams(
 )
 ```
 
-Models can then be trained using these parameters. Models can be trained to categorical, multi-categorical, continuous, or time-series outcomes, and the training process is [highly configurable](https://slideflow.dev/training.html). For example, to train models in cross-validation to predict the outcome `'category1'` as stored in the project annotations file:
+Models can then be trained using these parameters. Models can be trained to categorical, multi-categorical, continuous, or time-series outcomes, and the training process is [highly configurable](https://slideflow.dev/training). For example, to train models in cross-validation to predict the outcome `'category1'` as stored in the project annotations file:
 
 ```python
 P.train(
@@ -184,7 +173,7 @@ P.train(
 
 ## Evaluation, heatmaps, mosaic maps, and more
 
-Slideflow includes a host of additional tools, including model [evaluation](https://slideflow.dev/evaluation.html) and [prediction](https://slideflow.dev/project.html#slideflow.Project.predict), [heatmaps](https://slideflow.dev/project.html#slideflow.Project.generate_heatmaps), [mosaic maps](https://slideflow.dev/project.html#slideflow.Project.generate_mosaic), analysis of [layer activations](https://slideflow.dev/layer_activations.html), and more. See our [full documentation](https://slideflow.dev) for more details and tutorials.
+Slideflow includes a host of additional tools, including model [evaluation and prediction](https://slideflow.dev/evaluation), [heatmaps](https://slideflow.dev/evaluation#heatmaps), analysis of [layer activations](https://slideflow.dev/posthoc), [mosaic maps](https://slideflow.dev/posthoc#mosaic-maps), and more. See our [full documentation](https://slideflow.dev) for more details and tutorials.
 
 ## License
 This code is made available under the GPLv3 License and is available for non-commercial academic purposes.
