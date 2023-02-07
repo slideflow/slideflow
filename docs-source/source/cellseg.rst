@@ -5,7 +5,11 @@
 Cell Segmentation
 =================
 
-Many tasks in digital pathology rely on analysis of cellular features, as opposed to higher-level architectural features. Slideflow supports whole-slide analysis of cellular features with a cell detection and segmentation pipeline based on `Cellpose <https://www.nature.com/articles/s41592-020-01018-x>`_.
+Many tasks in digital pathology rely on analysis of cellular features, as opposed to higher-level architectural features. Slideflow supports whole-slide analysis of cellular features with a cell detection and segmentation pipeline based on `Cellpose <https://www.nature.com/articles/s41592-020-01018-x>`_. To start, ensure ``cellpose`` has been installed via pip:
+
+.. code-block:: bash
+
+    pip install cellpose
 
 Approach
 ********

@@ -5,10 +5,14 @@
 
 Slideflow is a deep learning library for digital pathology that provides a unified API for building, training, and testing models using Tensorflow or PyTorch.
 
-Slideflow includes tools for **whole-slide image processing** and tile extraction, **customizable deep learning model training** with dozens of supported architectures, **explainability tools** including heatmaps, mosaic maps, GANs, and saliency maps, **analysis of activations** from model layers, **uncertainty quantification**, and more. A variety of fast, optimized whole-slide image processing tools are included, including background filtering, blur/artifact detection, [stain normalization](https://slideflow.dev/norm.html), and efficient storage in `*.tfrecords` format. Model training is easy and highly configurable, with an easy drop-in API for training custom architectures. For external training loops, Slideflow can be used as an image processing backend, serving an optimized `tf.data.Dataset` or `torch.utils.data.DataLoader` to read and process slide images and perform real-time stain normalization.
+Slideflow includes tools for **whole-slide image processing**, **customizable deep learning model training** with dozens of supported architectures, **multi-instance learning**, **self-supervised learning**, **explainability tools** (including heatmaps, mosaic maps, GANs, and saliency maps), **analysis of layer activations**, **uncertainty quantification**, and more.
+
+A variety of fast, optimized whole-slide image processing tools are included, including background filtering, blur/artifact detection, [stain normalization](https://slideflow.dev/norm.html), and efficient storage in `*.tfrecords` format. Model training is easy and highly configurable, with an straightforward API for training custom architectures. Slideflow can be used as an image processing backend for external training loops, serving an optimized `tf.data.Dataset` or `torch.utils.data.DataLoader` to read and process slide images and perform real-time stain normalization.
+
+Full documentation with example tutorials can be found at [slideflow.dev](https://www.slideflow.dev/).
 
 ![workbench preview](https://github.com/jamesdolezal/slideflow/raw/master/docs-source/source/workbench_preview.png)
-*Slideflow Workbench: a visualization tool for interacting with models and whole-slide images, new in version 1.3.*
+*Slideflow Workbench: a visualization tool for interacting with models and whole-slide images.*
 
 Slideflow has been used by:
 
@@ -21,8 +25,6 @@ Slideflow has been used by:
 - [Dolezal et al](https://ascopubs.org/doi/abs/10.1200/JCO.2022.40.16_suppl.8549) [abstract], 2022
 - [Howard et al](https://www.biorxiv.org/content/10.1101/2022.07.07.499039v1) [bioRxiv], 2022
 - [Dolezal et al](https://arxiv.org/abs/2211.06522) [arXiv], 2022
-
-Full documentation with example tutorials can be found at [slideflow.dev](https://www.slideflow.dev/).
 
 ## Requirements
 - Python >= 3.7 (<3.10 if using [cuCIM](https://docs.rapids.ai/api/cucim/stable/))
@@ -181,10 +183,10 @@ This code is made available under the GPLv3 License and is available for non-com
 ## Reference
 If you find our work useful for your research, or if you use parts of this code, please consider citing as follows:
 
-James Dolezal, Sara Kochanny, & Frederick Howard. (2022). Slideflow: A Unified Deep Learning Pipeline for Digital Histology (1.3.0). Zenodo. https://doi.org/10.5281/zenodo.7183188
+James Dolezal, Sara Kochanny, & Frederick Howard. (2022). Slideflow: A Unified Deep Learning Pipeline for Digital Histology (1.5.0). Zenodo. https://doi.org/10.5281/zenodo.5703792
 
 ```
-@software{james_dolezal_2022_7183188,
+@software{james_dolezal_2022_5703792,
   author       = {James Dolezal and
                   Sara Kochanny and
                   Frederick Howard},
@@ -193,8 +195,8 @@ James Dolezal, Sara Kochanny, & Frederick Howard. (2022). Slideflow: A Unified D
   month        = oct,
   year         = 2022,
   publisher    = {Zenodo},
-  version      = {1.3.0},
-  doi          = {10.5281/zenodo.7183188},
-  url          = {https://doi.org/10.5281/zenodo.7183188}
+  version      = {1.5.0},
+  doi          = {10.5281/zenodo.5703792},
+  url          = {https://doi.org/10.5281/zenodo.5703792}
 }
 ```

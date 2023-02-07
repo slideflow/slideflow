@@ -188,7 +188,7 @@ def about(console=None) -> None:
         >>> sf.about()
         ╭=======================╮
         │       Slideflow       │
-        │    Version: 1.4.4     │
+        │    Version: 1.5.0     │
         │  Backend: tensorflow  │
         │ Slide Backend: cucim  │
         │ https://slideflow.dev │
@@ -209,7 +209,7 @@ def about(console=None) -> None:
               f"\nSlide Backend: [{col2}]{sf.slide_backend()}[/]"
               "\n[blue]https://slideflow.dev[/]",
               border_style='purple'),
-        justify='center')
+        justify='left')
 
 
 # --- Data download functions -------------------------------------------------

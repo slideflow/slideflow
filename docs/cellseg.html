@@ -277,7 +277,10 @@
 
   <section id="cell-segmentation">
 <span id="cellseg"></span><h1>Cell Segmentation<a class="headerlink" href="#cell-segmentation" title="Permalink to this heading">¶</a></h1>
-<p>Many tasks in digital pathology rely on analysis of cellular features, as opposed to higher-level architectural features. Slideflow supports whole-slide analysis of cellular features with a cell detection and segmentation pipeline based on <a class="reference external" href="https://www.nature.com/articles/s41592-020-01018-x">Cellpose</a>.</p>
+<p>Many tasks in digital pathology rely on analysis of cellular features, as opposed to higher-level architectural features. Slideflow supports whole-slide analysis of cellular features with a cell detection and segmentation pipeline based on <a class="reference external" href="https://www.nature.com/articles/s41592-020-01018-x">Cellpose</a>. To start, ensure <code class="docutils literal notranslate"><span class="pre">cellpose</span></code> has been installed via pip:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>cellpose
+</pre></div>
+</div>
 <section id="approach">
 <h2>Approach<a class="headerlink" href="#approach" title="Permalink to this heading">¶</a></h2>
 <figure class="align-default">

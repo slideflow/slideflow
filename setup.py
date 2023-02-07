@@ -89,17 +89,19 @@ setuptools.setup(
         'pyperclip',
         'requests',
         'parameterized',
-        'cellpose'
+        'zarr'
     ],
     extras_require={
         'tf': [
             'tensorflow>=2.7,<2.10',
-            'tensorflow_probability<0.18'
+            'tensorflow_probability<0.18',
+            'tensorflow_datasets'
         ],
         'torch': [
             'torch',
             'torchvision',
-            'pretrainedmodels'
+            'pretrainedmodels',
+            'cellpose'
         ],
         'dev': [
             'sphinx',
@@ -108,6 +110,22 @@ setuptools.setup(
         ],
         'cucim': [
             'cucim'
+        ],
+        'cellpose': [
+            'cellpose',
+        ],
+        'all': [
+            'cellpose',
+            'cucim',
+            'sphinx',
+            'sphinx-markdown-tables',
+            'sphinxcontrib-video',
+            'torch',
+            'torchvision',
+            'pretrainedmodels',
+            'tensorflow>=2.7,<2.10',
+            'tensorflow_probability<0.18',
+            'tensorflow_datasets'
         ]
     },
 )
