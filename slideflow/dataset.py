@@ -118,8 +118,8 @@ from slideflow.util import (log, Labels, _shortname, path_to_name,
 
 if TYPE_CHECKING:
     import tensorflow as tf
+    import cellpose
     from torch.utils.data import DataLoader
-
     from slideflow.norm import StainNormalizer
 
 

@@ -15,7 +15,7 @@ def convert_dataset(
 
     return dataset.map(convert_to_dictionaries)
 
-def make_adversarial_model(model, loss):
+def make_adversarial_model(model, loss, train_data):
     """Convert a model into a model with adversarial regularization.
 
     This step replaces model.compile().
@@ -54,4 +54,4 @@ def make_adversarial_model(model, loss):
     # by the adversarial wrapper
     train_data = convert_dataset(train_data)
     log.debug("Adversarial wrapping complete.")
-    return adv_model
+    return adv_model, train_data
