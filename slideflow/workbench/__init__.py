@@ -9,7 +9,7 @@ import glfw
 import OpenGL.GL as gl
 
 from typing import List, Any, Optional, Dict, Tuple
-from os.path import join, exists
+from os.path import join
 from PIL import Image
 from tkinter import Tk
 from tkinter.filedialog import askopenfilename, askdirectory
@@ -30,6 +30,10 @@ import slideflow as sf
 import slideflow.grad
 from slideflow.workbench.utils import EasyDict, _load_model_and_saliency
 from slideflow import log
+
+OVERLAY_GRID    = 0
+OVERLAY_WSI     = 1
+OVERLAY_VIEW    = 2
 
 #----------------------------------------------------------------------------
 
@@ -60,6 +64,12 @@ class Workbench(imgui_window.ImguiWindow):
     ) -> None:
         """Create the main Workbench window.
 
+        Workbench is started by running the workbench module.
+
+        .. code-block:: bash
+
+            python -m slideflow.workbench
+
         Args:
             low_memory (bool): Enable low memory mode, which uses thread pools
                 instead of multiprocessing pools when applicable to reduce
@@ -87,8 +97,6 @@ class Workbench(imgui_window.ImguiWindow):
         self._heatmap_tex_obj   = None
         self._wsi_tex_obj       = None
         self._wsi_tex_img       = None
-        self._overlay_tex_img   = None
-        self._overlay_tex_obj   = None
         self._about_tex_obj     = None
         self._predictions       = None
         self._model_path        = None
@@ -123,6 +131,7 @@ class Workbench(imgui_window.ImguiWindow):
         self._show_tile_preview = False
         self._tile_preview_is_new = True
         self._tile_preview_image_is_new = True
+        self._show_overlays     = True
 
         # Widget interface.
         self.wsi                = None
@@ -147,6 +156,8 @@ class Workbench(imgui_window.ImguiWindow):
         self.button_w           = 0
         self.x                  = None
         self.y                  = None
+        self.mouse_x            = None
+        self.mouse_y            = None
         self.menu_bar_height    = self.font_size + self.spacing
 
         # Core widgets.
@@ -175,7 +186,8 @@ class Workbench(imgui_window.ImguiWindow):
         """An overlay (e.g. tile filter or heatmap) is currently being shown
         over the main view.
         """
-        return self.slide_widget.show_overlay or self.heatmap_widget.show
+        return ((self.slide_widget.show_overlay or self.heatmap_widget.show)
+                and self._show_overlays)
 
     @property
     def model(self):
@@ -255,6 +267,8 @@ class Workbench(imgui_window.ImguiWindow):
         self.wsi_thumb = None
         self.x = None
         self.y = None
+        self.mouse_x = None
+        self.mouse_y = None
         self.clear_result()
         self._async_renderer._live_updates = False
 
@@ -433,25 +447,17 @@ class Workbench(imgui_window.ImguiWindow):
                 if self._refresh_view and inp.dx is None and not inp.wheel:
                     self.viewer.refresh_view()
                     self._refresh_view = False
+            self.mouse_x, self.mouse_y = self.viewer.display_coords_to_wsi_coords(inp.cx, inp.cy, offset=False)
 
         # Render slide view.
         self.viewer.render(max_w, max_h)
 
         # Render overlay heatmap.
         if self.overlay is not None and self.show_overlay:
-            if self._overlay_tex_img is not self.overlay:
-                self._overlay_tex_img = self.overlay
-                if self._overlay_tex_obj is None or not self._overlay_tex_obj.is_compatible(image=self._overlay_tex_img):
-                    if self._overlay_tex_obj is not None:
-                        self._tex_to_delete += [self._overlay_tex_obj]
-                    self._overlay_tex_obj = gl_utils.Texture(image=self._overlay_tex_img, bilinear=False, mipmap=False)
-                else:
-                    self._overlay_tex_obj.update(self._overlay_tex_img)
-            if self._overlay_wsi_dim is None:
-                self._overlay_wsi_dim = self.viewer.dimensions
-            h_zoom = (self._overlay_wsi_dim[0] / self.overlay.shape[1]) / self.viewer.view_zoom
-            h_pos = self.viewer.wsi_coords_to_display_coords(*self._overlay_offset_wsi_dim)
-            self._overlay_tex_obj.draw(pos=h_pos, zoom=h_zoom, align=0.5, rint=True, anchor='topleft')
+            self.viewer.render_overlay(
+                self.overlay,
+                dim=self._overlay_wsi_dim,
+                offset=self._overlay_offset_wsi_dim)
 
         # Calculate location for model display.
         if (self._model_path
@@ -704,6 +710,11 @@ class Workbench(imgui_window.ImguiWindow):
         if self._control_down and action == glfw.PRESS and key == glfw.KEY_BACKSLASH:
             self.reset_tile_zoom()
 
+        for widget in self.widgets:
+            if hasattr(widget, 'keyboard_callback'):
+                widget.keyboard_callback(key, action)
+
+
     def _handle_user_input(self):
         """Handle user input to support clicking/dragging the main viewer."""
 
@@ -827,7 +838,8 @@ class Workbench(imgui_window.ImguiWindow):
             height=self.content_frame_height - self.offset_y_pixels,
             x_offset=self.offset_x_pixels,
             y_offset=self.offset_y_pixels,
-            normalizer=(self._normalizer if self._normalize_wsi else None)
+            normalizer=(self._normalizer if self._normalize_wsi else None),
+            viz=self
         )
 
     def _widgets_by_header(self) -> List[Tuple[str, List[Any]]]:
@@ -916,8 +928,9 @@ class Workbench(imgui_window.ImguiWindow):
 
     def clear_overlay(self) -> None:
         """Remove the currently overlay image."""
-        self._overlay_tex_img = None
         self.overlay = None
+        if self.viewer is not None:
+            self.viewer.clear_overlay()
 
     def clear_result(self) -> None:
         """Clear all shown results and images."""
@@ -952,8 +965,8 @@ class Workbench(imgui_window.ImguiWindow):
         self._norm_tex_obj      = None
         self._heatmap_tex_img   = None
         self._heatmap_tex_obj   = None
-        self._overlay_tex_img   = None
-        self._overlay_tex_obj   = None
+        if self.viewer is not None:
+            self.viewer.clear_overlay()
 
     def close(self) -> None:
         """Close the application and renderer."""
@@ -1024,8 +1037,6 @@ class Workbench(imgui_window.ImguiWindow):
         # Re-generate WSI view if the window size changed, or if we don't
         # yet have a SlideViewer initialized.
         if window_changed:
-            if self.viewer:
-                self.reload_viewer()
             self._content_width  = self.content_width
             self._content_height = self.content_height
             self._pane_w = self.pane_w
@@ -1036,6 +1047,7 @@ class Workbench(imgui_window.ImguiWindow):
 
         # Main display.
         if self.viewer:
+            self.viewer.update(**self._viewer_kwargs())
             self._draw_main_view(user_input, window_changed)
 
         # --- Render arguments ------------------------------------------------
@@ -1319,6 +1331,33 @@ class Workbench(imgui_window.ImguiWindow):
         """Set a message for display."""
         self._message = msg
 
+    def set_overlay(self, overlay: np.ndarray, method: int) -> None:
+        """Configure the overlay to be applied to the current view screen."""
+        if self.viewer is None:
+            raise ValueError("Unable to set overlay; viewer not loaded.")
+        self.overlay = overlay
+        if method == OVERLAY_WSI:
+            # Overlay maps to the entire whole-slide image,
+            # with no offset needed.
+            self._overlay_wsi_dim = self.wsi.dimensions
+            self._overlay_offset_wsi_dim = (0, 0)
+        elif method == OVERLAY_GRID:
+            # Overlay was generated from the slide's grid, meaning
+            # that we need to apply an offset to ensure the overlay
+            # lines up apppropriately.
+            full_extract = int(self.wsi.tile_um / self.wsi.mpp)
+            wsi_stride = int(full_extract / self.wsi.stride_div)
+            self._overlay_wsi_dim = (wsi_stride * (self.overlay.shape[1]),
+                                     wsi_stride * (self.overlay.shape[0]))
+            self._overlay_offset_wsi_dim = (full_extract/2 - wsi_stride/2, full_extract/2 - wsi_stride/2)
+        elif method == OVERLAY_VIEW:
+            # Overlay should only apply to the area of the WSI
+            # currently in view.
+            self._overlay_wsi_dim = self.viewer.wsi_window_size
+            self._overlay_offset_wsi_dim = self.viewer.origin
+        else:
+            raise ValueError(f"Unrecognized method {method}")
+
     def set_viewer(self, viewer: Any) -> None:
         """Set the main viewer."""
         log.debug("Setting viewer to {}".format(viewer))
@@ -1433,9 +1472,11 @@ class AsyncRenderer:
                 self._renderer_obj = renderer.Renderer(device=self.device)
                 for _renderer in self._addl_render:
                     self._renderer_obj.add_renderer(_renderer)
-            self._model, self._saliency, self._umap_encoders = _load_model_and_saliency(self._model_path, device=self.device)
+            self._model, self._saliency, _umap_encoders = _load_model_and_saliency(self._model_path, device=self.device)
             self._renderer_obj._model = self._model
             self._renderer_obj._saliency = self._saliency
+            if _umap_encoders is not None:
+                self._umap_encoders = _umap_encoders
             self._renderer_obj._umap_encoders = self._umap_encoders
 
     def clear_model(self):

@@ -11,3 +11,6 @@ interleaving is supervised by :func:`slideflow.io.torch.interleave`, while the
 
 .. automodule:: slideflow.io.torch
     :members:
+    :exclude-members: StyleGAN2Interleaver, LocLabelInterleaver, InterleaveIterator
+
+.. autoclass:: slideflow.io.torch.InterleaveIterator

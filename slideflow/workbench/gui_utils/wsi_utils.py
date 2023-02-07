@@ -1,5 +1,6 @@
 """Utility for an efficient, tiled Whole-slide image viewer."""
 
+import imgui
 import numpy as np
 from typing import Tuple, Optional, TYPE_CHECKING
 from . import gl_utils, text_utils
@@ -27,7 +28,9 @@ class SlideViewer(Viewer):
         self.wsi            = wsi
         self._tile_px       = wsi.tile_px
         self._tile_um       = wsi.tile_um
-        self.show_scale = True
+        self._max_w         = None  # Used for late rendering
+        self._max_h         = None  # Used for late rendering
+        self.show_scale     = True
 
         # Create initial display
         wsi_ratio = self.dimensions[0] / self.dimensions[1]
@@ -134,7 +137,7 @@ class SlideViewer(Viewer):
     def _draw_scale(self, max_w: int, max_h: int):
 
         origin_x = self.x_offset + 30
-        origin_y = self.y_offset + max_h - 50
+        origin_y = self.y_offset + max_h - 50 - (self.viz.font_size + self.viz.spacing)
         scale_w = self.scale_um / self.mpp
 
         main_pos = np.array([origin_x, origin_y])
@@ -374,6 +377,21 @@ class SlideViewer(Viewer):
             gl_utils.draw_roi(roi, color=1, alpha=0.7, linewidth=5)
             gl_utils.draw_roi(roi, color=0, alpha=1, linewidth=3)
 
+    def grid_in_view(self, wsi=None):
+        """Returns coordinates of WSI grid currently in view."""
+        if wsi is None:
+            wsi = self.wsi
+        wsi_stride = int(wsi.full_extract_px / wsi.stride_div)
+        xi_start = int(self.origin[0] / wsi_stride)
+        yi_start = int(self.origin[1] / wsi_stride)
+        xi_end = int((self.origin[0] + self.view_params.window_size[0]) / wsi_stride)
+        yi_end = int((self.origin[1] + self.view_params.window_size[1]) / wsi_stride)
+        xi_start = max(xi_start-1, 0)
+        yi_start = max(yi_start-1, 0)
+        xi_end = min(xi_end+1, wsi.shape[0]-1)
+        yi_end = min(yi_end+1, wsi.shape[1]-1)
+        return (xi_start, xi_end), (yi_start, yi_end)
+
     def read_tile(
         self,
         x: int,
@@ -415,6 +433,8 @@ class SlideViewer(Viewer):
 
     def late_render(self):
         self._render_rois()
+        if self.show_scale:
+            self._draw_scale(self._max_w, self._max_h)
 
     def move(self, dx: float, dy: float) -> None:
         """Move the view in the given directions.
@@ -443,9 +463,13 @@ class SlideViewer(Viewer):
             zoom = min(max_w / self._tex_obj.width, max_h / self._tex_obj.height)
             zoom = np.floor(zoom) if zoom >= 1 else zoom
             self._tex_obj.draw(pos=pos, zoom=zoom, align=0.5, rint=True)
-        if self.show_scale:
-            self._draw_scale(max_w, max_h)
-
+        self._max_w, self._max_h = max_w, max_h
+        h = self.viz.font_size + self.viz.spacing
+        imgui.set_next_window_position(self.x_offset, self.height + self.y_offset - h)
+        imgui.set_next_window_size(self.width, h)
+        imgui.begin('Status bar', closable=True, flags=(imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_COLLAPSE | imgui.WINDOW_NO_TITLE_BAR | imgui.WINDOW_NO_MOVE | imgui.WINDOW_NO_SCROLLBAR))
+        imgui.text('x={:<8} y={:<8} mpp={:.3f}'.format(int(self.viz.mouse_x), int(self.viz.mouse_y), self.mpp))
+        imgui.end()
 
     def set_tile_px(self, tile_px: int):
         if tile_px != self.tile_px:
@@ -456,6 +480,22 @@ class SlideViewer(Viewer):
         if tile_um != self.tile_um:
             sf.log.error("Attempted to set tile_um={}, existing={}".format(tile_um, self.tile_um))
             raise NotImplementedError
+
+    def update(self, width: int, height: int, x_offset: int, y_offset: int, **kwargs) -> None:
+        """Update the viewer with a new width, height, and offset."""
+        should_refresh = ((width, height, x_offset, y_offset)
+                          != (self.width, self.height, self.x_offset, self.y_offset))
+        if should_refresh:
+            new_origin = self.display_coords_to_wsi_coords(x_offset, y_offset)
+        self.width = width
+        self.height = height
+        self.x_offset = x_offset
+        self.y_offset = y_offset
+        if should_refresh:
+            # Keep the current WSI view stable if the offset changes
+            # (e.g. showing/hiding the control pane)
+            view_params = self._calculate_view_params(new_origin)
+            self.refresh_view(view_params)
 
     def zoom(self, cx: int, cy: int, dz: float) -> None:
         """Zoom the slide display.

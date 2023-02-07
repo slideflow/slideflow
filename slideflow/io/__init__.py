@@ -139,7 +139,7 @@ def get_tfrecord_by_index(
             continue
     log.error(
         f"Unable to find record: index {index} in {sf.util.green(tfrecord)}"
-        " ({total} total records)"
+        f" ({total} total records)"
     )
     return False, False
 
@@ -301,14 +301,12 @@ def write_tfrecords_merge(
 
 
 def extract_tiles(tfrecord: str, destination: str) -> None:
-    """Reads and saves images from a TFRecord to a destination folder.
+    """Extracts images within a TFRecord to a destination folder.
 
     Args:
         tfrecord (str): Path to tfrecord.
         destination (str): Destination path to write loose images.
 
-    Returns:
-        None
     """
     if not exists(destination):
         os.makedirs(destination)

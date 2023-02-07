@@ -8,8 +8,8 @@ import sys
 import numpy as np
 from typing import List, Optional, Tuple, Any, Union, TYPE_CHECKING
 
-from slideflow import errors
-from slideflow.util import example_pb2, extract_feature_dict, log
+from slideflow import errors, log
+from slideflow.util import tfrecord2idx
 
 if TYPE_CHECKING:
     import tensorflow as tf
@@ -68,66 +68,13 @@ def detect_tfrecord_format(tfr: str) -> Tuple[Optional[List[str]],
 
             str: Image file type (png/jpeg)
     '''
-    typename_mapping = {
-        "byte": "bytes_list",
-        "float": "float_list",
-        "int": "int64_list"
-    }
-    feature_description = {
-        'image_raw': 'byte',
-        'slide': 'byte',
-        'loc_x': 'int',
-        'loc_y': 'int'
-    }
-
-    def process(record, description):
-        example = example_pb2.Example()
-        example.ParseFromString(record)
-        return extract_feature_dict(
-            example.features,
-            description,
-            typename_mapping)
-
-    length_bytes = bytearray(8)
-    crc_bytes = bytearray(4)
-    datum_bytes = bytearray(1024 * 1024)
-    file = io.open(tfr, 'rb')
-    if not os.path.getsize(tfr):
+    try:
+        record = tfrecord2idx.get_record_by_index(tfr, index=0)
+    except errors.EmptyTFRecordsError:
         log.debug(f"Unable to detect format for {tfr}; file empty.")
         return None, None
-    file.tell()
-    if file.readinto(length_bytes) != 8:
-        raise RuntimeError("Failed to read the record size.")
-    if file.readinto(crc_bytes) != 4:
-        raise RuntimeError("Failed to read the start token.")
-    length, = struct.unpack("<Q", length_bytes)
-    if length > len(datum_bytes):
-        try:
-            datum_bytes = datum_bytes.zfill(int(length * 1.5))
-        except OverflowError:
-            raise OverflowError('Error reading tfrecords; please try '
-                                'regenerating index files')
-    datum_bytes_view = memoryview(datum_bytes)[:length]
-    if file.readinto(datum_bytes_view) != length:
-        raise RuntimeError("Failed to read the record.")
-    if file.readinto(crc_bytes) != 4:
-        raise RuntimeError("Failed to read the end token.")
-    try:
-        record = process(datum_bytes_view, description=feature_description)
-    except KeyError:
-        feature_description = {
-            k: v for k, v in feature_description.items()
-            if k in ('slide', 'image_raw')
-        }
-        try:
-            record = process(datum_bytes_view, description=feature_description)
-        except KeyError:
-            raise errors.TFRecordsError(
-                f'Unable to detect TFRecord format: {tfr}'
-            )
-    img = bytes(record['image_raw'])
-    img_type = imghdr.what('', img)
-    return list(feature_description.keys()), img_type
+    img_type = imghdr.what('', record['image_raw'])
+    return list(record.keys()), img_type
 
 
 def convert_dtype(
@@ -140,17 +87,27 @@ def convert_dtype(
     Tensorflow Tensors. Images can also be converted from standardized
     float images to RGB uint8 images, and vice versa.
 
-    Supported formats for starting and ending dtype:
-        np.uint8:       Image in RGB (WHC) uint8 format.
-        np.float32:     RGB (WHC) image.
-                        If the source image is a numpy uint8 or torch uint8,
-                        it will be standardized with (img / 127.5) - 1.
-                        If the source image is a tensorflow image,
-                        standardization uses tf.image.per_image_standardization.
-        torch.uint8:    Image in RGB (CWH) uint8 format.
-        torch.float32:  Image converted with (img / 127.5) - 1 and WHC -> CWH.
-        tf.uint8:       Image in RGB (WHC) uint8 format.
-        tf.float32:     Image converted with tf.image.per_image_standardization
+    Supported formats for starting and ending dtype include:
+
+    .. list-table::
+        :widths: 20 80
+        :header-rows: 0
+
+        * - ``np.uint8``
+          - Image in RGB (WHC) uint8 format.
+        * - ``np.float32``
+          - RGB (WHC) image. If the source image is a numpy uint8 or torch uint8,
+            it will be standardized with ``(img / 127.5) - 1``.
+            If the source image is a tensorflow image,
+            standardization uses ``tf.image.per_image_standardization()``.
+        * - ``torch.uint8``
+          - Image in RGB (CWH) uint8 format.
+        * - ``torch.float32``
+          - Image converted with ``(img / 127.5) - 1`` and WHC -> CWH.
+        * - ``tf.uint8``
+          - Image in RGB (WHC) uint8 format.
+        * - ``tf.float32``
+          - Image converted with ``tf.image.per_image_standardization()``
 
     Args:
         img (Any): Input image or batch of images.
@@ -158,7 +115,7 @@ def convert_dtype(
         end_dtype (type): Target dtype for conversion.
 
     Returns:
-        Any: Converted image or batch of images.
+        Converted image or batch of images.
     """
 
     # Import necessary packages

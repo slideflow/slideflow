@@ -13,20 +13,19 @@ from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
-import multiprocessing as mp
+import tensorflow as tf
 import slideflow as sf
 import slideflow.model.base as _base
+import multiprocessing as mp
 import slideflow.util.neptune_utils
 from packaging import version
 from slideflow import errors
-from slideflow.model import tensorflow_utils as tf_utils
-from slideflow.model.base import log_manifest, no_scope
-from slideflow.model.tensorflow_utils import unwrap, flatten  # type: ignore
 from slideflow.util import log, NormFit
-
-import tensorflow as tf
 from tensorflow.keras import applications as kapps
-from slideflow.model.tensorflow_utils import eval_from_model
+
+from . import tensorflow_utils as tf_utils
+from .base import log_manifest, no_scope
+from .tensorflow_utils import unwrap, flatten, eval_from_model  # type: ignore
 
 # Set the tensorflow logger
 if sf.getLoggingLevel() == logging.DEBUG:
@@ -407,7 +406,7 @@ class ModelParams(_base._ModelParams):
                 final_dense_layer = tf.keras.layers.Dense(
                     num_classes[c],
                     kernel_regularizer=regularizer,
-                    name=f'prelogits-{c}'
+                    name=f'logits-{c}'
                 )(merged_model)
                 outputs += [
                     tf.keras.layers.Activation(
@@ -420,7 +419,7 @@ class ModelParams(_base._ModelParams):
             final_dense_layer = tf.keras.layers.Dense(
                 num_classes,
                 kernel_regularizer=regularizer,
-                name='prelogits'
+                name='logits'
             )(merged_model)
             outputs = [
                 tf.keras.layers.Activation(
@@ -516,7 +515,7 @@ class ModelParams(_base._ModelParams):
                 final_dense_layer = tf.keras.layers.Dense(
                     num_classes[c],
                     kernel_regularizer=regularizer,
-                    name=f'prelogits-{c}'
+                    name=f'logits-{c}'
                 )(merged_model)
                 outputs += [tf.keras.layers.Activation(
                     activation,
@@ -527,7 +526,7 @@ class ModelParams(_base._ModelParams):
             final_dense_layer = tf.keras.layers.Dense(
                 num_classes,
                 kernel_regularizer=regularizer,
-                name='prelogits'
+                name='logits'
             )(merged_model)
             outputs = [tf.keras.layers.Activation(
                 activation,
@@ -1053,10 +1052,9 @@ class Trainer:
         hp: ModelParams,
         outdir: str,
         labels: Dict[str, Any],
-        patients: Dict[str, str],
+        *,
         slide_input: Optional[Dict[str, Any]] = None,
         name: str = 'Trainer',
-        manifest: Optional[Dict[str, int]] = None,
         feature_sizes: Optional[List[int]] = None,
         feature_names: Optional[List[str]] = None,
         outcome_names: Optional[List[str]] = None,
@@ -1077,15 +1075,10 @@ class Trainer:
             outdir (str): Path for event logs and checkpoints.
             labels (dict): Dict mapping slide names to outcome labels (int or
                 float format).
-            patients (dict): Dict mapping slide names to patient ID, as some
-                patients may have multiple slides. If not provided, assumes 1:1
-                mapping between slide names and patients.
             slide_input (dict): Dict mapping slide names to additional
                 slide-level input, concatenated after post-conv.
             name (str, optional): Optional name describing the model, used for
                 model saving. Defaults to 'Trainer'.
-            manifest (dict, optional): Manifest dictionary mapping TFRecords to
-                number of tiles. Defaults to None.
             feature_sizes (list, optional): List of sizes of input features.
                 Required if providing additional input features as input to
                 the model.
@@ -1122,7 +1115,6 @@ class Trainer:
                              "either 'full' or 'weights'.")
 
         self.outdir = outdir
-        self.manifest = manifest
         self.tile_px = hp.tile_px
         self.labels = labels
         self.hp = hp
@@ -1139,11 +1131,7 @@ class Trainer:
         self.eval_callback = _PredictionAndEvaluationCallback  # type: tf.keras.callbacks.Callback
         self.load_method = load_method
         self.custom_objects = custom_objects
-
-        if patients:
-            self.patients = patients
-        else:
-            self.patients = {s: s for s in self.slides}
+        self.patients = dict()
 
         if not os.path.exists(outdir):
             os.makedirs(outdir)
@@ -1199,7 +1187,7 @@ class Trainer:
         if config is None:
             config = {
                 'slideflow_version': sf.__version__,
-                'hp': self.hp.get_dict(),
+                'hp': self.hp.to_dict(),
                 'backend': sf.backend()
             }
         sf.util.write_json(config, join(self.outdir, 'params.json'))
@@ -1324,6 +1312,17 @@ class Trainer:
         self.model.layers[0].trainable = True
         return toplayer_model.history
 
+    def _detect_patients(self, *args):
+        self.patients = dict()
+        for dataset in args:
+            if dataset is None:
+                continue
+            dataset_patients = dataset.patients()
+            if not dataset_patients:
+                self.patients.update({s: s for s in self.slides})
+            else:
+                self.patients.update(dataset_patients)
+
     def _interleave_kwargs(self, **kwargs) -> Dict[str, Any]:
         args = SimpleNamespace(
             labels=self._parse_tfrecord_labels,
@@ -1372,7 +1371,7 @@ class Trainer:
         format: str = 'parquet',
         from_wsi: bool = False,
         roi_method: str = 'auto',
-    ) -> "pd.DataFrame":
+    ) -> Dict[str, "pd.DataFrame"]:
         """Perform inference on a model, saving tile-level predictions.
 
         Args:
@@ -1400,11 +1399,15 @@ class Trainer:
                 Defaults to 'auto'.
 
         Returns:
-            pandas.DataFrame of tile-level predictions.
+            Dict[str, pd.DataFrame]: Dictionary with keys 'tile', 'slide', and
+            'patient', and values containing DataFrames with tile-, slide-,
+            and patient-level predictions.
         """
 
         if format not in ('csv', 'feather', 'parquet'):
             raise ValueError(f"Unrecognized format {format}")
+
+        self._detect_patients(dataset)
 
         # Verify image format
         self._verify_img_format(dataset)
@@ -1430,6 +1433,7 @@ class Trainer:
                 augment=False
             )
             tf_dts_w_slidenames = dataset.tensorflow(
+                incl_loc=True,
                 incl_slidenames=True,
                 from_wsi=from_wsi,
                 roi_method=roi_method,
@@ -1444,6 +1448,7 @@ class Trainer:
             uq=bool(self.hp.uq),
             num_tiles=dataset.num_tiles,
             outcome_names=self.outcome_names,
+            patients=self.patients
         )
         # Save predictions
         sf.stats.metrics.save_dfs(dfs, format=format, outdir=self.outdir)
@@ -1491,6 +1496,8 @@ class Trainer:
             if not isinstance(uq, bool):
                 raise ValueError(f"Unrecognized value {uq} for uq")
             self.hp.uq = uq
+
+        self._detect_patients(dataset)
 
         # Verify image format
         self._verify_img_format(dataset)
@@ -1607,7 +1614,7 @@ class Trainer:
         norm_fit: Optional[NormFit] = None,
         from_wsi: bool = False,
         roi_method: str = 'auto',
-    ):
+    ) -> Dict[str, Any]:
         """Builds and trains a model from hyperparameters.
 
         Args:
@@ -1671,6 +1678,8 @@ class Trainer:
             raise errors.ModelError(f"Incompatible models: {hp_model} (hp) and "
                                     f"{self._model_type} (model)")
 
+        self._detect_patients(train_dts, val_dts)
+
         # Clear prior Tensorflow graph to free memory
         tf.keras.backend.clear_session()
         results_log = os.path.join(self.outdir, 'results_log.csv')
@@ -1686,7 +1695,7 @@ class Trainer:
             if not exists(config_path):
                 config = {
                     'slideflow_version': sf.__version__,
-                    'hp': self.hp.get_dict(),
+                    'hp': self.hp.to_dict(),
                     'backend': sf.backend()
                 }
             else:
@@ -1879,8 +1888,9 @@ class Trainer:
                     callbacks=None,
                     epochs=self.hp.toplayer_epochs
                 )
-            # Train the model
             self._compile_model()
+
+            # Train the model
             log.info('Beginning training')
             try:
                 self.model.fit(
@@ -2062,7 +2072,7 @@ class CPHTrainer(LinearTrainer):
 
 
 class Features:
-    """Interface for obtaining logits and features from intermediate layer
+    """Interface for obtaining predictions and features from intermediate layer
     activations from Slideflow models.
 
     Use by calling on either a batch of images (returning outputs for a single
@@ -2105,7 +2115,7 @@ class Features:
         self,
         path: Optional[str],
         layers: Optional[Union[str, List[str]]] = 'postconv',
-        include_logits: bool = False,
+        include_preds: bool = False,
         load_method: str = 'full',
         pooling: Optional[Any] = None
     ) -> None:
@@ -2113,14 +2123,14 @@ class Features:
         outputs feature activations at the designated layers.
 
         Intermediate layers are returned in the order of layers.
-        Logits are returned last.
+        predictions are returned last.
 
         Args:
             path (str): Path to saved Slideflow model.
             layers (list(str), optional): Layers from which to generate
                 activations.  The post-convolution activation layer is accessed
                 via 'postconv'. Defaults to 'postconv'.
-            include_logits (bool, optional): Include logits in output. Will be
+            include_preds (bool, optional): Include predictions in output. Will be
                 returned last. Defaults to False.
             load_method (str): Either 'full' or 'weights'. Method to use
                 when loading a Tensorflow model. If 'full', loads the model with
@@ -2132,7 +2142,7 @@ class Features:
                 may improve compatibility across hardware & environments.
         """
         self.path = path
-        self.num_logits = 0
+        self.num_classes = 0
         self.num_features = 0
         self.num_uncertainty = 0
         self.img_format = None
@@ -2152,7 +2162,7 @@ class Features:
                 else:
                     self.wsi_normalizer.set_fit(**config['norm_fit'])
             self._build(
-                layers=layers, include_logits=include_logits, pooling=pooling  # type: ignore
+                layers=layers, include_preds=include_preds, pooling=pooling  # type: ignore
             )
 
     @classmethod
@@ -2160,7 +2170,7 @@ class Features:
         cls,
         model: tf.keras.Model,
         layers: Optional[Union[str, List[str]]] = 'postconv',
-        include_logits: bool = False,
+        include_preds: bool = False,
         wsi_normalizer: Optional["StainNormalizer"] = None,
         pooling: Optional[Any] = None
     ):
@@ -2168,27 +2178,27 @@ class Features:
         outputs feature activations at the designated layers.
 
         Intermediate layers are returned in the order of layers.
-        Logits are returned last.
+        predictions are returned last.
 
         Args:
             model (:class:`tensorflow.keras.models.Model`): Loaded model.
             layers (list(str), optional): Layers from which to generate
                 activations.  The post-convolution activation layer is accessed
                 via 'postconv'. Defaults to 'postconv'.
-            include_logits (bool, optional): Include logits in output. Will be
+            include_preds (bool, optional): Include predictions in output. Will be
                 returned last. Defaults to False.
             wsi_normalizer (:class:`slideflow.norm.StainNormalizer`): Stain
                 normalizer to use on whole-slide images. Is not used on
                 individual tile datasets via __call__. Defaults to None.
         """
-        obj = cls(None, layers, include_logits)
+        obj = cls(None, layers, include_preds)
         if isinstance(model, tf.keras.models.Model):
             obj._model = model
         else:
             raise errors.ModelError(f"Model {model} is not a valid Tensorflow "
                                     "model.")
         obj._build(
-            layers=layers, include_logits=include_logits, pooling=pooling  # type: ignore
+            layers=layers, include_preds=include_preds, pooling=pooling  # type: ignore
         )
         obj.wsi_normalizer = wsi_normalizer
         return obj
@@ -2198,7 +2208,7 @@ class Features:
         inp: Union[tf.Tensor, "sf.WSI"],
         **kwargs
     ) -> Optional[Union[np.ndarray, tf.Tensor]]:
-        """Process a given input and return features and/or logits.
+        """Process a given input and return features and/or predictions.
         Expects either a batch of images or a :class:`slideflow.WSI`."""
 
         if isinstance(inp, sf.WSI):
@@ -2233,7 +2243,7 @@ class Features:
         if img_format == 'png':  # PNG is lossless; this is equivalent but faster
             log.debug("Using numpy image format instead of PNG")
             img_format = 'numpy'
-        total_out = self.num_features + self.num_logits + self.num_uncertainty
+        total_out = self.num_features + self.num_classes + self.num_uncertainty
         if grid is None:
             features_grid = np.ones((
                     slide.grid.shape[1],
@@ -2348,12 +2358,12 @@ class Features:
     def _build(
         self,
         layers: Optional[Union[str, List[str]]],
-        include_logits: bool = True,
+        include_preds: bool = True,
         pooling: Optional[Any] = None
     ) -> None:
         """Builds the interface model that outputs feature activations at the
-        designated layers and/or logits. Intermediate layers are returned in
-        the order of layers. Logits are returned last."""
+        designated layers and/or predictions. Intermediate layers are returned in
+        the order of layers. predictions are returned last."""
 
         if isinstance(pooling, str):
             if pooling == 'avg':
@@ -2410,7 +2420,7 @@ class Features:
 
         # Build a model that outputs the given layers
         outputs_list = [] if not layers else [outputs[la] for la in layers]
-        if include_logits:
+        if include_preds:
             outputs_list += [self._model.output]
         self.model = tf.keras.models.Model(
             inputs=self._model.input,
@@ -2421,14 +2431,14 @@ class Features:
         if isinstance(self._model.output, list):
             log.warning("Multi-categorical outcomes not yet supported "
                         "for this interface.")
-            self.num_logits = 0
-        elif include_logits:
-            self.num_logits = self._model.output.shape[1]
+            self.num_classes = 0
+        elif include_preds:
+            self.num_classes = self._model.output.shape[1]
         else:
-            self.num_logits = 0
+            self.num_classes = 0
 
-        if include_logits:
-            log.debug(f'Number of logits: {self.num_logits}')
+        if include_preds:
+            log.debug(f'Number of classes: {self.num_classes}')
         log.debug(f'Number of activation features: {self.num_features}')
 
 
@@ -2444,14 +2454,14 @@ class UncertaintyInterface(Features):
         super().__init__(
             path,
             layers=layers,
-            include_logits=True,
+            include_preds=True,
             load_method=load_method,
             pooling=pooling
         )
         # TODO: As the below to-do suggests, this should be updated
         # for multi-class
         self.num_uncertainty = 1
-        if self.num_logits > 2:
+        if self.num_classes > 2:
             log.warn("UncertaintyInterface not yet implemented for multi-class"
                      " models")
 
@@ -2470,7 +2480,7 @@ class UncertaintyInterface(Features):
             raise errors.ModelError(f"Model {model} is not a valid Tensorflow "
                                     "model.")
         obj._build(
-            layers=layers, include_logits=True, pooling=pooling  # type: ignore
+            layers=layers, include_preds=True, pooling=pooling  # type: ignore
         )
         obj.wsi_normalizer = wsi_normalizer
         return obj
@@ -2488,7 +2498,7 @@ class UncertaintyInterface(Features):
                 out_drop[n] += [(yp[n] if self.num_outputs > 1 else yp)]
         for n in range(self.num_outputs):
             out_drop[n] = tf.stack(out_drop[n], axis=0)
-        logits = tf.math.reduce_mean(out_drop[-1], axis=0)
+        predictions = tf.math.reduce_mean(out_drop[-1], axis=0)
 
         # TODO: Only takes STDEV from first outcome category which works for
         # outcomes with 2 categories, but a better solution is needed
@@ -2501,9 +2511,9 @@ class UncertaintyInterface(Features):
                 tf.math.reduce_mean(out_drop[n], axis=0)
                 for n in range(self.num_outputs-1)
             ]
-            return out + [logits, uncertainty]
+            return out + [predictions, uncertainty]
         else:
-            return logits, uncertainty
+            return predictions, uncertainty
 
 
 def load(

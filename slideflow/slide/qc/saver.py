@@ -10,6 +10,32 @@ class Save:
     def __init__(self, dest: Optional[str] = None) -> None:
         """QC function which saves the mask to a numpy file.
 
+        When this QC method is applied to a slide, the current QC masks
+        (e.g., as applied by the Otsu or Gaussian filtering methods) are saved
+        to a numpy file. These saved masks can be loaded in the future
+        using :class:`slideflow.slide.qc.Load`. Saving/loading masks saves time
+        by allowing to avoid regenerating masks repeatedly.
+
+        By default, masks are saved in the same folder as whole-slide images.
+
+        .. code-block:: python
+
+            from slideflow.slide import qc
+
+            # Define a QC approach that auto-saves masks
+            qc = [
+                qc.Otsu(),
+                qc.Save()
+            ]
+            P.extract_tiles(qc=qc)
+
+            ...
+            # Auto-load previously saved masks
+            qc = [
+                qc.Load()
+            ]
+            P.extract_tiles(qc=qc)
+
         Args:
             dest (str, optional): Path in which to save the qc mask.
                 If None, will save in the same directory as the slide.
@@ -42,6 +68,9 @@ class Load:
 
     def __init__(self, source: Optional[str] = None) -> None:
         """QC function which loads a saved numpy mask.
+
+        Loads and applies a QC mask which was saved by
+        :class:`slideflow.slide.qc.Save`
 
         Args:
             source (str, optional): Path to search for qc mask.

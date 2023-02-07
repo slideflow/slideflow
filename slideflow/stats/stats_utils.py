@@ -84,3 +84,14 @@ def normalize_layout(
     clipped /= (_max - _min)
     return clipped, (_min, _max), (mins, maxs)
 
+def normalize(
+    array: np.ndarray,
+    norm_range: Tuple[np.ndarray, np.ndarray],
+    norm_clip: Tuple[np.ndarray, np.ndarray],
+) -> np.ndarray:
+    _min, _max = norm_range
+    mins, maxs = norm_clip
+    clipped = np.clip(array, mins, maxs)
+    clipped -= _min
+    clipped /= (_max - _min)
+    return clipped

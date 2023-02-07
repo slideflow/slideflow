@@ -4,12 +4,12 @@ Requires: libvips (https://libvips.github.io/libvips/)
 """
 
 import re
-from typing import (Any, Dict, List, Optional, Tuple, Union)
-
+import cv2
 import numpy as np
 import slideflow as sf
 from types import SimpleNamespace
 from PIL import Image, UnidentifiedImageError
+from typing import (Any, Dict, List, Optional, Tuple, Union)
 from slideflow.util import log, path_to_name, path_to_ext  # noqa F401
 from slideflow.slide.utils import *
 
@@ -97,9 +97,15 @@ def tile_worker(
 ) -> Optional[Union[str, Dict]]:
     '''Multiprocessing worker for WSI. Extracts tile at given coordinates.'''
 
-    x, y, grid_x, grid_y = c
-    x_coord = int((x + args.full_extract_px / 2) / args.roi_scale)
-    y_coord = int((y + args.full_extract_px / 2) / args.roi_scale)
+    if args.has_segmentation:
+        c, tile_mask = c
+        (x, y, grid_x), grid_y = c, 0
+    else:
+        tile_mask = None
+        x, y, grid_x, grid_y = c
+
+    x_coord = int(x + args.full_extract_px / 2)
+    y_coord = int(y + args.full_extract_px / 2)
 
     # If downsampling is enabled, read image from highest level
     # to perform filtering; otherwise filter from our target level
@@ -153,6 +159,13 @@ def tile_worker(
         return_dict.update({'loc': [x_coord, y_coord]})
         return return_dict
 
+    # If using a segmentation mask, resize mask to match the tile size.
+    if tile_mask is not None:
+        tile_mask = cv2.resize(
+            tile_mask,
+            (args.tile_px, args.tile_px),
+            interpolation=cv2.INTER_NEAREST)
+
     # Normalizer
     if not args.normalizer:
         normalizer = None
@@ -176,6 +189,11 @@ def tile_worker(
     if int(args.tile_px) != int(args.extract_px):
         region = region.resize(args.tile_px/args.extract_px)
     assert(region.width == region.height == args.tile_px)
+
+    # Apply segmentation mask
+    if tile_mask is not None:
+        vips_mask = vips.Image.new_from_array(tile_mask)
+        region = region.multiply(vips_mask)
 
     if args.img_format != 'numpy':
         if args.img_format == 'png':
@@ -201,7 +219,7 @@ def tile_worker(
                 return None
     else:
         # Read regions into memory and convert to numpy arrays
-        image = vips2numpy(region)
+        image = vips2numpy(region).astype(np.uint8)
 
         # Apply normalization
         if normalizer:

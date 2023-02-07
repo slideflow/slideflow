@@ -6,24 +6,24 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  
-  <title>slideflow.stats.metrics &mdash; slideflow 1.4.0 documentation</title>
-  
 
-  
-  
-  
-  
+  <title>slideflow.stats.metrics &mdash; slideflow 1.5.0 documentation</title>
 
-  
 
-  
-  
-    
 
-  
+
+
+
+
+
+
+
+
+
+
+
 
   <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
   <!-- <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" /> -->
@@ -32,11 +32,11 @@
     <link rel="index" title="Index" href="../../../genindex.html" />
     <link rel="search" title="Search" href="../../../search.html" />
   <!-- Google Analytics -->
-  
-  <!-- End Google Analytics -->
-  
 
-  
+  <!-- End Google Analytics -->
+
+
+
   <script src="../../../_static/js/modernizr.min.js"></script>
 
   <!-- Preload the theme fonts -->
@@ -99,9 +99,9 @@
 
 <body class="pytorch-body">
 
-   
 
-    
+
+
 
     <div class="table-of-contents-link-wrapper">
       <span>Table of Contents</span>
@@ -112,21 +112,21 @@
       <div class="pytorch-side-scroll">
         <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           <div class="pytorch-left-menu-search">
-            
 
-            
-              
-              
+
+
+
+
                 <div class="version">
-                  1.4
+                  1.5
                 </div>
-              
-            
-
-            
 
 
-  
+
+
+
+
+
 
 
 <div role="search">
@@ -137,45 +137,55 @@
   </form>
 </div>
 
-            
+
           </div>
 
-          
-            
-            
-              
-            
-            
-              <p class="caption" role="heading"><span class="caption-text">Overview</span></p>
+
+
+
+
+
+
+              <p class="caption" role="heading"><span class="caption-text">Introduction</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../pipeline.html">Pipeline Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../overview.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../quickstart.html">Quickstart</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../project_setup.html">Setting up a Project</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../validation.html">Validation Planning</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../extract_tiles.html">Tile Extraction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../datasets_and_val.html">Datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../slide_processing.html">Slide Processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../cellseg.html">Cell Segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../training.html">Training</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../evaluation.html">Evaluation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../layer_activations.html">Features / Layer Activations</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../workbench_tools.html">Workbench: Visualization Tools</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../custom_loops.html">Custom Training Loops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../posthoc.html">Post-hoc Analysis</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../uq.html">Uncertainty Quantification</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../stylegan.html">StyleGAN</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../clam.html">CLAM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../clam.html">Multi-Instance Learning (MIL)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../ssl.html">Self-Supervised Learning (SSL)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../stylegan.html">Generative Networks (GANs)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../custom_loops.html">Custom Training Loops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../workbench_tools.html">Workbench: Live Visualization</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../troubleshooting.html">Troubleshooting</a></li>
 </ul>
-<p class="caption" role="heading"><span class="caption-text">Source</span></p>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
 <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../slideflow.html">slideflow</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../project.html">slideflow.Project</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../dataset.html">slideflow.dataset</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../heatmap.html">slideflow.heatmap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../dataset.html">slideflow.Dataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../heatmap.html">slideflow.Heatmap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../dataset_features.html">slideflow.DatasetFeatures</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../slidemap.html">slideflow.SlideMap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../mosaic.html">slideflow.Mosaic</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../slideflow_cellseg.html">slideflow.cellseg</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../io.html">slideflow.io</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../io_tensorflow.html">slideflow.io.tensorflow</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../io_torch.html">slideflow.io.torch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../gan.html">slideflow.gan</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../grad.html">slideflow.grad</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../model.html">slideflow.model</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../mosaic.html">slideflow.mosaic</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../model_tensorflow.html">slideflow.model.tensorflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../model_torch.html">slideflow.model.torch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../norm.html">slideflow.norm</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../simclr.html">slideflow.simclr</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../slide.html">slideflow.slide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../slide_qc.html">slideflow.slide.qc</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../stats.html">slideflow.stats</a></li>
@@ -192,8 +202,8 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../tutorial6.html">Tutorial 6: Custom slide filtering</a></li>
 </ul>
 
-            
-          
+
+
         </div>
       </div>
     </nav>
@@ -201,7 +211,7 @@
     <div class="pytorch-container">
       <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
         <div class="pytorch-breadcrumbs-wrapper">
-          
+
 
 
 
@@ -220,28 +230,28 @@
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="pytorch-breadcrumbs">
-    
+
       <li>
         <a href="../../../index.html">
-          
+
             Docs
-          
+
         </a> &gt;
       </li>
 
-        
+
           <li><a href="../../index.html">Module code</a> &gt;</li>
-        
+
       <li>slideflow.stats.metrics</li>
-    
-    
+
+
       <li class="pytorch-breadcrumbs-aside">
-        
+
       </li>
-    
+
   </ul>
 
-  
+
 </div>
         </div>
 
@@ -253,17 +263,18 @@
       <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
         <div class="pytorch-content-left">
 
-        
-          
+
+
           <div class="rst-content">
-          
+
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
-              
+
   <h1>Source code for slideflow.stats.metrics</h1><div class="highlight"><pre>
 <span></span><span class="sd">&quot;&quot;&quot;Categorical, linear, and CPH metrics for predictions.&quot;&quot;&quot;</span>
 
 <span class="kn">import</span> <span class="nn">multiprocessing</span> <span class="k">as</span> <span class="nn">mp</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
 <span class="kn">from</span> <span class="nn">os.path</span> <span class="kn">import</span> <span class="n">join</span>
 <span class="kn">from</span> <span class="nn">types</span> <span class="kn">import</span> <span class="n">SimpleNamespace</span>
 <span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="p">(</span><span class="n">TYPE_CHECKING</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span>
@@ -342,7 +353,7 @@
 
 
 <span class="k">def</span> <span class="nf">_assert_model_type</span><span class="p">(</span><span class="n">model_type</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-    <span class="sd">&quot;&quot;&quot;Raises a ValueError if the model type is invalid.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Raises a ValueError if the model type is invalid.&quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="n">model_type</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;categorical&#39;</span><span class="p">,</span> <span class="s1">&#39;linear&#39;</span><span class="p">,</span> <span class="s1">&#39;cph&#39;</span><span class="p">):</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unrecognized model_type </span><span class="si">{</span><span class="n">model_type</span><span class="si">}</span><span class="s2">, must be &quot;</span>
                          <span class="s2">&quot;categorical, linear, or cph&quot;</span><span class="p">)</span>
@@ -352,7 +363,7 @@
     <span class="n">yt_and_yp</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">],</span>
     <span class="n">neptune_run</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="s2">&quot;neptune.Run&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ClassifierMetrics</span><span class="p">:</span>
-    <span class="sd">&quot;&quot;&quot;Generate tile-level ROC. Defined separately for multiprocessing.</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Generate tile-level ROC. Defined separately for multiprocessing.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        yt_and_yp (Tuple[np.ndarray, np.ndarray]): y_true and y_pred.</span>
@@ -367,7 +378,7 @@
 
 
 <span class="k">def</span> <span class="nf">_merge_metrics</span><span class="p">(</span><span class="n">metrics_by_level</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">]:</span>
-    <span class="sd">&quot;&quot;&quot;Merge dictionary of levels into a dictionary by metric.</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Merge dictionary of levels into a dictionary by metric.</span>
 
 <span class="sd">    Function accepts a dictionary organized as such:</span>
 
@@ -396,7 +407,7 @@
 
 
 <span class="k">def</span> <span class="nf">basic_metrics</span><span class="p">(</span><span class="n">y_true</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">y_pred</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]:</span>
-    <span class="sd">&quot;&quot;&quot;Generates metrics, including sensitivity, specificity, and accuracy.</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Generates metrics, including sensitivity, specificity, and accuracy.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        y_true (np.ndarray): True labels.</span>
@@ -444,7 +455,7 @@
     <span class="n">data_dir</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="p">,</span>
     <span class="n">neptune_run</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="s2">&quot;neptune.Run&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]:</span>
-    <span class="sd">&quot;&quot;&quot;Generates categorical metrics (AUC/AP) from a set of predictions.</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Generates categorical metrics (AUC/AP) from a set of predictions.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        df (pd.DataFrame): Pandas DataFrame containing labels, predictions,</span>
@@ -528,7 +539,7 @@
                 <span class="n">thresh</span> <span class="o">=</span> <span class="s1">&#39;NA&#39;</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">fit</span><span class="o">.</span><span class="n">opt_thresh</span> <span class="k">else</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">fit</span><span class="o">.</span><span class="n">opt_thresh</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1">&#39;</span>
                 <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
                     <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">level</span><span class="si">}</span><span class="s2">-level AUC (cat #</span><span class="si">{</span><span class="n">i</span><span class="si">:</span><span class="s2">&gt;2</span><span class="si">}</span><span class="s2">): </span><span class="si">{</span><span class="n">auroc_str</span><span class="si">}</span><span class="s2"> &quot;</span>
-                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">level</span><span class="si">}</span><span class="s2">-level AP: </span><span class="si">{</span><span class="n">ap_str</span><span class="si">}</span><span class="s2"> (opt. threshold: </span><span class="si">{</span><span class="n">thresh</span><span class="si">}</span><span class="s2">)&quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;AP: </span><span class="si">{</span><span class="n">ap_str</span><span class="si">}</span><span class="s2"> (opt. threshold: </span><span class="si">{</span><span class="n">thresh</span><span class="si">}</span><span class="s2">)&quot;</span>
                 <span class="p">)</span>
         <span class="k">except</span> <span class="ne">ValueError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
             <span class="c1"># Occurs when predictions contain NaN</span>
@@ -557,7 +568,7 @@
 
 
 <span class="k">def</span> <span class="nf">concordance_index</span><span class="p">(</span><span class="n">y_true</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">y_pred</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
-    <span class="sd">&#39;&#39;&#39;Calculates concordance index from a given y_true and y_pred.&#39;&#39;&#39;</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;Calculates concordance index from a given y_true and y_pred.&#39;&#39;&#39;</span>
     <span class="n">E</span> <span class="o">=</span> <span class="n">y_pred</span><span class="p">[:,</span> <span class="o">-</span><span class="mi">1</span><span class="p">]</span>
     <span class="n">y_pred</span> <span class="o">=</span> <span class="n">y_pred</span><span class="p">[:,</span> <span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
     <span class="n">y_pred</span> <span class="o">=</span> <span class="n">y_pred</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
@@ -575,7 +586,7 @@
     <span class="n">data_dir</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="p">,</span>
     <span class="n">neptune_run</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="s2">&quot;neptune.Run&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]:</span>
-    <span class="sd">&quot;&quot;&quot;Generates CPH metrics (concordance index) from a set of predictions.</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Generates CPH metrics (concordance index) from a set of predictions.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        df (pd.DataFrame): Pandas DataFrame containing labels, predictions,</span>
@@ -624,7 +635,7 @@
     <span class="n">tile_to_slides</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">List</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">],</span>
     <span class="n">locations</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">List</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataFrame</span><span class="p">:</span>
-    <span class="sd">&quot;&quot;&quot;Converts arrays of model predictions to a pandas dataframe.</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Converts arrays of model predictions to a pandas dataframe.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        y_true (list(np.ndarray)): List of y_true numpy arrays, one array for</span>
@@ -698,9 +709,10 @@
 
 
 <span class="k">def</span> <span class="nf">eval_from_dataset</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-    <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+    <span class="n">warnings</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
         <span class="s2">&quot;`sf.stats.metrics.eval_from_dataset() is deprecated. Please use &quot;</span>
-        <span class="s2">&quot;`sf.stats.metrics.eval_dataset()` instead.&quot;</span><span class="p">)</span>
+        <span class="s2">&quot;`sf.stats.metrics.eval_dataset()` instead.&quot;</span><span class="p">,</span>
+        <span class="ne">DeprecationWarning</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">eval_dataset</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
 
@@ -717,7 +729,7 @@
     <span class="n">loss</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">torch_args</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">SimpleNamespace</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">DataFrame</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]:</span>
-    <span class="sd">&quot;&quot;&quot;Generates predictions and accuracy/loss from a given model and dataset.</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Generates predictions and accuracy/loss from a given model and dataset.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        model (str): Path to PyTorch model.</span>
@@ -784,7 +796,7 @@
     <span class="n">method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;average&#39;</span><span class="p">,</span>
     <span class="n">patients</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">DataFrame</span><span class="p">]:</span>
-    <span class="sd">&quot;&quot;&quot;Reduces tile-level predictions to group-level predictions.</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Reduces tile-level predictions to group-level predictions.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        df (DataFrame): Tile-level predictions.</span>
@@ -858,7 +870,7 @@
     <span class="n">data_dir</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="p">,</span>
     <span class="n">neptune_run</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="s2">&quot;neptune.Run&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">]]:</span>
-    <span class="sd">&quot;&quot;&quot;Generates metrics (R^2, coefficient of determination) from predictions.</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Generates metrics (R^2, coefficient of determination) from predictions.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        df (pd.DataFrame): Pandas DataFrame containing labels, predictions,</span>
@@ -930,7 +942,7 @@
     <span class="o">**</span><span class="n">kwargs</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">Dict</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]:</span>
 
-    <span class="sd">&quot;&quot;&quot;Evaluate performance of a given model on a given TFRecord dataset,</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Evaluate performance of a given model on a given TFRecord dataset,</span>
 <span class="sd">    generating a variety of statistical outcomes and graphs.</span>
 
 <span class="sd">    Args:</span>
@@ -1012,7 +1024,7 @@
     <span class="n">model_type</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">outcome_names</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
 <span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Renames columns in a DataFrame to correspond to the given outcome names.</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Renames columns in a DataFrame to correspond to the given outcome names.</span>
 
 <span class="sd">    Assumes the DataFrame supplied was generated by sf.stats.df_from_pred().</span>
 
@@ -1090,9 +1102,10 @@
 
 
 <span class="k">def</span> <span class="nf">predict_from_dataset</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-    <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+    <span class="n">warnings</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
         <span class="s2">&quot;`sf.stats.metrics.predict_from_dataset() is deprecated. Please use &quot;</span>
-        <span class="s2">&quot;`sf.stats.metrics.predict_dataset()` instead.&quot;</span><span class="p">)</span>
+        <span class="s2">&quot;`sf.stats.metrics.predict_dataset()` instead.&quot;</span><span class="p">,</span>
+        <span class="ne">DeprecationWarning</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">predict_dataset</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
 
@@ -1108,7 +1121,7 @@
     <span class="n">outcome_names</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">torch_args</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">SimpleNamespace</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">DataFrame</span><span class="p">]:</span>
-    <span class="sd">&quot;&quot;&quot;Generates predictions from model and dataset.</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Generates predictions from model and dataset.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        model (str): Path to PyTorch model.</span>
@@ -1174,7 +1187,7 @@
     <span class="n">outdir</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="p">,</span>
     <span class="n">label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-    <span class="sd">&quot;&quot;&quot;Save DataFrames of predictions to files.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Save DataFrames of predictions to files.&quot;&quot;&quot;</span>
     <span class="n">label_end</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;_</span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s1">&#39;</span> <span class="k">if</span> <span class="n">label</span> <span class="k">else</span> <span class="s1">&#39;&#39;</span>
     <span class="k">for</span> <span class="n">level</span><span class="p">,</span> <span class="n">_df</span> <span class="ow">in</span> <span class="n">dfs</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
         <span class="n">path</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">level</span><span class="si">}</span><span class="s2">_predictions</span><span class="si">{</span><span class="n">label_end</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
@@ -1193,16 +1206,16 @@
 </pre></div>
 
              </article>
-             
+
             </div>
             <footer>
-  
 
-  
+
+
 
     <hr>
 
-  
+
 
   <div role="contentinfo">
     <p>
@@ -1210,11 +1223,11 @@
 
     </p>
   </div>
-    
+
       <div>
         Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
       </div>
-     
+
 
 </footer>
 
@@ -1224,30 +1237,27 @@
         <div class="pytorch-content-right" id="pytorch-content-right">
           <div class="pytorch-right-menu" id="pytorch-right-menu">
             <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
-              
+
             </div>
           </div>
         </div>
       </section>
     </div>
 
-  
 
 
-  
 
-     
+
+
+
        <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
          <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
-         <script src="../../../_static/jquery.js"></script>
-         <script src="../../../_static/underscore.js"></script>
-         <script src="../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
          <script src="../../../_static/doctools.js"></script>
          <script src="../../../_static/sphinx_highlight.js"></script>
-     
 
-  
 
+
+  <script type="text/javascript" src="../../../_static/js/vendor/jquery-3.6.3.min.js"></script>
   <script type="text/javascript" src="../../../_static/js/vendor/popper.min.js"></script>
   <script type="text/javascript" src="../../../_static/js/vendor/bootstrap.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/list.js/1.5.0/list.min.js"></script>
@@ -1257,7 +1267,7 @@
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script> 
+  </script>
 
   <!-- Begin Footer -->
 

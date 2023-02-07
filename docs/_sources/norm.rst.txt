@@ -10,7 +10,18 @@ StainNormalizer
 ---------------
 
 .. autoclass:: StainNormalizer
-    :inherited-members:
+.. autofunction:: slideflow.norm.StainNormalizer.fit
+.. autofunction:: slideflow.norm.StainNormalizer.get_fit
+.. autofunction:: slideflow.norm.StainNormalizer.set_fit
+.. autofunction:: slideflow.norm.StainNormalizer.transform
+.. autofunction:: slideflow.norm.StainNormalizer.jpeg_to_jpeg
+.. autofunction:: slideflow.norm.StainNormalizer.jpeg_to_rgb
+.. autofunction:: slideflow.norm.StainNormalizer.png_to_png
+.. autofunction:: slideflow.norm.StainNormalizer.png_to_rgb
+.. autofunction:: slideflow.norm.StainNormalizer.rgb_to_rgb
+.. autofunction:: slideflow.norm.StainNormalizer.tf_to_rgb
+.. autofunction:: slideflow.norm.StainNormalizer.tf_to_tf
+.. autofunction:: slideflow.norm.StainNormalizer.torch_to_torch
 
 Example images
 --------------

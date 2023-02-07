@@ -50,6 +50,8 @@ def get_args(**kwargs):
         'micro_average': False
     }
     for k in kwargs:
+        if k not in args_dict:
+            raise ValueError(f"Unrecognized argument '{k}'")
         args_dict[k] = kwargs[k]
     args = types.SimpleNamespace(**args_dict)
     return args

@@ -22,7 +22,72 @@ def broad_search_space(
     hidden_layer_width: Optional[List[int]] = [64, 128, 256, 512],      # Int (ordinal)
     **kwargs
 ) -> ConfigurationSpace:
-    """Build a configuration space for a broad hyperparameter search."""
+    """Build a configuration space for a broad hyperparameter search.
+
+    This is the same as create_search_space(), but with the following default
+    values:
+
+    - batch_size: [8, 16, 32, 64]
+    - dropout: (0, 0.5)
+    - l1: (0, 0.5)
+    - l2: (0, 0.5)
+    - l1_dense: (0, 0.5)
+    - l2_dense: (0, 0.5)
+    - learning_rate: (0.00001, 0.001)
+    - learning_rate_decay: (0.95, 1)
+    - learning_rate_decay_steps: (128, 1024)
+    - hidden_layers: [0, 1, 2, 3]
+    - hidden_layer_width: [64, 128, 256, 512]
+
+    Keyword args:
+        tile_px (list(int), optional): Tile size in pixels to search.
+            Optimized as an ordinal variable.
+        tile_um (list(int or str), optional): Tile size in microns/magnification
+            to search. Optimized as an ordinal (``int``) or categorical
+            (``str``) variable.
+        augment (list(str), optional): Augmentation strategies to search.
+            Optimized as a categorical variable.
+        normalizer (list(str), optional): Normalizer methods to search.
+            Optimized as a categorical variable.
+        normalizer_source (list(str), optional): Normalizer sources to search.
+            Optimized as a categorical variable.
+        model (list(str), optional): List of model architecture to search.
+            Optimized as a categorical variable.
+        batch_size (list(int), optional): List of batch sizes to search.
+            Optimized as an ordinal variable.
+        dropout (tuple(float, float), optional): Range of dropout values to
+            search (start, end). Optimized as a float.
+        l1 (tuple(float, float), optional): Range of l1 values to
+            search (start, end). Optimized as a float.
+        l2 (tuple(float, float), optional): Range of l2 values to
+            search (start, end). Optimized as a float.
+        l1_dense (tuple(float, float), optional): Range of l1_dense values to
+            search (start, end). Optimized as a float.
+        l2_dense (tuple(float, float), optional): Range of l2_dense values to
+            search (start, end). Optimized as a float.
+        learning_rate (tuple(float, float), optional): Range of learning rates
+            to search (start, end). Optimized as a float (log scale).
+        learning_rate_decay (tuple(float, float), optional): Range of learning
+            rate decay to search (start, end). Optimized as a float.
+        learning_rate_decay_steps (tuple(float, float), optional): Range of
+            learning rate decay steps to search (start, end). Optimized as an
+            int (log scale).
+        hidden_layers (list(int), optional): List of number of hidden layers
+            to search. Optimized as an ordinal variable.
+        hidden_layer_width (list(int), optional): List of hidden layer widths
+            to search. Optimized as an ordinal variable.
+        pooling (list(str), optional): List of post-convolution pooling
+            strategies to search, including 'avg', 'max', or 'none'. Optimized
+            as a categorical variable.
+        trainable_layers (list(int), optional): Range of trainable layers to
+            search (start, end). Optimized as an int.
+        early_stop (bool): Enable searching with and without early stopping.
+            Optimized as a boolean variable.
+
+    Returns:
+        ConfigSpace.ConfigurationSpace
+
+    """
     return create_search_space(
         batch_size=batch_size,
         dropout=dropout,
@@ -48,7 +113,67 @@ def shallow_search_space(
     hidden_layers: Optional[List[int]] = [0, 1, 2],                     # Int (ordinal)
     **kwargs
 ) -> ConfigurationSpace:
-    """Build a configuration space for a shallow hyperparameter search."""
+    """Build a configuration space for a shallow hyperparameter search.
+
+    This is the same as create_search_space(), but with the following default
+    values:
+
+    - batch_size: [8, 16, 32, 64]
+    - dropout: (0, 0.3)
+    - l2: (0, 0.3)
+    - l2_dense: (0, 0.3)
+    - learning_rate: (0.00005, 0.0005)
+    - hidden_layers: [0, 1, 2]
+
+    Keyword args:
+        tile_px (list(int), optional): Tile size in pixels to search.
+            Optimized as an ordinal variable.
+        tile_um (list(int or str), optional): Tile size in microns/magnification
+            to search. Optimized as an ordinal (``int``) or categorical
+            (``str``) variable.
+        augment (list(str), optional): Augmentation strategies to search.
+            Optimized as a categorical variable.
+        normalizer (list(str), optional): Normalizer methods to search.
+            Optimized as a categorical variable.
+        normalizer_source (list(str), optional): Normalizer sources to search.
+            Optimized as a categorical variable.
+        model (list(str), optional): List of model architecture to search.
+            Optimized as a categorical variable.
+        batch_size (list(int), optional): List of batch sizes to search.
+            Optimized as an ordinal variable.
+        dropout (tuple(float, float), optional): Range of dropout values to
+            search (start, end). Optimized as a float.
+        l1 (tuple(float, float), optional): Range of l1 values to
+            search (start, end). Optimized as a float.
+        l2 (tuple(float, float), optional): Range of l2 values to
+            search (start, end). Optimized as a float.
+        l1_dense (tuple(float, float), optional): Range of l1_dense values to
+            search (start, end). Optimized as a float.
+        l2_dense (tuple(float, float), optional): Range of l2_dense values to
+            search (start, end). Optimized as a float.
+        learning_rate (tuple(float, float), optional): Range of learning rates
+            to search (start, end). Optimized as a float (log scale).
+        learning_rate_decay (tuple(float, float), optional): Range of learning
+            rate decay to search (start, end). Optimized as a float.
+        learning_rate_decay_steps (tuple(float, float), optional): Range of
+            learning rate decay steps to search (start, end). Optimized as an
+            int (log scale).
+        hidden_layers (list(int), optional): List of number of hidden layers
+            to search. Optimized as an ordinal variable.
+        hidden_layer_width (list(int), optional): List of hidden layer widths
+            to search. Optimized as an ordinal variable.
+        pooling (list(str), optional): List of post-convolution pooling
+            strategies to search, including 'avg', 'max', or 'none'. Optimized
+            as a categorical variable.
+        trainable_layers (list(int), optional): Range of trainable layers to
+            search (start, end). Optimized as an int.
+        early_stop (bool): Enable searching with and without early stopping.
+            Optimized as a boolean variable.
+
+    Returns:
+        ConfigSpace.ConfigurationSpace
+
+    """
     return create_search_space(
         batch_size=batch_size,
         dropout=dropout,
@@ -85,7 +210,57 @@ def create_search_space(
     trainable_layers: Optional[Tuple[int, int]] = None,           # Int (range)
     early_stop: bool = False,                                     # Boolean
 ) -> ConfigurationSpace:
-    """Build a configuration space for a hyperparameter search."""
+    """Build a configuration space for a Bayesian hyperparameter search.
+
+    Keyword args:
+        tile_px (list(int), optional): Tile size in pixels to search.
+            Optimized as an ordinal variable.
+        tile_um (list(int or str), optional): Tile size in microns/magnification
+            to search. Optimized as an ordinal (``int``) or categorical
+            (``str``) variable.
+        augment (list(str), optional): Augmentation strategies to search.
+            Optimized as a categorical variable.
+        normalizer (list(str), optional): Normalizer methods to search.
+            Optimized as a categorical variable.
+        normalizer_source (list(str), optional): Normalizer sources to search.
+            Optimized as a categorical variable.
+        model (list(str), optional): List of model architecture to search.
+            Optimized as a categorical variable.
+        batch_size (list(int), optional): List of batch sizes to search.
+            Optimized as an ordinal variable.
+        dropout (tuple(float, float), optional): Range of dropout values to
+            search (start, end). Optimized as a float.
+        l1 (tuple(float, float), optional): Range of l1 values to
+            search (start, end). Optimized as a float.
+        l2 (tuple(float, float), optional): Range of l2 values to
+            search (start, end). Optimized as a float.
+        l1_dense (tuple(float, float), optional): Range of l1_dense values to
+            search (start, end). Optimized as a float.
+        l2_dense (tuple(float, float), optional): Range of l2_dense values to
+            search (start, end). Optimized as a float.
+        learning_rate (tuple(float, float), optional): Range of learning rates
+            to search (start, end). Optimized as a float (log scale).
+        learning_rate_decay (tuple(float, float), optional): Range of learning
+            rate decay to search (start, end). Optimized as a float.
+        learning_rate_decay_steps (tuple(float, float), optional): Range of
+            learning rate decay steps to search (start, end). Optimized as an
+            int (log scale).
+        hidden_layers (list(int), optional): List of number of hidden layers
+            to search. Optimized as an ordinal variable.
+        hidden_layer_width (list(int), optional): List of hidden layer widths
+            to search. Optimized as an ordinal variable.
+        pooling (list(str), optional): List of post-convolution pooling
+            strategies to search, including 'avg', 'max', or 'none'. Optimized
+            as a categorical variable.
+        trainable_layers (list(int), optional): Range of trainable layers to
+            search (start, end). Optimized as an int.
+        early_stop (bool): Enable searching with and without early stopping.
+            Optimized as a boolean variable.
+
+    Returns:
+        ConfigSpace.ConfigurationSpace
+
+    """
 
     cs = ConfigurationSpace()
 

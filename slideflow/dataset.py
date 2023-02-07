@@ -29,7 +29,7 @@ overview of the structure of the Dataset class is as follows:
   │ ┌─────────┐                │ .filter()
   │ │Filtered │                │ .remove_filter()
   │ │ Dataset │                │ .clear_filters()
-  │ └─────────┘                │ .train_val_split()
+  │ └─────────┘                │ .split()
   │               Full Dataset │
   └────────────────────────────┘
 
@@ -91,6 +91,7 @@ import threading
 import time
 import types
 import tempfile
+import warnings
 from collections import defaultdict
 from datetime import datetime
 from glob import glob
@@ -101,7 +102,7 @@ from random import shuffle
 from tabulate import tabulate  # type: ignore[import]
 from pprint import pformat
 from typing import (TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Tuple,
-                    Union)
+                    Union, Callable)
 import numpy as np
 import pandas as pd
 import shapely.geometry as sg
@@ -117,8 +118,8 @@ from slideflow.util import (log, Labels, _shortname, path_to_name,
 
 if TYPE_CHECKING:
     import tensorflow as tf
+    import cellpose
     from torch.utils.data import DataLoader
-
     from slideflow.norm import StainNormalizer
 
 
@@ -388,68 +389,88 @@ def split_patients(patients_dict: Dict[str, Dict], n: int) -> List[List[str]]:
     return list(sf.util.split_list(patient_list, n))
 
 
-def split_patients_list(
-    patients_dict: Dict[str, Dict],
-    n: int,
-    balance: Optional[str] = None,
-    preserved_site: bool = False
-) -> List[List[str]]:
-    """Splits a dictionary of patients into n groups,
-    balancing according to key "balance" if provided.
-
-    Deprecated function. Preferred use is calling split_patients(),
-    split_patients_balanced(), or split_patients_preserved_site().
-
-    Args:
-        patients_dict (dict): Nested ditionary mapping patient names to
-            dict of outcomes: labels
-        n (int): Number of splits to generate.
-        balance (str, optional): Annotation header to balance splits across.
-        preserved_site (bool, optional): Use site-preserved cross-validation,
-            assuming site information is under the nested dictionary key
-            'site' in patients_dict.
-
-    Returns:
-        List of patient splits
-    """
-
-    log.warn("Deprecation warning: split_patients_list() will be removed in "
-             "slideflow>=1.2. Please use split_patients(), "
-             "split_patients_balanced(), or split_patients_preserved_site().")
-    if not balance:
-        patient_list = list(patients_dict.keys())
-        shuffle(patient_list)
-        return list(sf.util.split_list(patient_list, n))
-    elif preserved_site:
-        return split_patients_preserved_site(patients_dict, n, balance)
-    else:
-        return split_patients_balanced(patients_dict, n, balance)
-
-
 class Dataset:
-    """Object to supervise organization of slides, tfrecords, and tiles
-    across one or more sources in a stored configuration file."""
+    """Supervises organization and processing of slides, tfrecords, and tiles.
+
+    Datasets can be comprised of one or more sources, where a source is a
+    combination of slides and any associated regions of interest (ROI) and
+    extracted image tiles (stored as TFRecords or loose images).
+
+    Datasets can be created in two ways: either by loading one dataset source,
+    or by loading a dataset configuration that contains information about
+    multiple dataset sources.
+
+    For the first approach, the dataset source configuration is provided via
+    keyword arguments (``tiles``, ``tfrecords``, ``slides``, and ``roi``).
+    Each is a path to a directory containing the respective data.
+
+    For the second approach, the first argument ``config`` is either a nested
+    dictionary containing the configuration for multiple dataset sources, or
+    a path to a JSON file with this information. The second argument is a list
+    of dataset sources to load (keys from the ``config`` dictionary).
+
+    With either approach, slide/patient-level annotations are provided through
+    the ``annotations`` keyword argument, which can either be a path to a CSV
+    file, or a pandas DataFrame, which must contain at minimum the column
+    '`patient`'.
+    """
 
     def __init__(
         self,
-        config: Union[str, Dict[str, Dict[str, str]]],
-        sources: Union[str, List[str]],
-        tile_px: Optional[int],
-        tile_um: Optional[Union[str, int]],
+        config: Optional[Union[str, Dict[str, Dict[str, str]]]] = None,
+        sources: Optional[Union[str, List[str]]] = None,
+        tile_px: Optional[int] = None,
+        tile_um: Optional[Union[str, int]] = None,
+        *,
+        tfrecords: Optional[str] = None,
+        tiles: Optional[str] = None,
+        roi: Optional[str] = None,
+        slides: Optional[str] = None,
         filters: Optional[Dict] = None,
         filter_blank: Optional[Union[List[str], str]] = None,
         annotations: Optional[Union[str, pd.DataFrame]] = None,
-        min_tiles: int = 0
+        min_tiles: int = 0,
     ) -> None:
-        """Initializes dataset to organize processed images.
+        """Initialize a Dataset to organize processed images.
+
+        Examples
+            Load a dataset via keyword arguments.
+
+                .. code-block:: python
+
+                    dataset = Dataset(
+                        tfrecords='../path',
+                        slides='../path',
+                        annotations='../file.csv'
+                    )
+
+            Load a dataset configuration file and specify the dataset source(s).
+
+                .. code-block:: python
+
+                    dataset = Dataset(
+                        config='../path/to/config.json',
+                        sources=['Lung_Adeno', 'Lung_Squam'],
+                        annotations='../file.csv
+                    )
 
         Args:
-            config (str): Path to dataset configuration.
+            config (str, dict): Either a dictionary or a path to a JSON file.
+                If a dictionary, keys should be dataset source names, and values
+                should be dictionaries containing the keys 'tiles', 'tfrecords',
+                'roi', and/or 'slides', specifying directories for each dataset
+                source. If `config` is a str, it should be a path to a JSON
+                file containing a dictionary with the same formatting.
+                If None, tiles, tfrecords, roi and/or slides should be manually
+                provided via keyword arguments. Defaults to None.
             sources (List[str]): List of dataset sources to include from
-                configuration file.
+                configuration. If not provided, will use all sources in the
+                provided configuration. Defaults to None.
             tile_px (int): Tile size in pixels.
             tile_um (int or str): Tile size in microns (int) or magnification
                 (str, e.g. "20x").
+
+        Keyword args:
             filters (Optional[Dict], optional): Filters for selecting slides
                 from annotations. Defaults to None.
             filter_blank (Optional[Union[List[str], str]], optional): Omit
@@ -463,7 +484,7 @@ class Dataset:
 
         Raises:
             errors.SourceNotFoundError: If provided source does not exist
-            in the dataset config.
+                in the dataset config.
         """
         if isinstance(tile_um, str):
             sf.util.assert_is_mag(tile_um)
@@ -481,6 +502,20 @@ class Dataset:
         self.prob_weights = None  # type: Optional[Dict]
         self._annotations = None  # type: Optional[pd.DataFrame]
         self.annotations_file = None  # type: Optional[str]
+
+        if (any(arg is not None for arg in (tfrecords, tiles, roi, slides))
+           and (config is not None or sources is not None)):
+            raise ValueError(
+                "When initializing a Dataset object via keywords (tiles, "
+                "tfrecords, slides, roi), the arguments 'config' and 'sources' "
+                "are invalid."
+            )
+        elif any(arg is not None for arg in (tfrecords, tiles, roi, slides)):
+            config = dict(dataset=dict(
+                tfrecords=tfrecords, tiles=tiles, roi=roi, slides=slides
+            ))
+            sources = ['dataset']
+
         if isinstance(config, str):
             self._config = config
             loaded_config = sf.util.load_json(config)
@@ -489,6 +524,8 @@ class Dataset:
             loaded_config = config
 
         # Read dataset sources from the configuration
+        if sources is None:
+            raise ValueError("Missing argument 'sources'")
         sources = sources if isinstance(sources, list) else [sources]
         try:
             self.sources = {
@@ -530,6 +567,7 @@ class Dataset:
 
     @property
     def annotations(self) -> Optional[pd.DataFrame]:
+        """Pandas DataFrame of all loaded clinical annotations."""
         return self._annotations
 
     @property
@@ -564,6 +602,7 @@ class Dataset:
 
     @property
     def filtered_annotations(self) -> pd.DataFrame:
+        """Pandas DataFrame of clinical annotations, after filtering."""
         if self.annotations is not None:
             f_ann = self.annotations
 
@@ -608,6 +647,30 @@ class Dataset:
             have been extracted.
         """
         return self.verify_img_format()
+
+    def _tfrecords_set(self, source: str):
+        if source not in self.sources:
+            raise ValueError(f"Unrecognized dataset source {source}")
+        config = self.sources[source]
+        return 'tfrecords' in config and config['tfrecords']
+
+    def _tiles_set(self, source: str):
+        if source not in self.sources:
+            raise ValueError(f"Unrecognized dataset source {source}")
+        config = self.sources[source]
+        return 'tiles' in config and config['tiles']
+
+    def _roi_set(self, source: str):
+        if source not in self.sources:
+            raise ValueError(f"Unrecognized dataset source {source}")
+        config = self.sources[source]
+        return 'roi' in config and config['roi']
+
+    def _slides_set(self, source: str):
+        if source not in self.sources:
+            raise ValueError(f"Unrecognized dataset source {source}")
+        config = self.sources[source]
+        return 'slides' in config and config['slides']
 
     def _assert_size_matches_hp(self, hp: Union[Dict, ModelParams]) -> None:
         """Checks if dataset tile size (px/um) matches the given parameters."""
@@ -696,10 +759,12 @@ class Dataset:
         strategy: Optional[str] = 'category',
         force: bool = False,
     ) -> "Dataset":
-        """Returns a dataset with prob_weights reflecting balancing per tile,
-        slide, patient, or category.
+        """Returns a dataset with mini-batch balancing configured.
 
-        Saves balancing information to the dataset variable prob_weights, which
+        Mini-batch balancing can be configured at tile, slide, patient, or
+        category levels.
+
+        Balancing information is saved to the attribute ``prob_weights``, which
         is used by the interleaving dataloaders when sampling from tfrecords
         to create a batch.
 
@@ -733,7 +798,7 @@ class Dataset:
                 header appears to be a float.
 
         Returns:
-            balanced :class:`slideflow.dataset.Dataset` object.
+            balanced :class:`slideflow.Dataset` object.
         """
         ret = copy.deepcopy(self)
         manifest = ret.manifest()
@@ -822,23 +887,163 @@ class Dataset:
 
         Returns:
             None
-
         """
-        def create_index(filename):
+        def create_index(tfrecord):
             nonlocal force
             index_name = join(
-                dirname(filename),
-                path_to_name(filename)+'.index'
+                dirname(tfrecord),
+                path_to_name(tfrecord)+'.index'
             )
-            if not exists(index_name) or force:
-                tfrecord2idx.create_index(filename, index_name)
+            if not tfrecord2idx.find_index(tfrecord) or force:
+                tfrecord2idx.create_index(tfrecord, index_name)
+
         pool = DPool(16)
-        for _ in track(pool.imap(create_index, self.tfrecords()),
+        for _ in track(pool.imap_unordered(create_index, self.tfrecords()),
                       description='Creating index files...',
                       total=len(self.tfrecords()),
                       transient=True):
             pass
         pool.close()
+
+    def cell_segmentation(
+        self,
+        diam_um: float,
+        dest: str,
+        *,
+        model: Union["cellpose.models.Cellpose", str] = 'cyto2',
+        window_size: int = 256,
+        diam_mean: Optional[int] = None,
+        qc: Optional[str] = None,
+        qc_kwargs: Optional[dict] = None,
+        buffer: Optional[str] = None,
+        q_size: int = 1,
+        force: bool = False,
+        save_centroid: bool = True,
+        save_flow: bool = False,
+        **kwargs
+    ) -> None:
+        """Perform cell segmentation on slides, saving segmentation masks.
+
+        Args:
+            diam_um (int, optional): Cell segmentation diameter, in microns.
+            dest (str): Destination in which to save cell segmentation masks.
+
+        Keyword args:
+            batch_size (int): Batch size for cell segmentation. Defaults to 8.
+            cp_thresh (float): Cell probability threshold. All pixels with value
+                above threshold kept for masks, decrease to find more and larger
+                masks. Defaults to 0.
+            diam_mean (int, optional): Cell diameter to detect, in pixels (without
+                image resizing). If None, uses Cellpose defaults (17 for the
+                'nuclei' model, 30 for all others).
+            downscale (float): Factor by which to downscale generated masks after
+                calculation. Defaults to None (keep masks at original size).
+            flow_threshold (float): Flow error threshold (all cells with errors
+                below threshold are kept). Defaults to 0.4.
+            gpus (int, list(int)): GPUs to use for cell segmentation.
+                Defaults to 0 (first GPU).
+            interp (bool): Interpolate during 2D dynamics. Defaults to True.
+            qc (str): Slide-level quality control method to use before
+                performing cell segmentation. Defaults to "Otsu".
+            model (str, :class:`cellpose.models.Cellpose`): Cellpose model to use
+                for cell segmentation. May be any valid cellpose model. Defaults
+                to 'cyto2'.
+            mpp (float): Microns-per-pixel at which cells should be segmented.
+                Defaults to 0.5.
+            num_workers (int, optional): Number of workers.
+                Defaults to 2 * num_gpus.
+            save_centroid (bool): Save mask centroids. Increases memory
+                utilization slightly. Defaults to True.
+            save_flow (bool): Save flow values for the whole-slide image.
+                Increases memory utilization. Defaults to False.
+            sources (List[str]): List of dataset sources to include from
+                configuration file.
+            tile (bool): Tiles image to decrease GPU/CPU memory usage.
+                Defaults to True.
+            verbose (bool): Verbose log output at the INFO level. Defaults to True.
+            window_size (int): Window size at which to segment cells across
+                a whole-slide image. Defaults to 256.
+
+        Returns:
+            None
+        """
+        from slideflow.cellseg import segment_slide
+
+        if qc_kwargs is None:
+            qc_kwargs = {}
+
+        slide_list = self.slide_paths()
+        if not force:
+            n_all = len(slide_list)
+            slide_list = [s for s in slide_list
+                          if not exists(join(dest, sf.util.path_to_name(s)+'-masks.zip'))]
+            n_skipped = n_all - len(slide_list)
+            if n_skipped:
+                log.info("Skipping {} slides (masks already generated)".format(
+                    n_skipped
+                ))
+        if slide_list:
+            log.info(f"Performing cell segmentation for {len(slide_list)} slides.")
+        else:
+            log.info("No slides found.")
+            return
+
+        if diam_mean is None:
+            diam_mean = 30 if model != 'nuclei' else 17
+        tile_um = int(window_size * (diam_um / diam_mean))
+        pb = TileExtractionProgress()
+        speed_task = pb.add_task(
+            "Speed: ", progress_type="speed", total=None
+        )
+        slide_task = pb.add_task(
+            "Slides: ", progress_type="slide_progress", total=len(slide_list)
+        )
+        q = Queue()  # type: Queue
+        if buffer:
+            thread = threading.Thread(
+                target=_fill_queue,
+                args=(slide_list, q, q_size, buffer))
+            thread.start()
+
+        pb.start()
+        while True:
+            slide_path = q.get()
+            if slide_path is None:
+                q.task_done()
+                break
+
+            wsi = sf.WSI(slide_path, tile_px=window_size, tile_um=tile_um, verbose=False)
+            if qc is not None:
+                wsi.qc(qc, **qc_kwargs)
+            segment_task = pb.add_task(
+                "Segmenting... ",
+                progress_type="slide_progress",
+                total=wsi.estimated_num_tiles
+            )
+            # Perform segmentation and save
+            segmentation = segment_slide(
+                wsi,
+                pb=pb,
+                pb_tasks=[speed_task, segment_task],
+                show_progress=False,
+                model=model,
+                diam_mean=diam_mean,
+                save_flow=save_flow,
+                **kwargs)
+            mask_dest = dest if dest is not None else dirname(slide_path)
+            segmentation.save(
+                join(mask_dest, f'{wsi.name}-masks.zip'),
+                flows=save_flow,
+                centroids=save_centroid)
+            pb.advance(slide_task)
+            pb.remove_task(segment_task)
+
+            if buffer:
+                os.remove(slide_path)
+            q.task_done()
+        if buffer:
+            thread.join()
+        pb.stop()
 
     def check_duplicates(
         self,
@@ -849,7 +1054,7 @@ class Dataset:
         """Checks for duplicate slides by comparing slide thumbnails.
 
         Args:
-            dataset (`slideflow.dataset.Dataset`, optional): Also check for
+            dataset (`slideflow.Dataset`, optional): Also check for
                 duplicate slides between this dataset and the provided dataset.
             px (int): Pixel size at which to compare thumbnails. Defaults to 64.
             mse_thresh (int): MSE threshold below which an image pair is
@@ -917,7 +1122,7 @@ class Dataset:
         """Returns a dataset with all filters cleared.
 
         Returns:
-            :class:`slideflow.dataset.Dataset` object.
+            :class:`slideflow.Dataset` object.
         """
 
         ret = copy.deepcopy(self)
@@ -949,7 +1154,7 @@ class Dataset:
                 Defaults to None.
 
         Returns:
-            clipped :class:`slideflow.dataset.Dataset` object.
+            clipped :class:`slideflow.Dataset` object.
         '''
         if strategy == 'category' and not headers:
             raise errors.DatasetClipError(
@@ -1032,8 +1237,46 @@ class Dataset:
             }
         return ret
 
+    def extract_cells(
+        self,
+        masks_path: str,
+        **kwargs
+    ) -> Dict[str, SlideReport]:
+        """Extract images of cells from slides, with a tile at each cell
+        centroid. Requires that cells have already been segmented with
+        ``Dataset.cell_segmentation()``.
+
+        Args:
+            masks_path (str): Location of saved segmentation masks.
+
+        Keyword Args:
+            apply_masks (bool): Apply cell segmentation masks to the extracted
+                tiles. Defaults to True.
+            **kwargs: All other keyword arguments for :meth:`Dataset.extract_tiles()`.
+
+        Returns:
+            Dictionary mapping slide paths to each slide's SlideReport
+            (:class:`slideflow.slide.report.SlideReport`)
+
+        """
+        from slideflow.cellseg.seg_utils import ApplySegmentation
+
+        # Add WSI segmentation as slide-level transformation.
+        qc = [] if 'qc' not in kwargs else kwargs['qc']
+        if not isinstance(qc, list):
+            qc = [qc]
+        qc.append(ApplySegmentation(masks_path))
+        kwargs['qc'] = qc
+
+        # Extract tiles from segmentation centroids.
+        return self.extract_tiles(
+            from_centroids=True,
+            **kwargs
+        )
+
     def extract_tiles(
         self,
+        *,
         save_tiles: bool = False,
         save_tfrecords: bool = True,
         source: Optional[str] = None,
@@ -1044,13 +1287,18 @@ class Dataset:
         tma: bool = False,
         randomize_origin: bool = False,
         buffer: Optional[str] = None,
-        q_size: int = 4,
-        qc: Optional[str] = None,
+        q_size: int = 1,
+        qc: Optional[Union[str, Callable, List[Callable]]] = None,
         report: bool = True,
         **kwargs: Any
     ) -> Dict[str, SlideReport]:
         """Extract tiles from a group of slides, saving extracted tiles to
         either loose image or in TFRecord binary format.
+
+        Extracted tiles are either saved in TFRecord format
+        (``save_tfrecords=True``, default) or as loose \*.jpg / \*.png images
+        (``save_tiles=True``). TFRecords or image tiles are saved in the
+        the tfrecord and tile directories configured by :class:`slideflow.Dataset`.
 
         Args:
             save_tiles (bool): Save images of extracted tiles to
@@ -1152,7 +1400,7 @@ class Dataset:
                 "Dataset tile_px and tile_um must be != 0 to extract tiles"
             )
         if source:
-            sources = sf.util.as_list(source)
+            sources = sf.util.as_list(source)  # type: List[str]
         else:
             sources = list(self.sources.keys())
         all_reports = []
@@ -1165,17 +1413,26 @@ class Dataset:
 
         for source in sources:
             log.info(f'Working on dataset source [bold]{source}[/]...')
-            roi_dir = self.sources[source]['roi']
+            if self._roi_set(source):
+                roi_dir = self.sources[source]['roi']
+            else:
+                roi_dir = None
             src_conf = self.sources[source]
             if 'dry_run' not in kwargs or not kwargs['dry_run']:
-                if save_tfrecords:
+                if save_tfrecords and not self._tfrecords_set(source):
+                    log.error(f"tfrecords path not set for dataset source {source}")
+                    continue
+                elif save_tfrecords:
                     tfrecord_dir = join(
                         src_conf['tfrecords'],
                         src_conf['label']
                     )
                 else:
                     tfrecord_dir = None
-                if save_tiles:
+                if save_tiles and not self._tiles_set(source):
+                    log.error(f"tiles path not set for dataset source {source}")
+                    continue
+                elif save_tiles:
                     tiles_dir = join(src_conf['tiles'], src_conf['label'])
                 else:
                     tiles_dir = None
@@ -1217,7 +1474,6 @@ class Dataset:
             # from all slides in the filtered list
             if len(slide_list):
                 q = Queue()  # type: Queue
-                task_finished = False
                 manager = mp.Manager()
                 # Forking incompatible with some libvips configurations
                 ptype = 'spawn' if sf.slide_backend() == 'libvips' else 'fork'
@@ -1267,26 +1523,21 @@ class Dataset:
                                          total=len(slide_list))
                 pb.start()
                 if buffer:
-                    # Worker to put each slide path into queue
-                    def buffer_worker():
-                        nonlocal task_finished
-                        _fill_queue(slide_list, q, q_size, buffer=buffer)
-                        task_finished = True
-
                     # Start the worker threads
-                    thread = threading.Thread(target=buffer_worker)
+                    thread = threading.Thread(
+                        target=_fill_queue,
+                        args=(slide_list, q, q_size, buffer))
                     thread.start()
 
                     # Grab slide path from queue and start extraction
-                    while not task_finished:
+                    while True:
                         path = q.get()
                         if path is None:
                             q.task_done()
                             break
                         _tile_extractor(path, **extraction_kwargs)
                         pb.advance(slide_task)
-                        if buffer:
-                            os.remove(path)
+                        os.remove(path)
                         q.task_done()
                     thread.join()
                 else:
@@ -1372,11 +1623,14 @@ class Dataset:
             to_extract_tfrecords = self.tfrecords(source=source)
             if dest:
                 tiles_dir = dest
-            else:
+            elif self._tiles_set(source):
                 tiles_dir = join(self.sources[source]['tiles'],
                                  self.sources[source]['label'])
                 if not exists(tiles_dir):
                     os.makedirs(tiles_dir)
+            else:
+                log.error(f"tiles directory not set for dataset source {source}")
+                continue
             for tfr in to_extract_tfrecords:
                 sf.io.extract_tiles(tfr, tiles_dir)
 
@@ -1393,7 +1647,7 @@ class Dataset:
                 minimum number of tiles.
 
         Returns:
-            :class:`slideflow.dataset.Dataset`: Dataset with filter added.
+            :class:`slideflow.Dataset`: Dataset with filter added.
         """
         if len(args) == 1 and 'filters' not in kwargs:
             kwargs['filters'] = args[0]
@@ -1520,6 +1774,8 @@ class Dataset:
         Returns:
             bool: If all values from header can be converted to float.
         """
+        if self.annotations is None:
+            raise errors.DatasetError("Annotations not loaded.")
         filtered_labels = self.filtered_annotations[header]
         try:
             filtered_labels = [float(o) for o in filtered_labels]
@@ -1566,6 +1822,8 @@ class Dataset:
                 **list**: List of unique labels. For categorical outcomes, this will
                 be a list of str; indices correspond with the outcome label id.
         """
+        if self.annotations is None:
+            raise errors.DatasetError("Annotations not loaded.")
         if not len(self.filtered_annotations):
             raise errors.DatasetError(
                 "Cannot generate labels: dataset is empty after filtering."
@@ -1681,14 +1939,8 @@ class Dataset:
         indices = {}
 
         def load_index(tfr):
-            index_name = join(dirname(tfr), path_to_name(tfr)+'.index')
             tfr_name = path_to_name(tfr)
-            if not exists(index_name):
-                raise OSError(f"Could not find index path for TFRecord {tfr}")
-            if os.stat(index_name).st_size == 0:
-                index = None
-            else:
-                index = np.loadtxt(index_name, dtype=np.int64)
+            index = tfrecord2idx.load_index(tfr)
             return tfr_name, index
 
         log.debug("Loading indices...")
@@ -1718,6 +1970,9 @@ class Dataset:
         all_manifest = {}
         for source in self.sources:
             if self.sources[source]['label'] is None:
+                continue
+            if not self._tfrecords_set(source):
+                log.warning(f"tfrecords path not set for dataset source {source}")
                 continue
             tfrecord_dir = join(
                 self.sources[source]['tfrecords'],
@@ -1758,6 +2013,8 @@ class Dataset:
 
     def patients(self) -> Dict[str, str]:
         """Returns a list of patient IDs from this dataset."""
+        if self.annotations is None:
+            raise errors.DatasetError("Annotations not loaded.")
         result = {}  # type: Dict[str, str]
         pairs = list(zip(
             self.filtered_annotations['slide'],
@@ -1784,7 +2041,7 @@ class Dataset:
                 filter_blank.
 
         Returns:
-            :class:`slideflow.dataset.Dataset`: Dataset with filter removed.
+            :class:`slideflow.Dataset`: Dataset with filter removed.
         """
 
         for kwarg in kwargs:
@@ -1814,6 +2071,19 @@ class Dataset:
                     del ret._filter_blank[ret._filter_blank.index(f)]
         return ret
 
+    def rebuild_index(self) -> None:
+        """Rebuilds index files for TFRecords.
+
+        Equivalent to ``Dataset.build_index(force=True)``.
+
+        Args:
+            None
+
+        Returns:
+            None
+        """
+        self.build_index(force=True)
+
     def resize_tfrecords(self, tile_px: int) -> None:
         """Resizes images in a set of TFRecords to a given pixel size.
 
@@ -1840,7 +2110,10 @@ class Dataset:
         """Returns a list of all ROIs."""
         rois_list = []
         for source in self.sources:
-            rois_list += glob(join(self.sources[source]['roi'], "*.csv"))
+            if self._roi_set(source):
+                rois_list += glob(join(self.sources[source]['roi'], "*.csv"))
+            else:
+                log.warning(f"roi path not set for dataset source {source}")
         slides = self.slides()
         return [r for r in list(set(rois_list)) if path_to_name(r) in slides]
 
@@ -1950,11 +2223,18 @@ class Dataset:
             raise errors.DatasetError(f"Dataset {source} not found.")
         # Get unfiltered paths
         if source:
-            paths = sf.util.get_slide_paths(self.sources[source]['slides'])
+            if not self._slides_set(source):
+                log.warning(f"slides path not set for dataset source {source}")
+                return []
+            else:
+                paths = sf.util.get_slide_paths(self.sources[source]['slides'])
         else:
             paths = []
             for src in self.sources:
-                paths += sf.util.get_slide_paths(self.sources[src]['slides'])
+                if not self._slides_set(src):
+                    log.warning(f"slides path not set for dataset source {src}")
+                else:
+                    paths += sf.util.get_slide_paths(self.sources[src]['slides'])
 
         # Remove any duplicates from shared dataset paths
         paths = list(set(paths))
@@ -1984,518 +2264,11 @@ class Dataset:
         slides = ann.slide.unique().tolist()
         return slides
 
-    def split_tfrecords_by_roi(self, destination: str) -> None:
-        """Split dataset tfrecords into separate tfrecords according to ROI.
-
-        Will generate two sets of tfrecords, with identical names: one with
-        tiles inside the ROIs, one with tiles outside the ROIs. Will skip any
-        tfrecords that are missing ROIs. Requires slides to be available.
-
-        Args:
-            destination (str): Destination path.
-
-        Returns:
-            None
-        """
-        tfrecords = self.tfrecords()
-        slides = {path_to_name(s): s for s in self.slide_paths()}
-        rois = self.rois()
-        manifest = self.manifest()
-
-        if self.tile_px is None or self.tile_um is None:
-            raise errors.DatasetError(
-                "tile_px and tile_um must be non-zero to process TFRecords."
-            )
-
-        for tfr in tfrecords:
-            slidename = path_to_name(tfr)
-            if slidename not in slides:
-                continue
-            try:
-                slide = WSI(
-                    slides[slidename],
-                    self.tile_px,
-                    self.tile_um,
-                    rois=rois,
-                    roi_method='inside'
-                )
-            except errors.SlideLoadError as e:
-                log.error(e)
-                continue
-            parser = sf.io.get_tfrecord_parser(
-                tfr,
-                decode_images=False,
-                to_numpy=True
-            )
-            if parser is None:
-                log.error(f"Could not read TFRecord {tfr}; skipping")
-                continue
-            reader = sf.io.TFRecordDataset(tfr)
-            if not exists(join(destination, 'inside')):
-                os.makedirs(join(destination, 'inside'))
-            if not exists(join(destination, 'outside')):
-                os.makedirs(join(destination, 'outside'))
-            in_path = join(destination, 'inside', f'{slidename}.tfrecords')
-            out_path = join(destination, 'outside', f'{slidename}.tfrecords')
-            inside_roi_writer = sf.io.TFRecordWriter(in_path)
-            outside_roi_writer = sf.io.TFRecordWriter(out_path)
-            for record in track(reader, total=manifest[tfr]['total']):
-                parsed = parser(record)
-                loc_x, loc_y = parsed['loc_x'], parsed['loc_y']
-                tile_in_roi = any([
-                    annPoly.contains(sg.Point(loc_x, loc_y))
-                    for annPoly in slide.annPolys
-                ])
-                record_bytes = sf.io.read_and_return_record(record, parser)
-                if tile_in_roi:
-                    inside_roi_writer.write(record_bytes)
-                else:
-                    outside_roi_writer.write(record_bytes)
-            inside_roi_writer.close()
-            outside_roi_writer.close()
-
-    def summary(self) -> None:
-        """Print a summary of this dataset."""
-
-        # Get ROI information.
-        patients = self.patients()
-        has_rois = defaultdict(bool)
-        slides_with_roi = {}
-        patients_with_roi = defaultdict(bool)
-        for r in self.rois():
-            s = sf.util.path_to_name(r)
-            with open(r, 'r') as f:
-                has_rois[s] = len(f.read().split('\n')) > 2
-        for sp in self.slide_paths():
-            s = sf.util.path_to_name(sp)
-            slides_with_roi[s] = has_rois[s]
-        for s in self.slides():
-            p = patients[s]
-            if s in slides_with_roi and slides_with_roi[s]:
-                patients_with_roi[p] = True
-
-        # Print summary.
-        if self.annotations is not None:
-            num_patients = len(self.annotations.patient.unique())
-        else:
-            num_patients = 0
-        print("Overview:")
-        table = [("Configuration file:", self._config),
-                ("Tile size (px):",     self.tile_px),
-                ("Tile size (um):",     self.tile_um),
-                ("Slides:",             len(self.slides())),
-                ("Patients:",           num_patients),
-                ("Slides with ROIs:",   len([s for s in slides_with_roi
-                                             if slides_with_roi[s]])),
-                ("Patients with ROIs:", len([p for p in patients_with_roi
-                                             if patients_with_roi[p]]))]
-        print(tabulate(table, tablefmt='fancy_outline'))
-        print("\nFilters:")
-        table = [("Filters:",           pformat(self.filters)),
-                ("Filter Blank:",       pformat(self.filter_blank)),
-                ("Min Tiles:",          pformat(self.min_tiles))]
-        print(tabulate(table, tablefmt='fancy_grid'))
-        print("\nSources:")
-        if not self.sources:
-            print("<None>")
-        else:
-            for source in self.sources:
-                print(f"\n{source}")
-                d = self.sources[source]
-                print(tabulate(zip(d.keys(), d.values()),
-                               tablefmt="fancy_outline"))
-        print("\nAnnotation columns:")
-        print("<NA>" if self.annotations is None else self.annotations.columns)
-
-    def tensorflow(
-        self,
-        labels: Labels = None,
-        batch_size: Optional[int] = None,
-        from_wsi: bool = False,
-        **kwargs: Any
-    ) -> "tf.data.Dataset":
-        """Returns a Tensorflow Dataset object that interleaves tfrecords
-        from this dataset.
-
-        The returned dataset yields a batch of (image, label) for each tile.
-        Labels may be specified either via a dict mapping slide names to
-        outcomes, or a parsing function which accept and image and slide name,
-        returning a dict {'image_raw': image(tensor)} and label (int or float).
-
-        Args:
-            labels (dict or str, optional): Dict or function. If dict, must
-                map slide names to outcome labels. If function, function must
-                accept an image (tensor) and slide name (str), and return a
-                dict {'image_raw': image (tensor)} and label (int or float).
-                If not provided, all labels will be None.
-            batch_size (int): Batch size.
-
-        Keyword Args:
-            onehot (bool, optional): Onehot encode labels. Defaults to False.
-            incl_slidenames (bool, optional): Include slidenames as third
-                returned variable. Defaults to False.
-            infinite (bool, optional): Infinitely repeat data.
-                Defaults to True.
-            rank (int, optional): Worker ID to identify which worker this
-                represents. Used to interleave results among workers without
-                duplications. Defaults to 0 (first worker).
-            num_replicas (int, optional): Number of GPUs or unique instances
-                which will have their own DataLoader. Used to interleave
-                results among workers without duplications. Defaults to 1.
-            normalizer (:class:`slideflow.norm.StainNormalizer`, optional):
-                Normalizer to use on images.
-            seed (int, optional): Use the following seed when randomly
-                interleaving. Necessary for synchronized multiprocessing
-                distributed reading.
-            chunk_size (int, optional): Chunk size for image decoding.
-                Defaults to 16.
-            preload_factor (int, optional): Number of batches to preload.
-                Defaults to 1.
-            augment (str, optional): Image augmentations to perform. String
-                    containing characters designating augmentations.
-                    'x' indicates random x-flipping, 'y' y-flipping,
-                    'r' rotating, and 'j' JPEG compression/decompression at
-                    random quality levels. Passing either 'xyrj' or True will
-                    use all augmentations.
-            standardize (bool, optional): Standardize images to (0,1).
-                Defaults to True.
-            num_workers (int, optional): Number of DataLoader workers.
-                Defaults to 2.
-            deterministic (bool, optional): When num_parallel_calls is
-                specified, if this boolean is specified (True or False), it
-                controls the order in which the transformation produces
-                elements. If set to False, the transformation is allowed to
-                yield elements out of order to trade determinism for
-                performance. Defaults to False.
-            drop_last (bool, optional): Drop the last non-full batch.
-                Defaults to False.
-        """
-
-        from slideflow.io.tensorflow import interleave
-
-        if self.tile_px is None:
-            raise errors.DatasetError("tile_px and tile_um must be non-zero"
-                                      "to create dataloaders.")
-        if self.prob_weights is not None and from_wsi:
-            log.warning("Dataset balancing is disabled when `from_wsi=True`")
-        if self._clip not in (None, {}) and from_wsi:
-            log.warning("Dataset clipping is disabled when `from_wsi=True`")
-
-        if from_wsi:
-            tfrecords = self.slide_paths()
-            kwargs['rois'] = self.rois()
-            kwargs['tile_um'] = self.tile_um
-            kwargs['from_wsi'] = True
-            prob_weights = None
-            clip = None
-        else:
-            tfrecords = self.tfrecords()
-            prob_weights = self.prob_weights
-            clip = self._clip
-            if not tfrecords:
-                raise errors.TFRecordsNotFoundError
-            self.verify_img_format()
-
-        return interleave(paths=tfrecords,
-                          labels=labels,
-                          img_size=self.tile_px,
-                          batch_size=batch_size,
-                          prob_weights=prob_weights,
-                          clip=clip,
-                          **kwargs)
-
-    def tfrecord_report(
-        self,
-        dest: str,
-        normalizer: Optional["StainNormalizer"] = None
-    ) -> None:
-        """Creates a PDF report of TFRecords, including 10 example tiles
-        per TFRecord.
-
-        Args:
-            dest (str): Directory in which to save the PDF report.
-            normalizer (`slideflow.norm.StainNormalizer`, optional):
-                Normalizer to use on image tiles. Defaults to None.
-        """
-
-        if normalizer is not None:
-            log.info(f'Using realtime {normalizer.method} normalization')
-
-        tfrecord_list = self.tfrecords()
-        reports = []
-        log.info('Generating TFRecords report...')
-        # Get images for report
-        for tfr in track(tfrecord_list, description='Generating report...'):
-            dataset = sf.io.TFRecordDataset(tfr)
-            parser = sf.io.get_tfrecord_parser(
-                tfr,
-                ('image_raw',),
-                to_numpy=True,
-                decode_images=False
-            )
-            if not parser:
-                continue
-            sample_tiles = []
-            for i, record in enumerate(dataset):
-                if i > 9:
-                    break
-                image_raw_data = parser(record)[0]
-                if normalizer:
-                    image_raw_data = normalizer.jpeg_to_jpeg(image_raw_data)
-                sample_tiles += [image_raw_data]
-            reports += [SlideReport(sample_tiles, tfr)]
-
-        # Generate and save PDF
-        log.info('Generating PDF (this may take some time)...')
-        pdf_report = ExtractionReport(reports, title='TFRecord Report')
-        timestring = datetime.now().strftime('%Y%m%d-%H%M%S')
-        if exists(dest) and isdir(dest):
-            filename = join(dest, f'tfrecord_report-{timestring}.pdf')
-        elif sf.util.path_to_ext(dest) == 'pdf':
-            filename = join(dest)
-        else:
-            raise ValueError(f"Could not find destination directory {dest}.")
-        pdf_report.save(filename)
-        log.info(f'TFRecord report saved to [green]{filename}')
-
-    def tfrecord_heatmap(
-        self,
-        tfrecord: Union[str, List[str]],
-        tile_dict: Dict[int, float],
-        outdir: str
-    ) -> None:
-        """Creates a tfrecord-based WSI heatmap using a dictionary of tile
-        values for heatmap display, saving to project root directory.
-
-        Args:
-            tfrecord (str or list(str)): Path(s) to tfrecord(s).
-            tile_dict (dict): Dictionary mapping tfrecord indices to a
-                tile-level value for display in heatmap format
-            outdir (str): Path to destination directory.
-
-        Returns:
-            None
-        """
-        slide_paths = {
-            sf.util.path_to_name(sp): sp for sp in self.slide_paths()
-        }
-        if not self.tile_px or not self.tile_um:
-            raise errors.DatasetError(
-                "Dataset tile_px & tile_um must be set to create TFRecords."
-            )
-        for tfr in sf.util.as_list(tfrecord):
-            name = sf.util.path_to_name(tfr)
-            if name not in slide_paths:
-                raise errors.SlideNotFoundError(f'Unable to find slide {name}')
-            sf.util.tfrecord_heatmap(
-                tfrecord=tfr,
-                slide=slide_paths[name],
-                tile_px=self.tile_px,
-                tile_um=self.tile_um,
-                tile_dict=tile_dict,
-                outdir=outdir,
-            )
-
-    def tfrecords(self, source: Optional[str] = None) -> List[str]:
-        """Returns a list of all tfrecords.
-
-        Args:
-            source (str, optional): Only return tfrecords from this dataset
-                source. Defaults to None (return all tfrecords in dataset).
-
-        Returns:
-            List of tfrecords paths.
-        """
-        if source and source not in self.sources.keys():
-            log.error(f"Dataset {source} not found.")
-            return []
-        if source is None:
-            sources_to_search = list(self.sources.keys())
-        else:
-            sources_to_search = [source]
-
-        tfrecords_list = []
-        folders_to_search = []
-        for source in sources_to_search:
-            tfrecords = self.sources[source]['tfrecords']
-            label = self.sources[source]['label']
-            if label is None:
-                continue
-            tfrecord_path = join(tfrecords, label)
-            if not exists(tfrecord_path):
-                log.debug(
-                    f"TFRecords path not found: {tfrecord_path}"
-                )
-                continue
-            folders_to_search += [tfrecord_path]
-        for folder in folders_to_search:
-            tfrecords_list += glob(join(folder, "*.tfrecords"))
-        tfrecords_list = list(set(tfrecords_list))
-
-        # Filter the list by filters
-        if self.annotations is not None:
-            slides = self.slides()
-            filtered_tfrecords_list = [
-                tfrecord for tfrecord in tfrecords_list
-                if path_to_name(tfrecord) in slides
-            ]
-            filtered = filtered_tfrecords_list
-        else:
-            log.warning("Error filtering TFRecords, are annotations empty?")
-            filtered = tfrecords_list
-
-        # Filter by min_tiles
-        manifest = self.manifest(filter=False)
-        if not all([f in manifest for f in filtered]):
-            self.update_manifest()
-            manifest = self.manifest(filter=False)
-        if self.min_tiles:
-            return [
-                f for f in filtered
-                if f in manifest and manifest[f]['total'] >= self.min_tiles
-            ]
-        else:
-            return [f for f in filtered
-                    if f in manifest and manifest[f]['total'] > 0]
-
-    def tfrecords_by_subfolder(self, subfolder: str) -> List[str]:
-        """Returns a list of all tfrecords in a specific subfolder,
-        ignoring filters.
-
-        Args:
-            subfolder (str): Path to subfolder to check for tfrecords.
-
-        Returns:
-            List of tfrecords paths.
-        """
-        tfrecords_list = []
-        folders_to_search = []
-        for source in self.sources:
-            if self.sources[source]['label'] is None:
-                continue
-            base_dir = join(
-                self.sources[source]['tfrecords'],
-                self.sources[source]['label']
-            )
-            tfrecord_path = join(base_dir, subfolder)
-            if not exists(tfrecord_path):
-                raise errors.DatasetError(
-                    f"Unable to find subfolder [bold]{subfolder}[/] in "
-                    f"source [bold]{source}[/], tfrecord directory: "
-                    f"[green]{base_dir}"
-                )
-            folders_to_search += [tfrecord_path]
-        for folder in folders_to_search:
-            tfrecords_list += glob(join(folder, "*.tfrecords"))
-        return tfrecords_list
-
-    def tfrecords_folders(self) -> List[str]:
-        """Returns folders containing tfrecords."""
-        folders = []
-        for source in self.sources:
-            if self.sources[source]['label'] is None:
-                continue
-            folders += [join(
-                self.sources[source]['tfrecords'],
-                self.sources[source]['label']
-            )]
-        return folders
-
-    def tfrecords_from_tiles(self, delete_tiles: bool = False) -> None:
-        """Create tfrecord files from a collection of raw images,
-        as stored in project tiles directory
-
-        Args:
-            delete_tiles (bool): Remove tiles after storing in tfrecords.
-
-        Returns:
-            None
-        """
-        if not self.tile_px or not self.tile_um:
-            raise errors.DatasetError(
-                "Dataset tile_px & tile_um must be set to create TFRecords."
-            )
-        for source in self.sources:
-            log.info(f'Working on dataset source {source}')
-            config = self.sources[source]
-            tfrecord_dir = join(config['tfrecords'], config['label'])
-            tiles_dir = join(config['tiles'], config['label'])
-            if not exists(tiles_dir):
-                log.warn(f'No tiles found for source [bold]{source}')
-                continue
-            sf.io.write_tfrecords_multi(tiles_dir, tfrecord_dir)
-            self.update_manifest()
-            if delete_tiles:
-                shutil.rmtree(tiles_dir)
-
-    def thumbnails(
-        self,
-        outdir: str,
-        size: int = 512,
-        roi: bool = False,
-        enable_downsample: bool = True
-    ) -> None:
-        """Generates square slide thumbnails with black borders of fixed size,
-        and saves to project folder.
-
-        Args:
-            size (int, optional): Width/height of thumbnail in pixels.
-                Defaults to 512.
-            dataset (:class:`slideflow.dataset.Dataset`, optional): Dataset
-                from which to generate activations. If not supplied, will
-                calculate activations for all tfrecords at the tile_px/tile_um
-                matching the supplied model, optionally using provided filters
-                and filter_blank.
-            filters (dict, optional): Filters to use when selecting tfrecords.
-                Defaults to None.
-            filter_blank (list, optional): Exclude slides blank in these cols.
-                Defaults to None.
-            roi (bool, optional): Include ROI in the thumbnail images.
-                Defaults to False.
-            enable_downsample (bool, optional): If True and a thumbnail is not
-                embedded in the slide file, downsampling is permitted to
-                accelerate thumbnail calculation.
-        """
-        slide_list = self.slide_paths()
-        rois = self.rois()
-        log.info(f'Saving thumbnails to [green]{outdir}')
-        for slide_path in tqdm(slide_list, desc="Generating thumbnails..."):
-            log.debug(f'Working on [green]{path_to_name(slide_path)}[/]...')
-            try:
-                whole_slide = WSI(slide_path,
-                                  tile_px=1000,
-                                  tile_um=1000,
-                                  stride_div=1,
-                                  enable_downsample=enable_downsample,
-                                  rois=rois,
-                                  verbose=False)
-            except errors.MissingROIError:
-                log.info(f"Skipping {whole_slide.name}; missing ROI")
-            except Exception as e:
-                log.error(f"Error generating thumbnail for {whole_slide.name}: {e}")
-            if roi:
-                thumb = whole_slide.thumb(rois=True)
-            else:
-                thumb = whole_slide.square_thumb(size)
-            thumb.save(join(outdir, f'{whole_slide.name}.png'))
-        log.info('Thumbnail generation complete.')
-
-    def training_validation_split(
-        self,
-        *args: Any,
-        **kwargs: Any
-    ) -> Tuple["Dataset", "Dataset"]:
-        log.warn(
-            "Dataset.training_validation_split() moved to train_val_split()"
-            ", please update."
-        )
-        return self.train_val_split(*args, **kwargs)
-
-    def train_val_split(
+    def split(
         self,
         model_type: str,
-        labels: Dict,
-        val_strategy: str,
+        labels: Union[Dict, str],
+        val_strategy: str = 'fixed',
         splits: Optional[str] = None,
         val_fraction: Optional[float] = None,
         val_k_fold: Optional[int] = None,
@@ -2514,10 +2287,11 @@ class Dataset:
 
         Args:
             model_type (str): Either 'categorical' or 'linear'.
-            labels (dict):  Dictionary mapping slides to labels. Used for
-                balancing outcome labels in training and validation cohorts.
+            labels (dict):  Either a ictionary mapping slides to labels, or
+                an outcome label (``str``). Used for balancing outcome labels
+                in training and validation cohorts.
             val_strategy (str): Either 'k-fold', 'k-fold-preserved-site',
-                'bootstrap', or 'fixed'.
+                'bootstrap', or 'fixed'. Defaults to 'fixed'.
             splits (str, optional): Path to JSON file containing validation
                 splits. Defaults to None.
             outcome_key (str, optional): Key indicating outcome label in
@@ -2565,6 +2339,8 @@ class Dataset:
             raise errors.DatasetSplitError(
                 f"Must supply val_fraction for strategy {val_strategy}"
             )
+        if isinstance(labels, str):
+            labels = self.labels(labels)[0]
 
         # Prepare dataset
         patients = self.patients()
@@ -2836,6 +2612,542 @@ class Dataset:
             assert(sorted(val_dts.slide_paths()) == sorted(val_tfrecords))
         return training_dts, val_dts
 
+    def split_tfrecords_by_roi(self, destination: str) -> None:
+        """Split dataset tfrecords into separate tfrecords according to ROI.
+
+        Will generate two sets of tfrecords, with identical names: one with
+        tiles inside the ROIs, one with tiles outside the ROIs. Will skip any
+        tfrecords that are missing ROIs. Requires slides to be available.
+
+        Args:
+            destination (str): Destination path.
+
+        Returns:
+            None
+        """
+        tfrecords = self.tfrecords()
+        slides = {path_to_name(s): s for s in self.slide_paths()}
+        rois = self.rois()
+        manifest = self.manifest()
+
+        if self.tile_px is None or self.tile_um is None:
+            raise errors.DatasetError(
+                "tile_px and tile_um must be non-zero to process TFRecords."
+            )
+
+        for tfr in tfrecords:
+            slidename = path_to_name(tfr)
+            if slidename not in slides:
+                continue
+            try:
+                slide = WSI(
+                    slides[slidename],
+                    self.tile_px,
+                    self.tile_um,
+                    rois=rois,
+                    roi_method='inside'
+                )
+            except errors.SlideLoadError as e:
+                log.error(e)
+                continue
+            parser = sf.io.get_tfrecord_parser(
+                tfr,
+                decode_images=False,
+                to_numpy=True
+            )
+            if parser is None:
+                log.error(f"Could not read TFRecord {tfr}; skipping")
+                continue
+            reader = sf.io.TFRecordDataset(tfr)
+            if not exists(join(destination, 'inside')):
+                os.makedirs(join(destination, 'inside'))
+            if not exists(join(destination, 'outside')):
+                os.makedirs(join(destination, 'outside'))
+            in_path = join(destination, 'inside', f'{slidename}.tfrecords')
+            out_path = join(destination, 'outside', f'{slidename}.tfrecords')
+            inside_roi_writer = sf.io.TFRecordWriter(in_path)
+            outside_roi_writer = sf.io.TFRecordWriter(out_path)
+            for record in track(reader, total=manifest[tfr]['total']):
+                parsed = parser(record)
+                loc_x, loc_y = parsed['loc_x'], parsed['loc_y']
+                tile_in_roi = any([
+                    annPoly.contains(sg.Point(loc_x, loc_y))
+                    for annPoly in slide.annPolys
+                ])
+                # Convert from a Tensor -> Numpy array
+                if hasattr(record, 'numpy'):
+                    record = record.numpy()
+                if tile_in_roi:
+                    inside_roi_writer.write(record)
+                else:
+                    outside_roi_writer.write(record)
+            inside_roi_writer.close()
+            outside_roi_writer.close()
+
+    def summary(self) -> None:
+        """Print a summary of this dataset."""
+
+        # Get ROI information.
+        patients = self.patients()
+        has_rois = defaultdict(bool)
+        slides_with_roi = {}
+        patients_with_roi = defaultdict(bool)
+        for r in self.rois():
+            s = sf.util.path_to_name(r)
+            with open(r, 'r') as f:
+                has_rois[s] = len(f.read().split('\n')) > 2
+        for sp in self.slide_paths():
+            s = sf.util.path_to_name(sp)
+            slides_with_roi[s] = has_rois[s]
+        for s in self.slides():
+            p = patients[s]
+            if s in slides_with_roi and slides_with_roi[s]:
+                patients_with_roi[p] = True
+
+        # Print summary.
+        if self.annotations is not None:
+            num_patients = len(self.annotations.patient.unique())
+        else:
+            num_patients = 0
+        print("Overview:")
+        table = [("Configuration file:", self._config),
+                ("Tile size (px):",     self.tile_px),
+                ("Tile size (um):",     self.tile_um),
+                ("Slides:",             len(self.slides())),
+                ("Patients:",           num_patients),
+                ("Slides with ROIs:",   len([s for s in slides_with_roi
+                                             if slides_with_roi[s]])),
+                ("Patients with ROIs:", len([p for p in patients_with_roi
+                                             if patients_with_roi[p]]))]
+        print(tabulate(table, tablefmt='fancy_outline'))
+        print("\nFilters:")
+        table = [("Filters:",           pformat(self.filters)),
+                ("Filter Blank:",       pformat(self.filter_blank)),
+                ("Min Tiles:",          pformat(self.min_tiles))]
+        print(tabulate(table, tablefmt='fancy_grid'))
+        print("\nSources:")
+        if not self.sources:
+            print("<None>")
+        else:
+            for source in self.sources:
+                print(f"\n{source}")
+                d = self.sources[source]
+                print(tabulate(zip(d.keys(), d.values()),
+                               tablefmt="fancy_outline"))
+
+        print("\nNumber of tiles in TFRecords:", self.num_tiles)
+        print("Annotation columns:")
+        print("<NA>" if self.annotations is None else self.annotations.columns)
+
+    def tensorflow(
+        self,
+        labels: Labels = None,
+        batch_size: Optional[int] = None,
+        from_wsi: bool = False,
+        **kwargs: Any
+    ) -> "tf.data.Dataset":
+        """Returns a Tensorflow Dataset object that interleaves tfrecords
+        from this dataset.
+
+        The returned dataset yields a batch of (image, label) for each tile.
+        Labels may be specified either via a dict mapping slide names to
+        outcomes, or a parsing function which accept and image and slide name,
+        returning a dict {'image_raw': image(tensor)} and label (int or float).
+
+        Args:
+            labels (dict or str, optional): Dict or function. If dict, must
+                map slide names to outcome labels. If function, function must
+                accept an image (tensor) and slide name (str), and return a
+                dict {'image_raw': image (tensor)} and label (int or float).
+                If not provided, all labels will be None.
+            batch_size (int): Batch size.
+
+        Keyword Args:
+            onehot (bool, optional): Onehot encode labels. Defaults to False.
+            incl_slidenames (bool, optional): Include slidenames as third
+                returned variable. Defaults to False.
+            infinite (bool, optional): Infinitely repeat data.
+                Defaults to True.
+            rank (int, optional): Worker ID to identify which worker this
+                represents. Used to interleave results among workers without
+                duplications. Defaults to 0 (first worker).
+            num_replicas (int, optional): Number of GPUs or unique instances
+                which will have their own DataLoader. Used to interleave
+                results among workers without duplications. Defaults to 1.
+            normalizer (:class:`slideflow.norm.StainNormalizer`, optional):
+                Normalizer to use on images.
+            seed (int, optional): Use the following seed when randomly
+                interleaving. Necessary for synchronized multiprocessing
+                distributed reading.
+            chunk_size (int, optional): Chunk size for image decoding.
+                Defaults to 16.
+            preload_factor (int, optional): Number of batches to preload.
+                Defaults to 1.
+            augment (str, optional): Image augmentations to perform. String
+                    containing characters designating augmentations.
+                    'x' indicates random x-flipping, 'y' y-flipping,
+                    'r' rotating, and 'j' JPEG compression/decompression at
+                    random quality levels. Passing either 'xyrj' or True will
+                    use all augmentations.
+            standardize (bool, optional): Standardize images to (0,1).
+                Defaults to True.
+            num_workers (int, optional): Number of DataLoader workers.
+                Defaults to 2.
+            deterministic (bool, optional): When num_parallel_calls is
+                specified, if this boolean is specified (True or False), it
+                controls the order in which the transformation produces
+                elements. If set to False, the transformation is allowed to
+                yield elements out of order to trade determinism for
+                performance. Defaults to False.
+            drop_last (bool, optional): Drop the last non-full batch.
+                Defaults to False.
+        """
+
+        from slideflow.io.tensorflow import interleave
+
+        if self.tile_px is None:
+            raise errors.DatasetError("tile_px and tile_um must be non-zero"
+                                      "to create dataloaders.")
+        if self.prob_weights is not None and from_wsi:
+            log.warning("Dataset balancing is disabled when `from_wsi=True`")
+        if self._clip not in (None, {}) and from_wsi:
+            log.warning("Dataset clipping is disabled when `from_wsi=True`")
+
+        if from_wsi:
+            tfrecords = self.slide_paths()
+            kwargs['rois'] = self.rois()
+            kwargs['tile_um'] = self.tile_um
+            kwargs['from_wsi'] = True
+            prob_weights = None
+            clip = None
+        else:
+            tfrecords = self.tfrecords()
+            prob_weights = self.prob_weights
+            clip = self._clip
+            if not tfrecords:
+                raise errors.TFRecordsNotFoundError
+            self.verify_img_format()
+
+        return interleave(paths=tfrecords,
+                          labels=labels,
+                          img_size=self.tile_px,
+                          batch_size=batch_size,
+                          prob_weights=prob_weights,
+                          clip=clip,
+                          **kwargs)
+
+    def tfrecord_report(
+        self,
+        dest: str,
+        normalizer: Optional["StainNormalizer"] = None
+    ) -> None:
+        """Creates a PDF report of TFRecords, including 10 example tiles
+        per TFRecord.
+
+        Args:
+            dest (str): Directory in which to save the PDF report.
+            normalizer (`slideflow.norm.StainNormalizer`, optional):
+                Normalizer to use on image tiles. Defaults to None.
+        """
+
+        if normalizer is not None:
+            log.info(f'Using realtime {normalizer.method} normalization')
+
+        tfrecord_list = self.tfrecords()
+        reports = []
+        log.info('Generating TFRecords report...')
+        # Get images for report
+        for tfr in track(tfrecord_list, description='Generating report...'):
+            dataset = sf.io.TFRecordDataset(tfr)
+            parser = sf.io.get_tfrecord_parser(
+                tfr,
+                ('image_raw',),
+                to_numpy=True,
+                decode_images=False
+            )
+            if not parser:
+                continue
+            sample_tiles = []
+            for i, record in enumerate(dataset):
+                if i > 9:
+                    break
+                image_raw_data = parser(record)[0]
+                if normalizer:
+                    image_raw_data = normalizer.jpeg_to_jpeg(image_raw_data)
+                sample_tiles += [image_raw_data]
+            reports += [SlideReport(sample_tiles, tfr)]
+
+        # Generate and save PDF
+        log.info('Generating PDF (this may take some time)...')
+        pdf_report = ExtractionReport(reports, title='TFRecord Report')
+        timestring = datetime.now().strftime('%Y%m%d-%H%M%S')
+        if exists(dest) and isdir(dest):
+            filename = join(dest, f'tfrecord_report-{timestring}.pdf')
+        elif sf.util.path_to_ext(dest) == 'pdf':
+            filename = join(dest)
+        else:
+            raise ValueError(f"Could not find destination directory {dest}.")
+        pdf_report.save(filename)
+        log.info(f'TFRecord report saved to [green]{filename}')
+
+    def tfrecord_heatmap(
+        self,
+        tfrecord: Union[str, List[str]],
+        tile_dict: Dict[int, float],
+        outdir: str
+    ) -> None:
+        """Creates a tfrecord-based WSI heatmap using a dictionary of tile
+        values for heatmap display, saving to project root directory.
+
+        Args:
+            tfrecord (str or list(str)): Path(s) to tfrecord(s).
+            tile_dict (dict): Dictionary mapping tfrecord indices to a
+                tile-level value for display in heatmap format
+            outdir (str): Path to destination directory.
+
+        Returns:
+            None
+        """
+        slide_paths = {
+            sf.util.path_to_name(sp): sp for sp in self.slide_paths()
+        }
+        if not self.tile_px or not self.tile_um:
+            raise errors.DatasetError(
+                "Dataset tile_px & tile_um must be set to create TFRecords."
+            )
+        for tfr in sf.util.as_list(tfrecord):
+            name = sf.util.path_to_name(tfr)
+            if name not in slide_paths:
+                raise errors.SlideNotFoundError(f'Unable to find slide {name}')
+            sf.util.tfrecord_heatmap(
+                tfrecord=tfr,
+                slide=slide_paths[name],
+                tile_px=self.tile_px,
+                tile_um=self.tile_um,
+                tile_dict=tile_dict,
+                outdir=outdir,
+            )
+
+    def tfrecords(self, source: Optional[str] = None) -> List[str]:
+        """Returns a list of all tfrecords.
+
+        Args:
+            source (str, optional): Only return tfrecords from this dataset
+                source. Defaults to None (return all tfrecords in dataset).
+
+        Returns:
+            List of tfrecords paths.
+        """
+        if source and source not in self.sources.keys():
+            log.error(f"Dataset {source} not found.")
+            return []
+        if source is None:
+            sources_to_search = list(self.sources.keys())  # type: List[str]
+        else:
+            sources_to_search = [source]
+
+        tfrecords_list = []
+        folders_to_search = []
+        for source in sources_to_search:
+            if not self._tfrecords_set(source):
+                log.warning(f"tfrecords path not set for dataset source {source}")
+                continue
+            tfrecords = self.sources[source]['tfrecords']
+            label = self.sources[source]['label']
+            if label is None:
+                continue
+            tfrecord_path = join(tfrecords, label)
+            if not exists(tfrecord_path):
+                log.debug(
+                    f"TFRecords path not found: {tfrecord_path}"
+                )
+                continue
+            folders_to_search += [tfrecord_path]
+        for folder in folders_to_search:
+            tfrecords_list += glob(join(folder, "*.tfrecords"))
+        tfrecords_list = list(set(tfrecords_list))
+
+        # Filter the list by filters
+        if self.annotations is not None:
+            slides = self.slides()
+            filtered_tfrecords_list = [
+                tfrecord for tfrecord in tfrecords_list
+                if path_to_name(tfrecord) in slides
+            ]
+            filtered = filtered_tfrecords_list
+        else:
+            log.warning("Error filtering TFRecords, are annotations empty?")
+            filtered = tfrecords_list
+
+        # Filter by min_tiles
+        manifest = self.manifest(filter=False)
+        if not all([f in manifest for f in filtered]):
+            self.update_manifest()
+            manifest = self.manifest(filter=False)
+        if self.min_tiles:
+            return [
+                f for f in filtered
+                if f in manifest and manifest[f]['total'] >= self.min_tiles
+            ]
+        else:
+            return [f for f in filtered
+                    if f in manifest and manifest[f]['total'] > 0]
+
+    def tfrecords_by_subfolder(self, subfolder: str) -> List[str]:
+        """Returns a list of all tfrecords in a specific subfolder,
+        ignoring filters.
+
+        Args:
+            subfolder (str): Path to subfolder to check for tfrecords.
+
+        Returns:
+            List of tfrecords paths.
+        """
+        tfrecords_list = []
+        folders_to_search = []
+        for source in self.sources:
+            if self.sources[source]['label'] is None:
+                continue
+            if not self._tfrecords_set(source):
+                log.warning(f"tfrecords path not set for dataset source {source}")
+                continue
+            base_dir = join(
+                self.sources[source]['tfrecords'],
+                self.sources[source]['label']
+            )
+            tfrecord_path = join(base_dir, subfolder)
+            if not exists(tfrecord_path):
+                raise errors.DatasetError(
+                    f"Unable to find subfolder [bold]{subfolder}[/] in "
+                    f"source [bold]{source}[/], tfrecord directory: "
+                    f"[green]{base_dir}"
+                )
+            folders_to_search += [tfrecord_path]
+        for folder in folders_to_search:
+            tfrecords_list += glob(join(folder, "*.tfrecords"))
+        return tfrecords_list
+
+    def tfrecords_folders(self) -> List[str]:
+        """Returns folders containing tfrecords."""
+        folders = []
+        for source in self.sources:
+            if self.sources[source]['label'] is None:
+                continue
+            if not self._tfrecords_set(source):
+                log.warning(f"tfrecords path not set for dataset source {source}")
+                continue
+            folders += [join(
+                self.sources[source]['tfrecords'],
+                self.sources[source]['label']
+            )]
+        return folders
+
+    def tfrecords_from_tiles(self, delete_tiles: bool = False) -> None:
+        """Create tfrecord files from a collection of raw images,
+        as stored in project tiles directory
+
+        Args:
+            delete_tiles (bool): Remove tiles after storing in tfrecords.
+
+        Returns:
+            None
+        """
+        if not self.tile_px or not self.tile_um:
+            raise errors.DatasetError(
+                "Dataset tile_px & tile_um must be set to create TFRecords."
+            )
+        for source in self.sources:
+            log.info(f'Working on dataset source {source}')
+            config = self.sources[source]
+            if not (self._tiles_set(source) and self._tfrecords_set(source)):
+                log.error("tiles and/or tfrecords paths not set for dataset "
+                          f"source {source}")
+                continue
+            tfrecord_dir = join(config['tfrecords'], config['label'])
+            tiles_dir = join(config['tiles'], config['label'])
+            if not exists(tiles_dir):
+                log.warn(f'No tiles found for source [bold]{source}')
+                continue
+            sf.io.write_tfrecords_multi(tiles_dir, tfrecord_dir)
+            self.update_manifest()
+            if delete_tiles:
+                shutil.rmtree(tiles_dir)
+
+    def thumbnails(
+        self,
+        outdir: str,
+        size: int = 512,
+        roi: bool = False,
+        enable_downsample: bool = True
+    ) -> None:
+        """Generates square slide thumbnails with black borders of fixed size,
+        and saves to project folder.
+
+        Args:
+            size (int, optional): Width/height of thumbnail in pixels.
+                Defaults to 512.
+            dataset (:class:`slideflow.Dataset`, optional): Dataset
+                from which to generate activations. If not supplied, will
+                calculate activations for all tfrecords at the tile_px/tile_um
+                matching the supplied model, optionally using provided filters
+                and filter_blank.
+            filters (dict, optional): Filters to use when selecting tfrecords.
+                Defaults to None.
+            filter_blank (list, optional): Exclude slides blank in these cols.
+                Defaults to None.
+            roi (bool, optional): Include ROI in the thumbnail images.
+                Defaults to False.
+            enable_downsample (bool, optional): If True and a thumbnail is not
+                embedded in the slide file, downsampling is permitted to
+                accelerate thumbnail calculation.
+        """
+        slide_list = self.slide_paths()
+        rois = self.rois()
+        log.info(f'Saving thumbnails to [green]{outdir}')
+        for slide_path in tqdm(slide_list, desc="Generating thumbnails..."):
+            log.debug(f'Working on [green]{path_to_name(slide_path)}[/]...')
+            try:
+                whole_slide = WSI(slide_path,
+                                  tile_px=1000,
+                                  tile_um=1000,
+                                  stride_div=1,
+                                  enable_downsample=enable_downsample,
+                                  rois=rois,
+                                  verbose=False)
+            except errors.MissingROIError:
+                log.info(f"Skipping {whole_slide.name}; missing ROI")
+            except Exception as e:
+                log.error(f"Error generating thumbnail for {whole_slide.name}: {e}")
+            if roi:
+                thumb = whole_slide.thumb(rois=True)
+            else:
+                thumb = whole_slide.square_thumb(size)
+            thumb.save(join(outdir, f'{whole_slide.name}.png'))
+        log.info('Thumbnail generation complete.')
+
+    def training_validation_split(
+        self,
+        *args: Any,
+        **kwargs: Any
+    ) -> Tuple["Dataset", "Dataset"]:
+        warnings.warn(
+            "Dataset.training_validation_split() is deprecated and will be "
+            "removed in a future version. Please use Dataset.split()",
+            DeprecationWarning
+        )
+        return self.split(*args, **kwargs)
+
+    def train_val_split(
+        self,
+        *args: Any,
+        **kwargs: Any
+    ) -> Tuple["Dataset", "Dataset"]:
+        warnings.warn(
+            "Dataset.train_val_split() is deprecated and will be "
+            "removed in a future version. Please use Dataset.split()",
+            DeprecationWarning
+        )
+
     def torch(
         self,
         labels: Optional[Dict[str, Any]] = None,
@@ -2940,7 +3252,7 @@ class Dataset:
         """Returns a dataset object with all clips removed.
 
         Returns:
-            :class:`slideflow.dataset.Dataset`: Dataset with clips removed.
+            :class:`slideflow.Dataset`: Dataset with clips removed.
         """
         ret = copy.deepcopy(self)
         ret._clip = {}

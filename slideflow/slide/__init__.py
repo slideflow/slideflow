@@ -114,6 +114,75 @@ def log_extraction_params(**kwargs) -> None:
         log.debug(f'Grayspace defined as HSV avg < {gs_t} {excl}')
 
 
+def predict(
+    slide: str,
+    model: str,
+    *,
+    stride_div: int = 1,
+    **kwargs
+) -> Tuple[np.ndarray, Optional[np.ndarray]]:
+    """Generate a whole-slide prediction from a saved model.
+
+    Args:
+        slide (str): Path to slide.
+        model (str): Path to saved model trained in Slideflow.
+
+    Keyword args:
+        stride_div (int, optional): Divisor for stride when convoluting
+                across slide. Defaults to 1.
+        roi_dir (str, optional): Directory in which slide ROI is contained.
+            Defaults to None.
+        rois (list, optional): List of paths to slide ROIs. Alternative to
+            providing roi_dir. Defaults to None.
+        roi_method (str): Either 'inside', 'outside', 'auto', or 'ignore'.
+            Determines how ROIs are used to extract tiles.
+            If 'inside' or 'outside', will extract tiles in/out of an ROI,
+            and raise errors.MissingROIError if an ROI is not available.
+            If 'auto', will extract tiles inside an ROI if available,
+            and across the whole-slide if no ROI is found.
+            If 'ignore', will extract tiles across the whole-slide
+            regardless of whether an ROI is available.
+            Defaults to 'auto'.
+        batch_size (int, optional): Batch size for calculating predictions.
+            Defaults to 32.
+        num_threads (int, optional): Number of tile worker threads. Cannot
+            supply both ``num_threads`` (uses thread pool) and
+            ``num_processes`` (uses multiprocessing pool). Defaults to
+            CPU core count.
+        num_processes (int, optional): Number of child processes to spawn
+            for multiprocessing pool. Defaults to None (does not use
+            multiprocessing).
+        enable_downsample (bool, optional): Enable the use of downsampled
+            slide image layers. Defaults to True.
+        img_format (str, optional): Image format (png, jpg) to use when
+            extracting tiles from slide. Must match the image format
+            the model was trained on. If 'auto', will use the format
+            logged in the model params.json. Defaults to 'auto'.
+        generator_kwargs (dict, optional): Keyword arguments passed to
+            the :meth:`slideflow.WSI.build_generator()`.
+        device (torch.device, optional): PyTorch device. Defaults to
+            initializing a new CUDA device.
+
+    Returns:
+        np.ndarray: Predictions for each outcome, with shape = (num_classes, )
+
+        np.ndarray, optional: Uncertainty for each outcome, if the model was
+        trained with uncertainty, with shape = (num_classes,)
+
+    """
+    from slideflow import Heatmap
+    log.info("Calculating whole-slide prediction...")
+    heatmap = Heatmap(slide, model, generate=True, stride_div=stride_div, **kwargs)
+    preds = heatmap.predictions.reshape(-1, heatmap.predictions.shape[-1])
+    preds = np.ma.masked_where(preds < 0, preds).mean(axis=0).filled()
+    if heatmap.uncertainty is not None:
+        unc = heatmap.uncertainty.reshape(-1, heatmap.uncertainty.shape[-1])
+        unc = np.ma.masked_where(unc < 0, unc).mean(axis=0).filled()
+        return preds, unc
+    else:
+        return preds
+
+
 class ROI:
     '''Object container for ROI annotations.'''
 
@@ -242,8 +311,8 @@ class _BaseLoader:
         # Calculate shape and stride
         self.downsample_level = ds_level
         self.downsample_dimensions = self.slide.level_dimensions[ds_level]
-        self.stride = self.extract_px // stride_div
-        self.full_stride = self.full_extract_px // stride_div
+        self.stride = int(self.extract_px // stride_div)
+        self.full_stride = int(self.full_extract_px // stride_div)
 
     def __getstate__(self):
         state = self.__dict__.copy()
@@ -259,14 +328,47 @@ class _BaseLoader:
 
     @property
     def dimensions(self) -> Tuple[int, int]:
+        """Dimensions of highest-magnification level (width, height)"""
         return self.slide.dimensions
 
     @property
+    def levels(self) -> Dict:
+        """List of dict, with metadata for each level.
+
+        Each dict has the keys 'dimensions', 'downsample', 'height', and 'weight'.
+
+        - **'dimensions'**: (height, width) of the level.
+        - **'downsample'**: Downsample level, where higher numbers indicate
+            lower magnification and the highest magnification is 1.
+        - **`height'**: Height of the level.
+        - **`height'**: Width of the level.
+
+        """
+        return self.slide.levels
+
+    @property
+    def level_dimensions(self) -> List[List[int]]:
+        """List of list, with dimensions for each slide level."""
+        return self.slide.level_dimensions
+
+    @property
+    def level_downsamples(self) -> List[float]:
+        """Downsample of each level (starts at 1, increases with lower mag)."""
+        return self.slide.level_downsamples
+
+    @property
+    def level_mpp(self) -> List[float]:
+        """Microns-per-pixel (MPP) for each level."""
+        return [d * self.mpp for d in self.level_downsamples]
+
+    @property
     def properties(self) -> Dict:
+        """Dictionary of metadata loaded from the slide."""
         return self.slide.properties
 
     @property
     def vendor(self) -> Optional[str]:
+        """Slide scanner vendor, if available."""
         if OPS_VENDOR in self.slide.properties:
             return self.slide.properties[OPS_VENDOR]
         else:
@@ -357,21 +459,31 @@ class _BaseLoader:
         Returns:
             Image: Image of applied QC mask.
         """
-        if isinstance(method, str) and method == 'otsu':
-            method = sf.slide.qc.Otsu()
-        elif isinstance(method, str) and method == 'blur':
-            method = sf.slide.qc.Gaussian(mpp=blur_mpp, sigma=blur_radius, threshold=blur_threshold)
-        elif isinstance(method, str) and method == 'both':
-            method = [sf.slide.qc.Otsu(),
-                      sf.slide.qc.Gaussian(mpp=blur_mpp, sigma=blur_radius, threshold=blur_threshold)]
-        elif isinstance(method, str):
-            raise errors.QCError(f"Unknown QC method {method}")
+
+        # Prepare known QC methods - 'blur', 'otsu', and 'both'.
         if not isinstance(method, list):
-            method = [method]
+            method = [method]           # type: ignore
+        if 'both' in method:
+            idx = method.index('both')  # type: ignore
+            method.remove('both')       # type: ignore
+            method.insert(idx, 'blur')  # type: ignore
+            method.insert(idx, 'otsu')  # type: ignore
+        if 'blur' in method:
+            idx = method.index('blur')  # type: ignore
+            method.remove('blur')       # type: ignore
+            method.insert(idx, sf.slide.qc.Gaussian(mpp=blur_mpp,
+                                                    sigma=blur_radius,
+                                                    threshold=blur_threshold))
+        if 'otsu' in method:
+            idx = method.index('otsu')  # type: ignore
+            method.remove('otsu')       # type: ignore
+            method.insert(idx, sf.slide.qc.Otsu())
 
         starttime = time.time()
         img = None
         for qc in method:
+            if isinstance(method, str):
+                raise errors.QCError(f"Unknown QC method {method}")
             mask = qc(self)
             if mask is not None:
                 img = self.apply_qc_mask(mask, filter_threshold=filter_threshold)
@@ -383,7 +495,7 @@ class _BaseLoader:
         self,
         mask: np.ndarray,
         filter_threshold: float = 0.6,
-    ) -> Image:
+    ) -> "Image":
         """Apply custom slide-level QC by filtering grid coordinates.
 
         Args:
@@ -406,7 +518,7 @@ class _BaseLoader:
             qc_x = int(x * qc_ratio)
             qc_y = int(y * qc_ratio)
             submask = mask[qc_y:(qc_y+qc_width), qc_x:(qc_x+qc_width)]
-            if np.mean(submask) > filter_threshold:
+            if np.mean(submask) >= filter_threshold:
                 self.grid[xi, yi] = 0
 
         self.qc_masks.append(mask)
@@ -497,7 +609,7 @@ class _BaseLoader:
             ratio = width / self.dimensions[0]
             wh = (self.full_extract_px * ratio) / 2
             for (x, y) in coords:  # type: ignore
-                x, y = x * ratio * self.roi_scale, y * ratio * self.roi_scale  # type: ignore
+                x, y = x * ratio, y * ratio  # type: ignore
                 coords = (x-wh, y-wh, x+wh, y+wh)  # type: ignore
                 draw.rectangle(coords, outline=rect_color, width=rect_linewidth)
             return image
@@ -768,6 +880,7 @@ class _BaseLoader:
         locations = []
         for tile_dict in generator():
             locations += [tile_dict['loc']]
+        log.debug(f"Previewing with {len(locations)} extracted tile locations.")
         return self.thumb(coords=locations, rois=rois)
 
 
@@ -786,7 +899,6 @@ class WSI(_BaseLoader):
         roi_method: str = 'auto',
         randomize_origin: bool = False,
         pb: Optional[Progress] = None,
-        silent: Optional[bool] = None,
         verbose: bool = True,
         **kwargs
     ) -> None:
@@ -828,12 +940,6 @@ class WSI(_BaseLoader):
             mpp (float, optional): Override the microns-per-pixel value for
                 the slide. Defaults to None (auto-detects).
         """
-
-        if silent is not None:
-            warnings.warn("Argument `silent` is deprecated since 1.3 and will "
-                          "be removed in 1.4. Please use `verbose` instead.")
-            verbose = bool(not silent)
-
         super().__init__(
             path=path,
             tile_px=tile_px,
@@ -853,6 +959,7 @@ class WSI(_BaseLoader):
         self.roi_method = roi_method
         self.randomize_origin = randomize_origin
         self.verbose = verbose
+        self.segmentation = None
 
         if rois is not None and not isinstance(rois, (list, tuple)):
             rois = [rois]
@@ -985,6 +1092,7 @@ class WSI(_BaseLoader):
                 yolo=False,
                 draw_roi=False,
                 dry_run=False,
+                has_segmentation=False,
             )
         )
         return image_dict['image']
@@ -1079,6 +1187,64 @@ class WSI(_BaseLoader):
     def shape(self):
         return self.grid.shape
 
+    def apply_segmentation(self, segmentation):
+        # Filter out masks outside of ROIs, if present.
+        if self.roi_method != 'ignore' and self.annPolys is not None:
+            log.debug(f"Applying {len(self.annPolys)} ROIs to segmentation.")
+            segmentation.apply_rois(self.roi_scale, self.annPolys)
+
+        self.segmentation = segmentation
+        if self.segmentation.slide is None:
+            self.segmentation.slide = self
+        centroids = segmentation.centroids(wsi_dim=True)
+        self.seg_coord = np.concatenate(
+            (centroids, np.expand_dims(np.arange(centroids.shape[0]), axis=-1)),
+            axis=-1)
+        nonzero = self.seg_coord[:, 0] > 0
+        self.seg_coord[:, 0:2][nonzero] -= int(self.full_extract_px/2)
+        self.estimated_num_tiles = centroids.shape[0]
+
+    def get_tile_mask(self, index, sparse_mask):
+
+        # Get the corresponding segmentation mask, reading from the sparse matrix
+        seg = self.segmentation
+        mask_idx = self.seg_coord[index][2] + 1  # sparse mask index starts at 1
+        mask_y, mask_x = np.unravel_index(sparse_mask[mask_idx].data, seg.masks.shape)
+
+        # This is the top-left coordinate, in WSI base dimension,
+        # of the tile extraction window.
+        wsi_tile_top_left = self.seg_coord[index][0:2]
+
+        # Determine the mask array offset (top-left), in mask coordinate space.
+        wsi_mask_x_offset = np.round(seg.wsi_offset[0] / seg.wsi_ratio).astype(np.int32)
+        wsi_mask_y_offset = np.round(seg.wsi_offset[1] / seg.wsi_ratio).astype(np.int32)
+
+        # Offset the mask to reflect WSI space (but still in mask coordinates).
+        wsi_mask_x = mask_x + wsi_mask_x_offset
+        wsi_mask_y = mask_y + wsi_mask_y_offset
+
+        # Determine the tile window offset (top-left), in mask coordinate space.
+        tile_offset_x_in_mask_space = np.round(wsi_tile_top_left[0] / seg.wsi_ratio).astype(np.int32)
+        tile_offset_y_in_mask_space = np.round(wsi_tile_top_left[1] / seg.wsi_ratio).astype(np.int32)
+
+        # Adjust the mask coordinate space, using the tile window offset as origin.
+        tile_mask_x = (wsi_mask_x - tile_offset_x_in_mask_space)
+        tile_mask_y = (wsi_mask_y - tile_offset_y_in_mask_space)
+
+        # Calculate the size of the tile window, in mask coordinate space.
+        mask_tile_size = int(self.full_extract_px / seg.wsi_ratio)
+
+        # Clip the mask to the tile window view.
+        tile_mask_x = tile_mask_x.clip(0, mask_tile_size-1)
+        tile_mask_y = tile_mask_y.clip(0, mask_tile_size-1)
+
+        # Convert mask coordinates (in sparse format) to 2D array.
+        unsized = np.zeros((mask_tile_size, mask_tile_size), dtype=np.int32)
+        unsized[tile_mask_y, tile_mask_x] = 1
+
+        # Resize mask from mask coordinates to tile extraction WSI coordinates.
+        return unsized
+
     def extract_tiles(
         self,
         tfrecord_dir: Optional[str] = None,
@@ -1092,7 +1258,7 @@ class WSI(_BaseLoader):
 
         Args:
             tfrecord_dir (str): If provided, saves tiles into a TFRecord file
-            (named according to slide name) here.
+                (named according to slide name) here.
             tiles_dir (str): If provided, saves loose images into a
                 subdirectory (per slide name) here.
             img_format (str): 'png' or 'jpg'. Format of images for internal
@@ -1136,6 +1302,47 @@ class WSI(_BaseLoader):
             **kwargs
         )
 
+    def extract_cells(
+        self,
+        tfrecord_dir: Optional[str] = None,
+        tiles_dir: Optional[str] = None,
+        img_format: str = 'jpg',
+        report: bool = True,
+        apply_masks: bool = True,
+        **kwargs
+    ) -> Optional[SlideReport]:
+        """Extract tiles from cell segmentation centroids.
+
+        Args:
+            tfrecord_dir (str): If provided, saves tiles into a TFRecord file
+                (named according to slide name) here.
+            tiles_dir (str): If provided, saves loose images into a
+                subdirectory (per slide name) here.
+            img_format (str): 'png' or 'jpg'. Format of images for internal
+                storage in tfrecords. PNG (lossless) format recommended for
+                fidelity, JPG (lossy) for efficiency. Defaults to 'jpg'.
+            report (bool): Generate and return PDF report of tile extraction.
+            apply_masks (bool): Apply cell segmentation masks to the extracted
+                tiles. Defaults to True.
+
+        Keyword Args:
+            **kwargs: All keyword arguments are passed to :meth:`WSI.extract_tiles()`.
+        """
+        if self.segmentation is None:
+            raise ValueError(
+                "Cannot build generator from segmentation centroids; "
+                "segmentation not yet applied. Use WSI.apply_segmentation()."
+            )
+        return super().extract_tiles(
+            tfrecord_dir,
+            tiles_dir,
+            img_format,
+            report,
+            apply_masks=apply_masks,
+            from_centroids=True,
+            **kwargs
+        )
+
     def build_generator(
         self,
         *,
@@ -1157,7 +1364,9 @@ class WSI(_BaseLoader):
         dry_run: bool = False,
         lazy_iter: bool = False,
         shard: Optional[Tuple[int, int]] = None,
-        max_tiles: Optional[int] = None
+        max_tiles: Optional[int] = None,
+        from_centroids: bool = False,
+        apply_masks: bool = True,
     ) -> Optional[Callable]:
         """Builds tile generator to extract tiles from this slide.
 
@@ -1191,6 +1400,13 @@ class WSI(_BaseLoader):
                 but do not export any images. Defaults to None.
             max_tiles (int, optional): Only extract this many tiles per slide.
                 Defaults to None.
+            from_centroids (bool): Extract tiles from cell segmentation
+                centroids, rather than in a grid-wise pattern. Requires that
+                cell segmentation has already been applied with
+                `WSI.apply_segmentation()`. Defaults to False.
+            apply_masks (bool): Apply cell segmentation masks to tiles. Ignored
+                if cell segmentation has been applied to the slide.
+                Defaults to True.
 
         Returns:
             dict: Dict with keys 'image' (image data), 'yolo' (optional
@@ -1211,6 +1427,11 @@ class WSI(_BaseLoader):
             raise ValueError("If shard is provided, it must be a tuple of "
                              "two int (shard_idx, shard_count)")
 
+        if from_centroids and self.segmentation is None:
+            raise ValueError(
+                "Cannot build generator from segmentation centroids; "
+                "segmentation not yet applied. Use WSI.apply_segmentation()."
+            )
 
         super().build_generator()
         if self.estimated_num_tiles == 0:
@@ -1262,7 +1483,8 @@ class WSI(_BaseLoader):
             'img_format': img_format,
             'yolo': yolo,
             'draw_roi': draw_roi,
-            'dry_run': dry_run
+            'dry_run': dry_run,
+            'has_segmentation': from_centroids
         })
 
         def generator():
@@ -1271,17 +1493,43 @@ class WSI(_BaseLoader):
             n_extracted = 0
 
             # Skip tiles filtered out with QC or ROI
-            non_roi_coord = self.coord[
-                self.grid[tuple(self.coord[:, 2:4].T)].astype(bool)
-            ]
+            if not from_centroids:
+                non_roi_coord = self.coord[
+                    self.grid[tuple(self.coord[:, 2:4].T)].astype(bool)
+                ]
+                # Shuffle coordinates to randomize extraction order
+                if shuffle:
+                    np.random.shuffle(non_roi_coord)
+                num_possible_tiles = len(non_roi_coord)
+            else:
+                from slideflow.cellseg import seg_utils
+
+                log.info("Building generator from segmentation centroids.")
+                nonzero = self.seg_coord[:, 0] > 0
+                num_possible_tiles = nonzero.sum()
+                if apply_masks:
+                    sparse = seg_utils.sparse_mask(self.segmentation.masks)
+
+                def _sparse_generator():
+
+                    def proc(c):
+                        mask = None if not apply_masks else self.get_tile_mask(c[2], sparse)
+                        return c, mask
+
+                    if shuffle:
+                        for idx in np.random.permutation(self.seg_coord.shape[0]):
+                            if nonzero[idx]:
+                                yield proc(self.seg_coord[idx])
+                    else:
+                        for c in self.seg_coord[nonzero]:
+                            yield proc(c)
+
+                non_roi_coord = _sparse_generator()
+
             if shard is not None:
                 shard_idx, shard_count = shard
                 sharded_coords = np.array_split(non_roi_coord, shard_count)
                 non_roi_coord = sharded_coords[shard_idx]
-
-            # Shuffle coordinates to randomize extraction order
-            if shuffle:
-                np.random.shuffle(non_roi_coord)
 
             # Set up worker pool
             if pool is None:
@@ -1355,8 +1603,7 @@ class WSI(_BaseLoader):
             if should_close:
                 pool.close()
             name_msg = f'[green]{self.shortname}[/]'
-            pos = len(non_roi_coord)
-            num_msg = f'({n_extracted} tiles of {pos} possible)'
+            num_msg = f'({n_extracted} tiles of {num_possible_tiles} possible)'
             log_fn = log.info if self.verbose else log.debug
             log_fn(f"Finished tile extraction for {name_msg} {num_msg}")
 
@@ -1504,6 +1751,63 @@ class WSI(_BaseLoader):
             self.rois[-1].add_shape(area_reduced)
         return len(self.rois)
 
+    def predict(
+        self,
+        model: str,
+        **kwargs
+    ) -> Tuple[np.ndarray, Optional[np.ndarray]]:
+        """Generate a whole-slide prediction from a saved model.
+
+        Args:
+            model (str): Path to saved model trained in Slideflow.
+
+        Keyword args:
+            batch_size (int, optional): Batch size for calculating predictions.
+                Defaults to 32.
+            num_threads (int, optional): Number of tile worker threads. Cannot
+                supply both ``num_threads`` (uses thread pool) and
+                ``num_processes`` (uses multiprocessing pool). Defaults to
+                CPU core count.
+            num_processes (int, optional): Number of child processes to spawn
+                for multiprocessing pool. Defaults to None (does not use
+                multiprocessing).
+            img_format (str, optional): Image format (png, jpg) to use when
+                extracting tiles from slide. Must match the image format
+                the model was trained on. If 'auto', will use the format
+                logged in the model params.json. Defaults to 'auto'.
+            device (torch.device, optional): PyTorch device. Defaults to
+                initializing a new CUDA device.
+            generator_kwargs (dict, optional): Keyword arguments passed to
+                the :meth:`slideflow.WSI.build_generator()`.
+
+        Returns:
+            np.ndarray: Predictions for each outcome, with shape = (num_classes, )
+
+            np.ndarray, optional: Uncertainty for each outcome, if the model was
+            trained with uncertainty, with shape = (num_classes,)
+
+        """
+        from slideflow import Heatmap
+
+        config = sf.util.get_model_config(model)
+        if config['tile_px'] != self.tile_px or config['tile_um'] != self.tile_um:
+            raise ValueError(
+                "Slide tile size (tile_px={}, tile_um={}) does not match the "
+                "model (tile_px={}, tile_um={}).".format(
+                    self.tile_px, self.tile_um,
+                    config['tile_px'], config['tile_um']
+            ))
+        log.info("Calculating whole-slide prediction...")
+        heatmap = Heatmap(self, model, generate=True, **kwargs)
+        preds = heatmap.predictions.reshape(-1, heatmap.predictions.shape[-1])
+        preds = np.ma.masked_where(preds < 0, preds).mean(axis=0).filled()
+        if heatmap.uncertainty is not None:
+            unc = heatmap.uncertainty.reshape(-1, heatmap.uncertainty.shape[-1])
+            unc = np.ma.masked_where(unc < 0, unc).mean(axis=0).filled()
+            return preds, unc
+        else:
+            return preds
+
     def tensorflow(
         self,
         img_format: str = 'numpy',
@@ -1601,6 +1905,7 @@ class WSI(_BaseLoader):
         incl_loc: Optional[str] = None,
         shuffle: bool = True,
         infinite: bool = False,
+        to_tensor: bool = True,
         **kwargs
     ) -> Any:
         """Create a PyTorch iterator which extractes tiles from this slide.
@@ -1640,11 +1945,15 @@ class WSI(_BaseLoader):
                     **kwargs
                 )():
                     if not (incl_slidenames or incl_loc):
-                        yield torch.from_numpy(image_dict['image'])
+                        if to_tensor:
+                            yield torch.from_numpy(image_dict['image'])
+                        else:
+                            yield image_dict['image']
                     else:
-                        to_return = {
-                            'image_raw': torch.from_numpy(image_dict['image'])
-                        }
+                        if to_tensor:
+                            to_return = {'image_raw': torch.from_numpy(image_dict['image'])}
+                        else:
+                            to_return = {'image_raw': image_dict['image']}
                         if incl_slidenames:
                             to_return['slide'] = self.name
                         if incl_loc == 'coord' or incl_loc == True:

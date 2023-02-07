@@ -1,11 +1,79 @@
 .. currentmodule:: slideflow
 
+.. _project:
+
 slideflow.Project
 =================
 
-This class provides a high-level interface that simplifies execution of pipeline functions. Nearly all pipeline tasks
-can be accomplished with the methods in this class, although directly interacting with the various objects in this
-package will enable more granular control.
-
 .. autoclass:: Project
-    :members:
+
+Attributes
+----------
+
+.. autosummary::
+
+    Project.annotations
+    Project.dataset_config
+    Project.eval_dir
+    Project.models_dir
+    Project.name
+    Project.neptune_api
+    Project.neptune_workspace
+    Project.sources
+
+Methods
+-------
+
+.. autofunction:: slideflow.Project.add_source
+
+.. autofunction:: slideflow.Project.associate_slide_names
+
+.. autofunction:: slideflow.Project.cell_segmentation
+
+.. autofunction:: slideflow.Project.create_blank_annotations
+
+.. autofunction:: slideflow.Project.create_hp_sweep
+
+.. autofunction:: slideflow.Project.evaluate
+
+.. autofunction:: slideflow.Project.evaluate_clam
+
+.. autofunction:: slideflow.Project.extract_cells
+
+.. autofunction:: slideflow.Project.extract_tiles
+
+.. autofunction:: slideflow.Project.gan_train
+
+.. autofunction:: slideflow.Project.gan_generate
+
+.. autofunction:: slideflow.Project.generate_features
+
+.. autofunction:: slideflow.Project.generate_features_for_clam
+
+.. autofunction:: slideflow.Project.generate_heatmaps
+
+.. autofunction:: slideflow.Project.generate_mosaic
+
+.. autofunction:: slideflow.Project.generate_mosaic_from_annotations
+
+.. autofunction:: slideflow.Project.generate_tfrecord_heatmap
+
+.. autofunction:: slideflow.Project.dataset
+
+.. autofunction:: slideflow.Project.predict
+
+.. autofunction:: slideflow.Project.predict_ensemble
+
+.. autofunction:: slideflow.Project.predict_wsi
+
+.. autofunction:: slideflow.Project.save
+
+.. autofunction:: slideflow.Project.smac_search
+
+.. autofunction:: slideflow.Project.train
+
+.. autofunction:: slideflow.Project.train_ensemble
+
+.. autofunction:: slideflow.Project.train_simclr
+
+.. autofunction:: slideflow.Project.train_clam

@@ -18,7 +18,7 @@ class TestSlideMap(unittest.TestCase):
         cls.slides = [f'slide{s}' for s in range(cls.n_slides)]  # type: ignore
         cls.DummyDatasetFeatures = SimpleNamespace(
             slides=cls.slides,
-            logits={s: np.random.rand(cls.n_tiles, 2) for s in cls.slides},
+            predictions={s: np.random.rand(cls.n_tiles, 2) for s in cls.slides},
             activations={s: np.random.rand(cls.n_tiles, 10) for s in cls.slides},
             locations={s: np.random.rand(cls.n_tiles, 2) for s in cls.slides},
             uncertainty={s: np.random.rand(cls.n_tiles, 2) for s in cls.slides},
@@ -62,8 +62,8 @@ class TestSlideMap(unittest.TestCase):
     def test_label_by_uncertainty(self):
         self.slidemap.label_by_uncertainty(0)
 
-    def test_label_by_logits(self):
-        self.slidemap.label_by_uncertainty(0)
+    def test_label_by_preds(self):
+        self.slidemap.label_by_preds(0)
 
     def test_label_by_slide(self):
         dummy_labels = {s: np.random.choice(['test1', 'test2']) for s in self.slides}

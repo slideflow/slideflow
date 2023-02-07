@@ -26,6 +26,7 @@ from tqdm import tqdm
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
 import numpy as np
+import pandas as pd
 import slideflow as sf
 from slideflow import errors
 from . import example_pb2, log_utils
@@ -77,10 +78,26 @@ log.setLevel(logging.DEBUG)
 
 
 def setLoggingLevel(level):
+    """Set the logging level.
+
+    Uses standard python logging levels:
+
+    - 50: CRITICAL
+    - 40: ERROR
+    - 30: WARNING
+    - 20: INFO
+    - 10: DEBUG
+    - 0:  NOTSET
+
+    Args:
+        level (int): Logging level numeric value.
+
+    """
     log.handlers[0].setLevel(level)
 
 
 def getLoggingLevel():
+    """Return the current logging level."""
     return log.handlers[0].level
 
 
@@ -164,7 +181,23 @@ class TileExtractionProgress(Progress):
 
 # --- Slideflow header --------------------------------------------------------
 
-def about(console=None):
+def about(console=None) -> None:
+    """Print a summary of the slideflow version and active backends.
+
+    Example
+        >>> sf.about()
+        ╭=======================╮
+        │       Slideflow       │
+        │    Version: 1.5.0     │
+        │  Backend: tensorflow  │
+        │ Slide Backend: cucim  │
+        │ https://slideflow.dev │
+        ╰=======================╯
+
+    Args:
+        console (rich.console.Console, optional): Active console, if one exists.
+            Defaults to None.
+    """
     if console is None:
         console = Console()
     col1 = 'yellow' if sf.backend() == 'tensorflow' else 'purple'
@@ -176,7 +209,7 @@ def about(console=None):
               f"\nSlide Backend: [{col2}]{sf.slide_backend()}[/]"
               "\n[blue]https://slideflow.dev[/]",
               border_style='purple'),
-        justify='center')
+        justify='left')
 
 
 # --- Data download functions -------------------------------------------------
@@ -294,6 +327,19 @@ def batch(iterable: List, n: int = 1) -> Iterable:
         yield iterable[ndx:min(ndx + n, l)]
 
 
+def batch_generator(iterable: Iterable, n: int = 1) -> Iterable:
+    """Separates an interable into batches of maximum size `n`."""
+    batch = []
+    for item in iterable:
+        batch.append(item)
+        if len(batch) == n:
+            yield batch
+            batch = []
+    if len(batch):
+        yield batch
+    return
+
+
 def as_list(arg1: Any) -> List[Any]:
     if not isinstance(arg1, list):
         return [arg1]
@@ -340,6 +386,17 @@ def is_torch_model_path(path: str) -> bool:
     return (os.path.isfile(path)
             and sf.util.path_to_ext(path).lower() == 'zip'
             and exists(join(dirname(path), 'params.json')))
+
+
+def is_simclr_model_path(path: Any) -> bool:
+    """Checks if the given path is a valid SimCLR model or checkpoint."""
+    is_model =  (isinstance(path, str)
+                 and isdir(path)
+                 and exists(join(path, 'args.json')))
+    is_checkpoint = (isinstance(path, str)
+                     and path.endswith('.ckpt')
+                     and exists(join(dirname(path), 'args.json')))
+    return is_model or is_checkpoint
 
 
 def assert_is_mag(arg1: str):
@@ -829,8 +886,10 @@ def tfrecord_heatmap(
     log.debug('Loaded tile values')
     log.debug(f'Min: {min(vals)}\t Max:{max(vals)}')
 
-    scaled_x = [(xi * wsi.roi_scale) - wsi.full_extract_px/2 for xi in x]
-    scaled_y = [(yi * wsi.roi_scale) - wsi.full_extract_px/2 for yi in y]
+    roi_scaling = False
+    scale = wsi.roi_scale if roi_scaling else 1
+    scaled_x = [(xi * scale) - wsi.full_extract_px/2 for xi in x]
+    scaled_y = [(yi * scale) - wsi.full_extract_px/2 for yi in y]
 
     log.debug('Loaded CSV coordinates:')
     log.debug(f'Min x: {min(x)}\t Max x: {max(x)}')
@@ -885,11 +944,11 @@ def tfrecord_heatmap(
         bottom=False,
         labelbottom=False
     )
-    log.info('Generating thumbnail...')
+    log.debug('Generating thumbnail...')
     thumb = wsi.thumb(mpp=5)
-    log.info('Saving thumbnail....')
+    log.debug('Saving thumbnail....')
     thumb.save(join(outdir, f'{slide_name}' + '.png'))
-    log.info('Generating figure...')
+    log.debug('Generating figure...')
     implot = ax.imshow(thumb, zorder=0)
     extent = implot.get_extent()
     extent_x = extent[1] * (1-fraction_dead_x)
@@ -923,13 +982,32 @@ def tfrecord_heatmap(
     return stats
 
 
-def get_new_model_dir(root: str, model_name: str) -> str:
+def get_valid_model_dir(root: str) -> List:
+    '''
+    This function returns the path of the first indented directory from root.
+    This only works when the indented folder name starts with a 5 digit number,
+    like "00000%".
+
+    Examples
+        If the root has 3 files:
+        root/00000-foldername/
+        root/00001-foldername/
+        root/00002-foldername/
+
+        The function returns "root/00000-foldername/"
+    '''
+
     prev_run_dirs = [
         x for x in os.listdir(root)
         if isdir(join(root, x))
     ]
-    prev_run_ids = [re.match(r'^\d+', x) for x in prev_run_dirs]  # type: List
+    prev_run_ids = [re.match(r'^\d+', x) for x in prev_run_dirs]
     prev_run_ids = [int(x.group()) for x in prev_run_ids if x is not None]
+    return prev_run_ids, prev_run_dirs
+
+
+def get_new_model_dir(root: str, model_name: str) -> str:
+    prev_run_ids, prev_run_dirs = get_valid_model_dir(root)
     cur_id = max(prev_run_ids, default=-1) + 1
     model_dir = os.path.join(root, f'{cur_id:05d}-{model_name}')
     assert not os.path.exists(model_dir)
@@ -1019,3 +1097,22 @@ def extract_feature_dict(
         processed_features[key] = get_value(typename, typename_mapping, key)
 
     return processed_features
+
+
+def load_predictions(path: str, **kwargs) -> pd.DataFrame:
+    """Loads a 'csv', 'parquet' or 'feather' file to a pandas dataframe.
+
+    Args:
+        path (str): Path to the file to be read.
+
+    Returns:
+        df (pd.DataFrame): The dataframe read from the path.
+    """
+    if path.endswith("csv"):
+        return pd.read_csv(f"{path}", **kwargs)
+    elif path.endswith("parquet") or path.endswith("gzip"):
+        return pd.read_parquet(f"{path}", **kwargs)
+    elif path.endswith("feather"):
+        return pd.read_feather(f"{path}", **kwargs)
+    else:
+        raise ValueError(f'Unrecognized extension "{path_to_ext(path)}"')

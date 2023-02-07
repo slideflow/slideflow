@@ -37,7 +37,9 @@ def OPS_LEVEL_DOWNSAMPLE(level: int) -> str:
 
 def draw_roi(
     img: Union[np.ndarray, str],
-    coords: List[int]
+    coords: List[List[int]],
+    color: str = 'red',
+    linewidth: int = 5
 ) -> np.ndarray:
     """Draw ROIs on image.
 
@@ -57,7 +59,7 @@ def draw_roi(
     for poly in annPolys:
         x, y = poly.exterior.coords.xy
         zipped = list(zip(x.tolist(), y.tolist()))
-        draw.line(zipped, joint='curve', fill='red', width=5)
+        draw.line(zipped, joint='curve', fill=color, width=linewidth)
     return np.asarray(annotated_img)
 
 

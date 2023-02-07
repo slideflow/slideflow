@@ -416,10 +416,9 @@ class Trainer:
         hp: ModelParams,
         outdir: str,
         labels: Dict[str, Any],
-        patients: Dict[str, str],
+        *,
         slide_input: Optional[Dict[str, Any]] = None,
         name: str = 'Trainer',
-        manifest: Optional[Dict[str, int]] = None,
         feature_sizes: Optional[List[int]] = None,
         feature_names: Optional[List[str]] = None,
         outcome_names: Optional[List[str]] = None,
@@ -439,19 +438,14 @@ class Trainer:
             outdir (str): Destination for event logs and checkpoints.
             labels (dict): Dict mapping slide names to outcome labels (int or
                 float format).
-            patients (dict): Dict mapping slide names to patient ID, as some
-                patients may have multiple slides. If not provided, assumes
-                1:1 mapping between slide names and patients.
             slide_input (dict): Dict mapping slide names to additional
                 slide-level input, concatenated after post-conv.
             name (str, optional): Optional name describing the model, used for
                 model saving. Defaults to None.
-            manifest (dict, optional): Manifest dictionary mapping TFRecords to
-                number of tiles. Defaults to None.
             feature_sizes (list, optional): List of sizes of input features.
                 Required if providing additional input features as model input.
             feature_names (list, optional): List of names for input features.
-            Used when permuting feature importance.
+                Used when permuting feature importance.
             outcome_names (list, optional): Name of each outcome. Defaults to
                 "Outcome {X}" for each outcome.
             mixed_precision (bool, optional): Use FP16 mixed precision (rather
@@ -476,9 +470,8 @@ class Trainer:
         self.hp = hp
         self.outdir = outdir
         self.labels = labels
-        self.patients = patients
+        self.patients = dict()  # type: Dict[str, str]
         self.name = name
-        self.manifest = manifest
         self.model = None  # type: Optional[torch.nn.Module]
         self.inference_model = None  # type: Optional[torch.nn.Module]
         self.mixed_precision = mixed_precision
@@ -535,7 +528,7 @@ class Trainer:
         if config is None:
             config = {
                 'slideflow_version': sf.__version__,
-                'hp': self.hp.get_dict(),
+                'hp': self.hp.to_dict(),
                 'backend': sf.backend()
             }
         sf.util.write_json(config, join(self.outdir, 'params.json'))
@@ -720,6 +713,17 @@ class Trainer:
                 self.ema_two_checks_prior = self.ema_one_check_prior
                 self.ema_one_check_prior = self.last_ema
         return ''
+
+    def _detect_patients(self, *args):
+        self.patients = dict()
+        for dataset in args:
+            if args is None:
+                continue
+            dataset_patients = dataset.patients()
+            if not dataset_patients:
+                self.patients.update({s: s for s in self.slides})
+            else:
+                self.patients.update(dataset_patients)
 
     def _empty_corrects(self) -> Union[int, Dict[str, int]]:
         if self.multi_outcome:
@@ -1385,7 +1389,7 @@ class Trainer:
         format: str = 'parquet',
         from_wsi: bool = False,
         roi_method: str = 'auto',
-    ) -> "pd.DataFrame":
+    ) -> Dict[str, "pd.DataFrame"]:
         """Perform inference on a model, saving predictions.
 
         Args:
@@ -1413,10 +1417,14 @@ class Trainer:
                 Defaults to 'auto'.
 
         Returns:
-            pandas.DataFrame of tile-level predictions.
+            Dict[str, pd.DataFrame]: Dictionary with keys 'tile', 'slide', and
+            'patient', and values containing DataFrames with tile-, slide-,
+            and patient-level predictions.
         """
         if format not in ('csv', 'feather', 'parquet'):
             raise ValueError(f"Unrecognized format {format}")
+
+        self._detect_patients(dataset)
 
         # Verify image format
         self._verify_img_format(dataset)
@@ -1461,6 +1469,7 @@ class Trainer:
             torch_args=torch_args,
             outcome_names=self.outcome_names,
             uq=bool(self.hp.uq),
+            patients=self.patients
         )
         # Save predictions
         sf.stats.metrics.save_dfs(dfs, format=format, outdir=self.outdir)
@@ -1533,6 +1542,7 @@ class Trainer:
         else:
             pool = None
 
+        self._detect_patients(dataset)
         self._verify_img_format(dataset)
         self._fit_normalizer(norm_fit)
         self.model.to(self.device)
@@ -1667,6 +1677,7 @@ class Trainer:
             )
         results = {'epochs': defaultdict(dict)}  # type: Dict[str, Any]
         starting_epoch = max(starting_epoch, 1)
+        self._detect_patients(train_dts, val_dts)
         self._reset_training_params()
         self.validation_batch_size = validation_batch_size
         self.validate_on_batch = validate_on_batch
@@ -1696,7 +1707,7 @@ class Trainer:
             if not os.path.exists(config_path):
                 config = {
                     'slideflow_version': sf.__version__,
-                    'hp': self.hp.get_dict(),
+                    'hp': self.hp.to_dict(),
                     'backend': sf.backend()
                 }
             else:
@@ -1843,7 +1854,7 @@ class CPHTrainer(Trainer):
 
 
 class Features:
-    """Interface for obtaining logits and features from intermediate layer
+    """Interface for obtaining predictions and features from intermediate layer
     activations from Slideflow models.
 
     Use by calling on either a batch of images (returning outputs for a single
@@ -1887,7 +1898,7 @@ class Features:
         self,
         path: Optional[str],
         layers: Optional[Union[str, List[str]]] = 'postconv',
-        include_logits: bool = False,
+        include_preds: bool = False,
         mixed_precision: bool = True,
         device: Optional[torch.device] = None,
         apply_softmax: bool = True,
@@ -1898,14 +1909,14 @@ class Features:
         outputs feature activations at the designated layers.
 
         Intermediate layers are returned in the order of layers.
-        Logits are returned last.
+        predictions are returned last.
 
         Args:
             path (str): Path to saved Slideflow model.
             layers (list(str), optional): Layers from which to generate
                 activations.  The post-convolution activation layer is accessed
                 via 'postconv'. Defaults to 'postconv'.
-            include_logits (bool, optional): Include logits in output. Will be
+            include_preds (bool, optional): Include predictions in output. Will be
                 returned last. Defaults to False.
             mixed_precision (bool, optional): Use mixed precision.
                 Defaults to True.
@@ -1927,7 +1938,7 @@ class Features:
         if layers and isinstance(layers, str):
             layers = [layers]
         self.path = path
-        self.num_logits = 0
+        self.num_classes = 0
         self.num_features = 0
         self.num_uncertainty = 0
         self.apply_softmax = apply_softmax
@@ -1936,7 +1947,7 @@ class Features:
         # Hook for storing layer activations during model inference
         self.activation = {}  # type: Dict[Any, Tensor]
         self.layers = layers
-        self.include_logits = include_logits
+        self.include_preds = include_preds
         self.device = device if device is not None else torch.device('cuda')
 
         if path is not None:
@@ -1967,7 +1978,7 @@ class Features:
         model: torch.nn.Module,
         tile_px: int,
         layers: Optional[Union[str, List[str]]] = 'postconv',
-        include_logits: bool = False,
+        include_preds: bool = False,
         mixed_precision: bool = True,
         wsi_normalizer: Optional["StainNormalizer"] = None,
         apply_softmax: bool = True,
@@ -1977,7 +1988,7 @@ class Features:
         outputs feature activations at the designated layers.
 
         Intermediate layers are returned in the order of layers.
-        Logits are returned last.
+        predictions are returned last.
 
         Args:
             model (:class:`tensorflow.keras.models.Model`): Loaded model.
@@ -1985,7 +1996,7 @@ class Features:
             layers (list(str), optional): Layers from which to generate
                 activations.  The post-convolution activation layer is accessed
                 via 'postconv'. Defaults to 'postconv'.
-            include_logits (bool, optional): Include logits in output. Will be
+            include_preds (bool, optional): Include predictions in output. Will be
                 returned last. Defaults to False.
             mixed_precision (bool, optional): Use mixed precision.
                 Defaults to True.
@@ -1999,7 +2010,7 @@ class Features:
                 callable PyTorch function.
         """
         device = next(model.parameters()).device
-        obj = cls(None, layers, include_logits, mixed_precision, device)
+        obj = cls(None, layers, include_preds, mixed_precision, device)
         if isinstance(model, torch.nn.Module):
             obj._model = model
             obj._model.eval()
@@ -2021,7 +2032,7 @@ class Features:
         inp: Union[Tensor, "sf.WSI"],
         **kwargs
     ) -> Optional[Union[List[Tensor], np.ndarray]]:
-        """Process a given input and return activations and/or logits. Expects
+        """Process a given input and return activations and/or predictions. Expects
         either a batch of images or a :class:`slideflow.slide.WSI` object."""
 
         if isinstance(inp, sf.slide.WSI):
@@ -2056,7 +2067,7 @@ class Features:
         if img_format == 'png':  # PNG is lossless; this is equivalent but faster
             log.debug("Using numpy image format instead of PNG")
             img_format = 'numpy'
-        total_out = self.num_features + self.num_logits
+        total_out = self.num_features + self.num_classes
         if grid is None:
             features_grid = np.ones((
                     slide.grid.shape[1],
@@ -2134,7 +2145,7 @@ class Features:
                 if la == 'postconv':
                     act = self._postconv_processing(act)
                 layer_activations.append(act)
-        if self.include_logits:
+        if self.include_preds:
             layer_activations += [logits]
         self.activation = {}
         return layer_activations
@@ -2183,8 +2194,8 @@ class Features:
 
     def _build(self, pooling: Optional[Any] = None) -> None:
         """Builds the interface model that outputs feature activations at the
-        designated layers and/or logits. Intermediate layers are returned in
-        the order of layers. Logits are returned last.
+        designated layers and/or predictions. Intermediate layers are returned in
+        the order of layers. predictions are returned last.
 
         Args:
             pooling (Callable or str, optional): PyTorch pooling function to use
@@ -2232,11 +2243,11 @@ class Features:
         # Calculate output and layer sizes
         rand_data = torch.rand(1, 3, self.tile_px, self.tile_px)
         output = self._model(rand_data.to(self.device))
-        self.num_logits = output.shape[1] if self.include_logits else 0
+        self.num_classes = output.shape[1] if self.include_preds else 0
         self.num_features = sum([f.shape[1] for f in self.activation.values()])
 
-        if self.include_logits:
-            log.debug(f'Number of logits: {self.num_logits}')
+        if self.include_preds:
+            log.debug(f'Number of classes: {self.num_classes}')
         log.debug(f'Number of activation features: {self.num_features}')
 
 

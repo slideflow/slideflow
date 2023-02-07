@@ -34,6 +34,7 @@ import slideflow as sf
 # ones.
 extensions = [
     'sphinx.ext.autodoc',
+    'sphinx.ext.autosummary',
     'sphinx.ext.intersphinx',
     'sphinx.ext.todo',
     'sphinx.ext.mathjax',
@@ -42,6 +43,10 @@ extensions = [
     'sphinx_markdown_tables',
     'sphinxcontrib.video'
 ]
+
+autoclass_content = 'both'
+autosummary_generate = False
+add_module_names = False
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -65,7 +70,7 @@ author = 'James M Dolezal'
 # built documents.
 #
 # The short X.Y version.
-version = '1.4'
+version = '.'.join(sf.__version__.split('.')[:2])
 # The full version, including alpha/beta/rc tags.
 release = sf.__version__
 

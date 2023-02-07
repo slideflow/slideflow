@@ -47,7 +47,7 @@ def _load_umap_encoders(path, model) -> EasyDict:
     log.debug("Layers found at path {} in _load_umap_encoders: {}".format(path, layers))
     features = sf.model.Features.from_model(
         model,
-        include_logits=True,
+        include_preds=True,
         layers=layers,
         pooling='avg'
     )
@@ -59,7 +59,7 @@ def _load_umap_encoders(path, model) -> EasyDict:
         encoder._name = f'{layer}_encoder'
         outputs += [encoder(features.model.outputs[i])]
 
-    # Add the logits output
+    # Add the predictions output
     outputs += [features.model.outputs[-1]]
 
     # Build the encoder model for all layers

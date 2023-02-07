@@ -55,6 +55,19 @@ def read_and_return_record(
     parser: Callable,
     assign_slide: Optional[bytes] = None
 ) -> "Example":
+    """Process raw TFRecord bytes into a format that can be written with
+    ``tf.io.TFRecordWriter``.
+
+    Args:
+        record (bytes): Raw TFRecord bytes (unparsed)
+        parser (Callable): TFRecord parser, as returned by
+            :func:`sf.io.get_tfrecord_parser()`
+        assign_slide (str, optional): Slide name to override the record with.
+            Defaults to None.
+
+    Returns:
+        Dictionary mapping record key to a tuple containing (bytes, dtype).
+    """
     features = parser(record)
     if assign_slide:
         features['slide'] = assign_slide
@@ -307,7 +320,9 @@ def get_tfrecord_parser(
         features = tf.io.parse_single_example(record, feature_description)
 
         def process_feature(f):
-            if f not in features and error_if_invalid:
+            if f not in features and f in ('loc_x', 'loc_y'):
+                return None
+            elif f not in features and error_if_invalid:
                 raise errors.TFRecordsError(f"Unknown TFRecord feature {f}")
             elif f not in features:
                 return None

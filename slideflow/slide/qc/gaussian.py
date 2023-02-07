@@ -14,7 +14,26 @@ class Gaussian:
         sigma: int = 3,
         threshold: float = 0.02
     ) -> None:
-        """QC via Gaussian filtering.
+        """Prepare Gaussian filtering algorithm for filtering a slide.
+
+        This method is used to remove out-of-focus areas and pen marks.
+
+        This QC method works by obtaining a thumbnail of a slide, and converting
+        the image into grayspace. A gaussian filter with a given sigma
+        (default=3) is calculated using scikit-image. Areas with blur below
+        the given threshold (default=0.02) are filtered out.
+
+        Examples
+            Apply Gaussian filtering to a slide.
+
+                .. code-block:: python
+
+                    import slideflow as sf
+                    from slideflow.slide import qc
+
+                    wsi = sf.WSI(...)
+                    otsu = qc.Otsu()
+                    wsi.qc(otsu)
 
         Args:
             mpp (float): Microns-per-pixel at which to perform filtering.
