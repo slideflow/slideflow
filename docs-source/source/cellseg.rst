@@ -36,7 +36,7 @@ You'll see a control panel on the left which is grayed out until a slide is
 loaded. Load a slide by drag-and-drop, or with File -> Open Slide.... Once a slide is opened,
 the cell segmentation control panel will become active.
 
-.. figure:: cellseg_workbench_panel.png
+.. figure:: https://github.com/jamesdolezal/slideflow/raw/1.5.0/docs/_images/cellseg_workbench_panel.png
 
 The left side of the control panel is used to customize the segmentation model (defaults to
 'cyto2') and cell diameter (defaults to 10 microns). Selecting "Auto-detect diameter" then
@@ -49,7 +49,7 @@ become active, allowing you to customize how cell segmentation is shown.
 Viewing cell segmentations
 --------------------------
 
-.. figure:: cellseg_workbench_masks.png
+.. figure:: https://github.com/jamesdolezal/slideflow/raw/1.5.0/docs/_images/cellseg_workbench_masks.png
 
 By default, cell segmentation masks are shown in cyan on a black background. The black
 background can be removed by unchecking "Black BG". You can add a green dot at each
@@ -60,11 +60,11 @@ You can also choose to view the segmentation masks as outlines. The "Outline" bu
 convert any masks currently in view to outlines, allowing you to more easily see how the
 masks match cells visible on the slide.
 
-.. figure:: cellseg_workbench_outlines.png
+.. figure:: https://github.com/jamesdolezal/slideflow/raw/1.5.0/docs/_images/cellseg_workbench_outlines.png
 
 Finally, the "gradXY" option will show the flow gradients calculated during cell segmentation.
 
-.. figure:: cellseg_workbench_flows.png
+.. figure:: https://github.com/jamesdolezal/slideflow/raw/1.5.0/docs/_images/cellseg_workbench_flows.png
 
 Preparing WSI segmentation
 --------------------------
@@ -96,7 +96,7 @@ calculation requires high RAM usage and may not be practical on all systems.
         **Downscale** will scale down the final generated cell segmentation mask, reducing memory
         utilization (both RAM and disk). **Enable spawn workers** enables a multiprocessing technique that improves cell segmentation speed at the cost of higher RAM usage.
 
-      - .. image:: cellseg_workbench_advanced.png
+      - .. image:: https://github.com/jamesdolezal/slideflow/raw/1.5.0/docs/_images/cellseg_workbench_advanced.png
             :width: 245
             :align: right
 

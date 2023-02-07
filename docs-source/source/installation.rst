@@ -67,6 +67,7 @@ To build Slideflow from source, clone the repository from the project `Github pa
 .. code-block:: bash
 
     git clone https://github.com/jamesdolezal/slideflow
+    git submodule init && git submodule update --recursive
     cd slideflow
     conda env create -f environment.yml
     conda activate slideflow
@@ -84,6 +85,8 @@ Slideflow supports both Tensorflow and PyTorch, with cross-compatible TFRecord s
 .. code-block:: console
 
     export SF_BACKEND=torch
+
+.. _slide_backend:
 
 cuCIM vs. Libvips
 *****************

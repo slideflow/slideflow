@@ -9,7 +9,7 @@ Slide Processing
 
 Whole-slide histopathological images present many challenges for machine learning researchers, as these large gigapixel images may contain out-of-focus regions, pen marks, uneven staining, or varying optical resolutions. Slideflow provides tools for both flexible and computationally efficient slide processing in order to build datasets ready for machine learning applications.
 
-Most tools in Slideflow work with image tiles - extracted sub-regions of a whole-slide image - as the primary data source. For efficiency, image tiles are first buffered into :ref:`TFRecords <tfrecords>` , a binary file format that greatly improves IO throughput. Although training can be performed without using TFRecords (see :ref:`TODO`), we recommend tile extraction as the first step for most projects.
+Most tools in Slideflow work with image tiles - extracted sub-regions of a whole-slide image - as the primary data source. For efficiency, image tiles are first buffered into :ref:`TFRecords <tfrecords>` , a binary file format that greatly improves IO throughput. Although training can be performed without using TFRecords (see :ref:`from_wsi`), we recommend tile extraction as the first step for most projects.
 
 Tile extraction
 ***************

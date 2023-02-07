@@ -356,6 +356,19 @@ Using multiple GPUs
 
 Slideflow can perform distributed training if multiple GPUs are available. Enable distributed training by passing the argument ``multi_gpu=True``, which will allow Slideflow to use all available (and visible) GPUs.
 
+.. _from_wsi:
+
+Training without TFRecords
+**************************
+
+It is also possible to train deep learning models directly from slides, without first generating TFRecords. This may be advantageous for rapidly prototyping models on a large dataset, or when tuning the tile size for a dataset.
+
+Use the argument ``from_wsi=True`` in either the :meth:`slideflow.Project.train` or :meth:`slideflow.model.Trainer.train` functions. Image tiles will be dynamically extracted from slides during training, and background will be automatically removed via Otsu's thresholding.
+
+.. note::
+
+    Using the :ref:`cuCIM backend <slide_backend>` will greatly improve performance when training without TFRecords.
+
 Monitoring performance
 **********************
 
