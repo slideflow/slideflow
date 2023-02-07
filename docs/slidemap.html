@@ -524,12 +524,37 @@ read metadata through this dictionary.</p></li>
 </dd></dl>
 
 <dl class="py function">
+<dt class="sig sig-object py" id="slideflow.SlideMap.load">
+<span class="sig-name descname"><span class="pre">load</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.SlideMap.load" title="Permalink to this definition">¶</a></dt>
+<dd><p>Load a previously saved SlideMap (UMAP and coordinates).</p>
+<p>Loads a <code class="docutils literal notranslate"><span class="pre">SlideMap</span></code> previously saved with <code class="docutils literal notranslate"><span class="pre">SlideMap.save()</span></code>.</p>
+<p>Expects a directory with <code class="docutils literal notranslate"><span class="pre">slidemap.parquet</span></code>, <code class="docutils literal notranslate"><span class="pre">range_clip.npz</span></code>,
+and either <code class="docutils literal notranslate"><span class="pre">umap.pkl</span></code> (non-parametric models) or a folder named
+<code class="docutils literal notranslate"><span class="pre">parametric_model</span></code>.</p>
+<dl>
+<dt>Examples</dt><dd><p>Save a SlideMap, then load it.</p>
+<blockquote>
+<div><div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">slidemap</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s1">&#39;/directory/&#39;</span><span class="p">)</span>
+<span class="n">new_slidemap</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">SlideMap</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s1">&#39;/directory/&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div></blockquote>
+</dd>
+</dl>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a>) – Directory from which to load a previously saved UMAP.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
 <dt class="sig sig-object py" id="slideflow.SlideMap.load_coordinates">
 <span class="sig-name descname"><span class="pre">load_coordinates</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="headerlink" href="#slideflow.SlideMap.load_coordinates" title="Permalink to this definition">¶</a></dt>
 <dd><p>Load coordinates from parquet file.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Path to parquet file with SlideMap
+<dd class="field-odd"><p><strong>path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Path to parquet file (.parquet) with SlideMap
 coordinates.</p>
 </dd>
 </dl>
@@ -538,7 +563,14 @@ coordinates.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="slideflow.SlideMap.load_umap">
 <span class="sig-name descname"><span class="pre">load_umap</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">umap.UMAP</span></span></span><a class="headerlink" href="#slideflow.SlideMap.load_umap" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Load only a UMAP model and not slide coordinates or range_clip.npz.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a>) – Path to either umap.pkl or directory with saved
+parametric UMAP.</p>
+</dd>
+</dl>
+</dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="slideflow.SlideMap.plot">
@@ -594,7 +626,9 @@ will prepare a new figure.</p></li>
 <dl class="py function">
 <dt class="sig sig-object py" id="slideflow.SlideMap.save">
 <span class="sig-name descname"><span class="pre">save</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">dpi</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.11)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">300</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#slideflow.SlideMap.save" title="Permalink to this definition">¶</a></dt>
-<dd><p>Save plot and UMAP to a directory.</p>
+<dd><p>Save UMAP, plot, coordinates, and normalization values to a directory.</p>
+<p>The UMAP, plot, coordinates, and normalization values can all be
+loaded from this directory after saving with <code class="docutils literal notranslate"><span class="pre">sf.SlideMap.load(path)</span></code>.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -681,7 +715,7 @@ seaborn scatterplot function.</p></li>
 <dl class="py function">
 <dt class="sig sig-object py" id="slideflow.SlideMap.save_coordinates">
 <span class="sig-name descname"><span class="pre">save_coordinates</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="headerlink" href="#slideflow.SlideMap.save_coordinates" title="Permalink to this definition">¶</a></dt>
-<dd><p>Save coordinates to parquet file.</p>
+<dd><p>Save coordinates only to parquet file.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Save coordinates to this location.</p>
@@ -692,12 +726,13 @@ seaborn scatterplot function.</p></li>
 <dl class="py function">
 <dt class="sig sig-object py" id="slideflow.SlideMap.save_umap">
 <span class="sig-name descname"><span class="pre">save_umap</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="headerlink" href="#slideflow.SlideMap.save_umap" title="Permalink to this definition">¶</a></dt>
-<dd><p>Save UMAP to and coordinates.</p>
+<dd><p>Save UMAP, coordinates, and normalization information to a directory.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><em>str</em></a><em>, </em><em>optional</em>) – Save UMAP and coordinates to this directory.
 Coordinates will be saved in this directory with the filename
-<code class="docutils literal notranslate"><span class="pre">slidemap.parquet</span></code>.</p>
+<code class="docutils literal notranslate"><span class="pre">slidemap.parquet</span></code> Model will be saved as umap.pkl (parametric)
+or model.pkl (parametric).</p>
 </dd>
 </dl>
 </dd></dl>
@@ -705,7 +740,7 @@ Coordinates will be saved in this directory with the filename
 <dl class="py function">
 <dt class="sig sig-object py" id="slideflow.SlideMap.save_encoder">
 <span class="sig-name descname"><span class="pre">save_encoder</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.11)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.11)"><span class="pre">None</span></a></span></span><a class="headerlink" href="#slideflow.SlideMap.save_encoder" title="Permalink to this definition">¶</a></dt>
-<dd><p>Save Parametric UMAP encoder.</p>
+<dd><p>Save Parametric UMAP encoder only.</p>
 </dd></dl>
 
 </section>
@@ -767,6 +802,7 @@ Coordinates will be saved in this directory with the filename
 <li><a class="reference internal" href="#slideflow.SlideMap.label_by_preds"><code class="docutils literal notranslate"><span class="pre">label_by_preds()</span></code></a></li>
 <li><a class="reference internal" href="#slideflow.SlideMap.label_by_slide"><code class="docutils literal notranslate"><span class="pre">label_by_slide()</span></code></a></li>
 <li><a class="reference internal" href="#slideflow.SlideMap.label_by_uncertainty"><code class="docutils literal notranslate"><span class="pre">label_by_uncertainty()</span></code></a></li>
+<li><a class="reference internal" href="#slideflow.SlideMap.load"><code class="docutils literal notranslate"><span class="pre">load()</span></code></a></li>
 <li><a class="reference internal" href="#slideflow.SlideMap.load_coordinates"><code class="docutils literal notranslate"><span class="pre">load_coordinates()</span></code></a></li>
 <li><a class="reference internal" href="#slideflow.SlideMap.load_umap"><code class="docutils literal notranslate"><span class="pre">load_umap()</span></code></a></li>
 <li><a class="reference internal" href="#slideflow.SlideMap.plot"><code class="docutils literal notranslate"><span class="pre">plot()</span></code></a></li>

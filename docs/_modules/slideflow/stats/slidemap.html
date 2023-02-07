@@ -279,12 +279,12 @@
 <span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
 <span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
 <span class="kn">import</span> <span class="nn">warnings</span>
-<span class="kn">from</span> <span class="nn">os.path</span> <span class="kn">import</span> <span class="n">join</span><span class="p">,</span> <span class="n">exists</span>
+<span class="kn">from</span> <span class="nn">os.path</span> <span class="kn">import</span> <span class="n">join</span><span class="p">,</span> <span class="n">exists</span><span class="p">,</span> <span class="n">isdir</span>
 <span class="kn">from</span> <span class="nn">mpl_toolkits.mplot3d</span> <span class="kn">import</span> <span class="n">Axes3D</span>
 <span class="kn">from</span> <span class="nn">pandas.core.frame</span> <span class="kn">import</span> <span class="n">DataFrame</span>
 <span class="kn">from</span> <span class="nn">sklearn.cluster</span> <span class="kn">import</span> <span class="n">KMeans</span>
 <span class="kn">from</span> <span class="nn">slideflow</span> <span class="kn">import</span> <span class="n">errors</span>
-<span class="kn">from</span> <span class="nn">slideflow.stats.stats_utils</span> <span class="kn">import</span> <span class="n">calculate_centroid</span><span class="p">,</span> <span class="n">normalize_layout</span>
+<span class="kn">from</span> <span class="nn">slideflow.stats</span> <span class="kn">import</span> <span class="n">stats_utils</span>
 <span class="kn">from</span> <span class="nn">slideflow.util</span> <span class="kn">import</span> <span class="n">log</span>
 
 <span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
@@ -350,8 +350,56 @@
 
     <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">load</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Load a previously saved SlideMap (UMAP and coordinates).</span>
+
+<span class="sd">        Loads a ``SlideMap`` previously saved with ``SlideMap.save()``.</span>
+
+<span class="sd">        Expects a directory with ``slidemap.parquet``, ``range_clip.npz``,</span>
+<span class="sd">        and either ``umap.pkl`` (non-parametric models) or a folder named</span>
+<span class="sd">        ``parametric_model``.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">            Save a SlideMap, then load it.</span>
+
+<span class="sd">                .. code-block:: python</span>
+
+<span class="sd">                    slidemap.save(&#39;/directory/&#39;)</span>
+<span class="sd">                    new_slidemap = sf.SlideMap.load(&#39;/directory/&#39;)</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            path (str): Directory from which to load a previously saved UMAP.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">obj</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">()</span>
-        <span class="n">obj</span><span class="o">.</span><span class="n">load_coordinates</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">isdir</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+            <span class="c1"># Load coordinates</span>
+            <span class="k">if</span> <span class="n">exists</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;slidemap.parquet&#39;</span><span class="p">)):</span>
+                <span class="n">obj</span><span class="o">.</span><span class="n">load_coordinates</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;slidemap.parquet&#39;</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;Could not find slidemap.parquet; no data loaded.&quot;</span><span class="p">)</span>
+            <span class="c1"># Load UMAP</span>
+            <span class="k">if</span> <span class="n">exists</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;parametric_model&#39;</span><span class="p">)):</span>
+                <span class="n">obj</span><span class="o">.</span><span class="n">parametric_umap</span><span class="o">=</span><span class="kc">True</span>
+                <span class="n">obj</span><span class="o">.</span><span class="n">load_umap</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">exists</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;umap.pkl&#39;</span><span class="p">)):</span>
+                <span class="n">obj</span><span class="o">.</span><span class="n">load_umap</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;umap.pkl&#39;</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Could not find a valid umap model at </span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">. Ensure &quot;</span>
+                         <span class="s2">&quot;the path is a valid directory with either &#39;parametric_umap&#39; &quot;</span>
+                         <span class="s2">&quot;subdirectory or a valid &#39;umap.pkl&#39;.&quot;</span><span class="p">)</span>
+            <span class="c1"># Load range/clip</span>
+            <span class="k">if</span> <span class="n">exists</span><span class="p">((</span><span class="n">join</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;range_clip.npz&#39;</span><span class="p">))):</span>
+                <span class="n">obj</span><span class="o">.</span><span class="n">load_range_clip</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;range_clip.npz&#39;</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;Could not find range_clip.npz; results from &quot;</span>
+                         <span class="s2">&quot;umap_transform() will not be normalized.&quot;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">path</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;.parquet&#39;</span><span class="p">):</span>
+            <span class="n">obj</span><span class="o">.</span><span class="n">load_coordinates</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Unable to determine how to load </span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">. Expected &quot;</span>
+                <span class="s2">&quot;a path to a directory, or a slidemap.parquet file.&quot;</span>
+            <span class="p">)</span>
         <span class="n">obj</span><span class="o">.</span><span class="n">slides</span> <span class="o">=</span> <span class="n">obj</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">unique</span><span class="p">()</span>
         <span class="k">return</span> <span class="n">obj</span>
 
@@ -420,7 +468,8 @@
             <span class="s1">&#39;slide&#39;</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">cols</span><span class="p">[</span><span class="s1">&#39;slides&#39;</span><span class="p">]),</span>
             <span class="s1">&#39;tfr_index&#39;</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">cols</span><span class="p">[</span><span class="s1">&#39;tfr_index&#39;</span><span class="p">])</span>
         <span class="p">})</span>
-        <span class="n">obj</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">(</span><span class="n">obj_data</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">unique</span><span class="p">())</span>
+        <span class="n">obj</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">()</span>
+        <span class="n">obj</span><span class="o">.</span><span class="n">slides</span> <span class="o">=</span> <span class="n">obj_data</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">unique</span><span class="p">()</span>
         <span class="n">obj</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">obj_data</span>
         <span class="n">obj</span><span class="o">.</span><span class="n">parametric_umap</span> <span class="o">=</span> <span class="n">parametric_umap</span>
         <span class="k">return</span> <span class="n">obj</span>
@@ -466,12 +515,13 @@
                 <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">map_slide</span><span class="si">}</span><span class="s2">)&quot;</span>
             <span class="p">)</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">exclude_slides</span><span class="p">:</span>
-            <span class="n">slides</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">slides</span>
+            <span class="n">slides</span> <span class="o">=</span> <span class="n">ftrs</span><span class="o">.</span><span class="n">slides</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">slides</span> <span class="o">=</span> <span class="p">[</span><span class="n">s</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">slides</span> <span class="k">if</span> <span class="n">s</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">exclude_slides</span><span class="p">]</span>
+            <span class="n">slides</span> <span class="o">=</span> <span class="p">[</span><span class="n">s</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">ftrs</span><span class="o">.</span><span class="n">slides</span> <span class="k">if</span> <span class="n">s</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">exclude_slides</span><span class="p">]</span>
 
-        <span class="n">obj</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">(</span><span class="n">slides</span><span class="p">)</span>
-        <span class="n">obj</span><span class="o">.</span><span class="n">df</span> <span class="o">=</span> <span class="n">df</span>
+        <span class="n">obj</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">()</span>
+        <span class="n">obj</span><span class="o">.</span><span class="n">slides</span> <span class="o">=</span> <span class="n">slides</span>
+        <span class="n">obj</span><span class="o">.</span><span class="n">ftrs</span> <span class="o">=</span> <span class="n">ftrs</span>
         <span class="n">obj</span><span class="o">.</span><span class="n">umap</span> <span class="o">=</span> <span class="n">umap</span>  <span class="c1"># type: ignore</span>
         <span class="n">obj</span><span class="o">.</span><span class="n">parametric_umap</span> <span class="o">=</span> <span class="n">parametric_umap</span>
         <span class="k">if</span> <span class="n">map_slide</span><span class="p">:</span>
@@ -609,7 +659,7 @@
 
         <span class="c1"># Calculate optimal slide indices and centroid activations</span>
         <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Calculating centroid indices...&quot;</span><span class="p">)</span>
-        <span class="n">opt_idx</span><span class="p">,</span> <span class="n">centroid_activations</span> <span class="o">=</span> <span class="n">calculate_centroid</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ftrs</span><span class="o">.</span><span class="n">activations</span><span class="p">)</span>
+        <span class="n">opt_idx</span><span class="p">,</span> <span class="n">centroid_activations</span> <span class="o">=</span> <span class="n">stats_utils</span><span class="o">.</span><span class="n">calculate_centroid</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ftrs</span><span class="o">.</span><span class="n">activations</span><span class="p">)</span>
 
         <span class="c1"># Restrict mosaic to only slides that had enough tiles to calculate</span>
         <span class="c1"># an optimal index from centroid</span>
@@ -876,11 +926,21 @@
                 <span class="o">**</span><span class="n">kwargs</span>
             <span class="p">)</span>
             <span class="n">layout</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">umap</span><span class="o">.</span><span class="n">fit_transform</span><span class="p">(</span><span class="n">array</span><span class="p">)</span>  <span class="c1"># type: ignore</span>
+            <span class="p">(</span><span class="n">normalized</span><span class="p">,</span>
+             <span class="bp">self</span><span class="o">.</span><span class="n">_umap_normalized_range</span><span class="p">,</span>
+             <span class="bp">self</span><span class="o">.</span><span class="n">_umap_normalized_clip</span><span class="p">)</span> <span class="o">=</span> <span class="n">stats_utils</span><span class="o">.</span><span class="n">normalize_layout</span><span class="p">(</span><span class="n">layout</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">layout</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">umap</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">array</span><span class="p">)</span>  <span class="c1"># type: ignore</span>
-        <span class="p">(</span><span class="n">normalized</span><span class="p">,</span>
-         <span class="bp">self</span><span class="o">.</span><span class="n">_umap_normalized_range</span><span class="p">,</span>
-         <span class="bp">self</span><span class="o">.</span><span class="n">_umap_normalized_clip</span><span class="p">)</span> <span class="o">=</span> <span class="n">normalize_layout</span><span class="p">(</span><span class="n">layout</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_umap_normalized_range</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">normalized</span> <span class="o">=</span> <span class="n">stats_utils</span><span class="o">.</span><span class="n">normalize</span><span class="p">(</span>
+                    <span class="n">layout</span><span class="p">,</span>
+                    <span class="n">norm_range</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_umap_normalized_range</span><span class="p">,</span>
+                    <span class="n">norm_clip</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_umap_normalized_clip</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;No range/clip information available; unable to &quot;</span>
+                         <span class="s2">&quot;normalize UMAP output.&quot;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">layout</span>
+
         <span class="k">return</span> <span class="n">normalized</span>
 
     <span class="k">def</span> <span class="nf">label_by_uncertainty</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
@@ -1092,7 +1152,10 @@
         <span class="n">dpi</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">300</span><span class="p">,</span>
         <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
     <span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Save plot and UMAP to a directory.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Save UMAP, plot, coordinates, and normalization values to a directory.</span>
+
+<span class="sd">        The UMAP, plot, coordinates, and normalization values can all be</span>
+<span class="sd">        loaded from this directory after saving with ``sf.SlideMap.load(path)``.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            path (str): Directory in which to save the plot and UMAP.</span>
@@ -1117,7 +1180,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">exists</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
             <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">path</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;.png&#39;</span><span class="p">,</span> <span class="s1">&#39;.jpg&#39;</span><span class="p">,</span> <span class="s1">&#39;.jpeg&#39;</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">path</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;.png&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">path</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;.jpg&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">path</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;.jpeg&#39;</span><span class="p">):</span>
             <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
                 <span class="s2">&quot;Path provided to `SlideMap.save()` is a file name, &quot;</span>
                 <span class="s2">&quot;not a directory. Will save the figure plot to this location, &quot;</span>
@@ -1193,7 +1256,7 @@
         <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Saved 3D UMAP to [green]</span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">save_coordinates</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Save coordinates to parquet file.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Save coordinates only to parquet file.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            path (str, optional): Save coordinates to this location.</span>
@@ -1202,17 +1265,18 @@
         <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Wrote slide map coordinates to [green]</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">save_umap</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Save UMAP to and coordinates.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Save UMAP, coordinates, and normalization information to a directory.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            path (str, optional): Save UMAP and coordinates to this directory.</span>
 <span class="sd">                Coordinates will be saved in this directory with the filename</span>
-<span class="sd">                ``slidemap.parquet``.</span>
+<span class="sd">                ``slidemap.parquet`` Model will be saved as umap.pkl (parametric)</span>
+<span class="sd">                or model.pkl (parametric).</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">parametric_umap</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">umap</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;umap.pkl&#39;</span><span class="p">),</span> <span class="s1">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
                 <span class="n">pickle</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">umap</span><span class="p">,</span> <span class="n">f</span><span class="p">)</span>
                 <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Wrote UMAP coordinates to [green]</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">save_coordinates</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;slidemap.parquet&#39;</span><span class="p">))</span>
@@ -1222,7 +1286,7 @@
             <span class="n">clip</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_umap_normalized_clip</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">save_encoder</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Save Parametric UMAP encoder.&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Save Parametric UMAP encoder only.&quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">parametric_umap</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;SlideMap not built with Parametric UMAP.&quot;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">umap</span><span class="o">.</span><span class="n">encoder</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;encoder&#39;</span><span class="p">))</span>
@@ -1232,7 +1296,33 @@
             <span class="nb">range</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_umap_normalized_range</span><span class="p">,</span>
             <span class="n">clip</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_umap_normalized_clip</span><span class="p">)</span>
 
+    <span class="k">def</span> <span class="nf">load_range_clip</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Load a saved range_clip.npz file for normalizing raw UMAP output.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            path (str): Path to numpy file (\*.npz) with &#39;clip&#39; and &#39;range&#39; keys</span>
+<span class="sd">                as generated from ``SlideMap.save()``.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">loaded</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="s1">&#39;range&#39;</span> <span class="ow">in</span> <span class="n">loaded</span> <span class="ow">and</span> <span class="s1">&#39;clip&#39;</span> <span class="ow">in</span> <span class="n">loaded</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unable to load </span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">; did not find values &quot;</span>
+                             <span class="s2">&quot;&#39;range&#39; and &#39;clip&#39;.&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_umap_normalized_clip</span> <span class="o">=</span> <span class="n">loaded</span><span class="p">[</span><span class="s1">&#39;clip&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_umap_normalized_range</span> <span class="o">=</span> <span class="n">loaded</span><span class="p">[</span><span class="s1">&#39;range&#39;</span><span class="p">]</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Loaded range=</span><span class="si">{}</span><span class="s2">, clip=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_umap_normalized_range</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_umap_normalized_clip</span>
+        <span class="p">))</span>
+
     <span class="k">def</span> <span class="nf">load_umap</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;umap.UMAP&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Load only a UMAP model and not slide coordinates or range_clip.npz.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            path (str): Path to either umap.pkl or directory with saved</span>
+<span class="sd">                parametric UMAP.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">parametric_umap</span><span class="p">:</span>
             <span class="kn">from</span> <span class="nn">umap.parametric_umap</span> <span class="kn">import</span> <span class="n">load_ParametricUMAP</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">umap</span> <span class="o">=</span> <span class="n">load_ParametricUMAP</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
@@ -1245,7 +1335,7 @@
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Load coordinates from parquet file.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            path (str, optional): Path to parquet file with SlideMap</span>
+<span class="sd">            path (str, optional): Path to parquet file (.parquet) with SlideMap</span>
 <span class="sd">                coordinates.</span>
 
 <span class="sd">        &quot;&quot;&quot;</span>

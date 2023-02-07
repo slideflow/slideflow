@@ -48,6 +48,7 @@ Methods
 .. autofunction:: slideflow.SlideMap.label_by_preds
 .. autofunction:: slideflow.SlideMap.label_by_slide
 .. autofunction:: slideflow.SlideMap.label_by_uncertainty
+.. autofunction:: slideflow.SlideMap.load
 .. autofunction:: slideflow.SlideMap.load_coordinates
 .. autofunction:: slideflow.SlideMap.load_umap
 .. autofunction:: slideflow.SlideMap.plot

@@ -6,12 +6,12 @@ import numpy as np
 import pandas as pd
 import slideflow as sf
 import warnings
-from os.path import join, exists
+from os.path import join, exists, isdir
 from mpl_toolkits.mplot3d import Axes3D
 from pandas.core.frame import DataFrame
 from sklearn.cluster import KMeans
 from slideflow import errors
-from slideflow.stats.stats_utils import calculate_centroid, normalize_layout
+from slideflow.stats import stats_utils
 from slideflow.util import log
 
 if TYPE_CHECKING:
@@ -77,8 +77,56 @@ class SlideMap:
 
     @classmethod
     def load(cls, path: str):
+        """Load a previously saved SlideMap (UMAP and coordinates).
+
+        Loads a ``SlideMap`` previously saved with ``SlideMap.save()``.
+
+        Expects a directory with ``slidemap.parquet``, ``range_clip.npz``,
+        and either ``umap.pkl`` (non-parametric models) or a folder named
+        ``parametric_model``.
+
+        Examples
+            Save a SlideMap, then load it.
+
+                .. code-block:: python
+
+                    slidemap.save('/directory/')
+                    new_slidemap = sf.SlideMap.load('/directory/')
+
+        Args:
+            path (str): Directory from which to load a previously saved UMAP.
+
+        """
         obj = cls()
-        obj.load_coordinates(path)
+        if isdir(path):
+            # Load coordinates
+            if exists(join(path, 'slidemap.parquet')):
+                obj.load_coordinates(join(path, 'slidemap.parquet'))
+            else:
+                log.warn("Could not find slidemap.parquet; no data loaded.")
+            # Load UMAP
+            if exists(join(path, 'parametric_model')):
+                obj.parametric_umap=True
+                obj.load_umap(path)
+            elif exists(join(path, 'umap.pkl')):
+                obj.load_umap(join(path, 'umap.pkl'))
+            else:
+                log.warn(f"Could not find a valid umap model at {path}. Ensure "
+                         "the path is a valid directory with either 'parametric_umap' "
+                         "subdirectory or a valid 'umap.pkl'.")
+            # Load range/clip
+            if exists((join(path, 'range_clip.npz'))):
+                obj.load_range_clip(join(path, 'range_clip.npz'))
+            else:
+                log.warn("Could not find range_clip.npz; results from "
+                         "umap_transform() will not be normalized.")
+        elif path.endswith('.parquet'):
+            obj.load_coordinates(path)
+        else:
+            raise ValueError(
+                f"Unable to determine how to load {path}. Expected "
+                "a path to a directory, or a slidemap.parquet file."
+            )
         obj.slides = obj.data.slide.unique()
         return obj
 
@@ -338,7 +386,7 @@ class SlideMap:
 
         # Calculate optimal slide indices and centroid activations
         log.info("Calculating centroid indices...")
-        opt_idx, centroid_activations = calculate_centroid(self.ftrs.activations)
+        opt_idx, centroid_activations = stats_utils.calculate_centroid(self.ftrs.activations)
 
         # Restrict mosaic to only slides that had enough tiles to calculate
         # an optimal index from centroid
@@ -605,11 +653,21 @@ class SlideMap:
                 **kwargs
             )
             layout = self.umap.fit_transform(array)  # type: ignore
+            (normalized,
+             self._umap_normalized_range,
+             self._umap_normalized_clip) = stats_utils.normalize_layout(layout)
         else:
             layout = self.umap.transform(array)  # type: ignore
-        (normalized,
-         self._umap_normalized_range,
-         self._umap_normalized_clip) = normalize_layout(layout)
+            if self._umap_normalized_range is not None:
+                normalized = stats_utils.normalize(
+                    layout,
+                    norm_range=self._umap_normalized_range,
+                    norm_clip=self._umap_normalized_clip)
+            else:
+                log.info("No range/clip information available; unable to "
+                         "normalize UMAP output.")
+                return layout
+
         return normalized
 
     def label_by_uncertainty(self, index: int = 0) -> None:
@@ -821,7 +879,10 @@ class SlideMap:
         dpi: int = 300,
         **kwargs,
     ):
-        """Save plot and UMAP to a directory.
+        """Save UMAP, plot, coordinates, and normalization values to a directory.
+
+        The UMAP, plot, coordinates, and normalization values can all be
+        loaded from this directory after saving with ``sf.SlideMap.load(path)``.
 
         Args:
             path (str): Directory in which to save the plot and UMAP.
@@ -846,7 +907,7 @@ class SlideMap:
         """
         if not exists(path):
             os.makedirs(path)
-        if path.endswith('.png', '.jpg', '.jpeg'):
+        if path.endswith('.png') or path.endswith('.jpg') or path.endswith('.jpeg'):
             log.warning(
                 "Path provided to `SlideMap.save()` is a file name, "
                 "not a directory. Will save the figure plot to this location, "
@@ -922,7 +983,7 @@ class SlideMap:
         log.info(f"Saved 3D UMAP to [green]{filename}")
 
     def save_coordinates(self, path: str) -> None:
-        """Save coordinates to parquet file.
+        """Save coordinates only to parquet file.
 
         Args:
             path (str, optional): Save coordinates to this location.
@@ -931,17 +992,18 @@ class SlideMap:
         log.info(f"Wrote slide map coordinates to [green]{path}")
 
     def save_umap(self, path: str) -> None:
-        """Save UMAP to and coordinates.
+        """Save UMAP, coordinates, and normalization information to a directory.
 
         Args:
             path (str, optional): Save UMAP and coordinates to this directory.
                 Coordinates will be saved in this directory with the filename
-                ``slidemap.parquet``.
+                ``slidemap.parquet`` Model will be saved as umap.pkl (parametric)
+                or model.pkl (parametric).
         """
         if self.parametric_umap:
             self.umap.save(path)
         else:
-            with open(path, 'wb') as f:
+            with open(join(path, 'umap.pkl'), 'wb') as f:
                 pickle.dump(self.umap, f)
                 log.info(f"Wrote UMAP coordinates to [green]{path}")
         self.save_coordinates(join(path, 'slidemap.parquet'))
@@ -951,7 +1013,7 @@ class SlideMap:
             clip=self._umap_normalized_clip)
 
     def save_encoder(self, path: str) -> None:
-        """Save Parametric UMAP encoder."""
+        """Save Parametric UMAP encoder only."""
         if not self.parametric_umap:
             raise ValueError("SlideMap not built with Parametric UMAP.")
         self.umap.encoder.save(join(path, 'encoder'))
@@ -961,7 +1023,33 @@ class SlideMap:
             range=self._umap_normalized_range,
             clip=self._umap_normalized_clip)
 
+    def load_range_clip(self, path: str) -> None:
+        """Load a saved range_clip.npz file for normalizing raw UMAP output.
+
+        Args:
+            path (str): Path to numpy file (\*.npz) with 'clip' and 'range' keys
+                as generated from ``SlideMap.save()``.
+
+        """
+        loaded = np.load(path)
+        if not ('range' in loaded and 'clip' in loaded):
+            raise ValueError(f"Unable to load {path}; did not find values "
+                             "'range' and 'clip'.")
+        self._umap_normalized_clip = loaded['clip']
+        self._umap_normalized_range = loaded['range']
+        log.info("Loaded range={}, clip={}".format(
+            self._umap_normalized_range,
+            self._umap_normalized_clip
+        ))
+
     def load_umap(self, path: str) -> "umap.UMAP":
+        """Load only a UMAP model and not slide coordinates or range_clip.npz.
+
+        Args:
+            path (str): Path to either umap.pkl or directory with saved
+                parametric UMAP.
+
+        """
         if self.parametric_umap:
             from umap.parametric_umap import load_ParametricUMAP
             self.umap = load_ParametricUMAP(path)
@@ -974,7 +1062,7 @@ class SlideMap:
         """Load coordinates from parquet file.
 
         Args:
-            path (str, optional): Path to parquet file with SlideMap
+            path (str, optional): Path to parquet file (.parquet) with SlideMap
                 coordinates.
 
         """
