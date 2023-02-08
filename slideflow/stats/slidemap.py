@@ -31,6 +31,7 @@ class SlideMap:
 
     def __init__(
         self,
+        *,
         parametric_umap: bool = False
     ) -> None:
         """Backend for mapping slides into two dimensional space. Can use a
@@ -68,6 +69,7 @@ class SlideMap:
         Args:
             slides (list(str)): List of slide names
         """
+        assert isinstance(parametric_umap, bool), "Expected <bool> for argument 'parametric_umap'"
         self.data = None   # type: DataFrame
         self.ftrs = None   # type: Optional[DatasetFeatures]
         self.slides = None # type: List[str]
@@ -97,6 +99,7 @@ class SlideMap:
             path (str): Directory from which to load a previously saved UMAP.
 
         """
+        log.debug(f"Attempting to load SlideMap from {path}")
         obj = cls()
         if isdir(path):
             # Load coordinates
@@ -1031,6 +1034,7 @@ class SlideMap:
                 as generated from ``SlideMap.save()``.
 
         """
+        log.debug(f"Loading range_clip at {path}")
         loaded = np.load(path)
         if not ('range' in loaded and 'clip' in loaded):
             raise ValueError(f"Unable to load {path}; did not find values "
@@ -1050,6 +1054,7 @@ class SlideMap:
                 parametric UMAP.
 
         """
+        log.debug(f"Loading UMAP at {path}")
         if self.parametric_umap:
             from umap.parametric_umap import load_ParametricUMAP
             self.umap = load_ParametricUMAP(path)
@@ -1066,5 +1071,6 @@ class SlideMap:
                 coordinates.
 
         """
+        log.debug(f"Loading coordinates at {path}")
         self.data = pd.read_parquet(path)
         log.info(f"Loaded coordinates from [green]{path}")
