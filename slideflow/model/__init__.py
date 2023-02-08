@@ -45,26 +45,75 @@ else:
 # -----------------------------------------------------------------------------
 
 
-def trainer_from_hp(hp: "ModelParams", **kwargs) -> Trainer:
+def is_tensorflow_tensor(arg: Any) -> bool:
+    """Checks if the given object is a Tensorflow Tensor."""
+    if sf.util.tf_available:
+        import tensorflow as tf
+        return isinstance(arg, tf.Tensor)
+    else:
+        return False
+
+
+def is_torch_tensor(arg: Any) -> bool:
+    """Checks if the given object is a Tensorflow Tensor."""
+    if sf.util.torch_available:
+        import torch
+        return isinstance(arg, torch.Tensor)
+    else:
+        return False
+
+
+def is_tensorflow_model(arg: Any) -> bool:
+    """Checks if the object is a Tensorflow Model or path to Tensorflow model."""
+    if isinstance(arg, str):
+        return sf.util.is_tensorflow_model_path(arg)
+    elif sf.util.tf_available:
+        import tensorflow as tf
+        return isinstance(arg, tf.keras.models.Model)
+    else:
+        return False
+
+
+def is_torch_model(arg: Any) -> bool:
+    """Checks if the object is a PyTorch Module or path to PyTorch model."""
+    if isinstance(arg, str):
+        return sf.util.is_torch_model_path(arg)
+    elif sf.util.torch_available:
+        import torch
+        return isinstance(arg, torch.nn.Module)
+    else:
+        return False
+
+
+def trainer_from_hp(*args, **kwargs):
+    warnings.warn(
+        "sf.model.trainer_from_hp() is deprecated. Please use "
+        "sf.model.build_trainer().",
+        DeprecationWarning
+    )
+    return build_trainer(*args, **kwargs)
+
+
+def build_trainer(
+    hp: "ModelParams",
+    outdir: str,
+    labels: Dict[str, Any],
+    **kwargs
+) -> Trainer:
     """From the given :class:`slideflow.model.ModelParams` object, returns
-    the appropriate instance of :class:`slideflow.model.Model`.
+    the appropriate instance of :class:`slideflow.model.Trainer`.
 
     Args:
         hp (:class:`slideflow.model.ModelParams`): ModelParams object.
-
-    Keyword Args:
         outdir (str): Path for event logs and checkpoints.
         labels (dict): Dict mapping slide names to outcome labels (int or
             float format).
-        patients (dict): Dict mapping slide names to patient ID, as some
-            patients may have multiple slides. If not provided, assumes 1:1
-            mapping between slide names and patients.
+
+    Keyword Args:
         slide_input (dict): Dict mapping slide names to additional
             slide-level input, concatenated after post-conv.
         name (str, optional): Optional name describing the model, used for
             model saving. Defaults to 'Trainer'.
-        manifest (dict, optional): Manifest dictionary mapping TFRecords to
-            number of tiles. Defaults to None.
         feature_sizes (list, optional): List of sizes of input features.
             Required if providing additional input features as input to
             the model.
@@ -84,13 +133,23 @@ def trainer_from_hp(hp: "ModelParams", **kwargs) -> Trainer:
             Defaults to None.
         neptune_workspace (str, optional): Neptune workspace.
             Defaults to None.
+        load_method (str): Either 'full' or 'weights'. Method to use
+                when loading a Tensorflow model. If 'full', loads the model with
+                ``tf.keras.models.load_model()``. If 'weights', will read the
+                ``params.json``configuration file, build the model architecture,
+                and then load weights from the given model with
+                ``Model.load_weights()``. Loading with 'full' may improve
+                compatibility across Slideflow versions. Loading with 'weights'
+                may improve compatibility across hardware & environments.
+        custom_objects (dict, Optional): Dictionary mapping names
+                (strings) to custom classes or functions. Defaults to None.
     """
     if hp.model_type() == 'categorical':
-        return Trainer(hp=hp, **kwargs)
+        return Trainer(hp, outdir, labels, **kwargs)
     if hp.model_type() == 'linear':
-        return LinearTrainer(hp=hp, **kwargs)
+        return LinearTrainer(hp, outdir, labels, **kwargs)
     if hp.model_type() == 'cph':
-        return CPHTrainer(hp=hp, **kwargs)
+        return CPHTrainer(hp, outdir, labels, **kwargs)
     else:
         raise ValueError(f"Unknown model type: {hp.model_type()}")
 
@@ -151,12 +210,12 @@ class DatasetFeatures:
     PKL cache file to save time in future iterations.
 
     Note:
-        Storing logits along with layer features is optional, to offer the user
-        reduced memory footprint. For example, saving logits for a 10,000 slide
+        Storing predictions along with layer features is optional, to offer the user
+        reduced memory footprint. For example, saving predictions for a 10,000 slide
         dataset with 1000 categorical outcomes would require:
 
         4 bytes/float32-logit
-        * 1000 logits/slide
+        * 1000 predictions/slide
         * 3000 tiles/slide
         * 10000 slides
         ~= 112 GB
@@ -166,48 +225,68 @@ class DatasetFeatures:
         self,
         model: Union[str, "tf.keras.models.Model", "torch.nn.Module"],
         dataset: "sf.Dataset",
-        annotations: Optional[Labels] = None,
+        *,
+        labels: Optional[Labels] = None,
         cache: Optional[str] = None,
+        annotations: Optional[Labels] = None,
         **kwargs: Any
     ) -> None:
 
         """Calculates features / layer activations from model, storing to
-        internal parameters `self.activations`, and `self.logits`,
-        `self.locations`, dictionaries mapping slides to arrays of activations,
-        logits, and locations for each tiles' constituent tiles.
+        internal parameters ``self.activations``, and ``self.predictions``,
+        ``self.locations``, dictionaries mapping slides to arrays of activations,
+        predictions, and locations for each tiles' constituent tiles.
 
         Args:
             model (str): Path to model from which to calculate activations.
             dataset (:class:`slideflow.Dataset`): Dataset from which to
                 generate activations.
-            annotations (dict, optional): Dict mapping slide names to outcome
+            labels (dict, optional): Dict mapping slide names to outcome
                 categories.
             cache (str, optional): File for PKL cache.
+            annotations: Deprecated.
 
         Keyword Args:
             layers (str): Model layer(s) from which to calculate activations.
                 Defaults to 'postconv'.
             batch_size (int): Batch size for activations calculations.
                 Defaults to 32.
-            include_logits (bool): Calculate and store logits.
+            include_preds (bool): Calculate and store predictions.
                 Defaults to True.
         """
         self.activations = defaultdict(list)  # type: Dict[str, Any]
-        self.logits = defaultdict(list)  # type: Dict[str, Any]
+        self.predictions = defaultdict(list)  # type: Dict[str, Any]
         self.uncertainty = defaultdict(list)  # type: Dict[str, Any]
         self.locations = defaultdict(list)  # type: Dict[str, Any]
         self.num_features = 0
-        self.num_logits = 0
+        self.num_classes = 0
         self.manifest = dataset.manifest()
-        self.annotations = annotations
         self.model = model
         self.dataset = dataset
         self.tile_px = dataset.tile_px
         self.tfrecords = np.array(dataset.tfrecords())
         self.slides = sorted([sf.util.path_to_name(t) for t in self.tfrecords])
 
+        if labels is not None and annotations is not None:
+            raise DeprecationWarning(
+                'Cannot supply both "labels" and "annotations" to sf.DatasetFeatures. '
+                '"annotations" is deprecated and has been replaced with "labels".'
+            )
+        elif annotations is not None:
+            warnings.warn(
+                'The "annotations" argument to sf.DatasetFeatures is deprecated.'
+                'Please use the argument "labels" instead.',
+                DeprecationWarning
+            )
+            self.labels = annotations
+        else:
+            self.labels = labels
+
         # Load configuration if model is path to a saved model
-        if isinstance(model, str):
+        if isinstance(model, str) and sf.util.is_simclr_model_path(model):
+            self.uq = False
+            self.normalizer = None
+        elif isinstance(model, str):
             model_config = sf.util.get_model_config(model)
             hp = ModelParams.from_dict(model_config['hp'])
             self.uq = hp.uq
@@ -220,18 +299,18 @@ class DatasetFeatures:
             self.normalizer = None
             self.uq = False
 
-        if self.annotations:
-            self.categories = list(set(self.annotations.values()))
+        if self.labels:
+            self.categories = list(set(self.labels.values()))
             if self.activations:
                 for slide in self.slides:
                     try:
                         if self.activations[slide]:
                             used = (self.used_categories
-                                    + [self.annotations[slide]])
+                                    + [self.labels[slide]])
                             self.used_categories = list(set(used))  # type: List[Union[str, int, List[float]]]
                             self.used_categories.sort()
                     except KeyError:
-                        raise KeyError(f"Slide {slide} not in annotations.")
+                        raise KeyError(f"Slide {slide} not in labels.")
                 total = len(self.used_categories)
                 cat_list = ", ".join([str(c) for c in self.used_categories])
                 log.debug(f'Observed categories (total: {total}): {cat_list}')
@@ -273,9 +352,9 @@ class DatasetFeatures:
             log.warning(f'Activations missing for {len(missing)} slides')
 
         # Record which categories have been included in the specified tfrecords
-        if self.categories and self.annotations:
+        if self.categories and self.labels:
             self.used_categories = list(set([
-                self.annotations[slide]
+                self.labels[slide]
                 for slide in self.slides
             ]))
             self.used_categories.sort()
@@ -293,7 +372,7 @@ class DatasetFeatures:
         self,
         model: Union[str, "tf.keras.models.Model", "torch.nn.Module"],
         layers: Union[str, List[str]] = 'postconv',
-        include_logits: bool = True,
+        include_preds: bool = True,
         include_uncertainty: bool = True,
         batch_size: int = 32,
         cache: Optional[str] = None,
@@ -307,7 +386,7 @@ class DatasetFeatures:
                 layer activations.
             layers (str, optional): Layers from which to generate activations.
                 Defaults to 'postconv'.
-            include_logits (bool, optional): Include logit predictions.
+            include_preds (bool, optional): Include logit predictions.
                 Defaults to True.
             include_uncertainty (bool, optional): Include uncertainty
                 estimation if UQ enabled. Defaults to True.
@@ -321,11 +400,12 @@ class DatasetFeatures:
                  f'tfrecords (layers={layers})')
         log.info(f'Generating from [green]{model}')
         layers = sf.util.as_list(layers)
+        is_simclr = sf.util.is_simclr_model_path(model)
 
         # Load model
         feat_kw = dict(
             layers=layers,
-            include_logits=include_logits,
+            include_preds=include_preds,
             **kwargs
         )
         if self.uq and include_uncertainty:
@@ -333,11 +413,17 @@ class DatasetFeatures:
                 model,
                 layers=layers
             )
+        elif is_simclr:
+            from slideflow import simclr
+            simclr_args = simclr.load_model_args(model)
+            combined_model = simclr.load(model)
+            combined_model.num_features = simclr_args.proj_out_dim
+            combined_model.num_classes = simclr_args.num_classes
         elif isinstance(model, str):
             combined_model = sf.model.Features(model, **feat_kw)
-        elif sf.backend() == 'tensorflow':
+        elif sf.model.is_tensorflow_model(model):
             combined_model = sf.model.Features.from_model(model, **feat_kw)
-        elif sf.backend() == 'torch':
+        elif sf.model.is_torch_model(model):
             combined_model = sf.model.Features.from_model(
                 model,
                 tile_px=self.tile_px,
@@ -347,7 +433,7 @@ class DatasetFeatures:
             raise ValueError(f'Unrecognized model {model}')
 
         self.num_features = combined_model.num_features
-        self.num_logits = 0 if not include_logits else combined_model.num_logits
+        self.num_classes = 0 if not include_preds else combined_model.num_classes
 
         # Calculate final layer activations for each tfrecord
         fla_start_time = time.time()
@@ -364,21 +450,38 @@ class DatasetFeatures:
             'incl_loc': True,
             'normalizer': self.normalizer
         }
-        if sf.backend() == 'tensorflow':
+        if is_simclr:
+            from slideflow import simclr
+            builder = simclr.DatasetBuilder(
+                val_dts=self.dataset,
+                dataset_kwargs=dict(
+                    incl_slidenames=True,
+                    incl_loc=True,
+                    normalizer=self.normalizer
+                )
+            )
+            dataloader = builder.build_dataset(
+                batch_size,
+                is_training=False,
+                simclr_args=simclr_args
+            )
+        elif sf.model.is_tensorflow_model(model):
             dataloader = self.dataset.tensorflow(
                 None,
                 num_parallel_reads=None,
                 deterministic=True,
                 **dataset_kwargs  # type: ignore
             )
-        elif sf.backend() == 'torch':
+        elif sf.model.is_torch_model(model):
             dataloader = self.dataset.torch(
                 None,
                 num_workers=1,
                 **dataset_kwargs  # type: ignore
             )
+        else:
+            raise ValueError(f"Unrecognized model type: {type(model)}")
 
-        # Worker to process activations/logits, for more efficient throughput
+        # Worker to process activations/predictions, for more efficient throughput
         q = queue.Queue()  # type: queue.Queue
 
         def batch_worker():
@@ -388,35 +491,43 @@ class DatasetFeatures:
                     return
                 model_out = sf.util.as_list(model_out)
 
-                if sf.backend() == 'tensorflow':
+                if is_simclr or sf.model.is_tensorflow_model(model):
                     decoded_slides = [
                         bs.decode('utf-8')
                         for bs in batch_slides.numpy()
                     ]
                     model_out = [
-                        m.numpy() if not isinstance(m, list) else m
+                        m.numpy() if not isinstance(m, (list, tuple)) else m
                         for m in model_out
                     ]
-                    batch_loc = np.stack([
-                        batch_loc[0].numpy(),
-                        batch_loc[1].numpy()
-                    ], axis=1)
-                elif sf.backend() == 'torch':
+                    if batch_loc[0] is not None:
+                        batch_loc = np.stack([
+                            batch_loc[0].numpy(),
+                            batch_loc[1].numpy()
+                        ], axis=1)
+                    else:
+                        batch_loc = None
+                elif sf.model.is_torch_model(model):
                     decoded_slides = batch_slides
                     model_out = [
                         m.cpu().numpy() if not isinstance(m, list) else m
                         for m in model_out
                     ]
-                    batch_loc = np.stack([batch_loc[0], batch_loc[1]], axis=1)
+                    if batch_loc[0] is not None:
+                        batch_loc = np.stack([batch_loc[0], batch_loc[1]], axis=1)
+                    else:
+                        batch_loc = None
 
                 # Process model outputs
+                if is_simclr:
+                    model_out = model_out[0]
                 if self.uq and include_uncertainty:
                     uncertainty = model_out[-1]
                     model_out = model_out[:-1]
                 else:
                     uncertainty = None
-                if include_logits:
-                    logits = model_out[-1]
+                if include_preds:
+                    predictions = model_out[-1]
                     activations = model_out[:-1]
                 else:
                     activations = model_out
@@ -428,11 +539,12 @@ class DatasetFeatures:
                 for d, slide in enumerate(decoded_slides):
                     if layers:
                         self.activations[slide].append(batch_act[d])
-                    if include_logits:
-                        self.logits[slide].append(logits[d])
+                    if include_preds and predictions is not None:
+                        self.predictions[slide].append(predictions[d])
                     if self.uq and include_uncertainty:
                         self.uncertainty[slide].append(uncertainty[d])
-                    self.locations[slide].append(batch_loc[d])
+                    if batch_loc is not None:
+                        self.locations[slide].append(batch_loc[d])
 
         batch_proc_thread = threading.Thread(target=batch_worker, daemon=True)
         batch_proc_thread.start()
@@ -443,7 +555,8 @@ class DatasetFeatures:
         task = pb.add_task("Generating...", total=estimated_tiles)
         pb.start()
         for batch_img, _, batch_slides, batch_loc_x, batch_loc_y in dataloader:
-            model_output = combined_model(batch_img)
+            call_kw = dict(training=False) if is_simclr else dict()
+            model_output = combined_model(batch_img, **call_kw)
             q.put((model_output, batch_slides, (batch_loc_x, batch_loc_y)))
             pb.advance(task, batch_size)
         pb.stop()
@@ -451,7 +564,7 @@ class DatasetFeatures:
         batch_proc_thread.join()
 
         self.activations = {s: np.stack(v) for s, v in self.activations.items()}
-        self.logits = {s: np.stack(v) for s, v in self.logits.items()}
+        self.predictions = {s: np.stack(v) for s, v in self.predictions.items()}
         self.locations = {s: np.stack(v) for s, v in self.locations.items()}
         self.uncertainty = {s: np.stack(v) for s, v in self.uncertainty.items()}
 
@@ -488,7 +601,7 @@ class DatasetFeatures:
             return np.concatenate([
                 self.activations[pt][:, idx]
                 for pt in self.slides
-                if self.annotations[pt] == c
+                if self.labels[pt] == c
             ])
         return {c: act_by_cat(c) for c in self.used_categories}
 
@@ -540,9 +653,10 @@ class DatasetFeatures:
 
     def export_to_torch(self, *args, **kwargs):
         """Deprecated function; please use `.to_torch()`"""
-        log.warn(
+        warnings.warn(
             "Deprecation warning: DatasetFeatures.export_to_torch() will"
-            " be removed in slideflow>=1.3. Use .to_torch() instead."
+            " be removed in a future version. Use .to_torch() instead.",
+            DeprecationWarning
         )
         self.to_torch(*args, **kwargs)
 
@@ -555,7 +669,7 @@ class DatasetFeatures:
         with open(path, 'wb') as pt_pkl_file:
             pickle.dump(
                 [self.activations,
-                 self.logits,
+                 self.predictions,
                  self.uncertainty,
                  self.locations],
                 pt_pkl_file
@@ -588,17 +702,17 @@ class DatasetFeatures:
 
         with open(filename, 'w') as outfile:
             csvwriter = csv.writer(outfile)
-            logit_header = [f'Logit_{log}' for log in range(self.num_logits)]
+            logit_header = [f'Class_{log}' for log in range(self.num_classes)]
             feature_header = [f'Feature_{f}' for f in range(self.num_features)]
             header = ['Slide'] + logit_header + feature_header
             csvwriter.writerow(header)
             for slide in track(slides):
                 if level == 'tile':
                     for i, tile_act in enumerate(self.activations[slide]):
-                        if self.logits[slide] != []:
+                        if self.predictions[slide] != []:
                             csvwriter.writerow(
                                 [slide]
-                                + self.logits[slide][i].tolist()
+                                + self.predictions[slide][i].tolist()
                                 + tile_act.tolist()
                             )
                         else:
@@ -608,9 +722,9 @@ class DatasetFeatures:
                         self.activations[slide],
                         axis=0
                     ).tolist()
-                    if self.logits[slide] != []:
+                    if self.predictions[slide] != []:
                         logit = meth_fn[method](
-                            self.logits[slide],
+                            self.predictions[slide],
                             axis=0
                         ).tolist()
                         csvwriter.writerow([slide] + logit + act)
@@ -653,12 +767,12 @@ class DatasetFeatures:
     def to_df(
         self
     ) -> pd.core.frame.DataFrame:
-        """Export activations, logits, uncertainty, and locations to
+        """Export activations, predictions, uncertainty, and locations to
         a pandas DataFrame.
 
         Returns:
             pd.core.frame.DataFrame: Dataframe with columns 'activations',
-            'logits', 'uncertainty', and 'locations'.
+            'predictions', 'uncertainty', and 'locations'.
         """
 
         index = [s for s in self.slides
@@ -677,12 +791,12 @@ class DatasetFeatures:
                     for s in self.slides
                     for i in range(len(self.activations[s]))], index=index)
             })
-        if self.logits:
+        if self.predictions:
             df_dict.update({
-                'logits': pd.Series([
-                    self.logits[s][i]
+                'predictions': pd.Series([
+                    self.predictions[s][i]
                     for s in self.slides
-                    for i in range(len(self.logits[s]))], index=index)
+                    for i in range(len(self.predictions[s]))], index=index)
             })
         if self.uncertainty:
             df_dict.update({
@@ -692,7 +806,6 @@ class DatasetFeatures:
                     for i in range(len(self.uncertainty[s]))], index=index)
             })
         return pd.DataFrame(df_dict)
-
 
     def load_cache(self, path: str):
         """Load cached activations from PKL.
@@ -704,13 +817,13 @@ class DatasetFeatures:
         with open(path, 'rb') as pt_pkl_file:
             loaded_pkl = pickle.load(pt_pkl_file)
             self.activations = loaded_pkl[0]
-            self.logits = loaded_pkl[1]
+            self.predictions = loaded_pkl[1]
             self.uncertainty = loaded_pkl[2]
             self.locations = loaded_pkl[3]
             if self.activations:
                 self.num_features = self.activations[self.slides[0]].shape[-1]
-            if self.logits:
-                self.num_logits = self.logits[self.slides[0]].shape[-1]
+            if self.predictions:
+                self.num_classes = self.predictions[self.slides[0]].shape[-1]
 
     def stats(
         self,
@@ -750,7 +863,7 @@ class DatasetFeatures:
             raise errors.FeaturesError('No annotations loaded')
         if method not in ('mean', 'threshold'):
             raise errors.FeaturesError(f"Stats method {method} unknown")
-        if not self.annotations:
+        if not self.labels:
             raise errors.FeaturesError("No annotations provided, unable"
                                        "to calculate feature stats.")
 
@@ -774,7 +887,7 @@ class DatasetFeatures:
             category_stats += [np.array([
                 activation_stats[slide]
                 for slide in self.slides
-                if self.annotations[slide] == c
+                if self.labels[slide] == c
             ])]
 
         for f in range(self.num_features):
@@ -831,7 +944,7 @@ class DatasetFeatures:
                           + [f'Feature_{n}' for n in pt_sorted_ft])
                 csv_writer.writerow(header)
                 for slide in self.slides:
-                    category = self.annotations[slide]
+                    category = self.labels[slide]
                     row = ([slide, category]
                            + list(activation_stats[slide][pt_sorted_ft]))
                     csv_writer.writerow(row)
@@ -855,21 +968,22 @@ class DatasetFeatures:
                     )
         return tile_stats, pt_stats, category_stats
 
-    def logits_mean(self) -> Dict[str, np.ndarray]:
-        """Calculates the mean logits vector across all tiles in each slide.
+    def softmax_mean(self) -> Dict[str, np.ndarray]:
+        """Calculates the mean prediction vector (post-softmax) across
+        all tiles in each slide.
 
         Returns:
             dict:  This is a dictionary mapping slides to the mean logits
             array for all tiles in each slide.
         """
 
-        return {s: np.mean(v, axis=0) for s, v in self.logits.items()}
+        return {s: np.mean(v, axis=0) for s, v in self.predictions.items()}
 
-    def logits_percent(
+    def softmax_percent(
         self,
         prediction_filter: Optional[List[int]] = None
     ) -> Dict[str, np.ndarray]:
-        """Returns dictionary mapping slides to a vector of length num_logits
+        """Returns dictionary mapping slides to a vector of length num_classes
         with the percent of tiles in each slide predicted to be each outcome.
 
         Args:
@@ -880,7 +994,7 @@ class DatasetFeatures:
 
         Returns:
             dict:  This is a dictionary mapping slides to an array of
-            percentages for each logit, of length num_logits
+            percentages for each logit, of length num_classes
         """
 
         if prediction_filter:
@@ -888,26 +1002,26 @@ class DatasetFeatures:
                 isinstance(i, int)
                 for i in prediction_filter
             ])
-            assert max(prediction_filter) <= self.num_logits
+            assert max(prediction_filter) <= self.num_classes
         else:
-            prediction_filter = list(range(self.num_logits))
+            prediction_filter = list(range(self.num_classes))
 
         slide_percentages = {}
-        for slide in self.logits:
+        for slide in self.predictions:
             # Find the index of the highest prediction for each tile, only for
             # logits within prediction_filter
             tile_pred = np.argmax(
-                self.logits[slide][:, prediction_filter],
+                self.predictions[slide][:, prediction_filter],
                 axis=1
             )
             slide_perc = np.array([
                 np.count_nonzero(tile_pred == logit) / len(tile_pred)
-                for logit in range(self.num_logits)
+                for logit in range(self.num_classes)
             ])
             slide_percentages.update({slide: slide_perc})
         return slide_percentages
 
-    def logits_predict(
+    def softmax_predict(
         self,
         prediction_filter: Optional[List[int]] = None
     ) -> Dict[str, int]:
@@ -924,36 +1038,47 @@ class DatasetFeatures:
         Returns:
             dict:  Dictionary mapping slide names to slide-level predictions.
         """
-
         if prediction_filter:
             assert isinstance(prediction_filter, list)
             assert all([isinstance(i, int) for i in prediction_filter])
-            assert max(prediction_filter) <= self.num_logits
+            assert max(prediction_filter) <= self.num_classes
         else:
-            prediction_filter = list(range(self.num_logits))
+            prediction_filter = list(range(self.num_classes))
 
         slide_predictions = {}
-        for slide in self.logits:
+        for slide in self.predictions:
             # Find the index of the highest prediction for each tile, only for
             # logits within prediction_filter
             tile_pred = np.argmax(
-                self.logits[slide][:, prediction_filter],
+                self.predictions[slide][:, prediction_filter],
                 axis=1
             )
             slide_perc = np.array([
                 np.count_nonzero(tile_pred == logit) / len(tile_pred)
-                for logit in range(self.num_logits)
+                for logit in range(self.num_classes)
             ])
             slide_predictions.update({slide: int(np.argmax(slide_perc))})
         return slide_predictions
 
-    def map_to_predictions(
+    def map_activations(self, **kwargs) -> "sf.SlideMap":
+        """Map activations with UMAP.
+
+        Keyword args:
+            ...
+
+        Returns:
+            sf.SlideMap
+
+        """
+        return sf.SlideMap.from_features(self, **kwargs)
+
+    def map_predictions(
         self,
         x: int = 0,
-        y: int = 0
-    ) -> Tuple[np.ndarray, np.ndarray, List[Dict[str, Any]]]:
-        """Returns coordinates and metadata for tile-level predictions for all
-        tiles, which can be used to create a SlideMap.
+        y: int = 0,
+        **kwargs
+    ) -> "sf.SlideMap":
+        """Map tile predictions onto x/y coordinate space.
 
         Args:
             x (int, optional): Outcome category id for which predictions will
@@ -961,26 +1086,32 @@ class DatasetFeatures:
             y (int, optional): Outcome category id for which predictions will
                 be mapped to the Y-axis. Defaults to 0.
 
+        Keyword args:
+            cache (str, optional): Path to parquet file to cache coordinates.
+                Defaults to None (caching disabled).
+
         Returns:
-            A tuple containing
+            sf.SlideMap
 
-                np.ndarray:   List of x-axis coordinates (preds for the category 'x')
-
-                np.ndarray:   List of y-axis coordinates (preds for the category 'y')
-
-                list:   List of dict containing tile-level metadata (for SlideMap)
         """
-
-        umap_x, umap_y, umap_meta = [], [], []
+        all_x, all_y, all_slides, all_tfr_idx = [], [], [], []
         for slide in self.slides:
-            for tile_index in range(self.logits[slide].shape[0]):
-                umap_x += [self.logits[slide][tile_index][x]]
-                umap_y += [self.logits[slide][tile_index][y]]
-                umap_meta += [{
-                    'slide': slide,
-                    'index': tile_index
-                }]
-        return np.array(umap_x), np.array(umap_y), umap_meta
+            all_x.append(self.predictions[slide].values[:, x])
+            all_y.append(self.predictions[slide].values[:, y])
+            all_slides.append([slide for _ in range(self.predictions[slide].shape[0])])
+            all_tfr_idx.append(np.arange(self.predictions[slide].shape[0]))
+        all_x = np.concatenate(all_x)
+        all_y = np.concatenate(all_y)
+        all_slides = np.concatenate(all_slides)
+        all_tfr_idx = np.concatenate(all_tfr_idx)
+
+        return sf.SlideMap.from_xy(
+            x=all_x,
+            y=all_y,
+            slides=all_slides,
+            tfr_index=all_tfr_idx,
+            **kwargs
+        )
 
     def merge(self, df: "DatasetFeatures") -> None:
         '''Merges with another DatasetFeatures.
@@ -994,7 +1125,7 @@ class DatasetFeatures:
         '''
 
         self.activations.update(df.activations)
-        self.logits.update(df.logits)
+        self.predictions.update(df.predictions)
         self.uncertainty.update(df.uncertainty)
         self.locations.update(df.locations)
         self.tfrecords = np.concatenate([self.tfrecords, df.tfrecords])
@@ -1003,7 +1134,7 @@ class DatasetFeatures:
     def remove_slide(self, slide: str) -> None:
         """Removes slide from internally cached activations."""
         del self.activations[slide]
-        del self.logits[slide]
+        del self.predictions[slide]
         del self.uncertainty[slide]
         del self.locations[slide]
         self.tfrecords = np.array([
@@ -1081,3 +1212,26 @@ class DatasetFeatures:
                 image_string = open(join(outdir, str(f), tile_filename), 'wb')
                 image_string.write(image.numpy())
                 image_string.close()
+
+    # --- Deprecated functions ----------------------------------------------------
+
+    def logits_mean(self):
+        warnings.warn(
+            "DatasetFeatures.logits_mean() is deprecated. Please use "
+            "DatasetFeatures.softmax_mean()", DeprecationWarning
+        )
+        return self.softmax_mean()
+
+    def logits_percent(self, *args, **kwargs):
+        warnings.warn(
+            "DatasetFeatures.logits_percent() is deprecated. Please use "
+            "DatasetFeatures.softmax_percent()", DeprecationWarning
+        )
+        return self.softmax_percent(*args, **kwargs)
+
+    def logits_predict(self, *args, **kwargs):
+        warnings.warn(
+            "DatasetFeatures.logits_predict() is deprecated. Please use "
+            "DatasetFeatures.softmax_predict()", DeprecationWarning
+        )
+        return self.softmax_predict(*args, **kwargs)

@@ -5,6 +5,7 @@ from __future__ import absolute_import, division, print_function
 import atexit
 import inspect
 import json
+import logging
 import os
 import shutil
 from os.path import dirname, exists, join
@@ -12,20 +13,34 @@ from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
-import multiprocessing as mp
+import tensorflow as tf
 import slideflow as sf
 import slideflow.model.base as _base
+import multiprocessing as mp
 import slideflow.util.neptune_utils
 from packaging import version
 from slideflow import errors
-from slideflow.model import tensorflow_utils as tf_utils
-from slideflow.model.base import log_manifest, no_scope
-from slideflow.model.tensorflow_utils import unwrap, flatten  # type: ignore
 from slideflow.util import log, NormFit
-
-import tensorflow as tf
 from tensorflow.keras import applications as kapps
-from slideflow.model.tensorflow_utils import eval_from_model
+
+from . import tensorflow_utils as tf_utils
+from .base import log_manifest, no_scope
+from .tensorflow_utils import unwrap, flatten, eval_from_model  # type: ignore
+
+# Set the tensorflow logger
+if sf.getLoggingLevel() == logging.DEBUG:
+    logging.getLogger('tensorflow').setLevel(logging.DEBUG)
+    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '0'
+else:
+    logging.getLogger('tensorflow').setLevel(logging.ERROR)
+    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+
+gpus = tf.config.experimental.list_physical_devices('GPU')
+for gpu in gpus:
+    try:
+        tf.config.experimental.set_memory_growth(gpu, True)
+    except RuntimeError:
+        pass
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -391,7 +406,7 @@ class ModelParams(_base._ModelParams):
                 final_dense_layer = tf.keras.layers.Dense(
                     num_classes[c],
                     kernel_regularizer=regularizer,
-                    name=f'prelogits-{c}'
+                    name=f'logits-{c}'
                 )(merged_model)
                 outputs += [
                     tf.keras.layers.Activation(
@@ -404,7 +419,7 @@ class ModelParams(_base._ModelParams):
             final_dense_layer = tf.keras.layers.Dense(
                 num_classes,
                 kernel_regularizer=regularizer,
-                name='prelogits'
+                name='logits'
             )(merged_model)
             outputs = [
                 tf.keras.layers.Activation(
@@ -500,7 +515,7 @@ class ModelParams(_base._ModelParams):
                 final_dense_layer = tf.keras.layers.Dense(
                     num_classes[c],
                     kernel_regularizer=regularizer,
-                    name=f'prelogits-{c}'
+                    name=f'logits-{c}'
                 )(merged_model)
                 outputs += [tf.keras.layers.Activation(
                     activation,
@@ -511,7 +526,7 @@ class ModelParams(_base._ModelParams):
             final_dense_layer = tf.keras.layers.Dense(
                 num_classes,
                 kernel_regularizer=regularizer,
-                name='prelogits'
+                name='logits'
             )(merged_model)
             outputs = [tf.keras.layers.Activation(
                 activation,
@@ -604,7 +619,10 @@ class ModelParams(_base._ModelParams):
 
     def model_type(self) -> str:
         """Returns 'linear', 'categorical', or 'cph', reflecting the loss."""
-        if self.loss == 'negative_log_likelihood':
+        #check if loss is custom_[type] and returns type
+        if self.loss.startswith('custom'):
+            return self.loss[7:]
+        elif self.loss == 'negative_log_likelihood':
             return 'cph'
         elif self.loss in self.LinearLossDict:
             return 'linear'
@@ -633,6 +651,10 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
         self.results = {'epochs': {}}  # type: Dict[str, Dict]
         self.neptune_run = self.parent.neptune_run
         self.global_step = 0
+        self.train_summary_writer = tf.summary.create_file_writer(
+            join(self.parent.outdir, 'train'))
+        self.val_summary_writer = tf.summary.create_file_writer(
+            join(self.parent.outdir, 'validation'))
 
         # Circumvents buffer overflow error with Python 3.10.
         # Without this, a buffer overflow error will be encountered when
@@ -643,6 +665,129 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
             import matplotlib.pyplot as plt
             plt.figure()
             plt.close()
+
+    def _log_training_metrics(self, logs):
+        """Log training metrics to Tensorboard/Neptune."""
+        # Log to Tensorboard.
+        with self.train_summary_writer.as_default():
+            for _log in logs:
+                tf.summary.scalar(
+                    f'batch_{_log}',
+                    data=logs[_log],
+                    step=self.global_step)
+        # Log to neptune.
+        if self.neptune_run:
+            self.neptune_run['metrics/train/batch/loss'].log(
+                logs['loss'],
+                step=self.global_step)
+            sf.util.neptune_utils.list_log(
+                self.neptune_run,
+                'metrics/train/batch/accuracy',
+                logs['accuracy'],
+                step=self.global_step)
+
+    def _log_validation_metrics(self, metrics):
+        """Log validation metrics to Tensorboard/Neptune."""
+        # Tensorboard logging for validation metrics
+        with self.val_summary_writer.as_default():
+            for _log in metrics:
+                tf.summary.scalar(
+                    f'batch_{_log}',
+                    data=metrics[_log],
+                    step=self.global_step)
+        # Log to neptune
+        if self.neptune_run:
+            for v in metrics:
+                self.neptune_run[f"metrics/val/batch/{v}"].log(
+                    round(metrics[v], 3),
+                    step=self.global_step
+                )
+            if self.last_ema != -1:
+                self.neptune_run["metrics/val/batch/exp_moving_avg"].log(
+                    round(self.last_ema, 3),
+                    step=self.global_step
+                )
+            self.neptune_run["early_stop/stopped_early"] = False
+
+    def _log_epoch_evaluation(self, epoch_results, metrics, accuracy, loss, logs={}):
+        """Log the end-of-epoch evaluation to CSV, Tensorboard, and Neptune."""
+        epoch = self.epoch_count
+        run = self.neptune_run
+        sf.util.update_results_log(
+            self.cb_args.results_log,
+            'trained_model',
+            {f'epoch{epoch}': epoch_results}
+        )
+        with self.val_summary_writer.as_default():
+            # Note: Tensorboard epoch logging starts with index=0,
+            # whereas all other logging starts with index=1
+            if isinstance(accuracy, (list, tuple, np.ndarray)):
+                for i in range(len(accuracy)):
+                    tf.summary.scalar(f'epoch_accuracy-{i}', data=accuracy[i], step=epoch-1)
+            elif accuracy is not None:
+                tf.summary.scalar(f'epoch_accuracy', data=accuracy, step=epoch-1)
+            if isinstance(loss, (list, tuple, np.ndarray)):
+                for i in range(len(loss)):
+                    tf.summary.scalar(f'epoch_loss-{i}', data=loss[i], step=epoch-1)
+            else:
+                tf.summary.scalar(f'epoch_loss', data=loss, step=epoch-1)
+
+        # Log epoch results to Neptune
+        if run:
+            # Training epoch metrics
+            run['metrics/train/epoch/loss'].log(logs['loss'], step=epoch)
+            sf.util.neptune_utils.list_log(
+                run,
+                'metrics/train/epoch/accuracy',
+                logs['accuracy'],
+                step=epoch
+            )
+            # Validation epoch metrics
+            run['metrics/val/epoch/loss'].log(loss, step=epoch)
+            sf.util.neptune_utils.list_log(
+                run,
+                'metrics/val/epoch/accuracy',
+                accuracy,
+                step=epoch
+            )
+            for metric in metrics:
+                if metrics[metric]['tile'] is None:
+                    continue
+                for outcome in metrics[metric]['tile']:
+                    # If only one outcome, log to metrics/val/epoch/[metric].
+                    # If more than one outcome, log to
+                    # metrics/val/epoch/[metric]/[outcome_name]
+                    def metric_label(s):
+                        if len(metrics[metric]['tile']) == 1:
+                            return f'metrics/val/epoch/{s}_{metric}'
+                        else:
+                            return f'metrics/val/epoch/{s}_{metric}/{outcome}'
+
+                    tile_metric = metrics[metric]['tile'][outcome]
+                    slide_metric = metrics[metric]['slide'][outcome]
+                    patient_metric = metrics[metric]['patient'][outcome]
+
+                    # If only one value for a metric, log to .../[metric]
+                    # If more than one value for a metric (e.g. AUC for each
+                    # category), log to .../[metric]/[i]
+                    sf.util.neptune_utils.list_log(
+                        run,
+                        metric_label('tile'),
+                        tile_metric,
+                        step=epoch
+                    )
+                    sf.util.neptune_utils.list_log(
+                        run,
+                        metric_label('slide'),
+                        slide_metric,
+                        step=epoch
+                    )
+                    sf.util.neptune_utils.list_log(
+                        run,
+                        metric_label('patient'),
+                        patient_metric,
+                        step=epoch
+                    )
 
     def _metrics_from_dataset(
         self,
@@ -709,18 +854,10 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
         self.model.stop_training = self.early_stop
 
     def on_train_batch_end(self, batch: int, logs={}) -> None:
-        # Neptune logging for training metrics
-        if self.neptune_run:
-            self.neptune_run['metrics/train/batch/loss'].log(
-                logs['loss'],
-                step=self.global_step
-            )
-            sf.util.neptune_utils.list_log(
-                self.neptune_run,
-                'metrics/train/batch/accuracy',
-                logs['accuracy'],
-                step=self.global_step
-            )
+        # Tensorboard logging for training metrics
+        if batch > 0 and batch % self.cb_args.log_frequency == 0:
+            #with self.train_summary_writer.as_default():
+            self._log_training_metrics(logs)
 
         # Check if manual early stopping has been triggered
         if (self.hp.early_stop
@@ -753,10 +890,13 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
                 verbosity='quiet',
             )
             val_metrics = {'loss': loss}
+            val_log_metrics = {'loss': loss}
             if isinstance(acc, float):
                 val_metrics['accuracy'] = acc
+                val_log_metrics['accuracy'] = acc
             elif acc is not None:
                 val_metrics.update({f'accuracy-{i+1}': acc[i] for i in range(len(acc))})
+                val_log_metrics.update({f'out-{i}_accuracy': acc[i] for i in range(len(acc))})
 
             val_loss = val_metrics['loss']
             self.model.stop_training = False
@@ -783,19 +923,10 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
                 print('\r\033[K', end='')
             self.moving_average += [early_stop_value]
 
-            # Log to neptune
-            if self.neptune_run:
-                for v in val_metrics:
-                    self.neptune_run[f"metrics/val/batch/{v}"].log(
-                        round(val_metrics[v], 3),
-                        step=self.global_step
-                    )
-                if self.last_ema != -1:
-                    self.neptune_run["metrics/val/batch/exp_moving_avg"].log(
-                        round(self.last_ema, 3),
-                        step=self.global_step
-                    )
-                self.neptune_run["early_stop/stopped_early"] = False
+            self._log_validation_metrics(val_log_metrics)
+            # Log training metrics if not already logged this batch
+            if batch % self.cb_args.log_frequency > 0:
+                self._log_training_metrics(logs)
 
             # Base logging message
             batch_msg = f'[blue]Batch {batch:<5}[/]'
@@ -896,73 +1027,9 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
             self.results['epochs'][f'epoch{epoch}'][f'patient_{m}'] = metrics[m]['patient']
 
         epoch_results = self.results['epochs'][f'epoch{epoch}']
-        sf.util.update_results_log(
-            self.cb_args.results_log,
-            'trained_model',
-            {f'epoch{epoch}': epoch_results}
+        self._log_epoch_evaluation(
+            epoch_results, metrics=metrics, accuracy=acc, loss=loss, logs=logs
         )
-        # Log epoch results to Neptune
-        if self.neptune_run:
-            # Training epoch metrics
-            self.neptune_run['metrics/train/epoch/loss'].log(
-                logs['loss'],
-                step=epoch
-            )
-            sf.util.neptune_utils.list_log(
-                self.neptune_run,
-                'metrics/train/epoch/accuracy',
-                logs['accuracy'],
-                step=epoch
-            )
-            # Validation epoch metrics
-            self.neptune_run['metrics/val/epoch/loss'].log(
-                val_metrics['loss'],
-                step=epoch
-            )
-            sf.util.neptune_utils.list_log(
-                self.neptune_run,
-                'metrics/val/epoch/accuracy',
-                val_metrics['accuracy'],
-                step=epoch
-            )
-            for metric in metrics:
-                if metrics[metric]['tile'] is None:
-                    continue
-                for outcome in metrics[metric]['tile']:
-                    # If only one outcome, log to metrics/val/epoch/[metric].
-                    # If more than one outcome, log to
-                    # metrics/val/epoch/[metric]/[outcome_name]
-                    def metric_label(s):
-                        if len(metrics[metric]['tile']) == 1:
-                            return f'metrics/val/epoch/{s}_{metric}'
-                        else:
-                            return f'metrics/val/epoch/{s}_{metric}/{outcome}'
-
-                    tile_metric = metrics[metric]['tile'][outcome]
-                    slide_metric = metrics[metric]['slide'][outcome]
-                    patient_metric = metrics[metric]['patient'][outcome]
-
-                    # If only one value for a metric, log to .../[metric]
-                    # If more than one value for a metric (e.g. AUC for each
-                    # category), log to .../[metric]/[i]
-                    sf.util.neptune_utils.list_log(
-                        self.neptune_run,
-                        metric_label('tile'),
-                        tile_metric,
-                        step=epoch
-                    )
-                    sf.util.neptune_utils.list_log(
-                        self.neptune_run,
-                        metric_label('slide'),
-                        slide_metric,
-                        step=epoch
-                    )
-                    sf.util.neptune_utils.list_log(
-                        self.neptune_run,
-                        metric_label('patient'),
-                        patient_metric,
-                        step=epoch
-                    )
 
 
 class Trainer:
@@ -985,10 +1052,9 @@ class Trainer:
         hp: ModelParams,
         outdir: str,
         labels: Dict[str, Any],
-        patients: Dict[str, str],
+        *,
         slide_input: Optional[Dict[str, Any]] = None,
         name: str = 'Trainer',
-        manifest: Optional[Dict[str, int]] = None,
         feature_sizes: Optional[List[int]] = None,
         feature_names: Optional[List[str]] = None,
         outcome_names: Optional[List[str]] = None,
@@ -998,7 +1064,8 @@ class Trainer:
         use_neptune: bool = False,
         neptune_api: Optional[str] = None,
         neptune_workspace: Optional[str] = None,
-        load_method: str = 'full'
+        load_method: str = 'full',
+        custom_objects: Optional[Dict[str, Any]] = None,
     ) -> None:
 
         """Sets base configuration, preparing model inputs and outputs.
@@ -1008,15 +1075,10 @@ class Trainer:
             outdir (str): Path for event logs and checkpoints.
             labels (dict): Dict mapping slide names to outcome labels (int or
                 float format).
-            patients (dict): Dict mapping slide names to patient ID, as some
-                patients may have multiple slides. If not provided, assumes 1:1
-                mapping between slide names and patients.
             slide_input (dict): Dict mapping slide names to additional
                 slide-level input, concatenated after post-conv.
             name (str, optional): Optional name describing the model, used for
                 model saving. Defaults to 'Trainer'.
-            manifest (dict, optional): Manifest dictionary mapping TFRecords to
-                number of tiles. Defaults to None.
             feature_sizes (list, optional): List of sizes of input features.
                 Required if providing additional input features as input to
                 the model.
@@ -1044,6 +1106,8 @@ class Trainer:
                 Defaults to None.
             neptune_workspace (str, optional): Neptune workspace.
                 Defaults to None.
+            custom_objects (dict, Optional): Dictionary mapping names
+                (strings) to custom classes or functions. Defaults to None.
         """
 
         if load_method not in ('full', 'weights'):
@@ -1051,7 +1115,6 @@ class Trainer:
                              "either 'full' or 'weights'.")
 
         self.outdir = outdir
-        self.manifest = manifest
         self.tile_px = hp.tile_px
         self.labels = labels
         self.hp = hp
@@ -1067,11 +1130,8 @@ class Trainer:
         self.annotations_tables = []
         self.eval_callback = _PredictionAndEvaluationCallback  # type: tf.keras.callbacks.Callback
         self.load_method = load_method
-
-        if patients:
-            self.patients = patients
-        else:
-            self.patients = {s: s for s in self.slides}
+        self.custom_objects = custom_objects
+        self.patients = dict()
 
         if not os.path.exists(outdir):
             os.makedirs(outdir)
@@ -1127,7 +1187,7 @@ class Trainer:
         if config is None:
             config = {
                 'slideflow_version': sf.__version__,
-                'hp': self.hp.get_dict(),
+                'hp': self.hp.to_dict(),
                 'backend': sf.backend()
             }
         sf.util.write_json(config, join(self.outdir, 'params.json'))
@@ -1252,6 +1312,17 @@ class Trainer:
         self.model.layers[0].trainable = True
         return toplayer_model.history
 
+    def _detect_patients(self, *args):
+        self.patients = dict()
+        for dataset in args:
+            if dataset is None:
+                continue
+            dataset_patients = dataset.patients()
+            if not dataset_patients:
+                self.patients.update({s: s for s in self.slides})
+            else:
+                self.patients.update(dataset_patients)
+
     def _interleave_kwargs(self, **kwargs) -> Dict[str, Any]:
         args = SimpleNamespace(
             labels=self._parse_tfrecord_labels,
@@ -1286,7 +1357,11 @@ class Trainer:
                     dataset.img_format))
 
     def load(self, model: str) -> tf.keras.Model:
-        self.model = load(model, method=self.load_method)
+        self.model = load(
+            model,
+            method=self.load_method,
+            custom_objects=self.custom_objects
+        )
 
     def predict(
         self,
@@ -1296,7 +1371,7 @@ class Trainer:
         format: str = 'parquet',
         from_wsi: bool = False,
         roi_method: str = 'auto',
-    ) -> "pd.DataFrame":
+    ) -> Dict[str, "pd.DataFrame"]:
         """Perform inference on a model, saving tile-level predictions.
 
         Args:
@@ -1324,11 +1399,15 @@ class Trainer:
                 Defaults to 'auto'.
 
         Returns:
-            pandas.DataFrame of tile-level predictions.
+            Dict[str, pd.DataFrame]: Dictionary with keys 'tile', 'slide', and
+            'patient', and values containing DataFrames with tile-, slide-,
+            and patient-level predictions.
         """
 
         if format not in ('csv', 'feather', 'parquet'):
             raise ValueError(f"Unrecognized format {format}")
+
+        self._detect_patients(dataset)
 
         # Verify image format
         self._verify_img_format(dataset)
@@ -1354,6 +1433,7 @@ class Trainer:
                 augment=False
             )
             tf_dts_w_slidenames = dataset.tensorflow(
+                incl_loc=True,
                 incl_slidenames=True,
                 from_wsi=from_wsi,
                 roi_method=roi_method,
@@ -1368,6 +1448,7 @@ class Trainer:
             uq=bool(self.hp.uq),
             num_tiles=dataset.num_tiles,
             outcome_names=self.outcome_names,
+            patients=self.patients
         )
         # Save predictions
         sf.stats.metrics.save_dfs(dfs, format=format, outdir=self.outdir)
@@ -1415,6 +1496,8 @@ class Trainer:
             if not isinstance(uq, bool):
                 raise ValueError(f"Unrecognized value {uq} for uq")
             self.hp.uq = uq
+
+        self._detect_patients(dataset)
 
         # Verify image format
         self._verify_img_format(dataset)
@@ -1531,7 +1614,7 @@ class Trainer:
         norm_fit: Optional[NormFit] = None,
         from_wsi: bool = False,
         roi_method: str = 'auto',
-    ):
+    ) -> Dict[str, Any]:
         """Builds and trains a model from hyperparameters.
 
         Args:
@@ -1595,6 +1678,8 @@ class Trainer:
             raise errors.ModelError(f"Incompatible models: {hp_model} (hp) and "
                                     f"{self._model_type} (model)")
 
+        self._detect_patients(train_dts, val_dts)
+
         # Clear prior Tensorflow graph to free memory
         tf.keras.backend.clear_session()
         results_log = os.path.join(self.outdir, 'results_log.csv')
@@ -1610,13 +1695,19 @@ class Trainer:
             if not exists(config_path):
                 config = {
                     'slideflow_version': sf.__version__,
-                    'hp': self.hp.get_dict(),
+                    'hp': self.hp.to_dict(),
                     'backend': sf.backend()
                 }
             else:
                 config = sf.util.load_json(config_path)
             config['norm_fit'] = self.normalizer.get_fit(as_list=True)
             sf.util.write_json(config, config_path)
+
+        # Prepare multiprocessing pool if from_wsi=True
+        if from_wsi:
+            pool = mp.Pool(8 if os.cpu_count is None else os.cpu_count())
+        else:
+            pool = None
 
         # Save training / validation manifest
         if val_dts is None:
@@ -1661,7 +1752,7 @@ class Trainer:
         with strategy.scope() if strategy else no_scope():
             # Build model from ModelParams
             if resume_training:
-                self.model = tf.keras.load_model(resume_training)
+                self.model = load(resume_training, method='full')
             else:
                 model = self.hp.build_model(
                     labels=self.labels,
@@ -1679,6 +1770,7 @@ class Trainer:
                     infinite=True,
                     augment=self.hp.augment,
                     from_wsi=from_wsi,
+                    pool=pool,
                     roi_method=roi_method
                 )
                 train_data = train_dts.tensorflow(drop_last=True, **t_kwargs)
@@ -1697,6 +1789,7 @@ class Trainer:
                         infinite=False,
                         augment=False,
                         from_wsi=from_wsi,
+                        pool=pool,
                         roi_method=roi_method
                     )
                     validation_data = val_dts.tensorflow(
@@ -1756,7 +1849,8 @@ class Trainer:
                 save_predictions=save_predictions,
                 save_model=save_model,
                 results_log=results_log,
-                reduce_method=reduce_method
+                reduce_method=reduce_method,
+                log_frequency=log_frequency
             )
 
             # Create callbacks for early stopping, checkpoint saving,
@@ -1771,11 +1865,15 @@ class Trainer:
                 )
                 callbacks += [cp_callback]
             if use_tensorboard:
+                log.debug(
+                    "Logging with Tensorboard to {} every {} batches.".format(
+                        self.outdir, log_frequency
+                    ))
                 tensorboard_callback = tf.keras.callbacks.TensorBoard(
                     log_dir=self.outdir,
                     histogram_freq=0,
                     write_graph=False,
-                    update_freq=log_frequency
+                    update_freq='batch'
                 )
                 callbacks += [tensorboard_callback]
 
@@ -1790,8 +1888,9 @@ class Trainer:
                     callbacks=None,
                     epochs=self.hp.toplayer_epochs
                 )
-            # Train the model
             self._compile_model()
+
+            # Train the model
             log.info('Beginning training')
             try:
                 self.model.fit(
@@ -1809,6 +1908,10 @@ class Trainer:
             if self.use_neptune and self.neptune_run is not None:
                 self.neptune_run['results'] = results['epochs']
                 self.neptune_run.stop()
+
+            # Cleanup
+            if pool is not None:
+                pool.close()
 
             return results
 
@@ -1969,7 +2072,7 @@ class CPHTrainer(LinearTrainer):
 
 
 class Features:
-    """Interface for obtaining logits and features from intermediate layer
+    """Interface for obtaining predictions and features from intermediate layer
     activations from Slideflow models.
 
     Use by calling on either a batch of images (returning outputs for a single
@@ -2012,7 +2115,7 @@ class Features:
         self,
         path: Optional[str],
         layers: Optional[Union[str, List[str]]] = 'postconv',
-        include_logits: bool = False,
+        include_preds: bool = False,
         load_method: str = 'full',
         pooling: Optional[Any] = None
     ) -> None:
@@ -2020,14 +2123,14 @@ class Features:
         outputs feature activations at the designated layers.
 
         Intermediate layers are returned in the order of layers.
-        Logits are returned last.
+        predictions are returned last.
 
         Args:
             path (str): Path to saved Slideflow model.
             layers (list(str), optional): Layers from which to generate
                 activations.  The post-convolution activation layer is accessed
                 via 'postconv'. Defaults to 'postconv'.
-            include_logits (bool, optional): Include logits in output. Will be
+            include_preds (bool, optional): Include predictions in output. Will be
                 returned last. Defaults to False.
             load_method (str): Either 'full' or 'weights'. Method to use
                 when loading a Tensorflow model. If 'full', loads the model with
@@ -2039,7 +2142,7 @@ class Features:
                 may improve compatibility across hardware & environments.
         """
         self.path = path
-        self.num_logits = 0
+        self.num_classes = 0
         self.num_features = 0
         self.num_uncertainty = 0
         self.img_format = None
@@ -2059,7 +2162,7 @@ class Features:
                 else:
                     self.wsi_normalizer.set_fit(**config['norm_fit'])
             self._build(
-                layers=layers, include_logits=include_logits, pooling=pooling  # type: ignore
+                layers=layers, include_preds=include_preds, pooling=pooling  # type: ignore
             )
 
     @classmethod
@@ -2067,7 +2170,7 @@ class Features:
         cls,
         model: tf.keras.Model,
         layers: Optional[Union[str, List[str]]] = 'postconv',
-        include_logits: bool = False,
+        include_preds: bool = False,
         wsi_normalizer: Optional["StainNormalizer"] = None,
         pooling: Optional[Any] = None
     ):
@@ -2075,27 +2178,27 @@ class Features:
         outputs feature activations at the designated layers.
 
         Intermediate layers are returned in the order of layers.
-        Logits are returned last.
+        predictions are returned last.
 
         Args:
             model (:class:`tensorflow.keras.models.Model`): Loaded model.
             layers (list(str), optional): Layers from which to generate
                 activations.  The post-convolution activation layer is accessed
                 via 'postconv'. Defaults to 'postconv'.
-            include_logits (bool, optional): Include logits in output. Will be
+            include_preds (bool, optional): Include predictions in output. Will be
                 returned last. Defaults to False.
             wsi_normalizer (:class:`slideflow.norm.StainNormalizer`): Stain
                 normalizer to use on whole-slide images. Is not used on
                 individual tile datasets via __call__. Defaults to None.
         """
-        obj = cls(None, layers, include_logits)
+        obj = cls(None, layers, include_preds)
         if isinstance(model, tf.keras.models.Model):
             obj._model = model
         else:
             raise errors.ModelError(f"Model {model} is not a valid Tensorflow "
                                     "model.")
         obj._build(
-            layers=layers, include_logits=include_logits, pooling=pooling  # type: ignore
+            layers=layers, include_preds=include_preds, pooling=pooling  # type: ignore
         )
         obj.wsi_normalizer = wsi_normalizer
         return obj
@@ -2105,7 +2208,7 @@ class Features:
         inp: Union[tf.Tensor, "sf.WSI"],
         **kwargs
     ) -> Optional[Union[np.ndarray, tf.Tensor]]:
-        """Process a given input and return features and/or logits.
+        """Process a given input and return features and/or predictions.
         Expects either a batch of images or a :class:`slideflow.WSI`."""
 
         if isinstance(inp, sf.WSI):
@@ -2140,7 +2243,7 @@ class Features:
         if img_format == 'png':  # PNG is lossless; this is equivalent but faster
             log.debug("Using numpy image format instead of PNG")
             img_format = 'numpy'
-        total_out = self.num_features + self.num_logits + self.num_uncertainty
+        total_out = self.num_features + self.num_classes + self.num_uncertainty
         if grid is None:
             features_grid = np.ones((
                     slide.grid.shape[1],
@@ -2255,12 +2358,12 @@ class Features:
     def _build(
         self,
         layers: Optional[Union[str, List[str]]],
-        include_logits: bool = True,
+        include_preds: bool = True,
         pooling: Optional[Any] = None
     ) -> None:
         """Builds the interface model that outputs feature activations at the
-        designated layers and/or logits. Intermediate layers are returned in
-        the order of layers. Logits are returned last."""
+        designated layers and/or predictions. Intermediate layers are returned in
+        the order of layers. predictions are returned last."""
 
         if isinstance(pooling, str):
             if pooling == 'avg':
@@ -2317,7 +2420,7 @@ class Features:
 
         # Build a model that outputs the given layers
         outputs_list = [] if not layers else [outputs[la] for la in layers]
-        if include_logits:
+        if include_preds:
             outputs_list += [self._model.output]
         self.model = tf.keras.models.Model(
             inputs=self._model.input,
@@ -2328,14 +2431,14 @@ class Features:
         if isinstance(self._model.output, list):
             log.warning("Multi-categorical outcomes not yet supported "
                         "for this interface.")
-            self.num_logits = 0
-        elif include_logits:
-            self.num_logits = self._model.output.shape[1]
+            self.num_classes = 0
+        elif include_preds:
+            self.num_classes = self._model.output.shape[1]
         else:
-            self.num_logits = 0
+            self.num_classes = 0
 
-        if include_logits:
-            log.debug(f'Number of logits: {self.num_logits}')
+        if include_preds:
+            log.debug(f'Number of classes: {self.num_classes}')
         log.debug(f'Number of activation features: {self.num_features}')
 
 
@@ -2351,14 +2454,14 @@ class UncertaintyInterface(Features):
         super().__init__(
             path,
             layers=layers,
-            include_logits=True,
+            include_preds=True,
             load_method=load_method,
             pooling=pooling
         )
         # TODO: As the below to-do suggests, this should be updated
         # for multi-class
         self.num_uncertainty = 1
-        if self.num_logits > 2:
+        if self.num_classes > 2:
             log.warn("UncertaintyInterface not yet implemented for multi-class"
                      " models")
 
@@ -2377,7 +2480,7 @@ class UncertaintyInterface(Features):
             raise errors.ModelError(f"Model {model} is not a valid Tensorflow "
                                     "model.")
         obj._build(
-            layers=layers, include_logits=True, pooling=pooling  # type: ignore
+            layers=layers, include_preds=True, pooling=pooling  # type: ignore
         )
         obj.wsi_normalizer = wsi_normalizer
         return obj
@@ -2395,7 +2498,7 @@ class UncertaintyInterface(Features):
                 out_drop[n] += [(yp[n] if self.num_outputs > 1 else yp)]
         for n in range(self.num_outputs):
             out_drop[n] = tf.stack(out_drop[n], axis=0)
-        logits = tf.math.reduce_mean(out_drop[-1], axis=0)
+        predictions = tf.math.reduce_mean(out_drop[-1], axis=0)
 
         # TODO: Only takes STDEV from first outcome category which works for
         # outcomes with 2 categories, but a better solution is needed
@@ -2408,12 +2511,15 @@ class UncertaintyInterface(Features):
                 tf.math.reduce_mean(out_drop[n], axis=0)
                 for n in range(self.num_outputs-1)
             ]
-            return out + [logits, uncertainty]
+            return out + [predictions, uncertainty]
         else:
-            return logits, uncertainty
+            return predictions, uncertainty
 
 
-def load(path: str, method: str = 'full'):
+def load(
+    path: str,
+    method: str = 'full',
+    custom_objects: Optional[Dict[str, Any]] = None,):
     """Load Tensorflow model from location.
 
     Args:
@@ -2426,6 +2532,8 @@ def load(path: str, method: str = 'full'):
             ``Model.load_weights()``. Loading with 'full' may improve
             compatibility across Slideflow versions. Loading with 'weights'
             may improve compatibility across hardware & environments.
+        custom_objects (dict, Optional): Dictionary mapping names
+            (strings) to custom classes or functions. Defaults to None.
 
     Returns:
         tf.keras.models.Model: Loaded model.
@@ -2435,7 +2543,7 @@ def load(path: str, method: str = 'full'):
                          "either 'full' or 'weights'")
     log.debug(f"Loading model with method='{method}'")
     if method == 'full':
-        return tf.keras.models.load_model(path)
+        return tf.keras.models.load_model(path, custom_objects=custom_objects)
     else:
         config = sf.util.get_model_config(path)
         hp = ModelParams.from_dict(config['hp'])

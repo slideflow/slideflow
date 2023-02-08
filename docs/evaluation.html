@@ -10,7 +10,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>Evaluation &mdash; slideflow 1.3.0 documentation</title>
+  <title>Evaluation &mdash; slideflow 1.5.0 documentation</title>
 
 
 
@@ -32,7 +32,7 @@
   <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Features / Layer Activations" href="layer_activations.html" />
+    <link rel="next" title="Post-hoc Analysis" href="posthoc.html" />
     <link rel="prev" title="Training" href="training.html" />
   <!-- Google Analytics -->
 
@@ -67,10 +67,7 @@
   <script>
     window.dataLayer = window.dataLayer || [];
     function gtag(){dataLayer.push(arguments);}
-    gtag('consent', 'default', {
-      'ad_storage': 'denied',
-      'analytics_storage': 'denied'
-    });
+
     gtag('js', new Date());
 
     gtag('config', 'G-43E5QNVXH2');
@@ -124,7 +121,7 @@
 
 
                 <div class="version">
-                  1.3
+                  1.5
                 </div>
 
 
@@ -152,37 +149,48 @@
 
 
 
-              <p class="caption" role="heading"><span class="caption-text">Overview</span></p>
+              <p class="caption" role="heading"><span class="caption-text">Introduction</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="pipeline.html">Pipeline Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="overview.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quickstart</a></li>
 <li class="toctree-l1"><a class="reference internal" href="project_setup.html">Setting up a Project</a></li>
-<li class="toctree-l1"><a class="reference internal" href="validation.html">Validation Planning</a></li>
-<li class="toctree-l1"><a class="reference internal" href="extract_tiles.html">Tile Extraction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="datasets_and_val.html">Datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="slide_processing.html">Slide Processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cellseg.html">Cell Segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="training.html">Training</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Evaluation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="layer_activations.html">Features / Layer Activations</a></li>
-<li class="toctree-l1"><a class="reference internal" href="workbench_tools.html">Workbench: Visualization Tools</a></li>
-<li class="toctree-l1"><a class="reference internal" href="custom_loops.html">Custom Training Loops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="posthoc.html">Post-hoc Analysis</a></li>
 <li class="toctree-l1"><a class="reference internal" href="uq.html">Uncertainty Quantification</a></li>
-<li class="toctree-l1"><a class="reference internal" href="stylegan.html">StyleGAN</a></li>
-<li class="toctree-l1"><a class="reference internal" href="clam.html">CLAM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="clam.html">Multi-Instance Learning (MIL)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ssl.html">Self-Supervised Learning (SSL)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="stylegan.html">Generative Networks (GANs)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="custom_loops.html">Custom Training Loops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="workbench_tools.html">Workbench: Live Visualization</a></li>
 <li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
 </ul>
-<p class="caption" role="heading"><span class="caption-text">Source</span></p>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
 <ul>
+<li class="toctree-l1"><a class="reference internal" href="slideflow.html">slideflow</a></li>
 <li class="toctree-l1"><a class="reference internal" href="project.html">slideflow.Project</a></li>
-<li class="toctree-l1"><a class="reference internal" href="dataset.html">slideflow.dataset</a></li>
-<li class="toctree-l1"><a class="reference internal" href="heatmap.html">slideflow.heatmap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dataset.html">slideflow.Dataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="heatmap.html">slideflow.Heatmap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dataset_features.html">slideflow.DatasetFeatures</a></li>
+<li class="toctree-l1"><a class="reference internal" href="slidemap.html">slideflow.SlideMap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mosaic.html">slideflow.Mosaic</a></li>
+<li class="toctree-l1"><a class="reference internal" href="slideflow_cellseg.html">slideflow.cellseg</a></li>
 <li class="toctree-l1"><a class="reference internal" href="io.html">slideflow.io</a></li>
 <li class="toctree-l1"><a class="reference internal" href="io_tensorflow.html">slideflow.io.tensorflow</a></li>
 <li class="toctree-l1"><a class="reference internal" href="io_torch.html">slideflow.io.torch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="gan.html">slideflow.gan</a></li>
 <li class="toctree-l1"><a class="reference internal" href="grad.html">slideflow.grad</a></li>
 <li class="toctree-l1"><a class="reference internal" href="model.html">slideflow.model</a></li>
-<li class="toctree-l1"><a class="reference internal" href="mosaic.html">slideflow.mosaic</a></li>
+<li class="toctree-l1"><a class="reference internal" href="model_tensorflow.html">slideflow.model.tensorflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="model_torch.html">slideflow.model.torch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="norm.html">slideflow.norm</a></li>
+<li class="toctree-l1"><a class="reference internal" href="simclr.html">slideflow.simclr</a></li>
 <li class="toctree-l1"><a class="reference internal" href="slide.html">slideflow.slide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="slide_qc.html">slideflow.slide.qc</a></li>
 <li class="toctree-l1"><a class="reference internal" href="stats.html">slideflow.stats</a></li>
 <li class="toctree-l1"><a class="reference internal" href="util.html">slideflow.util</a></li>
 <li class="toctree-l1"><a class="reference internal" href="workbench.html">slideflow.workbench</a></li>
@@ -268,181 +276,117 @@
              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
 
   <section id="evaluation">
-<h1>Evaluation<a class="headerlink" href="#evaluation" title="Permalink to this heading">¶</a></h1>
-<p>In addition to cross-validation performance, model performance can also be assessed via evaluation on external datasets. Whole-slide image predictions can also be visualized in the form of a heatmap.</p>
-<section id="model-evaluation">
-<h2>Model evaluation<a class="headerlink" href="#model-evaluation" title="Permalink to this heading">¶</a></h2>
-<p>Once training and hyperparameter tuning is complete, you can test model performance on your held-out evaluation set using the <code class="docutils literal notranslate"><span class="pre">evaluate</span></code> function. Specify the path to the saved with the <code class="docutils literal notranslate"><span class="pre">model</span></code> argument.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">P</span><span class="o">.</span><span class="n">evaluate</span><span class="p">(</span>
+<span id="id1"></span><h1>Evaluation<a class="headerlink" href="#evaluation" title="Permalink to this heading">¶</a></h1>
+<p>Slideflow includes several tools for evaluating trained models. In the next sections, we’ll review how to evaluate a model on a held-out test set, generate predictions without ground-truth labels, and visualize predictions with heatmaps.</p>
+<section id="evaluating-a-test-set">
+<h2>Evaluating a test set<a class="headerlink" href="#evaluating-a-test-set" title="Permalink to this heading">¶</a></h2>
+<p>The <a class="reference internal" href="project.html#slideflow.Project.evaluate" title="slideflow.Project.evaluate"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Project.evaluate()</span></code></a> provides an easy interface for evaluating model performance on a held-out test set. Locate the saved model to evaluate (which will be in the project <code class="docutils literal notranslate"><span class="pre">models/</span></code> folder). <a class="reference internal" href="training.html#training-with-project"><span class="std std-ref">As with training</span></a>, the dataset to evaluate can be specified using either the <code class="docutils literal notranslate"><span class="pre">filters</span></code> or <code class="docutils literal notranslate"><span class="pre">dataset</span></code> arguments. If neither is provided, all slides in the project will be evaluated.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Method 1: specifying filters</span>
+<span class="n">P</span><span class="o">.</span><span class="n">evaluate</span><span class="p">(</span>
   <span class="n">model</span><span class="o">=</span><span class="s2">&quot;/path/to/trained_model_epoch1&quot;</span><span class="p">,</span>
-  <span class="n">outcomes</span><span class="o">=</span><span class="s2">&quot;category&quot;</span><span class="p">,</span>
-  <span class="n">filters</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;dataset&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;eval&quot;</span><span class="p">]}</span>
+  <span class="n">outcomes</span><span class="o">=</span><span class="s2">&quot;tumor_type&quot;</span><span class="p">,</span>
+  <span class="n">filters</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;dataset&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;test&quot;</span><span class="p">]}</span>
+<span class="p">)</span>
+
+<span class="c1"># Method 2: specify a dataset</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">dataset</span><span class="p">(</span><span class="n">tile_px</span><span class="o">=</span><span class="mi">299</span><span class="p">,</span> <span class="n">tile_um</span><span class="o">=</span><span class="s1">&#39;10x&#39;</span><span class="p">)</span>
+<span class="n">test_dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">filter</span><span class="p">({</span><span class="s2">&quot;dataset&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;test&quot;</span><span class="p">]})</span>
+<span class="n">P</span><span class="o">.</span><span class="n">evaluate</span><span class="p">(</span>
+  <span class="n">model</span><span class="o">=</span><span class="s2">&quot;/path/to/trained_model_epoch1&quot;</span><span class="p">,</span>
+  <span class="n">outcomes</span><span class="o">=</span><span class="s2">&quot;tumor_type&quot;</span><span class="p">,</span>
+  <span class="n">dataset</span><span class="o">=</span><span class="n">test_dataset</span>
 <span class="p">)</span>
 </pre></div>
 </div>
-<dl class="py function">
-<dt class="sig sig-object py">
-<span class="sig-prename descclassname"><span class="pre">slideflow.Project.</span></span><span class="sig-name descname"><span class="pre">evaluate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.10)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outcomes</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.10)"><span class="pre">Union</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.10)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataset</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="dataset.html#slideflow.Dataset" title="slideflow.dataset.Dataset"><span class="pre">Dataset</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">filters</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.10)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.10)"><span class="pre">Dict</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter_blank</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.10)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.10)"><span class="pre">Union</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.10)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_tiles</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">checkpoint</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.10)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">eval_k_fold</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.10)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><span class="pre">int</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">splits</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'splits.json'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_tiles</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mixed_precision</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">allow_tf32</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input_header</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.10)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.10)"><span class="pre">Union</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.10)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">load_method</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'full'</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.10)"><span class="pre">Any</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.10)"><span class="pre">Dict</span></a></span></span></dt>
-<dd><p>Evaluates a saved model on a given set of tfrecords.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>model</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Path to model to evaluate.</p></li>
-<li><p><strong>outcomes</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Str or list of str. Annotation column
-header specifying the outcome label(s).</p></li>
-</ul>
-</dd>
-<dt class="field-even">Keyword Arguments<span class="colon">:</span></dt>
-<dd class="field-even"><ul class="simple">
-<li><p><strong>dataset</strong> (<a class="reference internal" href="dataset.html#slideflow.Dataset" title="slideflow.dataset.Dataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.dataset.Dataset</span></code></a>, optional) – Dataset
-to evaluate. If not supplied, will evaluate all project
-tfrecords at the tile_px/tile_um matching the supplied model,
-optionally using provided filters and filter_blank.</p></li>
-<li><p><strong>filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.10)"><em>dict</em></a><em>, </em><em>optional</em>) – Filters dict to use when selecting
-tfrecords. Defaults to None.</p></li>
-<li><p><strong>filter_blank</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.10)"><em>list</em></a><em>, </em><em>optional</em>) – Exclude slides blank in these cols.
-Defaults to None.</p></li>
-<li><p><strong>min_tiles</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Minimum number of tiles a slide must
-have to be included in evaluation. Defaults to 0.</p></li>
-<li><p><strong>checkpoint</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Path to cp.ckpt file, if evaluating a
-saved checkpoint. Defaults to None.</p></li>
-<li><p><strong>eval_k_fold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – K-fold iteration number to evaluate.
-Defaults to None. If None, will evaluate all tfrecords
-irrespective of K-fold.</p></li>
-<li><p><strong>splits</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Filename of JSON file in which to log
-train/val splits. Looks for filename in project root directory.
-Defaults to “splits.json”.</p></li>
-<li><p><strong>max_tiles</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Maximum number of tiles from each slide
-to evaluate. Defaults to 0. If zero, will include all tiles.</p></li>
-<li><p><strong>mixed_precision</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Enable mixed precision.
-Defaults to True.</p></li>
-<li><p><strong>allow_tf32</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a>) – Allow internal use of Tensorfloat-32 format.
-Defaults to False.</p></li>
-<li><p><strong>input_header</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Annotation column header to use as
-additional input. Defaults to None.</p></li>
-<li><p><strong>load_method</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Either ‘full’ or ‘weights’. Method to use
-when loading a Tensorflow model. If ‘full’, loads the model with
-<code class="docutils literal notranslate"><span class="pre">tf.keras.models.load_model()</span></code>. If ‘weights’, will read the
-<code class="docutils literal notranslate"><span class="pre">params.json``configuration</span> <span class="pre">file,</span> <span class="pre">build</span> <span class="pre">the</span> <span class="pre">model</span> <span class="pre">architecture,</span>
-<span class="pre">and</span> <span class="pre">then</span> <span class="pre">load</span> <span class="pre">weights</span> <span class="pre">from</span> <span class="pre">the</span> <span class="pre">given</span> <span class="pre">model</span> <span class="pre">with</span>
-<span class="pre">``Model.load_weights()</span></code>. Loading with ‘full’ may improve
-compatibility across Slideflow versions. Loading with ‘weights’
-may improve compatibility across hardware &amp; environments.</p></li>
-<li><p><strong>save_predictions</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Save tile, slide, and
-patient-level predictions at each evaluation. May be ‘csv’,
-‘feather’, or ‘parquet’. If False, will not save predictions.
-Defaults to ‘parquet’.</p></li>
-<li><p><strong>**kwargs</strong> – Additional keyword arguments to the <cite>Trainer.evaluate()</cite>
-function.</p></li>
-</ul>
-</dd>
-<dt class="field-odd">Returns<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Dictionary of keras training results, nested by epoch.</p>
-</dd>
-<dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p>Dict</p>
-</dd>
-</dl>
-</dd></dl>
+<p>Results are returned from the <code class="docutils literal notranslate"><span class="pre">Project.evaluate()</span></code> function as a dictionary and saved in the project evaluation directory. Tile-, slide-, and patient- level predictions are also saved in the corresponding project evaluation folder, <code class="docutils literal notranslate"><span class="pre">eval/</span></code>.</p>
+</section>
+<section id="generating-predictions">
+<h2>Generating predictions<a class="headerlink" href="#generating-predictions" title="Permalink to this heading">¶</a></h2>
+<section id="for-a-dataset">
+<h3>For a dataset<a class="headerlink" href="#for-a-dataset" title="Permalink to this heading">¶</a></h3>
+<p><a class="reference internal" href="project.html#slideflow.Project.predict" title="slideflow.Project.predict"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Project.predict()</span></code></a> provides an interface for generating model predictions on an entire dataset. As above, locate the saved model from which to generate predictions, and specify the dataset with either <code class="docutils literal notranslate"><span class="pre">filters</span></code> or <code class="docutils literal notranslate"><span class="pre">dataset</span></code> arguments.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">dfs</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span>
+  <span class="n">model</span><span class="o">=</span><span class="s2">&quot;/path/to/trained_model_epoch1&quot;</span><span class="p">,</span>
+  <span class="n">filters</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;dataset&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;test&quot;</span><span class="p">]}</span>
+<span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">dfs</span><span class="p">[</span><span class="s1">&#39;patient&#39;</span><span class="p">])</span>
+</pre></div>
+</div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>                        patient  ...  cohort-y_pred1
+0    TCGA-05-4244-01Z-00-DX1...  ...        0.032608
+1    TCGA-05-4245-01Z-00-DX1...  ...        0.216634
+2    TCGA-05-4249-01Z-00-DX1...  ...        0.000858
+3    TCGA-05-4250-01Z-00-DX1...  ...        0.015915
+4    TCGA-05-4382-01Z-00-DX1...  ...        0.020700
+..                          ...  ...             ...
+936  TCGA-O2-A52S-01Z-00-DX1...  ...        0.983500
+937  TCGA-O2-A52V-01Z-00-DX1...  ...        0.773328
+938  TCGA-O2-A52W-01Z-00-DX1...  ...        0.858558
+939  TCGA-S2-AA1A-01Z-00-DX1...  ...        0.000212
+940  TCGA-XC-AA0X-01Z-00-DX1...  ...        0.632612
+</pre></div>
+</div>
+<p>Results are returned as a dictionary of pandas DataFrames (with the keys <code class="docutils literal notranslate"><span class="pre">'tile'</span></code>, <code class="docutils literal notranslate"><span class="pre">'slide'</span></code>, and <code class="docutils literal notranslate"><span class="pre">'patient'</span></code> for each level of prediction) and saved in the project evaluation directory, <code class="docutils literal notranslate"><span class="pre">eval/</span></code>.</p>
+</section>
+<section id="for-a-single-slide">
+<h3>For a single slide<a class="headerlink" href="#for-a-single-slide" title="Permalink to this heading">¶</a></h3>
+<p>You can also generate predictions for a single slide with either <a class="reference internal" href="slide.html#slideflow.slide.predict" title="slideflow.slide.predict"><code class="xref py py-func docutils literal notranslate"><span class="pre">slideflow.slide.predict()</span></code></a> or <a class="reference internal" href="slide.html#slideflow.WSI.predict" title="slideflow.WSI.predict"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.WSI.predict()</span></code></a>.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">slideflow</span> <span class="k">as</span> <span class="nn">sf</span>
 
-<p>Results are returned from the <code class="docutils literal notranslate"><span class="pre">Project.evaluate()</span></code> function as a dictionary and saved in the project evaluation directory. Tile-, slide-, and patient- level predictions are also saved in the corresponding evaluation folder.</p>
+<span class="n">slide</span> <span class="o">=</span> <span class="s1">&#39;/path/to/slide.svs&#39;</span>
+<span class="n">model</span> <span class="o">=</span> <span class="s1">&#39;/path/to/model_epoch1&#39;</span>
+<span class="n">sf</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">slide</span><span class="p">,</span> <span class="n">model</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>array([0.84378019, 0.15622007])
+</pre></div>
+</div>
+<p>The returned array has the shape <code class="docutils literal notranslate"><span class="pre">(num_classes,)</span></code>, indicating the whole-slide prediction for each outcome category. If the model was trained with uncertainty quantification, this function will return two arrays; the first with predictions, the second with estimated uncertainty.</p>
+</section>
 </section>
 <section id="heatmaps">
-<h2>Heatmaps<a class="headerlink" href="#heatmaps" title="Permalink to this heading">¶</a></h2>
-<p>To generate a predictive heatmap for a set of slides, use the <code class="docutils literal notranslate"><span class="pre">generate_heatmaps()</span></code> function as below, which will automatically save heatmap images in your project directory:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">P</span><span class="o">.</span><span class="n">generate_heatmaps</span><span class="p">(</span>
-  <span class="n">model</span><span class="o">=</span><span class="s2">&quot;/path/to/trained_model_epoch1&quot;</span><span class="p">,</span>
-  <span class="n">filters</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;dataset&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;eval&quot;</span><span class="p">]}</span>
-<span class="p">)</span>
+<span id="generate-heatmaps"></span><h2>Heatmaps<a class="headerlink" href="#heatmaps" title="Permalink to this heading">¶</a></h2>
+<section id="id2">
+<h3>For a dataset<a class="headerlink" href="#id2" title="Permalink to this heading">¶</a></h3>
+<p>Predictive heatmaps can be created for an entire dataset using <a class="reference internal" href="project.html#slideflow.Project.generate_heatmaps" title="slideflow.Project.generate_heatmaps"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Project.generate_heatmaps()</span></code></a>. Heatmaps will be saved and exported in the project directory. See the linked API documentation for arguments and customization.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">P</span><span class="o">.</span><span class="n">generate_heatmaps</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="s2">&quot;/path/to/trained_model_epoch1&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
-<dl class="py function">
-<dt class="sig sig-object py">
-<span class="sig-prename descclassname"><span class="pre">slideflow.Project.</span></span><span class="sig-name descname"><span class="pre">generate_heatmaps</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.10)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataset</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="dataset.html#slideflow.Dataset" title="slideflow.dataset.Dataset"><span class="pre">Dataset</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">filters</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.10)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.10)"><span class="pre">Dict</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter_blank</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.10)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.10)"><span class="pre">Union</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.10)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_tiles</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outdir</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.10)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">resolution</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'low'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">32</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">roi_method</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'inside'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_threads</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.10)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><span class="pre">int</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">img_format</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'auto'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skip_completed</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.10)"><span class="pre">Any</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.10)"><span class="pre">None</span></a></span></span></dt>
-<dd><p>Creates predictive heatmap overlays on a set of slides.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>model</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Path to Tensorflow model.</p>
-</dd>
-<dt class="field-even">Keyword Arguments<span class="colon">:</span></dt>
-<dd class="field-even"><ul class="simple">
-<li><p><strong>dataset</strong> (<a class="reference internal" href="dataset.html#slideflow.Dataset" title="slideflow.dataset.Dataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.dataset.Dataset</span></code></a>, optional) – Dataset
-from which to generate predictions. If not supplied, will
-generate predictions for all project tfrecords at the
-tile_px/tile_um matching the model, optionally using provided
-filters and filter_blank.</p></li>
-<li><p><strong>filters</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.10)"><em>dict</em></a><em>, </em><em>optional</em>) – Filters to use when selecting tfrecords.
-Defaults to None.</p></li>
-<li><p><strong>filter_blank</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.10)"><em>list</em></a><em>, </em><em>optional</em>) – Exclude slides blank in these cols.
-Defaults to None.</p></li>
-<li><p><strong>min_tiles</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Minimum tiles per slide. Skip slides
-not meeting this threshold. Defaults to 8.</p></li>
-<li><p><strong>outdir</strong> (<em>path</em><em>, </em><em>optional</em>) – Directory in which to save heatmap images.</p></li>
-<li><p><strong>resolution</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Heatmap resolution. Defaults to ‘low’.
-“low” uses a stride equal to tile width.
-“medium” uses a stride equal 1/2 tile width.
-“high” uses a stride equal to 1/4 tile width.</p></li>
-<li><p><strong>batch_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Batch size during heatmap calculation.
-Defaults to 64.</p></li>
-<li><p><strong>roi_method</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Either ‘inside’, ‘outside’, ‘auto’, or ‘ignore’.
-Determines how ROIs are used to extract tiles.
-If ‘inside’ or ‘outside’, will extract tiles in/out of an ROI,
-and raise errors.MissingROIError if an ROI is not available.
-If ‘auto’, will extract tiles inside an ROI if available,
-and across the whole-slide if no ROI is found.
-If ‘ignore’, will extract tiles across the whole-slide
-regardless of whether an ROI is available.
-Defaults to ‘auto’.</p></li>
-<li><p><strong>num_threads</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.10)"><em>int</em></a><em>, </em><em>optional</em>) – Number of threads for tile extraction.
-Defaults to CPU core count.</p></li>
-<li><p><strong>img_format</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em>, </em><em>optional</em>) – Image format (png, jpg) to use when
-extracting tiles from slide. Must match the image format
-the model was trained on. If ‘auto’, will use the format
-logged in the model params.json.</p></li>
-<li><p><strong>skip_completed</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a><em>, </em><em>optional</em>) – Skip heatmaps for slides that
-already have heatmaps in target directory.</p></li>
-<li><p><strong>show_roi</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a>) – Show ROI on heatmaps.</p></li>
-<li><p><strong>interpolation</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – Interpolation strategy for predictions.
-Defaults to None.
-Includes all matplotlib imshow interpolation options.</p></li>
-<li><p><strong>logit_cmap</strong> – Function or a dict used to create heatmap colormap.
-If None (default), separate heatmaps are generated for each
-category, with color representing category prediction.
-Each image tile will generate a list of preds of length O,
-If logit_cmap is a function, then the logit predictions will
-be passed, where O is the number of label categories.
-and the function is expected to return [R, G, B] values.
-If the logit_cmap is a dictionary, it should map ‘r’, ‘g’, and
-‘b’ to label indices; the prediction for these label categories
-will be mapped to corresponding colors. Thus, the corresponding
-color will only reflect predictions of up to three labels.
-Example (this would map predictions for label 0 to red, 3 to
-green, etc): {‘r’: 0, ‘g’: 3, ‘b’: 1 }</p></li>
-<li><p><strong>verbose</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.10)"><em>bool</em></a>) – Show verbose output. Defaults to True.</p></li>
-<li><p><strong>vmin</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.10)"><em>float</em></a>) – Minimimum value to display on heatmap. Defaults to 0.</p></li>
-<li><p><strong>vcenter</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.10)"><em>float</em></a>) – Center value for color display on heatmap.
-Defaults to 0.5.</p></li>
-<li><p><strong>vmax</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.10)"><em>float</em></a>) – Maximum value to display on heatmap. Defaults to 1.</p></li>
+</section>
+<section id="id3">
+<h3>For a single slide<a class="headerlink" href="#id3" title="Permalink to this heading">¶</a></h3>
+<p><a class="reference internal" href="heatmap.html#slideflow.Heatmap" title="slideflow.Heatmap"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.Heatmap</span></code></a> provides more granular control for calculating and displaying a heatmap for a given slide. The required arguments are:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">slide</span></code>: Either a path to a slide, or a <code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.WSI</span></code> object.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">model</span></code>: Path to a saved Slideflow model.</p></li>
 </ul>
-</dd>
-</dl>
-</dd></dl>
-
-<p>For more granular control, create a <a class="reference internal" href="heatmap.html#slideflow.Heatmap" title="slideflow.Heatmap"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.Heatmap</span></code></a> object by providing paths to a slide and model:</p>
+<p>Additional keyword arguments can be used to customize and optimize the heatmap. In this example, we’ll increase the batch size to 64 and allow multiprocessing by setting <code class="docutils literal notranslate"><span class="pre">num_processes</span></code> equal to our CPU core count, 16.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">heatmap</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">Heatmap</span><span class="p">(</span>
   <span class="n">slide</span><span class="o">=</span><span class="s1">&#39;/path/to/slide.svs&#39;</span><span class="p">,</span>
   <span class="n">model</span><span class="o">=</span><span class="s1">&#39;/path/to/model&#39;</span>
+  <span class="n">batch_size</span><span class="o">=</span><span class="mi">64</span><span class="p">,</span>
+  <span class="n">num_processes</span><span class="o">=</span><span class="mi">16</span>
 <span class="p">)</span>
 </pre></div>
 </div>
-<p>Regions of Interest (ROI) can be provided either through the <code class="docutils literal notranslate"><span class="pre">roi_dir</span></code> or <code class="docutils literal notranslate"><span class="pre">rois</span></code> method. The easiest way to use ROIs is through <a class="reference internal" href="dataset.html#slideflow.Dataset" title="slideflow.Dataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.Dataset</span></code></a>:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">heatmap</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">Heatmap</span><span class="p">(</span>
-    <span class="o">...</span><span class="p">,</span>
-    <span class="n">rois</span><span class="o">=</span><span class="n">P</span><span class="o">.</span><span class="n">dataset</span><span class="p">()</span><span class="o">.</span><span class="n">rois</span><span class="p">()</span>
+<p>If <code class="docutils literal notranslate"><span class="pre">slide</span></code> is a <code class="xref py py-class docutils literal notranslate"><span class="pre">slideflow.WSI</span></code>, the heatmap will be calculated only within non-masked areas and ROIs, if applicable.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">slideflow.slide</span> <span class="kn">import</span> <span class="n">qc</span>
+
+<span class="c1"># Prepare the slide</span>
+<span class="n">wsi</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">WSI</span><span class="p">(</span><span class="s1">&#39;slide.svs&#39;</span><span class="p">,</span> <span class="n">tile_px</span><span class="o">=</span><span class="mi">299</span><span class="p">,</span> <span class="n">tile_um</span><span class="o">=</span><span class="mi">302</span><span class="p">,</span> <span class="n">rois</span><span class="o">=</span><span class="s1">&#39;/path&#39;</span><span class="p">)</span>
+<span class="n">wsi</span><span class="o">.</span><span class="n">qc</span><span class="p">([</span><span class="n">qc</span><span class="o">.</span><span class="n">Otsu</span><span class="p">(),</span> <span class="n">qc</span><span class="o">.</span><span class="n">Gaussian</span><span class="p">()])</span>
+
+<span class="c1"># Generate a heatmap</span>
+<span class="n">heatmap</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">Heatmap</span><span class="p">(</span>
+  <span class="n">slide</span><span class="o">=</span><span class="n">wsi</span><span class="p">,</span>
+  <span class="n">model</span><span class="o">=</span><span class="s1">&#39;/path/to/model&#39;</span>
+  <span class="n">batch_size</span><span class="o">=</span><span class="mi">64</span><span class="p">,</span>
+  <span class="n">num_processes</span><span class="o">=</span><span class="mi">16</span>
 <span class="p">)</span>
 </pre></div>
 </div>
-<p>Save heatmaps for each outcome category with <a class="reference internal" href="heatmap.html#slideflow.Heatmap.save" title="slideflow.Heatmap.save"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Heatmap.save()</span></code></a>. A heatmap displaying predictions from a single outcome class can be interactively displayed (ie. in a Jupyter notebook) with <a class="reference internal" href="heatmap.html#slideflow.Heatmap.plot" title="slideflow.Heatmap.plot"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Heatmap.plot()</span></code></a>:</p>
+<p>If <code class="docutils literal notranslate"><span class="pre">slide</span></code> is a path to a slide, Regions of Interest can be provided through the optional <code class="docutils literal notranslate"><span class="pre">roi_dir</span></code> or <code class="docutils literal notranslate"><span class="pre">rois</span></code> arguments.</p>
+<p>Once generated, heatmaps can be rendered and displayed (ie. in a Jupyter notebook) with <a class="reference internal" href="heatmap.html#slideflow.Heatmap.plot" title="slideflow.Heatmap.plot"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Heatmap.plot()</span></code></a>.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">heatmap</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">class_idx</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="s1">&#39;inferno&#39;</span><span class="p">)</span>
 </pre></div>
 </div>
@@ -456,7 +400,8 @@ Defaults to 0.5.</p></li>
 <div class="line-block">
 <div class="line"><br /></div>
 </div>
-<p>The spatial map of logits, as calculated across the input slide, can be accessed through <code class="docutils literal notranslate"><span class="pre">heatmap.logits</span></code>. The spatial map of post-convolution, penultimate activations can be accessed through <code class="docutils literal notranslate"><span class="pre">heatmap.postconv</span></code>.</p>
+<p>Save rendered heatmaps for each outcome category with <a class="reference internal" href="heatmap.html#slideflow.Heatmap.save" title="slideflow.Heatmap.save"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Heatmap.save()</span></code></a>. The spatial map of predictions, as calculated across the input slide, can be accessed through <code class="docutils literal notranslate"><span class="pre">Heatmap.predictions</span></code>. You can save the numpy array with calculated predictions (and uncertainty, if applicable) as an *.npz file using <a class="reference internal" href="heatmap.html#slideflow.Heatmap.save_npz" title="slideflow.Heatmap.save_npz"><code class="xref py py-meth docutils literal notranslate"><span class="pre">slideflow.Heatmap.save_npz()</span></code></a>.</p>
+</section>
 </section>
 </section>
 
@@ -468,7 +413,7 @@ Defaults to 0.5.</p></li>
 
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
 
-        <a href="layer_activations.html" class="btn btn-neutral float-right" title="Features / Layer Activations" accesskey="n" rel="next">Next <img src="_static/images/chevron-right-orange.svg" class="next-page"></a>
+        <a href="posthoc.html" class="btn btn-neutral float-right" title="Post-hoc Analysis" accesskey="n" rel="next">Next <img src="_static/images/chevron-right-orange.svg" class="next-page"></a>
 
 
         <a href="training.html" class="btn btn-neutral" title="Training" accesskey="p" rel="prev"><img src="_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
@@ -504,8 +449,17 @@ Defaults to 0.5.</p></li>
             <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
               <ul>
 <li><a class="reference internal" href="#">Evaluation</a><ul>
-<li><a class="reference internal" href="#model-evaluation">Model evaluation</a></li>
-<li><a class="reference internal" href="#heatmaps">Heatmaps</a></li>
+<li><a class="reference internal" href="#evaluating-a-test-set">Evaluating a test set</a></li>
+<li><a class="reference internal" href="#generating-predictions">Generating predictions</a><ul>
+<li><a class="reference internal" href="#for-a-dataset">For a dataset</a></li>
+<li><a class="reference internal" href="#for-a-single-slide">For a single slide</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#heatmaps">Heatmaps</a><ul>
+<li><a class="reference internal" href="#id2">For a dataset</a></li>
+<li><a class="reference internal" href="#id3">For a single slide</a></li>
+</ul>
+</li>
 </ul>
 </li>
 </ul>
@@ -524,15 +478,12 @@ Defaults to 0.5.</p></li>
 
        <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
          <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
-         <script src="_static/jquery.js"></script>
-         <script src="_static/underscore.js"></script>
-         <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
          <script src="_static/doctools.js"></script>
          <script src="_static/sphinx_highlight.js"></script>
 
 
 
-
+  <script type="text/javascript" src="_static/js/vendor/jquery-3.6.3.min.js"></script>
   <script type="text/javascript" src="_static/js/vendor/popper.min.js"></script>
   <script type="text/javascript" src="_static/js/vendor/bootstrap.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/list.js/1.5.0/list.min.js"></script>

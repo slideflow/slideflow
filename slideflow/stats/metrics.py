@@ -1,6 +1,7 @@
 """Categorical, linear, and CPH metrics for predictions."""
 
 import multiprocessing as mp
+import warnings
 from os.path import join
 from types import SimpleNamespace
 from typing import (TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union,
@@ -265,7 +266,7 @@ def categorical_metrics(
                 thresh = 'NA' if not fit.opt_thresh else f'{fit.opt_thresh:.3f}'
                 log.info(
                     f"{level}-level AUC (cat #{i:>2}): {auroc_str} "
-                    f"{level}-level AP: {ap_str} (opt. threshold: {thresh})"
+                    f"AP: {ap_str} (opt. threshold: {thresh})"
                 )
         except ValueError as e:
             # Occurs when predictions contain NaN
@@ -435,9 +436,10 @@ def df_from_pred(
 
 
 def eval_from_dataset(*args, **kwargs):
-    log.warning(
+    warnings.warning(
         "`sf.stats.metrics.eval_from_dataset() is deprecated. Please use "
-        "`sf.stats.metrics.eval_dataset()` instead.")
+        "`sf.stats.metrics.eval_dataset()` instead.",
+        DeprecationWarning)
     return eval_dataset(*args, **kwargs)
 
 
@@ -488,7 +490,7 @@ def eval_dataset(
             f'Reduction method {reduce_method} incompatible with '
             f'model_type {model_type}'
         )
-    if sf.backend() == 'tensorflow':
+    if sf.model.is_tensorflow_model(model):
         from slideflow.model import tensorflow_utils
         df, acc, total_loss = tensorflow_utils.eval_from_model(
             model,
@@ -581,7 +583,9 @@ def group_reduce(
                 _df[f'{outcome}-y_pred{i}'] = (outcome_pred_cat == i).astype(int)
 
     for group in groups:
-        group_dfs.update({group: _df.groupby(group, as_index=False).mean()})
+        group_dfs.update({
+            group: _df.groupby(group, as_index=False).mean(numeric_only=True)
+        })
 
     return group_dfs
 
@@ -825,9 +829,10 @@ def name_columns(
 
 
 def predict_from_dataset(*args, **kwargs):
-    log.warning(
+    warnings.warning(
         "`sf.stats.metrics.predict_from_dataset() is deprecated. Please use "
-        "`sf.stats.metrics.predict_dataset()` instead.")
+        "`sf.stats.metrics.predict_dataset()` instead.",
+        DeprecationWarning)
     return predict_dataset(*args, **kwargs)
 
 
@@ -879,7 +884,7 @@ def predict_dataset(
             f'model_type {model_type}'
         )
 
-    if sf.backend() == 'tensorflow':
+    if sf.model.is_tensorflow_model(model):
         from slideflow.model import tensorflow_utils
         df = tensorflow_utils.predict_from_model(
             model,

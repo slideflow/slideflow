@@ -7,6 +7,10 @@ import os
 import re
 import shutil
 import sys
+import requests
+import tarfile
+import hashlib
+import pandas as pd
 from rich import progress
 from rich.logging import RichHandler
 from rich.highlighter import NullHighlighter
@@ -18,14 +22,17 @@ from glob import glob
 from os.path import dirname, exists, isdir, join
 from packaging import version
 from statistics import mean, median
+from tqdm import tqdm
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
 import numpy as np
+import pandas as pd
 import slideflow as sf
-from slideflow.util import log_utils
 from slideflow import errors
-from slideflow.util import example_pb2
-from slideflow.util.colors import *  # noqa F403,F401 - Here for compatibility
+from . import example_pb2, log_utils
+from .colors import *  # noqa F403,F401 - Here for compatibility
+from .smac_utils import (broad_search_space, shallow_search_space,
+                         create_search_space)
 
 tf_available = importlib.util.find_spec('tensorflow')
 torch_available = importlib.util.find_spec('torch')
@@ -71,10 +78,26 @@ log.setLevel(logging.DEBUG)
 
 
 def setLoggingLevel(level):
+    """Set the logging level.
+
+    Uses standard python logging levels:
+
+    - 50: CRITICAL
+    - 40: ERROR
+    - 30: WARNING
+    - 20: INFO
+    - 10: DEBUG
+    - 0:  NOTSET
+
+    Args:
+        level (int): Logging level numeric value.
+
+    """
     log.handlers[0].setLevel(level)
 
 
 def getLoggingLevel():
+    """Return the current logging level."""
     return log.handlers[0].level
 
 
@@ -158,19 +181,122 @@ class TileExtractionProgress(Progress):
 
 # --- Slideflow header --------------------------------------------------------
 
-def header(console=None):
+def about(console=None) -> None:
+    """Print a summary of the slideflow version and active backends.
+
+    Example
+        >>> sf.about()
+        ╭=======================╮
+        │       Slideflow       │
+        │    Version: 1.5.0     │
+        │  Backend: tensorflow  │
+        │ Slide Backend: cucim  │
+        │ https://slideflow.dev │
+        ╰=======================╯
+
+    Args:
+        console (rich.console.Console, optional): Active console, if one exists.
+            Defaults to None.
+    """
     if console is None:
         console = Console()
-    color = 'yellow' if sf.backend() == 'tensorflow' else 'purple'
+    col1 = 'yellow' if sf.backend() == 'tensorflow' else 'purple'
+    col2 = 'green' if sf.slide_backend() == 'cucim' else 'cyan'
     console.print(
         Panel(f"[white bold]Slideflow[/]"
               f"\nVersion: {sf.__version__}"
-              f"\nBackend: [{color}]{sf.backend()}[/]"
+              f"\nBackend: [{col1}]{sf.backend()}[/]"
+              f"\nSlide Backend: [{col2}]{sf.slide_backend()}[/]"
               "\n[blue]https://slideflow.dev[/]",
               border_style='purple'),
-        justify='center')
+        justify='left')
+
+
+# --- Data download functions -------------------------------------------------
+
+def download_from_tcga(
+    uuid: str,
+    dest: str,
+    message: str = 'Downloading...'
+) -> None:
+    """Download a file from TCGA (GDC) by UUID."""
+    data_endpt = f"https://api.gdc.cancer.gov/data/"
+    response = requests.post(
+        data_endpt,
+        data=json.dumps({'ids': [uuid]}),
+        headers={"Content-Type": "application/json"},
+        stream=True
+    )
+    response_head_cd = response.headers["Content-Disposition"]
+    block_size = 4096
+    block_per_mb = block_size / 1000000
+    file_size = int(response.headers.get('Content-Length', ''))
+    file_size_mb = file_size / 1000000
+    running_total_mb = 0
+    file_name = join(dest, re.findall("filename=(.+)", response_head_cd)[0])
+    pbar = tqdm(desc=message,
+                total=file_size_mb, unit='MB',
+                bar_format="{desc}: {percentage:3.0f}%|{bar}| "
+                           "{n:.2f}/{total:.2f} [{elapsed}<{remaining}] "
+                           "{rate_fmt}{postfix}")
+
+    with open(file_name, "wb") as output_file:
+        for chunk in response.iter_content(chunk_size=block_size):
+            output_file.write(chunk)
+            if block_per_mb + running_total_mb < file_size_mb:
+                running_total_mb += block_per_mb  # type: ignore
+                pbar.update(block_per_mb)
+            else:
+                running_total_mb += file_size_mb - running_total_mb  # type: ignore
+                pbar.update(file_size_mb - running_total_mb)
+
+
+def get_gdc_manifest() -> pd.DataFrame:
+    sf_cache = os.path.expanduser('~/.slideflow/')
+    if not exists(sf_cache):
+        os.makedirs(sf_cache)
+    manifest = join(sf_cache, 'gdc_manifest.tsv')
+    if not exists(manifest):
+        tar = 'gdc_manifest.tar.xz'
+        r = requests.get(f'https://raw.githubusercontent.com/jamesdolezal/slideflow/1.4.0/datasets/{tar}')
+        open(join(sf_cache, tar), 'wb').write(r.content)
+        tarfile.open(join(sf_cache, tar)).extractall(sf_cache)
+        os.remove(join(sf_cache, tar))
+        if not exists(manifest):
+            log.error("Failed to download GDC manifest.")
+    return pd.read_csv(manifest, delimiter='\t')
+
 
 # --- Utility functions and classes -------------------------------------------
+
+class EasyDict(dict):
+    """Convenience class that behaves like a dict but allows access
+    with the attribute syntax."""
+
+    def __getattr__(self, name: str) -> Any:
+        try:
+            return self[name]
+        except KeyError:
+            raise AttributeError(name)
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        self[name] = value
+
+    def __delattr__(self, name: str) -> None:
+        del self[name]
+
+
+def md5(path: str) -> str:
+    """Calculate and return MD5 checksum for a file."""
+    m = hashlib.md5()
+    with open(path, 'rb') as f:
+        chunk = f.read(4096)
+        # No walrus for Python 3.7 :(
+        while chunk:
+            m.update(chunk)
+            chunk = f.read(4096)
+    return m.hexdigest()
+
 
 def model_backend(model):
     if sf.util.torch_available and 'torch' in sys.modules:
@@ -186,6 +312,7 @@ def model_backend(model):
             return 'tflite'
     raise ValueError(f"Unable to interpret model {model}")
 
+
 def detuple(arg1: Any, args: tuple) -> Any:
     if len(args):
         return tuple([arg1] + list(args))
@@ -198,6 +325,19 @@ def batch(iterable: List, n: int = 1) -> Iterable:
     l = len(iterable)
     for ndx in range(0, l, n):
         yield iterable[ndx:min(ndx + n, l)]
+
+
+def batch_generator(iterable: Iterable, n: int = 1) -> Iterable:
+    """Separates an interable into batches of maximum size `n`."""
+    batch = []
+    for item in iterable:
+        batch.append(item)
+        if len(batch) == n:
+            yield batch
+            batch = []
+    if len(batch):
+        yield batch
+    return
 
 
 def as_list(arg1: Any) -> List[Any]:
@@ -217,30 +357,47 @@ def is_mag(arg1: str) -> bool:
         return False
     return True
 
+
 def is_model(path: str) -> bool:
     """Checks if the given path is a valid Slideflow model."""
-    return is_tensorflow_model(path) or is_torch_model(path)
+    return is_tensorflow_model_path(path) or is_torch_model_path(path)
+
 
 def is_project(path: str) -> bool:
     """Checks if the given path is a valid Slideflow project."""
     return isdir(path) and exists(join(path, 'settings.json'))
+
 
 def is_slide(path: str) -> bool:
     """Checks if the given path is a supported slide."""
     return (os.path.isfile(path)
             and sf.util.path_to_ext(path).lower() in SUPPORTED_FORMATS)
 
-def is_tensorflow_model(path: str) -> bool:
+
+def is_tensorflow_model_path(path: str) -> bool:
     """Checks if the given path is a valid Slideflow/Tensorflow model."""
     return (isdir(path)
             and (exists(join(path, 'params.json'))
                  or exists(join(dirname(path), 'params.json'))))
 
-def is_torch_model(path: str) -> bool:
+
+def is_torch_model_path(path: str) -> bool:
     """Checks if the given path is a valid Slideflow/PyTorch model."""
     return (os.path.isfile(path)
             and sf.util.path_to_ext(path).lower() == 'zip'
             and exists(join(dirname(path), 'params.json')))
+
+
+def is_simclr_model_path(path: Any) -> bool:
+    """Checks if the given path is a valid SimCLR model or checkpoint."""
+    is_model =  (isinstance(path, str)
+                 and isdir(path)
+                 and exists(join(path, 'args.json')))
+    is_checkpoint = (isinstance(path, str)
+                     and path.endswith('.ckpt')
+                     and exists(join(dirname(path), 'args.json')))
+    return is_model or is_checkpoint
+
 
 def assert_is_mag(arg1: str):
     if not isinstance(arg1, str) or not is_mag(arg1):
@@ -729,8 +886,10 @@ def tfrecord_heatmap(
     log.debug('Loaded tile values')
     log.debug(f'Min: {min(vals)}\t Max:{max(vals)}')
 
-    scaled_x = [(xi * wsi.roi_scale) - wsi.full_extract_px/2 for xi in x]
-    scaled_y = [(yi * wsi.roi_scale) - wsi.full_extract_px/2 for yi in y]
+    roi_scaling = False
+    scale = wsi.roi_scale if roi_scaling else 1
+    scaled_x = [(xi * scale) - wsi.full_extract_px/2 for xi in x]
+    scaled_y = [(yi * scale) - wsi.full_extract_px/2 for yi in y]
 
     log.debug('Loaded CSV coordinates:')
     log.debug(f'Min x: {min(x)}\t Max x: {max(x)}')
@@ -785,11 +944,11 @@ def tfrecord_heatmap(
         bottom=False,
         labelbottom=False
     )
-    log.info('Generating thumbnail...')
+    log.debug('Generating thumbnail...')
     thumb = wsi.thumb(mpp=5)
-    log.info('Saving thumbnail....')
+    log.debug('Saving thumbnail....')
     thumb.save(join(outdir, f'{slide_name}' + '.png'))
-    log.info('Generating figure...')
+    log.debug('Generating figure...')
     implot = ax.imshow(thumb, zorder=0)
     extent = implot.get_extent()
     extent_x = extent[1] * (1-fraction_dead_x)
@@ -823,13 +982,32 @@ def tfrecord_heatmap(
     return stats
 
 
-def get_new_model_dir(root: str, model_name: str) -> str:
+def get_valid_model_dir(root: str) -> List:
+    '''
+    This function returns the path of the first indented directory from root.
+    This only works when the indented folder name starts with a 5 digit number,
+    like "00000%".
+
+    Examples
+        If the root has 3 files:
+        root/00000-foldername/
+        root/00001-foldername/
+        root/00002-foldername/
+
+        The function returns "root/00000-foldername/"
+    '''
+
     prev_run_dirs = [
         x for x in os.listdir(root)
         if isdir(join(root, x))
     ]
-    prev_run_ids = [re.match(r'^\d+', x) for x in prev_run_dirs]  # type: List
+    prev_run_ids = [re.match(r'^\d+', x) for x in prev_run_dirs]
     prev_run_ids = [int(x.group()) for x in prev_run_ids if x is not None]
+    return prev_run_ids, prev_run_dirs
+
+
+def get_new_model_dir(root: str, model_name: str) -> str:
+    prev_run_ids, prev_run_dirs = get_valid_model_dir(root)
     cur_id = max(prev_run_ids, default=-1) + 1
     model_dir = os.path.join(root, f'{cur_id:05d}-{model_name}')
     assert not os.path.exists(model_dir)
@@ -919,3 +1097,22 @@ def extract_feature_dict(
         processed_features[key] = get_value(typename, typename_mapping, key)
 
     return processed_features
+
+
+def load_predictions(path: str, **kwargs) -> pd.DataFrame:
+    """Loads a 'csv', 'parquet' or 'feather' file to a pandas dataframe.
+
+    Args:
+        path (str): Path to the file to be read.
+
+    Returns:
+        df (pd.DataFrame): The dataframe read from the path.
+    """
+    if path.endswith("csv"):
+        return pd.read_csv(f"{path}", **kwargs)
+    elif path.endswith("parquet") or path.endswith("gzip"):
+        return pd.read_parquet(f"{path}", **kwargs)
+    elif path.endswith("feather"):
+        return pd.read_feather(f"{path}", **kwargs)
+    else:
+        raise ValueError(f'Unrecognized extension "{path_to_ext(path)}"')

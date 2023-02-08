@@ -2,15 +2,21 @@ import unittest
 import sys
 import numpy as np
 import slideflow as sf
+from packaging import version
 from parameterized import parameterized
 from slideflow.util import log
 
 try:
     import tensorflow as tf
+    if version.parse(tf.__version__) < version.parse("2.0"):
+        raise ImportError
 
     gpus = tf.config.experimental.list_physical_devices('GPU')
     for gpu in gpus:
-        tf.config.experimental.set_memory_growth(gpu, True)
+        try:
+            tf.config.experimental.set_memory_growth(gpu, True)
+        except RuntimeError:
+            pass
 
     from slideflow.model.tensorflow import ModelParams as TFModelParams
     from slideflow.model.tensorflow import Features as TFFeatures

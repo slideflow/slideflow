@@ -7,47 +7,58 @@
 Slideflow Documentation
 =======================
 
-``slideflow`` is a Python package that provides a unified API for building and testing deep learning models for histopathology, supporting both Tensorflow/Keras and PyTorch.
+Slideflow is a Python package that provides a unified API for building and testing deep learning models for histopathology, supporting both Tensorflow/Keras and PyTorch.
 
 Slideflow includes tools for efficient whole-slide image processing, easy and highly customizable model training with uncertainty quantification (UQ), and a number of functional tools to assist with analysis and interpretability, including predictive heatmaps, mosaic maps, GANs, saliency maps, and more. It is built with both `Tensorflow/Keras <https://www.tensorflow.org/>`_ and `PyTorch <https://pytorch.org>`_ backends, with fully cross-compatible TFRecord data storage.
 
-The ``slideflow`` package includes a ``Project`` class to help coordinate project organization and supervise execution of the pipeline.  This documentation starts with a high-level overview of the pipeline, and will include examples of how to execute functions using the ``Project`` class. We also provide several tutorials with examples of how Slideflow can be used on your own data.
+The ``slideflow`` package includes a ``Project`` class to help coordinate project organization and supervise execution of the pipeline.  This documentation starts with a high-level overview of the pipeline, and will include examples of how to perform common tasks using the ``Project`` class. We also provide several tutorials with examples of how Slideflow can be used on your own data.
 
 .. toctree::
    :maxdepth: 2
-   :caption: Overview
+   :caption: Introduction
 
    installation
-   pipeline
+   overview
+   quickstart
    project_setup
-   validation
-   extract_tiles
+   datasets_and_val
+   slide_processing
+   cellseg
    training
    evaluation
-   layer_activations
-   workbench_tools
-   custom_loops
+   posthoc
    uq
-   stylegan
    clam
+   ssl
+   stylegan
+   custom_loops
+   workbench_tools
    troubleshooting
 
 .. toctree::
    :maxdepth: 1
-   :caption: Source
+   :caption: API
 
+   slideflow
    project
    dataset
    heatmap
+   dataset_features
+   slidemap
+   mosaic
+   slideflow_cellseg
    io
    io_tensorflow
    io_torch
    gan
    grad
    model
-   mosaic
+   model_tensorflow
+   model_torch
    norm
+   simclr
    slide
+   slide_qc
    stats
    util
    workbench

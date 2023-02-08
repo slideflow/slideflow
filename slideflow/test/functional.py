@@ -44,29 +44,29 @@ def activations_tester(
     )
     act_by_cat = df.activations_by_category(0).values()
     assert df.num_features == 1280  # mobilenet_v2
-    assert df.num_logits == 2
+    assert df.num_classes == 2
     assert len(df.activations) == len(dataset.tfrecords())
-    assert len(df.locations) == len(df.activations) == len(df.logits)
+    assert len(df.locations) == len(df.activations) == len(df.predictions)
     assert all([
-        len(df.activations[s]) == len(df.logits[s]) == len(df.locations[s])
+        len(df.activations[s]) == len(df.predictions[s]) == len(df.locations[s])
         for s in df.activations
     ])
     assert len(df.activations_by_category(0)) == 2
     assert (sum([len(a) for a in act_by_cat])
             == sum([len(df.activations[s]) for s in df.slides]))
-    lm = df.logits_mean()
-    l_perc = df.logits_percent()
-    l_pred = df.logits_predict()
+    lm = df.softmax_mean()
+    l_perc = df.softmax_percent()
+    l_pred = df.softmax_predict()
     assert len(lm) == len(df.activations)
-    assert len(lm[test_slide]) == df.num_logits
+    assert len(lm[test_slide]) == df.num_classes
     assert len(l_perc) == len(df.activations)
-    assert len(l_perc[test_slide]) == df.num_logits
+    assert len(l_perc[test_slide]) == df.num_classes
     assert len(l_pred) == len(df.activations)
 
     umap = SlideMap.from_features(df)
     if not exists(join(project.root, 'stats')):
         os.makedirs(join(project.root, 'stats'))
-    umap.save(join(project.root, 'stats', '2d_umap.png'))
+    umap.save_plot(join(project.root, 'stats', '2d_umap.png'))
     tile_stats, pt_stats, cat_stats = df.stats()
     top_features_by_tile = sorted(
         range(df.num_features),

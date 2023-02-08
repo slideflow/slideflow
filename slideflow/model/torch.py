@@ -7,7 +7,7 @@ import types
 from collections import defaultdict
 from os.path import join
 from typing import (TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple,
-                    Union)
+                    Union, Callable)
 
 import numpy as np
 import pretrainedmodels
@@ -130,7 +130,10 @@ class ModelWrapper(torch.nn.Module):
                 self.model.fc = torch.nn.Identity()
             elif hasattr(self.model, 'out_features'):
                 num_ftrs = self.model.out_features
+            elif hasattr(self.model, 'head'):
+                num_ftrs = self.model.head.out_features
             else:
+                print(self.model)
                 raise errors.ModelError("Unable to find last linear layer for "
                                         f"model {model.__class__.__name__}")
         else:
@@ -270,7 +273,7 @@ class ModelParams(_base._ModelParams):
             'CosineEmbedding': torch.nn.CosineEmbeddingLoss,
         }
         super().__init__(loss=loss, **kwargs)
-        assert self.model in self.ModelDict.keys()
+        assert self.model in self.ModelDict.keys() or self.model.startswith('timm_')
         assert self.optimizer in self.OptDict.keys()
         assert self.loss in self.AllLossDict
         if isinstance(self.augment, str) and 'b' in self.augment:
@@ -282,6 +285,7 @@ class ModelParams(_base._ModelParams):
                      "classifier loss will be included during training "
                      "starting in version 1.3")
 
+
     def get_opt(self, params_to_update: Iterable) -> torch.optim.Optimizer:
         return self.OptDict[self.optimizer](
             params_to_update,
@@ -292,6 +296,23 @@ class ModelParams(_base._ModelParams):
     def get_loss(self) -> torch.nn.modules.loss._Loss:
         return self.AllLossDict[self.loss]()
 
+    def get_model_loader(self, model: str) -> Callable:
+        if model in self.ModelDict:
+            return self.ModelDict[model]
+        elif model.startswith('timm_'):
+
+            def loader(**kwargs):
+                try:
+                    import timm
+                except ImportError:
+                    raise ImportError(f"Unable to load model {model}; "
+                                      "timm package not installed.")
+                return timm.create_model(model[5:], **kwargs)
+
+            return loader
+        else:
+            raise ValueError(f"Model {model} not found.")
+
     def build_model(
         self,
         labels: Optional[Dict] = None,
@@ -300,6 +321,7 @@ class ModelParams(_base._ModelParams):
         pretrain: Optional[str] = None,
         checkpoint: Optional[str] = None
     ) -> torch.nn.Module:
+
         assert num_classes is not None or labels is not None
         if num_classes is None:
             assert labels is not None
@@ -307,15 +329,24 @@ class ModelParams(_base._ModelParams):
         if not isinstance(num_classes, dict):
             num_classes = {'out-0': num_classes}
 
+        # Prepare custom model pretraining
+        log.info(f"Using pretraining: [green]{pretrain}")
+        if (isinstance(pretrain, str)
+           and sf.util.path_to_ext(pretrain).lower() == 'zip'):
+           _pretrained = pretrain
+           pretrain = None
+        else:
+            _pretrained = None
+
         # Build base model
         if self.model in ('xception', 'nasnet_large'):
-            _model = self.ModelDict[self.model](
+            _model = self.get_model_loader(self.model)(
                 num_classes=1000,
                 pretrained=pretrain
             )
         else:
             # Compatibility logic for prior versions of PyTorch
-            model_fn = self.ModelDict[self.model]
+            model_fn = self.get_model_loader(self.model)
             model_fn_sig = inspect.signature(model_fn)
             model_kw = [
                 param.name
@@ -325,7 +356,8 @@ class ModelParams(_base._ModelParams):
             call_kw = {}
             if 'image_size' in model_kw:
                 call_kw.update(dict(image_size=self.tile_px))
-            if version.parse(torchvision.__version__) >= version.parse("0.13"):
+            if (version.parse(torchvision.__version__) >= version.parse("0.13")
+               and not self.model.startswith('timm_')):
                 call_kw.update(dict(weights=pretrain))  # type: ignore
             else:
                 call_kw.update(dict(pretrained=pretrain))  # type: ignore
@@ -345,12 +377,18 @@ class ModelParams(_base._ModelParams):
             dropout=self.dropout,
             include_top=self.include_top
         )
+        if _pretrained is not None:
+            lazy_load_pretrained(model, _pretrained)
         if checkpoint is not None:
             model.load_state_dict(torch.load(checkpoint))
         return model
 
     def model_type(self) -> str:
-        if self.loss == 'NLL':
+        """Returns 'linear', 'categorical', or 'cph', reflecting the loss."""
+        #check if loss is custom_[type] and returns type
+        if self.loss.startswith('custom'):
+            return self.loss[7:]
+        elif self.loss == 'NLL':
             return 'cph'
         elif self.loss in self.LinearLossDict:
             return 'linear'
@@ -378,10 +416,9 @@ class Trainer:
         hp: ModelParams,
         outdir: str,
         labels: Dict[str, Any],
-        patients: Dict[str, str],
+        *,
         slide_input: Optional[Dict[str, Any]] = None,
         name: str = 'Trainer',
-        manifest: Optional[Dict[str, int]] = None,
         feature_sizes: Optional[List[int]] = None,
         feature_names: Optional[List[str]] = None,
         outcome_names: Optional[List[str]] = None,
@@ -391,7 +428,8 @@ class Trainer:
         use_neptune: bool = False,
         neptune_api: Optional[str] = None,
         neptune_workspace: Optional[str] = None,
-        load_method: str = 'full'
+        load_method: str = 'full',
+        custom_objects: Optional[Dict[str, Any]] = None,
     ):
         """Sets base configuration, preparing model inputs and outputs.
 
@@ -400,19 +438,14 @@ class Trainer:
             outdir (str): Destination for event logs and checkpoints.
             labels (dict): Dict mapping slide names to outcome labels (int or
                 float format).
-            patients (dict): Dict mapping slide names to patient ID, as some
-                patients may have multiple slides. If not provided, assumes
-                1:1 mapping between slide names and patients.
             slide_input (dict): Dict mapping slide names to additional
                 slide-level input, concatenated after post-conv.
             name (str, optional): Optional name describing the model, used for
                 model saving. Defaults to None.
-            manifest (dict, optional): Manifest dictionary mapping TFRecords to
-                number of tiles. Defaults to None.
             feature_sizes (list, optional): List of sizes of input features.
                 Required if providing additional input features as model input.
             feature_names (list, optional): List of names for input features.
-            Used when permuting feature importance.
+                Used when permuting feature importance.
             outcome_names (list, optional): Name of each outcome. Defaults to
                 "Outcome {X}" for each outcome.
             mixed_precision (bool, optional): Use FP16 mixed precision (rather
@@ -437,9 +470,8 @@ class Trainer:
         self.hp = hp
         self.outdir = outdir
         self.labels = labels
-        self.patients = patients
+        self.patients = dict()  # type: Dict[str, str]
         self.name = name
-        self.manifest = manifest
         self.model = None  # type: Optional[torch.nn.Module]
         self.inference_model = None  # type: Optional[torch.nn.Module]
         self.mixed_precision = mixed_precision
@@ -449,6 +481,9 @@ class Trainer:
         self.use_tensorboard: bool
         self.writer: SummaryWriter
         self._reset_training_params()
+
+        if custom_objects is not None:
+            log.warn("custom_objects argument ignored in PyTorch backend.")
 
         # Enable or disable Tensorflow-32
         # Allows PyTorch to internally use tf32 for matmul and convolutions
@@ -493,7 +528,7 @@ class Trainer:
         if config is None:
             config = {
                 'slideflow_version': sf.__version__,
-                'hp': self.hp.get_dict(),
+                'hp': self.hp.to_dict(),
                 'backend': sf.backend()
             }
         sf.util.write_json(config, join(self.outdir, 'params.json'))
@@ -678,6 +713,17 @@ class Trainer:
                 self.ema_two_checks_prior = self.ema_one_check_prior
                 self.ema_one_check_prior = self.last_ema
         return ''
+
+    def _detect_patients(self, *args):
+        self.patients = dict()
+        for dataset in args:
+            if args is None:
+                continue
+            dataset_patients = dataset.patients()
+            if not dataset_patients:
+                self.patients.update({s: s for s in self.slides})
+            else:
+                self.patients.update(dataset_patients)
 
     def _empty_corrects(self) -> Union[int, Dict[str, int]]:
         if self.multi_outcome:
@@ -1119,7 +1165,7 @@ class Trainer:
         name = self.name if self.name else 'trained_model'
         save_path = os.path.join(self.outdir, f'{name}_epoch{self.epoch}.zip')
         torch.save(self.model.state_dict(), save_path)
-        log.info(f"Model saved to [green]{save_path}[/")
+        log.info(f"Model saved to [green]{save_path}")
 
     def _close_dataloaders(self):
         """Close dataloaders, ensuring threads have joined."""
@@ -1343,7 +1389,7 @@ class Trainer:
         format: str = 'parquet',
         from_wsi: bool = False,
         roi_method: str = 'auto',
-    ) -> "pd.DataFrame":
+    ) -> Dict[str, "pd.DataFrame"]:
         """Perform inference on a model, saving predictions.
 
         Args:
@@ -1371,10 +1417,14 @@ class Trainer:
                 Defaults to 'auto'.
 
         Returns:
-            pandas.DataFrame of tile-level predictions.
+            Dict[str, pd.DataFrame]: Dictionary with keys 'tile', 'slide', and
+            'patient', and values containing DataFrames with tile-, slide-,
+            and patient-level predictions.
         """
         if format not in ('csv', 'feather', 'parquet'):
             raise ValueError(f"Unrecognized format {format}")
+
+        self._detect_patients(dataset)
 
         # Verify image format
         self._verify_img_format(dataset)
@@ -1390,8 +1440,10 @@ class Trainer:
         self.model.eval()
         self._log_manifest(None, dataset, labels=None)
 
-        if from_wsi:
+        if from_wsi and sf.slide_backend() == 'libvips':
             pool = mp.Pool(os.cpu_count() if os.cpu_count() else 8)
+        elif from_wsi:
+            pool = mp.dummy.Pool(os.cpu_count() if os.cpu_count() else 8)
         else:
             pool = None
         if not batch_size:
@@ -1403,7 +1455,7 @@ class Trainer:
             incl_labels=False,
             from_wsi=from_wsi,
             roi_method=roi_method,
-            pool=pool,)
+            pool=pool)
 
         log.info('Generating predictions...')
         torch_args = types.SimpleNamespace(
@@ -1417,6 +1469,7 @@ class Trainer:
             torch_args=torch_args,
             outcome_names=self.outcome_names,
             uq=bool(self.hp.uq),
+            patients=self.patients
         )
         # Save predictions
         sf.stats.metrics.save_dfs(dfs, format=format, outdir=self.outdir)
@@ -1482,11 +1535,14 @@ class Trainer:
             self.validation_batch_size = batch_size
         if not self.model:
             raise errors.ModelNotLoadedError
-        if from_wsi:
+        if from_wsi and sf.slide_backend() == 'libvips':
             pool = mp.Pool(os.cpu_count() if os.cpu_count() else 8)
+        elif from_wsi:
+            pool = mp.dummy.Pool(os.cpu_count() if os.cpu_count() else 8)
         else:
             pool = None
 
+        self._detect_patients(dataset)
         self._verify_img_format(dataset)
         self._fit_normalizer(norm_fit)
         self.model.to(self.device)
@@ -1621,6 +1677,7 @@ class Trainer:
             )
         results = {'epochs': defaultdict(dict)}  # type: Dict[str, Any]
         starting_epoch = max(starting_epoch, 1)
+        self._detect_patients(train_dts, val_dts)
         self._reset_training_params()
         self.validation_batch_size = validation_batch_size
         self.validate_on_batch = validate_on_batch
@@ -1630,8 +1687,10 @@ class Trainer:
         self.use_tensorboard = use_tensorboard
         self.log_frequency = log_frequency
 
-        if from_wsi:
+        if from_wsi and sf.slide_backend() == 'libvips':
             pool = mp.Pool(os.cpu_count() if os.cpu_count() else 8)
+        elif from_wsi:
+            pool = mp.dummy.Pool(os.cpu_count() if os.cpu_count() else 8)
         else:
             pool = None
 
@@ -1648,7 +1707,7 @@ class Trainer:
             if not os.path.exists(config_path):
                 config = {
                     'slideflow_version': sf.__version__,
-                    'hp': self.hp.get_dict(),
+                    'hp': self.hp.to_dict(),
                     'backend': sf.backend()
                 }
             else:
@@ -1795,7 +1854,7 @@ class CPHTrainer(Trainer):
 
 
 class Features:
-    """Interface for obtaining logits and features from intermediate layer
+    """Interface for obtaining predictions and features from intermediate layer
     activations from Slideflow models.
 
     Use by calling on either a batch of images (returning outputs for a single
@@ -1839,7 +1898,7 @@ class Features:
         self,
         path: Optional[str],
         layers: Optional[Union[str, List[str]]] = 'postconv',
-        include_logits: bool = False,
+        include_preds: bool = False,
         mixed_precision: bool = True,
         device: Optional[torch.device] = None,
         apply_softmax: bool = True,
@@ -1850,14 +1909,14 @@ class Features:
         outputs feature activations at the designated layers.
 
         Intermediate layers are returned in the order of layers.
-        Logits are returned last.
+        predictions are returned last.
 
         Args:
             path (str): Path to saved Slideflow model.
             layers (list(str), optional): Layers from which to generate
                 activations.  The post-convolution activation layer is accessed
                 via 'postconv'. Defaults to 'postconv'.
-            include_logits (bool, optional): Include logits in output. Will be
+            include_preds (bool, optional): Include predictions in output. Will be
                 returned last. Defaults to False.
             mixed_precision (bool, optional): Use mixed precision.
                 Defaults to True.
@@ -1879,7 +1938,7 @@ class Features:
         if layers and isinstance(layers, str):
             layers = [layers]
         self.path = path
-        self.num_logits = 0
+        self.num_classes = 0
         self.num_features = 0
         self.num_uncertainty = 0
         self.apply_softmax = apply_softmax
@@ -1888,7 +1947,7 @@ class Features:
         # Hook for storing layer activations during model inference
         self.activation = {}  # type: Dict[Any, Tensor]
         self.layers = layers
-        self.include_logits = include_logits
+        self.include_preds = include_preds
         self.device = device if device is not None else torch.device('cuda')
 
         if path is not None:
@@ -1919,7 +1978,7 @@ class Features:
         model: torch.nn.Module,
         tile_px: int,
         layers: Optional[Union[str, List[str]]] = 'postconv',
-        include_logits: bool = False,
+        include_preds: bool = False,
         mixed_precision: bool = True,
         wsi_normalizer: Optional["StainNormalizer"] = None,
         apply_softmax: bool = True,
@@ -1929,7 +1988,7 @@ class Features:
         outputs feature activations at the designated layers.
 
         Intermediate layers are returned in the order of layers.
-        Logits are returned last.
+        predictions are returned last.
 
         Args:
             model (:class:`tensorflow.keras.models.Model`): Loaded model.
@@ -1937,7 +1996,7 @@ class Features:
             layers (list(str), optional): Layers from which to generate
                 activations.  The post-convolution activation layer is accessed
                 via 'postconv'. Defaults to 'postconv'.
-            include_logits (bool, optional): Include logits in output. Will be
+            include_preds (bool, optional): Include predictions in output. Will be
                 returned last. Defaults to False.
             mixed_precision (bool, optional): Use mixed precision.
                 Defaults to True.
@@ -1951,7 +2010,7 @@ class Features:
                 callable PyTorch function.
         """
         device = next(model.parameters()).device
-        obj = cls(None, layers, include_logits, mixed_precision, device)
+        obj = cls(None, layers, include_preds, mixed_precision, device)
         if isinstance(model, torch.nn.Module):
             obj._model = model
             obj._model.eval()
@@ -1973,7 +2032,7 @@ class Features:
         inp: Union[Tensor, "sf.WSI"],
         **kwargs
     ) -> Optional[Union[List[Tensor], np.ndarray]]:
-        """Process a given input and return activations and/or logits. Expects
+        """Process a given input and return activations and/or predictions. Expects
         either a batch of images or a :class:`slideflow.slide.WSI` object."""
 
         if isinstance(inp, sf.slide.WSI):
@@ -2008,7 +2067,7 @@ class Features:
         if img_format == 'png':  # PNG is lossless; this is equivalent but faster
             log.debug("Using numpy image format instead of PNG")
             img_format = 'numpy'
-        total_out = self.num_features + self.num_logits
+        total_out = self.num_features + self.num_classes
         if grid is None:
             features_grid = np.ones((
                     slide.grid.shape[1],
@@ -2086,7 +2145,7 @@ class Features:
                 if la == 'postconv':
                     act = self._postconv_processing(act)
                 layer_activations.append(act)
-        if self.include_logits:
+        if self.include_preds:
             layer_activations += [logits]
         self.activation = {}
         return layer_activations
@@ -2135,8 +2194,8 @@ class Features:
 
     def _build(self, pooling: Optional[Any] = None) -> None:
         """Builds the interface model that outputs feature activations at the
-        designated layers and/or logits. Intermediate layers are returned in
-        the order of layers. Logits are returned last.
+        designated layers and/or predictions. Intermediate layers are returned in
+        the order of layers. predictions are returned last.
 
         Args:
             pooling (Callable or str, optional): PyTorch pooling function to use
@@ -2184,11 +2243,11 @@ class Features:
         # Calculate output and layer sizes
         rand_data = torch.rand(1, 3, self.tile_px, self.tile_px)
         output = self._model(rand_data.to(self.device))
-        self.num_logits = output.shape[1] if self.include_logits else 0
+        self.num_classes = output.shape[1] if self.include_preds else 0
         self.num_features = sum([f.shape[1] for f in self.activation.values()])
 
-        if self.include_logits:
-            log.debug(f'Number of logits: {self.num_logits}')
+        if self.include_preds:
+            log.debug(f'Number of classes: {self.num_classes}')
         log.debug(f'Number of activation features: {self.num_features}')
 
 
@@ -2201,7 +2260,7 @@ class UncertaintyInterface(Features):
         raise NotImplementedError
 
 
-def load(path):
+def load(path: str) -> torch.nn.Module:
     """Load PyTorch model from location.
 
     Args:
@@ -2226,3 +2285,36 @@ def load(path):
     )
     model.load_state_dict(torch.load(path))
     return model
+
+
+def lazy_load_pretrained(
+    module: torch.nn.Module,
+    to_load: str
+) -> None:
+    """Loads pretrained model weights into an existing module, ignoring
+    incompatible Tensors.
+
+    Args:
+        module (torch.nn.Module): Destination module for weights.
+        to_load (str, torch.nn.Module): Module with weights to load. Either
+            path to PyTorch Slideflow model, or an existing PyTorch module.
+
+    Returns:
+        None
+    """
+    # Get state dictionaries
+    current_model_dict = module.state_dict()
+    if isinstance(to_load, str):
+        loaded_state_dict = torch.load(to_load)
+    else:
+        loaded_state_dict = to_load.state_dict()
+
+    # Only transfer valid states
+    new_state_dict = {k:v if v.size()==current_model_dict[k].size()
+                          else  current_model_dict[k]
+                      for k,v in zip(current_model_dict.keys(),
+                                     loaded_state_dict.values())}
+    n_states = len(list(new_state_dict.keys()))
+    log.info(f"Loaded {n_states} Tensor states from "
+             f"pretrained model [green] {to_load}")
+    module.load_state_dict(new_state_dict, strict=False)

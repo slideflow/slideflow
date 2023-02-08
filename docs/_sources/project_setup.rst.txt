@@ -1,22 +1,23 @@
+.. _project_setup:
+
 Setting up a Project
 ====================
 
-The easiest way to use ``slideflow`` is through the bundled project management class, :class:`slideflow.Project`, which supports unified datasets, annotations, and project directory structure for all pipeline functions.
+Slideflow :ref:`Projects <project>` organize datasets, annotations, and results into a unified directory and provide a high-level API for common tasks.
 
-To initialize a new project, pass keyword arguments to :class:`slideflow.Project` with project settings:
+Use :func:`slideflow.create_project` to create a new project, supplying an annotations file (with patient labels) and path to slides. A new dataset source (collection of slides and tfrecords) will be configured. Additional keyword arguments can be used to specify the location of trecords and saved models.
 
 .. code-block:: python
 
     import slideflow as sf
 
-    P = sf.Project(
-      '/path/to/project/directory',
-      name="MyProject",
+    P = sf.create_project(
+      root='project_path',
       annotations="./annotations.csv"
-      ...
+      slides='/path/to/slides/'
     )
 
-A project will then be initialized at the given directory, with settings saved in a ``settings.json`` file. Any project settings not provided via keyword arguments will use defaults. Each project will have the following settings:
+Project settings are saved in a ``settings.json`` file in the root project directory. Each project will have the following settings:
 
 +-------------------------------+-------------------------------------------------------+
 | **name**                      | Project name.                                         |
@@ -29,7 +30,7 @@ A project will then be initialized at the given directory, with settings saved i
 | **dataset_config**            | Path to JSON file containing dataset configuration.   |
 |                               | Defaults to "./datasets.json"                         |
 +-------------------------------+-------------------------------------------------------+
-| **sources**                   | Names of dataset(s) to include in the project.        |
+| **sources**                   | Names of dataset source(s) to include in the project. |
 |                               | Defaults to an empty list.                            |
 +-------------------------------+-------------------------------------------------------+
 | **models_dir**                | Path, where model files and results are saved.        |
@@ -44,28 +45,16 @@ Once a project has been initialized at a directory, you may then load the projec
 .. code-block:: python
 
     import slideflow as sf
-    P = sf.Project('/path/to/project/directory')
+    P = sf.load_project('/path/to/project/directory')
 
-Pipeline functions are then called on the project object ``P``.
+.. _dataset_sources:
 
-Alternatively, you can use the bundled ``run_project.py`` script to execute project functions stored in ``actions.py`` files in project directories. When ``run_project.py`` is run, it initializes a ``Project`` object at a given directory, then looks for and loads an ``actions.py`` file in this directory, executing functions contained therein.
+Dataset Sources
+***************
 
-To create a new project with this script, or execute functions on an existing project, use the following syntax:
+A :ref:`dataset source <datasets_and_validation>` is a collection of slides, Regions of Interest (ROI) annotations (if available), and extracted tiles. Sources are defined in the project dataset configuration file, which can be shared and used across multiple projects or saved locally within a project directory. These configuration files have the following format:
 
 .. code-block:: bash
-
-    $ python3 run_project.py -p /path/to/project/directory
-
-where the -p flag is used to designate the path to your project directory. Other available flags can be seen by running ``python3 run_project.py --help``.
-
-Configuring Datasets
-********************
-
-Once initial project settings are established, you will need to either create or load a dataset configuration, which will specify directory locations for slides, ROIs, tiles, and TFRecords for each group of slides.
-
-Dataset configurations are saved in a JSON file with the below syntax. Dataset configuration files can be shared and used across multiple projects, or saved locally within a project directory.
-
-.. code-block:: json
 
     {
       "SOURCE":
@@ -77,23 +66,24 @@ Dataset configurations are saved in a JSON file with the below syntax. Dataset c
       }
     }
 
-Add a new dataset source to a project with ``Project.add_dataset()``, which will save the dataset in JSON format to the project dataset configuration file.
+When a project is created with :func:`slideflow.create_project`, a dataset source is automatically created. You can change where slides and extracted tiles are stored by editing the project's dataset configuration file.
+
+It is possible for a project to have multiple dataset sources - for example, you may choose to organize data from multiple institutions into separate sources. You can add a new dataset source to a project with :meth:`Project.add_source`, which will update the project dataset configuration file accordingly.
 
 .. code-block:: python
 
     P.add_source(
-      name="NAME",
+      name="SOURCE_NAME",
       slides="/slides/directory",
       roi="/roi/directory",
       tiles="/tiles/directory",
       tfrecords="/tfrecords/directory"
     )
 
-.. note::
-    See :ref:`dataset` for more information on working with Datasets.
+Read more about :ref:`working with datasets <datasets_and_validation>`.
 
-Setting up annotations
-**********************
+Annotations
+***********
 
 Your annotations file is used to label patients and slides with clinical data and/or other outcome variables that will be used for training. Each line in the annotations file should correspond to a unique slide. Patients may have more than one slide.
 
@@ -123,36 +113,3 @@ An example annotations file is generated each time a new project is initialized.
     P.create_blank_annotations()
 
 The ``slide`` column may not need to be explicitly set in the annotations file by the user. Rather, once a dataset has been set up, slideflow will search through the linked slide directories and attempt to match slides to entries in the annotations file using **patient**. Entries that are blank in the **slide** column will be auto-populated with any detected and matching slides, if available.
-
-.. _execute:
-
-Executing commands
-******************
-
-If you plan to use the ``run_project.py`` script for your projects, open the ``actions.py`` file located in the project directory. It should look something like this:
-
-.. code-block:: python
-
-    def main(P):
-        #P.extract_tiles(tile_px=299, tile_um=302)
-
-        #P.train(
-        #      "category",
-        #      filters = {
-        #          'category': ['NEG', 'POS'],
-        #          'dataset': 'train'
-        #      },
-        #)
-
-        #model = '/path_to_model/'
-        #P.evaluate(model, outcomes="category", filters={'dataset': 'eval'})
-        #P.generate_heatmaps(model_to_evaluate)
-        pass
-
-The ``main()`` function contains several example functions. These serve as examples to help remind you of functions and arguments you can use on projects.
-
-To execute the commands you have prepared in this file, execute the ``run_project.py`` script pointing to your project directory.
-
-.. code-block:: bash
-
-    $ python3 run_project.py -p /path/to/project/directory

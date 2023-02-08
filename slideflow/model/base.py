@@ -3,6 +3,7 @@
 import csv
 import json
 import os
+import warnings
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 import numpy as np
@@ -19,6 +20,7 @@ class _ModelParams:
 
     ModelDict = {}  # type: Dict
     LinearLossDict = {}  # type: Dict
+    AllLossDict = {}  # type: Dict
 
     def __init__(
         self,
@@ -29,7 +31,7 @@ class _ModelParams:
         toplayer_epochs: int = 0,
         model: str = 'xception',
         pooling: str = 'max',
-        loss: str = 'sparse_categorical_crossentropy',
+        loss: Union[str, Dict] = 'sparse_categorical_crossentropy',
         learning_rate: float = 0.0001,
         learning_rate_decay: float = 0,
         learning_rate_decay_steps: float = 100000,
@@ -57,8 +59,14 @@ class _ModelParams:
         include_top: bool = True,
         drop_images: bool = False
     ) -> None:
+        """Configure a set of training parameters via keyword arguments.
 
-        """Collection of hyperparameters used for model building and training
+        Parameters are configured in the context of the current deep learning
+        backend (Tensorflow or PyTorch), which can be viewed with
+        :func:`slideflow.backend`. While most model parameters are
+        cross-compatible between Tensorflow and PyTorch, some parameters are
+        unique to a backend, so this object should be configured in the same
+        backend that the model will be trained in.
 
         Args:
             tile_px (int, optional): Tile width in pixels. Defaults to 299.
@@ -165,7 +173,7 @@ class _ModelParams:
         return json.dumps(arg_dict, indent=2)
 
     def __eq__(self, other):
-        return self.get_dict() == other.get_dict()
+        return self.to_dict() == other.to_dict()
 
     @classmethod
     def from_dict(cls, hp_dict: Dict) -> "_ModelParams":
@@ -186,11 +194,33 @@ class _ModelParams:
             self.ModelDict.update(m)
             self._model = model_name
         elif isinstance(m, str):
-            assert m in self.ModelDict
+            assert m in self.ModelDict or m.startswith('timm_')
             self._model = m
         else:
             self.ModelDict.update({'custom': m})
             self._model = 'custom'
+
+    @property
+    def loss(self) -> str:
+        return self._loss
+
+    @loss.setter
+    def loss(self, l: Union[str, Dict])  -> None:
+        if isinstance(l, dict):
+            # Verify that the custom loss dictionary provided is valid.
+            valid_loss_types = ('cph', 'linear', 'categorical')
+            if 'type' not in l or 'fn' not in l:
+                raise ValueError("If supplying a custom loss, dictionary must "
+                                 "have the keys 'type' and 'fn'.")
+            if l['type'] not in valid_loss_types:
+                raise ValueError("Custom loss type must be one of: ",
+                                 ', '.join(valid_loss_types))
+            loss_name = 'custom_' + l['type']
+            self.AllLossDict.update({loss_name: l['fn']})
+            self._loss = loss_name
+        elif isinstance(l, str):
+            assert l in self.AllLossDict
+            self._loss = l
 
     def _get_args(self) -> List[str]:
         to_ignore = [
@@ -198,6 +228,7 @@ class _ModelParams:
             'build_model',
             'model_type',
             'validate',
+            'to_dict',
             'from_dict',
             'get_dict',
             'get_loss',
@@ -206,7 +237,8 @@ class _ModelParams:
             'OptDict',
             'ModelDict',
             'LinearLossDict',
-            'AllLossDict'
+            'AllLossDict',
+            'get_model_loader'
         ]
         args = [
             arg for arg in dir(self)
@@ -215,12 +247,22 @@ class _ModelParams:
         return args
 
     def get_dict(self) -> Dict[str, Any]:
+        """Deprecated. Alias of ModelParams.to_dict()."""
+        warnings.warn(
+            "ModelParams.get_dict() is deprecated. Please use .to_dict()",
+            DeprecationWarning
+        )
+        return self.to_dict()
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Return a dictionary of configured parameters."""
         d = {}
         for arg in self._get_args():
             d.update({arg: getattr(self, arg)})
         return d
 
     def get_normalizer(self, **kwargs) -> Optional["StainNormalizer"]:
+        """Return a configured :class:`slideflow.StainNormalizer`."""
         if not self.normalizer:
             return None
         else:
@@ -346,7 +388,10 @@ class _ModelParams:
 
     def model_type(self) -> str:
         """Returns either 'linear', 'categorical', or 'cph' depending on the loss type."""
-        if self.loss == 'negative_log_likelihood':
+        #check if loss is custom_[type] and returns type
+        if self.loss.startswith('custom'):
+            return self.loss[7:]
+        elif self.loss == 'negative_log_likelihood':
             return 'cph'
         elif self.loss in self.LinearLossDict:
             return 'linear'

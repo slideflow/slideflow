@@ -46,9 +46,12 @@ def get_args(**kwargs):
         'results_dir': None,
         'n_classes': None,
         'split_dir': None,
-        'data_root_dir': None
+        'data_root_dir': None,
+        'micro_average': False
     }
     for k in kwargs:
+        if k not in args_dict:
+            raise ValueError(f"Unrecognized argument '{k}'")
         args_dict[k] = kwargs[k]
     args = types.SimpleNamespace(**args_dict)
     return args

@@ -1,14 +1,21 @@
 .. currentmodule:: slideflow
 
-slideflow.heatmap
-=====================
+slideflow.Heatmap
+=================
 
-:class:`slideflow.Heatmap` uses a model to generate predictions across a whole-slide image through
-progressive convolution. These prediction heatmaps can be interactively displayed or saved for later use.
-
-.. automodule: slideflow.heatmap
-
-Heatmap
--------
 .. autoclass:: Heatmap
-    :inherited-members:
+
+Methods
+-------
+
+.. autofunction:: slideflow.Heatmap.add_inset
+.. autofunction:: slideflow.Heatmap.clear_insets
+.. autofunction:: slideflow.Heatmap.generate
+.. autofunction:: slideflow.Heatmap.load
+.. autofunction:: slideflow.Heatmap.load_npz
+.. autofunction:: slideflow.Heatmap.plot
+.. autofunction:: slideflow.Heatmap.plot_thumbnail
+.. autofunction:: slideflow.Heatmap.plot_with_logit_cmap
+.. autofunction:: slideflow.Heatmap.plot_uncertainty
+.. autofunction:: slideflow.Heatmap.save
+.. autofunction:: slideflow.Heatmap.save_npz

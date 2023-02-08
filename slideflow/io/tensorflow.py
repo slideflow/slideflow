@@ -55,6 +55,19 @@ def read_and_return_record(
     parser: Callable,
     assign_slide: Optional[bytes] = None
 ) -> "Example":
+    """Process raw TFRecord bytes into a format that can be written with
+    ``tf.io.TFRecordWriter``.
+
+    Args:
+        record (bytes): Raw TFRecord bytes (unparsed)
+        parser (Callable): TFRecord parser, as returned by
+            :func:`sf.io.get_tfrecord_parser()`
+        assign_slide (str, optional): Slide name to override the record with.
+            Defaults to None.
+
+    Returns:
+        Dictionary mapping record key to a tuple containing (bytes, dtype).
+    """
     features = parser(record)
     if assign_slide:
         features['slide'] = assign_slide
@@ -125,6 +138,7 @@ def process_image(
     *args: Any,
     standardize: bool = False,
     augment: Union[bool, str] = False,
+    size: Optional[int] = None
 ) -> Tuple[Union[Dict, tf.Tensor], ...]:
     """Applies augmentations and/or standardization to an image Tensor."""
 
@@ -132,6 +146,8 @@ def process_image(
         image = record['tile_image']
     else:
         image = record
+    if size is not None:
+        image.set_shape([size, size, 3])
     if augment is True or (isinstance(augment, str) and 'j' in augment):
         # Augment with random compession
         image = tf.cond(tf.random.uniform(
@@ -304,7 +320,9 @@ def get_tfrecord_parser(
         features = tf.io.parse_single_example(record, feature_description)
 
         def process_feature(f):
-            if f not in features and error_if_invalid:
+            if f not in features and f in ('loc_x', 'loc_y'):
+                return None
+            elif f not in features and error_if_invalid:
                 raise errors.TFRecordsError(f"Unknown TFRecord feature {f}")
             elif f not in features:
                 return None
@@ -385,6 +403,7 @@ def interleave(
     tile_um: Optional[int] = None,
     rois: Optional[List[str]] = None,
     roi_method: str = 'auto',
+    pool: Optional["mp.pool.Pool"] = None,
     **decode_kwargs: Any
 ) -> Iterable:
 
@@ -483,7 +502,10 @@ def interleave(
                 return tuple([record[f] for f in features_to_return])
 
             # Load slides and apply Otsu's thresholding
-            pool = mp.Pool(16 if os.cpu_count is None else os.cpu_count())
+            if pool is None and sf.slide_backend() == 'cucim':
+                pool = mp.Pool(8 if os.cpu_count is None else os.cpu_count())
+            elif pool is None:
+                pool = mp.dummy.Pool(16 if os.cpu_count is None else os.cpu_count())
             wsi_list = []
             to_remove = []
             otsu_list = []
@@ -590,7 +612,8 @@ def interleave(
             partial(
                 process_image,
                 standardize=standardize,
-                augment=augment
+                augment=augment,
+                size=img_size
             ),
             num_parallel_calls=tf.data.AUTOTUNE,
             deterministic=deterministic

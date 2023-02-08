@@ -7,11 +7,13 @@ import numpy as np
 import pandas as pd
 import slideflow as sf
 import torch
+import json
+from os.path import join, dirname, exists
 from PIL import Image
 from slideflow.gan.stylegan2.stylegan2 import embedding, utils
 from slideflow.gan.utils import crop
 from slideflow import errors
-from rich.progress import track
+from tqdm import tqdm
 from functools import partial
 
 if TYPE_CHECKING:
@@ -25,10 +27,10 @@ class StyleGAN2Interpolator:
         start: int,
         end: int,
         device: torch.device,
-        gan_um: int,
-        gan_px: int,
         target_um: int,
         target_px: int,
+        gan_um: Optional[int] = None,
+        gan_px: Optional[int] = None,
         noise_mode: str = 'const',
         truncation_psi: int = 1,
         **gan_kwargs
@@ -42,6 +44,27 @@ class StyleGAN2Interpolator:
             end (int): Ending class index.
             device (torch.device): Torch device.
         """
+
+        training_options = join(dirname(gan_pkl), 'training_options.json')
+        if exists(training_options):
+            with open(training_options, 'r') as f:
+                opt = json.load(f)
+            if 'slideflow_kwargs' in opt:
+                _gan_px = opt['slideflow_kwargs']['tile_px']
+                _gan_um = opt['slideflow_kwargs']['tile_um']
+                if gan_px != gan_px or _gan_um != _gan_um:
+                    sf.log.warn("Provided GAN tile size (gan_px={}, gan_um={}) does "
+                                "not match training_options.json (gan_px={}, "
+                                "gan_um={})".format(gan_px, gan_um, _gan_px, _gan_um))
+                if gan_px is None:
+                    gan_px = _gan_px
+                if gan_um is None:
+                    gan_um = _gan_um
+        if gan_px is None or gan_um is None:
+            raise ValueError("Unable to auto-detect gan_px/gan_um from "
+                             "training_options.json. Must be set with gan_um "
+                             "and gan_px.")
+
         self.E_G, self.G = embedding.load_embedding_gan(gan_pkl, device)
         self.device = device
         self.gan_kwargs = dict(
@@ -69,15 +92,18 @@ class StyleGAN2Interpolator:
         Returns:
             Any: GAN images (torch.uint8)
         """
+        import torch
+        import slideflow.io.torch
         if sf.backend() == 'tensorflow':
             import tensorflow as tf
             dtype = tf.uint8
         elif sf.backend() == 'torch':
-            import torch
             dtype = torch.uint8
         else:
             raise errors.UnrecognizedBackendError
         img = crop(img, **self.crop_kw)  # type: ignore
+        img = (img * 127.5 + 128).clamp(0, 255).to(torch.uint8)
+        img = sf.io.torch.preprocess_uint8(img, standardize=False, resize_px=self.target_px)
         return sf.io.convert_dtype(img, dtype)
 
     def _preprocess_from_uint8(
@@ -103,14 +129,12 @@ class StyleGAN2Interpolator:
             return sf.io.tensorflow.preprocess_uint8(
                 img,
                 normalizer=normalizer,
-                standardize=standardize,
-                resize_px=self.target_px)['tile_image']
+                standardize=standardize)['tile_image']
         elif sf.backend() == 'torch':
             return sf.io.torch.preprocess_uint8(
                 img,
                 normalizer=normalizer,
-                standardize=standardize,
-                resize_px=self.target_px)
+                standardize=standardize)
         else:
             raise errors.UnrecognizedBackendError
 
@@ -151,8 +175,7 @@ class StyleGAN2Interpolator:
             return dts.map(
                 partial(
                     sf.io.tensorflow.preprocess_uint8,
-                    normalizer=self.normalizer,
-                    resize_px=self.target_px),
+                    normalizer=self.normalizer),
                 num_parallel_calls=tf.data.AUTOTUNE,
                 deterministic=True
             )
@@ -160,8 +183,7 @@ class StyleGAN2Interpolator:
             return map(
                 partial(
                     sf.io.torch.preprocess_uint8,
-                    normalizer=self.normalizer,
-                    resize_px=self.target_px),
+                    normalizer=self.normalizer),
                 generator())
         else:
             raise errors.UnrecognizedBackendError
@@ -188,7 +210,8 @@ class StyleGAN2Interpolator:
     def set_feature_model(
         self,
         path: str,
-        layers: Union[str, List[str]] = 'postconv'
+        layers: Union[str, List[str]] = 'postconv',
+        **kwargs
     ) -> None:
         """Configures a classifier model to be used for generating features
         and predictions during interpolation.
@@ -199,14 +222,20 @@ class StyleGAN2Interpolator:
                 calculate activations for interpolated images.
                 Defaults to 'postconv'.
         """
-        self.features = sf.model.Features(path, layers=layers, include_logits=True)
+        self.features = sf.model.Features(
+            path,
+            layers=layers,
+            include_preds=True,
+            **kwargs)
         self.normalizer = self.features.wsi_normalizer  # type: ignore
 
     def seed_search(
         self,
         seeds: List[int],
         batch_size: int = 32,
-        verbose: bool = False
+        verbose: bool = False,
+        outcome_idx: int = 0,
+        concordance_thresholds: Optional[Iterable[float]] = None
     ) -> pd.core.frame.DataFrame:
         """Generates images for starting and ending classes for many seeds,
         calculating layer activations from a set classifier.
@@ -227,10 +256,13 @@ class StyleGAN2Interpolator:
 
         if self.features is None:
             raise Exception("Feature model not set; use .set_feature_model()")
+        if concordance_thresholds is None:
+            concordance_thresholds = [0.25, 0.5, 0.75]
 
+        ct = concordance_thresholds
         predictions = {0: [], 1: []}  # type: ignore
         features = {0: [], 1: []}  # type: ignore
-        swap_labels = []
+        concordance = []
         img_seeds = []
 
         # --- GAN-Classifier pipeline ---------------------------------------------
@@ -252,14 +284,12 @@ class StyleGAN2Interpolator:
         # Calculate classifier features for GAN images created from seeds.
         # Calculation happens in batches to improve computational efficiency.
         # noise + embedding -> GAN -> Classifier -> Predictions, Features
-        pb = track(total=len(seeds))
         seeds_and_embeddings = zip(
             sf.util.batch(seeds, batch_size),
             gan_embed0_dts,
             gan_embed1_dts
         )
-        for (seed_batch, embed0_batch, embed1_batch) in seeds_and_embeddings:
-
+        for (seed_batch, embed0_batch, embed1_batch) in tqdm(seeds_and_embeddings, total=int(len(seeds) / batch_size)):
             features0, pred0 = self.features(embed0_batch)
             features1, pred1 = self.features(embed1_batch)
 
@@ -267,12 +297,12 @@ class StyleGAN2Interpolator:
                 pred0, pred1 = pred0.cpu(), pred1.cpu()
                 features0, features1 = features0.cpu(), features1.cpu()
 
-            pred0 = pred0[:, 0].numpy()
-            pred1 = pred1[:, 0].numpy()
+            pred0 = pred0[:, outcome_idx].numpy()
+            pred1 = pred1[:, outcome_idx].numpy()
             features0 = np.reshape(features0.numpy(), (len(seed_batch), -1)).astype(np.float32)
             features1 = np.reshape(features1.numpy(), (len(seed_batch), -1)).astype(np.float32)
 
-            # For each seed in the batch, determine if there ids "class-swapping",
+            # For each seed in the batch, determine if there is "class concordance",
             # where the GAN class label matches the classifier prediction.
             #
             # This may not happen 100% percent of the time even with a perfect GAN
@@ -287,27 +317,25 @@ class StyleGAN2Interpolator:
 
                 # NOTE: This logic assumes predictions are discretized at 0,
                 # which will not be true for categorical outcomes.
-                if (pred0[i] < 0) and (pred1[i] > 0):
+                if (pred0[i] < ct[1]) and (pred1[i] > ct[1]):
                     # Class-swapping is observed for this seed.
-                    if (pred0[i] < -0.5) and (pred1[i] > 0.5):
+                    if (pred0[i] < ct[0]) and (pred1[i] > ct[2]):
                         # Strong class swapping.
                         tail = " **"
-                        swap_labels += ['strong_swap']
+                        concordance += ['strong']
                     else:
                         # Weak class swapping.
                         tail = " *"
-                        swap_labels += ['weak_swap']
-                elif (pred0[i] > 0) and (pred1[i] < 0):
+                        concordance += ['weak']
+                elif (pred0[i] > ct[1]) and (pred1[i] < ct[1]):
                     # Predictions are oppositve of what is expected.
                     tail = " (!)"
-                    swap_labels += ['no_swap']
+                    concordance += ['none']
                 else:
                     tail = ""
-                    swap_labels += ['no_swap']
+                    concordance += ['none']
                 if verbose:
                     print(f"Seed {seed_batch[i]:<6}: {pred0[i]:.2f}\t{pred1[i]:.2f}{tail}")
-            pb.update(len(seed_batch))
-        pb.close()
 
         # Convert to dataframe.
         df = pd.DataFrame({
@@ -316,7 +344,7 @@ class StyleGAN2Interpolator:
             'pred_end': pd.Series(predictions[1]),
             'features_start': pd.Series(features[0]).astype(object),
             'features_end': pd.Series(features[1]).astype(object),
-            'class_swap': pd.Series(swap_labels),
+            'concordance': pd.Series(concordance),
         })
         return df
 
@@ -422,7 +450,9 @@ class StyleGAN2Interpolator:
             np.ndarray: Image (uint8, shape=(height, width, 3))
         """
         img = self.generate(seed, embedding)
-        return sf.io.convert_dtype(img, np.uint8)[0]
+        img = (img * 127.5 + 128).clamp(0, 255).to(torch.uint8)[0]
+        img = img.permute(1, 2, 0)
+        return sf.io.convert_dtype(img, np.uint8)
 
     def generate_np_start(self, seed: int) -> np.ndarray:
         """Generate a numpy image from the starting class.
@@ -560,6 +590,7 @@ class StyleGAN2Interpolator:
         self,
         seed: int,
         steps: int = 100,
+        outcome_idx: int = 0,
     ) -> Tuple[List, ...]:
         """Interpolates between starting and ending classes for a seed,
         recording raw images, processed images, and predictions.
@@ -572,6 +603,8 @@ class StyleGAN2Interpolator:
         Returns:
             Tuple[List, ...]: Raw images, processed images, and predictions.
         """
+        if not isinstance(seed, int):
+            raise ValueError("Seed must be an integer.")
         import matplotlib.pyplot as plt
         import seaborn as sns
 
@@ -579,7 +612,9 @@ class StyleGAN2Interpolator:
         proc_imgs = []
         preds = []
 
-        for img in track(self.class_interpolate(seed, steps), total=steps):
+        for img in tqdm(self.class_interpolate(seed, steps),
+                         total=steps,
+                         desc=f"Working on seed {seed}..."):
             img = torch.from_numpy(np.expand_dims(img, axis=0)).permute(0, 3, 1, 2)
             img = (img / 127.5) - 1
             img = self._crop_and_convert_to_uint8(img)
@@ -592,11 +627,11 @@ class StyleGAN2Interpolator:
                 if sf.backend() == 'torch':
                     pred = pred.cpu()
                 pred = pred.numpy()
-                preds += [pred[0][0]]
+                preds += [pred[0][outcome_idx]]
             imgs += [img]
             proc_imgs += [processed_img[0]]
 
-        sns.lineplot(x=range(len(preds)), y=preds, label="Prediction")
+        sns.lineplot(x=range(len(preds)), y=preds, label=f"Seed {seed}")
         plt.axhline(y=0, color='black', linestyle='--')
         plt.title("Prediction during interpolation")
         plt.xlabel("Interpolation Step (Start -> End)")

@@ -1,11 +1,3 @@
-# Copyright (c) 2021, NVIDIA CORPORATION & AFFILIATES.  All rights reserved.
-#
-# NVIDIA CORPORATION and its licensors retain all intellectual property
-# and proprietary rights in and to this software, related documentation
-# and any modifications thereto.  Any use, reproduction, disclosure or
-# distribution of this software and related documentation without an express
-# license agreement from NVIDIA CORPORATION is strictly prohibited.
-
 import os
 import re
 import numpy as np
@@ -32,7 +24,11 @@ class CaptureWidget:
         try:
             _height, _width, channels = image.shape
             assert channels in [1, 3]
-            assert image.dtype == np.uint8
+            if image.dtype != np.uint8:
+                try:
+                    image = image.numpy()
+                except Exception:
+                    raise ValueError(f'Expected type np.uint8, got {image.dtype}')
             os.makedirs(self.path, exist_ok=True)
             file_id = 0
             for entry in os.scandir(self.path):

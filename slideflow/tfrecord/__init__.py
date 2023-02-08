@@ -1,4 +1,7 @@
-'''The submodule slideflow.tfrecord is a modified version from https://github.com/vahidk/tfrecord'''
+'''This module contains low-level utilies for interfacing with TFRecords.
+
+Code from this module was inspired in part by https://github.com/vahidk/tfrecord.
+'''
 
 from slideflow.tfrecord import \
     iterator_utils  # noqa # pylint: disable=unused-import

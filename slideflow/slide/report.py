@@ -5,8 +5,9 @@ from __future__ import absolute_import, division, print_function
 import io
 import os
 import tempfile
+import pandas as pd
 from datetime import datetime
-from os.path import join
+from os.path import join, exists
 from types import SimpleNamespace
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
@@ -33,7 +34,7 @@ class SlideReport:
         data: Dict[str, Any] = None,
         compress: bool = True
     ) -> None:
-        """Creates a slide report summarizing tile extraction, withsome example
+        """Creates a slide report summarizing tile extraction, with some example
         extracted images.
 
         Args:
@@ -48,6 +49,7 @@ class SlideReport:
 
         self.data = data
         self.path = path
+        self.timestamp = str(datetime.now())
         if thumb is None:
             self.thumb = None
         else:
@@ -223,6 +225,7 @@ class ExtractionReport:
 
         self.bb_threshold = bb_threshold
         self.reports = reports
+        self.meta = meta
         pdf = ExtractionPDF(title=title)
         pdf.alias_nb_pages()
         pdf.add_page()
@@ -265,7 +268,13 @@ class ExtractionReport:
                 pdf.cell(20, 4, m, ln=1)
             pdf.set_y(y+1)
             pdf.set_font('Arial')
-            for m in (meta.tile_px, meta.tile_um, meta.qc, meta.total_slides,
+            if isinstance(meta.qc, list):
+                qc = f"{len(meta.qc)} total"
+            elif isinstance(meta.qc, str):
+                qc = meta.qc
+            else:
+                qc = f"1 total"
+            for m in (meta.tile_px, meta.tile_um, qc, meta.total_slides,
                       meta.roi_method, meta.slides_skipped, meta.stride):
                 pdf.cell(30)
                 pdf.cell(20, 4, str(m), ln=1)
@@ -274,13 +283,14 @@ class ExtractionReport:
             pdf.set_y(y+1)
             pdf.set_font('Arial', style='B', size=10)
             for m in ('G.S. fraction', 'G.S. threshold', 'W.S. fraction',
-                      'W.S. threshold', 'Normalizer', 'Format'):
+                      'W.S. threshold', 'Normalizer', 'Format', 'Backend'):
                 pdf.cell(45)
                 pdf.cell(20, 4, m, ln=1)
             pdf.set_y(y+1)
             pdf.set_font('Arial')
             for m in (meta.gs_frac, meta.gs_thresh, meta.ws_frac,
-                      meta.ws_thresh, meta.normalizer, meta.img_format):
+                      meta.ws_thresh, meta.normalizer, meta.img_format,
+                      sf.slide_backend()):
                 pdf.cell(75)
                 pdf.cell(20, 4, str(m), ln=1)
 
@@ -396,3 +406,49 @@ class ExtractionReport:
 
     def save(self, filename: str) -> None:
         self.pdf.output(filename)
+
+    def update_csv(self, filename: str) -> Optional[pd.DataFrame]:
+        """Update and save tile extraction report as CSV."""
+
+        if len(self.reports):
+            print("Updating CSV for {} reports.".format(len(self.reports)))
+        else:
+            print("Skipping CSV update; no extraction reports found.")
+            return None
+        if exists(filename):
+            ex_df = pd.read_csv(filename)
+            ex_df.set_index('slide')
+        else:
+            ex_df = None
+        assert self.meta is not None
+        if not self.meta.qc:
+            qc_str = 'None'
+        elif isinstance(self.meta.qc, str):
+            qc_str = self.meta.qc
+        elif isinstance(self.meta.qc, list):
+            qc_str = ', '.join([str(s) for s in self.meta.qc])
+        else:
+            qc_str = str(self.meta.qc)
+        df = pd.DataFrame({
+            'slide':        pd.Series([path_to_name(r.path) for r in self.reports]),
+            'num_tiles':    pd.Series([r.data['num_tiles'] for r in self.reports]),
+            'tile_px':      pd.Series([self.meta.tile_px for r in self.reports]),
+            'tile_um':      pd.Series([self.meta.tile_um for r in self.reports]),
+            'rois':         pd.Series([r.data['num_rois'] for r in self.reports]),
+            'stride':       pd.Series([self.meta.stride for r in self.reports]),
+            'qc':           pd.Series([qc_str for r in self.reports]),
+            'gs_fraction':  pd.Series([self.meta.gs_frac for r in self.reports]),
+            'gs_threshold': pd.Series([self.meta.gs_thresh for r in self.reports]),
+            'ws_fraction':  pd.Series([self.meta.ws_frac for r in self.reports]),
+            'ws_threshold': pd.Series([self.meta.ws_thresh for r in self.reports]),
+            'normalizer':   pd.Series([self.meta.normalizer for r in self.reports]),
+            'img_format':   pd.Series([self.meta.img_format for r in self.reports]),
+            'date':         pd.Series([r.timestamp for r in self.reports]),
+            'backend':      pd.Series([sf.slide_backend() for r in self.reports]),
+            'slideflow_version': pd.Series([sf.__version__ for r in self.reports])
+        })
+        df.set_index('slide')
+        if ex_df is not None:
+            df = pd.concat([df, ex_df[~ex_df.slide.isin(df.slide.unique())]])
+        df.to_csv(filename, index=False)
+        return df

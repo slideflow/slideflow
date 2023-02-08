@@ -1,10 +1,11 @@
-.. currentmodule:: slideflow.mosaic
+.. currentmodule:: slideflow
 
-slideflow.mosaic
+.. _mosaic:
+
+slideflow.Mosaic
 ================
 
-This module provides the :class:`slideflow.Mosaic` class, which plots tile images onto a map of slides,
-generating mosaic maps.
+:class:`slideflow.Mosaic` plots tile images onto a map of slides, generating a mosaic map.
 
 The idea of a mosaic map is to visualize image feature variation across slides and among categories, in an attempt
 to better understand the kinds of image features discriminative models might be using to generate class predictions.
@@ -17,10 +18,16 @@ An example of a mosaic map can be found in Figure 4 of `this paper <https://doi.
 It bears some resemblence to the Activation Atlases created by
 `Google and OpenAI <https://distill.pub/2019/activation-atlas/>`_, without the use of feature inversion.
 
-.. automodule: slideflow.mosaic
+See :ref:`mosaic_map` for an example of how a mosaic map can be used in the context of a project.
 
-Mosaic
-------
+.. autoclass:: Mosaic
 
-.. autoclass:: slideflow.Mosaic
-    :inherited-members:
+Methods
+-------
+
+.. autofunction:: slideflow.Mosaic.focus
+.. autofunction:: slideflow.Mosaic.generate_grid
+.. autofunction:: slideflow.Mosaic.plot
+.. autofunction:: slideflow.Mosaic.points_at_grid_index
+.. autofunction:: slideflow.Mosaic.save
+.. autofunction:: slideflow.Mosaic.save_report

@@ -11,11 +11,12 @@ from slideflow import log
 if sf.util.tf_available:
     import tensorflow as tf
     physical_devices = tf.config.list_physical_devices('GPU')
-    try:
-        for device in physical_devices:
-            tf.config.experimental.set_memory_growth(device, True)
-    except Exception:
-        pass
+    gpus = tf.config.experimental.list_physical_devices('GPU')
+    for gpu in gpus:
+        try:
+            tf.config.experimental.set_memory_growth(gpu, True)
+        except RuntimeError:
+            pass
 if sf.util.torch_available:
     import slideflow.model.torch
 
@@ -46,7 +47,7 @@ def _load_umap_encoders(path, model) -> EasyDict:
     log.debug("Layers found at path {} in _load_umap_encoders: {}".format(path, layers))
     features = sf.model.Features.from_model(
         model,
-        include_logits=True,
+        include_preds=True,
         layers=layers,
         pooling='avg'
     )
@@ -58,7 +59,7 @@ def _load_umap_encoders(path, model) -> EasyDict:
         encoder._name = f'{layer}_encoder'
         outputs += [encoder(features.model.outputs[i])]
 
-    # Add the logits output
+    # Add the predictions output
     outputs += [features.model.outputs[-1]]
 
     # Build the encoder model for all layers

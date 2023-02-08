@@ -18,7 +18,7 @@ from slideflow.io import convert_dtype
 from slideflow.io.io_utils import detect_tfrecord_format
 from slideflow.tfrecord.torch.dataset import MultiTFRecordDataset
 from slideflow.tfrecord.iterator_utils import RandomSampler
-from slideflow.util import Labels, log, to_onehot
+from slideflow.util import Labels, log, to_onehot, tfrecord2idx
 from rich.progress import Progress
 
 import torch
@@ -440,11 +440,10 @@ def multi_slide_loader(
         )
     loaders = [slide.torch(lazy_iter=True,
                            shard=shard,
+                           infinite=infinite,
                            **kwargs)
                for slide in slides]
-    return RandomSampler(
-        loaders, splits_list, infinite=infinite, shard=None
-    )
+    return RandomSampler(loaders, splits_list, shard=None)
 
 
 def cwh_to_whc(img: torch.Tensor) -> torch.Tensor:
@@ -491,6 +490,20 @@ def read_and_return_record(
     parser: Callable,
     assign_slide: Optional[str] = None
 ) -> Dict:
+    """Process raw TFRecord bytes into a format that can be written with
+    ``tf.io.TFRecordWriter``.
+
+    Args:
+        record (bytes): Raw TFRecord bytes (unparsed)
+        parser (Callable): TFRecord parser, as returned by
+            :func:`sf.io.get_tfrecord_parser()`
+        assign_slide (str, optional): Slide name to override the record with.
+            Defaults to None.
+
+    Returns:
+        Dictionary mapping record key to a tuple containing (bytes, dtype).
+
+    """
     parsed = parser(record)
     if assign_slide:
         parsed['slide'] = assign_slide
@@ -830,8 +843,10 @@ def interleave(
             log.info(f"Reading {len(paths)} slides and thresholding...")
 
         # ---- Load slides and apply Otsu thresholding ------------------------
-        if pool is None:
-            pool = mp.Pool(os.cpu_count() if os.cpu_count() else 8)
+        if pool is None and sf.slide_backend() == 'cucim':
+            pool = mp.Pool(8 if os.cpu_count is None else os.cpu_count())
+        elif pool is None:
+            pool = mp.dummy.Pool(16 if os.cpu_count is None else os.cpu_count())
         wsi_list = []
         to_remove = []
         otsu_list = []
@@ -899,16 +914,12 @@ def interleave(
 
             def load_index(tfr):
                 tfr = tfr.decode('utf-8')
-                index_name = join(dirname(tfr),
-                                  sf.util.path_to_name(tfr)+'.index')
-                if not exists(index_name):
+                try:
+                    index = tfrecord2idx.load_index(tfr)
+                except OSError:
                     raise errors.TFRecordsError(
                         f"Could not find index path for TFRecord {tfr}"
                     )
-                if os.stat(index_name).st_size == 0:
-                    index = None
-                else:
-                    index = np.loadtxt(index_name, dtype=np.int64)
                 return index
 
             if pool is None:

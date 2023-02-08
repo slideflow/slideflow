@@ -345,6 +345,7 @@ def eval_from_model(
     y_true, y_pred, tile_to_slides, locations, y_std = [], [], [], [], []
     num_vals, num_batches, num_outcomes, running_loss = 0, 0, 0, 0
     batch_size = 0
+    loc_missing = False
 
     is_cat = (model_type == 'categorical')
     if not is_cat:
@@ -383,7 +384,11 @@ def eval_from_model(
 
         if incl_loc:
             img, yt, slide, loc_x, loc_y = batch
-            locations += [tf.stack([loc_x, loc_y], axis=-1).numpy()]  # type: ignore
+            if not loc_missing and loc_x is None:
+                log.warning("TFrecord location information not found.")
+                loc_missing = True
+            elif not loc_missing:
+                locations += [tf.stack([loc_x, loc_y], axis=-1).numpy()]  # type: ignore
         else:
             img, yt, slide = batch
 
@@ -409,13 +414,20 @@ def eval_from_model(
                 yt = [yt[f'out-{o}'] for o in range(len(yt))]
                 if loss is not None:
                     loss_val = [loss(yt[i], yp[i]) for i in range(len(yt))]
+                    loss_val = [tf.boolean_mask(l, tf.math.is_finite(l)) for l in loss_val]
                     batch_loss = tf.math.reduce_sum(loss_val).numpy()
                     running_loss = (((num_vals - slide.shape[0]) * running_loss) + batch_loss) / num_vals
             else:
                 y_true += [yt.numpy()]
                 if loss is not None:
                     loss_val = loss(yt, yp)
-                    batch_loss = tf.math.reduce_sum(loss_val).numpy()
+                    if tf.rank(loss_val):
+                        # Loss is a vector
+                        is_finite = tf.math.is_finite(loss_val)
+                        batch_loss = tf.math.reduce_sum(tf.boolean_mask(loss_val, is_finite)).numpy()
+                    else:
+                        # Loss is a scalar
+                        batch_loss = loss_val.numpy()  # type: ignore
                     running_loss = (((num_vals - slide.shape[0]) * running_loss) + batch_loss) / num_vals
 
     if verbosity != 'silent':

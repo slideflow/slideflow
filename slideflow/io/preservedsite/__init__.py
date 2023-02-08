@@ -1,1 +1,1 @@
-from .crossfolds import generate  # noqa F401
+from .crossfolds import generate as generate_crossfolds  # noqa F401

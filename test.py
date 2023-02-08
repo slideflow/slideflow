@@ -81,7 +81,7 @@ def main(slides, out, all_tests, slide_threads, **kwargs):
         if kwargs[test] is None and all_tests is not None:
             kwargs[test] = all_tests
 
-    sf.header()
+    sf.about()
 
     # Show tests to run
     print(col.bold("\nTests to run:"))

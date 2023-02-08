@@ -1,6 +1,6 @@
 .. _workbench:
 
-Workbench: Visualization Tools
+Workbench: Live Visualization
 ==============================
 
 .. video:: workbench_preview.webm
@@ -11,11 +11,11 @@ Workbench: Visualization Tools
 
 New in Slideflow 1.3, Workbench provides powerful tools for interactive visualization of model predictions for whole-slide images and GAN-generated images. It's also fast - with an OpenGL renderer and highly optimized whole-slide image viewer, you'll get a smooth experience that can even run on a Raspberry Pi.
 
-Run workbench using the ``workbench.py`` script in the main repository folder. A path to a whole-slide image can optionally be provided as the first argument.
+Workbench is run through the ``slideflow.workbench`` module. A path to a whole-slide image can optionally be provided as the first argument.
 
 .. code-block:: bash
 
-    python3 workbench.py /path/to/slide.svs
+    python -m slideflow.workbench
 
 Use the ``--help`` flag to see a list of available arguments.
 
@@ -101,11 +101,16 @@ Heatmaps & slide predictions
 
 |
 
-Once a model is loaded, the heatmap widget can be used to generate and display whole-slide heatmaps and slide predictions. Heatmaps are generated using the settings configured in the slide widget (including stride, tile filter, and slide filter). Click "Generate" in the heatmap widget to create the heatmap. Color scheme can be changed with the dropdown menu, as can the alpha and gain. You can switch which outcome is being displayed as a heatmap by cycling through the available logits. If the model was trained with uncertainty quantification (UQ), click the radio button next to UQ to show uncertainty as a heatmap.
+Once a model is loaded, the heatmap widget can be used to generate and display whole-slide heatmaps and slide predictions. Heatmaps are generated using the settings configured in the slide widget (including stride, tile filter, and slide filter). Click "Generate" in the heatmap widget to create the heatmap. Color scheme can be changed with the dropdown menu, as can the alpha and gain. You can switch which outcome is being displayed as a heatmap by cycling through the available predictions. If the model was trained with uncertainty quantification (UQ), click the radio button next to UQ to show uncertainty as a heatmap.
 
 The heatmap widget also shows a histogram of tile-level predictions (after filtering), as well as the final slide-level prediction, which is an average of these tile-level predictions.
 
 By default, heatmaps are calculated with multiprocessing pools. This may come at the cost of heavy memory utilization. To decrease memory utilization at the cost of slower heatmap calculation, switch to low memory mode using the performance widget (described below), or by using the launch flag ``--low_memory``.
+
+Cell segmentation
+*****************
+
+Workbench also supports interactive cell segmentation with Cellpose, which is enabled using the ``--cellpose`` flag. Please see :ref:`cellseg` for more information.
 
 StyleGAN
 ********
@@ -128,7 +133,7 @@ Capture & export
 ****************
 Export contents of the main view to a PNG file with File -> Export -> Main view. Similarly, the extracted image tile shown in the tile preview window can be exported with File -> Export -> Tile view. A screenshot of the entire window interface can be saved with File -> Export -> GUI view.
 
-Heatmaps can be saved in PNG format with File -> Export -> Heatmap (PNG). Alternatively, heatmaps can also be exported in numpy format (NPZ) with File -> Export -> Heatmap (NPZ). The heatmap of logits will be saved in the exported NPZ file under the key ``'logit'``, with the shape ``(y_dim, x_dim, num_logits)``. If the model was trained with uncertainty, the uncertainty heatmap will be saved under the key ``'uncertainty'``.
+Heatmaps can be saved in PNG format with File -> Export -> Heatmap (PNG). Alternatively, heatmaps can also be exported in numpy format (NPZ) with File -> Export -> Heatmap (NPZ). The heatmap of predictions will be saved in the exported NPZ file under the key ``'logit'``, with the shape ``(y_dim, x_dim, num_classes)``. If the model was trained with uncertainty, the uncertainty heatmap will be saved under the key ``'uncertainty'``.
 
 Performance monitoring
 **********************

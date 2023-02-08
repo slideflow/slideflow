@@ -8,29 +8,59 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 
+from ._version import get_versions
+import os
+import importlib
+
 __author__ = 'James Dolezal'
 __license__ = 'GNU General Public License v3.0'
-__version__ = '1.3.1-dev1'
+__version__ = get_versions()['version']
+__gitcommit__ = get_versions()['full-revisionid']
 __github__ = 'https://github.com/jamesdolezal/slideflow'
 
-try:
-    import git
-    __gitcommit__ = git.Repo(search_parent_directories=True).head.object.hexsha
-except Exception:
-    __gitcommit__ = None
+# --- Backend configuration ---------------------------------------------------
 
-# -----------------------------------------------------------------------------
-
-import os
-
+# Deep learning backend - use Tensorflow if available.
+_valid_backends = ('tensorflow', 'torch')
 if 'SF_BACKEND' not in os.environ:
-    os.environ['SF_BACKEND'] = 'tensorflow'
+    if importlib.util.find_spec('tensorflow'):
+        os.environ['SF_BACKEND'] = 'tensorflow'
+    elif importlib.util.find_spec('torch'):
+        os.environ['SF_BACKEND'] = 'torch'
+    else:
+        os.environ['SF_BACKEND'] = 'tensorflow'
+elif os.environ['SF_BACKEND'] not in _valid_backends:
+    raise ValueError("Unrecognized backend set via environmental variable "
+                     "SF_BACKEND: {}. Expected one of: {}".format(
+                        os.environ['SF_BACKEND'],
+                        ', '.join(_valid_backends)
+                     ))
+
+# Slide backend - use cuCIM if available.
+_valid_slide_backends = ('cucim', 'libvips')
+if 'SF_SLIDE_BACKEND' not in os.environ:
+    os.environ['SF_SLIDE_BACKEND'] = 'libvips'
+    if importlib.util.find_spec('cucim'):
+        import cucim
+        if cucim.is_available():
+            os.environ['SF_SLIDE_BACKEND'] = 'cucim'
+elif os.environ['SF_SLIDE_BACKEND'] not in _valid_slide_backends:
+    raise ValueError("Unrecognized slide backend set via environmental variable"
+                     " SF_SLIDE_BACKEND: {}. Expected one of: {}".format(
+                        os.environ['SF_SLIDE_BACKEND'],
+                        ', '.join(_valid_slide_backends)
+                     ))
 
 def backend():
     return os.environ['SF_BACKEND']
 
+def slide_backend():
+    return os.environ['SF_SLIDE_BACKEND']
+
+# -----------------------------------------------------------------------------
+
 # Import logging functions required for other submodules
-from slideflow.util import getLoggingLevel, log, setLoggingLevel, header
+from slideflow.util import getLoggingLevel, log, setLoggingLevel, about
 
 ...
 from slideflow import io, model, norm, stats
@@ -39,5 +69,7 @@ from slideflow.heatmap import Heatmap
 from slideflow.model import DatasetFeatures, ModelParams
 from slideflow.mosaic import Mosaic
 from slideflow.project import Project
+from slideflow.project import create as create_project
+from slideflow.project import load as load_project
 from slideflow.slide import TMA, WSI
 from slideflow.stats import SlideMap

@@ -115,7 +115,7 @@ Layer activations calculated on very large datasets may result in high memory us
       max_tiles=100
     )
 
-This function will return an instance of :class:`slideflow.DatasetFeatures`, which contains tile-level predictions (in ``DatasetFeatures.logits``), tile X,Y locations from their respective slides (in ``DatasetFeatures.locations``), layer activations (in ``DatasetFeatures.activations``), and uncertainty (if applicable, in ``DatasetFeatures.uncertainty``).
+This function will return an instance of :class:`slideflow.DatasetFeatures`, which contains tile-level predictions (in ``DatasetFeatures.predictions``), tile X,Y locations from their respective slides (in ``DatasetFeatures.locations``), layer activations (in ``DatasetFeatures.activations``), and uncertainty (if applicable, in ``DatasetFeatures.uncertainty``).
 
 
 Create the mosaic map
@@ -147,14 +147,14 @@ Save corresponding UMAPs
 
 Now that we have the mosaic generated, we need to create corresponding labeled UMAP plots to aid in interpretability. UMAP plots are stored in :class:`slideflow.SlideMap` objects. A mosaic's underlying ``SlideMap`` can be accessed via ``mosaic.slide_map``.
 
-The :class:`slideflow.SlideMap` class provides several functions useful for labeling. To start, we will label the umap according to the raw logits for each tile image. As this is a binary categorical outcome, there will be two logits. We will label the UMAP according to the second logit (id=1), and then save the image to disc.
+The :class:`slideflow.SlideMap` class provides several functions useful for labeling. To start, we will label the umap according to the raw predictions for each tile image. As this is a binary categorical outcome, there will be two post-softmax predictions. We will label the UMAP according to the second logit (id=1), and then save the image to disc.
 
 .. code-block:: python
 
-    # Label by raw logits
+    # Label by raw predictions
     umap = mosaic.slide_map
-    umap.label_by_logits(1)
-    umap.save('umap_logits.png')
+    umap.label_by_preds(1)
+    umap.save('umap_preds.png')
 
 .. image:: https://i.imgur.com/FT7nH90.png
 
@@ -162,7 +162,7 @@ Next, we will discretize the predictions, showing the final prediction as a cate
 
 .. code-block:: python
 
-    # Label by raw logits
+    # Label by raw preds
     umap.label_by_meta('prediction')
     umap.save('umap_predictions.png')
 
@@ -175,7 +175,7 @@ For reference, let's see the ground truth categorical labels. For this, we will 
     # Get slide labels
     labels, unique = P.dataset().labels('cohort')
 
-    # Label by raw logits
+    # Label with slide labels
     umap.label_by_slide(labels)
     umap.save('umap_labels.png')
 
@@ -185,7 +185,7 @@ Finally, if we are a using a model that was trained with uncertainty quantificat
 
 .. code-block:: python
 
-    # Label by raw logits
+    # Label by uncertainty
     umap.label_by_uncertainty()
     umap.save('umap_uncertainty.png')
 
@@ -195,7 +195,6 @@ In all cases, the UMAP plots can be customized by passing keyword arguments acce
 
 .. code-block:: python
 
-    # Label by raw logits
     umap.save(
         'umap_uncertainty.png', # Save path
         title='Uncertainty',    # Title for plot
