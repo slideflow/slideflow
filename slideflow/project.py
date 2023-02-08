@@ -6,6 +6,7 @@ import json
 import multiprocessing
 import numpy as np
 import os
+import sys
 import shutil
 import pickle
 import pandas as pd
@@ -2537,6 +2538,7 @@ class Project:
             join(model, x) for x in os.listdir(model)
             if isdir(join(model, x))
         ])
+
         # Generate predictions from each ensemble member,
         # and merge predictions into a single dataframe.
         for member_id, member_path in enumerate(member_paths):
@@ -2570,9 +2572,16 @@ class Project:
                     )
                 # Create (or add to) the ensemble dataframe.
                 for level in ('slide', 'tile'):
+                    # Assuming that the dir will have 'HPn'. For now, it will
+                    kfold_dir_name_split = from_path[0].split('HP0')
+                    kfold_path = join(
+                        self.eval_dir, 
+                        f"{kfold_dir_name_split[0]}HP{member_id}{kfold_dir_name_split[1]}"
+                        )
                     project_utils.add_to_ensemble_dataframe(
                         ensemble_path=main_eval_dir,
-                        kfold_path=join(self.eval_dir, from_path[0]),
+                        # kfold_path=join(self.eval_dir, from_path[0]),
+                        kfold_path=kfold_path,
                         level=level,
                         member_id=member_id
                     )
@@ -3029,7 +3038,10 @@ class Project:
     def train_ensemble(
         self,
         outcomes: Union[str, List[str]],
-        n_ensembles: int = 5,
+        params: Union[ModelParams,
+                      List[ModelParams],
+                      Dict[str, ModelParams]],
+        n_ensembles: Optional[int] = None,
         **kwargs
     ) -> List[Dict]:
         """Train an ensemble of model(s) using a given set of parameters,
@@ -3038,10 +3050,17 @@ class Project:
 
         Args:
             outcomes (str or list(str)): Outcome label annotation header(s).
-            n_ensembles (int): Total models needed in the ensemble.
-                Defaults to 5.
+            params (:class:`slideflow.model.ModelParams`, list or dict):
+                Model parameters for training. May provide one `ModelParams`,
+                a list, or dict mapping model names to params. If multiple
+                params are provided, will train an hyper deep ensemble models 
+                for them, otherwise a deep ensemble model. If JSON file
+                is provided, will interpret as a hyperparameter sweep. See
+                examples below for use.    
 
         Keyword Args:
+            n_ensembles (int, optional): Total models needed in the ensemble.
+                Defaults to 5.
             All keyword arguments accepted by :meth:`slideflow.Project.train`
 
         Returns:
@@ -3056,6 +3075,44 @@ class Project:
         ensemble_path = sf.util.get_new_model_dir(self.models_dir, ensemble_name)
         ensemble_results = []
 
+        hyper_deep = True
+
+        if isinstance(params, ModelParams):
+            hyper_deep = False
+            if n_ensembles is None:
+                raise ValueError("`n_ensembles` was not passed in `train_ensemble()`")
+ 
+        elif isinstance(params, list):
+            if not all([isinstance(hp, ModelParams) for hp in params]):
+                raise errors.ModelParamsError(
+                    'If params is a list, items must be sf.model.ModelParams'
+                )
+            hp_list = [[f'HP{hp_number}', hp] for hp_number, hp in enumerate(params)]
+            n_ensembles = len(hp_list)
+
+        elif isinstance(params, dict):
+            if not all([isinstance(hp, str) for hp in params.keys()]):
+                raise errors.ModelParamsError(
+                    'If params is a dict, keys must be of type str'
+                )
+            all_hp = params.values()
+            if not all([isinstance(hp, ModelParams) for hp in all_hp]):
+                raise errors.ModelParamsError(
+                    'If params is a dict, values must be sf.ModelParams'
+                )
+            # hp_list = [[hp_name, hp] for hp_name, hp in params.items()]
+            hp_list = [[f'HP{hp_number}', hp] for hp_number, hp in enumerate(params.values())]
+            n_ensembles = len(hp_list)
+
+        else:
+            raise ValueError(f"Unable to interprest params value {params}")
+
+        # Check for same epoch value
+        if hyper_deep:
+            for hp in hp_list:
+                if hp[1].epochs != hp_list[0][1].epochs:
+                    sys.exit("All the hyperparameters much have the same epoch value")
+        
         for i in range(n_ensembles):
             # Create the ensemble member folder, which will hold each
             # k-fold model for the given ensemble member.
@@ -3063,8 +3120,13 @@ class Project:
                 ensemble_path,
                 f"ensemble_{i+1}")
             with self._set_models_dir(member_path):
-                result = self.train(outcomes, **kwargs)
-                ensemble_results.append(result)
+                if hyper_deep:
+                    hp_name, hp = hp_list[i][0], hp_list[i][1]
+                    result = self.train(outcomes, {hp_name:hp}, **kwargs)
+                    ensemble_results.append(result)
+                else:
+                    result = self.train(outcomes, params, **kwargs)
+                    ensemble_results.append(result)
 
         # Copy the slide manifest and params.json file
         # into the parent ensemble folder.
@@ -3078,15 +3140,21 @@ class Project:
                     join(member_path, member_models[0], "params.json"),
                     join(ensemble_path, "params.json"))
             except OSError:
-                log.error("Unable to find ensemble slide manifest and params.json.")
+                log.error("Unable to find ensemble slide manifest and/or params.json.")
         else:
-            log.error("Unable to find ensemble slide manifest and params.json.")
+            log.error("Unable to find ensemble slide manifest and/or params.json.")
 
         # Merge predictions from each ensemble.
         if "save_predictions" in kwargs:
             if not kwargs['save_predictions']:
                 return ensemble_results
-        project_utils.ensemble_train_predictions(ensemble_path)
+        
+        if hyper_deep:
+            project_utils.ensemble_train_predictions(ensemble_path, hp_list)
+            # os.remove(join(ensemble_path, "params.json")) ???? Can't remove/rename because needed in predict_ensemble
+        else:
+            project_utils.ensemble_train_predictions(ensemble_path)
+
         return ensemble_results
 
     def train(
