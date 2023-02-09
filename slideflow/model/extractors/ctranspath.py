@@ -1,3 +1,12 @@
+"""Pretrained CTransPath Feature extractor by Wang, et al.
+
+Manuscript: Transformer-based unsupervised contrastive learning for
+    histopathological image classification. Medical Image Analysis. Oct 2022.
+    https://doi.org/10.1016/j.media.2022.102559
+
+GitHub: https://github.com/Xiyue-Wang/TransPath
+"""
+
 import torch
 import torch.nn as nn
 import math
@@ -548,6 +557,20 @@ class ConvStem(torch.nn.Module):
 # -----------------------------------------------------------------------------
 
 class CTransPathFeatures(BaseFeatureExtractor):
+    """CTransPath pretrained feature extractor.
+
+    The feature extractor is based on a modified swin transformer
+    ("swin_tiny_patch4_window7_224"), pretrained on digital pathology images,
+    224 x 224 px, at ~10x magnification.
+
+    Feature dimensions: 768
+
+    Manuscript: Transformer-based unsupervised contrastive learning for
+    histopathological image classification. Medical Image Analysis. Oct 2022.
+    https://doi.org/10.1016/j.media.2022.102559
+
+    GitHub: https://github.com/Xiyue-Wang/TransPath
+    """
 
     def __init__(self, device='cuda', center_crop=False):
         super().__init__(backend='torch')
