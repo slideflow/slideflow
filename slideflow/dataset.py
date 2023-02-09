@@ -3147,6 +3147,7 @@ class Dataset:
             "removed in a future version. Please use Dataset.split()",
             DeprecationWarning
         )
+        return self.split(*args, **kwargs)
 
     def torch(
         self,
