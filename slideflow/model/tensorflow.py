@@ -24,7 +24,7 @@ from slideflow.util import log, NormFit
 from tensorflow.keras import applications as kapps
 
 from . import tensorflow_utils as tf_utils
-from .base import log_manifest, no_scope
+from .base import log_manifest, no_scope, BaseFeatureExtractor
 from .tensorflow_utils import unwrap, flatten, eval_from_model  # type: ignore
 
 # Set the tensorflow logger
@@ -2071,7 +2071,7 @@ class CPHTrainer(LinearTrainer):
         return image_dict, label
 
 
-class Features:
+class Features(BaseFeatureExtractor):
     """Interface for obtaining predictions and features from intermediate layer
     activations from Slideflow models.
 
@@ -2141,12 +2141,7 @@ class Features:
                 compatibility across Slideflow versions. Loading with 'weights'
                 may improve compatibility across hardware & environments.
         """
-        self.path = path
-        self.num_classes = 0
-        self.num_features = 0
-        self.num_uncertainty = 0
-        self.img_format = None
-        log.debug('Setting up Features interface')
+        super().__init__('tensorflow', path, layers, include_preds)
         if path is not None:
             self._model = load(self.path, method=load_method)  # type: ignore
             config = sf.util.get_model_config(path)

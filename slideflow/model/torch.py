@@ -19,7 +19,7 @@ from torch.nn.functional import softmax
 from slideflow import errors
 from slideflow.model import base as _base
 from slideflow.model import torch_utils
-from slideflow.model.base import log_manifest, no_scope
+from slideflow.model.base import log_manifest, no_scope, BaseFeatureExtractor
 from slideflow.util import log, NormFit, ImgBatchSpeedColumn
 from rich.progress import Progress, TimeElapsedColumn
 from packaging import version
@@ -1853,7 +1853,7 @@ class CPHTrainer(Trainer):
         raise NotImplementedError
 
 
-class Features:
+class Features(BaseFeatureExtractor):
     """Interface for obtaining predictions and features from intermediate layer
     activations from Slideflow models.
 
@@ -1934,20 +1934,11 @@ class Features:
                 ``torch.nn.Module.load_state_dict()``. Defaults to
                 'full' (ignored).
         """
-
-        if layers and isinstance(layers, str):
-            layers = [layers]
-        self.path = path
-        self.num_classes = 0
-        self.num_features = 0
-        self.num_uncertainty = 0
+        super().__init__('torch', path, layers, include_preds)
         self.apply_softmax = apply_softmax
         self.mixed_precision = mixed_precision
-        self.img_format = None
         # Hook for storing layer activations during model inference
         self.activation = {}  # type: Dict[Any, Tensor]
-        self.layers = layers
-        self.include_preds = include_preds
         self.device = device if device is not None else torch.device('cuda')
 
         if path is not None:

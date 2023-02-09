@@ -21,9 +21,12 @@ import numpy as np
 import pandas as pd
 import scipy.stats as stats
 import slideflow as sf
+from rich.progress import track, Progress
 from slideflow import errors
 from slideflow.util import log, Labels, ImgBatchSpeedColumn
-from rich.progress import track, Progress
+from .base import BaseFeatureExtractor
+from .extractors import get_feature_extractor
+
 
 if TYPE_CHECKING:
     import tensorflow as tf
@@ -283,7 +286,10 @@ class DatasetFeatures:
             self.labels = labels
 
         # Load configuration if model is path to a saved model
-        if isinstance(model, str) and sf.util.is_simclr_model_path(model):
+        if isinstance(model, BaseFeatureExtractor):
+            self.uq = model.num_uncertainty > 0
+            self.normalizer = model.normalizer
+        elif isinstance(model, str) and sf.util.is_simclr_model_path(model):
             self.uq = False
             self.normalizer = None
         elif isinstance(model, str):
@@ -372,7 +378,7 @@ class DatasetFeatures:
         self,
         model: Union[str, "tf.keras.models.Model", "torch.nn.Module"],
         layers: Union[str, List[str]] = 'postconv',
-        include_preds: bool = True,
+        include_preds: Optional[bool] = None,
         include_uncertainty: bool = True,
         batch_size: int = 32,
         cache: Optional[str] = None,
@@ -399,16 +405,29 @@ class DatasetFeatures:
         log.info(f'Calculating activations for {self.tfrecords.shape[0]} '
                  f'tfrecords (layers={layers})')
         log.info(f'Generating from [green]{model}')
-        layers = sf.util.as_list(layers)
-        is_simclr = sf.util.is_simclr_model_path(model)
 
-        # Load model
+        layers = sf.util.as_list(layers)
+        is_extractor = isinstance(model, BaseFeatureExtractor)
+        is_simclr = sf.util.is_simclr_model_path(model)
+        is_torch = sf.model.is_torch_model(model)
+        is_tf = sf.model.is_tensorflow_model(model)
+
+        if is_extractor and include_preds is None:
+            include_preds = model.num_classes > 0
+        elif include_preds is None:
+            include_preds = True
+
+        # Build the combined (feature +/- prediction) model.
         feat_kw = dict(
             layers=layers,
             include_preds=include_preds,
             **kwargs
         )
-        if self.uq and include_uncertainty:
+        if isinstance(model, BaseFeatureExtractor):
+            is_torch = model.is_torch()
+            is_tf = model.is_tensorflow()
+            combined_model = model
+        elif self.uq and include_uncertainty:
             combined_model = sf.model.UncertaintyInterface(
                 model,
                 layers=layers
@@ -421,14 +440,14 @@ class DatasetFeatures:
             combined_model.num_classes = simclr_args.num_classes
         elif isinstance(model, str):
             combined_model = sf.model.Features(model, **feat_kw)
-        elif sf.model.is_tensorflow_model(model):
+        elif is_tf:
             combined_model = sf.model.Features.from_model(model, **feat_kw)
-        elif sf.model.is_torch_model(model):
+        elif is_torch:
             combined_model = sf.model.Features.from_model(
                 model,
                 tile_px=self.tile_px,
                 **feat_kw
-            )
+            ).to('cuda')
         else:
             raise ValueError(f'Unrecognized model {model}')
 
@@ -441,7 +460,7 @@ class DatasetFeatures:
         # Interleave tfrecord datasets
         estimated_tiles = self.dataset.num_tiles
 
-        # Get backend-specific dataloader/dataset
+        # Prepare preprocessing
         dataset_kwargs = {
             'infinite': False,
             'batch_size': batch_size,
@@ -450,8 +469,11 @@ class DatasetFeatures:
             'incl_loc': True,
             'normalizer': self.normalizer
         }
+        if is_extractor:
+            dataset_kwargs.update(model.preprocess_kwargs)
+
+        # Get backend-specific dataset
         if is_simclr:
-            from slideflow import simclr
             builder = simclr.DatasetBuilder(
                 val_dts=self.dataset,
                 dataset_kwargs=dict(
@@ -465,14 +487,14 @@ class DatasetFeatures:
                 is_training=False,
                 simclr_args=simclr_args
             )
-        elif sf.model.is_tensorflow_model(model):
+        elif is_tf:
             dataloader = self.dataset.tensorflow(
                 None,
                 num_parallel_reads=None,
                 deterministic=True,
                 **dataset_kwargs  # type: ignore
             )
-        elif sf.model.is_torch_model(model):
+        elif is_torch:
             dataloader = self.dataset.torch(
                 None,
                 num_workers=1,
@@ -491,7 +513,7 @@ class DatasetFeatures:
                     return
                 model_out = sf.util.as_list(model_out)
 
-                if is_simclr or sf.model.is_tensorflow_model(model):
+                if is_simclr or is_tf:
                     decoded_slides = [
                         bs.decode('utf-8')
                         for bs in batch_slides.numpy()
@@ -507,7 +529,7 @@ class DatasetFeatures:
                         ], axis=1)
                     else:
                         batch_loc = None
-                elif sf.model.is_torch_model(model):
+                elif is_torch:
                     decoded_slides = batch_slides
                     model_out = [
                         m.cpu().numpy() if not isinstance(m, list) else m
@@ -556,7 +578,12 @@ class DatasetFeatures:
         pb.start()
         for batch_img, _, batch_slides, batch_loc_x, batch_loc_y in dataloader:
             call_kw = dict(training=False) if is_simclr else dict()
-            model_output = combined_model(batch_img, **call_kw)
+            if is_torch:
+                import torch
+                with torch.no_grad():
+                    model_output = combined_model(batch_img.to('cuda'), **call_kw)
+            else:
+                model_output = combined_model(batch_img, **call_kw)
             q.put((model_output, batch_slides, (batch_loc_x, batch_loc_y)))
             pb.advance(task, batch_size)
         pb.stop()

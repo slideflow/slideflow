@@ -399,6 +399,53 @@ class _ModelParams:
             return 'categorical'
 
 
+class BaseFeatureExtractor:
+
+    def __init__(
+        self,
+        backend: str,
+        path: Optional[str] = None,
+        layers: Optional[Union[str, List[str]]] = 'postconv',
+        include_preds: bool = False,
+    ) -> None:
+        assert backend in ('tensorflow', 'torch')
+        if layers and isinstance(layers, str):
+            layers = [layers]
+        self.backend = backend
+        self.path = path
+        self.num_classes = 0
+        self.num_features = 0
+        self.num_uncertainty = 0
+        self.img_format = None
+        self.wsi_normalizer = None
+        self.layers = layers
+        self.include_preds = include_preds
+        self.preprocess_kwargs = {}
+
+    def __str__(self):
+        return "<{} n_features={}, n_classes={}>".format(
+            self.__class__.__name__,
+            self.num_features,
+            self.num_classes,
+        )
+
+    @property
+    def normalizer(self) -> Optional["StainNormalizer"]:
+        """Returns the configured whole-slide image normalizer."""
+        return self.wsi_normalizer
+
+    @normalizer.setter
+    def normalizer(self, normalizer: "StainNormalizer") -> None:
+        """Sets the normalizer property."""
+        self.wsi_normalizer = normalizer
+
+    def is_torch(self):
+        return self.backend == 'torch'
+
+    def is_tensorflow(self):
+        return self.backend == 'tensorflow'
+
+
 class HyperParameterError(Exception):
     pass
 
