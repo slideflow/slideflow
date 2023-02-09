@@ -68,7 +68,8 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
         tile_um: Optional[int] = None,
         rois: Optional[List[str]] = None,
         roi_method: str = 'auto',
-        pool: Optional[Any] = None
+        pool: Optional[Any] = None,
+        transform: Optional[Any] = None
     ) -> None:
         """Pytorch IterableDataset that interleaves tfrecords with
         :func:`slideflow.io.torch.interleave`.
@@ -144,6 +145,7 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
         self.rois = rois
         self.roi_method = roi_method
         self.pool = pool
+        self.transform = transform
 
         # Values for random label generation, for GAN
         if labels is not None:
@@ -281,7 +283,8 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
             tile_um=self.tile_um,
             rois=self.rois,
             roi_method=self.roi_method,
-            pool=self.pool
+            pool=self.pool,
+            transform=self.transform
         )
         self.close = queue_retriever.close
         try:
@@ -577,7 +580,8 @@ def _decode_image(
     standardize: bool = False,
     normalizer: Optional["StainNormalizer"] = None,
     augment: bool = False,
-    device: Optional[torch.device] = None
+    device: Optional[torch.device] = None,
+    transform: Optional[Any] = None,
 ) -> torch.Tensor:
     """Decodes image. Torch implementation; different than sf.io.tensorflow"""
 
@@ -644,6 +648,8 @@ def _decode_image(
         # Note: not the same as tensorflow's per_image_standardization
         # Convert back: image = (image + 1) * (255/2)
         image = image / 127.5 - 1
+    if transform:
+        image = cwh_to_whc(transform(whc_to_cwh(image)))
     return image
 
 
@@ -762,6 +768,7 @@ def interleave(
     rois: Optional[List[str]] = None,
     roi_method: str = 'auto',
     pool: Optional[Any] = None,
+    transform: Optional[Any] = None,
 ):
 
     """Returns a generator that interleaves records from a collection of
@@ -949,6 +956,7 @@ def interleave(
             standardize=standardize,
             normalizer=normalizer,
             augment=augment,
+            transform=transform,
             device=device
         )
         return record
