@@ -2141,7 +2141,11 @@ class Features(BaseFeatureExtractor):
                 compatibility across Slideflow versions. Loading with 'weights'
                 may improve compatibility across hardware & environments.
         """
-        super().__init__('tensorflow', path, layers, include_preds)
+        super().__init__('tensorflow', include_preds=include_preds)
+        if layers and isinstance(layers, str):
+            layers = [layers]
+        self.layers = layers
+        self.path = path
         if path is not None:
             self._model = load(self.path, method=load_method)  # type: ignore
             config = sf.util.get_model_config(path)

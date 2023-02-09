@@ -400,27 +400,46 @@ class _ModelParams:
 
 
 class BaseFeatureExtractor:
+    """Base feature extractor, to be extended by subclasses.
 
-    def __init__(
-        self,
-        backend: str,
-        path: Optional[str] = None,
-        layers: Optional[Union[str, List[str]]] = 'postconv',
-        include_preds: bool = False,
-    ) -> None:
+    Considerations when extending this class:
+    - Be sure to set .num_classes and .num_features accordingly
+    - Be sure to included any needed preprocessing steps in .preprocess_kwargs.
+      These keyword arguments will be passed to :meth:`Dataset.tensorflow()` and
+      :meth:`Dataset.torch()` when datasets are being prepared to interface
+      with this feature extractor.
+    - __call__ should return feature vectors for a batch of pre-processed images.
+    - If you want to perform custom preprocessing that cannot be supported
+      using preprocess_kwargs, set .preprocess_kwargs = {'standardize': False}
+      and include all preprocessing steps in __call__.
+
+    """
+    def __init__(self, backend: str, include_preds: bool = False) -> None:
+        """Initialize the base feature extractor.
+
+        Args:
+            backend (str): Either 'tensorflow' or 'torch'. Used to determine
+                which Tensor format this feature extractor can work with.
+            include_preds (bool): Whether the output of this extractor
+                also returns predictions. If so, they should be returned
+                after the features. Defaults to False.
+        """
+
         assert backend in ('tensorflow', 'torch')
-        if layers and isinstance(layers, str):
-            layers = [layers]
-        self.backend = backend
-        self.path = path
+        self.include_preds = include_preds
+
+        # ---------------------------------------------------------------------
         self.num_classes = 0
         self.num_features = 0
         self.num_uncertainty = 0
+        self.preprocess_kwargs = {}
+        # ---------------------------------------------------------------------
+
+        self.backend = backend
         self.img_format = None
         self.wsi_normalizer = None
-        self.layers = layers
         self.include_preds = include_preds
-        self.preprocess_kwargs = {}
+
 
     def __str__(self):
         return "<{} n_features={}, n_classes={}>".format(

@@ -1934,7 +1934,11 @@ class Features(BaseFeatureExtractor):
                 ``torch.nn.Module.load_state_dict()``. Defaults to
                 'full' (ignored).
         """
-        super().__init__('torch', path, layers, include_preds)
+        super().__init__('torch', include_preds=include_preds)
+        if layers and isinstance(layers, str):
+            layers = [layers]
+        self.layers = layers
+        self.path = path
         self.apply_softmax = apply_softmax
         self.mixed_precision = mixed_precision
         # Hook for storing layer activations during model inference

@@ -586,6 +586,7 @@ class CTransPathFeatures(BaseFeatureExtractor):
         self.model.load_state_dict(td['model'], strict=True)
         self.model = self.model.to(device)
 
+        # ---------------------------------------------------------------------
         self.num_features = 768
         self.num_classes = 0
         all_transforms = [transforms.CenterCrop(224)] if center_crop else []
@@ -599,6 +600,7 @@ class CTransPathFeatures(BaseFeatureExtractor):
             transform=transforms.Compose(all_transforms),
             standardize=False
         )
+        # ---------------------------------------------------------------------
 
     def __call__(self, batch_images):
         return self.model(batch_images)
