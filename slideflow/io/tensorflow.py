@@ -680,16 +680,18 @@ def _get_parsed_datasets(
 def tfrecord_example(
     slide: bytes,
     image_raw: bytes,
-    loc_x: int = 0,
-    loc_y: int = 0
+    loc_x: Optional[int] = 0,
+    loc_y: Optional[int] = 0
 ) -> "Example":
     '''Returns a Tensorflow Data example for TFRecord storage.'''
     feature = {
         'slide': _bytes_feature(slide),
         'image_raw': _bytes_feature(image_raw),
-        'loc_x': _int64_feature(loc_x),
-        'loc_y': _int64_feature(loc_y)
     }
+    if loc_x is not None:
+        feature.update({'loc_x': _int64_feature(loc_x)})
+    if loc_y is not None:
+        feature.update({'loc_y': _int64_feature(loc_y)})
     return tf.train.Example(features=tf.train.Features(feature=feature))
 
 
@@ -860,7 +862,12 @@ def transform_tfrecord(
 
     for record in dataset:
         slide, image_raw, loc_x, loc_y = parser(record)  # type: ignore
-        slidename = slide if not assign_slide else bytes(assign_slide, 'utf-8')
+        if assign_slide and isinstance(assign_slide, str):
+            slidename = bytes(assign_slide, 'utf-8')
+        elif assign_slide:
+            slidename = bytes(assign_slide(slide), 'utf-8')
+        else:
+            slidename = slide
         image_processed_data = process_image(image_raw)
         tf_example = tfrecord_example(
             slidename,
