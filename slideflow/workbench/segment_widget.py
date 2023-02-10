@@ -122,16 +122,18 @@ class SegmentWidget:
             self.refresh_segmentation_view()
             refresh_toast.done()
 
-    def drag_and_drop_hook(self, path, ignore_errors=False):
+    def drag_and_drop_hook(self, path, ignore_errors=False) -> bool:
         """Handle file paths provided via drag-and-drop."""
         if (sf.util.path_to_ext(path).lower() == 'zip'):
             try:
                 z = zarr.open(path)
             except Exception as e:
-                return
+                return False
             else:
                 if 'masks' in z:
                     self.load(path, ignore_errors=ignore_errors)
+                    return True
+        return False
 
     def load(self, path, ignore_errors=False):
         """Load a .npz with saved masks."""

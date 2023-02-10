@@ -921,10 +921,15 @@ class Workbench(imgui_window.ImguiWindow):
             self.load_heatmap(path)
         else:
             # See if any widgets implement a drag_and_drop_hook() method
+            handled = False
             for widget in self.widgets:
                 sf.log.info(f"Attempting load with widget {widget}")
                 if hasattr(widget, 'drag_and_drop_hook'):
-                    widget.drag_and_drop_hook(path)
+                    if widget.drag_and_drop_hook(path):
+                        handled = True
+                        break
+            if not handled:
+                self.create_toast(f"No loading handler found for {path}", icon="error")
 
     def clear_overlay(self) -> None:
         """Remove the currently overlay image."""
