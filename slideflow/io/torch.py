@@ -122,7 +122,7 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
             self.prob_weights = np.array(prob_weights)
         else:
             self.prob_weights = None  # type: ignore
-        self.clip = np.array(clip) if clip is not None else None
+        self.clip = clip
         self.indices = indices
         self.img_size = img_size
         self.rank = rank
@@ -942,7 +942,7 @@ def interleave(
             indices,
             prob_weights,
             shard=(rank, num_replicas),
-            clip=[clip[t] for t in paths] if clip else None,
+            clip=[clip[(t if isinstance(t, str) else t.decode('utf-8'))] for t in paths] if clip else None,
             infinite=infinite
         )
         sampler_iter = iter(random_sampler)
