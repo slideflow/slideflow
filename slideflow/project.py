@@ -3333,7 +3333,7 @@ class Project:
             n_ensembles = len(hp_list)
             log.info("The hyperparameter name to ensemble member mapping is:")
             for e, n in enumerate(params.keys()):
-                log.info(f"  - {n} : ensemble_{e}")
+                log.info(f"  - {n} : ensemble_{e+1}")
 
         else:
             raise ValueError(f"Unable to interprest params value {params}")
@@ -3374,7 +3374,7 @@ class Project:
                 del params_data['hp']
                 params_data['hyper_deep_ensemble'] = hyper_deep
                 sf.util.write_json(params_data, join(ensemble_path, "ensemble_params.json"))
-                
+
             except OSError:
                 log.error("Unable to find ensemble slide manifest and params.json.")
         else:
