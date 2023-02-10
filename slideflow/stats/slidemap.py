@@ -314,7 +314,6 @@ class SlideMap:
         coordinates = self.umap_transform(node_activations, **umap_kwargs)
 
         # Assemble dataframe
-
         tfrecord_indices = np.concatenate([
             np.arange(self.ftrs.activations[slide].shape[0])
             for slide in self.slides
@@ -501,7 +500,15 @@ class SlideMap:
                 "`tfrecords` argument (list of TFRecord paths) must be supplied "
                 "to `SlideMap.build_mosaic()`"
             )
-        elif self.ftrs is not None:
+        elif ((self.ftrs is not None and not len(self.ftrs.tfrecords))
+               and tfrecords is None):
+            raise ValueError(
+                "The DatasetFeatures object used to create this SlideMap "
+                "did not have paths to TFRecords stored. Please supply a list "
+                "of TFRecord paths to the `tfrecords` argument "
+                "of `SlideMap.build_mosaic()`"
+            )
+        elif self.ftrs is not None and len(self.ftrs.tfrecords):
             return sf.Mosaic(self, tfrecords=self.ftrs.tfrecords, **kwargs)
         else:
             return sf.Mosaic(self, tfrecords=tfrecords, **kwargs)

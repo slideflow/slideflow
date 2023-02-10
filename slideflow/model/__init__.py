@@ -263,11 +263,18 @@ class DatasetFeatures:
         self.locations = defaultdict(list)  # type: Dict[str, Any]
         self.num_features = 0
         self.num_classes = 0
-        self.manifest = dataset.manifest()
         self.model = model
         self.dataset = dataset
-        self.tile_px = dataset.tile_px
-        self.tfrecords = np.array(dataset.tfrecords())
+        if dataset is not None:
+            self.tile_px = dataset.tile_px
+            self.manifest = dataset.manifest()
+            self.tfrecords = np.array(dataset.tfrecords())
+        else:
+            # Used when creating via DatasetFeatures.from_df(),
+            # otherwise dataset should not be None.
+            self.tile_px = None
+            self.manifest = dict()
+            self.tfrecords = []
         self.slides = sorted([sf.util.path_to_name(t) for t in self.tfrecords])
 
         if labels is not None and annotations is not None:
@@ -329,7 +336,7 @@ class DatasetFeatures:
             self.load_cache(cache)
 
         # Otherwise will need to generate new activations from a given model
-        else:
+        elif model is not None:
             self._generate_from_model(model, cache=cache, **kwargs)
 
         # Now delete slides not included in our filtered TFRecord list
@@ -373,6 +380,35 @@ class DatasetFeatures:
         if self.num_features is None:
             self.num_features = self.activations[self.slides[0]].shape[-1]
         log.debug(f'Number of activation features: {self.num_features}')
+
+    @classmethod
+    def from_df(cls, df: "pd.core.frame.DataFrame"):
+        """Load DataFrame of features, as exported by :meth:`DatasetFeatures.to_df()`"""
+        obj = cls(None, None)  # type: ignore
+        obj.slides = df.index.unique().tolist()
+        if 'activations' in df.columns:
+            obj.activations = {
+                s: np.stack(df.loc[df.index==s].activations.values)
+                for s in obj.slides
+            }
+            obj.num_features = next(df.iterrows())[1].activations.shape[0]
+        if 'locations' in df.columns:
+            obj.locations = {
+                s: np.stack(df.loc[df.index==s].locations.values)
+                for s in obj.slides
+            }
+        if 'uncertainty' in df.columns:
+            obj.uncertainty = {
+                s: np.stack(df.loc[df.index==s].uncertainty.values)
+                for s in obj.slides
+            }
+        if 'predictions' in df.columns:
+            obj.uncertainty = {
+                s: np.stack(df.loc[df.index==s].predictions.values)
+                for s in obj.slides
+            }
+            obj.num_classes = next(df.iterrows())[1].predictions.shape[0]
+        return obj
 
     def _generate_from_model(
         self,
