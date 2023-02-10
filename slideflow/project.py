@@ -3190,7 +3190,7 @@ class Project:
                 )
             hp_dict = params
         else:
-            raise ValueError(f"Unable to interprest params value {params}")
+            raise ValueError(f"Unable to interpret params value {params}")
 
         # Get default validation settings from kwargs
         val_kwargs = {
@@ -3282,10 +3282,8 @@ class Project:
             params (:class:`slideflow.model.ModelParams`, list or dict):
                 Model parameters for training. May provide one `ModelParams`,
                 a list, or dict mapping model names to params. If multiple
-                params are provided, will train an hyper deep ensemble models 
-                for them, otherwise a deep ensemble model. If JSON file
-                is provided, will interpret as a hyperparameter sweep. See
-                examples below for use.    
+                params are provided, will train an hyper deep ensemble models
+                for them, otherwise a deep ensemble model.
 
         Keyword Args:
             n_ensembles (int, optional): Total models needed in the ensemble.
@@ -3308,7 +3306,7 @@ class Project:
             hyper_deep = False
             if n_ensembles is None:
                 raise ValueError("`n_ensembles` was not passed in `train_ensemble()`")
- 
+
         elif isinstance(params, list):
             hyper_deep = True
             if not all([isinstance(hp, ModelParams) for hp in params]):
@@ -3336,7 +3334,7 @@ class Project:
                 log.info(f"  - {n} : ensemble_{e+1}")
 
         else:
-            raise ValueError(f"Unable to interprest params value {params}")
+            raise ValueError(f"Unable to interpret params value {params}")
 
         # Check for same epoch value
         if hyper_deep:
