@@ -7,6 +7,7 @@ import json
 import multiprocessing
 import numpy as np
 import os
+import sys
 import shutil
 import pickle
 import pandas as pd
@@ -2625,7 +2626,7 @@ class Project:
         if not exists(model):
             raise OSError(f"Path {model} not found")
 
-        config = sf.util.get_model_config(model)
+        config = sf.util.get_ensemble_model_config(model)
         outcomes = f"{'-'.join(config['outcomes'])}"
         model_name = f"eval-ensemble-{outcomes}"
         main_eval_dir = sf.util.get_new_model_dir(self.eval_dir, model_name)
@@ -2661,10 +2662,11 @@ class Project:
                         join(self.eval_dir, from_path[0], "slide_manifest.csv"),
                         join(main_eval_dir, "slide_manifest.csv")
                     )
-                    shutil.copyfile(
-                        join(self.eval_dir, from_path[0], "params.json"),
-                        join(main_eval_dir, "slide_manifest.csv")
-                    )
+                    params_data = sf.util.load_json(join(self.eval_dir, from_path[0], "params.json"))
+                    params_data['ensemble_epochs'] = params_data['hp']['epochs']
+                    del params_data['hp']
+                    sf.util.write_json(params_data, join(main_eval_dir, "ensemble_params.json"))
+
                 # Create (or add to) the ensemble dataframe.
                 for level in ('slide', 'tile'):
                     project_utils.add_to_ensemble_dataframe(
@@ -3265,7 +3267,10 @@ class Project:
     def train_ensemble(
         self,
         outcomes: Union[str, List[str]],
-        n_ensembles: int = 5,
+        params: Union[ModelParams,
+                      List[ModelParams],
+                      Dict[str, ModelParams]],
+        n_ensembles: Optional[int] = None,
         **kwargs
     ) -> List[Dict]:
         """Train an ensemble of model(s) using a given set of parameters,
@@ -3274,11 +3279,18 @@ class Project:
 
         Args:
             outcomes (str or list(str)): Outcome label annotation header(s).
-            n_ensembles (int): Total models needed in the ensemble.
-                Defaults to 5.
+            params (:class:`slideflow.model.ModelParams`, list or dict):
+                Model parameters for training. May provide one `ModelParams`,
+                a list, or dict mapping model names to params. If multiple
+                params are provided, will train an hyper deep ensemble models 
+                for them, otherwise a deep ensemble model. If JSON file
+                is provided, will interpret as a hyperparameter sweep. See
+                examples below for use.    
 
         Keyword Args:
-            **kwargs: All keyword arguments accepted by :meth:`slideflow.Project.train`
+            n_ensembles (int, optional): Total models needed in the ensemble.
+                Defaults to 5.
+            All keyword arguments accepted by :meth:`slideflow.Project.train`
 
         Returns:
             List of dictionaries of length ``n_ensembles``, containing training
@@ -3292,6 +3304,47 @@ class Project:
         ensemble_path = sf.util.get_new_model_dir(self.models_dir, ensemble_name)
         ensemble_results = []
 
+        if isinstance(params, ModelParams):
+            hyper_deep = False
+            if n_ensembles is None:
+                raise ValueError("`n_ensembles` was not passed in `train_ensemble()`")
+ 
+        elif isinstance(params, list):
+            hyper_deep = True
+            if not all([isinstance(hp, ModelParams) for hp in params]):
+                raise errors.ModelParamsError(
+                    'If params is a list, items must be sf.model.ModelParams'
+                )
+            hp_list = params
+            n_ensembles = len(hp_list)
+
+        elif isinstance(params, dict):
+            hyper_deep = True
+            if not all([isinstance(hp, str) for hp in params.keys()]):
+                raise errors.ModelParamsError(
+                    'If params is a dict, keys must be of type str'
+                )
+            all_hp = params.values()
+            if not all([isinstance(hp, ModelParams) for hp in all_hp]):
+                raise errors.ModelParamsError(
+                    'If params is a dict, values must be sf.ModelParams'
+                )
+            hp_list = [hp for hp in params.values()]
+            n_ensembles = len(hp_list)
+            log.info("The hyperparameter name to ensemble member mapping is:")
+            for e, n in enumerate(params.keys()):
+                log.info(f"  - {n} : ensemble_{e}")
+
+        else:
+            raise ValueError(f"Unable to interprest params value {params}")
+
+        # Check for same epoch value
+        if hyper_deep:
+            for hp in hp_list:
+                if hp.epochs != hp_list[0].epochs:
+                    raise errors.ModelParamsNotFoundError(
+                        "All the hyperparameters much have the same epoch value")
+
         for i in range(n_ensembles):
             # Create the ensemble member folder, which will hold each
             # k-fold model for the given ensemble member.
@@ -3299,8 +3352,13 @@ class Project:
                 ensemble_path,
                 f"ensemble_{i+1}")
             with self._set_models_dir(member_path):
-                result = self.train(outcomes, **kwargs)
-                ensemble_results.append(result)
+                if hyper_deep:
+                    hp = hp_list[i]
+                    result = self.train(outcomes, hp, **kwargs)
+                    ensemble_results.append(result)
+                else:
+                    result = self.train(outcomes, params, **kwargs)
+                    ensemble_results.append(result)
 
         # Copy the slide manifest and params.json file
         # into the parent ensemble folder.
@@ -3310,9 +3368,13 @@ class Project:
                 shutil.copyfile(
                     join(member_path, member_models[0], "slide_manifest.csv"),
                     join(ensemble_path, "slide_manifest.csv"))
-                shutil.copyfile(
-                    join(member_path, member_models[0], "params.json"),
-                    join(ensemble_path, "params.json"))
+
+                params_data = sf.util.load_json(join(member_path, member_models[0], "params.json"))
+                params_data['ensemble_epochs'] = params_data['hp']['epochs']
+                del params_data['hp']
+                params_data['hyper_deep_ensemble'] = hyper_deep
+                sf.util.write_json(params_data, join(ensemble_path, "ensemble_params.json"))
+                
             except OSError:
                 log.error("Unable to find ensemble slide manifest and params.json.")
         else:
