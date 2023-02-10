@@ -604,7 +604,7 @@ class Mosaic:
                     image = None
             else:
                 image = self.images[idx]
-            to_map.append((idx, point.x, point.y, point.display_size, point.alpha, image))
+            to_map.append((idx, point.grid_x * self.tile_size, point.grid_y * self.tile_size, point.display_size, point.alpha, image))
 
         if pool is None:
             pool = DPool(os.cpu_count())
