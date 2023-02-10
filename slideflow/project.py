@@ -3600,8 +3600,26 @@ class Project:
         *,
         bags_path: str,
         exp_label: Optional[str] = None,
+        **kwargs
     ) -> None:
-        """Train a Marugoto aMIL model."""
+        """Train a Marugoto aMIL model.
+
+        Args:
+            train_dataset (:class:`slideflow.Dataset`): Training dataset.
+            val_dataset (:class:`slideflow.Dataset`): Validation dataset.
+            outcomes (str): Outcome column (annotation header) from which to
+                derive category labels.
+
+        Keyword args:
+            bags_path (str): Path to directory with *.pt files, containing
+                exported feature vectors, with each file containing all tile
+                features for one patient.
+            exp_label (str): Experiment label, used for naming the subdirectory
+                in the ``{project root}/mil`` folder, where training history
+                and the model will be saved.
+            lr_max (float): Maximum learning rate.
+            epochs (int): Maximum epochs.
+        """
         from slideflow.mil import marugoto
 
         # Set up output directory in project root
@@ -3636,7 +3654,8 @@ class Project:
             train_idx=train_idx,
             val_idx=val_idx,
             unique_categories=unique_categories,
-            outdir=outdir
+            outdir=outdir,
+            **kwargs
         )
 
 # -----------------------------------------------------------------------------
