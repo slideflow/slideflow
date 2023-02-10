@@ -122,7 +122,7 @@ class WindowAttention(nn.Module):
         # get pair-wise relative position index for each token inside the window
         coords_h = torch.arange(self.window_size[0])
         coords_w = torch.arange(self.window_size[1])
-        coords = torch.stack(torch.meshgrid([coords_h, coords_w]))  # 2, Wh, Ww
+        coords = torch.stack(torch.meshgrid([coords_h, coords_w], indexing='ij'))  # 2, Wh, Ww
         coords_flatten = torch.flatten(coords, 1)  # 2, Wh*Ww
         relative_coords = coords_flatten[:, :, None] - coords_flatten[:, None, :]  # 2, Wh*Ww, Wh*Ww
         relative_coords = relative_coords.permute(1, 2, 0).contiguous()  # Wh*Ww, Wh*Ww, 2
@@ -591,18 +591,18 @@ class CTransPathFeatures(BaseFeatureExtractor):
         self.num_classes = 0
         all_transforms = [transforms.CenterCrop(224)] if center_crop else []
         all_transforms += [
-            transforms.ConvertImageDtype(torch.float32),
+            transforms.Lambda(lambda x: x / 255.),
             transforms.Normalize(
                 mean=(0.485, 0.456, 0.406),
                 std=(0.229, 0.224, 0.225))
         ]
-        self.preprocess_kwargs = dict(
-            transform=transforms.Compose(all_transforms),
-            standardize=False
-        )
+        self.transform = transforms.Compose(all_transforms)
+        self.preprocess_kwargs = dict(standardize=False)
         # ---------------------------------------------------------------------
 
     def __call__(self, batch_images):
+        assert batch_images.dtype == torch.uint8
+        batch_images = self.transform(batch_images)
         return self.model(batch_images)
 
 
