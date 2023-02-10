@@ -659,6 +659,33 @@ def get_model_config(model_path: str) -> Dict:
     return config
 
 
+def get_ensemble_model_config(model_path: str) -> Dict:
+    """Loads ensemble model configuration JSON file."""
+
+    if exists(join(model_path, 'ensemble_params.json')):
+        config = load_json(join(model_path, 'ensemble_params.json'))
+    elif exists(join(dirname(model_path), 'ensemble_params.json')):
+        if not (sf.util.torch_available
+                and sf.util.path_to_ext(model_path) == 'zip'):
+            log.warning(
+                "Hyperparameters not in model directory; loading from parent"
+                " directory. Please move ensemble_params.json into model folder."
+            )
+        config = load_json(join(dirname(model_path), 'params.json'))
+    else:
+        raise errors.ModelParamsNotFoundError
+    # Compatibility for pre-1.1
+    if 'norm_mean' in config:
+        config['norm_fit'] = {
+            'target_means': config['norm_mean'],
+            'target_stds': config['norm_std'],
+        }
+    if 'outcome_label_headers' in config:
+        log.debug("Replacing outcome_label_headers in params.json -> outcomes")
+        config['outcomes'] = config.pop('outcome_label_headers')
+    return config
+
+
 def get_model_normalizer(
     model_path: str
 ) -> Optional["sf.norm.StainNormalizer"]:
