@@ -1,7 +1,5 @@
 import collections
 import math
-import pdb
-import pickle
 from itertools import islice
 
 import numpy as np
@@ -14,7 +12,7 @@ from torch.utils.data import (DataLoader, RandomSampler, Sampler,
                               sampler)
 from torchvision import transforms
 
-device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class SubsetSequentialSampler(Sampler):
     """Samples elements sequentially from a given list of indices, without replacement.

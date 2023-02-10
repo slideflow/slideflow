@@ -9,8 +9,9 @@ import torch
 from typing import Union
 from scipy import stats
 from torch.utils.data import Dataset
-from slideflow.clam.utils import generate_split, nth
 from slideflow import log
+
+from ..utils import generate_split, nth
 
 
 class ClamError(Exception):

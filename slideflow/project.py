@@ -3592,6 +3592,53 @@ class Project:
                         outdir=heatmaps_dir
                     )
 
+    def train_marugoto(
+        self,
+        train_dataset: Dataset,
+        val_dataset: Dataset,
+        outcomes: Union[str, List[str]],
+        *,
+        bags_path: str,
+        exp_label: Optional[str] = None,
+    ) -> None:
+        """Train a Marugoto aMIL model."""
+        from slideflow.mil import marugoto
+
+        # Set up output directory in project root
+        if exp_label is None:
+            exp_label = 'marugoto'
+        if not exists(join(self.root, 'mil')):
+            os.makedirs(join(self.root, 'mil'))
+        outdir = sf.util.get_new_model_dir(join(self.root, 'mil'), exp_label)
+        if not exists(outdir):
+            os.makedirs(outdir)
+
+        # Prepare labels and slides
+        labels, unique_train = train_dataset.labels(outcomes, format='name')
+        val_labels, unique_val = val_dataset.labels(outcomes, format='name')
+        labels.update(val_labels)
+        unique_categories = np.unique(unique_train + unique_val)
+
+        # Prepare bags
+        train_bags = train_dataset.pt_files(bags_path)
+        val_bags = val_dataset.pt_files(bags_path)
+        bags = np.concatenate((train_bags, val_bags))
+        targets = np.array([labels[path_to_name(f)] for f in bags])
+
+        # Prepare training/validation indices
+        train_idx = np.arange(len(train_bags))
+        val_idx = np.arange(len(train_bags), targets.shape[0])
+
+        # Train
+        marugoto.train_mil(
+            bags=bags,
+            targets=targets,
+            train_idx=train_idx,
+            val_idx=val_idx,
+            unique_categories=unique_categories,
+            outdir=outdir
+        )
+
 # -----------------------------------------------------------------------------
 
 def load(root: str, **kwargs) -> "Project":

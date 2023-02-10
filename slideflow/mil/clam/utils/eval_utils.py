@@ -9,10 +9,10 @@ from sklearn.metrics import auc, roc_auc_score, roc_curve
 from sklearn.preprocessing import label_binarize
 
 from slideflow import log
-from slideflow.clam.models.model_clam import CLAM_MB, CLAM_SB
-from slideflow.clam.models.model_mil import MIL_fc, MIL_fc_mc
-from slideflow.clam.utils import *
-from slideflow.clam.utils.core_utils import Accuracy_Logger
+from ..models.model_clam import CLAM_MB, CLAM_SB
+from ..models.model_mil import MIL_fc, MIL_fc_mc
+from ..utils import *
+from ..utils.core_utils import Accuracy_Logger
 
 
 def initiate_model(args, ckpt_path):

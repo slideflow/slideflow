@@ -1,16 +1,15 @@
-import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from slideflow.clam.utils import initialize_weights
+from ..utils import initialize_weights
 
 
 class MIL_fc(nn.Module):
 	def __init__(self, gate = True, size_arg = "small", dropout = False, n_classes = 2, top_k=1):
 		super(MIL_fc, self).__init__()
 		assert n_classes == 2
-		
+
 		self.size_dict = {"small": [1024, 512]}
 		if type(size_arg) == str:
 			size = self.size_dict[size_arg]
@@ -36,12 +35,12 @@ class MIL_fc(nn.Module):
 			logits = self.classifier.module[3](h)
 		else:
 			logits  = self.classifier(h) # K x 1
-		
+
 		y_probs = F.softmax(logits, dim = 1)
 		top_instance_idx = torch.topk(y_probs[:, 1], self.top_k, dim=0)[1].view(1,)
 		top_instance = torch.index_select(logits, dim=0, index=top_instance_idx)
 		Y_hat = torch.topk(top_instance, 1, dim = 1)[1]
-		Y_prob = F.softmax(top_instance, dim = 1) 
+		Y_prob = F.softmax(top_instance, dim = 1)
 		results_dict = {}
 
 		if return_features:
@@ -76,10 +75,10 @@ class MIL_fc_mc(nn.Module):
 		device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
 		self.fc = self.fc.to(device)
 		self.classifiers = self.classifiers.to(device)
-	
+
 	def forward(self, h, return_features=False):
 		device = h.device
-	   
+
 		h = self.fc(h)
 		logits = torch.empty(h.size(0), self.n_classes).float().to(device)
 
@@ -87,7 +86,7 @@ class MIL_fc_mc(nn.Module):
 			if isinstance(self.classifiers, nn.DataParallel):
 				logits[:, c] = self.classifiers.module[c](h).squeeze(1)
 			else:
-				logits[:, c] = self.classifiers[c](h).squeeze(1)        
+				logits[:, c] = self.classifiers[c](h).squeeze(1)
 
 		y_probs = F.softmax(logits, dim = 1)
 		m = y_probs.view(1, -1).argmax(1)
@@ -96,7 +95,7 @@ class MIL_fc_mc(nn.Module):
 
 		Y_hat = top_indices[1]
 		Y_prob = y_probs[top_indices[0]]
-		
+
 		results_dict = {}
 
 		if return_features:
@@ -105,4 +104,4 @@ class MIL_fc_mc(nn.Module):
 		return top_instance, Y_prob, Y_hat, y_probs, results_dict
 
 
-		
+

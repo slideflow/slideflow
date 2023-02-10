@@ -2031,6 +2031,13 @@ class Dataset:
                     result[slide] = patient
         return result
 
+    def pt_files(self, path):
+        """Return list of *.pt files with slide names in this dataset."""
+        return np.array([
+            join(path, f) for f in os.listdir(path)
+            if f.endswith('.pt') and path_to_name(f) in self.slides()
+        ])
+
     def remove_filter(self, **kwargs: Any) -> "Dataset":
         """Removes a specific filter from the active filters.
 
@@ -3148,6 +3155,26 @@ class Dataset:
             DeprecationWarning
         )
         return self.split(*args, **kwargs)
+
+    def transform_tfrecords(self, dest: str, **kwargs) -> None:
+        """Transform TFRecords, saving to a target path, nested by source name."""
+        if not exists(dest):
+            os.makedirs(dest)
+        total = len(self.tfrecords())
+        pb = tqdm(total=total)
+        for source in self.sources:
+            log.debug(f"Working on source {source}")
+            tfr_dest = join(dest, source)
+            if not exists(tfr_dest):
+                os.makedirs(tfr_dest)
+            for tfr in self.tfrecords(source=source):
+                sf.io.tensorflow.transform_tfrecord(
+                    tfr,
+                    join(tfr_dest, basename(tfr)),
+                    **kwargs
+                )
+                pb.update(1)
+        log.info(f"Saved {total} transformed tfrecords to {dest}.")
 
     def torch(
         self,

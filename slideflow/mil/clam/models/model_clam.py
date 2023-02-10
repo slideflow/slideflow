@@ -2,7 +2,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from slideflow.clam.utils import initialize_weights
+from ..utils import initialize_weights
 
 """
 Attention Network without Gating (2 fc layers)

@@ -9,9 +9,9 @@ import numpy as np
 import torch
 
 from slideflow import log
-from slideflow.clam.models.model_clam import CLAM_MB, CLAM_SB
-from slideflow.clam.utils import *
-from slideflow.clam.utils.eval_utils import initiate_model as initiate_model
+from .models.model_clam import CLAM_MB, CLAM_SB
+from .utils import *
+from .utils.eval_utils import initiate_model as initiate_model
 
 
 def path_to_name(path):
