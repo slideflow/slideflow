@@ -101,6 +101,7 @@ from queue import Queue
 from random import shuffle
 from tabulate import tabulate  # type: ignore[import]
 from pprint import pformat
+from functools import partial
 from typing import (TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Tuple,
                     Union, Callable)
 import numpy as np
@@ -122,6 +123,7 @@ if TYPE_CHECKING:
     from torch.utils.data import DataLoader
     from slideflow.norm import StainNormalizer
 
+# -----------------------------------------------------------------------------
 
 def _prepare_slide(
     path: str,
@@ -253,6 +255,16 @@ def _count_otsu_tiles(wsi):
     wsi.qc('otsu')
     return wsi.estimated_num_tiles
 
+
+def _create_index(tfrecord, force=False):
+    index_name = join(
+        dirname(tfrecord),
+        path_to_name(tfrecord)+'.index'
+    )
+    if not tfrecord2idx.find_index(tfrecord) or force:
+        tfrecord2idx.create_index(tfrecord, index_name)
+
+# -----------------------------------------------------------------------------
 
 def split_patients_preserved_site(
     patients_dict: Dict[str, Dict],
@@ -388,6 +400,7 @@ def split_patients(patients_dict: Dict[str, Dict], n: int) -> List[List[str]]:
     shuffle(patient_list)
     return list(sf.util.split_list(patient_list, n))
 
+# -----------------------------------------------------------------------------
 
 class Dataset:
     """Supervises organization and processing of slides, tfrecords, and tiles.
@@ -888,17 +901,9 @@ class Dataset:
         Returns:
             None
         """
-        def create_index(tfrecord):
-            nonlocal force
-            index_name = join(
-                dirname(tfrecord),
-                path_to_name(tfrecord)+'.index'
-            )
-            if not tfrecord2idx.find_index(tfrecord) or force:
-                tfrecord2idx.create_index(tfrecord, index_name)
-
-        pool = DPool(16)
-        for _ in track(pool.imap_unordered(create_index, self.tfrecords()),
+        pool = mp.Pool(os.cpu_count())
+        index_fn = partial(_create_index, force=force)
+        for _ in track(pool.imap_unordered(index_fn, self.tfrecords()),
                       description='Creating index files...',
                       total=len(self.tfrecords()),
                       transient=True):
