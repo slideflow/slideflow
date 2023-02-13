@@ -3421,6 +3421,8 @@ class Project:
         # Set up SimCLR experiment data directory
         if exp_label is None:
             exp_label = 'simclr'
+        if not exists(join(self.root, 'simclr')):
+            os.makedirs(join(self.root, 'simclr'))
         outdir = sf.util.get_new_model_dir(join(self.root, 'simclr'), exp_label)
         if not exists(outdir):
             os.makedirs(outdir)
