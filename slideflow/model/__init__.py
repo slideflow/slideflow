@@ -15,7 +15,7 @@ import warnings
 from collections import defaultdict
 from math import isnan
 from os.path import exists, join
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union, Iterable
 
 import numpy as np
 import pandas as pd
@@ -413,6 +413,61 @@ class DatasetFeatures:
             }
             obj.num_classes = next(df.iterrows())[1].predictions.shape[0]
         return obj
+
+    @classmethod
+    def concat(
+        cls,
+        args: Iterable["DatasetFeatures"],
+    ):
+        """Concatenates activations from multiple DatasetFeatures together.
+
+        For example, if ``df1`` is a DatasetFeatures object with 2048 features
+        and ``df2`` is a DatasetFeatures object with 1024 features,
+        then ``sf.DatasetFeatures.concat([df1, df2])`` would return an object
+        with 3072.
+
+        Vectors from DatasetFeatures objects are concatenated in the given order.
+        During concatenation, predictions and uncertainty are dropped.
+
+        If there are any tiles that do not have calculated features in both
+        dataframes, these will be dropped.
+        """
+        assert len(args) > 1
+        dfs = []
+        for f, ftrs in enumerate(args):
+            log.debug(f"Creating dataframe {f} from features...")
+            dfs.append(ftrs.to_df())
+        log.debug(f"Created {len(dfs)} dataframes")
+        for i in range(len(dfs)):
+            log.debug(f"Mapping tuples for df {i}")
+            dfs[i]['locations'] = dfs[i]['locations'].map(tuple)
+        for i in range(1, len(dfs)):
+            log.debug(f"Merging dataframe {i}")
+            dfs[0] = pd.merge(
+                dfs[0],
+                dfs[i],
+                how='inner',
+                left_on=['slide', 'locations'],
+                right_on=['slide', 'locations'],
+                suffixes=['_1', '_2']
+            )
+            log.debug("Dropping merged columns")
+            to_drop = [c for c in dfs[0].columns
+                       if ('predictions' in c or 'uncertainty' in c)]
+            dfs[0].drop(columns=to_drop, inplace=True)
+            log.debug("Concatenating activations")
+            act1 = np.stack(dfs[0]['activations_1'].values)
+            act2 = np.stack(dfs[0]['activations_2'].values)
+            log.debug(f"Act 1 shape: {act1.shape}")
+            log.debug(f"Act 2 shape: {act2.shape}")
+            concatenated = np.concatenate((act1, act2), axis=1)
+            as_list = [_c for _c in concatenated]
+            dfs[0]['activations'] = as_list
+            log.debug("Dropping old columns")
+            dfs[0].drop(columns=['activations_1', 'activations_2'], inplace=True)
+        log.debug("Creating DatasetFeatures object")
+        return DatasetFeatures.from_df(dfs[0])
+
 
     def _generate_from_model(
         self,
@@ -844,7 +899,7 @@ class DatasetFeatures:
 
         index = [s for s in self.slides
                    for _ in range(len(self.locations[s]))]
-        df_dict = {}
+        df_dict = dict()
         df_dict.update({
             'locations': pd.Series([
                 self.locations[s][i]
@@ -872,7 +927,9 @@ class DatasetFeatures:
                     for s in self.slides
                     for i in range(len(self.uncertainty[s]))], index=index)
             })
-        return pd.DataFrame(df_dict)
+        df = pd.DataFrame(df_dict)
+        df['slide'] = df.index
+        return df
 
     def load_cache(self, path: str):
         """Load cached activations from PKL.
