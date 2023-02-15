@@ -1042,6 +1042,13 @@ def get_new_model_dir(root: str, model_name: str) -> str:
     return model_dir
 
 
+def create_new_model_dir(root: str, model_name: str) -> str:
+    path = get_new_model_dir(root, model_name)
+    if not os.path.exists(path):
+        os.makedirs(path)
+    return path
+
+
 def split_list(a: List, n: int) -> List[List]:
     '''Function to split a list into n components'''
     k, m = divmod(len(a), n)

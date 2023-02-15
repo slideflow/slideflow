@@ -3415,9 +3415,7 @@ class Project:
             exp_label = 'simclr'
         if not exists(join(self.root, 'simclr')):
             os.makedirs(join(self.root, 'simclr'))
-        outdir = sf.util.get_new_model_dir(join(self.root, 'simclr'), exp_label)
-        if not exists(outdir):
-            os.makedirs(outdir)
+        outdir = sf.util.create_new_model_dir(join(self.root, 'simclr'), exp_label)
 
         # get base SimCLR args/settings if not provided
         if not simclr_args:
@@ -3433,20 +3431,11 @@ class Project:
         )
         simclr.run_simclr(simclr_args, builder, model_dir=outdir, **kwargs)
 
-    def train_clam(
-        self,
-        exp_name: str,
-        pt_files: str,
-        outcomes: Union[str, List[str]],
-        dataset: Dataset,
-        train_slides: Union[str, List[str]] = 'auto',
-        val_slides: Union[str, List[str]] = 'auto',
-        splits: str = 'splits.json',
-        clam_args: Optional[SimpleNamespace] = None,
-        attention_heatmaps: bool = True
-    ) -> None:
-        """Train a CLAM model from layer activations exported with
-        :meth:`slideflow.project.generate_features_for_clam`.
+    def train_clam(self, *args, splits: str = 'splits.json', **kwargs):
+        """Deprecated function. Train a CLAM model from layer activations
+        exported with :meth:`slideflow.Project.generate_features_for_clam`.
+
+        Preferred API is :meth:`slideflow.Project.train_mil()`.
 
         See :ref:`clam_mil` for more information.
 
@@ -3488,227 +3477,58 @@ class Project:
 
         Returns:
             None
-
         """
-
-        import slideflow.clam as clam
-        from slideflow.clam import export_attention
-        from slideflow.clam import Generic_MIL_Dataset
-
-        # Set up CLAM experiment data directory
-        clam_dir = join(self.root, 'clam', exp_name)
-        results_dir = join(clam_dir, 'results')
-        splits_file = join(self.root, splits)
-        if not exists(results_dir):
-            os.makedirs(results_dir)
-
-        # Get base CLAM args/settings if not provided.
-        if not clam_args:
-            clam_args = clam.get_args()
-        assert isinstance(clam_args, SimpleNamespace)
-
-        # Detect number of features automatically from saved pt_files
-        pt_file_paths = [
-            join(pt_files, p) for p in os.listdir(pt_files)
-            if sf.util.path_to_ext(join(pt_files, p)) == 'pt'
-        ]
-        num_features = clam.detect_num_features(pt_file_paths[0])
-
-        # Note: CLAM only supports categorical outcomes
-        labels, unique_labels = dataset.labels(outcomes, use_float=False)
-
-        if train_slides == val_slides == 'auto':
-            k_train_slides = {}  # type: Dict
-            k_val_slides = {}  # type: Dict
-            for k in range(clam_args.k):
-                train_dts, val_dts = dataset.split(
-                    'categorical',
-                    labels,
-                    val_strategy='k-fold',
-                    splits=splits_file,
-                    val_k_fold=clam_args.k,
-                    k_fold_iter=k+1
-                )
-                k_train_slides[k] = [
-                    path_to_name(t) for t in train_dts.tfrecords()
-                ]
-                k_val_slides[k] = [
-                    path_to_name(t) for t in val_dts.tfrecords()
-                ]
-        else:
-            k_train_slides = {0: train_slides}
-            k_val_slides = {0: val_slides}
-
-        # Remove slides without associated .pt files
-        num_skipped = 0
-        for k in k_train_slides:
-            n_supplied = len(k_train_slides[k]) + len(k_val_slides[k])
-            k_train_slides[k] = [
-                s for s in k_train_slides[k] if exists(join(pt_files, s+'.pt'))
-            ]
-            k_val_slides[k] = [
-                s for s in k_val_slides[k] if exists(join(pt_files, s+'.pt'))
-            ]
-            n_train = len(k_train_slides[k])
-            n_val = len(k_val_slides[k])
-            num_skipped += n_supplied - (n_train + n_val)
-        if num_skipped:
-            log.warn(f'Skipping {num_skipped} slides missing .pt files.')
-
-        # Set up training/validation splits (mirror base model)
-        split_dir = join(clam_dir, 'splits')
-        if not exists(split_dir):
-            os.makedirs(split_dir)
-        header = ['', 'train', 'val', 'test']
-        for k in range(clam_args.k):
-            with open(join(split_dir, f'splits_{k}.csv'), 'w') as f:
-                writer = csv.writer(f)
-                writer.writerow(header)
-                # Currently, the below sets the val & test sets to be the same
-                for i in range(max(len(k_train_slides[k]),
-                                   len(k_val_slides[k]))):
-                    row = [i]  # type: List
-                    if i < len(k_train_slides[k]):
-                        row += [k_train_slides[k][i]]
-                    else:
-                        row += ['']
-                    if i < len(k_val_slides[k]):
-                        row += [k_val_slides[k][i], k_val_slides[k][i]]
-                    else:
-                        row += ['', '']
-                    writer.writerow(row)
-
-        # Assign CLAM settings based on this project
-        clam_args.model_size = [num_features, 256, 128]
-        clam_args.results_dir = results_dir
-        clam_args.n_classes = len(unique_labels)
-        clam_args.split_dir = split_dir
-        clam_args.data_root_dir = pt_files
-
-        # Save clam settings
-        sf.util.write_json(vars(clam_args), join(clam_dir, 'experiment.json'))
-
-        # Create CLAM dataset
-        clam_dataset = Generic_MIL_Dataset(
-            annotations=dataset.filtered_annotations,
-            data_dir=pt_files,
-            shuffle=False,
-            seed=clam_args.seed,
-            print_info=True,
-            label_col=outcomes,
-            label_dict=dict(zip(unique_labels, range(len(unique_labels)))),
-            patient_strat=False,
-            ignore=[]
+        from slideflow.mil import legacy_train_clam
+        warnings.warn("Project.train_clam() is deprecated. Please use "
+                      "Project.train_mil()",
+                      DeprecationWarning)
+        return legacy_train_clam(
+            *args,
+            outdir=join(self.root, 'clam'),
+            splits=join(self.root, splits),
+            **kwargs
         )
-        # Run CLAM
-        clam.main(clam_args, clam_dataset)
 
-        # Get attention from trained model on validation set(s)
-        for k in k_val_slides:
-            tfr = dataset.tfrecords()
-            attention_tfrecords = [
-                t for t in tfr if path_to_name(t) in k_val_slides[k]
-            ]
-            attention_dir = join(clam_dir, 'attention', str(k))
-            if not exists(attention_dir):
-                os.makedirs(attention_dir)
-            rev_labels = dict(zip(range(len(unique_labels)), unique_labels))
-            export_attention(
-                vars(clam_args),
-                ckpt_path=join(results_dir, f's_{k}_checkpoint.pt'),
-                outdir=attention_dir,
-                pt_files=pt_files,
-                slides=k_val_slides[k],
-                reverse_labels=rev_labels,
-                labels=labels
-            )
-            if attention_heatmaps:
-                heatmaps_dir = join(clam_dir, 'attention_heatmaps', str(k))
-                if not exists(heatmaps_dir):
-                    os.makedirs(heatmaps_dir)
-
-                for att_tfr in attention_tfrecords:
-                    attention_dict = {}
-                    slide = path_to_name(att_tfr)
-                    try:
-                        with open(join(attention_dir, slide+'.csv'), 'r') as f:
-                            reader = csv.reader(f)
-                            for row in reader:
-                                attention_dict.update({
-                                    int(row[0]): float(row[1])
-                                })
-                    except FileNotFoundError:
-                        print(f'Attention scores for slide {slide} not found')
-                        continue
-                    dataset.tfrecord_heatmap(
-                        att_tfr,
-                        tile_dict=attention_dict,
-                        outdir=heatmaps_dir
-                    )
-
-    def train_marugoto(
+    def train_mil(
         self,
+        model: str,
         train_dataset: Dataset,
         val_dataset: Dataset,
         outcomes: Union[str, List[str]],
+        bags: Union[str, List[str]],
         *,
-        bags_path: str,
         exp_label: Optional[str] = None,
         **kwargs
-    ) -> None:
-        """Train a Marugoto aMIL model.
+    ):
+        """Train a multi-instance learning model.
 
         Args:
             train_dataset (:class:`slideflow.Dataset`): Training dataset.
             val_dataset (:class:`slideflow.Dataset`): Validation dataset.
             outcomes (str): Outcome column (annotation header) from which to
                 derive category labels.
-
-        Keyword args:
-            bags_path (str): Path to directory with *.pt files, containing
+            bags (str): Either a path to directory with \*.pt files, or a list
+                of paths to individual \*.pt files. Each file should contain
                 exported feature vectors, with each file containing all tile
                 features for one patient.
+
+        Keyword args:
             exp_label (str): Experiment label, used for naming the subdirectory
                 in the ``{project root}/mil`` folder, where training history
                 and the model will be saved.
-            lr_max (float): Maximum learning rate.
-            epochs (int): Maximum epochs.
+            **kwargs (Any): Any additional keyword arguments will be passed
+                as parameters to the MIL model trainer.
         """
-        from slideflow.mil import marugoto
+        from slideflow.mil import train_mil
 
-        # Set up output directory in project root
-        if exp_label is None:
-            exp_label = 'marugoto'
-        if not exists(join(self.root, 'mil')):
-            os.makedirs(join(self.root, 'mil'))
-        outdir = sf.util.get_new_model_dir(join(self.root, 'mil'), exp_label)
-        if not exists(outdir):
-            os.makedirs(outdir)
-
-        # Prepare labels and slides
-        labels, unique_train = train_dataset.labels(outcomes, format='name')
-        val_labels, unique_val = val_dataset.labels(outcomes, format='name')
-        labels.update(val_labels)
-        unique_categories = np.unique(unique_train + unique_val)
-
-        # Prepare bags
-        train_bags = train_dataset.pt_files(bags_path)
-        val_bags = val_dataset.pt_files(bags_path)
-        bags = np.concatenate((train_bags, val_bags))
-        targets = np.array([labels[path_to_name(f)] for f in bags])
-
-        # Prepare training/validation indices
-        train_idx = np.arange(len(train_bags))
-        val_idx = np.arange(len(train_bags), targets.shape[0])
-
-        # Train
-        marugoto.train_mil(
-            bags=bags,
-            targets=targets,
-            train_idx=train_idx,
-            val_idx=val_idx,
-            unique_categories=unique_categories,
-            outdir=outdir,
+        return train_mil(
+            model,
+            train_dataset,
+            val_dataset,
+            outcomes,
+            bags,
+            outdir=join(self.root, 'mil'),
+            exp_label=exp_label,
             **kwargs
         )
 

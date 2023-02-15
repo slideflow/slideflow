@@ -1,64 +1,66 @@
 import os
-import types
-
 import numpy as np
 import pandas as pd
-# pytorch imports
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
-from torch.utils.data import DataLoader, sampler
 
 from .datasets.dataset_generic import Generic_MIL_Dataset
 from .utils import *
 from .utils.core_utils import train
 from .utils.eval_utils import *
-# internal imports
 from .utils.file_utils import save_pkl
+
+# -----------------------------------------------------------------------------
+
+class CLAM_Args:
+    def __init__(
+        self,
+        num_splits=1,
+        k=3,
+        k_start=-1,
+        k_end=-1,
+        max_epochs=20,
+        lr=1e-4,
+        reg=1e-5,
+        label_frac=1,
+        bag_loss='ce',
+        bag_weight=0.7,
+        model_type='clam_sb',
+        model_size=None,
+        use_drop_out=False,
+        drop_out=False,
+        weighted_sample=False,
+        opt='adam',
+        inst_loss=None,
+        no_inst_cluster=False,
+        B=8,
+        log_data=False,
+        testing=False,
+        early_stopping=False,
+        subtyping=False,
+        seed=1,
+        results_dir=None,
+        n_classes=None,
+        split_dir=None,
+        data_root_dir=None,
+        micro_average=False
+    ):
+        for argname, argval in dict(locals()).items():
+            setattr(self, argname, argval)
+
+    def to_dict(self):
+        return {k:v for k,v in vars(self).items()
+                if k not in ('self')}
 
 
 def get_args(**kwargs):
-    args_dict = {
-        'num_splits': 1,
-        'k': 3,
-        'k_start': -1,
-        'k_end': -1,
-        'max_epochs': 20,
-        'lr': 1e-4,
-        'reg': 1e-5,
-        'label_frac': 1,
-        'bag_loss': 'ce',
-        'bag_weight': 0.7,
-        'model_type': 'clam_sb',
-        'model_size': None,
-        'use_drop_out': False,
-        'drop_out': False,
-        'weighted_sample': False,
-        'opt': 'adam',
-        'inst_loss': None,
-        'no_inst_cluster': False,
-        'B': 8,
-        'log_data': False,
-        'testing': False,
-        'early_stopping': False,
-        'subtyping': False,
-        'seed': 1,
-        'results_dir': None,
-        'n_classes': None,
-        'split_dir': None,
-        'data_root_dir': None,
-        'micro_average': False
-    }
-    for k in kwargs:
-        if k not in args_dict:
-            raise ValueError(f"Unrecognized argument '{k}'")
-        args_dict[k] = kwargs[k]
-    args = types.SimpleNamespace(**args_dict)
-    return args
+    return CLAM_Args(**kwargs)
+
+# -----------------------------------------------------------------------------
 
 def detect_num_features(path_to_pt):
     features = torch.load(path_to_pt)
     return features.size()[1]
+
 
 def main(args, dataset):
     # create results directory if necessary
@@ -102,7 +104,6 @@ def main(args, dataset):
         save_name = 'summary.csv'
     final_df.to_csv(os.path.join(args.results_dir, save_name))
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def evaluate(ckpt_path, args, dataset):
     all_results, all_auc, all_acc = [], [], []
@@ -112,8 +113,10 @@ def evaluate(ckpt_path, args, dataset):
     all_acc.append(1-test_error)
     df.to_csv(os.path.join(args.save_dir, 'results.csv'), index=False)
 
+
 def seed_torch(seed=7):
     import random
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     random.seed(seed)
     os.environ['PYTHONHASHSEED'] = str(seed)
     np.random.seed(seed)

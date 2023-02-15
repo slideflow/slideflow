@@ -49,6 +49,7 @@ class Accuracy_Logger(object):
 
         return acc, correct, count
 
+
 class EarlyStopping:
     """Early stops the training if validation loss doesn't improve after a given patience."""
     def __init__(self, patience=5, stop_epoch=50, verbose=False):
@@ -91,6 +92,7 @@ class EarlyStopping:
             log.info(f'Validation loss decreased ({self.val_loss_min:.6f} --> {val_loss:.6f}).  Saving model ...')
         torch.save(model.state_dict(), ckpt_name)
         self.val_loss_min = val_loss
+
 
 def train(datasets, cur, args):
     """
@@ -289,6 +291,7 @@ def train_loop_clam(epoch, model, loader, optimizer, n_classes, bag_weight, writ
         writer.add_scalar('train/error', train_error, epoch)
         writer.add_scalar('train/clustering_loss', train_inst_loss, epoch)
 
+
 def train_loop(epoch, model, loader, optimizer, n_classes, writer = None, loss_fn = None):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.train()
@@ -391,6 +394,7 @@ def validate(cur, epoch, model, loader, n_classes, early_stopping = None, writer
 
     return False
 
+
 def validate_clam(cur, epoch, model, loader, n_classes, early_stopping = None, writer = None, loss_fn = None, results_dir = None):
     device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.eval()
@@ -484,6 +488,7 @@ def validate_clam(cur, epoch, model, loader, n_classes, early_stopping = None, w
             return True
 
     return False
+
 
 def summary(model, loader, n_classes):
     device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
