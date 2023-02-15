@@ -5,11 +5,11 @@ from slideflow import errors
 
 from ._registry import (is_tensorflow_extractor, is_torch_extractor,
                         _tf_extractors, _torch_extractors)
-from ._factory_tensorflow import create_tensorflow_feature_extractor
-from ._factory_torch import create_torch_feature_extractor
+from ._factory_tensorflow import build_tensorflow_feature_extractor
+from ._factory_torch import build_torch_feature_extractor
 
 
-def create_feature_extractor(name, **kwargs):
+def build_feature_extractor(name, **kwargs):
     """Build a feature extractor.
 
     The returned feature extractor is a callable object, which returns
@@ -39,9 +39,9 @@ def create_feature_extractor(name, **kwargs):
 
             ..code-block:: python
 
-                from slideflow.model import create_feature_extractor
+                from slideflow.model import build_feature_extractor
 
-                extractor = create_feature_extractor(
+                extractor = build_feature_extractor(
                     'resnet50_imagenet'
                 )
 
@@ -50,9 +50,9 @@ def create_feature_extractor(name, **kwargs):
 
             ..code-block:: python
 
-                from slideflow.model import create_feature_extractor
+                from slideflow.model import build_feature_extractor
 
-                extractor = create_feature_extractor(
+                extractor = build_feature_extractor(
                     'resnet50_imagenet',
                     layers='conv4_block4_2_relu
                 )
@@ -61,9 +61,9 @@ def create_feature_extractor(name, **kwargs):
 
             ..code-block:: python
 
-                from slideflow.model import create_feature_extractor
+                from slideflow.model import build_feature_extractor
 
-                extractor = create_feature_extractor('ctranspath')
+                extractor = build_feature_extractor('ctranspath')
 
         Use an extractor to calculate layer activations for an entire dataset.
 
@@ -76,7 +76,7 @@ def create_feature_extractor(name, **kwargs):
                 dataset = P.dataset(...)
 
                 # Create a feature extractor
-                resnet = sf.model.create_feature_extractor('resnet50_imagenet')
+                resnet = sf.model.build_feature_extractor('resnet50_imagenet')
 
                 # Calculate features for the entire dataset
                 features = sf.DatasetFeatures(resnet, dataset=dataset)
@@ -87,12 +87,12 @@ def create_feature_extractor(name, **kwargs):
             f"Feature extractor {name} available in both Tensorflow and "
             f"PyTorch backends; using active backend {sf.backend()}")
         if sf.backend() == 'tensorflow':
-            return create_tensorflow_feature_extractor(name, **kwargs)
+            return build_tensorflow_feature_extractor(name, **kwargs)
         else:
-            return create_torch_feature_extractor(name, **kwargs)
+            return build_torch_feature_extractor(name, **kwargs)
     if is_tensorflow_extractor(name):
-        return create_tensorflow_feature_extractor(name, **kwargs)
+        return build_tensorflow_feature_extractor(name, **kwargs)
     elif is_torch_extractor(name):
-        return create_torch_feature_extractor(name, **kwargs)
+        return build_torch_feature_extractor(name, **kwargs)
     else:
         raise errors.InvalidFeatureExtractor(f"Unrecognized feature extractor: {name}")

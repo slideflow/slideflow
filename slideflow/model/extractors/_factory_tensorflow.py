@@ -7,7 +7,7 @@ from ._registry import _tf_extractors, is_tensorflow_extractor, register_tf
 from ..base import BaseFeatureExtractor
 
 
-def create_tensorflow_feature_extractor(name, **kwargs):
+def build_tensorflow_feature_extractor(name, **kwargs):
     if is_tensorflow_extractor(name):
         if name in _tf_extractors:
             return _tf_extractors[name](**kwargs)

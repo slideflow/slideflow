@@ -6,7 +6,7 @@ from ._registry import _torch_extractors, is_torch_extractor, register_torch
 from ..base import BaseFeatureExtractor
 
 
-def create_torch_feature_extractor(name, **kwargs):
+def build_torch_feature_extractor(name, **kwargs):
     if is_torch_extractor(name):
         if name in _torch_extractors:
             return _torch_extractors[name](**kwargs)

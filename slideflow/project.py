@@ -1899,7 +1899,7 @@ class Project:
         # (for using an Imagenet pretrained model)
         if sf.model.is_extractor(model):
             log.info(f"Building feature extractor {model}.")
-            model = sf.model.create_feature_extractor(model, tile_px=dataset.tile_px)
+            model = sf.model.build_feature_extractor(model, tile_px=dataset.tile_px)
 
             # Set the pt_files directory if not provided
             if outdir.lower() == 'auto':
