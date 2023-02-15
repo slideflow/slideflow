@@ -27,9 +27,10 @@ from . import errors, project_utils
 from .util import log, path_to_name, path_to_ext
 from .dataset import Dataset
 from .model import ModelParams
-from .project_utils import (auto_dataset, get_validation_settings,
-                            get_first_nested_directory, get_matching_directory,
-                            BreastER, ThyroidBRS, LungAdenoSquam)
+from .project_utils import (auto_dataset, auto_dataset_allow_none,
+                            get_validation_settings, get_first_nested_directory,
+                            get_matching_directory, BreastER, ThyroidBRS,
+                            LungAdenoSquam)
 
 if TYPE_CHECKING:
     from slideflow.model import DatasetFeatures, Trainer
@@ -1262,8 +1263,8 @@ class Project:
         """
 
         import slideflow.clam as clam
-        from slideflow.clam.create_attention import export_attention
-        from slideflow.clam.datasets.dataset_generic import Generic_MIL_Dataset
+        from slideflow.clam import export_attention
+        from slideflow.clam import Generic_MIL_Dataset
 
         # Detect source CLAM experiment which we are evaluating.
         # First, assume it lives in this project's clam folder
@@ -1748,7 +1749,7 @@ class Project:
             **kwargs
         )
 
-    @auto_dataset
+    @auto_dataset_allow_none
     def generate_features(
         self,
         model: str,
@@ -1759,7 +1760,6 @@ class Project:
         min_tiles: int = 0,
         max_tiles: int = 0,
         outcomes: Optional[List[str]] = None,
-        torch_export: Optional[str] = None,
         **kwargs: Any
     ) -> sf.DatasetFeatures:
         """Calculate layer activations and return a
@@ -1785,8 +1785,6 @@ class Project:
                 per slide. Defaults to 0 (all tiles).
             outcomes (list, optional): Column header(s) in annotations file.
                 Used for category-level comparisons. Defaults to None.
-            torch_export (str, optional): Path. Export activations to
-                torch-compatible file at this location. Defaults to None.
             layers (list(str)): Layers from which to generate activations.
                 Defaults to 'postconv'.
             export (str): Path to CSV file. Save activations in CSV format.
@@ -1801,6 +1799,11 @@ class Project:
         Returns:
             :class:`slideflow.DatasetFeatures`
         """
+        if dataset is None:
+            raise ValueError('Argument "dataset" is required when "model" is '
+                             'an imagenet-pretrained model, or otherwise not a '
+                             'saved Slideflow model.')
+
         # Prepare dataset and annotations
         dataset = dataset.clip(max_tiles)
         if outcomes is not None:
@@ -1811,18 +1814,22 @@ class Project:
                                 dataset=dataset,
                                 annotations=labels,
                                 **kwargs)
-        if torch_export:
-            df.to_torch(torch_export)
         return df
 
+    @auto_dataset_allow_none
     def generate_features_for_clam(
         self,
         model: str,
         outdir: str = 'auto',
+        *,
         dataset: Optional[Dataset] = None,
+        filters: Optional[Dict] = None,
+        filter_blank: Optional[Union[str, List[str]]] = None,
+        min_tiles: int = 16,
+        max_tiles: int = 0,
         layers: Union[str, List[str]] = 'postconv',
         force_regenerate: bool = False,
-        min_tiles: int = 16
+        batch_size: int = 32
     ) -> str:
         """Generate tile-level features for slides for use with CLAM.
 
@@ -1840,18 +1847,22 @@ class Project:
                 from which to generate activations. If not supplied, calculate
                 activations for all tfrecords compatible with the model,
                 optionally using provided filters and filter_blank.
-            min_tiles (int, optional): Minimum tiles per slide. Skip slides
-                not meeting this threshold. Defaults to 8.
             filters (dict, optional): Filters to use when selecting tfrecords.
-                Defaults to None.
+                 Defaults to None.
             filter_blank (list, optional): Slides blank in these columns will
                 be excluded. Defaults to None.
-            layers (list, optional): Which model layer(s) generate activations.
+            min_tiles (int, optional): Only include slides with this minimum
+                number of tiles. Defaults to 16.
+            max_tiles (int, optional): Only include maximum of this many tiles
+                per slide. Defaults to 0 (all tiles).
+            layers (list): Which model layer(s) generate activations.
                 Defaults to 'postconv'.
-            max_tiles (int, optional): Maximum tiles to take per slide.
-                Defaults to 0.
-            force_regenerate (bool, optional): Forcibly regenerate activations
+            force_regenerate (bool): Forcibly regenerate activations
                 for all slides even if .pt file exists. Defaults to False.
+            min_tiles (int, optional): Minimum tiles per slide. Skip slides
+                not meeting this threshold. Defaults to 16.
+            batch_size (int): Batch size during feature calculation.
+                Defaults to 32.
 
         Returns:
             Path to directory containing exported .pt files
@@ -1877,48 +1888,28 @@ class Project:
                     _end = ''
                 outdir = join(self.root, 'pt_files', config['model_name'] + _end)
         elif dataset is None:
-            raise ValueError(
-                "Must supply 'dataset' if generating features from an "
-                "Imagenet-pretrained model."
-            )
+            raise ValueError('Argument "dataset" is required when "model" is '
+                             'an imagenet-pretrained model, or otherwise not a '
+                             'saved Slideflow model.')
 
-        # Verify the dataset min tiles is at least 8
-        if dataset.min_tiles < 8:
-            raise ValueError(
-                "Slides must have at >=8 tiles to train CLAM (provided "
-                f"dataset has min_tiles={dataset.min_tiles})"
-            )
+        # Ensure min_tiles is applied to the dataset.
+        dataset = dataset.filter(min_tiles=min_tiles)
 
         # If the model does not exist, check if it is an architecture name
         # (for using an Imagenet pretrained model)
-        if model in sf.ModelParams.ModelDict:
-            log.info(f"Generating features from Imagenet-pretrained {model}.")
-            _hp = sf.ModelParams(
-                tile_px=dataset.tile_px,
-                tile_um=dataset.tile_um,
-                model=model,
-                include_top=False,
-                hidden_layers=0
-            )
+        if sf.model.is_extractor(model):
+            log.info(f"Building feature extractor {model}.")
+            model = sf.model.create_feature_extractor(model, tile_px=dataset.tile_px)
 
             # Set the pt_files directory if not provided
             if outdir.lower() == 'auto':
-                outdir = join(self.root, 'pt_files', model)
+                outdir = join(self.root, 'pt_files', model.tag)
 
-            # Now, overwrite the model name with the built model
-            model = _hp.build_model(
-                num_classes=1,
-                pretrain='imagenet'
-            )  # type: ignore
-
-            if sf.backend() == 'torch':
-                import torch
-                model = model.to(torch.device('cuda'))  # type: ignore
-                model.eval()  # type: ignore
         elif not exists(model):
             raise ValueError(
                 f"'{model}' is neither a path to a saved model nor the name "
-                "of a valid model architecture.")
+                "of a valid feature extractor (use sf.model.list_extractors() "
+                "for a list of all available feature extractors).")
 
         # Create the pt_files directory
         if not exists(outdir):
@@ -1951,6 +1942,7 @@ class Project:
             dataset=dataset,
             layers=layers,
             include_preds=False,
+            batch_size=batch_size
         )
         df.to_torch(outdir)
         return outdir
@@ -3500,8 +3492,8 @@ class Project:
         """
 
         import slideflow.clam as clam
-        from slideflow.clam.create_attention import export_attention
-        from slideflow.clam.datasets.dataset_generic import Generic_MIL_Dataset
+        from slideflow.clam import export_attention
+        from slideflow.clam import Generic_MIL_Dataset
 
         # Set up CLAM experiment data directory
         clam_dir = join(self.root, 'clam', exp_name)

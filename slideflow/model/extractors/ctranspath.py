@@ -80,7 +80,7 @@ def _create_swin_transformer(variant, pretrained=False, **kwargs):
         **kwargs)
 
 
-def build_ctranspath():
+def _build_ctranspath_model():
     model_kwargs = dict(
         patch_size=4,
         window_size=7,
@@ -572,10 +572,12 @@ class CTransPathFeatures(BaseFeatureExtractor):
     GitHub: https://github.com/Xiyue-Wang/TransPath
     """
 
+    tag = 'ctranspath'
+
     def __init__(self, device='cuda', center_crop=False):
         super().__init__(backend='torch')
 
-        self.model = build_ctranspath()
+        self.model = _build_ctranspath_model()
         self.model.head = torch.nn.Identity().to('cuda')
 
         checkpoint_path = hf_hub_download(
@@ -585,6 +587,7 @@ class CTransPathFeatures(BaseFeatureExtractor):
         td = torch.load(checkpoint_path)
         self.model.load_state_dict(td['model'], strict=True)
         self.model = self.model.to(device)
+        self.model.eval()
 
         # ---------------------------------------------------------------------
         self.num_features = 768

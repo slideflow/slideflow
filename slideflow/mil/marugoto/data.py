@@ -9,6 +9,7 @@ import torch
 from torch.utils.data import Dataset
 
 # -----------------------------------------------------------------------------
+
 def build_dataset(bags, targets, encoder, bag_size):
     assert len(bags) == len(targets)
 
@@ -21,7 +22,6 @@ def build_dataset(bags, targets, encoder, bag_size):
         BagDataset(bags, bag_size=bag_size),
         EncodedDataset(encoder, targets),
     )
-
 
 # -----------------------------------------------------------------------------
 

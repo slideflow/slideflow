@@ -1,8 +1,7 @@
 """Module for building pretrained feature extractors."""
 
-def get_feature_extractor(name, **kwargs):
-    if name == 'ctranspath':
-        from .ctranspath import CTransPathFeatures
-        return CTransPathFeatures(**kwargs)
-    else:
-        raise ValueError(f"Unrecognized feature extractor {name}")
+from ._registry import (list_extractors, list_torch_extractors,
+                        list_tensorflow_extractors, is_extractor,
+                        is_torch_extractor, is_tensorflow_extractor)
+from ._factory import (create_feature_extractor, create_torch_feature_extractor,
+                       create_tensorflow_feature_extractor)

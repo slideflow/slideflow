@@ -12,3 +12,5 @@ from ..mil.clam import (
     models,
     utils
 )
+from ..mil.clam.create_attention import export_attention
+from ..mil.clam.datasets.dataset_generic import Generic_MIL_Dataset

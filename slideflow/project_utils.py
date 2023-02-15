@@ -28,34 +28,62 @@ else:
 def auto_dataset(method: Callable):
     """Wrapper to convert filter arguments into a dataset."""
     @wraps(method)
-    def _impl(self, model=None, *args, **kwargs):
-        filter_keys = ['filters', 'filter_blank', 'min_tiles']
-        has_filters = any([k in kwargs for k in filter_keys])
-        if model is not None:
-            config = sf.util.get_model_config(model)
-        if has_filters and 'dataset' in kwargs:
-            k_s = ', '.join(filter_keys)
-            raise errors.ProjectError(
-                f"Cannot supply both `dataset` and filter arguments ({k_s})."
-                " Instead, supply a filtered dataset (Dataset.filter(...))"
-            )
-        if 'dataset' in kwargs:
-            if model is not None:
-                kwargs['dataset']._assert_size_matches_hp(config['hp'])
-                return method(self, model, *args, **kwargs)
-            else:
-                return method(self, *args, **kwargs)
-        else:
-            if model is None:
-                raise errors.ProjectError("Missing argument 'model'.")
-            dataset = self.dataset(
-                tile_px=config['hp']['tile_px'],
-                tile_um=config['hp']['tile_um'],
-                **{k: v for k, v in kwargs.items() if k in filter_keys},
-                verification='slides'
-            )
-            return method(self, model, *args, dataset=dataset, **kwargs)
+    def _impl(obj, model=None, *args, **kwargs):
+        return _filters_to_dataset(obj, method, model, *args, **kwargs)
     return _impl
+
+
+def auto_dataset_allow_none(method: Callable):
+    """Wrapper function to convert filter arguments to a dataset, allowing
+    errors."""
+    @wraps(method)
+    def _impl(obj, model=None, *args, **kwargs):
+        try:
+            return _filters_to_dataset(obj, method, model, *args, **kwargs)
+        except errors.ModelParamsNotFoundError:
+            if 'dataset' not in kwargs:
+                return method(obj, model, *args, dataset=None, **kwargs)
+            else:
+                raise
+    return _impl
+
+
+def _filters_to_dataset(obj, method, model, *args, **kwargs):
+    filter_keys = ['filters', 'filter_blank', 'min_tiles']
+    has_filters = any([k in kwargs for k in filter_keys])
+    if model is not None:
+        try:
+            config = sf.util.get_model_config(model)
+        except errors.ModelParamsNotFoundError:
+            if 'dataset' in kwargs:
+                config = None
+            else:
+                raise
+    if has_filters and 'dataset' in kwargs:
+        k_s = ', '.join(filter_keys)
+        raise errors.ProjectError(
+            f"Cannot supply both `dataset` and filter arguments ({k_s})."
+            " Instead, supply a filtered dataset (Dataset.filter(...))"
+        )
+    if 'dataset' in kwargs:
+        if model is not None:
+            if config is not None:
+                kwargs['dataset']._assert_size_matches_hp(config['hp'])
+            return method(obj, model, *args, **kwargs)
+        else:
+            return method(obj, *args, **kwargs)
+    else:
+        if model is None:
+            raise errors.ProjectError("Missing argument 'model'.")
+        dataset = obj.dataset(
+            tile_px=config['hp']['tile_px'],
+            tile_um=config['hp']['tile_um'],
+            **{k: v for k, v in kwargs.items() if k in filter_keys},
+            verification='slides'
+        )
+        return method(obj, model, *args, dataset=dataset, **kwargs)
+
+# -----------------------------------------------------------------------------
 
 
 def _project_config(

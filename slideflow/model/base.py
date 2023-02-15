@@ -414,6 +414,9 @@ class BaseFeatureExtractor:
       and include all preprocessing steps in __call__.
 
     """
+
+    tag = 'generic_extractor'
+
     def __init__(self, backend: str, include_preds: bool = False) -> None:
         """Initialize the base feature extractor.
 

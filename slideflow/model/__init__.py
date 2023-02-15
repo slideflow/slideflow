@@ -25,8 +25,12 @@ from rich.progress import track, Progress
 from slideflow import errors
 from slideflow.util import log, Labels, ImgBatchSpeedColumn
 from .base import BaseFeatureExtractor
-from .extractors import get_feature_extractor
-
+from .extractors import (
+    list_extractors, list_torch_extractors, list_tensorflow_extractors,
+    is_extractor, is_torch_extractor, is_tensorflow_extractor,
+    create_feature_extractor, create_torch_feature_extractor,
+    create_tensorflow_feature_extractor
+)
 
 if TYPE_CHECKING:
     import tensorflow as tf

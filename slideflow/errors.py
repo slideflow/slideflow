@@ -92,6 +92,10 @@ class ModelParamsError(Exception):
     pass
 
 
+class InvalidFeatureExtractor(Exception):
+    pass
+
+
 # --- TFRecords errors --------------------------------------------------------
 class TFRecordsError(Exception):
     pass
