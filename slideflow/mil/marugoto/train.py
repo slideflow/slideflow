@@ -53,7 +53,7 @@ def train_mil(
     train_dataset = marugoto.data.build_dataset(bags[train_idx], targets[train_idx], encoder=encoder, bag_size=512)
     train_dl = DataLoader(train_dataset, batch_size=64, shuffle=True, num_workers=1, drop_last=True, device=device)
     val_dataset = marugoto.data.build_dataset(bags[val_idx], targets[val_idx], encoder=encoder, bag_size=None)
-    val_dl = DataLoader(val_dataset, batch_size=1, shuffle=False, num_workers=os.cpu_count(), device=device)
+    val_dl = DataLoader(val_dataset, batch_size=1, shuffle=False, num_workers=8, persistent_workers=True, device=device)
 
     # Prepare model.
     batch = train_dl.one_batch()
@@ -76,4 +76,5 @@ def train_mil(
         CSVLogger(),
     ]
     learn.fit_one_cycle(n_epoch=epochs, lr_max=lr_max, cbs=cbs)
+    del val_dl
     return learn

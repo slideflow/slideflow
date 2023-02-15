@@ -433,7 +433,7 @@ def train_marugoto(
                             if path_to_name(bag) in val_slides])
 
     # Train
-    marugoto.train_mil(
+    return marugoto.train_mil(
         bags=bags,
         targets=targets,
         train_idx=train_idx,
