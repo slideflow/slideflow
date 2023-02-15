@@ -389,26 +389,26 @@ class DatasetFeatures:
     def from_df(cls, df: "pd.core.frame.DataFrame"):
         """Load DataFrame of features, as exported by :meth:`DatasetFeatures.to_df()`"""
         obj = cls(None, None)  # type: ignore
-        obj.slides = df.index.unique().tolist()
+        obj.slides = df.slide.unique().tolist()
         if 'activations' in df.columns:
             obj.activations = {
-                s: np.stack(df.loc[df.index==s].activations.values)
+                s: np.stack(df.loc[df.slide==s].activations.values)
                 for s in obj.slides
             }
             obj.num_features = next(df.iterrows())[1].activations.shape[0]
         if 'locations' in df.columns:
             obj.locations = {
-                s: np.stack(df.loc[df.index==s].locations.values)
+                s: np.stack(df.loc[df.slide==s].locations.values)
                 for s in obj.slides
             }
         if 'uncertainty' in df.columns:
             obj.uncertainty = {
-                s: np.stack(df.loc[df.index==s].uncertainty.values)
+                s: np.stack(df.loc[df.slide==s].uncertainty.values)
                 for s in obj.slides
             }
         if 'predictions' in df.columns:
             obj.uncertainty = {
-                s: np.stack(df.loc[df.index==s].predictions.values)
+                s: np.stack(df.loc[df.slide==s].predictions.values)
                 for s in obj.slides
             }
             obj.num_classes = next(df.iterrows())[1].predictions.shape[0]
@@ -437,6 +437,11 @@ class DatasetFeatures:
         for f, ftrs in enumerate(args):
             log.debug(f"Creating dataframe {f} from features...")
             dfs.append(ftrs.to_df())
+        if not all([len(df) == len(dfs[0]) for df in dfs]):
+            raise ValueError(
+                "Unable to concatenate DatasetFeatures of different lengths "
+                f"(got: {', '.join([len(_df) for _df in dfs])})"
+            )
         log.debug(f"Created {len(dfs)} dataframes")
         for i in range(len(dfs)):
             log.debug(f"Mapping tuples for df {i}")
@@ -447,8 +452,8 @@ class DatasetFeatures:
                 dfs[0],
                 dfs[i],
                 how='inner',
-                left_on=['slide', 'locations'],
-                right_on=['slide', 'locations'],
+                left_on=['slide', 'locations', 'tfr_index'],
+                right_on=['slide', 'locations', 'tfr_index'],
                 suffixes=['_1', '_2']
             )
             log.debug("Dropping merged columns")
@@ -465,6 +470,8 @@ class DatasetFeatures:
             dfs[0]['activations'] = as_list
             log.debug("Dropping old columns")
             dfs[0].drop(columns=['activations_1', 'activations_2'], inplace=True)
+        log.debug("Sorting by TFRecord index")
+        dfs[0].sort_values('tfr_index', inplace=True)
         log.debug("Creating DatasetFeatures object")
         return DatasetFeatures.from_df(dfs[0])
 
@@ -903,6 +910,12 @@ class DatasetFeatures:
         df_dict.update({
             'locations': pd.Series([
                 self.locations[s][i]
+                for s in self.slides
+                for i in range(len(self.locations[s]))], index=index)
+        })
+        df_dict.update({
+            'tfr_index': pd.Series([
+                i
                 for s in self.slides
                 for i in range(len(self.locations[s]))], index=index)
         })
