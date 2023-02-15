@@ -219,6 +219,8 @@ def get_validation_settings(**kwargs: Any) -> SimpleNamespace:
                 ', '.join(['val_'+k for k in kwargs.keys() if k != 'dataset'])
             )
         )
+    if 'dataset' in kwargs:
+        args_dict['strategy'] = 'fixed'
     for k in kwargs:
         if k not in args_dict:
             raise ValueError(f"Unrecognized validation setting {k}")

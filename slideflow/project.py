@@ -3746,35 +3746,38 @@ def create(
             raise errors.ChecksumError("Remote annotations URL failed MD5 checksum.")
     elif 'annotations' in cfg:
         shutil.copy(cfg.annotations, root)
-    P.add_source(
-        cfg.name,
-        slides=cfg.slides,
-        roi=cfg.roi_dest,
-        tiles=cfg.tiles,
-        tfrecords=cfg.tfrecords)
 
-    # Create blank annotations file, if not provided.
-    if not exists(P.annotations):
-        P.create_blank_annotations()
+    # Set up the dataset source.
+    if 'sources' not in proj_kwargs or proj_kwargs['sources'] is not None:
+        P.add_source(
+            cfg.name,
+            slides=cfg.slides,
+            roi=cfg.roi_dest,
+            tiles=cfg.tiles,
+            tfrecords=cfg.tfrecords)
 
-    # Set up ROIs, if provided.
-    if 'rois' in cfg and not exists(cfg.roi_dest):
-        os.makedirs(cfg.roi_dest)
-    if 'rois' in cfg and exists(cfg.rois) and os.path.isdir(cfg.rois):
-        # Search the folder for CSV files and copy to the project ROI directory.
-        to_copy = [r for r in os.listdir(cfg.rois) if path_to_ext(r) == 'csv']
-        log.info("Copying {} ROIs from {} to {}.".format(
-            len(to_copy),
-            cfg.rois,
-            cfg.roi_dest
-        ))
-        for roi in to_copy:
-            shutil.copy(join(cfg.rois, roi), cfg.roi_dest)
-    elif 'rois' in cfg and exists(cfg.rois) and os.path.isfile(cfg.rois):
-        # Assume ROIs is a tarfile - extract at destination.
-        log.info(f"Extrating ROIs from tarfile at {cfg.rois}.")
-        roi_file = tarfile.open(cfg.rois)
-        roi_file.extractall(cfg.roi_dest)
+        # Create blank annotations file, if not provided.
+        if not exists(P.annotations):
+            P.create_blank_annotations()
+
+        # Set up ROIs, if provided.
+        if 'rois' in cfg and not exists(cfg.roi_dest):
+            os.makedirs(cfg.roi_dest)
+        if 'rois' in cfg and exists(cfg.rois) and os.path.isdir(cfg.rois):
+            # Search the folder for CSV files and copy to the project ROI directory.
+            to_copy = [r for r in os.listdir(cfg.rois) if path_to_ext(r) == 'csv']
+            log.info("Copying {} ROIs from {} to {}.".format(
+                len(to_copy),
+                cfg.rois,
+                cfg.roi_dest
+            ))
+            for roi in to_copy:
+                shutil.copy(join(cfg.rois, roi), cfg.roi_dest)
+        elif 'rois' in cfg and exists(cfg.rois) and os.path.isfile(cfg.rois):
+            # Assume ROIs is a tarfile - extract at destination.
+            log.info(f"Extrating ROIs from tarfile at {cfg.rois}.")
+            roi_file = tarfile.open(cfg.rois)
+            roi_file.extractall(cfg.roi_dest)
 
     # Download slides from GDC (TCGA), if specified.
     if download:
