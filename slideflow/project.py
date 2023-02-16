@@ -3329,9 +3329,9 @@ class Project:
                 )
             hp_list = [hp for hp in params.values()]
             n_ensembles = len(hp_list)
-            log.info("The hyperparameter name to ensemble member mapping is:")
+            print("The hyperparameter name to ensemble member mapping is:")
             for e, n in enumerate(params.keys()):
-                log.info(f"  - {n} : ensemble_{e+1}")
+                print(f"  - {n} : ensemble_{e+1}")
 
         else:
             raise ValueError(f"Unable to interpret params value {params}")
@@ -3342,21 +3342,36 @@ class Project:
                 if hp.epochs != hp_list[0].epochs:
                     raise errors.ModelParamsNotFoundError(
                         "All the hyperparameters much have the same epoch value")
-
-        for i in range(n_ensembles):
+        
+        pb = tqdm(range(n_ensembles), leave=False, desc=f"Training Ensemble 1 of {n_ensembles}")
+        for i in pb:
             # Create the ensemble member folder, which will hold each
             # k-fold model for the given ensemble member.
-            member_path = sf.util.get_new_model_dir(
-                ensemble_path,
-                f"ensemble_{i+1}")
-            with self._set_models_dir(member_path):
-                if hyper_deep:
-                    hp = hp_list[i]
-                    result = self.train(outcomes, hp, **kwargs)
-                    ensemble_results.append(result)
-                else:
-                    result = self.train(outcomes, params, **kwargs)
-                    ensemble_results.append(result)
+            with sf.util.logging_level(30):
+                member_path = sf.util.get_new_model_dir(
+                    ensemble_path,
+                    f"ensemble_{i+1}")
+
+                val_kwargs = {k[4:]: v for k, v in kwargs.items() if k[:4] == 'val_'}
+                val_settings = get_validation_settings(**val_kwargs)
+                if i == 0 and not hyper_deep:
+                    pb.write(f"\nHyperparameters: {params}")
+                    pb.write(f"Val settings: {json.dumps(vars(val_settings), indent=2)}")
+                elif hyper_deep:
+                    pb.write(f"\nHyperparameters: {hp_list[i]}")
+                    pb.write(f"Val settings: {json.dumps(vars(val_settings), indent=2)}")     
+
+                pb.write(f"\nTraining Ensemble {i+1} of {n_ensembles}\n")
+                with self._set_models_dir(member_path):
+                    if hyper_deep:
+                        hp = hp_list[i]
+                        result = self.train(outcomes, hp, **kwargs)
+                        ensemble_results.append(result)
+                    else:
+                        result = self.train(outcomes, params, **kwargs)
+                        ensemble_results.append(result)
+            pb.set_description(f"Training Ensemble {i+2} of {n_ensembles}")
+        pb.close()
 
         # Copy the slide manifest and params.json file
         # into the parent ensemble folder.
