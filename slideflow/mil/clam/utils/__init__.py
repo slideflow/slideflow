@@ -5,14 +5,11 @@ from itertools import islice
 import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.data import (DataLoader, RandomSampler, Sampler,
                               SequentialSampler, WeightedRandomSampler,
                               sampler)
-from torchvision import transforms
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class SubsetSequentialSampler(Sampler):
     """Samples elements sequentially from a given list of indices, without replacement.
@@ -48,7 +45,7 @@ def get_split_loader(split_dataset, training = False, testing = False, weighted 
     """
         return either the validation loader or training loader
     """
-    kwargs = {'num_workers': 4} if device.type == "cuda" else {}
+    kwargs = {'num_workers': 4} if torch.cuda.is_available() else {}
     if not testing:
         if training:
             if weighted:

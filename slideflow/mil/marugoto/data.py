@@ -23,6 +23,19 @@ def build_dataset(bags, targets, encoder, bag_size):
         EncodedDataset(encoder, targets),
     )
 
+def build_clam_dataset(bags, targets, encoder, bag_size):
+    assert len(bags) == len(targets)
+
+    def _zip(bag, targets):
+        features, lengths = bag
+        return (features, targets.squeeze(), True), targets.squeeze()
+
+    return MapDataset(
+        _zip,
+        BagDataset(bags, bag_size=bag_size),
+        EncodedDataset(encoder, targets),
+    )
+
 # -----------------------------------------------------------------------------
 
 def _to_fixed_size_bag(

@@ -2,6 +2,7 @@ import os
 
 import numpy as np
 import torch
+import torch.nn.functional as F
 from rich.progress import track
 from sklearn.metrics import auc as calc_auc
 from sklearn.metrics import roc_auc_score, roc_curve
@@ -129,7 +130,7 @@ def train(datasets, cur, args):
         model_dict.update({'subtyping': True})
 
     if args.model_size is not None and args.model_type != 'mil':
-        model_dict.update({"size_arg": args.model_size})
+        model_dict.update({"size": args.model_size})
 
     if args.model_type in ['clam_sb', 'clam_mb']:
         if args.subtyping:
@@ -235,7 +236,9 @@ def train_loop_clam(epoch, model, loader, optimizer, n_classes, bag_weight, writ
     for batch_idx, (data, label) in enumerate(loader):
 
         data, label = data.to(device), label.to(device)
-        logits, Y_prob, Y_hat, _, instance_dict = model(data, label=label, instance_eval=True)
+        logits, instance_dict = model(data, label=label, instance_eval=True)
+        Y_hat = torch.topk(logits, 1, dim=1)[1]
+        Y_prob = F.softmax(logits, dim=1)
 
         acc_logger.log(Y_hat, label)
         loss = loss_fn(logits, label)
@@ -302,7 +305,8 @@ def train_loop(epoch, model, loader, optimizer, n_classes, writer = None, loss_f
     for batch_idx, (data, label) in enumerate(loader):
         data, label = data.to(device), label.to(device)
 
-        logits, Y_prob, Y_hat, _, _ = model(data)
+        logits, _ = model(data)
+        Y_hat = torch.topk(logits, 1, dim=1)[1]
 
         acc_logger.log(Y_hat, label)
         loss = loss_fn(logits, label)
@@ -352,7 +356,9 @@ def validate(cur, epoch, model, loader, n_classes, early_stopping = None, writer
         for batch_idx, (data, label) in enumerate(loader):
             data, label = data.to(device, non_blocking=True), label.to(device, non_blocking=True)
 
-            logits, Y_prob, Y_hat, _, _ = model(data)
+            logits, _ = model(data)
+            Y_hat = torch.topk(logits, 1, dim=1)[1]
+            Y_prob = F.softmax(logits, dim=1)
 
             acc_logger.log(Y_hat, label)
 
@@ -413,7 +419,9 @@ def validate_clam(cur, epoch, model, loader, n_classes, early_stopping = None, w
     with torch.no_grad():
         for batch_idx, (data, label) in enumerate(loader):
             data, label = data.to(device), label.to(device)
-            logits, Y_prob, Y_hat, _, instance_dict = model(data, label=label, instance_eval=True)
+            logits, instance_dict = model(data, label=label, instance_eval=True)
+            Y_hat = torch.topk(logits, 1, dim=1)[1]
+            Y_prob = F.softmax(logits, dim=1)
             acc_logger.log(Y_hat, label)
 
             loss = loss_fn(logits, label)
@@ -507,7 +515,9 @@ def summary(model, loader, n_classes):
         data, label = data.to(device), label.to(device)
         slide_id = slide_ids.iloc[batch_idx]
         with torch.no_grad():
-            logits, Y_prob, Y_hat, _, _ = model(data)
+            logits, _ = model(data)
+            Y_hat = torch.topk(logits, 1, dim=1)[1]
+            Y_prob = F.softmax(logits, dim=1)
 
         acc_logger.log(Y_hat, label)
         probs = Y_prob.cpu().numpy()

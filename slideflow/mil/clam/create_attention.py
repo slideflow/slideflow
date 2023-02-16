@@ -7,6 +7,7 @@ import pdb
 
 import numpy as np
 import torch
+import torch.nn.functional as F
 
 from slideflow import log
 from .models.model_clam import CLAM_MB, CLAM_SB
@@ -31,11 +32,12 @@ def path_to_ext(path):
         return _file.split('.')[-1]
 
 def infer_single_slide(model, features, label, reverse_label_dict, k=1, silent=False):
-    features = features.to(device)
+    features = features.to(model.device)
     with torch.no_grad():
         if isinstance(model, (CLAM_SB,)):
-            logits, Y_prob, Y_hat, A, _ = model(features)
-            Y_hat = Y_hat.item()
+            logits, A, _ = model(features, return_attention=True)
+            Y_hat = torch.topk(logits, 1, dim=1)[1].item()
+            Y_prob = F.softmax(logits, dim=1)
 
             if isinstance(model, (CLAM_MB,)):
                 A = A[Y_hat]
