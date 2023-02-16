@@ -314,7 +314,7 @@ def train_loop(epoch, model, loader, optimizer, n_classes, writer = None, loss_f
 
         train_loss += loss_value
         if (batch_idx + 1) % 20 == 0:
-            log.info('batch {} | loss: {:.4f}'.format(batch_idx, loss_value))
+            log.debug('batch {} | loss: {:.4f}'.format(batch_idx, loss_value))
 
         error = calculate_error(Y_hat, label)
         train_error += error

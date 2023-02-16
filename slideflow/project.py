@@ -35,7 +35,7 @@ from .project_utils import (auto_dataset, auto_dataset_allow_none,
 if TYPE_CHECKING:
     from slideflow.model import DatasetFeatures, Trainer
     from slideflow.slide import SlideReport
-    from slideflow import simclr
+    from slideflow import simclr, mil
     from ConfigSpace import ConfigurationSpace, Configuration
     from smac.facade.smac_bb_facade import SMAC4BB
 
@@ -3491,7 +3491,7 @@ class Project:
 
     def train_mil(
         self,
-        model: str,
+        config: "mil.TrainerConfig",
         train_dataset: Dataset,
         val_dataset: Dataset,
         outcomes: Union[str, List[str]],
@@ -3503,6 +3503,8 @@ class Project:
         """Train a multi-instance learning model.
 
         Args:
+            config (:class:`slideflow.mil.TrainerConfig): Training configuration,
+                as obtained by :func:`slideflow.mil.build_config()`.
             train_dataset (:class:`slideflow.Dataset`): Training dataset.
             val_dataset (:class:`slideflow.Dataset`): Validation dataset.
             outcomes (str): Outcome column (annotation header) from which to
@@ -3516,20 +3518,17 @@ class Project:
             exp_label (str): Experiment label, used for naming the subdirectory
                 in the ``{project root}/mil`` folder, where training history
                 and the model will be saved.
-            **kwargs (Any): Any additional keyword arguments will be passed
-                as parameters to the MIL model trainer.
         """
-        from slideflow.mil import train_mil
+        from .mil import train_mil
 
         return train_mil(
-            model,
+            config,
             train_dataset,
             val_dataset,
             outcomes,
             bags,
             outdir=join(self.root, 'mil'),
             exp_label=exp_label,
-            **kwargs
         )
 
 # -----------------------------------------------------------------------------

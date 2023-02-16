@@ -94,22 +94,22 @@ class _CLAM_Base(nn.Module):
 
         if instance_loss_fn is None:
             instance_loss_fn  = nn.CrossEntropyLoss()
-        size = self.sizes[size] if isinstance(size, str) else size
+        self.size = self.sizes[size] if isinstance(size, str) else size
 
         # Encoder
-        fc = [nn.Linear(size[0], size[1]), nn.ReLU()]
+        fc = [nn.Linear(self.size[0], self.size[1]), nn.ReLU()]
         if dropout:
             fc.append(nn.Dropout(0.25))
 
         # Attention net
         att_fn = Attn_Net_Gated if gate else Attn_Net
         n_att = 1 if not multi_head_attention else n_classes
-        fc.append(att_fn(L=size[1], D=size[2], dropout=dropout, n_classes=n_att))
+        fc.append(att_fn(L=self.size[1], D=self.size[2], dropout=dropout, n_classes=n_att))
         self.attention_net = nn.Sequential(*fc)
 
         # Classifier head
         self.instance_classifiers = nn.ModuleList(
-            [nn.Linear(size[1], 2) for _ in range(n_classes)]
+            [nn.Linear(self.size[1], 2) for _ in range(n_classes)]
         )
         self.k_sample = k_sample
         self.instance_loss_fn = instance_loss_fn
@@ -194,7 +194,14 @@ class _CLAM_Base(nn.Module):
 
         if h.ndim == 3:
             h = h.squeeze()
-        A, h = self.attention_net(h)  # NxK
+        try:
+            A, h = self.attention_net(h)  # NxK
+        except RuntimeError as e:
+            raise RuntimeError(
+                f"Input feature size ({h.shape[1]}) does not match size of "
+                f"model first linear layer ({self.size[0]}). "
+                f"Error raised: {e}"
+            )
         A = torch.transpose(A, 1, 0)  # KxN
         if attention_only:
             return A
@@ -284,7 +291,7 @@ class CLAM_SB(_CLAM_Base):
             multi_head_attention=False
         )
         # Classifier head.
-        self.classifiers = nn.Linear(size[1], n_classes)
+        self.classifiers = nn.Linear(self.size[1], n_classes)
 
         # Initialize weights.
         initialize_weights(self)
@@ -334,7 +341,7 @@ class CLAM_MB(_CLAM_Base):
         # Classifier head
         # Use an independent linear layer to predict each class
         self.classifiers = nn.ModuleList(
-            [nn.Linear(size[1], 1) for _ in range(n_classes)]
+            [nn.Linear(self.size[1], 1) for _ in range(n_classes)]
         )
         # Initialize weights.
         initialize_weights(self)
