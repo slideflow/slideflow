@@ -30,7 +30,6 @@ if TYPE_CHECKING:
 FEATURE_DESCRIPTION = {
     'slide': tf.io.FixedLenFeature([], tf.string),
     'image_raw': tf.io.FixedLenFeature([], tf.string),
-    'tumor_likelihood': tf.io.FixedLenFeature([], tf.float32),
     'loc_x': tf.io.FixedLenFeature([], tf.int64),
     'loc_y': tf.io.FixedLenFeature([], tf.int64),
 }
@@ -276,6 +275,7 @@ def get_tfrecord_parser(
     decode_images: bool = True,
     img_size: Optional[int] = None,
     error_if_invalid: bool = True,
+    description: Optional[Dict[str, str]] = None,
     **decode_kwargs: Any
 ) -> Optional[Callable]:
 
@@ -309,12 +309,24 @@ def get_tfrecord_parser(
         error_if_invalid (bool, optional): Raise an error if a tfrecord cannot
             be read. Defaults to True.
     """
-    features, img_type = detect_tfrecord_format(tfrecord_path)
+    features, img_type = detect_tfrecord_format(tfrecord_path, description)
     if features is None:
         log.debug(f"Unable to read tfrecord at {tfrecord_path} - is it empty?")
         return None
     if features_to_return is None:
         features_to_return = {k: k for k in features}
+    
+    if description:
+        for k, v in description.items():
+            if k not in FEATURE_DESCRIPTION:
+                if v == 'byte':
+                    feature_val = tf.io.FixedLenFeature([], tf.string)
+                elif v == 'int':
+                    feature_val = tf.io.FixedLenFeature([], tf.int64)
+                elif v == 'float':
+                    feature_val = tf.io.FixedLenFeature([], tf.float32)
+                FEATURE_DESCRIPTION.update({k: feature_val})
+
     feature_description = {
         k: v for k, v in FEATURE_DESCRIPTION.items()
         if k in features
@@ -408,7 +420,7 @@ def interleave(
     rois: Optional[List[str]] = None,
     roi_method: str = 'auto',
     pool: Optional["mp.pool.Pool"] = None,
-    weighted_loss: bool = False,
+    description: Optional[Dict[str, str]] = None,
     **decode_kwargs: Any
 ) -> Iterable:
 
@@ -495,8 +507,8 @@ def interleave(
     pb.start()
     with tf.device('cpu'):
         features_to_return = ['image_raw', 'slide']
-        if weighted_loss:
-            features_to_return += ['tumor_likelihood']
+        if description:
+            features_to_return += sf.util.as_list(list(description.keys())[0])
         if incl_loc:
             features_to_return += ['loc_x', 'loc_y']
         
@@ -551,6 +563,7 @@ def interleave(
                     paths[i],
                     features_to_return,
                     img_size=img_size,
+                    description=description,
                     **decode_kwargs)
 
         for t, tfr in enumerate(paths):
@@ -587,13 +600,14 @@ def interleave(
             datasets,
             weights=weights
         )
+
         dataset = _get_parsed_datasets(
             sampled_dataset,
             base_parser=base_parser,  # type: ignore
             label_parser=label_parser,
             include_slidenames=incl_slidenames,
             include_loc=incl_loc,
-            weighted_loss=weighted_loss,
+            description=description,
             deterministic=deterministic
         )
         # ------- Apply normalization -----------------------------------------
@@ -642,7 +656,7 @@ def _get_parsed_datasets(
     label_parser: Optional[Callable] = None,
     include_slidenames: bool = False,
     include_loc: Optional[str] = None,
-    weighted_loss: Optional[bool] = False,
+    description: Optional[Dict[str, str]] = None,
     deterministic: bool = False
 ) -> tf.data.Dataset:
     """Return a parsed dataset.
@@ -667,18 +681,18 @@ def _get_parsed_datasets(
     """
 
     def final_parser(record):
-        if include_loc and weighted_loss:
-            image, slide, likelihood, loc_x, loc_y = base_parser(record)
+        if include_loc and description:
+            image, slide, weight, loc_x, loc_y = base_parser(record)
         elif include_loc:
             image, slide, loc_x, loc_y = base_parser(record)
-        elif weighted_loss:
-            image, slide, likelihood = base_parser(record)
+        elif description:
+            image, slide, weight = base_parser(record)
         else:
             image, slide = base_parser(record)
 
         if label_parser:
-            if weighted_loss:
-                image, label = label_parser(image, slide, likelihood)
+            if description:
+                image, label = label_parser(image, slide, weight)
             else:
                 image, label = label_parser(image, slide)
         else:
@@ -703,7 +717,7 @@ def tfrecord_example(
     image_raw: bytes,
     loc_x: int = 0,
     loc_y: int = 0,
-    tumor_likelihood: float = None
+    entry: Dict[str, float] = None,
 ) -> "Example":
     '''Returns a Tensorflow Data example for TFRecord storage.'''
     feature = {
@@ -712,8 +726,18 @@ def tfrecord_example(
         'loc_x': _int64_feature(loc_x),
         'loc_y': _int64_feature(loc_y)
     }
-    if tumor_likelihood: 
-        feature.update({'tumor_likelihood': _float_feature(tumor_likelihood)})
+    if entry:
+        for key, val in entry.items(): 
+            if isinstance(val, (np.float32, float)):
+                feature.update({key: _float_feature(val)})
+            elif isinstance(val, int):
+                feature.update({key: _int64_feature(val)})
+            elif isinstance(val, bytes):
+                feature.update({key: _bytes_feature(val)})
+            else:
+                raise errors.TFRecordsError(
+                    f"Unrecognized type for feature '{key}'."
+                )
     return tf.train.Example(features=tf.train.Features(feature=feature))
 
 
@@ -722,14 +746,11 @@ def serialized_record(
     image_raw: bytes,
     loc_x: int = 0,
     loc_y: int = 0,
-    tumor_likelihood: float = None
+    entry: Dict[str, float] = None,
 ) -> bytes:
     '''Returns a serialized example for TFRecord storage, ready to be written
     by a TFRecordWriter.'''
-    if tumor_likelihood:
-        return tfrecord_example(slide, image_raw, loc_x, loc_y, 
-                                tumor_likelihood).SerializeToString()
-    return tfrecord_example(slide, image_raw, loc_x, loc_y).SerializeToString()
+    return tfrecord_example(slide, image_raw, loc_x, loc_y, entry).SerializeToString()
 
 
 def multi_image_example(slide: bytes, image_dict: Dict) -> "Example":
@@ -862,8 +883,7 @@ def transform_tfrecord(
     writer = tf.io.TFRecordWriter(target)
     parser = get_tfrecord_parser(
         origin,
-        ('slide', 'image_raw', 'loc_x', 'loc_y', 'tumor_likelihood'),
-        # ('slide', 'image_raw', 'loc_x', 'loc_y'),
+        ('slide', 'image_raw', 'loc_x', 'loc_y'),
         decode_images=(hue_shift is not None or resize is not None),
         error_if_invalid=False,
         to_numpy=True

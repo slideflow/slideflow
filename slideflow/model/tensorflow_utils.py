@@ -122,6 +122,55 @@ def negative_log_likelihood(y_true: tf.Tensor, y_pred: tf.Tensor) -> tf.Tensor:
     return neg_likelihood
 
 
+def negative_log_likelihood_weighted(y_true: tf.Tensor, y_pred: tf.Tensor) -> tf.Tensor:
+    """Weighted Negative log likelihood loss.
+
+    Args:
+        y_true (tf.Tensor): True labels.
+        y_pred (tf.Tensor): Predictions.
+
+    Returns:
+        tf.Tensor: Loss.
+    """
+    weights = tf.reshape(y_pred[:, -1], [-1])
+    events = tf.reshape(y_pred[:, -2], [-1])  # E
+    pred_hr = tf.reshape(y_pred[:, 0], [-1])  # y_pred
+    time = tf.reshape(y_true, [-1])           # y_true
+
+    order = tf.argsort(time)  # direction='DESCENDING'
+    sorted_events = tf.gather(events, order)            # pylint: disable=no-value-for-parameter
+    sorted_predictions = tf.gather(pred_hr, order)      # pylint: disable=no-value-for-parameter
+
+    # Finds maximum HR in predictions
+    gamma = tf.math.reduce_max(sorted_predictions)
+
+    # Small constant value
+    eps = tf.constant(1e-7, dtype=tf.float32)
+
+    log_cumsum_h = tf.math.add(
+                    tf.math.log(
+                        tf.math.add(
+                            tf.math.cumsum(             # pylint: disable=no-value-for-parameter
+                                tf.math.exp(
+                                    tf.math.subtract(sorted_predictions, gamma))),
+                            eps)),
+                    gamma)
+
+    neg_likelihood = -tf.math.divide(
+                        tf.reduce_sum(
+                            tf.math.multiply(
+                                tf.math.multiply(
+                                    tf.subtract(sorted_predictions, log_cumsum_h),
+                                    sorted_events), 
+                                weights
+                            )
+                        ),
+                        tf.reduce_sum(sorted_events)
+                    )
+
+    return neg_likelihood
+
+
 def negative_log_likelihood_breslow(
     y_true: tf.Tensor,
     y_pred: tf.Tensor
@@ -191,6 +240,30 @@ def concordance_index(y_true: tf.Tensor, y_pred: tf.Tensor) -> tf.Tensor:
     f = tf.reduce_sum(f)
     return tf.where(tf.equal(f, 0), 0.0, g/f)
 
+def concordance_index_weighted(y_true: tf.Tensor, y_pred: tf.Tensor) -> tf.Tensor:
+    """Calculate concordance index (C-index).
+
+    Args:
+        y_true (tf.Tensor): True labels.
+        y_pred (tf.Tensor): Predictions.
+
+    Returns:
+        tf.Tensor: Concordance index.
+    """
+    weights = tf.reshape(y_pred[:, -1], [-1])
+    E =  tf.reshape(y_pred[:, -2], [-1])
+    y_pred = tf.reshape(y_pred[:, :-2], [-1])
+    y_pred = -y_pred  # negative of log hazard ratio to have correct relationship with survival
+    
+    g = tf.subtract(tf.expand_dims(y_pred, -1), y_pred)
+    g = tf.cast(g == 0.0, tf.float32) * 0.5 + tf.cast(g > 0.0, tf.float32)
+    f = tf.subtract(tf.expand_dims(y_true, -1), y_true) > 0.0
+    event = tf.multiply(tf.transpose(E), E)
+    f = tf.multiply(tf.cast(f, tf.float32), event)
+    f = tf.compat.v1.matrix_band_part(tf.cast(f, tf.float32), -1, 0) #lower triangular
+    g = tf.reduce_sum(tf.multiply(g, f))
+    f = tf.reduce_sum(f)
+    return tf.where(tf.equal(f, 0), 0.0, g/f)
 
 def add_regularization(
     model: tf.keras.Model,

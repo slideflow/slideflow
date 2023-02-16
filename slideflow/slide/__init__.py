@@ -225,7 +225,7 @@ class _BaseLoader:
         enable_downsample: bool = True,
         pb: Optional[Progress] = None,
         mpp: Optional[float] = None,
-        weight_model_path: Optional[str] = None,
+        # weight_model_path: Optional[str] = None,
         **reader_kwargs
     ) -> None:
 
@@ -249,15 +249,15 @@ class _BaseLoader:
         self._mpp_override = mpp
         self._reader_kwargs = reader_kwargs
 
-        if weight_model_path:
-            log.info('Loading weight model')
-            hp = sf.ModelParams()
-            config = sf.util.get_model_config(weight_model_path)
-            hp.load_dict(config['hp'])
-            self.weight_normalizer = hp.get_normalizer()
-            self.weight_model = tf.keras.models.load_model(weight_model_path)
-        else:
-            self.weight_model = None
+        # if weight_model_path:
+        #     log.info('Loading weight model')
+        #     hp = sf.ModelParams()
+        #     config = sf.util.get_model_config(weight_model_path)
+        #     hp.load_dict(config['hp'])
+        #     self.weight_normalizer = hp.get_normalizer()
+        #     self.weight_model = tf.keras.models.load_model(weight_model_path)
+        # else:
+        #     self.weight_model = None
 
         # Initiate supported slide reader
         if not os.path.exists(path):
@@ -771,18 +771,18 @@ class _BaseLoader:
 
             image_string = tile_dict['image'] # type: bytes
 
-            if self.weight_model:
-                cv_image = cv2.imdecode(
-                    np.frombuffer(image_string, dtype=np.uint8),
-                    cv2.IMREAD_COLOR
-                )
-                cv_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB)
-                image_ = sf.io.tensorflow.process_image(
-                        self.weight_normalizer.tf_to_tf(cv_image), standardize=True
-                        )[0]
-                weight = self.weight_model.predict(
-                            tf.expand_dims(image_, 0), verbose=0, 
-                         )[0][1]
+            # if self.weight_model:
+            #     cv_image = cv2.imdecode(
+            #         np.frombuffer(image_string, dtype=np.uint8),
+            #         cv2.IMREAD_COLOR
+            #     )
+            #     cv_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB)
+            #     image_ = sf.io.tensorflow.process_image(
+            #             self.weight_normalizer.tf_to_tf(cv_image), standardize=True
+            #             )[0]
+            #     weight = self.weight_model.predict(
+            #                 tf.expand_dims(image_, 0), verbose=0, 
+            #              )[0][1]
 
             if len(sample_tiles) < 10:
                 sample_tiles += [image_string]
@@ -807,21 +807,21 @@ class _BaseLoader:
                                 ann[3]
                             ))
             if tfrecord_dir:
-                if self.weight_model:
-                    record = sf.io.serialized_record(
-                        slidename_bytes,
-                        image_string,
-                        location[0],
-                        location[1],
-                        weight
-                    )
-                else:
-                    record = sf.io.serialized_record(
-                        slidename_bytes,
-                        image_string,
-                        location[0],
-                        location[1]
-                    )
+                # if self.weight_model:
+                #     record = sf.io.serialized_record(
+                #         slidename_bytes,
+                #         image_string,
+                #         location[0],
+                #         location[1],
+                #         weight
+                #     )
+                # else:
+                record = sf.io.serialized_record(
+                    slidename_bytes,
+                    image_string,
+                    location[0],
+                    location[1]
+                )
                 writer.write(record)
                 num_wrote_to_tfr += 1
         if tfrecord_dir and not dry_run:

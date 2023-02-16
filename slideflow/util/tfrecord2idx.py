@@ -84,6 +84,7 @@ def get_record_by_index(
     tfrecord: str,
     index: int,
     compression_type: Optional[str] = None,
+    description: Optional[Dict[str, str]] = None,
 ) -> Dict:
     """Read a specific record in a TFRecord file.
 
@@ -152,7 +153,11 @@ def get_record_by_index(
 
     # Process record bytes.
     try:
-        record = process_record(datum_bytes_view)
+        if description:
+            for k, v in FEATURE_DESCRIPTION.items():
+                if k not in description:
+                    description.update({k: v})
+        record = process_record(datum_bytes_view, description=description)
     except KeyError:
         feature_description = {
             k: v for k, v in FEATURE_DESCRIPTION.items()

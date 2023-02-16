@@ -459,7 +459,7 @@ def eval_dataset(
     outcome_names: Optional[List[str]] = None,
     loss: Optional[Callable] = None,
     torch_args: Optional[SimpleNamespace] = None,
-    weighted: Optional[bool] = None,
+    weighted: Optional[bool] = False,
 ) -> Tuple[DataFrame, float, float]:
     """Generates predictions and accuracy/loss from a given model and dataset.
 
@@ -520,7 +520,7 @@ def eval_dataset(
     if outcome_names or model_type == 'cph':
         df = name_columns(df, model_type, outcome_names)
     
-    if weighted:
+    if weighted and model_type != 'cph':
         pred_cols = [c for c in df.columns if 'y_pred' in c]
         weight_col = sorted(pred_cols)[-1]
         df = df.rename(columns={weight_col: 'weight'})
@@ -698,7 +698,7 @@ def metrics_from_dataset(
     uq: bool = False,
     loss: Optional[Callable] = None,
     torch_args: Optional[SimpleNamespace] = None,
-    weighted: Optional[bool] = None,
+    weighted: Optional[bool] = False,
     **kwargs
 ) -> Tuple[Dict, float, float]:
 
@@ -859,6 +859,8 @@ def name_columns(
             'out0-y_true0': 'time-y_true',
 
         })
+        if 'out0-y_pred2' in df.columns:
+            df = df.rename(columns={'out0-y_pred2': 'weight'})
     return df
 
 
@@ -941,7 +943,7 @@ def predict_dataset(
     if outcome_names is not None or model_type == 'cph':
         df = name_columns(df, model_type, outcome_names)
     
-    if weighted:
+    if weighted and model_type != 'cph':
         pred_cols = [c for c in df.columns if 'y_pred' in c]
         weight_col = sorted(pred_cols)[-1]
         df = df.rename(columns={weight_col: 'weight'})

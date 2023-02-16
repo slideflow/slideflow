@@ -114,6 +114,8 @@ from slideflow import errors
 from slideflow.model import ModelParams
 from slideflow.slide import WSI, ExtractionReport, SlideReport
 from slideflow.util import (log, Labels, _shortname, path_to_name,
+                            path_to_ext, make_dir,
+                            get_model_normalizer, get_model_config,
                             tfrecord2idx, TileExtractionProgress)
 
 if TYPE_CHECKING:
@@ -1289,7 +1291,7 @@ class Dataset:
         buffer: Optional[str] = None,
         q_size: int = 1,
         qc: Optional[Union[str, Callable, List[Callable]]] = None,
-        weight_model_path: Optional[str] = None,
+        # weight_model_path: Optional[str] = None,
         report: bool = True,
         **kwargs: Any
     ) -> Dict[str, SlideReport]:
@@ -1505,9 +1507,9 @@ class Dataset:
                     'randomize_origin': randomize_origin,
                     'pb': pb
                 }
-                # TODO pass down weight model path
-                if weight_model_path:
-                    wsi_kwargs.update({'weight_model_path': weight_model_path})
+
+                # if weight_model_path:
+                #     wsi_kwargs.update({'weight_model_path': weight_model_path})
                 extraction_kwargs = {
                     'tfrecord_dir': tfrecord_dir,
                     'tiles_dir': tiles_dir,
@@ -2839,6 +2841,77 @@ class Dataset:
                           prob_weights=prob_weights,
                           clip=clip,
                           **kwargs)
+
+    def tfrecord_rewrite_pred(
+        self,
+        model_path: str,
+        source: str,
+        dest: str,
+        key: str,
+        n_parallel: Optional[int] = 4,
+    ):
+        """Rewrites tfrecords to include prediction output from a given model.
+
+        Args:
+            model_path (str): Path to model directory.
+            source (str): Dataset source name.
+            dest (str): Output directory in which to write new tfrecords.
+            key (str): Name of model prediction to be written in tfrecords.
+            n_parallel (iny): Number of parallel reads from each tfrecord.
+        """
+        from slideflow.io.tensorflow import (get_tfrecord_parser, process_image,
+                                             serialized_record)
+        from functools import partial
+        import tensorflow as tf
+
+        tfrecords = self._tfrecords_set(source)
+        if (not self.tile_px) or (not self.tile_um):
+            raise errors.DatasetError(
+                "Please provide dataset tile_px and tile_um at initialization."
+            )
+        tfr_dir = join(tfrecords, f'{self.tile_px}px_{self.tile_um}um')
+        out_dir = join(dest, f'{self.tile_px}px_{self.tile_um}um')
+        sf.util.make_dir(out_dir)
+        tfrs = [f for f in os.listdir(tfr_dir) if path_to_ext(f) == 'tfrecords']
+
+        model = tf.keras.models.load_model(model_path)
+        config = get_model_config(model_path)
+        normalizer = get_model_normalizer(model_path)
+        
+        for tfr in track(tfrs, transient=True, description=f'Generating {key}'):
+            tfr_path = join(tfr_dir, tfr)
+            parser = get_tfrecord_parser(
+                        tfr_path,
+                        features_to_return=['image_raw'],
+                        decode_images=True,
+                        img_size=self.tile_px,
+                    )
+            dts = tf.data.TFRecordDataset(tfr_path)
+            
+            dts = dts.map(parser, num_parallel_calls=n_parallel, deterministic=True)
+            if normalizer:
+                dts = dts.map(normalizer.tf_to_tf, num_parallel_calls=n_parallel, deterministic=True)
+            dts = dts.map(
+                    partial(
+                        process_image, 
+                        standardize=True, 
+                        augment=config['hp']['augment']
+                    ), 
+                    num_parallel_calls=n_parallel,
+                    deterministic=True
+                )
+            dts = dts.batch(config['hp']['batch_size'], drop_remainder=False)
+            predictions = model.predict(dts)
+            
+            writer = sf.io.TFRecordWriter(join(out_dir, tfr))
+            reader = tf.data.TFRecordDataset(tfr_path)
+            parser = get_tfrecord_parser(tfr_path, decode_images=False, to_numpy=True)
+            for i, record in enumerate(reader):
+                features = parser(record)
+                features['entry'] = {key: predictions[i][1]}
+                writer.write(serialized_record(**features))
+            writer.close()
+
 
     def tfrecord_report(
         self,

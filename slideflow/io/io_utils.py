@@ -6,7 +6,7 @@ import os
 import struct
 import sys
 import numpy as np
-from typing import List, Optional, Tuple, Any, Union, TYPE_CHECKING
+from typing import List, Optional, Tuple, Any, Union, Dict, TYPE_CHECKING
 
 from slideflow import errors, log
 from slideflow.util import tfrecord2idx
@@ -54,8 +54,10 @@ def _is_torch_float(img):
             img.dtype == torch.float16 or img.dtype == torch.float32)
 
 
-def detect_tfrecord_format(tfr: str) -> Tuple[Optional[List[str]],
-                                              Optional[str]]:
+def detect_tfrecord_format(
+    tfr: str,
+    description: Optional[Dict[str, str]] = None,
+) -> Tuple[Optional[List[str]], Optional[str]]:
     '''Detects tfrecord format.
 
     Args:
@@ -69,7 +71,7 @@ def detect_tfrecord_format(tfr: str) -> Tuple[Optional[List[str]],
             str: Image file type (png/jpeg)
     '''
     try:
-        record = tfrecord2idx.get_record_by_index(tfr, index=0)
+        record = tfrecord2idx.get_record_by_index(tfr, index=0, description=description)
     except errors.EmptyTFRecordsError:
         log.debug(f"Unable to detect format for {tfr}; file empty.")
         return None, None
