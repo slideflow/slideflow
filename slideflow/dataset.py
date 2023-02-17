@@ -1788,6 +1788,52 @@ class Dataset:
         except ValueError:
             return False
 
+    def kfold_split(
+        self,
+        k: int,
+        *,
+        labels: Optional[Union[Dict, str]] = None,
+        preserved_site: bool = False,
+        site_labels: Optional[Union[str, Dict[str, str]]] = 'site',
+        splits: Optional[str] = None,
+        read_only: bool = False,
+    ) -> Tuple[Tuple["Dataset", "Dataset"], ...]:
+        """Split the dataset into k cross-folds.
+
+        Args:
+            k (int): Number of cross-folds.
+
+        Keyword args:
+            labels (dict or str, optional):  Either a dictionary mapping slides
+                to labels, or an outcome label (``str``). Used for balancing
+                outcome labels in training and validation cohorts. If None,
+                will not balance k-fold splits by outcome labels. Defaults
+                to None.
+            preserved_site (bool): Split with site-preserved cross-validation.
+                Defaults to False.
+            site_labels (dict, optional): Dict mapping patients to site labels,
+                or an outcome column with site labels. Only used for site
+                preserved cross validation. Defaults to 'site'.
+            splits (str, optional): Path to JSON file containing validation
+                splits. Defaults to None.
+            read_only (bool): Prevents writing validation splits to file.
+                Defaults to False.
+
+        """
+        crossval_splits = []
+        for k_fold_iter in range(k):
+            split_kw = dict(
+                labels=labels,
+                val_strategy=('k-fold-preserved-site' if preserved_site else 'k-fold'),
+                val_k_fold=k,
+                k_fold_iter=k_fold_iter+1,
+                site_labels=site_labels,
+                splits=splits,
+                read_only=read_only
+            )
+            crossval_splits.append(self.split(**split_kw))
+        return tuple(crossval_splits)
+
     def labels(
         self,
         headers: Union[str, List[str]],
@@ -2278,14 +2324,14 @@ class Dataset:
 
     def split(
         self,
-        model_type: str,
-        labels: Union[Dict, str],
+        model_type: Optional[str] = None,
+        labels: Optional[Union[Dict, str]] = None,
         val_strategy: str = 'fixed',
         splits: Optional[str] = None,
         val_fraction: Optional[float] = None,
         val_k_fold: Optional[int] = None,
         k_fold_iter: Optional[int] = None,
-        site_labels: Optional[Dict[str, str]] = None,
+        site_labels: Optional[Union[str, Dict[str, str]]] = 'site',
         read_only: bool = False,
         from_wsi: bool = False,
     ) -> Tuple["Dataset", "Dataset"]:
@@ -2298,10 +2344,11 @@ class Dataset:
         directory so future models may use the same split for consistency.
 
         Args:
-            model_type (str): Either 'categorical' or 'linear'.
-            labels (dict):  Either a ictionary mapping slides to labels, or
+            model_type (str): Either 'categorical' or 'linear'. Defaults
+                to 'categorical' if ``labels`` is provided.
+            labels (dict or str):  Either a dictionary mapping slides to labels, or
                 an outcome label (``str``). Used for balancing outcome labels
-                in training and validation cohorts.
+                in training and validation cohorts. Defaults to None.
             val_strategy (str): Either 'k-fold', 'k-fold-preserved-site',
                 'bootstrap', or 'fixed'. Defaults to 'fixed'.
             splits (str, optional): Path to JSON file containing validation
@@ -2315,8 +2362,9 @@ class Dataset:
             k_fold_iter (int, optional): Which K-fold iteration to generate
                 starting at 1. Fequired if using K-fold validation.
                 Defaults to None.
-            site_labels (dict, optional): Dict mapping patients to site labels.
-                Used for site preserved cross validation.
+            site_labels (dict, optional): Dict mapping patients to site labels,
+                or an outcome column with site labels. Only used for site
+                preserved cross validation. Defaults to 'site'.
             read_only (bool): Prevents writing validation splits to file.
                 Defaults to False.
 
@@ -2353,6 +2401,11 @@ class Dataset:
             )
         if isinstance(labels, str):
             labels = self.labels(labels)[0]
+        if labels is None and model_type is None:
+            labels = self.patients()
+            model_type = 'linear'
+        elif model_type is None:
+            model_type = 'categorical'
 
         # Prepare dataset
         patients = self.patients()
