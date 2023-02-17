@@ -71,7 +71,7 @@ class TrainerConfigFastAI(TrainerConfig):
         self.fit_one_cycle = fit_one_cycle
         self.epochs = epochs
         self.batch_size = batch_size
-        if model  == 'marugoto':
+        if model in ModelConfigMarugoto.valid_models:
             self.model_config = ModelConfigMarugoto(model=model, **kwargs)
         else:
             self.model_config = ModelConfigCLAM(model=model, **kwargs)
@@ -121,6 +121,9 @@ class TrainerConfigCLAM(TrainerConfig):
 # -----------------------------------------------------------------------------
 
 class ModelConfigCLAM(DictConfig):
+
+    valid_models = ['clam_sb', 'clam_mb', 'mil_fc_mc', 'mil_fc']
+
     def __init__(
         self,
         bag_loss='ce',
@@ -159,13 +162,21 @@ class ModelConfigCLAM(DictConfig):
 
 class ModelConfigMarugoto(DictConfig):
 
+    valid_models = ['marugoto', 'transmil']
+
     def __init__(self, model: str = 'marugoto'):
         self.model = model
 
     @property
     def model_fn(self):
-        from .marugoto.model import Marugoto_MIL
-        return Marugoto_MIL
+        if self.model == 'marugoto':
+            from .marugoto.model import Marugoto_MIL
+            return Marugoto_MIL
+        elif self.model == 'transmil':
+            from .transmil.model import TransMIL
+            return TransMIL
+        else:
+            raise ValueError(f"Unrecognized model {self.model}")
 
     @property
     def loss_fn(self):

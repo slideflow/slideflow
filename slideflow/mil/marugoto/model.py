@@ -14,7 +14,7 @@ class Marugoto_MIL(nn.Module):
     ) -> None:
         """Create a new attention MIL model.
         Args:
-            n_feats:  The nuber of features each bag instance has.
+            n_feats:  The number of features each bag instance has.
             n_out:  The number of output layers of the model.
             encoder:  A network transforming bag instances into feature vectors.
         """
