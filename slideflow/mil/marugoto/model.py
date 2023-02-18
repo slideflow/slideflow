@@ -65,6 +65,9 @@ class Marugoto_MIL(nn.Module):
         self.attention = self.attention.to(device)
         self.head = self.head.to(device)
 
+    def plot(*args, **kwargs):
+        pass
+
 
 def Attention(n_in: int, n_latent: Optional[int] = None) -> nn.Module:
     """A network calculating an embedding's importance weight."""

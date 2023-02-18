@@ -15,8 +15,42 @@ from .._params import TrainerConfigFastAI, ModelConfigCLAM
 
 # -----------------------------------------------------------------------------
 
-def train(config, *args, **kwargs):
-    """Train an attention-based multi-instance learning model.
+def train(learner, config, callbacks=None):
+    """Train an attention-based multi-instance learning model with FastAI.
+
+    Args:
+        learner (``fastai.learner.Learner``): FastAI learner.
+        config (``TrainerConfigFastAI``): Trainer and model configuration.
+
+    Keyword args:
+        callbacks (list(fastai.Callback)): FastAI callbacks. Defaults to None.
+    """
+    cbs = [
+        SaveModelCallback(fname=f"best_valid"),
+        CSVLogger(),
+    ]
+    if callbacks:
+        cbs += callbacks
+    if config.fit_one_cycle:
+        if config.lr_max is None:
+            lr_max = learner.lr_find().valley
+            log.info(f"Using auto-detected learning rate: {lr_max}")
+        else:
+            lr_max = config.lr_max
+        learner.fit_one_cycle(n_epoch=config.epochs, lr_max=lr_max, cbs=cbs)
+    else:
+        if config.lr is None:
+            lr = learner.lr_find().valley
+            log.info(f"Using auto-detected learning rate: {lr}")
+        else:
+            lr = config.lr
+        learner.fit(n_epoch=config.epochs, lr=lr, wd=config.wd, cbs=cbs)
+    return learner
+
+# -----------------------------------------------------------------------------
+
+def build_learner(config, *args, **kwargs):
+    """Build a FastAI learner for training an MIL model.
 
     Args:
         config (``TrainerConfigFastAI``): Trainer and model configuration.
@@ -31,15 +65,18 @@ def train(config, *args, **kwargs):
             in the targets. Used for one-hot encoding.
         outdir (str): Location in which to save training history and best model.
         device (torch.device or str): PyTorch device.
+
+    Returns:
+        fastai.learner.Learner
+
     """
-
     if isinstance(config.model_config, ModelConfigCLAM):
-        return _train_clam(config, *args, **kwargs)
+        return _build_clam_learner(config, *args, **kwargs)
     else:
-        return _train_marugoto(config, *args, **kwargs)
+        return _build_marugoto_learner(config, *args, **kwargs)
 
 
-def _train_clam(
+def _build_clam_learner(
     config: TrainerConfigFastAI,
     bags: List[str],
     targets: npt.NDArray,
@@ -49,7 +86,7 @@ def _train_clam(
     outdir: Optional[str] = None,
     device: Union[str, torch.device] = 'cuda',
 ) -> Learner:
-    """Train an attention-based multi-instance learning model.
+    """Build a FastAI learner for a CLAM model.
 
     Args:
         config (``TrainerConfigFastAI``): Trainer and model configuration.
@@ -91,17 +128,10 @@ def _train_clam(
 
     # Create learning and fit.
     dls = DataLoaders(train_dl, val_dl)
-    learn = Learner(dls, model, loss_func=loss_func, metrics=[loss_utils.RocAuc()], path=outdir)
-    cbs = [
-        SaveModelCallback(fname=f"best_valid"),
-        CSVLogger(),
-    ]
-    learn.fit(n_epoch=config.epochs, lr=config.lr, wd=config.wd, cbs=cbs)
-    del val_dl
-    return learn
+    return Learner(dls, model, loss_func=loss_func, metrics=[loss_utils.RocAuc()], path=outdir)
 
 
-def _train_marugoto(
+def _build_marugoto_learner(
     config: TrainerConfigFastAI,
     bags: List[str],
     targets: npt.NDArray,
@@ -111,7 +141,7 @@ def _train_marugoto(
     outdir: Optional[str] = None,
     device: Union[str, torch.device] = 'cuda',
 ) -> Learner:
-    """Train an attention-based multi-instance learning model.
+    """Build a FastAI learner for a Marugoto MIL model.
 
     Args:
         config (``TrainerConfigFastAI``): Trainer and model configuration.
@@ -156,14 +186,4 @@ def _train_marugoto(
 
     # Create learning and fit.
     dls = DataLoaders(train_dl, val_dl)
-    learn = Learner(dls, model, loss_func=loss_func, metrics=[RocAuc()], path=outdir)
-    cbs = [
-        SaveModelCallback(fname=f"best_valid"),
-        CSVLogger(),
-    ]
-    if config.fit_one_cycle:
-        learn.fit_one_cycle(n_epoch=config.epochs, lr_max=config.lr_max, cbs=cbs)
-    else:
-        learn.fit(n_epoch=config.epochs, lr=config.lr, wd=config.wd, cbs=cbs)
-    del val_dl
-    return learn
+    return Learner(dls, model, loss_func=loss_func, metrics=[RocAuc()], path=outdir)

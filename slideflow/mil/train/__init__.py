@@ -1,14 +1,16 @@
 """Training functions for various multi-instance learning (MIL) models."""
 
 import os
-import json
 import numpy as np
 import slideflow as sf
 from os.path import join, exists
-from typing import Union, List, Optional, TYPE_CHECKING
+from typing import Union, List, TYPE_CHECKING
 from slideflow import Dataset, log
 from slideflow.util import path_to_name
 from .._params import TrainerConfig, TrainerConfigCLAM, TrainerConfigFastAI
+
+if TYPE_CHECKING:
+    from fastai.learner import Learner
 
 # -----------------------------------------------------------------------------
 
@@ -170,7 +172,7 @@ def train_clam(
 
 # -----------------------------------------------------------------------------
 
-def train_fastai(
+def build_fastai_learner(
     config: TrainerConfigFastAI,
     train_dataset: Dataset,
     val_dataset: Dataset,
@@ -179,8 +181,8 @@ def train_fastai(
     *,
     outdir: str = 'mil',
     exp_label: str = 'fastai',
-) -> None:
-    """Train a Marugoto aMIL model.
+) -> "Learner":
+    """Build a FastAI Learner for training an aMIL model.
 
     Args:
         train_dataset (:class:`slideflow.Dataset`): Training dataset.
@@ -199,6 +201,9 @@ def train_fastai(
             and the model will be saved.
         lr_max (float): Maximum learning rate.
         epochs (int): Maximum epochs.
+
+    Returns:
+        fastai.learner.Learner
     """
     from . import _fastai
 
@@ -230,8 +235,8 @@ def train_fastai(
     val_idx = np.array([i for i, bag in enumerate(bags)
                             if path_to_name(bag) in val_slides])
 
-    # Train
-    return _fastai.train(
+    # Build FastAI Learner
+    learner = _fastai.build_learner(
         config,
         bags=bags,
         targets=targets,
@@ -240,3 +245,51 @@ def train_fastai(
         unique_categories=unique_categories,
         outdir=outdir,
     )
+    return learner
+
+
+def train_fastai(
+    config: TrainerConfigFastAI,
+    train_dataset: Dataset,
+    val_dataset: Dataset,
+    outcomes: Union[str, List[str]],
+    bags: Union[str, List[str]],
+    *,
+    outdir: str = 'mil',
+    exp_label: str = 'fastai',
+) -> None:
+    """Train an aMIL model using FastAI.
+
+    Args:
+        train_dataset (:class:`slideflow.Dataset`): Training dataset.
+        val_dataset (:class:`slideflow.Dataset`): Validation dataset.
+        outcomes (str): Outcome column (annotation header) from which to
+            derive category labels.
+        bags (str): Either a path to directory with \*.pt files, or a list
+            of paths to individual \*.pt files. Each file should contain
+            exported feature vectors, with each file containing all tile
+            features for one patient.
+
+    Keyword args:
+        outdir (str): Directory in which to save model and results.
+        exp_label (str): Experiment label, used for naming the subdirectory
+            in the ``{project root}/mil`` folder, where training history
+            and the model will be saved.
+        lr_max (float): Maximum learning rate.
+        epochs (int): Maximum epochs.
+
+    Returns:
+        fastai.learner.Learner
+    """
+    from . import _fastai
+
+    learner = build_fastai_learner(
+        config,
+        train_dataset,
+        val_dataset,
+        outcomes,
+        bags=bags,
+        outdir=outdir,
+        exp_label=exp_label
+    )
+    return _fastai.train(learner, config)

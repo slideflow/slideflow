@@ -1,6 +1,7 @@
 """Model and trainer configuration classes for MIL models."""
 
 from torch import nn
+from typing import Optional
 
 
 def build_config(model: str, trainer: str = 'fastai', **kwargs):
@@ -55,8 +56,8 @@ class TrainerConfigFastAI(TrainerConfig):
     def __init__(
         self,
         model: str = 'marugoto',
-        lr: float = 1e-3,
-        lr_max: float = 1e-4,
+        lr: Optional[float] = None,
+        lr_max: Optional[float] = None,
         wd: float = 1e-5,
         bag_size: int = 512,
         fit_one_cycle: bool = True,
