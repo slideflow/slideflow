@@ -2062,6 +2062,59 @@ class Dataset:
         else:
             return {path_to_name(t): v for t, v in all_manifest.items()}
 
+    def manifest_histogram(
+        self,
+        by: Optional[str] = None,
+        binrange: Optional[Tuple[int, int]] = None
+    ) -> None:
+        """Plot histograms of tiles-per-slide.
+
+        Example
+            Create histograms of tiles-per-slide, stratified by site.
+
+                ..code-block:: python
+
+                    import matplotlib.pyplot as plt
+
+                    dataset.manifest_histogram(by='site')
+                    plt.show()
+
+        Args:
+            by (str, optional): Stratify histograms by this annotation column
+                header. Defaults to None.
+            binrange (tuple(int, int)): Histogram bin ranges. If None, uses full
+                range. Defaults to None.
+
+        """
+        import seaborn as sns
+        import matplotlib.pyplot as plt
+
+        if by is not None:
+            _, unique_vals = self.labels(by, format='name')
+            val_counts = [[m['total'] for m in self.filter({by: val}).manifest().values()] for val in unique_vals]
+            all_counts = [c for vc in val_counts for c in vc]
+        else:
+            unique_vals = ['']
+            all_counts = [m['total'] for m in self.manifest().values()]
+            val_counts = [all_counts]
+        if binrange is None:
+            max_count = (max(all_counts) // 20) * 20
+            binrange = (0, max_count)
+
+        fig, axes = plt.subplots(len(unique_vals), 1, figsize=(3, len(unique_vals)))
+        if not isinstance(axes, np.ndarray):
+            axes = [axes]
+        fig.set_tight_layout({"pad": .0})
+        for a, ax in enumerate(axes):
+            sns.histplot(val_counts[a], bins=20, binrange=binrange, ax=ax)
+            ax.yaxis.set_tick_params(labelleft=False)
+            ax.set_ylabel(unique_vals[a], rotation='horizontal', ha='right')
+            ax.set_xlim(binrange)
+            if a != (len(axes) - 1):
+                ax.xaxis.set_tick_params(labelbottom=False)
+                ax.set(xlabel=None)
+        ax.set(xlabel="Tiles per slide")
+
     def patients(self) -> Dict[str, str]:
         """Returns a list of patient IDs from this dataset."""
         if self.annotations is None:
