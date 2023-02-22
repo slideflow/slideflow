@@ -26,8 +26,8 @@ RUN wget https://raw.githubusercontent.com/jamesdolezal/slideflow/1.5.0/pixman_r
 
 # Install slideflow & download scripts
 ENV SF_BACKEND=torch
-RUN pip3 install slideflow[cucim]==1.5.0 cupy-cuda11x cellpose pretrainedmodels && \
-    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/1.5.0/test.py && \
-    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/1.5.0/run_project.py && \
-    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/1.5.0/qupath_roi.groovy && \
-    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/1.5.0/qupath_roi_legacy.groovy
+RUN pip3 install slideflow[cucim]==1.5.2 cupy-cuda11x cellpose pretrainedmodels && \
+    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/1.5.2/test.py && \
+    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/1.5.2/run_project.py && \
+    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/1.5.2/qupath_roi.groovy && \
+    wget https://raw.githubusercontent.com/jamesdolezal/slideflow/1.5.2/qupath_roi_legacy.groovy
