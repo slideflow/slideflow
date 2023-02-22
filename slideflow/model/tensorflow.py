@@ -882,7 +882,7 @@ class _PredictionAndEvaluationCallback(tf.keras.callbacks.Callback):
            and (batch % self.cb_args.validate_on_batch == 0)):
             _, acc, loss = eval_from_model(
                 self.model,
-                self.cb_args.validation_data,
+                self.cb_args.mid_train_validation_data,
                 model_type=self.hp.model_type(),
                 uq=False,
                 loss=self.hp.get_loss(),
@@ -1803,8 +1803,17 @@ class Trainer:
                 if validate_on_batch:
                     log.debug('Validation during training: every '
                               f'{validate_on_batch} steps and at epoch end')
+                    mid_v_kwargs = v_kwargs.copy()
+                    mid_v_kwargs['infinite'] = True
+                    mid_train_validation_data = iter(val_dts.tensorflow(
+                        incl_slidenames=True,
+                        incl_loc=True,
+                        drop_last=True,
+                        **mid_v_kwargs
+                    ))
                 else:
                     log.debug('Validation during training: at epoch end')
+                    mid_train_validation_data = None
                 if validation_steps:
                     num_samples = validation_steps * self.hp.batch_size
                     log.debug(f'Using {validation_steps} batches ({num_samples}'
@@ -1847,6 +1856,7 @@ class Trainer:
                 ema_smoothing=ema_smoothing,
                 steps_per_epoch=steps_per_epoch,
                 validation_data=validation_data,
+                mid_train_validation_data=mid_train_validation_data,
                 num_val_tiles=val_tiles,
                 save_predictions=save_predictions,
                 save_model=save_model,
@@ -1914,6 +1924,7 @@ class Trainer:
             # Cleanup
             if pool is not None:
                 pool.close()
+            del mid_train_validation_data
 
             return results
 
@@ -2313,11 +2324,11 @@ class Features(BaseFeatureExtractor):
             )
             if self.wsi_normalizer:
                 if self.wsi_normalizer.vectorized:
-                    log.info("Using vectorized normalization")
+                    log.debug("Using vectorized normalization")
                     norm_batch_size = 32 if not batch_size else batch_size
                     tile_dataset = tile_dataset.batch(norm_batch_size, drop_remainder=False)
                 else:
-                    log.info("Using per-image normalization")
+                    log.debug("Using per-image normalization")
                 tile_dataset = tile_dataset.map(
                     self.wsi_normalizer.tf_to_tf,
                     num_parallel_calls=tf.data.AUTOTUNE,
