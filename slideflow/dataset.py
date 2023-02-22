@@ -2389,7 +2389,7 @@ class Dataset:
                 "k-fold-preserved-site requires site_labels (dict of "
                 "patients:sites, or name of annotation column header"
             )
-        if isinstance(site_labels, str):
+        if val_strategy == 'k-fold-preserved-site' and isinstance(site_labels, str):
             site_labels, _ = self.labels(site_labels, format='name')
         if val_strategy == 'k-fold-preserved-site' and site_labels is None:
             raise errors.DatasetSplitError(
