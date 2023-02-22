@@ -3294,7 +3294,7 @@ class Project:
             List of dictionaries of length ``n_ensembles``, containing training
             results for each member of the ensemble.
         """
-
+        # Prepare output directory for saving ensemble members
         if isinstance(outcomes, list):
             ensemble_name = f"{'-'.join(outcomes)}-ensemble"
         else:
@@ -3302,11 +3302,14 @@ class Project:
         ensemble_path = sf.util.get_new_model_dir(self.models_dir, ensemble_name)
         ensemble_results = []
 
+        # Process model params arguments
         if isinstance(params, ModelParams):
             hyper_deep = False
             if n_ensembles is None:
-                raise ValueError("`n_ensembles` was not passed in `train_ensemble()`")
-
+                raise TypeError(
+                    "Keyword argument 'n_ensembles' is required if 'params' is "
+                    "not a list of ModelParams."
+                )
         elif isinstance(params, list):
             hyper_deep = True
             if not all([isinstance(hp, ModelParams) for hp in params]):
@@ -3315,7 +3318,6 @@ class Project:
                 )
             hp_list = params
             n_ensembles = len(hp_list)
-
         elif isinstance(params, dict):
             hyper_deep = True
             if not all([isinstance(hp, str) for hp in params.keys()]):
@@ -3332,7 +3334,6 @@ class Project:
             print("The hyperparameter name to ensemble member mapping is:")
             for e, n in enumerate(params.keys()):
                 print(f"  - {n} : ensemble_{e+1}")
-
         else:
             raise ValueError(f"Unable to interpret params value {params}")
 
@@ -3342,26 +3343,25 @@ class Project:
                 if hp.epochs != hp_list[0].epochs:
                     raise errors.ModelParamsNotFoundError(
                         "All the hyperparameters much have the same epoch value")
-        
-        pb = tqdm(range(n_ensembles), leave=False, desc=f"Training Ensemble 1 of {n_ensembles}")
-        for i in pb:
+
+        # Parse validation settings
+        val_kwargs = {k[4:]: v for k, v in kwargs.items() if k[:4] == 'val_'}
+        val_settings = get_validation_settings(**val_kwargs)
+        print(f"Validation settings: {json.dumps(vars(val_settings), indent=2)}")
+
+        if not hyper_deep:
+            print(f"\nHyperparameters: {params}")
+        for i in range(n_ensembles):
+            print(f"Training Ensemble {i+1} of {n_ensembles}")
             # Create the ensemble member folder, which will hold each
             # k-fold model for the given ensemble member.
             with sf.util.logging_level(30):
                 member_path = sf.util.get_new_model_dir(
                     ensemble_path,
                     f"ensemble_{i+1}")
+                if hyper_deep:
+                    print(f"\nHyperparameters: {hp_list[i]}")
 
-                val_kwargs = {k[4:]: v for k, v in kwargs.items() if k[:4] == 'val_'}
-                val_settings = get_validation_settings(**val_kwargs)
-                if i == 0 and not hyper_deep:
-                    pb.write(f"\nHyperparameters: {params}")
-                    pb.write(f"Val settings: {json.dumps(vars(val_settings), indent=2)}")
-                elif hyper_deep:
-                    pb.write(f"\nHyperparameters: {hp_list[i]}")
-                    pb.write(f"Val settings: {json.dumps(vars(val_settings), indent=2)}")     
-
-                pb.write(f"\nTraining Ensemble {i+1} of {n_ensembles}\n")
                 with self._set_models_dir(member_path):
                     if hyper_deep:
                         hp = hp_list[i]
@@ -3370,8 +3370,6 @@ class Project:
                     else:
                         result = self.train(outcomes, params, **kwargs)
                         ensemble_results.append(result)
-            pb.set_description(f"Training Ensemble {i+2} of {n_ensembles}")
-        pb.close()
 
         # Copy the slide manifest and params.json file
         # into the parent ensemble folder.
