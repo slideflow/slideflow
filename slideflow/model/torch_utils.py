@@ -334,6 +334,9 @@ def eval_from_model(
     if verbosity != 'silent':
         pb.stop()
 
+    if y_pred == []:
+        raise ValueError("Insufficient data for evaluation.")
+
     # Concatenate predictions for each outcome.
     if type(y_pred[0]) == list:
         y_pred = [np.concatenate(yp) for yp in zip(*y_pred)]

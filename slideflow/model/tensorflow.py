@@ -1804,6 +1804,7 @@ class Trainer:
                         drop_last=True,
                         **v_kwargs
                     )
+                    log.debug(f"Validation: {val_dts.num_tiles} total tiles.")
                 if validate_on_batch:
                     log.debug('Validation during training: every '
                               f'{validate_on_batch} steps and at epoch end')
