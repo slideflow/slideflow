@@ -17,6 +17,7 @@ from rich.highlighter import NullHighlighter
 from rich.panel import Panel
 from rich.console import Console
 from rich.progress import Progress, TextColumn, BarColumn
+from contextlib import contextmanager
 from functools import partial
 from glob import glob
 from os.path import dirname, exists, isdir, join
@@ -26,7 +27,6 @@ from tqdm import tqdm
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
 import numpy as np
-import pandas as pd
 import slideflow as sf
 from slideflow import errors
 from . import example_pb2, log_utils
@@ -99,6 +99,16 @@ def setLoggingLevel(level):
 def getLoggingLevel():
     """Return the current logging level."""
     return log.handlers[0].level
+
+
+@contextmanager
+def logging_level(level: int):
+    _initial = getLoggingLevel()
+    setLoggingLevel(level)
+    try:
+        yield
+    finally:
+        setLoggingLevel(_initial)
 
 
 def addLoggingFileHandler(path):
