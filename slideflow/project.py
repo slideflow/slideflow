@@ -3517,7 +3517,7 @@ class Project:
 
         Args:
             config (:class:`slideflow.mil.TrainerConfig): Training configuration,
-                as obtained by :func:`slideflow.mil.build_config()`.
+                as obtained by :func:`slideflow.mil.mil_config()`.
             train_dataset (:class:`slideflow.Dataset`): Training dataset.
             val_dataset (:class:`slideflow.Dataset`): Validation dataset.
             outcomes (str): Outcome column (annotation header) from which to

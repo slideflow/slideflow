@@ -4,7 +4,7 @@ from torch import nn
 from typing import Optional
 
 
-def build_config(model: str, trainer: str = 'fastai', **kwargs):
+def mil_config(model: str, trainer: str = 'fastai', **kwargs):
     if model == 'marugoto' and trainer == 'clam':
         raise ValueError(f"Model {model} incompatible with trainer {trainer}")
     if trainer == 'fastai':

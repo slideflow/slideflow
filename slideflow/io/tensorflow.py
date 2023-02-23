@@ -100,6 +100,7 @@ def preprocess_uint8(
     resize_px: Optional[int] = None,
     resize_method: str = 'lanczos3',
     resize_aa: bool = True,
+    as_dict: bool = True
 ) -> Dict[str, tf.Tensor]:
     """Process batch of tensorflow images, resizing, normalizing,
     and standardizing.
@@ -129,7 +130,10 @@ def preprocess_uint8(
         img = normalizer.tf_to_tf(img)  # type: ignore
     if standardize:
         img = tf.image.per_image_standardization(img)
-    return {'tile_image': img}
+    if as_dict:
+        return {'tile_image': img}
+    else:
+        return img
 
 
 @tf.function

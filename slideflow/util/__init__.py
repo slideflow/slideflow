@@ -723,6 +723,28 @@ def get_model_normalizer(
     return normalizer
 
 
+def get_preprocess_fn(model_path: str):
+    """Returns a function which preprocesses a uint8 image for a model.
+
+    Args:
+        model_path (str): Path to a saved Slideflow model.
+
+    Returns:
+        A function which accepts a single image or batch of uint8 images,
+        and returns preprocessed (and stain normalized) float32 images.
+
+    """
+    normalizer = get_model_normalizer(model_path)
+    if is_torch_model_path(model_path):
+        from slideflow.io.torch import preprocess_uint8
+        return partial(preprocess_uint8, normalizer=normalizer)
+    elif is_tensorflow_model_path(model_path):
+        from slideflow.io.tensorflow import preprocess_uint8
+        return partial(preprocess_uint8, normalizer=normalizer, as_dict=False)
+    else:
+        raise ValueError(f"Unrecognized model: {model_path}")
+
+
 def get_slide_paths(slides_dir: str) -> List[str]:
     '''Get all slide paths from a given directory containing slides.'''
     slide_list = [i for i in glob(join(slides_dir, '**/*.*')) if is_slide(i)]
