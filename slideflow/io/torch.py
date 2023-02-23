@@ -52,7 +52,7 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
         num_replicas: int = 1,
         augment: Union[str, bool] = False,
         standardize: bool = True,
-        num_tiles: Optional[Dict[str, int]] = None,
+        num_tiles: Optional[int] = None,
         infinite: bool = True,
         prob_weights: Optional[Dict[str, float]] = None,
         normalizer: Optional["StainNormalizer"] = None,
@@ -94,7 +94,7 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
                 performs all and False performs None. Defaults to True.
             standardize (bool, optional): Standardize images to mean 0 and
                 variance of 1. Defaults to True.
-            num_tiles (dict, optional): Dict mapping tfrecord names to number
+            num_tiles (int, optional): Dict mapping tfrecord names to number
                 of total tiles. Defaults to None.
             infinite (bool, optional): Inifitely loop through dataset.
                 Defaults to True.
@@ -215,6 +215,9 @@ class InterleaveIterator(torch.utils.data.IterableDataset):
     def has_labels(self) -> bool:
         return (self.use_labels
                 and any(x != 0 for x in self.label_shape))  # type: ignore
+
+    def __len__(self) -> Optional[int]:
+        return self.num_tiles
 
     def _parser(
         self,
