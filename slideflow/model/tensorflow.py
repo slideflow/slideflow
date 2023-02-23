@@ -1774,7 +1774,7 @@ class Trainer:
                     roi_method=roi_method
                 )
                 train_data = train_dts.tensorflow(drop_last=True, **t_kwargs)
-                log.debug(f"Training: {val_dts.num_tiles} total tiles.")
+                log.debug(f"Training: {train_dts.num_tiles} total tiles.")
 
             # Set up validation data
             using_validation = (val_dts
@@ -1823,6 +1823,7 @@ class Trainer:
             else:
                 log.debug('Validation during training: None')
                 validation_data = None
+                mid_train_validation_data = None
                 validation_steps = 0
 
             # Calculate parameters
