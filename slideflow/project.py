@@ -810,6 +810,7 @@ class Project:
             train_dts = train_dts.balance(
                 s_args.bal_headers,
                 hp.training_balance,
+                force=(hp.model_type() == 'categorical')
             )
             train_dts = train_dts.clip(s_args.max_tiles)
         elif hp.training_balance not in ('none', None) or s_args.max_tiles:
@@ -819,6 +820,7 @@ class Project:
             val_dts = val_dts.balance(
                 s_args.bal_headers,
                 hp.validation_balance,
+                force=(hp.model_type() == 'categorical')
             )
             val_dts = val_dts.clip(s_args.max_tiles)
 

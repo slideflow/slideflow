@@ -858,7 +858,7 @@ class Dataset:
             headers = sf.util.as_list(headers)
             if any(ret.is_float(h) for h in headers) and not force:
                 raise errors.DatasetBalanceError(
-                    f"Headers {','.join(headers)} appear to be `float`."
+                    f"Headers {','.join(headers)} appear to be `float`. "
                     "Categorical outcomes required for balancing. "
                     "To force balancing with these outcomes, pass "
                     "`force=True` to Dataset.balance()"
