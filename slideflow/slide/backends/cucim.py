@@ -18,6 +18,8 @@ from slideflow.slide.utils import *
 
 
 __cv2_resize__ = True
+__cuimage__ = None
+__cuimage_path__ = None
 
 
 def get_cucim_reader(path: str, *args, **kwargs):
@@ -192,11 +194,15 @@ class _cuCIMReader:
         num_workers: int = 0
     ):
         '''Wrapper for cuCIM reader to preserve cross-compatible functionality.'''
-
+        global __cuimage__, __cuimage_path__
         self.path = path
         self.cache_kw = cache_kw if cache_kw else {}
         self.loaded_downsample_levels = {}  # type: Dict[int, "CuImage"]
-        self.reader = CuImage(path)
+        if path == __cuimage_path__:
+            self.reader = __cuimage__
+        else:
+            __cuimage__ = self.reader = CuImage(path)
+            __cuimage_path__ = path
         self.num_workers = num_workers
         self._mpp = None
 

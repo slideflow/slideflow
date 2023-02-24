@@ -322,6 +322,8 @@ class _BaseLoader:
             state['__slide'] = None
         if '_BaseLoader__slide' in state:
             state['_BaseLoader__slide'] = None
+        if 'pb' in state:
+            state['pb'] = None
         return state
 
     def __setstate__(self, state):
@@ -804,41 +806,38 @@ class _BaseLoader:
             except OSError:
                 log.error(f"Unable to mark slide {self.name} as complete")
 
-        # Assemble report DataFrame
-        loc_np = np.array(locations, dtype=np.int64)
-        grid_np = np.array(grid_locations, dtype=np.int64)
-        df_dict = {
-            'loc_x': [] if not len(loc_np) else pd.Series(loc_np[:, 0], dtype=int),
-            'loc_y': [] if not len(loc_np) else pd.Series(loc_np[:, 1], dtype=int),
-            'grid_x': [] if not len(grid_np) else pd.Series(grid_np[:, 0], dtype=int),
-            'grid_y': [] if not len(grid_np) else pd.Series(grid_np[:, 1], dtype=int)
-        }
-        if ws_fractions:
-            df_dict.update({'ws_fraction': pd.Series(ws_fractions, dtype=float)})
-        if gs_fractions:
-            df_dict.update({'gs_fraction': pd.Series(gs_fractions, dtype=float)})
-        df = pd.DataFrame(df_dict)
-
         # Generate extraction report
         if report:
+            log.debug("Generating slide report")
+            loc_np = np.array(locations, dtype=np.int64)
+            grid_np = np.array(grid_locations, dtype=np.int64)
+            df_dict = {
+                'loc_x': [] if not len(loc_np) else pd.Series(loc_np[:, 0], dtype=int),
+                'loc_y': [] if not len(loc_np) else pd.Series(loc_np[:, 1], dtype=int),
+                'grid_x': [] if not len(grid_np) else pd.Series(grid_np[:, 0], dtype=int),
+                'grid_y': [] if not len(grid_np) else pd.Series(grid_np[:, 1], dtype=int)
+            }
+            if ws_fractions:
+                df_dict.update({'ws_fraction': pd.Series(ws_fractions, dtype=float)})
+            if gs_fractions:
+                df_dict.update({'gs_fraction': pd.Series(gs_fractions, dtype=float)})
             report_data = dict(
                 blur_burden=self.blur_burden,
                 num_tiles=len(locations),
                 qc_mask=self.qc_mask,
-                locations=df,
+                locations=pd.DataFrame(df_dict),
                 num_rois=(0 if self.roi_method == 'ignore' else len(self.rois))
             )
             slide_report = SlideReport(
                 sample_tiles,
                 self.slide.path,
                 data=report_data,
-                thumb=self.thumb(
-                    coords=locations,
-                    rois=(self.roi_method != 'ignore')
-                )
+                thumb_coords=locations,
+                slide=self,
             )
             return slide_report
         else:
+            log.debug("Skipping slide report")
             return None
 
     def preview(self, rois: bool = True, **kwargs) -> Optional[Image.Image]:
@@ -1586,11 +1585,12 @@ class WSI(_BaseLoader):
                 else:
                     csize = max(min(int(self.estimated_num_tiles/pool._processes), 64), 1)
                     log.debug(f"Using imap chunksize={csize}")
-                    i_mapped = pool.imap(
+                    i_mapped = pool.imap_unordered(
                         partial(tile_worker, args=w_args),
                         non_roi_coord,
                         chunksize=csize
                     )
+
             for e, result in enumerate(i_mapped):
                 if show_progress:
                     pbar.advance(task, 1)

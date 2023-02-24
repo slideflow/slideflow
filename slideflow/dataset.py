@@ -1493,6 +1493,7 @@ class Dataset:
                 ptype = 'spawn' if sf.slide_backend() == 'libvips' else 'fork'
                 ctx = mp.get_context(ptype)
                 reports = manager.dict()
+                kwargs['report'] = report
 
                 # Use a single shared multiprocessing pool
                 if 'num_threads' not in kwargs:
@@ -1503,14 +1504,24 @@ class Dataset:
                     num_threads = kwargs['num_threads']
                 log.info(f'Using {num_threads} processes (pool={ptype})')
                 if num_threads != 1:
-                    kwargs['pool'] = ctx.Pool(
+                    pool = kwargs['pool'] = ctx.Pool(
                         num_threads,
                         initializer=signal.signal,
                         initargs=(signal.SIGINT, signal.SIG_IGN)
                     )
+                else:
+                    pool = None
 
                 # Set up the multiprocessing progress bar
                 pb = TileExtractionProgress()
+                speed_task = pb.add_task(
+                    "Speed: ",
+                    progress_type="speed",
+                    total=None)
+                slide_task = pb.add_task(
+                    "Extracting...",
+                    progress_type="slide_progress",
+                    total=len(slide_list))
 
                 wsi_kwargs = {
                     'tile_px': self.tile_px,
@@ -1532,13 +1543,6 @@ class Dataset:
                     'qc_kwargs': qc_kwargs,
                     'wsi_kwargs': wsi_kwargs
                 }
-
-                speed_task = pb.add_task("Speed: ",
-                                         progress_type="speed",
-                                         total=None)
-                slide_task = pb.add_task("Extracting...",
-                                         progress_type="slide_progress",
-                                         total=len(slide_list))
                 pb.start()
                 with sf.util.cleanup_progress(pb):
                     if buffer:
@@ -1584,8 +1588,7 @@ class Dataset:
                                 log.error(f'{wsi.path} corrupt; skipping')
                             pb.advance(slide_task)
 
-                if 'pool' in kwargs and kwargs['pool'] is not None:
-                    kwargs['pool'].close()
+                # Generate PDF report.
                 if report:
                     log.info('Generating PDF (this may take some time)...', )
                     rep_vals = list(reports.copy().values())  # type: List[SlideReport]
@@ -1611,7 +1614,8 @@ class Dataset:
                     )
                     pdf_report = ExtractionReport(
                         [r for r in rep_vals if r is not None],
-                        meta=report_meta
+                        meta=report_meta,
+                        pool=pool
                     )
                     _time = datetime.now().strftime('%Y%m%d-%H%M%S')
                     pdf_dir = tfrecord_dir if tfrecord_dir else ''
@@ -1622,6 +1626,10 @@ class Dataset:
                     warn_path = join(pdf_dir, f'warn_report-{_time}.txt')
                     with open(warn_path, 'w') as warn_f:
                         warn_f.write(pdf_report.warn_txt)
+
+                # Close the multiprocessing pool.
+                if pool is not None:
+                    pool.close()
 
         # Update manifest & rebuild indices
         self.update_manifest(force_update=True)

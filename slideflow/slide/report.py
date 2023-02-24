@@ -6,20 +6,30 @@ import io
 import os
 import tempfile
 import pandas as pd
+import numpy as np
+from fpdf import FPDF
+from PIL import Image
 from datetime import datetime
 from os.path import join, exists
 from types import SimpleNamespace
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
-
-import numpy as np
-from fpdf import FPDF
-from PIL import Image
 
 import slideflow as sf
 from slideflow.util import log, path_to_name  # noqa F401
 
 if TYPE_CHECKING:
     import pandas as pd
+
+# -----------------------------------------------------------------------------
+
+def render_thumbnail(report: "SlideReport") -> Optional["Image.Image"]:
+    return report.thumb
+
+
+def render_image_row(report: "SlideReport") -> Optional[bytes]:
+    return report.image_row()
+
+# -----------------------------------------------------------------------------
 
 class SlideReport:
     '''Report to summarize tile extraction from a slide, including
@@ -30,7 +40,10 @@ class SlideReport:
         self,
         images: List[bytes],
         path: str,
+        *,
+        slide: Optional["sf.WSI"] = None,
         thumb: Optional[Image.Image] = None,
+        thumb_coords: Optional[np.ndarray] = None,
         data: Dict[str, Any] = None,
         compress: bool = True
     ) -> None:
@@ -45,19 +58,37 @@ class SlideReport:
                 'locations', and 'qc_mask'. Defaults to None.
             compress (bool, optional): Compresses images to reduce image sizes.
                 Defaults to True.
-        """
+            thumb (PIL.Image): Thumbnail of slide. Defaults to None.
+            thumb_coords (np.ndarray): Array of (x, y) tile extraction
+                coordinates, for display on the thumbnail. Defaults to None.
 
+
+        """
+        self.slide = slide
         self.data = data
         self.path = path
         self.timestamp = str(datetime.now())
-        if thumb is None:
-            self.thumb = None
+
+        # Thumbnail
+        self.thumb_coords = thumb_coords
+        if thumb is not None:
+            self._thumb = Image.fromarray(np.array(thumb)[:, :, 0:3])
         else:
-            self.thumb = Image.fromarray(np.array(thumb)[:, :, 0:3])
+            self._thumb = None
+
         if not compress:
             self.images = images  # type: List[bytes]
         else:
             self.images = [self._compress(img) for img in images]
+
+    @property
+    def thumb(self):
+        if self._thumb is None and self.slide is not None:
+            self._thumb = self.slide.thumb(
+                coords=self.thumb_coords,
+                rois=(self.slide.roi_method != 'ignore')
+            )
+        return self._thumb
 
     @property
     def blur_burden(self) -> Optional[float]:
@@ -214,7 +245,9 @@ class ExtractionReport:
         reports: List[SlideReport],
         meta: SimpleNamespace = None,
         bb_threshold: float = 0.05,
-        title: str = 'Tile extraction report'
+        title: str = 'Tile extraction report',
+        *,
+        pool: Optional[Any] = None
     ) -> None:
         """Initializer.
 
@@ -293,25 +326,35 @@ class ExtractionReport:
                       sf.slide_backend()):
                 pdf.cell(75)
                 pdf.cell(20, 4, str(m), ln=1)
-
             pdf.ln(20)
+
+            # Render thumbnails, if a multiprocesing pool is provided.
+            if pool is not None:
+                log.debug("Rendering thumbnails with pool.")
+                thumbnails = pool.map(render_thumbnail, reports)
+                log.debug("Rendering tile images with pool.")
+                image_rows = pool.map(render_image_row, reports)
+                log.debug("Report render complete.")
+            else:
+                thumbnails = [r.thumb for r in reports]
+                image_rows = [r.image_row() for r in reports]
 
             # Save thumbnail first
             pdf.set_font('Arial', 'B', 7)
             n_images = 0
+            log.debug("Rendering PDF pages with thumbnails.")
             for i, report in enumerate(reports):
                 if report is None:
                     continue
-                if report.thumb:
-
+                thumb = thumbnails[i]
+                if thumb:
                     # Create a new row every 2 slides
                     if n_images % 2 == 0:
                         pdf.cell(50, 90, ln=1)
-
                     # Slide thumbnail
                     with tempfile.NamedTemporaryFile() as temp:
-                        report.thumb.save(temp, format="JPEG", quality=75)
-                        thumb_w, thumb_h = report.thumb.size
+                        thumb.save(temp, format="JPEG", quality=75)
+                        thumb_w, thumb_h = thumb.size
                         x = pdf.get_x()+((n_images+1) % 2 * 100)
                         y = pdf.get_y()-85
                         if (thumb_w / thumb_h) * 80 > 90:
@@ -343,10 +386,9 @@ class ExtractionReport:
                     pdf.ln(1)
 
         # Now save rows of sample tiles
-        for report in reports:
+        for image_row, report in zip(image_rows, reports):
             if report is None:
                 continue
-            image_row = report.image_row()
             if image_row:
                 pdf.set_font('Arial', '', 7)
                 pdf.cell(10, 10, report.path, 0, 1)
@@ -366,7 +408,6 @@ class ExtractionReport:
                     except RuntimeError as e:
                         log.error(f"Error writing image to PDF: {e}")
             pdf.ln(20)
-
         self.pdf = pdf
 
     def num_tiles_chart(self, num_tiles: np.ndarray) -> bool:
