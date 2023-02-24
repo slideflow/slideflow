@@ -1485,7 +1485,7 @@ class Project:
                 Defaults to None.
             num_workers (int, optional): Extract tiles from this many slides
                 simultaneously. Defaults to 1.
-            q_size (int, optional): Queue size for buffer. Defaults to 4.
+            q_size (int, optional): Queue size for buffer. Defaults to 2.
             qc (str, optional): 'otsu', 'blur', 'both', or None. Perform blur
                 detection quality control - discarding tiles with detected
                 out-of-focus regions or artifact - and/or otsu's method.
@@ -2004,8 +2004,9 @@ class Project:
                 If 'ignore', will extract tiles across the whole-slide
                 regardless of whether an ROI is available.
                 Defaults to 'auto'.
-            num_threads (int, optional): Number of threads for tile extraction.
-                Defaults to CPU core count.
+            num_threads (int, optional): Number of workers threads for each
+                tile extractor. Defaults to the total number of available
+                CPU threads.
             img_format (str, optional): Image format (png, jpg) to use when
                 extracting tiles from slide. Must match the image format
                 the model was trained on. If 'auto', will use the format

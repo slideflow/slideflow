@@ -20,6 +20,12 @@ except (ModuleNotFoundError, OSError) as e:
               f"Error raised: {e}")
 
 
+__vipsreader__ = None
+__vipsreader_path__ = None
+__vipsreader_args__ = None
+__vipsreader_kwargs__ = None
+
+
 VIPS_FORMAT_TO_DTYPE = {
     'uchar': np.uint8,
     'char': np.int8,
@@ -35,10 +41,28 @@ VIPS_FORMAT_TO_DTYPE = {
 
 
 def get_libvips_reader(path: str, *args, **kwargs):
+    global __vipsreader__, __vipsreader_path__, __vipsreader_args__, __vipsreader_kwargs__
+
+    # Return from buffer, if present.
+    if (__vipsreader_path__ == path
+       and __vipsreader_args__ == args
+       and __vipsreader_kwargs__ == kwargs):
+        return __vipsreader__
+
+    # Read a JPEG image.
     if path_to_ext(path).lower() in ('jpg', 'jpeg'):
-        return _JPGVIPSReader(path, *args, **kwargs)
+        reader = _JPGVIPSReader(path, *args, **kwargs)
+
+    # Read a slide image.
     else:
-        return _VIPSReader(path, *args, **kwargs)
+        reader = _VIPSReader(path, *args, **kwargs)
+
+    # Buffer args and return.
+    __vipsreader_path__ = path
+    __vipsreader_args__ = args
+    __vipsreader_kwargs__ = kwargs
+    __vipsreader__ = reader
+    return reader
 
 
 def vips2numpy(

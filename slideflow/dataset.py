@@ -926,7 +926,7 @@ class Dataset:
         qc: Optional[str] = None,
         qc_kwargs: Optional[dict] = None,
         buffer: Optional[str] = None,
-        q_size: int = 1,
+        q_size: int = 2,
         force: bool = False,
         save_centroid: bool = True,
         save_flow: bool = False,
@@ -1301,7 +1301,7 @@ class Dataset:
         tma: bool = False,
         randomize_origin: bool = False,
         buffer: Optional[str] = None,
-        q_size: int = 1,
+        q_size: int = 2,
         qc: Optional[Union[str, Callable, List[Callable]]] = None,
         report: bool = True,
         **kwargs: Any
@@ -1350,7 +1350,7 @@ class Dataset:
                 before extraction. Defaults to None. Using an SSD or ramdisk
                 buffer vastly improves tile extraction speed.
             q_size (int): Size of queue when using a buffer.
-                Defaults to 4.
+                Defaults to 2.
             qc (str, optional): 'otsu', 'blur', 'both', or None. Perform blur
                 detection quality control - discarding tiles with detected
                 out-of-focus regions or artifact - and/or otsu's method.
@@ -1385,7 +1385,10 @@ class Dataset:
             shuffle (bool, optional): Shuffle tiles prior to storage in
                 tfrecords. Defaults to True.
             num_threads (int, optional): Number of workers threads for each
-                tile extractor.
+                tile extractor. When using cuCIM slide reading backend, defaults
+                to the total number of available CPU threads. With Libvips,
+                this defaults to the total number of available CPU threads or 32,
+                whichever is lower.
             qc_blur_radius (int, optional): Quality control blur radius for
                 out-of-focus area detection. Used if qc=True. Defaults to 3.
             qc_blur_threshold (float, optional): Quality control blur threshold
@@ -1488,21 +1491,22 @@ class Dataset:
             # from all slides in the filtered list
             if len(slide_list):
                 q = Queue()  # type: Queue
-                manager = mp.Manager()
                 # Forking incompatible with some libvips configurations
                 ptype = 'spawn' if sf.slide_backend() == 'libvips' else 'fork'
                 ctx = mp.get_context(ptype)
+                manager = ctx.Manager()
                 reports = manager.dict()
                 kwargs['report'] = report
 
                 # Use a single shared multiprocessing pool
                 if 'num_threads' not in kwargs:
                     num_threads = os.cpu_count()
+                    if sf.slide_backend() == 'libvips':
+                        num_threads = min(num_threads, 32)
                     if num_threads is None:
                         num_threads = 8
                 else:
                     num_threads = kwargs['num_threads']
-                log.info(f'Using {num_threads} processes (pool={ptype})')
                 if num_threads != 1:
                     pool = kwargs['pool'] = ctx.Pool(
                         num_threads,
@@ -1511,6 +1515,8 @@ class Dataset:
                     )
                 else:
                     pool = None
+                    ptype = None
+                log.info(f'Using {num_threads} processes (pool={ptype})')
 
                 # Set up the multiprocessing progress bar
                 pb = TileExtractionProgress()
