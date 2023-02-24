@@ -2,26 +2,26 @@ import multiprocessing as mp
 import os
 import random
 import threading
+import signal
+import numpy as np
+import pandas as pd
+import torchvision
+import torch
+from torchvision import transforms
 from os import listdir
 from os.path import dirname, exists, isfile, join
 from queue import Queue
 from typing import (TYPE_CHECKING, Any, Callable, Dict, Iterable, List,
                     Optional, Tuple, Union)
 
-import numpy as np
-import pandas as pd
+
 import slideflow as sf
-import torchvision
-from torchvision import transforms
 from slideflow import errors
 from slideflow.io import convert_dtype
 from slideflow.io.io_utils import detect_tfrecord_format
 from slideflow.tfrecord.torch.dataset import MultiTFRecordDataset
 from slideflow.tfrecord.iterator_utils import RandomSampler
 from slideflow.util import Labels, log, to_onehot, tfrecord2idx
-from rich.progress import Progress
-
-import torch
 
 if TYPE_CHECKING:
     from slideflow.norm import StainNormalizer
@@ -854,7 +854,11 @@ def interleave(
 
         # ---- Load slides and apply Otsu thresholding ------------------------
         if pool is None and sf.slide_backend() == 'cucim':
-            pool = mp.Pool(8 if os.cpu_count is None else os.cpu_count())
+            pool = mp.Pool(
+                8 if os.cpu_count is None else os.cpu_count(),
+                initializer=signal.signal,
+                initargs=(signal.SIGINT, signal.SIG_IGN)
+            )
         elif pool is None:
             pool = mp.dummy.Pool(16 if os.cpu_count is None else os.cpu_count())
         wsi_list = []

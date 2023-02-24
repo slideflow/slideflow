@@ -1182,3 +1182,11 @@ def load_predictions(path: str, **kwargs) -> pd.DataFrame:
         return pd.read_feather(f"{path}", **kwargs)
     else:
         raise ValueError(f'Unrecognized extension "{path_to_ext(path)}"')
+
+@contextmanager
+def cleanup_progress(pb: Optional["Progress"]):
+    try:
+        yield
+    finally:
+        if pb is not None:
+            pb.stop()

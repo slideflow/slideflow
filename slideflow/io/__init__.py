@@ -94,14 +94,13 @@ def update_manifest_at_dir(
         pb.start()
     else:
         pb = None
-    for m in pool.imap(process_tfr, rel_paths):
-        if pb is not None:
-            pb.advance(task)
-        if m is None:
-            continue
-        manifest.update(m)
-    if pb is not None:
-        pb.stop()
+    with sf.util.cleanup_progress(pb):
+        for m in pool.imap(process_tfr, rel_paths):
+            if pb is not None:
+                pb.advance(task)
+            if m is None:
+                continue
+            manifest.update(m)
     # Write manifest file
     if (manifest != prior_manifest) or (manifest == {}):
         sf.util.write_json(manifest, manifest_path)

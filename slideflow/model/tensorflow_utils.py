@@ -17,6 +17,7 @@ import tensorflow as tf
 if TYPE_CHECKING:
     import neptune.new as neptune
 
+# -----------------------------------------------------------------------------
 
 def log_summary(
     model: tf.keras.Model,
@@ -355,80 +356,87 @@ def eval_from_model(
         pb = Progress(SpinnerColumn(), transient=True)
         pb.add_task(pb_label, total=None)
         pb.start()
-    for step, batch in enumerate(dataset):
-        if steps is not None and step >= steps:
-            break
+    else:
+        pb = None
+    try:
+        for step, batch in enumerate(dataset):
+            if steps is not None and step >= steps:
+                break
 
-        # --- Detect data structure, if this is the first batch ---------------
-        if not batch_size:
-            if len(batch) not in (3, 5):
-                raise IndexError(
-                    "Unexpected number of items returned from dataset batch. "
-                    f"Expected either '3' or '5', got: {len(batch)}")
+            # --- Detect data structure, if this is the first batch ---------------
+            if not batch_size:
+                if len(batch) not in (3, 5):
+                    raise IndexError(
+                        "Unexpected number of items returned from dataset batch. "
+                        f"Expected either '3' or '5', got: {len(batch)}")
 
-            incl_loc = (len(batch) == 5)
-            batch_size = batch[2].shape[0]
-            if verbosity != 'silent':
-                pb.stop()
-                pb = Progress(
-                    SpinnerColumn(),
-                    *Progress.get_default_columns(),
-                    TimeElapsedColumn(),
-                    ImgBatchSpeedColumn(),
-                    transient=sf.getLoggingLevel()>20 or verbosity == 'quiet')
-                task = pb.add_task(
-                    pb_label,
-                    total=num_tiles if not steps else steps*batch_size)
-                pb.start()
-        # ---------------------------------------------------------------------
+                incl_loc = (len(batch) == 5)
+                batch_size = batch[2].shape[0]
+                if verbosity != 'silent':
+                    pb.stop()
+                    pb = Progress(
+                        SpinnerColumn(),
+                        *Progress.get_default_columns(),
+                        TimeElapsedColumn(),
+                        ImgBatchSpeedColumn(),
+                        transient=sf.getLoggingLevel()>20 or verbosity == 'quiet')
+                    task = pb.add_task(
+                        pb_label,
+                        total=num_tiles if not steps else steps*batch_size)
+                    pb.start()
+            # ---------------------------------------------------------------------
 
-        if incl_loc:
-            img, yt, slide, loc_x, loc_y = batch
-            if not loc_missing and loc_x is None:
-                log.warning("TFrecord location information not found.")
-                loc_missing = True
-            elif not loc_missing:
-                locations += [tf.stack([loc_x, loc_y], axis=-1).numpy()]  # type: ignore
-        else:
-            img, yt, slide = batch
-
-        if verbosity != 'silent':
-            pb.advance(task, slide.shape[0])
-        tile_to_slides += [_byte.decode('utf-8') for _byte in slide.numpy()]
-        num_vals += slide.shape[0]
-        num_batches += 1
-
-        if uq:
-            yp, yp_std, num_outcomes = get_uq_predictions(
-                img, get_predictions, num_outcomes, uq_n
-            )
-            y_pred += [yp]
-            y_std += [yp_std]  # type: ignore
-        else:
-            yp = get_predictions(img, training=False)
-            y_pred += [yp]
-
-        if not predict_only:
-            if isinstance(yt, dict):
-                y_true += [[yt[f'out-{o}'].numpy() for o in range(len(yt))]]
-                yt = [yt[f'out-{o}'] for o in range(len(yt))]
-                if loss is not None:
-                    loss_val = [loss(yt[i], yp[i]) for i in range(len(yt))]
-                    loss_val = [tf.boolean_mask(l, tf.math.is_finite(l)) for l in loss_val]
-                    batch_loss = tf.math.reduce_sum(loss_val).numpy()
-                    running_loss = (((num_vals - slide.shape[0]) * running_loss) + batch_loss) / num_vals
+            if incl_loc:
+                img, yt, slide, loc_x, loc_y = batch
+                if not loc_missing and loc_x is None:
+                    log.warning("TFrecord location information not found.")
+                    loc_missing = True
+                elif not loc_missing:
+                    locations += [tf.stack([loc_x, loc_y], axis=-1).numpy()]  # type: ignore
             else:
-                y_true += [yt.numpy()]
-                if loss is not None:
-                    loss_val = loss(yt, yp)
-                    if tf.rank(loss_val):
-                        # Loss is a vector
-                        is_finite = tf.math.is_finite(loss_val)
-                        batch_loss = tf.math.reduce_sum(tf.boolean_mask(loss_val, is_finite)).numpy()
-                    else:
-                        # Loss is a scalar
-                        batch_loss = loss_val.numpy()  # type: ignore
-                    running_loss = (((num_vals - slide.shape[0]) * running_loss) + batch_loss) / num_vals
+                img, yt, slide = batch
+
+            if verbosity != 'silent':
+                pb.advance(task, slide.shape[0])
+            tile_to_slides += [_byte.decode('utf-8') for _byte in slide.numpy()]
+            num_vals += slide.shape[0]
+            num_batches += 1
+
+            if uq:
+                yp, yp_std, num_outcomes = get_uq_predictions(
+                    img, get_predictions, num_outcomes, uq_n
+                )
+                y_pred += [yp]
+                y_std += [yp_std]  # type: ignore
+            else:
+                yp = get_predictions(img, training=False)
+                y_pred += [yp]
+
+            if not predict_only:
+                if isinstance(yt, dict):
+                    y_true += [[yt[f'out-{o}'].numpy() for o in range(len(yt))]]
+                    yt = [yt[f'out-{o}'] for o in range(len(yt))]
+                    if loss is not None:
+                        loss_val = [loss(yt[i], yp[i]) for i in range(len(yt))]
+                        loss_val = [tf.boolean_mask(l, tf.math.is_finite(l)) for l in loss_val]
+                        batch_loss = tf.math.reduce_sum(loss_val).numpy()
+                        running_loss = (((num_vals - slide.shape[0]) * running_loss) + batch_loss) / num_vals
+                else:
+                    y_true += [yt.numpy()]
+                    if loss is not None:
+                        loss_val = loss(yt, yp)
+                        if tf.rank(loss_val):
+                            # Loss is a vector
+                            is_finite = tf.math.is_finite(loss_val)
+                            batch_loss = tf.math.reduce_sum(tf.boolean_mask(loss_val, is_finite)).numpy()
+                        else:
+                            # Loss is a scalar
+                            batch_loss = loss_val.numpy()  # type: ignore
+                        running_loss = (((num_vals - slide.shape[0]) * running_loss) + batch_loss) / num_vals
+    except KeyboardInterrupt:
+        if pb is not None:
+            pb.stop()
+        raise
 
     if verbosity != 'silent':
         pb.stop()
@@ -515,3 +523,105 @@ def predict_from_model(
         **kwargs
     )
     return df
+
+# -----------------------------------------------------------------------------
+
+class CosineAnnealer:
+
+    def __init__(self, start, end, steps):
+        self.start = start
+        self.end = end
+        self.steps = steps
+        self.n = 0
+
+    def step(self):
+        self.n += 1
+        cos = np.cos(np.pi * (self.n / self.steps)) + 1
+        return self.end + (self.start - self.end) / 2. * cos
+
+
+class OneCycleScheduler(tf.keras.callbacks.Callback):
+    """ `Callback` that schedules the learning rate on a 1cycle policy as per Leslie Smith's paper(https://arxiv.org/pdf/1803.09820.pdf).
+    If the model supports a momentum parameter, it will also be adapted by the schedule.
+    The implementation adopts additional improvements as per the fastai library: https://docs.fast.ai/callbacks.one_cycle.html, where
+    only two phases are used and the adaptation is done using cosine annealing.
+    In phase 1 the LR increases from `lr_max / div_factor` to `lr_max` and momentum decreases from `mom_max` to `mom_min`.
+    In the second phase the LR decreases from `lr_max` to `lr_max / (div_factor * 1e4)` and momemtum from `mom_max` to `mom_min`.
+    By default the phases are not of equal length, with the phase 1 percentage controlled by the parameter `phase_1_pct`.
+    """
+
+    def __init__(self, lr_max, steps, mom_min=0.85, mom_max=0.95, phase_1_pct=0.3, div_factor=25.):
+        super(OneCycleScheduler, self).__init__()
+        lr_min = lr_max / div_factor
+        final_lr = lr_max / (div_factor * 1e4)
+        phase_1_steps = steps * phase_1_pct
+        phase_2_steps = steps - phase_1_steps
+
+        self.phase_1_steps = phase_1_steps
+        self.phase_2_steps = phase_2_steps
+        self.phase = 0
+        self.step = 0
+
+        self.phases = [[CosineAnnealer(lr_min, lr_max, phase_1_steps), CosineAnnealer(mom_max, mom_min, phase_1_steps)],
+                 [CosineAnnealer(lr_max, final_lr, phase_2_steps), CosineAnnealer(mom_min, mom_max, phase_2_steps)]]
+
+        self.lrs = []
+        self.moms = []
+
+    def on_train_begin(self, logs=None):
+        self.phase = 0
+        self.step = 0
+
+        self.set_lr(self.lr_schedule().start)
+        self.set_momentum(self.mom_schedule().start)
+
+    def on_train_batch_begin(self, batch, logs=None):
+        self.lrs.append(self.get_lr())
+        self.moms.append(self.get_momentum())
+
+    def on_train_batch_end(self, batch, logs=None):
+        self.step += 1
+        if self.step >= self.phase_1_steps:
+            self.phase = 1
+
+        self.set_lr(self.lr_schedule().step())
+        self.set_momentum(self.mom_schedule().step())
+
+    def get_lr(self):
+        try:
+            return tf.keras.backend.get_value(self.model.optimizer.lr)
+        except AttributeError:
+            return None
+
+    def get_momentum(self):
+        try:
+            return tf.keras.backend.get_value(self.model.optimizer.momentum)
+        except AttributeError:
+            return None
+
+    def set_lr(self, lr):
+        try:
+            tf.keras.backend.set_value(self.model.optimizer.lr, lr)
+        except AttributeError:
+            pass # ignore
+
+    def set_momentum(self, mom):
+        try:
+            tf.keras.backend.set_value(self.model.optimizer.momentum, mom)
+        except AttributeError:
+            pass # ignore
+
+    def lr_schedule(self):
+        return self.phases[self.phase][0]
+
+    def mom_schedule(self):
+        return self.phases[self.phase][1]
+
+    def plot(self):
+        import matplotlib.pyplot as plt
+        ax = plt.subplot(1, 2, 1)
+        ax.plot(self.lrs)
+        ax.set_title('Learning Rate')
+        ax = plt.subplot(1, 2, 2)
+        ax.plot(self.moms)
+        ax.set_title('Momentum')

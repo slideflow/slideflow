@@ -242,85 +242,92 @@ def eval_from_model(
         pb = Progress(SpinnerColumn(), transient=True)
         pb.add_task(pb_label, total=None)
         pb.start()
-    for step, batch in enumerate(dataset):
-        if steps is not None and step >= steps:
-            break
+    else:
+        pb = None
+    try:
+        for step, batch in enumerate(dataset):
+            if steps is not None and step >= steps:
+                break
 
-        # --- Detect data structure, if this is the first batch ---------------
-        if not batch_size:
-            if len(batch) not in (3, 5):
-                raise IndexError(
-                    "Unexpected number of items returned from dataset batch. "
-                    f"Expected either '3' or '5', got: {len(batch)}")
+            # --- Detect data structure, if this is the first batch ---------------
+            if not batch_size:
+                if len(batch) not in (3, 5):
+                    raise IndexError(
+                        "Unexpected number of items returned from dataset batch. "
+                        f"Expected either '3' or '5', got: {len(batch)}")
 
-            incl_loc = (len(batch) == 5)
-            batch_size = batch[0].shape[0]
+                incl_loc = (len(batch) == 5)
+                batch_size = batch[0].shape[0]
+                if verbosity != 'silent':
+                    pb.stop()
+                    pb = Progress(
+                        SpinnerColumn(),
+                        *Progress.get_default_columns(),
+                        TimeElapsedColumn(),
+                        ImgBatchSpeedColumn(),
+                        transient=sf.getLoggingLevel()>20 or verbosity == 'quiet')
+                    task = pb.add_task(
+                        pb_label,
+                        total=dataset.num_tiles if not steps else steps*batch_size)  # type: ignore
+                    pb.start()
+            # ---------------------------------------------------------------------
+
+            if incl_loc:
+                img, yt, slide, loc_x, loc_y = batch
+                locations += [torch.stack([loc_x, loc_y], dim=-1).cpu().numpy()]
+            else:
+                img, yt, slide = batch
+
             if verbosity != 'silent':
-                pb.stop()
-                pb = Progress(
-                    SpinnerColumn(),
-                    *Progress.get_default_columns(),
-                    TimeElapsedColumn(),
-                    ImgBatchSpeedColumn(),
-                    transient=sf.getLoggingLevel()>20 or verbosity == 'quiet')
-                task = pb.add_task(
-                    pb_label,
-                    total=dataset.num_tiles if not steps else steps*batch_size)  # type: ignore
-                pb.start()
-        # ---------------------------------------------------------------------
+                pb.advance(task, img.shape[0])
 
-        if incl_loc:
-            img, yt, slide, loc_x, loc_y = batch
-            locations += [torch.stack([loc_x, loc_y], dim=-1).cpu().numpy()]
-        else:
-            img, yt, slide = batch
-
-        if verbosity != 'silent':
-            pb.advance(task, img.shape[0])
-
-        img = img.to(device, non_blocking=True)
-        with torch.cuda.amp.autocast():
-            with torch.no_grad():
-                # Slide-level features
-                if torch_args is not None and torch_args.num_slide_features:
-                    slide_inp = torch.tensor([
-                        torch_args.slide_input[s] for s in slide
-                    ])
-                    inp = (img, slide_inp.to(device))
-                else:
-                    inp = (img,)  # type: ignore
-
-                if uq:
-                    res, yp_std, num_outcomes = get_uq_predictions(
-                        inp, model, num_outcomes, uq_n
-                    )
-                    if isinstance(yp_std, list):
-                        yp_std = [y.cpu().numpy().copy() for y in yp_std]
+            img = img.to(device, non_blocking=True)
+            with torch.cuda.amp.autocast():
+                with torch.no_grad():
+                    # Slide-level features
+                    if torch_args is not None and torch_args.num_slide_features:
+                        slide_inp = torch.tensor([
+                            torch_args.slide_input[s] for s in slide
+                        ])
+                        inp = (img, slide_inp.to(device))
                     else:
-                        yp_std = yp_std.cpu().numpy().copy()
-                    y_std += [yp_std]  # type: ignore
-                else:
-                    res = model(*inp)
+                        inp = (img,)  # type: ignore
 
-                if not predict_only:
-                    assert torch_args is not None
-                    corrects = torch_args.update_corrects(res, yt, corrects)
-                    losses = torch_args.update_loss(res, yt, losses, img.size(0))
+                    if uq:
+                        res, yp_std, num_outcomes = get_uq_predictions(
+                            inp, model, num_outcomes, uq_n
+                        )
+                        if isinstance(yp_std, list):
+                            yp_std = [y.cpu().numpy().copy() for y in yp_std]
+                        else:
+                            yp_std = yp_std.cpu().numpy().copy()
+                        y_std += [yp_std]  # type: ignore
+                    else:
+                        res = model(*inp)
 
-                if isinstance(res, list):
-                    res = [r.cpu().numpy().copy() for r in res]
-                else:
-                    res = res.cpu().numpy().copy()
+                    if not predict_only:
+                        assert torch_args is not None
+                        corrects = torch_args.update_corrects(res, yt, corrects)
+                        losses = torch_args.update_loss(res, yt, losses, img.size(0))
 
-                y_pred += [res]
+                    if isinstance(res, list):
+                        res = [r.cpu().numpy().copy() for r in res]
+                    else:
+                        res = res.cpu().numpy().copy()
 
-        if not predict_only and type(yt) == dict:
-            y_true += [[yt[f'out-{o}'] for o in range(len(yt))]]
-        elif not predict_only:
-            yt = yt.detach().numpy().copy()
-            y_true += [yt]
-        tile_to_slides += slide
-        total += img.shape[0]
+                    y_pred += [res]
+
+            if not predict_only and type(yt) == dict:
+                y_true += [[yt[f'out-{o}'] for o in range(len(yt))]]
+            elif not predict_only:
+                yt = yt.detach().numpy().copy()
+                y_true += [yt]
+            tile_to_slides += slide
+            total += img.shape[0]
+    except KeyboardInterrupt:
+        if pb is not None:
+            pb.stop()
+        raise
 
     if not total:
         raise DatasetError("Empty dataset, unable to predict/evaluate.")

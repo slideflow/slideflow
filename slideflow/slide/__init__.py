@@ -11,12 +11,7 @@ import os
 import random
 import time
 import warnings
-from functools import partial
-from os.path import exists, join
-from types import SimpleNamespace
-from typing import (Any, Callable, Dict, List, Optional, Tuple, Union,
-                    TYPE_CHECKING)
-
+import signal
 import cv2
 import numpy as np
 import pandas as pd
@@ -26,19 +21,25 @@ import shapely.affinity as sa
 import shapely.validation as sv
 import skimage
 import skimage.filters
-import slideflow as sf
-import slideflow.slide.qc
 from PIL import Image, ImageDraw
 from rich.progress import Progress
 from skimage import img_as_ubyte
 from slideflow import errors
+from functools import partial
+from os.path import exists, join
+from types import SimpleNamespace
+from typing import (Any, Callable, Dict, List, Optional, Tuple, Union,
+                    TYPE_CHECKING)
+
+import slideflow as sf
+import slideflow.slide.qc
 from slideflow.util import SUPPORTED_FORMATS  # noqa F401
 from slideflow.util import log, path_to_name  # noqa F401
-
 from .report import ExtractionPDF  # noqa F401
 from .report import ExtractionReport, SlideReport
 from .utils import *
 from .backends import tile_worker, wsi_reader
+
 
 warnings.simplefilter('ignore', Image.DecompressionBombWarning)
 Image.MAX_IMAGE_PIXELS = 100000000000
@@ -1548,7 +1549,11 @@ class WSI(_BaseLoader):
                 elif num_processes is not None and num_processes > 1:
                     log.debug(f"Building generator with Pool({num_processes})")
                     ctx = mp.get_context('spawn')
-                    pool = ctx.Pool(processes=num_processes)
+                    pool = ctx.Pool(
+                        processes=num_processes,
+                        initializer=signal.signal,
+                        initargs=(signal.SIGINT, signal.SIG_IGN)
+                    )
                     should_close = True
                 else:
                     log.debug(f"Building generator without multithreading")

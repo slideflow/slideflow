@@ -1,29 +1,28 @@
 import os
 import shutil
+import signal
+import numpy as np
+import multiprocessing as mp
+import tensorflow as tf
 from functools import partial
 from glob import glob
-import multiprocessing as mp
 from os import listdir
 from os.path import exists, isfile, join
 from random import randint, shuffle
+from rich.progress import track, Progress
+from rich import print as richprint
 from typing import (TYPE_CHECKING, Any, Callable, Dict, Iterable, List,
                     Optional, Tuple, Union)
 
-import numpy as np
 import slideflow as sf
 from slideflow import errors
 from slideflow.io import gaussian
 from slideflow.io.io_utils import detect_tfrecord_format
 from slideflow.util import Labels
 from slideflow.util import log
-from rich.progress import track, Progress
-from rich import print as richprint
-
-import tensorflow as tf
 
 if TYPE_CHECKING:
     from slideflow.norm import StainNormalizer
-
     from tensorflow.core.example.feature_pb2 import Example, Feature
 
 
@@ -492,7 +491,7 @@ def interleave(
         otsu_task = pb.add_task("Otsu thresholding...", total=len(paths), visible=False)
     interleave_task = pb.add_task('Interleaving...', total=len(paths))
     pb.start()
-    with tf.device('cpu'):
+    with tf.device('cpu'), sf.util.cleanup_progress(pb):
         features_to_return = ['image_raw', 'slide']
         if incl_loc:
             features_to_return += ['loc_x', 'loc_y']
@@ -507,7 +506,11 @@ def interleave(
 
             # Load slides and apply Otsu's thresholding
             if pool is None and sf.slide_backend() == 'cucim':
-                pool = mp.Pool(8 if os.cpu_count is None else os.cpu_count())
+                pool = mp.Pool(
+                    8 if os.cpu_count is None else os.cpu_count(),
+                    initializer=signal.signal,
+                    initargs=(signal.SIGINT, signal.SIG_IGN)
+                )
             elif pool is None:
                 pool = mp.dummy.Pool(16 if os.cpu_count is None else os.cpu_count())
             wsi_list = []
@@ -576,7 +579,6 @@ def interleave(
             if prob_weights:
                 weights += [prob_weights[tfr]]  # type: ignore
             pb.advance(interleave_task)
-        pb.stop()
 
         # ------- Interleave and parse datasets -------------------------------
         sampled_dataset = tf.data.Dataset.sample_from_datasets(

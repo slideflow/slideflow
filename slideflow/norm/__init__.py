@@ -40,7 +40,7 @@ import slideflow as sf
 from PIL import Image
 from slideflow import errors
 from slideflow.dataset import Dataset
-from slideflow.util import detuple, log
+from slideflow.util import detuple, log, cleanup_progress
 from rich.progress import Progress
 
 if TYPE_CHECKING:
@@ -221,18 +221,18 @@ class StainNormalizer:
             pb = Progress(transient=True)
             task = pb.add_task('Fitting normalizer...', total=dataset.num_tiles)
             pb.start()
-            for img_batch, slide in dts:
-                if sf.model.is_torch_tensor(img_batch):
-                    img_batch = img_batch.permute(0, 2, 3, 1)  # BCWH -> BWHC
+            with cleanup_progress(pb):
+                for img_batch, slide in dts:
+                    if sf.model.is_torch_tensor(img_batch):
+                        img_batch = img_batch.permute(0, 2, 3, 1)  # BCWH -> BWHC
 
-                mapped = pool.imap(lambda x: self.n.fit(x.numpy()), img_batch)
-                for fit_vals in mapped:
-                    if all_fit_vals == []:
-                        all_fit_vals = [[] for _ in range(len(fit_vals))]
-                    for v, val in enumerate(fit_vals):
-                        all_fit_vals[v] += [np.squeeze(val)]
-                pb.advance(task, batch_size)
-            pb.stop()
+                    mapped = pool.imap(lambda x: self.n.fit(x.numpy()), img_batch)
+                    for fit_vals in mapped:
+                        if all_fit_vals == []:
+                            all_fit_vals = [[] for _ in range(len(fit_vals))]
+                        for v, val in enumerate(fit_vals):
+                            all_fit_vals[v] += [np.squeeze(val)]
+                    pb.advance(task, batch_size)
             self.n.set_fit(*[np.array(v).mean(axis=0) for v in all_fit_vals])
             pool.close()
 
