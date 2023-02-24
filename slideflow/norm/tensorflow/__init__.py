@@ -5,7 +5,7 @@ from slideflow import errors
 from slideflow.dataset import Dataset
 from slideflow.norm import StainNormalizer
 from slideflow.norm.tensorflow import reinhard, macenko
-from slideflow.util import detuple, log
+from slideflow.util import detuple, log, cleanup_progress
 from rich.progress import Progress
 
 import tensorflow as tf
@@ -157,18 +157,18 @@ class TensorflowStainNormalizer(StainNormalizer):
             pb = Progress(transient=True)
             task = pb.add_task('Fitting normalizer...', total=dataset.num_tiles)
             pb.start()
-            for i, slide in dts:
-                if self.vectorized:
-                    fit_vals = self.n.fit(i, reduce=True)
-                else:
-                    _img_fits = zip(*[self.n.fit(_i) for _i in i])
-                    fit_vals = [tf.reduce_mean(tf.stack(v), axis=0) for v in _img_fits]
-                if all_fit_vals == []:
-                    all_fit_vals = [[] for _ in range(len(fit_vals))]
-                for v, val in enumerate(fit_vals):
-                    all_fit_vals[v] += [val]
-                pb.advance(task, batch_size)
-            pb.stop()
+            with cleanup_progress(pb):
+                for i, slide in dts:
+                    if self.vectorized:
+                        fit_vals = self.n.fit(i, reduce=True)
+                    else:
+                        _img_fits = zip(*[self.n.fit(_i) for _i in i])
+                        fit_vals = [tf.reduce_mean(tf.stack(v), axis=0) for v in _img_fits]
+                    if all_fit_vals == []:
+                        all_fit_vals = [[] for _ in range(len(fit_vals))]
+                    for v, val in enumerate(fit_vals):
+                        all_fit_vals[v] += [val]
+                    pb.advance(task, batch_size)
             self.n.set_fit(*[tf.math.reduce_mean(tf.stack(v), axis=0) for v in all_fit_vals])
 
         elif isinstance(arg1, np.ndarray):

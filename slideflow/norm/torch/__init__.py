@@ -9,7 +9,7 @@ from slideflow.dataset import Dataset
 from slideflow.io.torch import cwh_to_whc, whc_to_cwh
 from slideflow.norm import StainNormalizer
 from slideflow.norm.torch import reinhard, macenko
-from slideflow.util import detuple, log
+from slideflow.util import detuple, log, cleanup_progress
 from slideflow import errors
 
 
@@ -107,18 +107,18 @@ class TorchStainNormalizer(StainNormalizer):
             pb = Progress(transient=True)
             task = pb.add_task('Fitting normalizer...', total=dataset.num_tiles)
             pb.start()
-            for i, slide in dts:
-                if self.vectorized:
-                    fit_vals = self.n.fit(i, reduce=True)
-                else:
-                    _img_fits = zip(*[self.n.fit(_i) for _i in i])
-                    fit_vals = [torch.mean(torch.stack(v), dim=0) for v in _img_fits]
-                if all_fit_vals == []:
-                    all_fit_vals = [[] for _ in range(len(fit_vals))]
-                for v, val in enumerate(fit_vals):
-                    all_fit_vals[v] += [val]
-                pb.advance(task, batch_size)
-            pb.stop()
+            with cleanup_progress(pb):
+                for i, slide in dts:
+                    if self.vectorized:
+                        fit_vals = self.n.fit(i, reduce=True)
+                    else:
+                        _img_fits = zip(*[self.n.fit(_i) for _i in i])
+                        fit_vals = [torch.mean(torch.stack(v), dim=0) for v in _img_fits]
+                    if all_fit_vals == []:
+                        all_fit_vals = [[] for _ in range(len(fit_vals))]
+                    for v, val in enumerate(fit_vals):
+                        all_fit_vals[v] += [val]
+                    pb.advance(task, batch_size)
             self.n.set_fit(*[torch.mean(torch.stack(v), dim=0) for v in all_fit_vals])
 
         elif isinstance(arg1, np.ndarray):

@@ -92,6 +92,7 @@ import time
 import types
 import tempfile
 import warnings
+import signal
 from collections import defaultdict
 from datetime import datetime
 from glob import glob
@@ -1006,44 +1007,48 @@ class Dataset:
             thread.start()
 
         pb.start()
-        while True:
-            slide_path = q.get()
-            if slide_path is None:
+        with sf.util.cleanup_progress(pb):
+            while True:
+                slide_path = q.get()
+                if slide_path is None:
+                    q.task_done()
+                    break
+                wsi = sf.WSI(
+                    slide_path,
+                    tile_px=window_size,
+                    tile_um=tile_um,
+                    verbose=False
+                )
+                if qc is not None:
+                    wsi.qc(qc, **qc_kwargs)
+                segment_task = pb.add_task(
+                    "Segmenting... ",
+                    progress_type="slide_progress",
+                    total=wsi.estimated_num_tiles
+                )
+                # Perform segmentation and save
+                segmentation = segment_slide(
+                    wsi,
+                    pb=pb,
+                    pb_tasks=[speed_task, segment_task],
+                    show_progress=False,
+                    model=model,
+                    diam_mean=diam_mean,
+                    save_flow=save_flow,
+                    **kwargs)
+                mask_dest = dest if dest is not None else dirname(slide_path)
+                segmentation.save(
+                    join(mask_dest, f'{wsi.name}-masks.zip'),
+                    flows=save_flow,
+                    centroids=save_centroid)
+                pb.advance(slide_task)
+                pb.remove_task(segment_task)
+
+                if buffer:
+                    os.remove(slide_path)
                 q.task_done()
-                break
-
-            wsi = sf.WSI(slide_path, tile_px=window_size, tile_um=tile_um, verbose=False)
-            if qc is not None:
-                wsi.qc(qc, **qc_kwargs)
-            segment_task = pb.add_task(
-                "Segmenting... ",
-                progress_type="slide_progress",
-                total=wsi.estimated_num_tiles
-            )
-            # Perform segmentation and save
-            segmentation = segment_slide(
-                wsi,
-                pb=pb,
-                pb_tasks=[speed_task, segment_task],
-                show_progress=False,
-                model=model,
-                diam_mean=diam_mean,
-                save_flow=save_flow,
-                **kwargs)
-            mask_dest = dest if dest is not None else dirname(slide_path)
-            segmentation.save(
-                join(mask_dest, f'{wsi.name}-masks.zip'),
-                flows=save_flow,
-                centroids=save_centroid)
-            pb.advance(slide_task)
-            pb.remove_task(segment_task)
-
-            if buffer:
-                os.remove(slide_path)
-            q.task_done()
         if buffer:
             thread.join()
-        pb.stop()
 
     def check_duplicates(
         self,
@@ -1489,7 +1494,11 @@ class Dataset:
                     num_threads = kwargs['num_threads']
                 log.info(f'Using {num_threads} processes (pool={ptype})')
                 if num_threads != 1:
-                    kwargs['pool'] = ctx.Pool(num_threads)
+                    kwargs['pool'] = ctx.Pool(
+                        num_threads,
+                        initializer=signal.signal,
+                        initargs=(signal.SIGINT, signal.SIG_IGN)
+                    )
 
                 # Set up the multiprocessing progress bar
                 pb = TileExtractionProgress()
@@ -1522,51 +1531,50 @@ class Dataset:
                                          progress_type="slide_progress",
                                          total=len(slide_list))
                 pb.start()
-                if buffer:
-                    # Start the worker threads
-                    thread = threading.Thread(
-                        target=_fill_queue,
-                        args=(slide_list, q, q_size, buffer))
-                    thread.start()
+                with sf.util.cleanup_progress(pb):
+                    if buffer:
+                        # Start the worker threads
+                        thread = threading.Thread(
+                            target=_fill_queue,
+                            args=(slide_list, q, q_size, buffer))
+                        thread.start()
 
-                    # Grab slide path from queue and start extraction
-                    while True:
-                        path = q.get()
-                        if path is None:
-                            q.task_done()
-                            break
-                        _tile_extractor(path, **extraction_kwargs)
-                        pb.advance(slide_task)
-                        os.remove(path)
-                        q.task_done()
-                    thread.join()
-                else:
-                    for slide in slide_list:
-                        wsi = _prepare_slide(
-                            slide,
-                            report_dir=tfrecord_dir,
-                            tma=tma,
-                            wsi_kwargs=wsi_kwargs,
-                            qc=qc,
-                            qc_kwargs=qc_kwargs)
-                        if wsi is None:
+                        # Grab slide path from queue and start extraction
+                        while True:
+                            path = q.get()
+                            if path is None:
+                                q.task_done()
+                                break
+                            _tile_extractor(path, **extraction_kwargs)
                             pb.advance(slide_task)
-                            continue
-                        try:
-                            log.debug(f'Extracting tiles for {wsi.name}')
-                            wsi_report = wsi.extract_tiles(
-                                tfrecord_dir=tfrecord_dir,
-                                tiles_dir=tiles_dir,
-                                **kwargs
-                            )
-                            reports.update({wsi.path: wsi_report})
-                            del wsi
-                        except errors.TileCorruptionError:
-                            log.error(f'{wsi.path} corrupt; skipping')
-                        pb.advance(slide_task)
+                            os.remove(path)
+                            q.task_done()
+                        thread.join()
+                    else:
+                        for slide in slide_list:
+                            wsi = _prepare_slide(
+                                slide,
+                                report_dir=tfrecord_dir,
+                                tma=tma,
+                                wsi_kwargs=wsi_kwargs,
+                                qc=qc,
+                                qc_kwargs=qc_kwargs)
+                            if wsi is None:
+                                pb.advance(slide_task)
+                                continue
+                            try:
+                                log.debug(f'Extracting tiles for {wsi.name}')
+                                wsi_report = wsi.extract_tiles(
+                                    tfrecord_dir=tfrecord_dir,
+                                    tiles_dir=tiles_dir,
+                                    **kwargs
+                                )
+                                reports.update({wsi.path: wsi_report})
+                                del wsi
+                            except errors.TileCorruptionError:
+                                log.error(f'{wsi.path} corrupt; skipping')
+                            pb.advance(slide_task)
 
-                if pb:
-                    pb.stop()
                 if 'pool' in kwargs and kwargs['pool'] is not None:
                     kwargs['pool'].close()
                 if report:
@@ -2162,7 +2170,11 @@ class Dataset:
         if not low_memory:
             otsu_task = pb.add_task("Otsu thresholding...", total=len(paths))
         pb.start()
-        pool = mp.Pool(16 if os.cpu_count is None else os.cpu_count())
+        pool = mp.Pool(
+            16 if os.cpu_count is None else os.cpu_count(),
+            initializer=signal.signal,
+            initargs=(signal.SIGINT, signal.SIG_IGN)
+        )
         wsi_list = []
         to_remove = []
         counts = []

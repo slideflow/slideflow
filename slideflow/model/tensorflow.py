@@ -8,20 +8,21 @@ import json
 import logging
 import os
 import shutil
+import signal
+import numpy as np
+import multiprocessing as mp
+import tensorflow as tf
+from packaging import version
 from os.path import dirname, exists, join
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from tensorflow.keras import applications as kapps
 
-import numpy as np
-import tensorflow as tf
 import slideflow as sf
 import slideflow.model.base as _base
-import multiprocessing as mp
 import slideflow.util.neptune_utils
-from packaging import version
 from slideflow import errors
 from slideflow.util import log, NormFit
-from tensorflow.keras import applications as kapps
 
 from . import tensorflow_utils as tf_utils
 from .base import log_manifest, no_scope, BaseFeatureExtractor
@@ -1705,7 +1706,11 @@ class Trainer:
 
         # Prepare multiprocessing pool if from_wsi=True
         if from_wsi:
-            pool = mp.Pool(8 if os.cpu_count is None else os.cpu_count())
+            pool = mp.Pool(
+                8 if os.cpu_count is None else os.cpu_count(),
+                initializer=signal.signal,
+                initargs=(signal.SIGINT, signal.SIG_IGN)
+            )
         else:
             pool = None
 

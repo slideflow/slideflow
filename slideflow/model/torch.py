@@ -4,29 +4,29 @@ import inspect
 import json
 import os
 import types
+import signal
+import numpy as np
+import pretrainedmodels
+import multiprocessing as mp
+import torch
+import torchvision
+from torch import Tensor
+from torch.nn.functional import softmax
+from torch.utils.tensorboard import SummaryWriter
+from packaging import version
+from rich.progress import Progress, TimeElapsedColumn
 from collections import defaultdict
 from os.path import join
 from typing import (TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple,
                     Union, Callable)
 
-import numpy as np
-import pretrainedmodels
-import multiprocessing as mp
 import slideflow as sf
 import slideflow.util.neptune_utils
-import torchvision
-from torch.nn.functional import softmax
 from slideflow import errors
 from slideflow.model import base as _base
 from slideflow.model import torch_utils
 from slideflow.model.base import log_manifest, no_scope, BaseFeatureExtractor
 from slideflow.util import log, NormFit, ImgBatchSpeedColumn
-from rich.progress import Progress, TimeElapsedColumn
-from packaging import version
-
-import torch
-from torch import Tensor
-from torch.utils.tensorboard import SummaryWriter
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -1441,7 +1441,11 @@ class Trainer:
         self._log_manifest(None, dataset, labels=None)
 
         if from_wsi and sf.slide_backend() == 'libvips':
-            pool = mp.Pool(os.cpu_count() if os.cpu_count() else 8)
+            pool = mp.Pool(
+                os.cpu_count() if os.cpu_count() else 8,
+                initializer=signal.signal,
+                initargs=(signal.SIGINT, signal.SIG_IGN)
+            )
         elif from_wsi:
             pool = mp.dummy.Pool(os.cpu_count() if os.cpu_count() else 8)
         else:
@@ -1536,7 +1540,11 @@ class Trainer:
         if not self.model:
             raise errors.ModelNotLoadedError
         if from_wsi and sf.slide_backend() == 'libvips':
-            pool = mp.Pool(os.cpu_count() if os.cpu_count() else 8)
+            pool = mp.Pool(
+                os.cpu_count() if os.cpu_count() else 8,
+                initializer=signal.signal,
+                initargs=(signal.SIGINT, signal.SIG_IGN)
+            )
         elif from_wsi:
             pool = mp.dummy.Pool(os.cpu_count() if os.cpu_count() else 8)
         else:
@@ -1688,7 +1696,11 @@ class Trainer:
         self.log_frequency = log_frequency
 
         if from_wsi and sf.slide_backend() == 'libvips':
-            pool = mp.Pool(os.cpu_count() if os.cpu_count() else 8)
+            pool = mp.Pool(
+                os.cpu_count() if os.cpu_count() else 8,
+                initializer=signal.signal,
+                initargs=(signal.SIGINT, signal.SIG_IGN)
+            )
         elif from_wsi:
             pool = mp.dummy.Pool(os.cpu_count() if os.cpu_count() else 8)
         else:
@@ -1772,14 +1784,14 @@ class Trainer:
             )
             task = pb.add_task("Training...", total=self.steps_per_epoch)
             pb.start()
-            while self.step <= self.steps_per_epoch:
-                self._training_step(pb)
-                if self.early_stop:
-                    break
-                self._mid_training_validation()
-                self.step += 1
-                self.global_step += 1
-            pb.stop()
+            with sf.util.cleanup_progress(pb):
+                while self.step <= self.steps_per_epoch:
+                    self._training_step(pb)
+                    if self.early_stop:
+                        break
+                    self._mid_training_validation()
+                    self.step += 1
+                    self.global_step += 1
 
             # Update and log epoch metrics ------------------------------------
             loss = self.running_loss / self.epoch_records

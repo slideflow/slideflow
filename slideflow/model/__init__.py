@@ -576,17 +576,17 @@ class DatasetFeatures:
                       transient=sf.getLoggingLevel()>20)
         task = pb.add_task("Generating...", total=estimated_tiles)
         pb.start()
-        for batch_img, _, batch_slides, batch_loc_x, batch_loc_y in dataloader:
-            call_kw = dict(training=False) if is_simclr else dict()
-            if is_torch:
-                import torch
-                with torch.no_grad():
-                    model_output = combined_model(batch_img.to('cuda'), **call_kw)
-            else:
-                model_output = combined_model(batch_img, **call_kw)
-            q.put((model_output, batch_slides, (batch_loc_x, batch_loc_y)))
-            pb.advance(task, batch_size)
-        pb.stop()
+        with sf.util.cleanup_progress(pb):
+            for batch_img, _, batch_slides, batch_loc_x, batch_loc_y in dataloader:
+                call_kw = dict(training=False) if is_simclr else dict()
+                if is_torch:
+                    import torch
+                    with torch.no_grad():
+                        model_output = combined_model(batch_img.to('cuda'), **call_kw)
+                else:
+                    model_output = combined_model(batch_img, **call_kw)
+                q.put((model_output, batch_slides, (batch_loc_x, batch_loc_y)))
+                pb.advance(task, batch_size)
         q.put((None, None, None))
         batch_proc_thread.join()
 
