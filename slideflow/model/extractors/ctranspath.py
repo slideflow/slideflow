@@ -578,7 +578,7 @@ class CTransPathFeatures(BaseFeatureExtractor):
         super().__init__(backend='torch')
 
         self.model = _build_ctranspath_model()
-        self.model.head = torch.nn.Identity().to('cuda')
+        self.model.head = torch.nn.Identity().to(device)
 
         checkpoint_path = hf_hub_download(
             repo_id='jamesdolezal/CTransPath',

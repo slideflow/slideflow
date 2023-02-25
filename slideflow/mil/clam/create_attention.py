@@ -32,7 +32,8 @@ def path_to_ext(path):
         return _file.split('.')[-1]
 
 def infer_single_slide(model, features, label, reverse_label_dict, k=1, silent=False):
-    features = features.to(model.device)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    features = features.to(device)
     with torch.no_grad():
         if isinstance(model, (CLAM_SB,)):
             logits, A, _ = model(features, return_attention=True)

@@ -88,6 +88,7 @@ class SlideReport:
                 coords=self.thumb_coords,
                 rois=(self.slide.roi_method != 'ignore')
             )
+            self._thumb = Image.fromarray(np.array(self._thumb)[:, :, 0:3])
         return self._thumb
 
     @property

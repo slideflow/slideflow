@@ -40,7 +40,6 @@ def initiate_model(args, ckpt_path):
             continue
         ckpt_clean.update({key.replace('.module', ''):ckpt[key]})
     model.load_state_dict(ckpt_clean, strict=True)
-
     model.relocate()
     model.eval()
     return model
@@ -56,6 +55,7 @@ def eval(dataset, args, ckpt_path):
     return model, patient_results, test_error, auc, df
 
 def summary(model, loader, args):
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     acc_logger = Accuracy_Logger(n_classes=args.n_classes)
     model.eval()
     test_loss = 0.
@@ -68,7 +68,7 @@ def summary(model, loader, args):
     slide_ids = loader.dataset.slide_data['slide']
     patient_results = {}
     for batch_idx, (data, label) in enumerate(loader):
-        data, label = data.to(model.device), label.to(model.device)
+        data, label = data.to(device), label.to(device)
         slide_id = slide_ids.iloc[batch_idx]
         with torch.no_grad():
             logits, results_dict = model(data)

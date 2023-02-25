@@ -34,7 +34,7 @@ class MIL_fc(nn.Module):
         self.top_k=top_k
 
     def relocate(self):
-        device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.classifier.to(device)
 
     def forward(self, h):
