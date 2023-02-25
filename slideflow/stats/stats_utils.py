@@ -27,7 +27,7 @@ def calculate_centroid(
     for slide in act:
         if not len(act[slide]):
             continue
-        km = KMeans(n_clusters=1).fit(act[slide])
+        km = KMeans(n_clusters=1, n_init=10).fit(act[slide])
         closest, _ = pairwise_distances_argmin_min(
             km.cluster_centers_,
             act[slide]
@@ -41,7 +41,7 @@ def calculate_centroid(
 
 def get_centroid_index(arr: np.ndarray) -> int:
     """Calculate index nearest to centroid from a given 2D input array."""
-    km = KMeans(n_clusters=1).fit(arr)
+    km = KMeans(n_clusters=1, n_init=10).fit(arr)
     closest, _ = pairwise_distances_argmin_min(km.cluster_centers_, arr)
     return closest[0]
 

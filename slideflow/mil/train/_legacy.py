@@ -170,7 +170,7 @@ def legacy_train_clam(
             os.makedirs(attention_dir)
         rev_labels = dict(zip(range(len(unique_labels)), unique_labels))
         clam.export_attention(
-            vars(clam_args),
+            clam_args.to_dict(),
             ckpt_path=join(results_dir, f's_{k}_checkpoint.pt'),
             outdir=attention_dir,
             pt_files=pt_files,

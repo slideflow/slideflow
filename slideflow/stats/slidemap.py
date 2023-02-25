@@ -538,7 +538,7 @@ class SlideMap:
             for row in self.data.itertuples()
         ]
         log.info(f"Calculating K-means clustering (n={n_clusters})")
-        kmeans = KMeans(n_clusters=n_clusters).fit(activations)
+        kmeans = KMeans(n_clusters=n_clusters, n_init=10).fit(activations)
         self.data['cluster'] = kmeans.labels_
         self.label('cluster')
 

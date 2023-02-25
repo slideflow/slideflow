@@ -99,7 +99,7 @@ def train(datasets, cur, args):
     """
         train for a single fold
     """
-    log.info('[bold]=== Training Fold {} ===[/]'.format(cur))
+    log.info('[bold]=== Training Fold {} ===[/]'.format(cur+1))
     writer_dir = os.path.join(args.results_dir, str(cur))
     if not os.path.isdir(writer_dir):
         os.mkdir(writer_dir)
@@ -179,7 +179,7 @@ def train(datasets, cur, args):
         log.debug("Early stopping disabled")
         early_stopping = None
 
-    for epoch in track(range(args.max_epochs), description=f'Training (fold {cur})...', transient=True):
+    for epoch in track(range(args.max_epochs), description=f'Training (fold {cur+1})...', transient=True):
         if args.model_type in ['clam_sb', 'clam_mb'] and not args.no_inst_cluster:
             train_loop_clam(epoch, model, train_loader, optimizer, args.n_classes, args.bag_weight, writer, loss_fn)
             stop = validate_clam(cur, epoch, model, val_loader, args.n_classes,
