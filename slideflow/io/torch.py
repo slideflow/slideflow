@@ -1121,6 +1121,10 @@ def interleave_dataloader(
         pin_memory (bool, optional): Pin memory to GPU. Defaults to True.
         drop_last (bool, optional): Drop the last non-full batch.
             Defaults to False.
+
+    Returns:
+        torch.utils.data.DataLoader
+
     """
     if batch_size is None:
         replica_batch_size = None

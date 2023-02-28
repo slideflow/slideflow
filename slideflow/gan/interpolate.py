@@ -170,7 +170,7 @@ class StyleGAN2Interpolator:
         if sf.backend() == 'tensorflow':
             import tensorflow as tf
 
-            sig = tf.TensorSpec(shape=(None, None, None, 3), dtype=tf.uint8)
+            sig = tf.TensorSpec(shape=(None, self.target_px, self.target_px, 3), dtype=tf.uint8)
             dts = tf.data.Dataset.from_generator(generator, output_signature=sig)
             return dts.map(
                 partial(

@@ -287,8 +287,11 @@ class MacenkoNormalizer:
         Returns:
             tf.Tensor: Normalized image.
         """
-        if len(I.shape) != 3:
+        if len(I.shape) == 4:
+            return tf.map_fn(self.transform, I)
+        elif len(I.shape) == 3:
+            return transform(I, self.stain_matrix_target, self.target_concentrations)
+        else:
             raise ValueError(
-                f"Invalid shape for transform(): expected 3, got {I.shape}"
+                f"Invalid shape for transform(): expected 3 or 4, got {I.shape}"
             )
-        return transform(I, self.stain_matrix_target, self.target_concentrations)
