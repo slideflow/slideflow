@@ -1,20 +1,23 @@
 """Categorical, linear, and CPH metrics for predictions."""
 
+import math
 import multiprocessing as mp
 import warnings
+import numpy as np
+import pandas as pd
+from lifelines.utils import concordance_index as c_index
+from pandas.core.frame import DataFrame
+from sklearn import metrics
 from os.path import join
 from types import SimpleNamespace
 from typing import (TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union,
                     Callable)
 
-import numpy as np
-import pandas as pd
+
 import slideflow as sf
-from lifelines.utils import concordance_index as c_index
-from pandas.core.frame import DataFrame
-from sklearn import metrics
 from slideflow import errors
 from slideflow.util import log
+from .delong import delong_roc_variance
 
 if TYPE_CHECKING:
     import neptune.new as neptune
@@ -52,6 +55,22 @@ class ClassifierMetrics:
             self.opt_thresh = self.threshold[opt_thresh_index]
         except Exception:
             self.opt_thresh = None
+
+    def auroc_ci(self, alpha=0.05):
+        from scipy import stats
+        delong_auc, auc_cov = delong_roc_variance(self.y_true, self.y_pred)
+        auc_std = np.sqrt(auc_cov)
+        lower_upper_q = np.abs(np.array([0, 1]) - alpha / 2)
+        ci = stats.norm.ppf(lower_upper_q, loc=delong_auc, scale=auc_std)
+        ci[ci > 1] = 1
+        return tuple(ci)
+
+    def auroc_pval(self, mu=0.5, alpha=0.05):
+        from scipy.stats import norm
+        lo, up = self.auroc_ci(alpha=alpha)
+        se = (up - lo) / (2 * 1.96)
+        z = (self.auroc - mu) / se
+        return 2 * norm.cdf(-abs(z))
 
     def prc_fit(self):
         self.precision, self.recall, _ = metrics.precision_recall_curve(

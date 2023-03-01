@@ -2045,7 +2045,7 @@ class Features(BaseFeatureExtractor):
         if isinstance(inp, sf.slide.WSI):
             return self._predict_slide(inp, **kwargs)
         else:
-            return self._predict(inp)
+            return self._predict(inp, **kwargs)
 
     def _predict_slide(
         self,
@@ -2136,11 +2136,11 @@ class Features(BaseFeatureExtractor):
 
         return features_grid
 
-    def _predict(self, inp: Tensor) -> List[Tensor]:
+    def _predict(self, inp: Tensor, no_grad: bool = True) -> List[Tensor]:
         """Return activations for a single batch of images."""
         _mp = self.mixed_precision
         with torch.cuda.amp.autocast() if _mp else no_scope():  # type: ignore
-            with torch.no_grad():
+            with torch.no_grad() if no_grad else no_scope():
                 logits = self._model(inp.to(self.device))
                 if self.apply_softmax:
                     logits = softmax(logits, dim=1)

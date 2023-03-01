@@ -476,6 +476,7 @@ class StainNormalizer:
 def autoselect(
     method: str,
     source: Optional[str] = None,
+    backend: Optional[str] = None,
     **kwargs
 ) -> StainNormalizer:
     """Select the best normalizer for a given method, and fit to a given source.
@@ -498,14 +499,15 @@ def autoselect(
     Returns:
         StainNormalizer:    Initialized StainNormalizer.
     """
-
-    if sf.backend() == 'tensorflow':
+    if backend is None:
+        backend = sf.backend()
+    if backend == 'tensorflow':
         import slideflow.norm.tensorflow
         BackendNormalizer = sf.norm.tensorflow.TensorflowStainNormalizer
-    elif sf.backend() == 'torch' and method == 'macenko':
+    elif backend == 'torch' and method == 'macenko':
         import slideflow.norm.torch
         BackendNormalizer = sf.norm.torch.TorchStainNormalizer  # type: ignore
-    elif sf.backend() == 'torch':
+    elif backend == 'torch':
         BackendNormalizer = StainNormalizer  # type: ignore
     else:
         raise errors.UnrecognizedBackendError

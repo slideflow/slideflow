@@ -702,6 +702,13 @@ def get_model_normalizer(
     """Loads and fits normalizer using configuration at a model path."""
 
     config = sf.util.get_model_config(model_path)
+    if is_torch_model_path(model_path):
+        backend = 'torch'
+    elif is_tensorflow_model_path(model_path):
+        backend = 'tensorflow'
+    else:
+        log.warn(f"Unable to determine backend for model at {model_path}")
+        backend = None
 
     if not config['hp']['normalizer']:
         return None
@@ -716,7 +723,8 @@ def get_model_normalizer(
 
     normalizer = sf.norm.autoselect(
         config['hp']['normalizer'],
-        config['hp']['normalizer_source']
+        config['hp']['normalizer_source'],
+        backend=backend
     )
     if 'norm_fit' in config and config['norm_fit'] is not None:
         normalizer.set_fit(**config['norm_fit'])
