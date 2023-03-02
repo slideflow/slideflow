@@ -1901,7 +1901,7 @@ class Features(BaseFeatureExtractor):
         include_preds: bool = False,
         mixed_precision: bool = True,
         device: Optional[torch.device] = None,
-        apply_softmax: bool = True,
+        apply_softmax: Optional[bool] = None,
         pooling: Optional[Any] = None,
         load_method: str = 'full',
     ):
@@ -1923,7 +1923,7 @@ class Features(BaseFeatureExtractor):
             device (:class:`torch.device`, optional): Device for model.
                 Defaults to torch.device('cuda')
             apply_softmax (bool): Apply softmax transformation to model output.
-                Defaults to True.
+                Defaults to True for categorical models, False for linear models.
             pooling (Callable or str, optional): PyTorch pooling function to use
                 on feature layers. May be a string ('avg' or 'max') or a
                 callable PyTorch function.
@@ -1958,6 +1958,9 @@ class Features(BaseFeatureExtractor):
             self._model = self.hp.build_model(
                 num_classes=len(config['outcome_labels'])
             )
+            if apply_softmax is None:
+                self.apply_softmax = True if config['model_type'] == 'categorical' else False
+                log.debug(f"Using apply_softmax={self.apply_softmax}")
             self._model.load_state_dict(torch.load(path))
             self._model.to(self.device)
             self._model.eval()
