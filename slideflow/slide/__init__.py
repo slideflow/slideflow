@@ -187,9 +187,12 @@ def predict(
 class ROI:
     '''Object container for ROI annotations.'''
 
-    def __init__(self, name: str) -> None:
+    def __init__(self, name: str, coordinates: np.ndarray = None) -> None:
         self.name = name
-        self.coordinates = []  # type: List[Tuple[int, int]]
+        if coordinates is None:
+            self.coordinates = []  # type: List[Tuple[int, int]]
+        else:
+            self.coordinates = coordinates
 
     def __repr__(self):
         return f"<ROI (coords={len(self.coordinates)})>"
@@ -960,6 +963,7 @@ class WSI(_BaseLoader):
         self.randomize_origin = randomize_origin
         self.verbose = verbose
         self.segmentation = None
+        self.grid = None
 
         if rois is not None and not isinstance(rois, (list, tuple)):
             rois = [rois]
@@ -1006,7 +1010,6 @@ class WSI(_BaseLoader):
                 log.info(info_msg)
             else:
                 log.debug(info_msg)
-            self.roi_method = 'ignore'
         elif len(self.rois) and roi_method == 'auto':
             log.debug(f"Slide {self.name}: extracting tiles from inside ROI.")
             self.roi_method = 'inside'
@@ -1128,7 +1131,7 @@ class WSI(_BaseLoader):
         self.grid = np.ones((len(x_range), len(y_range)), dtype=bool)
 
         # ROI filtering
-        if self.roi_method != 'ignore' and self.annPolys is not None:
+        if self.has_rois():
 
             # Full extraction size and stride
             full_extract = self.tile_um / self.mpp
@@ -1172,7 +1175,7 @@ class WSI(_BaseLoader):
                 self.coord.append([x, y, xi, yi])
 
                 # ROI filtering
-                if self.roi_method != 'ignore' and self.annPolys is not None:
+                if self.has_rois():
                     point_in_roi = self.roi_mask[yi, xi]
                     # If the extraction method is 'inside',
                     # skip the tile if it's not in an ROI
@@ -1189,7 +1192,7 @@ class WSI(_BaseLoader):
 
     def apply_segmentation(self, segmentation):
         # Filter out masks outside of ROIs, if present.
-        if self.roi_method != 'ignore' and self.annPolys is not None:
+        if self.has_rois():
             log.debug(f"Applying {len(self.annPolys)} ROIs to segmentation.")
             segmentation.apply_rois(self.roi_scale, self.annPolys)
 
@@ -1244,6 +1247,26 @@ class WSI(_BaseLoader):
 
         # Resize mask from mask coordinates to tile extraction WSI coordinates.
         return unsized
+
+    def export_rois(self, dest: Optional[str] = None) -> str:
+
+        labels, x, y = [], [], []
+        for roi in self.rois:
+            c = np.array(roi.coordinates)
+            assert len(c.shape) == 2
+            labels += [roi.name] * c.shape[0]
+            x += list(c[:, 0])
+            y += list(c[:, 1])
+        df = pd.DataFrame({
+            'roi_name': labels,
+            'x_base': x,
+            'y_base': y
+        })
+        if dest is None:
+            dest = f'{self.name}.csv'
+        df.to_csv(dest, index=False)
+        log.info(f"{len(self.rois)} ROIs exported to {dest}")
+        return dest
 
     def extract_tiles(
         self,
@@ -1342,6 +1365,12 @@ class WSI(_BaseLoader):
             from_centroids=True,
             **kwargs
         )
+
+    def has_rois(self) -> bool:
+        """Checks if the slide has loaded ROIs and they are not being ignored."""
+        return (self.roi_method != 'ignore'
+                and len(self.rois)
+                and self.annPolys is not None)
 
     def build_generator(
         self,
@@ -1641,7 +1670,7 @@ class WSI(_BaseLoader):
             PIL image
         """
 
-        if rois:
+        if rois and len(self.rois):
             if (mpp is not None and width is not None):
                 raise ValueError(
                     "Either mpp or width must be given, but not both"
@@ -1662,7 +1691,7 @@ class WSI(_BaseLoader):
             coords=coords,
             use_associated_image=use_associated_image)
 
-        if rois:
+        if rois and len(self.rois):
             annPolys = [
                 sg.Polygon(annotation.scaled_area(roi_scale))
                 for annotation in self.rois
@@ -1676,8 +1705,16 @@ class WSI(_BaseLoader):
         else:
             return thumb
 
+    def load_roi_array(self, array: np.ndarray):
+        self.rois.append(ROI(f'ROI{len(self.rois)}', array))
+        self.process_rois()
+
     def load_csv_roi(self, path: str) -> int:
         '''Loads CSV ROI from a given path.'''
+
+        # Clear any previously loaded ROIs.
+        self.rois = []
+        self.annPolys = []
 
         roi_dict = {}
         with open(path, "r") as csvfile:
@@ -1706,44 +1743,7 @@ class WSI(_BaseLoader):
 
             for roi_object in roi_dict.values():
                 self.rois.append(roi_object)
-
-        # Load annotations as shapely.geometry objects.
-        if self.roi_method != 'ignore':
-            self.annPolys = []
-            for i, annotation in enumerate(self.rois):
-                try:
-                    poly = sv.make_valid(sg.Polygon(annotation.scaled_area(self.roi_scale)))
-                    self.annPolys += [poly]
-                except ValueError:
-                    log.warning(
-                        f"Unable to use ROI {i} for [green]{self.name}[/]."
-                        " At least 3 points required to create a shape."
-                    )
-            # Handle polygon holes.
-            outers, inners = [], []
-            for o, outer in enumerate(self.annPolys):
-                for i, inner in enumerate(self.annPolys):
-                    if o == i:
-                        continue
-                    if (i in inners) or (o in inners) or (i in outers):
-                        continue
-                    if outer.contains(inner):
-                        log.debug(f"Rendering ROI polygon {i} as hole in {o}")
-                        self.annPolys[o] = self.annPolys[o].difference(inner)
-                        if o not in outers:
-                            outers.append(o)
-                        if i not in inners:
-                            inners.append(i)
-            self.annPolys = [ann for (i, ann) in enumerate(self.annPolys)
-                             if i not in inners]
-            roi_area = sum([poly.area for poly in self.annPolys])
-        else:
-            roi_area = 1
-        total_area = ((self.dimensions[0]/self.roi_scale)
-                      * (self.dimensions[1]/self.roi_scale))
-        self.roi_area_fraction = 1 if not roi_area else (roi_area / total_area)
-
-        return len(self.rois)
+        return self.process_rois()
 
     def load_json_roi(self, path: str, scale: int = 10) -> int:
         '''Loads ROI from a JSON file.'''
@@ -1754,7 +1754,7 @@ class WSI(_BaseLoader):
             area_reduced = np.multiply(shape['points'], scale)
             self.rois.append(ROI(f"Object{len(self.rois)}"))
             self.rois[-1].add_shape(area_reduced)
-        return len(self.rois)
+        return self.process_rois()
 
     def predict(
         self,
@@ -1812,6 +1812,52 @@ class WSI(_BaseLoader):
             return preds, unc
         else:
             return preds
+
+    def process_rois(self):
+        """Process loaded ROIs and apply to the slide grid."""
+
+        # Load annotations as shapely.geometry objects.
+        if self.roi_method != 'ignore':
+            self.annPolys = []
+            for i, annotation in enumerate(self.rois):
+                try:
+                    poly = sv.make_valid(sg.Polygon(annotation.scaled_area(self.roi_scale)))
+                    self.annPolys += [poly]
+                except ValueError:
+                    log.warning(
+                        f"Unable to use ROI {i} for [green]{self.name}[/]."
+                        " At least 3 points required to create a shape."
+                    )
+            # Handle polygon holes.
+            outers, inners = [], []
+            for o, outer in enumerate(self.annPolys):
+                for i, inner in enumerate(self.annPolys):
+                    if o == i:
+                        continue
+                    if (i in inners) or (o in inners) or (i in outers):
+                        continue
+                    if outer.contains(inner):
+                        log.debug(f"Rendering ROI polygon {i} as hole in {o}")
+                        self.annPolys[o] = self.annPolys[o].difference(inner)
+                        if o not in outers:
+                            outers.append(o)
+                        if i not in inners:
+                            inners.append(i)
+            self.annPolys = [ann for (i, ann) in enumerate(self.annPolys)
+                             if i not in inners]
+            roi_area = sum([poly.area for poly in self.annPolys])
+        else:
+            roi_area = 1
+        total_area = ((self.dimensions[0]/self.roi_scale)
+                      * (self.dimensions[1]/self.roi_scale))
+        self.roi_area_fraction = 1 if not roi_area else (roi_area / total_area)
+
+        # If a grid already exists, then regenerate the grid
+        # to reflect the newly-loaded ROIs.
+        if self.grid is not None:
+            self._build_coord()
+
+        return len(self.rois)
 
     def tensorflow(
         self,
