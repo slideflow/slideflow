@@ -1,14 +1,12 @@
 import os
-import re
 import cv2
 import imgui
 import numpy as np
 import threading
 
-from PIL import Image
-from . import renderer
-from .utils import EasyDict
-from .gui_utils import imgui_utils
+from .._renderer import CapturedException
+from ..utils import EasyDict
+from ..gui import imgui_utils
 
 import slideflow as sf
 
@@ -200,7 +198,7 @@ class SlideWidget:
             self.cur_slide = None
             self.user_slide = slide
             viz.clear_message(f'Loading {name}...')
-            viz.result = EasyDict(error=renderer.CapturedException())
+            viz.result = EasyDict(error=CapturedException())
             viz.create_toast(f"Error loading slide {slide}", icon="error")
             if not ignore_errors:
                 raise

@@ -4,11 +4,9 @@ import imgui
 import numpy as np
 from array import array
 
-from . import renderer
-from .gui_utils import imgui_utils
-from .utils import EasyDict
+from ..gui import imgui_utils
+from ..utils import EasyDict
 
-import slideflow as sf
 import slideflow.grad as grad
 
 #----------------------------------------------------------------------------

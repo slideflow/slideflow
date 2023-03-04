@@ -4,8 +4,8 @@ import cv2
 import numpy as np
 import slideflow as sf
 from typing import Tuple, Optional, Union, Callable
-from . import gl_utils
-from ..utils import EasyDict
+from .. import gl_utils
+from ...utils import EasyDict
 
 # -----------------------------------------------------------------------------
 

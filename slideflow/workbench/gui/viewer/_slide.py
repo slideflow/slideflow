@@ -3,9 +3,9 @@
 import imgui
 import numpy as np
 from typing import Tuple, Optional, TYPE_CHECKING
-from . import gl_utils, text_utils
-from .viewer import Viewer
-from ..utils import EasyDict
+from ._viewer import Viewer
+from .. import gl_utils, text_utils
+from ...utils import EasyDict
 
 import slideflow as sf
 

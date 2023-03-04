@@ -7,29 +7,26 @@ import pyperclip
 import imgui
 import glfw
 import OpenGL.GL as gl
-
 from typing import List, Any, Optional, Dict, Tuple
 from os.path import join
 from PIL import Image
 from tkinter import Tk
 from tkinter.filedialog import askopenfilename, askdirectory
-from slideflow.workbench.gui_utils import imgui_window
-from slideflow.workbench.gui_utils import imgui_utils
-from slideflow.workbench.gui_utils import gl_utils
-from slideflow.workbench.gui_utils import text_utils
-from slideflow.workbench.gui_utils import wsi_utils
-from slideflow.workbench import slide_renderer as renderer
-from slideflow.workbench import project_widget
-from slideflow.workbench import slide_widget
-from slideflow.workbench import model_widget
-from slideflow.workbench import heatmap_widget
-from slideflow.workbench import performance_widget
-from slideflow.workbench import capture_widget
 
 import slideflow as sf
 import slideflow.grad
-from slideflow.workbench.utils import EasyDict, _load_model_and_saliency
 from slideflow import log
+from .gui import imgui_utils
+from .gui import gl_utils
+from .gui import text_utils
+from .gui.window import ImguiWindow
+from .gui.viewer import SlideViewer
+from .widgets import (
+    ProjectWidget, SlideWidget, ModelWidget, HeatmapWidget, PerformanceWidget,
+    CaptureWidget
+)
+from .utils import EasyDict, _load_model_and_saliency
+from ._renderer import Renderer, CapturedException
 
 OVERLAY_GRID    = 0
 OVERLAY_WSI     = 1
@@ -55,7 +52,7 @@ def stylegan_widgets(advanced: bool = True) -> List[Any]:
 
 #----------------------------------------------------------------------------
 
-class Workbench(imgui_window.ImguiWindow):
+class Workbench(ImguiWindow):
 
     def __init__(
         self,
@@ -161,12 +158,12 @@ class Workbench(imgui_window.ImguiWindow):
         self.menu_bar_height    = self.font_size + self.spacing
 
         # Core widgets.
-        self.project_widget     = project_widget.ProjectWidget(self)
-        self.slide_widget       = slide_widget.SlideWidget(self)
-        self.model_widget       = model_widget.ModelWidget(self)
-        self.heatmap_widget     = heatmap_widget.HeatmapWidget(self)
-        self.performance_widget = performance_widget.PerformanceWidget(self)
-        self.capture_widget     = capture_widget.CaptureWidget(self)
+        self.project_widget     = ProjectWidget(self)
+        self.slide_widget       = SlideWidget(self)
+        self.model_widget       = ModelWidget(self)
+        self.heatmap_widget     = HeatmapWidget(self)
+        self.performance_widget = PerformanceWidget(self)
+        self.capture_widget     = CaptureWidget(self)
 
         # User-defined widgets.
         self.widgets = []
@@ -302,7 +299,7 @@ class Workbench(imgui_window.ImguiWindow):
             if imgui.begin_popup('about_popup'):
 
                 if self._about_tex_obj is None:
-                    about_img = text_utils.about_image()
+                    about_img = imgui_utils.about_image()
                     self._about_tex_obj = gl_utils.Texture(image=about_img)
                 imgui.text('')
                 imgui.text('')
@@ -533,7 +530,7 @@ class Workbench(imgui_window.ImguiWindow):
                 imgui.end_menu()
 
             # --- View --------------------------------------------------------
-            has_wsi = self.viewer and isinstance(self.viewer, wsi_utils.SlideViewer)
+            has_wsi = self.viewer and isinstance(self.viewer, SlideViewer)
             if imgui.begin_menu('View', True):
                 if imgui.menu_item('Fullscreen', 'Ctrl+F')[0]:
                     self.toggle_fullscreen()
@@ -788,7 +785,7 @@ class Workbench(imgui_window.ImguiWindow):
             ),
             verbose=False,
             **reader_kwargs)
-        self.set_viewer(wsi_utils.SlideViewer(self.wsi, **self._viewer_kwargs()))
+        self.set_viewer(SlideViewer(self.wsi, **self._viewer_kwargs()))
 
     def _render_prediction_message(self, message: str) -> None:
         """Render a prediction string to below the tile bounding box.
@@ -1170,7 +1167,7 @@ class Workbench(imgui_window.ImguiWindow):
     def get_default_widgets() -> List[Any]:
         """Returns a list of the default non-mandatory widgets."""
 
-        from slideflow.workbench.layer_umap_widget import LayerUMAPWidget
+        from .widgets import LayerUMAPWidget
         return [LayerUMAPWidget]
 
     def get_renderer(self, name: str) -> Any:
@@ -1273,7 +1270,7 @@ class Workbench(imgui_window.ImguiWindow):
             # Update viewer
             self._show_tile_preview = True
             log.debug("Updating viewer with tile_px={}, tile_um={}".format(self.tile_px, self.tile_um))
-            if self.viewer and not isinstance(self.viewer, wsi_utils.SlideViewer):
+            if self.viewer and not isinstance(self.viewer, SlideViewer):
                 self.viewer.set_tile_px(self.tile_px)
                 self.viewer.set_tile_um(self.tile_um)
 
@@ -1327,8 +1324,8 @@ class Workbench(imgui_window.ImguiWindow):
         """Reload the current main viewer."""
         if self.viewer is not None:
             self.viewer.close()
-            if isinstance(self.viewer, wsi_utils.SlideViewer):
-                self.set_viewer(wsi_utils.SlideViewer(self.wsi, **self._viewer_kwargs()))
+            if isinstance(self.viewer, SlideViewer):
+                self.set_viewer(SlideViewer(self.wsi, **self._viewer_kwargs()))
             else:
                 self.viewer.reload(**self._viewer_kwargs())
 
@@ -1446,7 +1443,7 @@ class AsyncRenderer:
 
     def _set_args_sync(self, **args):
         if self._renderer_obj is None:
-            self._renderer_obj = renderer.Renderer(device=self.device)
+            self._renderer_obj = Renderer(device=self.device)
             for _renderer in self._addl_render:
                 self._renderer_obj.add_renderer(_renderer)
             self._renderer_obj._model = self._model
@@ -1474,7 +1471,7 @@ class AsyncRenderer:
         elif model_path != self._model_path:
             self._model_path = model_path
             if self._renderer_obj is None:
-                self._renderer_obj = renderer.Renderer(device=self.device)
+                self._renderer_obj = Renderer(device=self.device)
                 for _renderer in self._addl_render:
                     self._renderer_obj.add_renderer(_renderer)
             self._model, self._saliency, _umap_encoders = _load_model_and_saliency(self._model_path, device=self.device)
@@ -1496,7 +1493,7 @@ class AsyncRenderer:
             device = torch.device('cuda')
         else:
             device = None
-        renderer_obj = renderer.Renderer(device=device)
+        renderer_obj = Renderer(device=device)
         if model_path:
             _model, _saliency, _umap_encoders = _load_model_and_saliency(model_path, device=device)
             renderer_obj._model = _model
@@ -1518,7 +1515,7 @@ class AsyncRenderer:
             if (live_updates and not result_queue.qsize()):
                 result = renderer_obj.render(**args)
                 if 'error' in result:
-                    result.error = renderer.CapturedException(result.error)
+                    result.error = CapturedException(result.error)
 
                 result_queue.put([result, stamp])
                 cur_args = args

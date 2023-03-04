@@ -1,15 +1,8 @@
-# Copyright (c) 2021, NVIDIA CORPORATION & AFFILIATES.  All rights reserved.
-#
-# NVIDIA CORPORATION and its licensors retain all intellectual property
-# and proprietary rights in and to this software, related documentation
-# and any modifications thereto.  Any use, reproduction, disclosure or
-# distribution of this software and related documentation without an express
-# license agreement from NVIDIA CORPORATION is strictly prohibited.
+"""Utility functions to assist with text rendering."""
 
 import functools
 from typing import Optional
 
-import os
 import numpy as np
 import PIL.Image
 import PIL.ImageFont
@@ -21,22 +14,10 @@ from . import gl_utils
 #----------------------------------------------------------------------------
 
 def get_default_font():
-    return join(dirname(abspath(__file__)), 'DroidSans.ttf')
+    return join(dirname(abspath(__file__)), 'fonts', 'DroidSans.ttf')
 
 def get_default_font_bold():
-    return join(dirname(abspath(__file__)), 'DroidSans-Bold.ttf')
-
-#----------------------------------------------------------------------------
-
-def about_image():
-    return PIL.Image.open(join(dirname(abspath(__file__)), 'icons/logo.png'))
-
-def icons():
-    icon_path = join(dirname(abspath(__file__)), 'icons')
-    return {
-        name.split('.')[0]: PIL.Image.open(join(icon_path, name))
-        for name in os.listdir(icon_path)
-    }
+    return join(dirname(abspath(__file__)), 'fonts', 'DroidSans-Bold.ttf')
 
 #----------------------------------------------------------------------------
 
