@@ -636,7 +636,7 @@ class Dataset:
                 for fb in self.filter_blank:
                     if fb not in f_ann.columns:
                         raise errors.DatasetFilterError(
-                            f"Filter blank header {fb} not in annotations."
+                            f"Header {fb} not found in annotations."
                         )
                     f_ann = f_ann.loc[f_ann[fb].notna()]
                     f_ann = f_ann.loc[~f_ann[fb].isin(sf.util.EMPTY_ANNOTATIONS)]
@@ -1764,6 +1764,23 @@ class Dataset:
             return None
         else:
             return matching[0]
+
+    def get_tfrecord_locations(self, slide: str) -> List[Tuple[int, int]]:
+        '''Returns a list of locations stored in an associated TFRecord.'''
+        tfr = self.find_tfrecord(slide=slide)
+        if tfr is None:
+            raise errors.TFRecordsError(
+                f"Could not find associated TFRecord for slide '{slide}'"
+            )
+        tfr_idx = sf.util.tfrecord2idx.find_index(tfr)
+        if not tfr_idx:
+            _create_index(tfr)
+        elif tfr_idx.endswith('index'):
+            log.info(f"Updating index for {tfr}...")
+            os.remove(tfr_idx)
+            _create_index(tfr)
+        return sf.io.get_locations_from_tfrecord(tfr, as_dict=False)  # type: ignore
+
 
     def harmonize_labels(
         self,
@@ -3220,6 +3237,18 @@ class Dataset:
             self.update_manifest()
             if delete_tiles:
                 shutil.rmtree(tiles_dir)
+
+    def tfrecords_have_locations(self) -> bool:
+        for tfr in tqdm(self.tfrecords(), leave=False, desc="Checking TFrecords..."):
+            try:
+                tfr_has_loc = sf.io.tfrecord_has_locations(tfr)
+            except errors.TFRecordsError:
+                # Encountered when the TFRecord is empty.
+                continue
+            if not tfr_has_loc:
+                log.info(f"{tfr}: Tile location information missing.")
+                return False
+        return True
 
     def thumbnails(
         self,

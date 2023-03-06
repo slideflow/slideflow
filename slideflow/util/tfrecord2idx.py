@@ -6,10 +6,10 @@ import os
 import struct
 import sys
 import numpy as np
+import slideflow as sf
 from typing import Optional, Dict
 from os.path import dirname, join, exists
-from slideflow import errors, log
-from slideflow.util import path_to_name, example_pb2, extract_feature_dict
+from slideflow import errors
 
 TYPENAME_MAPPING = {
     "byte": "bytes_list",
@@ -59,7 +59,7 @@ def create_index(tfrecord_file: str, index_file: str) -> None:
 
 
 def find_index(tfrecord: str) -> Optional[str]:
-    name = path_to_name(tfrecord)
+    name = sf.util.path_to_name(tfrecord)
     if exists(join(dirname(tfrecord), name+'.index')):
         return join(dirname(tfrecord), name+'.index')
     elif exists(join(dirname(tfrecord), name+'.index.npz')):
@@ -78,6 +78,17 @@ def load_index(tfrecord: str) -> Optional[np.ndarray]:
         return np.load(index_path)['arr_0']
     else:
         return np.loadtxt(index_path, dtype=np.int64)
+
+
+def get_tfrecord_length(tfrecord: str) -> int:
+    index_path = find_index(tfrecord)
+    if index_path is None:
+        raise OSError(f"Could not find index path for TFRecord {tfrecord}")
+    if os.stat(index_path).st_size == 0:
+        return 0
+    else:
+        idx = load_index(tfrecord)
+        return idx.shape[0]
 
 
 def get_record_by_index(
@@ -180,9 +191,9 @@ def get_record_by_index(
 def process_record(record, description=None):
     if description is None:
         description = FEATURE_DESCRIPTION
-    example = example_pb2.Example()
+    example = sf.util.example_pb2.Example()
     example.ParseFromString(record)
-    return extract_feature_dict(
+    return sf.util.extract_feature_dict(
         example.features,
         description,
         TYPENAME_MAPPING)

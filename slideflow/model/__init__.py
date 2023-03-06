@@ -12,6 +12,7 @@ import sys
 import threading
 import time
 import warnings
+import multiprocessing as mp
 from collections import defaultdict
 from math import isnan
 from os.path import exists, join
@@ -562,6 +563,14 @@ class DatasetFeatures:
         # Interleave tfrecord datasets
         estimated_tiles = self.dataset.num_tiles
 
+        # Check if location information is stored in TFRecords
+        has_loc = self.dataset.tfrecords_have_locations()
+        if not has_loc:
+            log.warning(
+                "Some TFRecords do not have tile location information; "
+                "dataset iteration speed may be affected."
+            )
+
         # Prepare preprocessing
         dataset_kwargs = {
             'infinite': False,
@@ -593,13 +602,14 @@ class DatasetFeatures:
             dataloader = self.dataset.tensorflow(
                 None,
                 num_parallel_reads=None,
-                deterministic=True,
+                deterministic=(not has_loc),
                 **dataset_kwargs  # type: ignore
             )
         elif is_torch:
             dataloader = self.dataset.torch(
                 None,
-                num_workers=1,
+                num_workers=(4 if has_loc else 1),
+                chunk_size=8,
                 **dataset_kwargs  # type: ignore
             )
         else:
@@ -696,6 +706,42 @@ class DatasetFeatures:
         self.predictions = {s: np.stack(v) for s, v in self.predictions.items()}
         self.locations = {s: np.stack(v) for s, v in self.locations.items()}
         self.uncertainty = {s: np.stack(v) for s, v in self.uncertainty.items()}
+
+        # Sort using TFRecord location information,
+        # to ensure dictionary indices reflect TFRecord indices
+        if has_loc:
+            slides_to_sort = [
+                s for s in self.slides
+                if (self.activations[s].size
+                    or not self.predictions[s].size
+                    or not self.locations[s].size
+                    or not self.uncertainty[s].size)
+            ]
+            pool = mp.Pool(os.cpu_count())
+            for i, true_locs in enumerate(track(pool.imap(self.dataset.get_tfrecord_locations, slides_to_sort),
+                                                transient=False,
+                                                total=len(slides_to_sort),
+                                                description="Sorting...")):
+                slide = slides_to_sort[i]
+                # Get the order of locations stored in TFRecords,
+                # and the corresponding indices for sorting
+                cur_locs = self.locations[slide]
+                idx = [true_locs.index(tuple(cur_locs[i])) for i in range(cur_locs.shape[0])]
+
+                # Make sure that the TFRecord indices are continuous, otherwise
+                # our sorted indices will be inaccurate
+                assert max(idx)+1 == len(idx)
+
+                # Final sorting
+                sorted_idx = np.argsort(idx)
+                if slide in self.activations:
+                    self.activations[slide] = self.activations[slide][sorted_idx]
+                if slide in self.predictions:
+                    self.predictions[slide] = self.predictions[slide][sorted_idx]
+                if slide in self.uncertainty:
+                    self.uncertainty[slide] = self.uncertainty[slide][sorted_idx]
+                self.locations[slide] = self.locations[slide][sorted_idx]
+            pool.close()
 
         fla_calc_time = time.time()
         log.debug(f'Calculation time: {fla_calc_time-fla_start_time:.0f} sec')
