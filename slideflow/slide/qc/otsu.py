@@ -112,6 +112,19 @@ class Otsu:
                 thumb,
                 mask=roi_mask.astype(np.uint8)
             )
+        # Only apply Otsu thresholding within areas not already removed
+        # with other QC methods.
+        if wsi.qc_mask is not None:
+            resized_qc_mask = cv2.resize(
+                (~wsi.qc_mask).astype(np.uint8),
+                (thumb.shape[1], thumb.shape[0]),
+                interpolation=cv2.INTER_NEAREST
+            )
+            thumb = cv2.bitwise_or(
+                thumb,
+                thumb,
+                mask=resized_qc_mask
+            )
         return thumb
 
     def __call__(

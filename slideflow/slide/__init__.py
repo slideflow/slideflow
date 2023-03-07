@@ -488,6 +488,7 @@ class _BaseLoader:
 
         starttime = time.time()
         img = None
+        log.debug(f"Applying QC: {method}")
         for qc in method:
             if isinstance(method, str):
                 raise errors.QCError(f"Unknown QC method {method}")
