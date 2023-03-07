@@ -472,8 +472,9 @@ class _BaseLoader:
         if 'both' in method:
             idx = method.index('both')  # type: ignore
             method.remove('both')       # type: ignore
-            method.insert(idx, 'blur')  # type: ignore
             method.insert(idx, 'otsu')  # type: ignore
+            # Blur should be performed before Otsu's thresholding
+            method.insert(idx, 'blur')  # type: ignore
         if 'blur' in method:
             idx = method.index('blur')  # type: ignore
             method.remove('blur')       # type: ignore
