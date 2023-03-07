@@ -740,6 +740,8 @@ class _BaseLoader:
             **kwargs
         )
         if not generator:
+            if tfrecord_dir:
+                os.remove(join(tfrecord_dir, self.name+".tfrecords"))
             return None
 
         sample_tiles = []  # type: List
