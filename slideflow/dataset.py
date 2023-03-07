@@ -176,7 +176,8 @@ def _tile_extractor(
     qc: str,
     wsi_kwargs: Dict,
     generator_kwargs: Dict,
-    qc_kwargs: Dict
+    qc_kwargs: Dict,
+    render_thumb: bool = True
 ) -> None:
     """Internal function to extract tiles. Slide processing needs to be
     process-isolated when num_workers > 1 .
@@ -206,6 +207,8 @@ def _tile_extractor(
                 tiles_dir=tiles_dir,
                 **generator_kwargs
             )
+            if render_thumb and isinstance(report, SlideReport):
+                _ = report.thumb
             reports.update({path: report})
     except errors.MissingROIError:
         log.info(f'Missing ROI for slide {path}; skipping')
@@ -1547,7 +1550,8 @@ class Dataset:
                     'qc': qc,
                     'generator_kwargs': kwargs,
                     'qc_kwargs': qc_kwargs,
-                    'wsi_kwargs': wsi_kwargs
+                    'wsi_kwargs': wsi_kwargs,
+                    'render_thumb': buffer
                 }
                 pb.start()
                 with sf.util.cleanup_progress(pb):
