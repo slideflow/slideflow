@@ -58,13 +58,19 @@ fit_presets = {
 
 ######################################
 
-def standardize_brightness(I):
+
+def brightness_percentile(I):
+    return np.percentile(I, 90)
+
+
+def standardize_brightness(I, p=None):
     """
 
     :param I:
     :return:
     """
-    p = np.percentile(I, 90)
+    if p is None:
+        p = brightness_percentile(I)
     return np.clip(I * 255.0 / p, 0, 255).astype(np.uint8)
 
 

@@ -6,17 +6,23 @@ E. Reinhard, M. Adhikhmin, B. Gooch, and P. Shirley, ‘Color transfer between i
 
 from typing import Tuple, Dict, Optional, Union
 
-import os
 import torch
-import torchvision
 import numpy as np
+from contextlib import contextmanager
 
 import slideflow.norm.utils as ut
 from slideflow.norm.torch import color
-from slideflow.io.torch import cwh_to_whc
+
+# -----------------------------------------------------------------------------
+
+def brightness_percentile(I: torch.Tensor) -> torch.Tensor:
+    return torch.quantile(I.to(torch.float32), 0.9)
 
 
-def standardize_brightness(I: torch.Tensor) -> torch.Tensor:
+def standardize_brightness(
+    I: torch.Tensor,
+    p: Optional[torch.Tensor] = None,
+) -> torch.Tensor:
     """Standardize image brightness to 90th percentile.
 
     Args:
@@ -25,7 +31,8 @@ def standardize_brightness(I: torch.Tensor) -> torch.Tensor:
     Returns:
         torch.Tensor: Brightness-standardized image (uint8)
     """
-    p = torch.quantile(I.to(torch.float32), 0.9)
+    if p is None:
+        p = brightness_percentile(I)
     return torch.clip(I * 255.0 / p, 0, 255).to(torch.uint8)
 
 
@@ -110,7 +117,9 @@ def get_mean_std(
 def transform(
     I: torch.Tensor,
     tgt_mean: torch.Tensor,
-    tgt_std: torch.Tensor
+    tgt_std: torch.Tensor,
+    ctx_mean: Optional[torch.Tensor] = None,
+    ctx_std: Optional[torch.Tensor] = None
 ) -> torch.Tensor:
     """Normalize an H&E image.
 
@@ -118,13 +127,32 @@ def transform(
         img (torch.Tensor): Batch of uint8 images (B x W x H x C).
         tgt_mean (torch.Tensor): Target channel means.
         tgt_std (torch.Tensor): Target channel standard deviations.
+        ctx_mean (torch.Tensor, optional): Context channel means (e.g. from
+            whole-slide image). If None, calculates means from the image.
+            Defaults to None.
+        ctx_std (torch.Tensor, optional): Context channel standard deviations
+            (e.g. from whole-slide image). If None, calculates standard
+            deviations from the image. Defaults to None.
 
     Returns:
         torch.Tensor:   Stain normalized image.
 
     """
+    if ctx_mean is None and ctx_std is not None:
+        raise ValueError(
+        "If 'ctx_stds' is provided, 'ctx_means' must not be None"
+    )
+    if ctx_std is None and ctx_mean is not None:
+        raise ValueError(
+        "If 'ctx_means' is provided, 'ctx_stds' must not be None"
+    )
+
     I1, I2, I3 = lab_split(I)
-    (I1_mean, I2_mean, I3_mean), (I1_std, I2_std, I3_std) = get_mean_std(I1, I2, I3)
+    if ctx_mean is not None and ctx_std is not None:
+        I1_mean, I2_mean, I3_mean = ctx_mean[0], ctx_mean[1], ctx_mean[2]
+        I1_std, I2_std, I3_std = ctx_std[0], ctx_std[1], ctx_std[2]
+    else:
+        (I1_mean, I2_mean, I3_mean), (I1_std, I2_std, I3_std) = get_mean_std(I1, I2, I3)
 
     def norm(_I, _I_mean, _I_std, _tgt_std, _tgt_mean):
         # Equivalent to:
@@ -183,6 +211,9 @@ class ReinhardFastNormalizer:
         This implementation does not include the brightness normalization step.
         """
         self.set_fit(**ut.fit_presets['reinhard_fast']['v1'])  # type: ignore
+        self._ctx_means = None  # type: Optional[torch.Tensor]
+        self._ctx_stds = None  # type: Optional[torch.Tensor]
+        self._ctx_brightness = None  # type: Optional[torch.Tensor]
 
     def fit(
         self,
@@ -237,6 +268,16 @@ class ReinhardFastNormalizer:
             'target_stds': None if self.target_stds is None else self.target_stds.numpy()
         }
 
+    def _get_context_means(
+        self,
+        ctx_means: Optional[torch.Tensor] = None,
+        ctx_stds: Optional[torch.Tensor] = None
+    ) -> Tuple[Optional[torch.Tensor], Optional[torch.Tensor]]:
+        if self._ctx_means is not None and self._ctx_stds is not None:
+            return self._ctx_means, self._ctx_stds
+        else:
+            return ctx_means, ctx_stds
+
     def set_fit(
         self,
         target_means: Union[np.ndarray, torch.Tensor],
@@ -257,7 +298,12 @@ class ReinhardFastNormalizer:
         self.target_means = target_means
         self.target_stds = target_stds
 
-    def transform(self, I: torch.Tensor) -> torch.Tensor:
+    def transform(
+        self,
+        I: torch.Tensor,
+        ctx_means: Optional[torch.Tensor] = None,
+        ctx_stds: Optional[torch.Tensor] = None,
+    ) -> torch.Tensor:
         """Normalize an H&E image.
 
         Args:
@@ -266,10 +312,41 @@ class ReinhardFastNormalizer:
         Returns:
             torch.Tensor: Normalized image (uint8)
         """
+        _ctx_means, _ctx_stds = self._get_context_means(ctx_means, ctx_stds)
         if len(I.shape) == 3:
-            return transform(torch.unsqueeze(I, dim=0), self.target_means, self.target_stds)[0]
+            return transform(
+                torch.unsqueeze(I, dim=0),
+                self.target_means,
+                self.target_stds,
+                _ctx_means,
+                _ctx_stds
+            )[0]
         else:
-            return transform(I, self.target_means, self.target_stds)
+            return transform(
+                I,
+                self.target_means,
+                self.target_stds,
+                _ctx_means,
+                _ctx_stds
+            )
+
+    @contextmanager
+    def image_context(self, I: Union[np.ndarray, torch.Tensor]):
+        self.set_context(I)
+        yield
+        self.clear_context()
+
+    def set_context(self, I: Union[np.ndarray, torch.Tensor]):
+        if not isinstance(I, torch.Tensor):
+            I = torch.from_numpy(ut._as_numpy(I))
+        if len(I.shape) == 3:
+            I = torch.unsqueeze(I, dim=0)
+        I1, I2, I3 = lab_split(I)
+        self._ctx_means, self._ctx_stds = get_mean_std(I1, I2, I3)  # type: ignore
+
+    def clear_context(self):
+        self._ctx_means, self._ctx_stds = None, None
+
 
 
 class ReinhardNormalizer(ReinhardFastNormalizer):
@@ -308,7 +385,7 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
         """
         if len(target.shape) == 3:
             target = torch.unsqueeze(target, dim=0)
-        target = standardize_brightness(target)
+        target = standardize_brightness(target, p=self._ctx_brightness)
         means, stds = fit(target, reduce=reduce)
         self.target_means = means
         self.target_stds = stds
@@ -328,7 +405,12 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
         self.set_fit(**_fit)
         return _fit
 
-    def transform(self, I: torch.Tensor) -> torch.Tensor:
+    def transform(
+        self,
+        I: torch.Tensor,
+        ctx_means: Optional[torch.Tensor] = None,
+        ctx_stds: Optional[torch.Tensor] = None,
+    ) -> torch.Tensor:
         """Normalize an H&E image.
 
         Args:
@@ -337,7 +419,34 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
         Returns:
             torch.Tensor: Normalized image.
         """
+        _ctx_means, _ctx_stds = self._get_context_means(ctx_means, ctx_stds)
         if len(I.shape) == 3:
-            return transform(standardize_brightness(torch.unsqueeze(I, dim=0)), self.target_means, self.target_stds)[0]
+            return transform(
+                standardize_brightness(
+                    torch.unsqueeze(I, dim=0),
+                    p=self._ctx_brightness),
+                self.target_means,
+                self.target_stds,
+                _ctx_means,
+                _ctx_stds
+            )[0]
         else:
-            return transform(standardize_brightness(I), self.target_means, self.target_stds)
+            return transform(
+                standardize_brightness(I, p=self._ctx_brightness),
+                self.target_means,
+                self.target_stds,
+                _ctx_means,
+                _ctx_stds
+            )
+
+    def set_context(self, I: Union[np.ndarray, torch.Tensor]):
+        if not isinstance(I, torch.Tensor):
+            I = torch.from_numpy(ut._as_numpy(I))
+        if len(I.shape) == 3:
+            I = torch.unsqueeze(I, dim=0)
+        self._ctx_brightness = brightness_percentile(I)
+        super().set_context(I)
+
+    def clear_context(self):
+        super().clear_context()
+        self._ctx_brightness = None

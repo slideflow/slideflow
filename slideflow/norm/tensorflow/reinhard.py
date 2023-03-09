@@ -9,6 +9,7 @@ from __future__ import division
 import numpy as np
 from typing import Tuple, Dict, Union, Optional, Any
 from packaging import version
+from contextlib import contextmanager
 
 import tensorflow as tf
 import tensorflow_probability as tfp
@@ -16,9 +17,16 @@ from slideflow.norm.tensorflow import color
 from slideflow.norm import utils as ut
 from slideflow.util import log
 
+# -----------------------------------------------------------------------------
 
 @tf.function
-def standardize_brightness(I: tf.Tensor) -> tf.Tensor:
+def brightness_percentile(I: tf.Tensor) -> tf.Tensor:
+    p = tfp.stats.percentile(I, 90)  # p = np.percentile(I, 90)
+    return tf.cast(p, tf.float32)
+
+
+@tf.function
+def standardize_brightness(I: tf.Tensor, p: Optional[tf.Tensor] = None) -> tf.Tensor:
     """Standardize image brightness to the 90th percentile.
 
     Args:
@@ -27,8 +35,8 @@ def standardize_brightness(I: tf.Tensor) -> tf.Tensor:
     Returns:
         tf.Tensor: Brightness-standardized image (uint8)
     """
-    p = tfp.stats.percentile(I, 90)  # p = np.percentile(I, 90)
-    p = tf.cast(p, tf.float32)
+    if p is None:
+        p = brightness_percentile(I)
     scaled = tf.cast(I, tf.float32) * tf.constant(255.0, dtype=tf.float32) / p
     scaled = tf.experimental.numpy.clip(scaled, 0, 255)
     return tf.cast(scaled, tf.uint8)  # np.clip(I * 255.0 / p, 0, 255).astype(np.uint8)
@@ -121,6 +129,8 @@ def transform(
     I: tf.Tensor,
     tgt_mean: tf.Tensor,
     tgt_std: tf.Tensor,
+    ctx_mean: Optional[tf.Tensor] = None,
+    ctx_std: Optional[tf.Tensor] = None,
     mask_threshold: Optional[float] = None
 ) -> tf.Tensor:
     """Transform an image using a given target means & stds.
@@ -129,6 +139,12 @@ def transform(
         I (tf.Tensor): Image to transform
         tgt_mean (tf.Tensor): Target means.
         tgt_std (tf.Tensor): Target means.
+        ctx_mean (torch.Tensor, optional): Context channel means (e.g. from
+            whole-slide image). If None, calculates means from the image.
+            Defaults to None.
+        ctx_std (torch.Tensor, optional): Context channel standard deviations
+            (e.g. from whole-slide image). If None, calculates standard
+            deviations from the image. Defaults to None.
 
     Raises:
         ValueError: If tgt_mean or tgt_std is None.
@@ -137,7 +153,20 @@ def transform(
         tf.Tensor: Transformed image.
     """
     I1, I2, I3 = lab_split(I)
-    means, stds = get_mean_std(I1, I2, I3)
+
+    if ctx_mean is None and ctx_std is not None:
+        raise ValueError(
+        "If 'ctx_stds' is provided, 'ctx_means' must not be None"
+    )
+    if ctx_std is None and ctx_mean is not None:
+        raise ValueError(
+        "If 'ctx_means' is provided, 'ctx_stds' must not be None"
+    )
+
+    if ctx_mean is not None and ctx_std is not None:
+        means, stds = ctx_mean, ctx_std
+    else:
+        means, stds = get_mean_std(I1, I2, I3)
 
     if mask_threshold:
         mask = ((I1 / 100) < mask_threshold)[:, :, :, tf.newaxis]
@@ -207,6 +236,9 @@ class ReinhardFastNormalizer:
                      "to CPU.")
             self.preferred_device = 'cpu'
         self.transform_kw = {}  # type: Dict[str, Any]
+        self._ctx_means = None  # type: Optional[tf.Tensor]
+        self._ctx_stds = None  # type: Optional[tf.Tensor]
+        self._ctx_brightness = None  # type: Optional[tf.Tensor]
         self.set_fit(**ut.fit_presets['reinhard_fast']['v1'])  # type: ignore
 
     def fit(
@@ -282,33 +314,91 @@ class ReinhardFastNormalizer:
         self.target_means = target_means
         self.target_stds = target_stds
 
-    @tf.function
-    def _transform_batch(self, batch: tf.Tensor) -> tf.Tensor:
+    def _get_context_means(
+        self,
+        ctx_means: Optional[tf.Tensor] = None,
+        ctx_stds: Optional[tf.Tensor] = None
+    ) -> Tuple[Optional[tf.Tensor], Optional[tf.Tensor]]:
+        if self._ctx_means is not None and self._ctx_stds is not None:
+            return self._ctx_means, self._ctx_stds
+        else:
+            return ctx_means, ctx_stds
+
+    def _transform_batch(
+        self,
+        batch: tf.Tensor,
+        ctx_means: Optional[tf.Tensor] = None,
+        ctx_stds: Optional[tf.Tensor] = None
+    ) -> tf.Tensor:
         """Normalize a batch of images.
 
         Args:
             img (tf.Tensor): Image, RGB uint8 with dimensions BWHC.
+            ctx_means (tf.Tensor, optional): Context channel means (e.g. from
+                whole-slide image). If None, calculates means from the image.
+                Defaults to None.
+            ctx_stds (tf.Tensor, optional): Context channel standard deviations
+                (e.g. from whole-slide image). If None, calculates standard
+                deviations from the image. Defaults to None.
 
         Returns:
             tf.Tensor: Normalized image batch (uint8)
         """
+        _ctx_means, _ctx_stds = self._get_context_means(ctx_means, ctx_stds)
+        return transform(
+            batch,
+            self.target_means,
+            self.target_stds,
+            _ctx_means,
+            _ctx_stds
+        )
 
-        return transform(batch, self.target_means, self.target_stds)
-
-    @tf.function
-    def transform(self, I: tf.Tensor) -> tf.Tensor:
+    def transform(
+        self,
+        I: tf.Tensor,
+        ctx_means: Optional[tf.Tensor] = None,
+        ctx_stds: Optional[tf.Tensor] = None
+    ) -> tf.Tensor:
         """Normalize an H&E image.
 
         Args:
             img (tf.Tensor): Image, RGB uint8 with dimensions WHC or BWHC.
+            ctx_means (tf.Tensor, optional): Context channel means (e.g. from
+                whole-slide image). If None, calculates means from the image.
+                Defaults to None.
+            ctx_stds (tf.Tensor, optional): Context channel standard deviations
+                (e.g. from whole-slide image). If None, calculates standard
+                deviations from the image. Defaults to None.
 
         Returns:
             tf.Tensor: Normalized image (uint8)
         """
+        _ctx_means, _ctx_stds = self._get_context_means(ctx_means, ctx_stds)
         if len(I.shape) == 3:
-            return self._transform_batch(tf.expand_dims(I, axis=0))[0]
+            return self._transform_batch(
+                tf.expand_dims(I, axis=0),
+                _ctx_means,
+                _ctx_stds
+            )[0]
         else:
-            return self._transform_batch(I)
+            return self._transform_batch(I, _ctx_means, _ctx_stds)
+
+    @contextmanager
+    def image_context(self, I: Union[np.ndarray, tf.Tensor]):
+        self.set_context(I)
+        yield
+        self.clear_context()
+
+    def set_context(self, I: Union[np.ndarray, tf.Tensor]):
+        if not isinstance(I, tf.Tensor):
+            I = tf.convert_to_tensor(ut._as_numpy(I))
+        if len(I.shape) == 3:
+            I = tf.expand_dims(I, axis=0)
+        I1, I2, I3 = lab_split(I)
+        self._ctx_means, self._ctx_stds = get_mean_std(I1, I2, I3)  # type: ignore
+
+    def clear_context(self):
+        self._ctx_means, self._ctx_stds = None, None
 
 
 class ReinhardNormalizer(ReinhardFastNormalizer):
@@ -347,7 +437,7 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
         """
         if len(target.shape) == 3:
             target = tf.expand_dims(target, axis=0)
-        target = standardize_brightness(target)
+        target = standardize_brightness(target, p=self._ctx_brightness)
         means, stds = fit(target, reduce=reduce)
         self.target_means = means
         self.target_stds = stds
@@ -367,21 +457,53 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
         self.set_fit(**_fit)
         return _fit
 
-    @tf.function
-    def transform(self, I: tf.Tensor) -> tf.Tensor:
+    def transform(
+        self,
+        I: tf.Tensor,
+        ctx_means: Optional[tf.Tensor] = None,
+        ctx_stds: Optional[tf.Tensor] = None
+    ) -> tf.Tensor:
         """Normalize an H&E image.
 
         Args:
             img (tf.Tensor): Image, RGB uint8 with dimensions WHC or BWHC.
+            ctx_means (tf.Tensor, optional): Context channel means (e.g. from
+                whole-slide image). If None, calculates means from the image.
+                Defaults to None.
+            ctx_stds (tf.Tensor, optional): Context channel standard deviations
+                (e.g. from whole-slide image). If None, calculates standard
+                deviations from the image. Defaults to None.
 
         Returns:
             tf.Tensor: Normalized image (uint8)
         """
-
+        _ctx_means, _ctx_stds = self._get_context_means(ctx_means, ctx_stds)
         if len(I.shape) == 3:
-            return self._transform_batch(standardize_brightness(tf.expand_dims(I, axis=0)))[0]
+            return self._transform_batch(
+                standardize_brightness(
+                    tf.expand_dims(I, axis=0),
+                    p=self._ctx_brightness),
+                _ctx_means,
+                _ctx_stds
+            )[0]
         else:
-            return self._transform_batch(standardize_brightness(I))
+            return self._transform_batch(
+                standardize_brightness(I, p=self._ctx_brightness),
+                _ctx_means,
+                _ctx_stds
+            )
+
+    def set_context(self, I: tf.Tensor):
+        if not isinstance(I, tf.Tensor):
+            I = tf.convert_to_tensor(ut._as_numpy(I))
+        if len(I.shape) == 3:
+            I = tf.expand_dims(I, axis=0)
+        self._ctx_brightness = brightness_percentile(I)
+        super().set_context(I)
+
+    def clear_context(self):
+        super().clear_context()
+        self._ctx_brightness = None
 
 
 class ReinhardFastMaskNormalizer(ReinhardFastNormalizer):
@@ -407,18 +529,35 @@ class ReinhardFastMaskNormalizer(ReinhardFastNormalizer):
         super().__init__()
         self.threshold = threshold
 
-    @tf.function
-    def _transform_batch(self, batch: tf.Tensor) -> tf.Tensor:
+    def _transform_batch(
+        self,
+        batch: tf.Tensor,
+        ctx_means: Optional[tf.Tensor] = None,
+        ctx_stds: Optional[tf.Tensor] = None
+    ) -> tf.Tensor:
         """Normalize a batch of images.
 
         Args:
             img (tf.Tensor): Image, RGB uint8 with dimensions BWHC.
+            ctx_means (tf.Tensor, optional): Context channel means (e.g. from
+                whole-slide image). If None, calculates means from the image.
+                Defaults to None.
+            ctx_stds (tf.Tensor, optional): Context channel standard deviations
+                (e.g. from whole-slide image). If None, calculates standard
+                deviations from the image. Defaults to None.
 
         Returns:
             tf.Tensor: Normalized image batch (uint8)
         """
-
-        return transform(batch, self.target_means, self.target_stds, self.threshold)
+        _ctx_means, _ctx_stds = self._get_context_means(ctx_means, ctx_stds)
+        return transform(
+            batch,
+            self.target_means,
+            self.target_stds,
+            _ctx_means,
+            _ctx_stds,
+            self.threshold,
+        )
 
 
 class ReinhardMaskNormalizer(ReinhardNormalizer):
@@ -444,15 +583,32 @@ class ReinhardMaskNormalizer(ReinhardNormalizer):
         super().__init__()
         self.threshold = threshold
 
-    @tf.function
-    def _transform_batch(self, batch: tf.Tensor) -> tf.Tensor:
+    def _transform_batch(
+        self,
+        batch: tf.Tensor,
+        ctx_means: Optional[tf.Tensor] = None,
+        ctx_stds: Optional[tf.Tensor] = None
+    ) -> tf.Tensor:
         """Normalize a batch of images.
 
         Args:
             img (tf.Tensor): Image, RGB uint8 with dimensions BWHC.
+            ctx_means (tf.Tensor, optional): Context channel means (e.g. from
+                whole-slide image). If None, calculates means from the image.
+                Defaults to None.
+            ctx_stds (tf.Tensor, optional): Context channel standard deviations
+                (e.g. from whole-slide image). If None, calculates standard
+                deviations from the image. Defaults to None.
 
         Returns:
             tf.Tensor: Normalized image batch (uint8)
         """
-
-        return transform(batch, self.target_means, self.target_stds, self.threshold)
+        _ctx_means, _ctx_stds = self._get_context_means(ctx_means, ctx_stds)
+        return transform(
+            batch,
+            self.target_means,
+            self.target_stds,
+            _ctx_means,
+            _ctx_stds,
+            self.threshold
+        )

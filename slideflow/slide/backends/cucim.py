@@ -115,15 +115,6 @@ def tile_worker(
             (args.tile_px, args.tile_px),
             interpolation=cv2.INTER_NEAREST)
 
-    # Normalizer
-    if not args.normalizer:
-        normalizer = None
-    else:
-        normalizer = sf.norm.autoselect(
-            method=args.normalizer,
-            source=args.normalizer_source
-        )
-
     # Read the target downsample region now, if we were
     # filtering at a different level
     region = slide.read_region(
@@ -155,9 +146,9 @@ def tile_worker(
         region[tile_mask == 0] = (0, 0, 0)
 
     # Apply normalization
-    if normalizer:
+    if args.normalizer:
         try:
-            region = normalizer.rgb_to_rgb(region)
+            region = args.normalizer.rgb_to_rgb(region)
         except Exception:
             # The image could not be normalized,
             # which happens when a tile is primarily one solid color

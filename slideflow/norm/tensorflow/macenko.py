@@ -1,16 +1,23 @@
 import numpy as np
 import tensorflow as tf
-from functools import partial
 from typing import Tuple, Dict, Optional, Union
+from contextlib import contextmanager
 
 from tensorflow.experimental.numpy import dot
 import tensorflow_probability as tfp
 
 from slideflow.norm import utils as ut
 
+# -----------------------------------------------------------------------------
 
 @tf.function
-def standardize_brightness(I: tf.Tensor) -> tf.Tensor:
+def brightness_percentile(I: tf.Tensor) -> tf.Tensor:
+    p = tfp.stats.percentile(I, 90)  # p = np.percentile(I, 90)
+    return tf.cast(p, tf.float32)
+
+
+@tf.function
+def standardize_brightness(I: tf.Tensor, p: Optional[tf.Tensor] = None) -> tf.Tensor:
     """Standardize image brightness to the 90th percentile.
 
     Args:
@@ -19,20 +26,21 @@ def standardize_brightness(I: tf.Tensor) -> tf.Tensor:
     Returns:
         tf.Tensor: Brightness-standardized image (uint8)
     """
-    p = tfp.stats.percentile(I, 90)  # p = np.percentile(I, 90)
-    p = tf.cast(p, tf.float32)
+    if p is None:
+        p = brightness_percentile(I)
     scaled = tf.cast(I, tf.float32) * tf.constant(255.0, dtype=tf.float32) / p
     scaled = tf.experimental.numpy.clip(scaled, 0, 255)
     return tf.cast(scaled, tf.uint8)
 
 
 @tf.function
-def matrix_and_concentrations(
+def _matrix_and_concentrations(
     img: tf.Tensor,
     Io: int = 255,
     alpha: float = 1,
-    beta: float = 0.15
-) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor]:
+    beta: float = 0.15,
+    ctx_brightness: Optional[tf.Tensor] = None
+) -> Tuple[tf.Tensor, tf.Tensor]:
     """Gets the H&E stain matrix and concentrations for a given image.
 
     Args:
@@ -48,15 +56,13 @@ def matrix_and_concentrations(
 
             tf.Tensor: H&E stain matrix, shape = (3, 2)
 
-            tf.Tensor: Concentrations, shape = (2,)
-
             tf.Tensor: Concentrations of individual stains
     """
 
     # reshape image
     img = tf.reshape(img, (-1, 3))
 
-    img = standardize_brightness(img)
+    img = standardize_brightness(img, p=ctx_brightness)
 
     # calculate optical density
     OD = -tf.math.log((tf.cast(img, tf.float32) + 1) / Io)
@@ -92,6 +98,40 @@ def matrix_and_concentrations(
     # determine concentrations of the individual stains
     C = tf.linalg.lstsq(HE, Y)
 
+    return HE, C
+
+
+@tf.function
+def matrix_and_concentrations(
+    img: tf.Tensor,
+    Io: int = 255,
+    alpha: float = 1,
+    beta: float = 0.15,
+    ctx_brightness: Optional[tf.Tensor] = None
+) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor]:
+    """Gets the H&E stain matrix and concentrations for a given image.
+
+    Args:
+        img (tf.Tensor): Image (RGB uint8) with dimensions W, H, C.
+        Io (int, optional). Light transmission. Defaults to 255.
+        alpha (float): Percentile of angular coordinates to be selected
+            with respect to orthogonal eigenvectors. Defaults to 1.
+        beta (float): Luminosity threshold. Pixels with luminance above
+            this threshold will be ignored. Defaults to 0.15.
+
+    Returns:
+        A tuple containing
+
+            tf.Tensor: H&E stain matrix, shape = (3, 2)
+
+            tf.Tensor: Max concentrations, shape = (2,)
+
+            tf.Tensor: Concentrations of individual stains
+    """
+    HE, C = _matrix_and_concentrations(
+        img, Io, alpha, beta, ctx_brightness=ctx_brightness
+    )
+
     # normalize stain concentrations
     maxC = tf.stack([tfp.stats.percentile(C[0, :], 99), tfp.stats.percentile(C[1, :], 99)])
 
@@ -105,7 +145,9 @@ def transform(
     target_concentrations: tf.Tensor,
     Io: int = 255,
     alpha: float = 1,
-    beta: float = 0.15
+    beta: float = 0.15,
+    ctx_maxC: Optional[tf.Tensor] = None,
+    ctx_brightness: Optional[tf.Tensor] = None
 ) -> tf.Tensor:
     """Normalize an image.
 
@@ -130,7 +172,13 @@ def transform(
     HERef = stain_matrix_target
     maxCRef = target_concentrations
 
-    HE, maxC, C = matrix_and_concentrations(img, Io, alpha, beta)
+    if ctx_maxC is not None:
+        HE, C = _matrix_and_concentrations(
+            img, Io, alpha, beta, ctx_brightness=ctx_brightness
+        )
+        maxC = ctx_maxC
+    else:
+        HE, maxC, C = matrix_and_concentrations(img, Io, alpha, beta)
 
     tmp = tf.math.divide(maxC, maxCRef)
     C2 = tf.math.divide(C, tmp[:, tf.newaxis])
@@ -203,6 +251,8 @@ class MacenkoNormalizer:
         self.Io = Io
         self.alpha = alpha
         self.beta = beta
+        self._ctx_maxC = None  # type: Optional[tf.Tensor]
+        self._ctx_brightness = None  # type: Optional[tf.Tensor]
 
         self.set_fit(**ut.fit_presets['macenko']['v1'])  # type: ignore
 
@@ -277,7 +327,6 @@ class MacenkoNormalizer:
         self.stain_matrix_target = stain_matrix_target
         self.target_concentrations = target_concentrations
 
-    @tf.function
     def transform(self, I: tf.Tensor) -> tf.Tensor:
         """Normalize an H&E image.
 
@@ -290,8 +339,34 @@ class MacenkoNormalizer:
         if len(I.shape) == 4:
             return tf.map_fn(self.transform, I)
         elif len(I.shape) == 3:
-            return transform(I, self.stain_matrix_target, self.target_concentrations)
+            return transform(
+                I,
+                self.stain_matrix_target,
+                self.target_concentrations,
+                ctx_maxC=self._ctx_maxC,
+                ctx_brightness=self._ctx_brightness
+            )
         else:
             raise ValueError(
                 f"Invalid shape for transform(): expected 3 or 4, got {I.shape}"
             )
+
+    @contextmanager
+    def image_context(self, I: Union[np.ndarray, tf.Tensor]):
+        self.set_context(I)
+        yield
+        self.clear_context()
+
+    def set_context(self, I: Union[np.ndarray, tf.Tensor]):
+        if not isinstance(I, tf.Tensor):
+            I = tf.convert_to_tensor(ut._as_numpy(I))
+
+        self._ctx_brightness = brightness_percentile(tf.reshape(I, (-1, 3)))
+        HE, maxC, C = matrix_and_concentrations(
+            I, ctx_brightness=self._ctx_brightness
+        )
+        self._ctx_maxC = maxC
+
+    def clear_context(self):
+        self._ctx_maxC = None
+        self._ctx_brightness = None

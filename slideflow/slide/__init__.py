@@ -1090,7 +1090,6 @@ class WSI(_BaseLoader):
                 tile_px=self.tile_px,
                 full_stride=self.full_stride,
                 normalizer=None,
-                normalizer_source=None,
                 whitespace_fraction=1,
                 whitespace_threshold=1,
                 grayspace_fraction=1,
@@ -1386,6 +1385,7 @@ class WSI(_BaseLoader):
         grayspace_threshold: float = None,
         normalizer: str = None,
         normalizer_source: str = None,
+        context_normalize: bool = False,
         num_threads: Optional[int] = None,
         num_processes: Optional[int] = None,
         show_progress: bool = False,
@@ -1417,10 +1417,14 @@ class WSI(_BaseLoader):
                 Pixels in HSV format with saturation below this threshold are
                 considered grayspace.
             normalizer (str, optional): Normalization strategy to use on image
-            tiles. Defaults to None.
+                tiles. Defaults to None.
             normalizer_source (str, optional): Path to normalizer source image.
                 If None, will use slideflow.slide.norm_tile.jpg.
                 Defaults to None.
+            context_normalize (bool): If normalizing, use context from
+                the rest of the slide when calculating stain matrix
+                concentrations. Defaults to False (normalize each image tile
+                as separate images).
             show_progress (bool, optional): Show a progress bar.
             img_format (str, optional): Image format. Either 'numpy', 'jpg',
                 or 'png'. Defaults to 'numpy'.
@@ -1493,6 +1497,25 @@ class WSI(_BaseLoader):
             filter_lev = self.downsample_level
             filter_downsample_ratio = 1
 
+        # Prepare stain normalization
+        if normalizer and not isinstance(normalizer, sf.norm.StainNormalizer):
+            if sf.slide_backend() == 'cucim':
+                normalizer = sf.norm.autoselect(  # type: ignore
+                    method=normalizer,
+                    source=normalizer_source
+                )
+            else:
+                # Libvips with spawn multiprocessing
+                # is not compatible with Tensorflow-native stain normalization
+                # due to GPU memory issues
+                normalizer = sf.norm.StainNormalizer(normalizer)  # type: ignore
+                if normalizer_source is not None:
+                    normalizer.fit(normalizer_source)  # type: ignore
+
+        if normalizer and context_normalize:
+            assert isinstance(normalizer, sf.norm.StainNormalizer)
+            normalizer.set_context(np.asarray(self.thumb()))
+
         w_args = SimpleNamespace(**{
             'full_extract_px': self.full_extract_px,
             'mpp_override': self._mpp_override,
@@ -1508,7 +1531,6 @@ class WSI(_BaseLoader):
             'tile_px': self.tile_px,
             'full_stride': self.full_stride,
             'normalizer': normalizer,
-            'normalizer_source': normalizer_source,
             'whitespace_fraction': whitespace_fraction,
             'whitespace_threshold': whitespace_threshold,
             'grayspace_fraction': grayspace_fraction,
@@ -1640,6 +1662,12 @@ class WSI(_BaseLoader):
                 pbar.stop()
             if should_close:
                 pool.close()
+
+            # Reset stain normalizer context
+            if normalizer and context_normalize:
+                assert isinstance(normalizer, sf.norm.StainNormalizer)
+                normalizer.clear_context()
+
             name_msg = f'[green]{self.shortname}[/]'
             num_msg = f'({n_extracted} tiles of {num_possible_tiles} possible)'
             log_fn = log.info if self.verbose else log.debug

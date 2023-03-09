@@ -38,16 +38,16 @@ import cv2
 import numpy as np
 import slideflow as sf
 from PIL import Image
+from contextlib import contextmanager
+from rich.progress import Progress
 from slideflow import errors
 from slideflow.dataset import Dataset
 from slideflow.util import detuple, log, cleanup_progress
-from rich.progress import Progress
+from slideflow.norm import (augment, macenko, reinhard, vahadane)
 
 if TYPE_CHECKING:
     import tensorflow as tf
     import torch
-
-from slideflow.norm import (augment, macenko, reinhard, vahadane)
 
 
 class StainNormalizer:
@@ -471,6 +471,37 @@ class StainNormalizer:
             return detuple(to_return, args)
         else:
             return detuple(self._torch_transform(image), args)
+
+    # --- Context management --------------------------------------------------
+
+    @contextmanager
+    def context(
+        self,
+        context: Union[str, "sf.WSI", np.ndarray, "tf.Tensor", "torch.Tensor"]
+    ):
+        self.set_context(context)
+        yield
+        self.clear_context()
+
+    def set_context(
+        self,
+        context: Union[str, "sf.WSI", np.ndarray, "tf.Tensor", "torch.Tensor"]
+    ) -> bool:
+        if hasattr(self.n, 'set_context'):
+            if isinstance(context, str):
+                image = np.asarray(sf.WSI(context, 500, 500).thumb())
+            elif isinstance(context, sf.WSI):
+                image = np.asarray(context.thumb())
+            else:
+                image = context  # type: ignore
+            self.n.set_context(image)
+            return True
+        else:
+            return False
+
+    def clear_context(self) -> None:
+        if hasattr(self.n, 'clear_context'):
+            self.n.clear_context()
 
 
 def autoselect(

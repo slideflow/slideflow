@@ -3,7 +3,8 @@
 from __future__ import division
 
 import numpy as np
-from typing import Tuple, Dict
+from typing import Tuple, Dict, Optional
+from contextlib import contextmanager
 
 import slideflow.norm.utils as ut
 
@@ -37,6 +38,8 @@ class MacenkoNormalizer:
         """
         self.alpha = alpha
         self.beta = beta
+        self._ctx_maxC = None  # type: Optional[np.ndarray]
+        self._ctx_brightness = None  # type: Optional[float]
 
         # Default fit.
         self.set_fit(**ut.fit_presets['macenko']['v1'])  # type: ignore
@@ -113,10 +116,11 @@ class MacenkoNormalizer:
         self.stain_matrix_target = stain_matrix_target
         self.target_concentrations = target_concentrations
 
-    def matrix_and_concentrations(
+    def _matrix_and_concentrations(
         self,
         img: np.ndarray,
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        brightness_p: Optional[float] = None
+    ) -> Tuple[np.ndarray, np.ndarray]:
         """Gets the H&E stain matrix and concentrations for a given image.
 
         Args:
@@ -127,13 +131,11 @@ class MacenkoNormalizer:
 
                 np.ndarray: H&E stain matrix, shape = (3, 2)
 
-                np.ndarray: Concentrations, shape = (2,)
-
                 np.ndarray: Concentrations of individual stains
         """
 
         img = img.reshape((-1, 3))
-        img = ut.standardize_brightness(img)
+        img = ut.standardize_brightness(img, p=brightness_p)
 
         # Calculate optical density.
         OD = -np.log((img.astype(float) + 1) / 255)
@@ -168,6 +170,30 @@ class MacenkoNormalizer:
         # Determine concentrations of the individual stains.
         C = np.linalg.lstsq(HE, Y, rcond=None)[0]
 
+        return HE, C
+
+
+    def matrix_and_concentrations(
+        self,
+        img: np.ndarray,
+        brightness_p: Optional[float] = None
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Gets the H&E stain matrix and concentrations for a given image.
+
+        Args:
+            img (np.ndarray): Image (RGB uint8) with dimensions W, H, C.
+
+        Returns:
+            A tuple containing
+
+                np.ndarray: H&E stain matrix, shape = (3, 2)
+
+                np.ndarray: Max concentrations, shape = (2,)
+
+                np.ndarray: Concentrations of individual stains
+        """
+        HE, C = self._matrix_and_concentrations(img, brightness_p)
+
         # Normalize stain concentrations.
         maxC = np.array([np.percentile(C[0, :], 99), np.percentile(C[1, :], 99)])
 
@@ -188,7 +214,11 @@ class MacenkoNormalizer:
         maxCRef = self.target_concentrations
 
         # Get stain matrix and concentrations from image.
-        HE, maxC, C = self.matrix_and_concentrations(img)
+        if self._ctx_maxC is not None:
+            HE, C = self._matrix_and_concentrations(img, self._ctx_brightness)
+            maxC = self._ctx_maxC
+        else:
+            HE, maxC, C = self.matrix_and_concentrations(img)
 
         tmp = np.divide(maxC, maxCRef)
         C2 = np.divide(C, tmp[:, np.newaxis])
@@ -199,3 +229,18 @@ class MacenkoNormalizer:
         Inorm = np.reshape(Inorm.T, (h, w, 3)).astype(np.uint8)
 
         return Inorm
+
+    @contextmanager
+    def image_context(self, I: np.ndarray):
+        self.set_context(I)
+        yield
+        self.clear_context()
+
+    def set_context(self, I: np.ndarray):
+        HE, maxC, C = self.matrix_and_concentrations(I)
+        self._ctx_maxC = maxC
+        self._ctx_brightness = ut.brightness_percentile(I.reshape((-1, 3)))
+
+    def clear_context(self):
+        self._ctx_maxC = None
+        self._ctx_brightness = None

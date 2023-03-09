@@ -63,7 +63,7 @@ def slide_backend():
 from slideflow.util import getLoggingLevel, log, setLoggingLevel, about
 
 ...
-from slideflow import io, model, norm, stats, biscuit
+from slideflow import io, model, norm, stats
 from slideflow.dataset import Dataset
 from slideflow.heatmap import Heatmap
 from slideflow.model import DatasetFeatures, ModelParams
@@ -73,3 +73,4 @@ from slideflow.project import create as create_project
 from slideflow.project import load as load_project
 from slideflow.slide import TMA, WSI
 from slideflow.stats import SlideMap
+from slideflow import biscuit

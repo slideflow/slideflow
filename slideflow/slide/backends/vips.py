@@ -190,17 +190,6 @@ def tile_worker(
             (args.tile_px, args.tile_px),
             interpolation=cv2.INTER_NEAREST)
 
-    # Normalizer
-    if not args.normalizer:
-        normalizer = None
-    else:
-        # Libvips with spawn multiprocessing
-        # is not compatible with Tensorflow-native stain normalization
-        # due to GPU memory issues
-        normalizer = sf.norm.StainNormalizer(args.normalizer)  # type: ignore
-        if args.normalizer_source is not None:
-            normalizer.fit(args.normalizer_source)
-
     # Read the target downsample region now, if we were
     # filtering at a different level
     region = slide.read_region(
@@ -228,12 +217,12 @@ def tile_worker(
             raise ValueError(f"Unknown image format {args.img_format}")
 
         # Apply normalization
-        if normalizer:
+        if args.normalizer:
             try:
                 if args.img_format == 'png':
-                    image = normalizer.png_to_png(image)
+                    image = args.normalizer.png_to_png(image)
                 elif args.img_format in ('jpg', 'jpeg'):
-                    image = normalizer.jpeg_to_jpeg(image)
+                    image = args.normalizer.jpeg_to_jpeg(image)
                 else:
                     raise ValueError(f"Unknown image format {args.img_format}")
             except Exception as e:
@@ -246,9 +235,9 @@ def tile_worker(
         image = vips2numpy(region).astype(np.uint8)
 
         # Apply normalization
-        if normalizer:
+        if args.normalizer:
             try:
-                image = normalizer.rgb_to_rgb(image)
+                image = args.normalizer.rgb_to_rgb(image)
             except Exception:
                 # The image could not be normalized,
                 # which happens when a tile is primarily one solid color

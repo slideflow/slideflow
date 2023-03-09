@@ -4,16 +4,24 @@ Reinhard normalization based on method of:
 E. Reinhard, M. Adhikhmin, B. Gooch, and P. Shirley, ‘Color transfer between images’, IEEE Computer Graphics and Applications, vol. 21, no. 5, pp. 34–41, Sep. 2001.
 """
 
-from typing import Tuple, Dict, Optional, Union
-
 import torch
 import numpy as np
+from typing import Tuple, Dict, Optional, Union
+from contextlib import contextmanager
 
 import slideflow.norm.utils as ut
 from slideflow.io.torch import cwh_to_whc
 
+# -----------------------------------------------------------------------------
 
-def standardize_brightness(I: torch.Tensor) -> torch.Tensor:
+def brightness_percentile(I: torch.Tensor) -> torch.Tensor:
+    return torch.quantile(I.to(torch.float32), 0.9)
+
+
+def standardize_brightness(
+    I: torch.Tensor,
+    p: Optional[torch.Tensor] = None,
+) -> torch.Tensor:
     """Standardize image brightness to 90th percentile.
 
     Args:
@@ -22,7 +30,8 @@ def standardize_brightness(I: torch.Tensor) -> torch.Tensor:
     Returns:
         torch.Tensor: Brightness-standardized image (uint8)
     """
-    p = torch.quantile(I.float(), 0.9)
+    if p is None:
+        p = brightness_percentile(I)
     return torch.clip(I * 255.0 / p, 0, 255).to(torch.uint8)
 
 
@@ -70,6 +79,8 @@ class MacenkoNormalizer:
         self.Io = Io
         self.alpha = alpha
         self.beta = beta
+        self._ctx_maxC = None  # type: Optional[torch.Tensor]
+        self._ctx_brightness = None  # type: Optional[torch.Tensor]
         self.set_fit(**ut.fit_presets['macenko']['v1'])  # type: ignore
 
     def fit(self, target: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -142,10 +153,10 @@ class MacenkoNormalizer:
         self.stain_matrix_target = stain_matrix_target
         self.target_concentrations = target_concentrations
 
-    def matrix_and_concentrations(
+    def _matrix_and_concentrations(
         self,
         img: torch.Tensor
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Gets the H&E stain matrix and concentrations for a given image.
 
         Args:
@@ -156,12 +167,10 @@ class MacenkoNormalizer:
 
                 torch.Tensor: H&E stain matrix, shape = (3, 2)
 
-                torch.Tensor: Concentrations, shape = (2,)
-
                 torch.Tensor: Concentrations of individual stains
         """
         img = img.reshape((-1, 3))
-        img = standardize_brightness(img)
+        img = standardize_brightness(img, p=self._ctx_brightness)
 
         # Calculate optical density.
         OD = -torch.log((img.to(torch.float32) + 1) / 255)
@@ -196,11 +205,32 @@ class MacenkoNormalizer:
         # Determine concentrations of the individual stains.
         C = torch.linalg.lstsq(HE, Y, rcond=None)[0]
 
+        return HE, C
+
+    def matrix_and_concentrations(
+        self,
+        img: torch.Tensor
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Gets the H&E stain matrix and concentrations for a given image.
+
+        Args:
+            img (torch.Tensor): Image (RGB uint8) with dimensions W, H, C.
+
+        Returns:
+            A tuple containing
+
+                torch.Tensor: H&E stain matrix, shape = (3, 2)
+
+                torch.Tensor: Max concentrations, shape = (2,)
+
+                torch.Tensor: Concentrations of individual stains
+        """
+        HE, C = self._matrix_and_concentrations(img)
+
         # Normalize stain concentrations.
         maxC = torch.stack((torch.quantile(C[0, :], 0.99), torch.quantile(C[1, :], 0.99)))
 
         return HE, maxC, C
-
 
     def transform(self, img: torch.Tensor) -> torch.Tensor:
         """Normalize an H&E image.
@@ -221,7 +251,11 @@ class MacenkoNormalizer:
         maxCRef = self.target_concentrations.to(img.device)
 
         # Get stain matrix and concentrations from image.
-        HE, maxC, C = self.matrix_and_concentrations(img)
+        if self._ctx_maxC is not None:
+            HE, C = self._matrix_and_concentrations(img)
+            maxC = self._ctx_maxC
+        else:
+            HE, maxC, C = self.matrix_and_concentrations(img)
 
         tmp = torch.divide(maxC, maxCRef)
         C2 = torch.divide(C, tmp[:, None])
@@ -232,3 +266,19 @@ class MacenkoNormalizer:
         Inorm = torch.reshape(Inorm.T, (h, w, 3)).to(torch.uint8)
 
         return Inorm
+
+    @contextmanager
+    def image_context(self, I: Union[np.ndarray, torch.Tensor]):
+        self.set_context(I)
+        yield
+        self.clear_context()
+
+    def set_context(self, I: Union[np.ndarray, torch.Tensor]):
+        if not isinstance(I, torch.Tensor):
+            I = torch.from_numpy(ut._as_numpy(I))
+        self._ctx_brightness = brightness_percentile(I)
+        HE, maxC, C = self.matrix_and_concentrations(I)
+        self._ctx_maxC = maxC
+
+    def clear_context(self):
+        self._ctx_maxC = None
