@@ -56,12 +56,12 @@ class TestSlide(unittest.TestCase):
             sf.WSI(self.wsi_path, roi_method='outside', **self.kw)
 
     def test_thumb(self):
-        self._assert_is_pil(self.wsi.thumb(mpp=4))
-        self._assert_is_pil(self.wsi.thumb(width=100))
-        self._assert_is_pil(self.wsi.thumb(mpp=4, rois=True))
+        self._assert_is_pil(self.wsi.thumb(mpp=4, low_res=True))
+        self._assert_is_pil(self.wsi.thumb(width=100, low_res=True))
+        self._assert_is_pil(self.wsi.thumb(mpp=4, rois=True, low_res=True))
         self._assert_is_pil(self.wsi.square_thumb(width=100))
         with self.assertRaises(ValueError):
-            self.wsi.thumb(mpp=4, width=100)
+            self.wsi.thumb(mpp=4, width=100, low_res=True)
 
     def test_preview(self):
         pool = mp.dummy.Pool(8)

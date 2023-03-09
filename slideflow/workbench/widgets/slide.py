@@ -191,7 +191,7 @@ class SlideWidget:
             # Generate WSI thumbnail.
             hw_ratio = (viz.wsi.dimensions[0] / viz.wsi.dimensions[1])
             max_width = int(min(800 - viz.spacing*2, (800 - viz.spacing*2) / hw_ratio))
-            viz.wsi_thumb = np.asarray(viz.wsi.thumb(width=max_width))
+            viz.wsi_thumb = np.asarray(viz.wsi.thumb(width=max_width, low_res=True))
             viz.clear_message(f'Loading {name}...')
 
         except Exception:
@@ -453,6 +453,7 @@ class SlideWidget:
                 _norm_clicked, self.normalize_wsi = imgui.checkbox('Normalize', self.normalize_wsi)
                 viz._normalize_wsi = self.normalize_wsi
                 if self.normalize_wsi and viz.viewer:
+                    viz._normalizer.set_context(viz.wsi)
                     viz.viewer.set_normalizer(viz._normalizer)
                 elif viz.viewer:
                     viz.viewer.clear_normalizer()

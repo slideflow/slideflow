@@ -435,7 +435,7 @@ class _BaseLoader:
         blur_radius: int = 3,
         blur_threshold: float = 0.02,
         filter_threshold: float = 0.6,
-        blur_mpp: float = 4
+        blur_mpp: Optional[float] = None
     ) -> Optional[Image.Image]:
         """Applies quality control to a slide, performing filtering based on
         a whole-slide image thumbnail.
@@ -458,9 +458,11 @@ class _BaseLoader:
                 background that will trigger a tile to be discarded.
                 Defaults to 0.6.
             blur_mpp (float, optional): Size of WSI thumbnail on which to
-                perform blur QC, in microns-per-pixel. Defaults to 4
-                (equivalent magnification = 2.5 X). Only used if method is
-                'blur' or 'both'.
+                perform blur QC, in microns-per-pixel. Defaults to 4 times the
+                tile extraction MPP (e.g. for a tile_px/tile_um combination
+                at 10X effective magnification, where tile_px=tile_um, the
+                default blur_mpp would be 4, or effective magnification 2.5x).
+                Only used if method is 'blur' or 'both'.
 
         Returns:
             Image: Image of applied QC mask.
@@ -565,7 +567,8 @@ class _BaseLoader:
         coords: Optional[List[int]] = None,
         rect_linewidth: int = 2,
         rect_color: str = 'black',
-        use_associated_image: bool = False
+        use_associated_image: bool = False,
+        low_res: bool = False
     ) -> Image.Image:
         '''Returns PIL thumbnail of the slide.
 
@@ -606,8 +609,12 @@ class _BaseLoader:
 
         if use_associated_image:
             thumb_kw = dict(associated='thumbnail')
-        else:
+        elif low_res:
             thumb_kw = dict(level=self.slide.level_count-1, width=width)
+        else:
+            ds = self.dimensions[0] / width
+            level = self.slide.best_level_for_downsample(ds)
+            thumb_kw = dict(level=level, width=width)
 
         np_thumb = self.slide.thumbnail(**thumb_kw)
         image = Image.fromarray(np_thumb).resize((width, height))
@@ -883,12 +890,12 @@ class _BaseLoader:
             **kwargs
         )
         if generator is None:
-            return self.thumb(rois=rois)
+            return self.thumb(rois=rois, low_res=True)
         locations = []
         for tile_dict in generator():
             locations += [tile_dict['loc']]
         log.debug(f"Previewing with {len(locations)} extracted tile locations.")
-        return self.thumb(coords=locations, rois=rois)
+        return self.thumb(coords=locations, rois=rois, low_res=True)
 
 
 class WSI(_BaseLoader):
@@ -1683,7 +1690,8 @@ class WSI(_BaseLoader):
         rois: bool = False,
         linewidth: int = 2,
         color: str = 'black',
-        use_associated_image: bool = False
+        use_associated_image: bool = False,
+        low_res: bool = False
     ) -> Image.Image:
         """Returns PIL Image of thumbnail with ROI overlay.
 
@@ -1721,7 +1729,9 @@ class WSI(_BaseLoader):
             mpp=mpp,
             width=width,
             coords=coords,
-            use_associated_image=use_associated_image)
+            use_associated_image=use_associated_image,
+            low_res=low_res
+        )
 
         if rois and len(self.rois):
             annPolys = [

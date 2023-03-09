@@ -4,13 +4,13 @@ import numpy as np
 import slideflow as sf
 import skimage
 from slideflow import errors
-from typing import Union
+from typing import Union, Optional
 
 class Gaussian:
 
     def __init__(
         self,
-        mpp: float = 4,
+        mpp: Optional[float] = None,
         sigma: int = 3,
         threshold: float = 0.02
     ) -> None:
@@ -37,7 +37,10 @@ class Gaussian:
 
         Args:
             mpp (float): Microns-per-pixel at which to perform filtering.
-                Defaults to 4.
+                Defaults to 4 times the tile extraction MPP (e.g. for a
+                tile_px/tile_um combination at 10X effective magnification,
+                where tile_px=tile_um, the default blur_mpp would be 4, or
+                effective magnification 2.5x).
             sigma (int): Sigma (radius) for Gaussian filter. Defaults to 3.
             threshold (float): Gaussian threshold. Defaults to 0.02.
         """
@@ -62,7 +65,12 @@ class Gaussian:
         Returns:
             np.ndarray: RGB thumbnail of the whole-slide image.
         """
-        thumb = wsi.thumb(mpp=self.mpp)
+        if self.mpp is None:
+            _mpp = (wsi.tile_um/wsi.tile_px)*4
+            sf.log.info(f"Performing Gaussian blur filter at mpp={_mpp:.3f}")
+        else:
+            _mpp = self.mpp
+        thumb = wsi.thumb(mpp=_mpp)
         if thumb is None:
             raise errors.QCError(
                 f"Thumbnail error for slide {wsi.shortname}, QC failed"
