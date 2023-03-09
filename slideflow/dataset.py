@@ -273,7 +273,7 @@ def _create_index(tfrecord, force=False):
 def split_patients_preserved_site(
     patients_dict: Dict[str, Dict],
     n: int,
-    balance: str,
+    balance: Optional[str] = None,
     method: str = 'auto'
 ) -> List[List[str]]:
     """Splits a dictionary of patients into n groups,
@@ -298,9 +298,12 @@ def split_patients_preserved_site(
         return [y for x in arr for y in x]
 
     # Get patient outcome labels
-    patient_outcome_labels = [
-        patients_dict[p][balance] for p in patient_list
-    ]
+    if balance is not None:
+        patient_outcome_labels = [
+            patients_dict[p][balance] for p in patient_list
+        ]
+    else:
+        patient_outcome_labels = [1 for _ in patient_list]
     # Get unique outcomes
     unique_labels = list(set(patient_outcome_labels))
     n_unique = len(set(unique_labels))
@@ -2670,12 +2673,13 @@ class Dataset:
 
                 elif val_strategy in ('k-fold', 'k-fold-preserved-site'):
                     assert val_k_fold is not None
-                    if (model_type == 'categorical'
-                       and val_strategy == 'k-fold-preserved-site'):
+                    if (val_strategy == 'k-fold-preserved-site'):
                         k_fold_patients = split_patients_preserved_site(
                             patients_dict,
                             val_k_fold,
-                            balance='outcome_label'
+                            balance=('outcome_label'
+                                     if model_type == 'categorical'
+                                     else None)
                         )
                     elif model_type == 'categorical':
                         k_fold_patients = split_patients_balanced(
