@@ -18,7 +18,8 @@ def _matrix_and_concentrations(
     Io: int = 255,
     alpha: float = 1,
     beta: float = 0.15,
-    mask: bool = False
+    mask: bool = False,
+    standardize: bool = True
 ) -> Tuple[tf.Tensor, tf.Tensor]:
     """Gets the H&E stain matrix and concentrations for a given image.
 
@@ -44,7 +45,8 @@ def _matrix_and_concentrations(
     if mask:
         ones = tf.math.reduce_all(img == 255, axis=1)
 
-    img = standardize_brightness(img, mask=mask)
+    if standardize:
+        img = standardize_brightness(img, mask=mask)
 
     # calculate optical density
     OD = -tf.math.log((tf.cast(img, tf.float32) + 1) / Io)
@@ -97,7 +99,8 @@ def matrix_and_concentrations(
     Io: int = 255,
     alpha: float = 1,
     beta: float = 0.15,
-    mask: bool = False
+    mask: bool = False,
+    standardize: bool = True
 ) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor]:
     """Gets the H&E stain matrix and concentrations for a given image.
 
@@ -119,7 +122,7 @@ def matrix_and_concentrations(
             tf.Tensor: Concentrations of individual stains
     """
     HE, C = _matrix_and_concentrations(
-        img, Io, alpha, beta, mask=mask
+        img, Io, alpha, beta, mask=mask, standardize=standardize
     )
 
     # normalize stain concentrations
@@ -137,6 +140,7 @@ def transform(
     alpha: float = 1,
     beta: float = 0.15,
     ctx_maxC: Optional[tf.Tensor] = None,
+    standardize: bool = True
 ) -> tf.Tensor:
     """Normalize an image.
 
@@ -162,10 +166,14 @@ def transform(
     maxCRef = target_concentrations
 
     if ctx_maxC is not None:
-        HE, C = _matrix_and_concentrations(img, Io, alpha, beta)
+        HE, C = _matrix_and_concentrations(
+            img, Io, alpha, beta, standardize=standardize
+        )
         maxC = ctx_maxC
     else:
-        HE, maxC, C = matrix_and_concentrations(img, Io, alpha, beta)
+        HE, maxC, C = matrix_and_concentrations(
+            img, Io, alpha, beta, standardize=standardize
+        )
 
     tmp = tf.math.divide(maxC, maxCRef)
     C2 = tf.math.divide(C, tmp[:, tf.newaxis])
@@ -184,6 +192,7 @@ def fit(
     Io: int = 255,
     alpha: float = 1,
     beta: float = 0.15,
+    standardize: bool = True
 ) -> Tuple[tf.Tensor, tf.Tensor]:
     """Fit a target image.
 
@@ -202,7 +211,9 @@ def fit(
 
             tf.Tensor: Fit target concentrations
     """
-    HE, maxC, _ = matrix_and_concentrations(img, Io, alpha, beta)
+    HE, maxC, _ = matrix_and_concentrations(
+        img, Io, alpha, beta, standardize=standardize
+    )
     return HE, maxC
 
 
@@ -242,6 +253,17 @@ class MacenkoNormalizer:
 
         self.set_fit(**ut.fit_presets['macenko']['v1'])  # type: ignore
 
+    def _fit(self, target: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor]:
+        return fit(target, self.Io, self.alpha, self.beta)
+
+    def _transform(self, I: tf.Tensor) -> tf.Tensor:
+        return transform(
+            I,
+            self.stain_matrix_target,
+            self.target_concentrations,
+            ctx_maxC=self._ctx_maxC,
+        )
+
     def fit(self, target: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor]:
         """Fit normalizer to a target image.
 
@@ -263,7 +285,7 @@ class MacenkoNormalizer:
                 f"Invalid shape for fit(): expected 3, got {target.shape}"
             )
         target = clip_size(target, 2048)
-        HE, maxC = fit(target, self.Io, self.alpha, self.beta)
+        HE, maxC = self._fit(target)
         self.stain_matrix_target = HE
         self.target_concentrations = maxC
         return HE, maxC
@@ -326,12 +348,7 @@ class MacenkoNormalizer:
         if len(I.shape) == 4:
             return tf.map_fn(self.transform, I)
         elif len(I.shape) == 3:
-            return transform(
-                I,
-                self.stain_matrix_target,
-                self.target_concentrations,
-                ctx_maxC=self._ctx_maxC,
-            )
+            return self._transform(I)
         else:
             raise ValueError(
                 f"Invalid shape for transform(): expected 3 or 4, got {I.shape}"
@@ -353,3 +370,32 @@ class MacenkoNormalizer:
 
     def clear_context(self):
         self._ctx_maxC = None
+
+
+class MacenkoFastNormalizer(MacenkoNormalizer):
+
+    """Macenko H&E stain normalizer, with brightness standardization disabled."""
+
+    def _fit(self, target: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor]:
+        return fit(
+            target, self.Io, self.alpha, self.beta,
+            standardize=False
+        )
+
+    def _transform(self, I: tf.Tensor) -> tf.Tensor:
+        return transform(
+            I,
+            self.stain_matrix_target,
+            self.target_concentrations,
+            ctx_maxC=self._ctx_maxC,
+            standardize=False
+        )
+
+    def set_context(self, I: Union[np.ndarray, tf.Tensor]):
+        if not isinstance(I, tf.Tensor):
+            I = tf.convert_to_tensor(ut._as_numpy(I))
+        I = clip_size(I, 2048)
+        HE, maxC, C = matrix_and_concentrations(
+            I, mask=True, standardize=False
+        )
+        self._ctx_maxC = maxC

@@ -18,7 +18,8 @@ class TensorflowStainNormalizer(StainNormalizer):
         'reinhard_fast': reinhard.ReinhardFastNormalizer,
         'reinhard_mask': reinhard.ReinhardMaskNormalizer,
         'reinhard_fast_mask': reinhard.ReinhardFastMaskNormalizer,
-        'macenko': macenko.MacenkoNormalizer
+        'macenko': macenko.MacenkoNormalizer,
+        'macenko_fast': macenko.MacenkoFastNormalizer
     }
 
     def __init__(

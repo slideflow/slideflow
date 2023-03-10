@@ -120,7 +120,8 @@ class MacenkoNormalizer:
     def _matrix_and_concentrations(
         self,
         img: np.ndarray,
-        mask: bool = False
+        mask: bool = False,
+        standardize: bool = True
     ) -> Tuple[np.ndarray, np.ndarray]:
         """Gets the H&E stain matrix and concentrations for a given image.
 
@@ -140,7 +141,8 @@ class MacenkoNormalizer:
         if mask:
             ones = np.all(img == 255, axis=1)
 
-        img = ut.standardize_brightness(img, mask=mask)
+        if standardize:
+            img = ut.standardize_brightness(img, mask=mask)
 
         # Calculate optical density.
         OD = -np.log((img.astype(float) + 1) / 255)
@@ -188,6 +190,7 @@ class MacenkoNormalizer:
         self,
         img: np.ndarray,
         mask: bool = False,
+        standardize: bool = True
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Gets the H&E stain matrix and concentrations for a given image.
 
@@ -203,7 +206,9 @@ class MacenkoNormalizer:
 
                 np.ndarray: Concentrations of individual stains
         """
-        HE, C = self._matrix_and_concentrations(img, mask=mask)
+        HE, C = self._matrix_and_concentrations(
+            img, mask=mask, standardize=standardize
+        )
 
         # Normalize stain concentrations.
         maxC = np.array([np.percentile(C[0, :], 99), np.percentile(C[1, :], 99)])
@@ -254,3 +259,18 @@ class MacenkoNormalizer:
 
     def clear_context(self):
         self._ctx_maxC = None
+
+
+class MacenkoFastNormalizer(MacenkoNormalizer):
+
+    """Macenko H&E stain normalizer, with brightness standardization disabled."""
+
+    def _matrix_and_concentrations(
+        self,
+        img: np.ndarray,
+        mask: bool = False,
+        standardize: bool = False
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        return super()._matrix_and_concentrations(
+            img, mask, standardize=False
+        )

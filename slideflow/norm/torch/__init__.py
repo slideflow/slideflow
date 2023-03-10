@@ -21,7 +21,8 @@ class TorchStainNormalizer(StainNormalizer):
     normalizers = {
         'reinhard': reinhard.ReinhardNormalizer,
         'reinhard_fast': reinhard.ReinhardFastNormalizer,
-        'macenko': macenko.MacenkoNormalizer
+        'macenko': macenko.MacenkoNormalizer,
+        'macenko_fast': macenko.MacenkoFastNormalizer
     }  # type: Dict
 
     def __init__(

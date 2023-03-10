@@ -56,6 +56,7 @@ class StainNormalizer:
     device = 'cpu'
     normalizers = {
         'macenko':  macenko.MacenkoNormalizer,
+        'macenko_fast':  macenko.MacenkoFastNormalizer,
         'reinhard': reinhard.ReinhardNormalizer,
         'reinhard_fast': reinhard.ReinhardFastNormalizer,
         'reinhard_mask': reinhard.ReinhardMaskNormalizer,
