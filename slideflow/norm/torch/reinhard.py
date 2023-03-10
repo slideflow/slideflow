@@ -113,7 +113,8 @@ def transform(
     tgt_mean: torch.Tensor,
     tgt_std: torch.Tensor,
     ctx_mean: Optional[torch.Tensor] = None,
-    ctx_std: Optional[torch.Tensor] = None
+    ctx_std: Optional[torch.Tensor] = None,
+    mask_threshold: Optional[float] = None
 ) -> torch.Tensor:
     """Normalize an H&E image.
 
@@ -142,6 +143,10 @@ def transform(
     )
 
     I1, I2, I3 = lab_split(I)
+
+    if mask_threshold:
+        mask = torch.unsqueeze(((I1 / 100) < mask_threshold), -1)
+
     if ctx_mean is not None and ctx_std is not None:
         I1_mean, I2_mean, I3_mean = ctx_mean[0], ctx_mean[1], ctx_mean[2]
         I1_std, I2_std, I3_std = ctx_std[0], ctx_std[1], ctx_std[2]
@@ -163,7 +168,10 @@ def transform(
 
     merged = merge_back(norm1, norm2, norm3)
     clipped = torch.clip(merged, min=0, max=255).to(torch.uint8)
-    return clipped
+    if mask_threshold:
+        return torch.where(mask, clipped, I)
+    else:
+        return clipped
 
 
 def fit(
@@ -211,6 +219,7 @@ class ReinhardFastNormalizer:
         self.set_fit(**ut.fit_presets['reinhard_fast']['v1'])  # type: ignore
         self._ctx_means = None  # type: Optional[torch.Tensor]
         self._ctx_stds = None  # type: Optional[torch.Tensor]
+        self.threshold = None  # type: Optional[float]
 
     def fit(
         self,
@@ -318,7 +327,8 @@ class ReinhardFastNormalizer:
                 self.target_means,
                 self.target_stds,
                 _ctx_means,
-                _ctx_stds
+                _ctx_stds,
+                mask_threshold=self.threshold
             )[0]
         else:
             return transform(
@@ -326,7 +336,8 @@ class ReinhardFastNormalizer:
                 self.target_means,
                 self.target_stds,
                 _ctx_means,
-                _ctx_stds
+                _ctx_stds,
+                mask_threshold=self.threshold
             )
 
     @contextmanager
@@ -346,6 +357,29 @@ class ReinhardFastNormalizer:
     def clear_context(self):
         self._ctx_means, self._ctx_stds = None, None
 
+
+class ReinhardFastMaskNormalizer(ReinhardFastNormalizer):
+
+    def __init__(self, threshold: float = 0.93) -> None:
+        """Modified Reinhard H&E stain normalizer only applied to
+        non-whitepsace areas (PyTorch implementation).
+
+        Normalizes an image as defined by:
+
+        Reinhard, Erik, et al. "Color transfer between images." IEEE
+        Computer graphics and applications 21.5 (2001): 34-41.
+
+        This "masked" implementation only normalizes non-whitespace areas.
+
+        This normalizer contains inspiration from StainTools by Peter Byfield
+        (https://github.com/Peter554/StainTools).
+
+        Args:
+            threshold (float): Whitespace fraction threshold, above which
+                pixels are masked and not normalized. Defaults to 0.93.
+        """
+        super().__init__()
+        self.threshold = threshold
 
 
 class ReinhardNormalizer(ReinhardFastNormalizer):
@@ -427,7 +461,8 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
                 self.target_means,
                 self.target_stds,
                 _ctx_means,
-                _ctx_stds
+                _ctx_stds,
+                mask_threshold=self.threshold
             )[0]
         else:
             return transform(
@@ -435,7 +470,8 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
                 self.target_means,
                 self.target_stds,
                 _ctx_means,
-                _ctx_stds
+                _ctx_stds,
+                mask_threshold=self.threshold
             )
 
     def set_context(self, I: Union[np.ndarray, torch.Tensor]):
@@ -449,3 +485,26 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
 
     def clear_context(self):
         super().clear_context()
+
+class ReinhardMaskNormalizer(ReinhardNormalizer):
+
+    def __init__(self, threshold: float = 0.93) -> None:
+        """Modified Reinhard H&E stain normalizer only applied to
+        non-whitepsace areas (PyTorch implementation).
+
+        Normalizes an image as defined by:
+
+        Reinhard, Erik, et al. "Color transfer between images." IEEE
+        Computer graphics and applications 21.5 (2001): 34-41.
+
+        This "masked" implementation only normalizes non-whitespace areas.
+
+        This normalizer contains inspiration from StainTools by Peter Byfield
+        (https://github.com/Peter554/StainTools).
+
+        Args:
+            threshold (float): Whitespace fraction threshold, above which
+                pixels are masked and not normalized. Defaults to 0.93.
+        """
+        super().__init__()
+        self.threshold = threshold

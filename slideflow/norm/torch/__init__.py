@@ -21,6 +21,8 @@ class TorchStainNormalizer(StainNormalizer):
     normalizers = {
         'reinhard': reinhard.ReinhardNormalizer,
         'reinhard_fast': reinhard.ReinhardFastNormalizer,
+        'reinhard_mask': reinhard.ReinhardMaskNormalizer,
+        'reinhard_fast_mask': reinhard.ReinhardFastMaskNormalizer,
         'macenko': macenko.MacenkoNormalizer,
         'macenko_fast': macenko.MacenkoFastNormalizer
     }  # type: Dict
@@ -233,13 +235,14 @@ class TorchStainNormalizer(StainNormalizer):
         """
         return self.n.transform(torch.from_numpy(image)).numpy()
 
-    def preprocess(self, batch: torch.Tensor) -> torch.Tensor:
+    def preprocess(self, batch: torch.Tensor, standardize: bool = True) -> torch.Tensor:
         """Transform an image tensor (uint8) and preprocess (127.5 - 1)."""
         orig_is_cwh = is_cwh(batch)
         if orig_is_cwh:
             batch = cwh_to_whc(batch)
         batch = self.torch_to_torch(batch)  # type: ignore
-        batch = batch / 127.5 - 1
+        if standardize:
+            batch = batch / 127.5 - 1
         if orig_is_cwh:
             batch = whc_to_cwh(batch)
         return batch

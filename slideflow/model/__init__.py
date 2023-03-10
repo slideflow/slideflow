@@ -706,7 +706,11 @@ class DatasetFeatures:
                     with torch.no_grad():
                         batch_img = batch_img.to('cuda')
                         if torch_gpu_norm:
-                            batch_img = self.normalizer.preprocess(batch_img)
+                            if 'standardize' not in dataset_kwargs:
+                                pp = dict()
+                            else:
+                                pp = dict(standardize=dataset_kwargs['standardize'])
+                            batch_img = self.normalizer.preprocess(batch_img, **pp)
                         model_output = combined_model(batch_img, **call_kw)
                 else:
                     model_output = combined_model(batch_img, **call_kw)

@@ -266,8 +266,10 @@ class TensorflowStainNormalizer(StainNormalizer):
         """
         return self.tf_to_rgb(tf.image.decode_png(png_string, channels=3))
 
-    def preprocess(self, batch: tf.Tensor) -> tf.Tensor:
+    def preprocess(self, batch: tf.Tensor, standardize: bool = True) -> tf.Tensor:
         """Transform an image tensor (uint8) and preprocess (per image
         standarization)."""
         batch = self.tf_to_tf(batch)
-        return tf.image.per_image_standardization(batch)
+        if standardize:
+            batch = tf.image.per_image_standardization(batch)
+        return batch
