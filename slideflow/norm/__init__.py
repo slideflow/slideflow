@@ -364,7 +364,7 @@ class StainNormalizer:
             cv2.IMREAD_COLOR
         )
         cv_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB)
-        return self.n.transform(cv_image)
+        return self.rgb_to_rgb(cv_image)
 
     def png_to_png(self, png_string: Union[str, bytes]) -> bytes:
         """Normalize a PNG image, returning a PNG image.
