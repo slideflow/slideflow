@@ -43,7 +43,12 @@ if TYPE_CHECKING:
 class Project:
     """Assists with project organization and execution of common tasks."""
 
-    def __init__(self, root: str, use_neptune: bool = False, **kwargs) -> None:
+    def __init__(
+        self, root: str,
+        use_neptune: bool = False,
+        create: bool = False,
+        **kwargs
+    ) -> None:
         """The initializer loads or creates a project at a given directory.
 
         If a project does not exist at the given root directory, one can be
@@ -88,12 +93,18 @@ class Project:
             raise errors.ProjectError(f"Project already exists at {root}")
         elif sf.util.is_project(root):
             self._load(root)
-        else:
+        elif create:
             log.info(f"Creating project at {root}...")
             self._settings = project_utils._project_config(**kwargs)
             if not exists(root):
                 os.makedirs(root)
             self.save()
+        else:
+            raise errors.ProjectError(
+                f"Project not found at {root}. Create a project using "
+                "slideflow.Project(..., create=True), or with "
+                "slideflow.create_project(...)"
+            )
 
         # Create directories, if not already made
         if not exists(self.models_dir):

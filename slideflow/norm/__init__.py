@@ -53,6 +53,7 @@ if TYPE_CHECKING:
 class StainNormalizer:
 
     vectorized = False
+    device = 'cpu'
     normalizers = {
         'macenko':  macenko.MacenkoNormalizer,
         'reinhard': reinhard.ReinhardNormalizer,
@@ -238,16 +239,16 @@ class StainNormalizer:
 
         # Fit to numpy image
         elif isinstance(arg1, np.ndarray):
-            self.n.fit(arg1)
+            self.n.fit(arg1, **kwargs)
 
         # Fit to a preset
         elif isinstance(arg1, str) and arg1 in ('v1', 'v2'):
-            self.n.fit_preset(arg1)
+            self.n.fit_preset(arg1, **kwargs)
 
         # Fit to a path to an image
         elif isinstance(arg1, str):
             self.src_img = cv2.cvtColor(cv2.imread(arg1), cv2.COLOR_BGR2RGB)
-            self.n.fit(self.src_img)
+            self.n.fit(self.src_img, **kwargs)
 
         elif arg1 is None and kwargs:
             self.set_fit(**kwargs)
@@ -489,9 +490,9 @@ class StainNormalizer:
     ) -> bool:
         if hasattr(self.n, 'set_context'):
             if isinstance(context, str):
-                image = np.asarray(sf.WSI(context, 500, 500).thumb())
+                image = np.asarray(sf.WSI(context, 500, 500).thumb(mpp=4))
             elif isinstance(context, sf.WSI):
-                image = np.asarray(context.thumb())
+                image = context.masked_thumb(mpp=4, background='white')
             else:
                 image = context  # type: ignore
             self.n.set_context(image)
@@ -535,11 +536,9 @@ def autoselect(
     if backend == 'tensorflow':
         import slideflow.norm.tensorflow
         BackendNormalizer = sf.norm.tensorflow.TensorflowStainNormalizer
-    elif backend == 'torch' and method == 'macenko':
+    elif backend == 'torch':
         import slideflow.norm.torch
         BackendNormalizer = sf.norm.torch.TorchStainNormalizer  # type: ignore
-    elif backend == 'torch':
-        BackendNormalizer = StainNormalizer  # type: ignore
     else:
         raise errors.UnrecognizedBackendError
 

@@ -12,29 +12,9 @@ from contextlib import contextmanager
 
 import slideflow.norm.utils as ut
 from slideflow.norm.torch import color
+from .utils import clip_size, standardize_brightness
 
 # -----------------------------------------------------------------------------
-
-def brightness_percentile(I: torch.Tensor) -> torch.Tensor:
-    return torch.quantile(I.to(torch.float32), 0.9)
-
-
-def standardize_brightness(
-    I: torch.Tensor,
-    p: Optional[torch.Tensor] = None,
-) -> torch.Tensor:
-    """Standardize image brightness to 90th percentile.
-
-    Args:
-        I (torch.Tensor): Image to standardize.
-
-    Returns:
-        torch.Tensor: Brightness-standardized image (uint8)
-    """
-    if p is None:
-        p = brightness_percentile(I)
-    return torch.clip(I * 255.0 / p, 0, 255).to(torch.uint8)
-
 
 def lab_split(
     I: torch.Tensor
@@ -81,11 +61,26 @@ def merge_back(
     return I
 
 
+def get_masked_mean_std(I: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    ones = torch.all(I == 255, dim=3)
+    I1, I2, I3 = lab_split(I)
+    I1, I2, I3 = I1[~ones], I2[~ones], I3[~ones]
+
+    m1, sd1 = torch.mean(I1), torch.std(I1)
+    m2, sd2 = torch.mean(I2), torch.std(I2)
+    m3, sd3 = torch.mean(I3), torch.std(I3)
+
+    means = torch.unsqueeze(torch.stack([m1, m2, m3]), dim=1)
+    stds = torch.unsqueeze(torch.stack([sd1, sd2, sd3]), dim=1)
+
+    return means, stds
+
+
 def get_mean_std(
     I1: torch.Tensor,
     I2: torch.Tensor,
     I3: torch.Tensor,
-    reduce: bool = False
+    reduce: bool = False,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     """Get mean and standard deviation of each channel.
 
@@ -99,7 +94,6 @@ def get_mean_std(
         torch.Tensor:     Channel means, shape = (3,)
         torch.Tensor:     Channel standard deviations, shape = (3,)
     """
-
     m1, sd1 = torch.mean(I1, dim=(1, 2)), torch.std(I1, dim=(1, 2))
     m2, sd2 = torch.mean(I2, dim=(1, 2)), torch.std(I2, dim=(1, 2))
     m3, sd3 = torch.mean(I3, dim=(1, 2)), torch.std(I3, dim=(1, 2))
@@ -174,7 +168,8 @@ def transform(
 
 def fit(
     target: torch.Tensor,
-    reduce: bool = False
+    reduce: bool = False,
+    mask: bool = False,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     """Fit a target image.
 
@@ -191,13 +186,16 @@ def fit(
 
             torch.Tensor: Fit stds
     """
-    means, stds = get_mean_std(*lab_split(target), reduce=reduce)
-    return means, stds
+    if mask:
+        return get_masked_mean_std(target)
+    else:
+        return get_mean_std(*lab_split(target), reduce=reduce)
 
 
 class ReinhardFastNormalizer:
 
     vectorized = True
+    preferred_device = 'gpu'
 
     def __init__(self) -> None:
         """Modified Reinhard H&E stain normalizer without brightness
@@ -213,12 +211,12 @@ class ReinhardFastNormalizer:
         self.set_fit(**ut.fit_presets['reinhard_fast']['v1'])  # type: ignore
         self._ctx_means = None  # type: Optional[torch.Tensor]
         self._ctx_stds = None  # type: Optional[torch.Tensor]
-        self._ctx_brightness = None  # type: Optional[torch.Tensor]
 
     def fit(
         self,
         target: torch.Tensor,
-        reduce: bool = False
+        reduce: bool = False,
+        mask: bool = False
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Fit normalizer to a target image.
 
@@ -237,7 +235,8 @@ class ReinhardFastNormalizer:
         """
         if len(target.shape) == 3:
             target = torch.unsqueeze(target, dim=0)
-        means, stds = fit(target, reduce=reduce)
+        target = clip_size(target, 2048)
+        means, stds = fit(target, reduce=reduce, mask=mask)
         self.target_means = means
         self.target_stds = stds
         return means, stds
@@ -341,8 +340,8 @@ class ReinhardFastNormalizer:
             I = torch.from_numpy(ut._as_numpy(I))
         if len(I.shape) == 3:
             I = torch.unsqueeze(I, dim=0)
-        I1, I2, I3 = lab_split(I)
-        self._ctx_means, self._ctx_stds = get_mean_std(I1, I2, I3)  # type: ignore
+        I = clip_size(I, 2048)
+        self._ctx_means, self._ctx_stds = get_masked_mean_std(I)
 
     def clear_context(self):
         self._ctx_means, self._ctx_stds = None, None
@@ -366,7 +365,8 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
     def fit(
         self,
         target: torch.Tensor,
-        reduce: bool = False
+        reduce: bool = False,
+        mask: bool = False,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Fit normalizer to a target image.
 
@@ -385,8 +385,9 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
         """
         if len(target.shape) == 3:
             target = torch.unsqueeze(target, dim=0)
-        target = standardize_brightness(target, p=self._ctx_brightness)
-        means, stds = fit(target, reduce=reduce)
+        target = clip_size(target, 2048)
+        target = standardize_brightness(target, mask=mask)
+        means, stds = fit(target, reduce=reduce, mask=mask)
         self.target_means = means
         self.target_stds = stds
         return means, stds
@@ -422,9 +423,7 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
         _ctx_means, _ctx_stds = self._get_context_means(ctx_means, ctx_stds)
         if len(I.shape) == 3:
             return transform(
-                standardize_brightness(
-                    torch.unsqueeze(I, dim=0),
-                    p=self._ctx_brightness),
+                standardize_brightness(torch.unsqueeze(I, dim=0)),
                 self.target_means,
                 self.target_stds,
                 _ctx_means,
@@ -432,7 +431,7 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
             )[0]
         else:
             return transform(
-                standardize_brightness(I, p=self._ctx_brightness),
+                standardize_brightness(I),
                 self.target_means,
                 self.target_stds,
                 _ctx_means,
@@ -444,9 +443,9 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
             I = torch.from_numpy(ut._as_numpy(I))
         if len(I.shape) == 3:
             I = torch.unsqueeze(I, dim=0)
-        self._ctx_brightness = brightness_percentile(I)
+        I = clip_size(I, 2048)
+        I = standardize_brightness(I, mask=True)
         super().set_context(I)
 
     def clear_context(self):
         super().clear_context()
-        self._ctx_brightness = None

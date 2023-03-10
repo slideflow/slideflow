@@ -790,6 +790,7 @@ class Trainer:
             update_loss=update_loss,
             num_slide_features=self.num_slide_features,
             slide_input=self.slide_input,
+            normalizer=(self.normalizer if self._has_gpu_normalizer() else None),
         )
         # Calculate patient/slide/tile metrics (AUC, R-squared, C-index, etc)
         metrics, acc, loss = sf.stats.metrics_from_dataset(
@@ -846,6 +847,10 @@ class Trainer:
               and self.config['norm_fit'] is not None):
             log.debug("Detecting normalizer fit from model config")
             self.normalizer.set_fit(**self.config['norm_fit'])
+
+    def _has_gpu_normalizer(self) -> bool:
+        return (isinstance(self.normalizer, sf.norm.torch.TorchStainNormalizer)
+                and self.normalizer.device != "cpu")
 
     def _labels_to_device(
         self,
@@ -1049,6 +1054,11 @@ class Trainer:
                 _mp = self.mixed_precision
                 _ns = no_scope()
                 with torch.cuda.amp.autocast() if _mp else _ns:  # type: ignore
+
+                    # GPU normalization, if specified.
+                    if self._has_gpu_normalizer():
+                        val_img = self.normalizer.preprocess(val_img)
+
                     if self.num_slide_features:
                         _slide_in = [self.slide_input[s] for s in slides]
                         inp = (val_img, Tensor(_slide_in).to(self.device))
@@ -1193,7 +1203,6 @@ class Trainer:
             num_replicas=1,
             labels=(self.labels if incl_labels else None),
             chunk_size=8,
-            normalizer=self.normalizer,
             pin_memory=True,
             num_workers=4 if not from_wsi else 0,
             onehot=False,
@@ -1202,6 +1211,12 @@ class Trainer:
             from_wsi=from_wsi,
             **kwargs
         )
+        # Use GPU stain normalization for PyTorch normalizers, if supported
+        if self._has_gpu_normalizer():
+            log.info("Using GPU for stain normalization")
+            interleave_args.standardize = False
+        else:
+            interleave_args.normalizer = self.normalizer
 
         if train_dts is not None:
             self.dataloaders = {
@@ -1256,6 +1271,11 @@ class Trainer:
             _mp = self.mixed_precision
             _ns = no_scope()
             with torch.cuda.amp.autocast() if _mp else _ns:  # type: ignore
+
+                # GPU normalization, if specified.
+                if self._has_gpu_normalizer():
+                    images = self.normalizer.preprocess(images)
+
                 # Slide-level features
                 if self.num_slide_features:
                     _slide_in = [self.slide_input[s] for s in slides]
@@ -1464,7 +1484,8 @@ class Trainer:
         log.info('Generating predictions...')
         torch_args = types.SimpleNamespace(
             num_slide_features=self.num_slide_features,
-            slide_input=self.slide_input
+            slide_input=self.slide_input,
+            normalizer=(self.normalizer if self._has_gpu_normalizer() else None),
         )
         dfs = sf.stats.predict_dataset(
             model=self.model,

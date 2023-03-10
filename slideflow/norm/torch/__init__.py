@@ -6,7 +6,7 @@ import torchvision
 from rich.progress import Progress
 
 from slideflow.dataset import Dataset
-from slideflow.io.torch import cwh_to_whc, whc_to_cwh
+from slideflow.io.torch import cwh_to_whc, whc_to_cwh, is_cwh, is_whc
 from slideflow.norm import StainNormalizer
 from slideflow.norm.torch import reinhard, macenko
 from slideflow.util import detuple, log, cleanup_progress
@@ -27,7 +27,7 @@ class TorchStainNormalizer(StainNormalizer):
     def __init__(
         self,
         method: str,
-        device: Optional[torch.device] = None,
+        device: Optional[str] = None,
         **kwargs
     ) -> None:
         """PyTorch-native H&E Stain normalizer.
@@ -67,6 +67,18 @@ class TorchStainNormalizer(StainNormalizer):
 
         super().__init__(method, **kwargs)
         self._device = device
+
+    @property
+    def device(self) -> Union[str, torch.device]:
+        if self._device is None:
+            return self.n.preferred_device
+        else:
+            return self._device
+
+    @device.setter
+    def device(self, device: str) -> None:
+        self._device = device
+
 
     @property
     def vectorized(self) -> bool:  # type: ignore
@@ -219,3 +231,14 @@ class TorchStainNormalizer(StainNormalizer):
             np.ndarray: Normalized image, uint8, W x H x C.
         """
         return self.n.transform(torch.from_numpy(image)).numpy()
+
+    def preprocess(self, batch: torch.Tensor) -> torch.Tensor:
+        """Transform an image tensor (uint8) and preprocess (127.5 - 1)."""
+        orig_is_cwh = is_cwh(batch)
+        if orig_is_cwh:
+            batch = cwh_to_whc(batch)
+        batch = self.torch_to_torch(batch)  # type: ignore
+        batch = batch / 127.5 - 1
+        if orig_is_cwh:
+            batch = whc_to_cwh(batch)
+        return batch

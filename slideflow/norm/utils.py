@@ -9,15 +9,15 @@ Use with python via e.g https://anaconda.org/conda-forge/python-spams
 
 from __future__ import division
 
-from typing import Union, List
-from os.path import dirname, abspath, join
-import cv2 as cv
+import cv2
 import numpy as np
+from typing import Union, List, Tuple
 
+# -----------------------------------------------------------------------------
 
 # Stain normalizer default fits.
-# v1 is the fit with target sf.norm.norm_tile.jpg (default for version < 1.3)
-# v2 is a hand-tuned fit (default for version >= 1.3)
+# v1 is the fit with target sf.norm.norm_tile.jpg (default)
+# v2 is a hand-tuned fit
 
 fit_presets = {
     'reinhard': {
@@ -56,6 +56,58 @@ fit_presets = {
     }
 }
 
+# -----------------------------------------------------------------------------
+
+illuminants = {
+    "A": {
+        "2": (1.098466069456375, 1, 0.3558228003436005),
+        "10": (1.111420406956693, 1, 0.3519978321919493),
+    },
+    "D50": {
+        "2": (0.9642119944211994, 1, 0.8251882845188288),
+        "10": (0.9672062750333777, 1, 0.8142801513128616),
+    },
+    "D55": {
+        "2": (0.956797052643698, 1, 0.9214805860173273),
+        "10": (0.9579665682254781, 1, 0.9092525159847462),
+    },
+    "D65": {
+        "2": (0.95047, 1.0, 1.08883),
+        "10": (0.94809667673716, 1, 1.0730513595166162),
+    },
+    "D75": {
+        "2": (0.9497220898840717, 1, 1.226393520724154),
+        "10": (0.9441713925645873, 1, 1.2064272211720228),
+    },
+    "E": {"2": (1.0, 1.0, 1.0), "10": (1.0, 1.0, 1.0)},
+}
+
+rgb_to_xyz_kernels = {
+    dtype: np.array(
+        [
+            [0.412453, 0.357580, 0.180423],
+            [0.212671, 0.715160, 0.072169],
+            [0.019334, 0.119193, 0.950227],
+        ],
+        dtype=dtype,
+    ) for dtype in ('float16', 'float32', 'float64')
+}
+
+# inv of:
+# [[0.412453, 0.35758 , 0.180423],
+#  [0.212671, 0.71516 , 0.072169],
+#  [0.019334, 0.119193, 0.950227]]
+xyz_to_rgb_kernels = {
+    dtype: np.array(
+        [
+            [3.24048134, -1.53715152, -0.49853633],
+            [-0.96925495, 1.87599, 0.04155593],
+            [0.05564664, -0.20404134, 1.05731107],
+        ],
+        dtype=dtype,
+    ) for dtype in ('float16', 'float32', 'float64')
+}
+
 ######################################
 
 
@@ -63,15 +115,20 @@ def brightness_percentile(I):
     return np.percentile(I, 90)
 
 
-def standardize_brightness(I, p=None):
+def standardize_brightness(I, mask=False):
     """
 
     :param I:
     :return:
     """
-    if p is None:
-        p = brightness_percentile(I)
-    return np.clip(I * 255.0 / p, 0, 255).astype(np.uint8)
+    if mask:
+        ones = np.all(I == 255, axis=len(I.shape)-1)
+    bI = I if not mask else I[~ ones]
+    p = brightness_percentile(bI)
+    clipped = np.clip(I * 255.0 / p, 0, 255).astype(np.uint8)
+    if mask:
+        clipped[ones] = 255
+    return clipped
 
 
 def remove_zeros(I):
@@ -120,7 +177,7 @@ def notwhite_mask(I, thresh=0.8):
     :param thresh:
     :return:
     """
-    I_LAB = cv.cvtColor(I, cv.COLOR_RGB2LAB)
+    I_LAB = cv2.cvtColor(I, cv2.COLOR_RGB2LAB)
     L = I_LAB[:, :, 0] / 255.0
     return (L < thresh)
 
@@ -155,6 +212,21 @@ def get_concentrations(I, stain_matrix, lamda=0.01):
     C = np.linalg.lstsq(stain_matrix.T, Y, rcond=None)[0]
     return C.T
 
+
+def clip_size(I, max_size=2048):
+    # Cap the context size to a maximum of (2048, 2048).
+    if I.shape[0] > max_size or I.shape[1] > max_size:
+        w, h = I.shape[0], I.shape[1]
+        if w > h:
+            h = int((h / w) * max_size)
+            w = max_size
+        else:
+            w = int((w / h) * max_size)
+            h = max_size
+        I = cv2.resize(I, (h, w))
+    return I
+
+
 def _as_numpy(arg1: Union[List, np.ndarray]) -> np.ndarray:
     """Ensures array is a numpy array."""
 
@@ -164,3 +236,211 @@ def _as_numpy(arg1: Union[List, np.ndarray]) -> np.ndarray:
         return np.squeeze(arg1).astype(np.float32)
     else:
         raise ValueError(f'Expected numpy array; got {type(arg1)}')
+
+# =============================================================================
+
+import numpy as np
+
+
+def unstack(a, axis = 0):
+    return [np.squeeze(e, axis) for e in np.split(a, a.shape[axis], axis = axis)]
+
+
+def rgb_to_xyz(input):
+    """
+    Convert a RGB image to CIE XYZ.
+    Args:
+      input: A 3-D (`[H, W, 3]`) or 4-D (`[N, H, W, 3]`) Tensor.
+      name: A name for the operation (optional).
+    Returns:
+      A 3-D (`[H, W, 3]`) or 4-D (`[N, H, W, 3]`) Tensor.
+    """
+    assert input.dtype in (np.float16, np.float32, np.float64)
+
+    kernel = rgb_to_xyz_kernels[str(input.dtype)]
+    value = np.where(
+        input > 0.04045,
+        np.power((input + 0.055) / 1.055, 2.4),
+        input / 12.92,
+    )
+    return np.tensordot(value, np.transpose(kernel), axes=((-1,), (0,)))
+
+
+def xyz_to_rgb(input):
+    """
+    Convert a CIE XYZ image to RGB.
+    Args:
+      input: A 3-D (`[H, W, 3]`) or 4-D (`[N, H, W, 3]`) Tensor.
+      name: A name for the operation (optional).
+    Returns:
+      A 3-D (`[H, W, 3]`) or 4-D (`[N, H, W, 3]`) Tensor.
+    """
+    assert input.dtype in (np.float16, np.float32, np.float64)
+
+    kernel = xyz_to_rgb_kernels[str(input.dtype)]
+    value = np.tensordot(input, np.transpose(kernel), axes=((-1,), (0,)))
+    value = np.where(
+        value > 0.0031308,
+        np.power(np.clip(value, 0, None), 1.0 / 2.4) * 1.055 - 0.055,
+        value * 12.92,
+    )
+    return np.clip(value, 0, 1)
+
+
+def lab_to_rgb(input, illuminant="D65", observer="2"):
+    """
+    Convert a CIE LAB image to RGB.
+    Args:
+      input: A 3-D (`[H, W, 3]`) or 4-D (`[N, H, W, 3]`) Tensor.
+      illuminant : {"A", "D50", "D55", "D65", "D75", "E"}, optional
+        The name of the illuminant (the function is NOT case sensitive).
+      observer : {"2", "10"}, optional
+        The aperture angle of the observer.
+      name: A name for the operation (optional).
+    Returns:
+      A 3-D (`[H, W, 3]`) or 4-D (`[N, H, W, 3]`) Tensor.
+    """
+    assert input.dtype in (np.float16, np.float32, np.float64)
+
+    lab = input
+    lab = unstack(lab, axis=-1)
+    l, a, b = lab[0], lab[1], lab[2]
+
+    y = (l + 16.0) / 116.0
+    x = (a / 500.0) + y
+    z = y - (b / 200.0)
+
+    z = np.clip(z, 0, None)
+
+    xyz = np.stack([x, y, z], axis=-1)
+
+    xyz = np.where(
+        xyz > 0.2068966,
+        np.power(xyz, 3.0),
+        (xyz - 16.0 / 116.0) / 7.787,
+    )
+
+    coords = np.array(illuminants[illuminant.upper()][observer], input.dtype)
+
+    xyz = xyz * coords
+
+    return xyz_to_rgb(xyz)
+
+
+def rgb_to_lab(input, illuminant="D65", observer="2"):
+    """
+    Convert a RGB image to CIE LAB.
+    Args:
+      input: A 3-D (`[H, W, 3]`) or 4-D (`[N, H, W, 3]`) Tensor.
+      illuminant : {"A", "D50", "D55", "D65", "D75", "E"}, optional
+        The name of the illuminant (the function is NOT case sensitive).
+      observer : {"2", "10"}, optional
+        The aperture angle of the observer.
+      name: A name for the operation (optional).
+    Returns:
+      A 3-D (`[H, W, 3]`) or 4-D (`[N, H, W, 3]`) Tensor.
+    """
+    assert input.dtype in (np.float16, np.float32, np.float64)
+
+    coords = np.array(illuminants[illuminant.upper()][observer], input.dtype)
+
+    xyz = rgb_to_xyz(input)
+
+    xyz = xyz / coords
+
+    xyz = np.where(
+        xyz > 0.008856,
+        np.power(xyz, 1.0 / 3.0),
+        xyz * 7.787 + 16.0 / 116.0,
+    )
+
+    xyz = unstack(xyz, axis=-1)
+    x, y, z = xyz[0], xyz[1], xyz[2]
+
+    # Vector scaling
+    L = (y * 116.0) - 16.0
+    A = (x - y) * 500.0
+    B = (y - z) * 200.0
+
+    return np.stack([L, A, B], axis=-1)
+
+# -----------------------------------------------------------------------------
+
+
+# --- Numpy and CV2-based LAB-RGB utility functions. -----------------------------
+
+def merge_back_cv2(I1: np.ndarray, I2: np.ndarray, I3: np.ndarray) -> np.ndarray:
+    """Take seperate LAB channels and merge back to give RGB uint8
+
+    Args:
+        I1 (np.ndarray): First channel.
+        I2 (np.ndarray): Second channel.
+        I3 (np.ndarray): Third channel.
+
+    Returns:
+        np.ndarray: RGB uint8 image.
+    """
+    I1 *= 2.55
+    I2 += 128.0
+    I3 += 128.0
+    I = np.clip(cv2.merge((I1, I2, I3)), 0, 255).astype(np.uint8)
+    return cv2.cvtColor(I, cv2.COLOR_LAB2RGB)
+
+def lab_split_cv2(I: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Convert from RGB uint8 to LAB and split into channels
+
+    Args:
+        I (np.ndarray): RGB uint8 image.
+
+    Returns:
+        np.ndarray: I1, first channel.
+
+        np.ndarray: I2, first channel.
+
+        np.ndarray: I3, first channel.
+    """
+    I = cv2.cvtColor(I, cv2.COLOR_RGB2LAB)
+    I = I.astype(np.float32)
+    I1, I2, I3 = cv2.split(I)
+    I1 /= 2.55
+    I2 -= 128.0
+    I3 -= 128.0
+    return I1, I2, I3
+
+# -----------------------------------------------------------------------------
+
+def lab_split_numpy(I: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Convert from RGB uint8 to LAB and split into channels
+
+    Args:
+        I (np.ndarray): RGB uint8 image.
+
+    Returns:
+        np.ndarray: I1, first channel.
+
+        np.ndarray: I2, first channel.
+
+        np.ndarray: I3, first channel.
+    """
+    I = I.astype(np.float32)
+    I /= 255
+    I = rgb_to_lab(I)
+    return unstack(I, axis=-1)
+
+
+def merge_back_numpy(I1: np.ndarray, I2: np.ndarray, I3: np.ndarray) -> np.ndarray:
+    """Take seperate LAB channels and merge back to give RGB uint8
+
+    Args:
+        I1 (np.ndarray): First channel.
+        I2 (np.ndarray): Second channel.
+        I3 (np.ndarray): Third channel.
+
+    Returns:
+        np.ndarray: RGB uint8 image.
+    """
+    I = np.stack((I1, I2, I3), axis=-1)
+    I = lab_to_rgb(I) * 255
+    I = I.astype(np.int32)
+    I = np.clip(I, 0, 255).astype(np.uint8)
+    return I

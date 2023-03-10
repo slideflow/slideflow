@@ -452,6 +452,15 @@ def multi_slide_loader(
     return RandomSampler(loaders, splits_list, shard=None)
 
 
+def is_cwh(img: torch.Tensor) -> torch.Tensor:
+    return (len(img.shape) == 3 and img.shape[0] == 3
+            or (len(img.shape) == 4 and img.shape[1] == 3))
+
+
+def is_whc(img: torch.Tensor) -> torch.Tensor:
+    return img.shape[-1] == 3
+
+
 def cwh_to_whc(img: torch.Tensor) -> torch.Tensor:
     if len(img.shape) == 3:
         return img.permute(1, 2, 0)  # CWH -> WHC

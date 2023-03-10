@@ -9,6 +9,15 @@ from slideflow import errors
 from typing import Union, Optional
 
 
+def _apply_mask(image, mask):
+    resized_mask = cv2.resize(
+        (~mask).astype(np.uint8),
+        (image.shape[1], image.shape[0]),
+        interpolation=cv2.INTER_NEAREST
+    )
+    return cv2.bitwise_or(image, image, mask=resized_mask)
+
+
 class Otsu:
 
     def __init__(self, slide_level: Optional[int] = None):
@@ -115,27 +124,21 @@ class Otsu:
         # Only apply Otsu thresholding within areas not already removed
         # with other QC methods.
         if wsi.qc_mask is not None:
-            resized_qc_mask = cv2.resize(
-                (~wsi.qc_mask).astype(np.uint8),
-                (thumb.shape[1], thumb.shape[0]),
-                interpolation=cv2.INTER_NEAREST
-            )
-            thumb = cv2.bitwise_or(
-                thumb,
-                thumb,
-                mask=resized_qc_mask
-            )
+            thumb = _apply_mask(thumb, wsi.qc_mask)
         return thumb
 
     def __call__(
         self,
         wsi: Union["sf.WSI", np.ndarray],
+        mask: Optional[np.ndarray] = None,
     ) -> np.ndarray:
         """Perform Otsu's thresholding on the given slide or image.
 
         Args:
             slide (sf.WSI, np.ndarray): Either a Slideflow WSI or a numpy array,
                 with shape (h, w, c) and type np.uint8.
+            mask (np.ndarray): Restrict Otsu's threshold to the area of the
+                image indicated by this boolean mask. Defaults to None.
 
         Returns:
             np.ndarray: QC boolean mask, where True = filtered out.
@@ -144,8 +147,10 @@ class Otsu:
             thumb = self._thumb_from_slide(wsi)
         else:
             thumb = wsi
+        if mask is not None:
+            thumb = _apply_mask(thumb, mask)
         hsv_img = cv2.cvtColor(thumb, cv2.COLOR_RGB2HSV)
         img_med = cv2.medianBlur(hsv_img[:, :, 1], 7)
         flags = cv2.THRESH_OTSU+cv2.THRESH_BINARY_INV
-        _, mask = cv2.threshold(img_med, 0, 255, flags)
-        return mask.astype(bool)
+        _, otsu_mask = cv2.threshold(img_med, 0, 255, flags)
+        return otsu_mask.astype(bool)

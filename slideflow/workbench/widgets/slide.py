@@ -467,7 +467,7 @@ class SlideWidget:
                     if method == 'model':
                         self.viz._normalizer = sf.util.get_model_normalizer(self.viz._model_path)
                     else:
-                        self.viz._normalizer = sf.norm.autoselect(method, source='v2')
+                        self.viz._normalizer = sf.norm.autoselect(method, source='v1')
                     viz._refresh_view = True
 
                 # Grayspace & whitespace filtering --------------------------------

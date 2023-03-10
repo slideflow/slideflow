@@ -1413,11 +1413,6 @@ class Dataset:
             Dictionary mapping slide paths to each slide's SlideReport
             (:class:`slideflow.slide.report.SlideReport`)
         """
-
-        if not save_tiles and not save_tfrecords:
-            raise errors.DatasetError(
-                'Either save_tiles or save_tfrecords must be true.'
-            )
         if not self.tile_px or not self.tile_um:
             raise errors.DatasetError(
                 "Dataset tile_px and tile_um must be != 0 to extract tiles"

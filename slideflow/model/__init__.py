@@ -541,7 +541,7 @@ class DatasetFeatures:
             combined_model = simclr.load(model)
             combined_model.num_features = simclr_args.proj_out_dim
             combined_model.num_classes = simclr_args.num_classes
-        elif isinstance(model, str):
+        elif isinstance(model, str) and is_tf:
             combined_model = sf.model.Features(model, **feat_kw)
         elif is_tf:
             combined_model = sf.model.Features.from_model(model, **feat_kw)
@@ -578,8 +578,18 @@ class DatasetFeatures:
             'augment': False,
             'incl_slidenames': True,
             'incl_loc': True,
-            'normalizer': self.normalizer
         }
+        # Use GPU stain normalization for PyTorch normalizers, if supported
+        if (isinstance(self.normalizer, sf.norm.StainNormalizer)
+           and self.normalizer.__class__.__name__ == 'TorchStainNormalizer'
+           and self.normalizer.device != 'cpu'):
+            log.info("Using GPU for stain normalization")
+            torch_gpu_norm = True
+            dataset_kwargs['standardize'] = False
+        else:
+            torch_gpu_norm = False
+            dataset_kwargs['normalizer'] = self.normalizer
+
         if is_extractor:
             dataset_kwargs.update(model.preprocess_kwargs)
 
@@ -694,7 +704,10 @@ class DatasetFeatures:
                 if is_torch:
                     import torch
                     with torch.no_grad():
-                        model_output = combined_model(batch_img.to('cuda'), **call_kw)
+                        batch_img = batch_img.to('cuda')
+                        if torch_gpu_norm:
+                            batch_img = self.normalizer.preprocess(batch_img)
+                        model_output = combined_model(batch_img, **call_kw)
                 else:
                     model_output = combined_model(batch_img, **call_kw)
                 q.put((model_output, batch_slides, (batch_loc_x, batch_loc_y)))

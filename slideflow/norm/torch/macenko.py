@@ -10,30 +10,9 @@ from typing import Tuple, Dict, Optional, Union
 from contextlib import contextmanager
 
 import slideflow.norm.utils as ut
-from slideflow.io.torch import cwh_to_whc
+from .utils import clip_size, standardize_brightness
 
 # -----------------------------------------------------------------------------
-
-def brightness_percentile(I: torch.Tensor) -> torch.Tensor:
-    return torch.quantile(I.to(torch.float32), 0.9)
-
-
-def standardize_brightness(
-    I: torch.Tensor,
-    p: Optional[torch.Tensor] = None,
-) -> torch.Tensor:
-    """Standardize image brightness to 90th percentile.
-
-    Args:
-        I (torch.Tensor): Image to standardize.
-
-    Returns:
-        torch.Tensor: Brightness-standardized image (uint8)
-    """
-    if p is None:
-        p = brightness_percentile(I)
-    return torch.clip(I * 255.0 / p, 0, 255).to(torch.uint8)
-
 
 def dot(a: torch.Tensor, b: torch.Tensor):
     """Equivalent to np.dot()."""
@@ -52,6 +31,7 @@ def T(a: torch.Tensor):
 class MacenkoNormalizer:
 
     vectorized = False
+    preferred_device = 'cpu'
 
     def __init__(
         self,
@@ -80,7 +60,6 @@ class MacenkoNormalizer:
         self.alpha = alpha
         self.beta = beta
         self._ctx_maxC = None  # type: Optional[torch.Tensor]
-        self._ctx_brightness = None  # type: Optional[torch.Tensor]
         self.set_fit(**ut.fit_presets['macenko']['v1'])  # type: ignore
 
     def fit(self, target: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -103,6 +82,7 @@ class MacenkoNormalizer:
             raise ValueError(
                 f"Invalid shape for fit(): expected 3, got {target.shape}"
             )
+        target = clip_size(target, 2048)
         HE, maxC, _ = self.matrix_and_concentrations(target)
         self.set_fit(HE, maxC)
         return HE, maxC
@@ -155,7 +135,8 @@ class MacenkoNormalizer:
 
     def _matrix_and_concentrations(
         self,
-        img: torch.Tensor
+        img: torch.Tensor,
+        mask: bool = False
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Gets the H&E stain matrix and concentrations for a given image.
 
@@ -170,13 +151,20 @@ class MacenkoNormalizer:
                 torch.Tensor: Concentrations of individual stains
         """
         img = img.reshape((-1, 3))
-        img = standardize_brightness(img, p=self._ctx_brightness)
+
+        if mask:
+            ones = torch.all(img == 255, dim=1)
+
+        img = standardize_brightness(img, mask=mask)
 
         # Calculate optical density.
         OD = -torch.log((img.to(torch.float32) + 1) / 255)
 
         # Remove transparent pixles.
-        ODhat = OD[~torch.any(OD < self.beta, dim=1)]
+        if mask:
+            ODhat = OD[~ (torch.any(OD < self.beta, dim=1) | ones)]
+        else:
+            ODhat = OD[~torch.any(OD < self.beta, dim=1)]
 
         # Compute eigenvectors.
         eigvals, eigvecs = torch.linalg.eigh(torch.cov(ODhat.T))
@@ -199,6 +187,9 @@ class MacenkoNormalizer:
         else:
             HE = torch.stack((vMax, vMin)).T
 
+        if mask:
+            OD = OD[~ ones]
+
         # Rows correspond to channels (RGB), columns to OD values.
         Y = torch.reshape(OD, (-1, 3)).T
 
@@ -209,7 +200,8 @@ class MacenkoNormalizer:
 
     def matrix_and_concentrations(
         self,
-        img: torch.Tensor
+        img: torch.Tensor,
+        mask: bool = False
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """Gets the H&E stain matrix and concentrations for a given image.
 
@@ -225,7 +217,7 @@ class MacenkoNormalizer:
 
                 torch.Tensor: Concentrations of individual stains
         """
-        HE, C = self._matrix_and_concentrations(img)
+        HE, C = self._matrix_and_concentrations(img, mask=mask)
 
         # Normalize stain concentrations.
         maxC = torch.stack((torch.quantile(C[0, :], 0.99), torch.quantile(C[1, :], 0.99)))
@@ -241,6 +233,10 @@ class MacenkoNormalizer:
         Returns:
             torch.Tensor: Normalized image (uint8)
         """
+        if len(img.shape) == 4:
+            return torch.stack([
+                self.transform(x_i) for x_i in torch.unbind(img, dim=0)
+            ], dim=0)
         if len(img.shape) != 3:
             raise ValueError(
                 f"Invalid shape for transform(): expected 3, got {img.shape}"
@@ -276,8 +272,8 @@ class MacenkoNormalizer:
     def set_context(self, I: Union[np.ndarray, torch.Tensor]):
         if not isinstance(I, torch.Tensor):
             I = torch.from_numpy(ut._as_numpy(I))
-        self._ctx_brightness = brightness_percentile(I)
-        HE, maxC, C = self.matrix_and_concentrations(I)
+        I = clip_size(I, 2048)
+        HE, maxC, C = self.matrix_and_concentrations(I, mask=True)
         self._ctx_maxC = maxC
 
     def clear_context(self):

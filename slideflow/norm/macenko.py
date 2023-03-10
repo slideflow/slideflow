@@ -2,6 +2,7 @@
 
 from __future__ import division
 
+import cv2
 import numpy as np
 from typing import Tuple, Dict, Optional
 from contextlib import contextmanager
@@ -39,7 +40,6 @@ class MacenkoNormalizer:
         self.alpha = alpha
         self.beta = beta
         self._ctx_maxC = None  # type: Optional[np.ndarray]
-        self._ctx_brightness = None  # type: Optional[float]
 
         # Default fit.
         self.set_fit(**ut.fit_presets['macenko']['v1'])  # type: ignore
@@ -60,6 +60,7 @@ class MacenkoNormalizer:
 
                 np.ndarray:     Target concentrations.
         """
+        img = ut.clip_size(img, 2048)
         HE, maxC, _ = self.matrix_and_concentrations(img)
         self.set_fit(HE, maxC)
         return HE, maxC
@@ -119,7 +120,7 @@ class MacenkoNormalizer:
     def _matrix_and_concentrations(
         self,
         img: np.ndarray,
-        brightness_p: Optional[float] = None
+        mask: bool = False
     ) -> Tuple[np.ndarray, np.ndarray]:
         """Gets the H&E stain matrix and concentrations for a given image.
 
@@ -135,13 +136,20 @@ class MacenkoNormalizer:
         """
 
         img = img.reshape((-1, 3))
-        img = ut.standardize_brightness(img, p=brightness_p)
+
+        if mask:
+            ones = np.all(img == 255, axis=1)
+
+        img = ut.standardize_brightness(img, mask=mask)
 
         # Calculate optical density.
         OD = -np.log((img.astype(float) + 1) / 255)
 
         # Remove transparent pixels.
-        ODhat = OD[~np.any(OD < self.beta, axis=1)]
+        if mask:
+            ODhat = OD[~ (np.any(OD < self.beta, axis=1) | ones)]
+        else:
+            ODhat = OD[~np.any(OD < self.beta, axis=1)]
 
         # Compute eigenvectors.
         eigvals, eigvecs = np.linalg.eigh(np.cov(ODhat.T))
@@ -164,6 +172,9 @@ class MacenkoNormalizer:
         else:
             HE = np.array((vMax[:, 0], vMin[:, 0])).T
 
+        if mask:
+            OD = OD[~ ones]
+
         # Rows correspond to channels (RGB), columns to OD values.
         Y = np.reshape(OD, (-1, 3)).T
 
@@ -176,7 +187,7 @@ class MacenkoNormalizer:
     def matrix_and_concentrations(
         self,
         img: np.ndarray,
-        brightness_p: Optional[float] = None
+        mask: bool = False,
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Gets the H&E stain matrix and concentrations for a given image.
 
@@ -192,7 +203,7 @@ class MacenkoNormalizer:
 
                 np.ndarray: Concentrations of individual stains
         """
-        HE, C = self._matrix_and_concentrations(img, brightness_p)
+        HE, C = self._matrix_and_concentrations(img, mask=mask)
 
         # Normalize stain concentrations.
         maxC = np.array([np.percentile(C[0, :], 99), np.percentile(C[1, :], 99)])
@@ -215,7 +226,7 @@ class MacenkoNormalizer:
 
         # Get stain matrix and concentrations from image.
         if self._ctx_maxC is not None:
-            HE, C = self._matrix_and_concentrations(img, self._ctx_brightness)
+            HE, C = self._matrix_and_concentrations(img)
             maxC = self._ctx_maxC
         else:
             HE, maxC, C = self.matrix_and_concentrations(img)
@@ -237,10 +248,9 @@ class MacenkoNormalizer:
         self.clear_context()
 
     def set_context(self, I: np.ndarray):
-        HE, maxC, C = self.matrix_and_concentrations(I)
+        I = ut.clip_size(I, 2048)
+        HE, maxC, C = self.matrix_and_concentrations(I, mask=True)
         self._ctx_maxC = maxC
-        self._ctx_brightness = ut.brightness_percentile(I.reshape((-1, 3)))
 
     def clear_context(self):
         self._ctx_maxC = None
-        self._ctx_brightness = None

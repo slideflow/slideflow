@@ -16,31 +16,9 @@ import tensorflow_probability as tfp
 from slideflow.norm.tensorflow import color
 from slideflow.norm import utils as ut
 from slideflow.util import log
+from .utils import clip_size, standardize_brightness
 
 # -----------------------------------------------------------------------------
-
-@tf.function
-def brightness_percentile(I: tf.Tensor) -> tf.Tensor:
-    p = tfp.stats.percentile(I, 90)  # p = np.percentile(I, 90)
-    return tf.cast(p, tf.float32)
-
-
-@tf.function
-def standardize_brightness(I: tf.Tensor, p: Optional[tf.Tensor] = None) -> tf.Tensor:
-    """Standardize image brightness to the 90th percentile.
-
-    Args:
-        I (tf.Tensor): Image, uint8.
-
-    Returns:
-        tf.Tensor: Brightness-standardized image (uint8)
-    """
-    if p is None:
-        p = brightness_percentile(I)
-    scaled = tf.cast(I, tf.float32) * tf.constant(255.0, dtype=tf.float32) / p
-    scaled = tf.experimental.numpy.clip(scaled, 0, 255)
-    return tf.cast(scaled, tf.uint8)  # np.clip(I * 255.0 / p, 0, 255).astype(np.uint8)
-
 
 @tf.function
 def lab_split(I: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor]:
@@ -85,6 +63,21 @@ def merge_back(
     I = tf.stack((I1, I2, I3), axis=-1)
     I = color.lab_to_rgb(I) * 255
     return I
+
+
+@tf.function
+def get_masked_mean_std(I: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor]:
+    ones = tf.math.reduce_all(I == 255, axis=len(I.shape)-1)
+    I1, I2, I3 = lab_split(I)
+    I1, I2, I3 = I1[~ ones], I2[~ ones], I3[~ ones]
+
+    m1, sd1 = tf.math.reduce_mean(I1), tf.math.reduce_std(I1)
+    m2, sd2 = tf.math.reduce_mean(I2), tf.math.reduce_std(I2)
+    m3, sd3 = tf.math.reduce_mean(I3), tf.math.reduce_std(I3)
+
+    means = tf.stack([m1, m2, m3])
+    stds = tf.stack([sd1, sd2, sd3])
+    return means, stds
 
 
 @tf.function
@@ -193,14 +186,18 @@ def transform(
 
 
 @tf.function
-def fit(target: tf.Tensor, reduce: bool = False) -> Tuple[tf.Tensor, tf.Tensor]:
+def fit(target: tf.Tensor, reduce: bool = False, mask: bool = False) -> Tuple[tf.Tensor, tf.Tensor]:
     """Fit a target image.
 
     Args:
         target (torch.Tensor): Batch of images to fit.
-        reduce (bool, optional): Reduce the fit means/stds across the batch
+        reduce (bool): Reduce the fit means/stds across the batch
             of images to a single mean/std array, reduced by average.
             Defaults to False (provides fit for each image in the batch).
+            If ``mask`` is True, reduce will be set to ``True``.
+        mask (bool): Mask out white pixels during fit. This will reduce
+            the means/stdevs across batches, and will only lead to desirable
+            results if a single image is provided.
 
     Returns:
         A tuple containing
@@ -209,8 +206,10 @@ def fit(target: tf.Tensor, reduce: bool = False) -> Tuple[tf.Tensor, tf.Tensor]:
 
             tf.Tensor: Fit stds
     """
-    means, stds = get_mean_std(*lab_split(target), reduce=reduce)
-    return means, stds
+    if mask:
+        return get_masked_mean_std(target)
+    else:
+        return get_mean_std(*lab_split(target), reduce=reduce)
 
 
 class ReinhardFastNormalizer:
@@ -238,13 +237,13 @@ class ReinhardFastNormalizer:
         self.transform_kw = {}  # type: Dict[str, Any]
         self._ctx_means = None  # type: Optional[tf.Tensor]
         self._ctx_stds = None  # type: Optional[tf.Tensor]
-        self._ctx_brightness = None  # type: Optional[tf.Tensor]
         self.set_fit(**ut.fit_presets['reinhard_fast']['v1'])  # type: ignore
 
     def fit(
         self,
         target: tf.Tensor,
-        reduce: bool = False
+        reduce: bool = False,
+        mask: bool = False
     ) -> Tuple[tf.Tensor, tf.Tensor]:
         """Fit normalizer to a target image.
 
@@ -263,7 +262,8 @@ class ReinhardFastNormalizer:
         """
         if len(target.shape) == 3:
             target = tf.expand_dims(target, axis=0)
-        means, stds = fit(target, reduce=reduce)
+        target = clip_size(target, 2048)
+        means, stds = fit(target, reduce=reduce, mask=mask)
         self.target_means = means
         self.target_stds = stds
         return means, stds
@@ -394,8 +394,8 @@ class ReinhardFastNormalizer:
             I = tf.convert_to_tensor(ut._as_numpy(I))
         if len(I.shape) == 3:
             I = tf.expand_dims(I, axis=0)
-        I1, I2, I3 = lab_split(I)
-        self._ctx_means, self._ctx_stds = get_mean_std(I1, I2, I3)  # type: ignore
+        I = clip_size(I, 2048)
+        self._ctx_means, self._ctx_stds = get_masked_mean_std(I)
 
     def clear_context(self):
         self._ctx_means, self._ctx_stds = None, None
@@ -418,7 +418,8 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
     def fit(
         self,
         target: tf.Tensor,
-        reduce: bool = False
+        reduce: bool = False,
+        mask: bool = False
     ) -> Tuple[tf.Tensor, tf.Tensor]:
         """Fit normalizer to a target image.
 
@@ -437,8 +438,9 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
         """
         if len(target.shape) == 3:
             target = tf.expand_dims(target, axis=0)
-        target = standardize_brightness(target, p=self._ctx_brightness)
-        means, stds = fit(target, reduce=reduce)
+        target = clip_size(target, 2048)
+        target = standardize_brightness(target, mask=mask)
+        means, stds = fit(target, reduce=reduce, mask=mask)
         self.target_means = means
         self.target_stds = stds
         return means, stds
@@ -480,15 +482,13 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
         _ctx_means, _ctx_stds = self._get_context_means(ctx_means, ctx_stds)
         if len(I.shape) == 3:
             return self._transform_batch(
-                standardize_brightness(
-                    tf.expand_dims(I, axis=0),
-                    p=self._ctx_brightness),
+                standardize_brightness(tf.expand_dims(I, axis=0)),
                 _ctx_means,
                 _ctx_stds
             )[0]
         else:
             return self._transform_batch(
-                standardize_brightness(I, p=self._ctx_brightness),
+                standardize_brightness(I),
                 _ctx_means,
                 _ctx_stds
             )
@@ -498,12 +498,12 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
             I = tf.convert_to_tensor(ut._as_numpy(I))
         if len(I.shape) == 3:
             I = tf.expand_dims(I, axis=0)
-        self._ctx_brightness = brightness_percentile(I)
+        I = clip_size(I, 2048)
+        I = standardize_brightness(I, mask=True)
         super().set_context(I)
 
     def clear_context(self):
         super().clear_context()
-        self._ctx_brightness = None
 
 
 class ReinhardFastMaskNormalizer(ReinhardFastNormalizer):

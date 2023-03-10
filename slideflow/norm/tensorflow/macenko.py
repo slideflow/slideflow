@@ -7,30 +7,9 @@ from tensorflow.experimental.numpy import dot
 import tensorflow_probability as tfp
 
 from slideflow.norm import utils as ut
+from .utils import clip_size, standardize_brightness
 
 # -----------------------------------------------------------------------------
-
-@tf.function
-def brightness_percentile(I: tf.Tensor) -> tf.Tensor:
-    p = tfp.stats.percentile(I, 90)  # p = np.percentile(I, 90)
-    return tf.cast(p, tf.float32)
-
-
-@tf.function
-def standardize_brightness(I: tf.Tensor, p: Optional[tf.Tensor] = None) -> tf.Tensor:
-    """Standardize image brightness to the 90th percentile.
-
-    Args:
-        I (tf.Tensor): Image, uint8.
-
-    Returns:
-        tf.Tensor: Brightness-standardized image (uint8)
-    """
-    if p is None:
-        p = brightness_percentile(I)
-    scaled = tf.cast(I, tf.float32) * tf.constant(255.0, dtype=tf.float32) / p
-    scaled = tf.experimental.numpy.clip(scaled, 0, 255)
-    return tf.cast(scaled, tf.uint8)
 
 
 @tf.function
@@ -39,7 +18,7 @@ def _matrix_and_concentrations(
     Io: int = 255,
     alpha: float = 1,
     beta: float = 0.15,
-    ctx_brightness: Optional[tf.Tensor] = None
+    mask: bool = False
 ) -> Tuple[tf.Tensor, tf.Tensor]:
     """Gets the H&E stain matrix and concentrations for a given image.
 
@@ -62,13 +41,19 @@ def _matrix_and_concentrations(
     # reshape image
     img = tf.reshape(img, (-1, 3))
 
-    img = standardize_brightness(img, p=ctx_brightness)
+    if mask:
+        ones = tf.math.reduce_all(img == 255, axis=1)
+
+    img = standardize_brightness(img, mask=mask)
 
     # calculate optical density
     OD = -tf.math.log((tf.cast(img, tf.float32) + 1) / Io)
 
     # remove transparent pixels
-    ODhat = OD[~ tf.math.reduce_any(OD < beta, axis=1)]
+    if mask:
+        ODhat = OD[~ (tf.math.reduce_any(OD < beta, axis=1) | ones)]
+    else:
+        ODhat = OD[~ tf.math.reduce_any(OD < beta, axis=1)]
 
     # compute eigenvectors
     eigvals, eigvecs = tf.linalg.eigh(tfp.stats.covariance(ODhat))
@@ -93,7 +78,12 @@ def _matrix_and_concentrations(
         HE = tf.transpose(tf.stack((vMax[:, 0], vMin[:, 0])))
 
     # rows correspond to channels (RGB), columns to OD values
-    Y = tf.transpose(tf.reshape(OD, (-1, 3)))
+    OD = tf.reshape(OD, (-1, 3))
+
+    if mask:
+        OD = OD[~ ones]
+
+    Y = tf.transpose(OD)
 
     # determine concentrations of the individual stains
     C = tf.linalg.lstsq(HE, Y)
@@ -107,7 +97,7 @@ def matrix_and_concentrations(
     Io: int = 255,
     alpha: float = 1,
     beta: float = 0.15,
-    ctx_brightness: Optional[tf.Tensor] = None
+    mask: bool = False
 ) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor]:
     """Gets the H&E stain matrix and concentrations for a given image.
 
@@ -129,7 +119,7 @@ def matrix_and_concentrations(
             tf.Tensor: Concentrations of individual stains
     """
     HE, C = _matrix_and_concentrations(
-        img, Io, alpha, beta, ctx_brightness=ctx_brightness
+        img, Io, alpha, beta, mask=mask
     )
 
     # normalize stain concentrations
@@ -147,7 +137,6 @@ def transform(
     alpha: float = 1,
     beta: float = 0.15,
     ctx_maxC: Optional[tf.Tensor] = None,
-    ctx_brightness: Optional[tf.Tensor] = None
 ) -> tf.Tensor:
     """Normalize an image.
 
@@ -173,9 +162,7 @@ def transform(
     maxCRef = target_concentrations
 
     if ctx_maxC is not None:
-        HE, C = _matrix_and_concentrations(
-            img, Io, alpha, beta, ctx_brightness=ctx_brightness
-        )
+        HE, C = _matrix_and_concentrations(img, Io, alpha, beta)
         maxC = ctx_maxC
     else:
         HE, maxC, C = matrix_and_concentrations(img, Io, alpha, beta)
@@ -252,7 +239,6 @@ class MacenkoNormalizer:
         self.alpha = alpha
         self.beta = beta
         self._ctx_maxC = None  # type: Optional[tf.Tensor]
-        self._ctx_brightness = None  # type: Optional[tf.Tensor]
 
         self.set_fit(**ut.fit_presets['macenko']['v1'])  # type: ignore
 
@@ -276,6 +262,7 @@ class MacenkoNormalizer:
             raise ValueError(
                 f"Invalid shape for fit(): expected 3, got {target.shape}"
             )
+        target = clip_size(target, 2048)
         HE, maxC = fit(target, self.Io, self.alpha, self.beta)
         self.stain_matrix_target = HE
         self.target_concentrations = maxC
@@ -344,7 +331,6 @@ class MacenkoNormalizer:
                 self.stain_matrix_target,
                 self.target_concentrations,
                 ctx_maxC=self._ctx_maxC,
-                ctx_brightness=self._ctx_brightness
             )
         else:
             raise ValueError(
@@ -361,12 +347,9 @@ class MacenkoNormalizer:
         if not isinstance(I, tf.Tensor):
             I = tf.convert_to_tensor(ut._as_numpy(I))
 
-        self._ctx_brightness = brightness_percentile(tf.reshape(I, (-1, 3)))
-        HE, maxC, C = matrix_and_concentrations(
-            I, ctx_brightness=self._ctx_brightness
-        )
+        I = clip_size(I, 2048)
+        HE, maxC, C = matrix_and_concentrations(I, mask=True)
         self._ctx_maxC = maxC
 
     def clear_context(self):
         self._ctx_maxC = None
-        self._ctx_brightness = None

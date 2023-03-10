@@ -7,50 +7,13 @@ import numpy as np
 from typing import Tuple, Dict, Optional
 from contextlib import contextmanager
 
-import slideflow.norm.utils as ut
+from . import utils as ut
+from .utils import lab_split_numpy as lab_split
+from .utils import merge_back_numpy as merge_back
 
+# -----------------------------------------------------------------------------
 
-def lab_split(I: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Convert from RGB uint8 to LAB and split into channels
-
-    Args:
-        I (np.ndarray): RGB uint8 image.
-
-    Returns:
-        np.ndarray: I1, first channel.
-
-        np.ndarray: I2, first channel.
-
-        np.ndarray: I3, first channel.
-    """
-    I = cv2.cvtColor(I, cv2.COLOR_RGB2LAB)
-    I = I.astype(np.float32)
-    I1, I2, I3 = cv2.split(I)
-    I1 /= 2.55
-    I2 -= 128.0
-    I3 -= 128.0
-    return I1, I2, I3
-
-
-def merge_back(I1: np.ndarray, I2: np.ndarray, I3: np.ndarray) -> np.ndarray:
-    """Take seperate LAB channels and merge back to give RGB uint8
-
-    Args:
-        I1 (np.ndarray): First channel.
-        I2 (np.ndarray): Second channel.
-        I3 (np.ndarray): Third channel.
-
-    Returns:
-        np.ndarray: RGB uint8 image.
-    """
-    I1 *= 2.55
-    I2 += 128.0
-    I3 += 128.0
-    I = np.clip(cv2.merge((I1, I2, I3)), 0, 255).astype(np.uint8)
-    return cv2.cvtColor(I, cv2.COLOR_LAB2RGB)
-
-
-def get_mean_std(I: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+def get_mean_std(I: np.ndarray, mask: bool = False) -> Tuple[np.ndarray, np.ndarray]:
     """Get mean and standard deviation of each channel.
 
     Args:
@@ -64,13 +27,15 @@ def get_mean_std(I: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
             np.ndarray:     Channel standard deviations, shape = (3,)
     """
     I1, I2, I3 = lab_split(I)
+    if mask:
+        ones = np.all(I == 255, axis=2)
+        I1, I2, I3 = I1[~ ones], I2[~ ones], I3[~ ones]
     m1, sd1 = cv2.meanStdDev(I1)
     m2, sd2 = cv2.meanStdDev(I2)
     m3, sd3 = cv2.meanStdDev(I3)
     means = m1, m2, m3
     stds = sd1, sd2, sd3
     return np.array(means), np.array(stds)
-
 
 
 class ReinhardFastNormalizer:
@@ -92,9 +57,8 @@ class ReinhardFastNormalizer:
         self.set_fit(**ut.fit_presets['reinhard_fast']['v1'])  # type: ignore
         self._ctx_means = None
         self._ctx_stds = None
-        self._ctx_brightness = None
 
-    def fit(self, img: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    def fit(self, img: np.ndarray, mask: bool = False) -> Tuple[np.ndarray, np.ndarray]:
         """Fit normalizer to a target image.
 
         Args:
@@ -107,7 +71,8 @@ class ReinhardFastNormalizer:
 
                 np.ndarray:   Target stds (channel standard deviations).
         """
-        means, stds = get_mean_std(img)
+        img = ut.clip_size(img, 2048)
+        means, stds = get_mean_std(img, mask=mask)
         self.set_fit(means, stds)
         return means, stds
 
@@ -219,7 +184,8 @@ class ReinhardFastNormalizer:
         self.clear_context()
 
     def set_context(self, I: np.ndarray):
-        self._ctx_means, self._ctx_stds = get_mean_std(I)
+        I = ut.clip_size(I, 2048)
+        self._ctx_means, self._ctx_stds = get_mean_std(I, mask=True)
 
     def clear_context(self):
         self._ctx_means, self._ctx_stds = None, None
@@ -241,7 +207,7 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
         super().__init__()
         self.set_fit(**ut.fit_presets['reinhard']['v1'])  # type: ignore
 
-    def fit(self, target: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    def fit(self, target: np.ndarray, mask: bool = False) -> Tuple[np.ndarray, np.ndarray]:
         """Fit normalizer to a target image.
 
         Args:
@@ -254,8 +220,9 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
 
                 np.ndarray:   Target stds (channel standard deviations).
         """
-        target = ut.standardize_brightness(target, p=self._ctx_brightness)
-        return super().fit(target)
+        target = ut.clip_size(target, 2048)
+        target = ut.standardize_brightness(target, mask=mask)
+        return super().fit(target, mask=mask)
 
     def fit_preset(self, preset: str) -> Dict[str, np.ndarray]:
         """Fit normalizer to a preset in sf.norm.utils.fit_presets.
@@ -285,16 +252,16 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
         Returns:
             np.ndarray: Normalized image.
         """
-        I = ut.standardize_brightness(I, p=self._ctx_brightness)
+        I = ut.standardize_brightness(I)
         return super().transform(I, ctx_means, ctx_stds)
 
     def set_context(self, I: np.ndarray):
+        I = ut.clip_size(I, 2048)
+        I = ut.standardize_brightness(I, mask=True)
         super().set_context(I)
-        self._ctx_brightness = ut.brightness_percentile(I)
 
     def clear_context(self):
         super().clear_context()
-        self._ctx_brightness = None
 
 
 class ReinhardFastMaskNormalizer(ReinhardFastNormalizer):
@@ -334,9 +301,8 @@ class ReinhardFastMaskNormalizer(ReinhardFastNormalizer):
         Returns:
             np.ndarray: Normalized image.
         """
-        I_LAB = cv2.cvtColor(image, cv2.COLOR_RGB2LAB)
-        mask = (I_LAB[:, :, 0] / 255.0 < self.threshold)[:, :, np.newaxis]
         I1, I2, I3 = lab_split(image)
+        mask = ((I3 + 128.) / 255. < self.threshold)[:, :, np.newaxis]
         means, stds = self._get_mean_std(image, ctx_means, ctx_stds)
         norm1 = ((I1 - means[0]) * (self.target_stds[0] / stds[0])) + self.target_means[0]
         norm2 = ((I2 - means[1]) * (self.target_stds[1] / stds[1])) + self.target_means[1]
@@ -381,10 +347,9 @@ class ReinhardMaskNormalizer(ReinhardNormalizer):
         Returns:
             np.ndarray: Normalized image.
         """
-        image = ut.standardize_brightness(image, p=self._ctx_brightness)
-        I_LAB = cv2.cvtColor(image, cv2.COLOR_RGB2LAB)
-        mask = (I_LAB[:, :, 0] / 255.0 < self.threshold)[:, :, np.newaxis]
+        image = ut.standardize_brightness(image)
         I1, I2, I3 = lab_split(image)
+        mask = ((I3 + 128.) / 255. < self.threshold)[:, :, np.newaxis]
         means, stds = self._get_mean_std(image, ctx_means, ctx_stds)
         norm1 = ((I1 - means[0]) * (self.target_stds[0] / stds[0])) + self.target_means[0]
         norm2 = ((I2 - means[1]) * (self.target_stds[1] / stds[1])) + self.target_means[1]

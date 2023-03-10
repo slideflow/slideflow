@@ -1521,7 +1521,8 @@ class WSI(_BaseLoader):
 
         if normalizer and context_normalize:
             assert isinstance(normalizer, sf.norm.StainNormalizer)
-            normalizer.set_context(np.asarray(self.thumb()))
+            log.debug("Preparing whole-slide context for normalizer")
+            normalizer.set_context(self)
 
         w_args = SimpleNamespace(**{
             'full_extract_px': self.full_extract_px,
@@ -1797,6 +1798,47 @@ class WSI(_BaseLoader):
             self.rois.append(ROI(f"Object{len(self.rois)}"))
             self.rois[-1].add_shape(area_reduced)
         return self.process_rois()
+
+    def masked_thumb(self, background: str = 'white', **kwargs) -> np.ndarray:
+        """Return a masked thumbnail of a slide, using QC and/or ROI masks.
+        Masked areas will be white.
+        """
+        if background not in ('white', 'black'):
+            raise ValueError(
+                f"Unexpected background option: '{background}'. Expected "
+                "'black' or 'white'."
+            )
+        qc_mask = self.qc_mask
+        roi_mask = self.roi_mask
+        image = np.asarray(self.thumb(**kwargs))
+        if qc_mask is None and roi_mask is None:
+            # Apply Otsu's threshold to background area
+            # to prevent whitespace from interfering with normalization
+            from slideflow.slide.qc import Otsu, Gaussian
+            sf.log.debug(
+                "Applying Otsu's thresholding & Gaussian blur filter "
+                "to stain norm context"
+            )
+            _blur_mask = Gaussian()(image)
+            qc_mask = Otsu()(image, mask=_blur_mask)
+        # Mask by ROI and QC, if applied.
+        # Use white as background for masked areas.
+        if qc_mask is not None:
+            qc_img = sf.slide.img_as_ubyte(qc_mask)
+            mask = ~cv2.resize(qc_img, (image.shape[1], image.shape[0]))
+        if roi_mask is not None:
+            roi_img = sf.slide.img_as_ubyte(roi_mask)
+            roi_mask = cv2.resize(roi_img, (image.shape[1], image.shape[0]))
+            if qc_mask is not None:
+                mask = mask & roi_mask
+            else:
+                mask = roi_mask
+        if background == 'white':
+            white_bg = np.full(image.shape, 255, dtype=np.uint8)
+            white_mask = cv2.bitwise_or(white_bg, white_bg, mask=~mask)
+            return cv2.bitwise_or(image, white_mask)
+        else:
+            return cv2.bitwise_or(image, image, mask=mask)
 
     def predict(
         self,
