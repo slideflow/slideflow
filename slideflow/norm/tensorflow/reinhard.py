@@ -116,12 +116,51 @@ def get_mean_std(
     stds = tf.stack([sd1, sd2, sd3])
     return means, stds
 
+# -----------------------------------------------------------------------------
+
+@tf.function
+def augmented_transform(
+    I: tf.Tensor,
+    tgt_mean: tf.Tensor,
+    tgt_std: tf.Tensor,
+    means_stdev: Optional[tf.Tensor] = None,
+    stds_stdev: Optional[tf.Tensor] = None,
+    **kwargs
+) -> tf.Tensor:
+    """Transform an image using a given target means & stds, with augmentation.
+
+    Args:
+        I (tf.Tensor): Image to transform
+        tgt_mean (tf.Tensor): Target means.
+        tgt_std (tf.Tensor): Target means.
+        means_stdev (tf.Tensor): Standard deviation of tgt_mean for
+            augmentation.
+        stds_stdev (tf.Tensor): Standard deviation of tgt_std for augmentation.
+        ctx_mean (torch.Tensor, optional): Context channel means (e.g. from
+            whole-slide image). If None, calculates means from the image.
+            Defaults to None.
+        ctx_std (torch.Tensor, optional): Context channel standard deviations
+            (e.g. from whole-slide image). If None, calculates standard
+            deviations from the image. Defaults to None.
+
+    Returns:
+        tf.Tensor: Transformed image.
+    """
+    if means_stdev is None and stds_stdev is None:
+        raise ValueError("Must supply either means_stdev and/or stds_stdev")
+    if means_stdev is not None:
+        tgt_mean = tf.random.normal([3, 2], mean=tgt_mean, stddev=means_stdev)
+    if stds_stdev is not None:
+        tgt_std = tf.random.normal([2], mean=tgt_std, stddev=stds_stdev)
+    return transform(I, tgt_mean, tgt_std, **kwargs)
+
 
 @tf.function
 def transform(
     I: tf.Tensor,
     tgt_mean: tf.Tensor,
     tgt_std: tf.Tensor,
+    *,
     ctx_mean: Optional[tf.Tensor] = None,
     ctx_std: Optional[tf.Tensor] = None,
     mask_threshold: Optional[float] = None
@@ -238,7 +277,10 @@ class ReinhardFastNormalizer:
         self.transform_kw = {}  # type: Dict[str, Any]
         self._ctx_means = None  # type: Optional[tf.Tensor]
         self._ctx_stds = None  # type: Optional[tf.Tensor]
-        self.set_fit(**ut.fit_presets[self.preset_tag]['v1'])  # type: ignore
+        self._augment_params = dict()  # type: Dict[str, tf.Tensor]
+        self.threshold = None  # type: Optional[float]
+        self.set_fit(**ut.fit_presets[self.preset_tag]['v3'])  # type: ignore
+        self.set_augment(**ut.augment_presets[self.preset_tag]['v1'])  # type: ignore
 
     def fit(
         self,
@@ -269,6 +311,20 @@ class ReinhardFastNormalizer:
         self.target_stds = stds
         return means, stds
 
+    def augment_preset(self, preset: str) -> Dict[str, np.ndarray]:
+        """Configure normalizer augmentation using a preset.
+
+        Args:
+            preset (str): Preset.
+
+        Returns:
+            Dict[str, np.ndarray]: Dictionary mapping fit keys to the
+                augmentation values (standard deviations).
+        """
+        _aug = ut.augment_presets[self.preset_tag][preset]
+        self.set_augment(**_aug)
+        return _aug
+
     def fit_preset(self, preset: str) -> Dict[str, np.ndarray]:
         """Fit normalizer to a preset in sf.norm.utils.fit_presets.
 
@@ -294,6 +350,28 @@ class ReinhardFastNormalizer:
             'target_means': None if self.target_means is None else self.target_means.numpy(),  # type: ignore
             'target_stds': None if self.target_stds is None else self.target_stds.numpy()  # type: ignore
         }
+
+    def set_augment(
+        self,
+        means_stdev: Optional[Union[np.ndarray, tf.Tensor]] = None,
+        stds_stdev: Optional[Union[np.ndarray, tf.Tensor]] = None,
+    ) -> None:
+        """Set the normalizer augmentation to the given values.
+
+        Args:
+            means_stdev (np.ndarray, tf.Tensor): Standard devaiation
+                of target_means. Must have the shape (3, 1).
+            stds_stdev (np.ndarray, tf.Tensor): Standard deviation
+                of target_stds. Must have the shape (3, 1).
+        """
+        if means_stdev is None and stds_stdev is None:
+            raise ValueError(
+                "One or both arguments 'means_stdev' and 'stds_stdev' are required."
+            )
+        if means_stdev is not None:
+            self._augment_params['means_stdev'] = tf.convert_to_tensor(ut._as_numpy(means_stdev))
+        if stds_stdev is not None:
+            self._augment_params['stds_stdev'] = tf.convert_to_tensor(ut._as_numpy(stds_stdev))
 
     def set_fit(
         self,
@@ -329,7 +407,9 @@ class ReinhardFastNormalizer:
         self,
         batch: tf.Tensor,
         ctx_means: Optional[tf.Tensor] = None,
-        ctx_stds: Optional[tf.Tensor] = None
+        ctx_stds: Optional[tf.Tensor] = None,
+        *,
+        augment: bool = False
     ) -> tf.Tensor:
         """Normalize a batch of images.
 
@@ -346,12 +426,16 @@ class ReinhardFastNormalizer:
             tf.Tensor: Normalized image batch (uint8)
         """
         _ctx_means, _ctx_stds = self._get_context_means(ctx_means, ctx_stds)
-        return transform(
+        fn = augmented_transform if augment else transform
+        aug_kw = self._augment_params if augment else {}
+        return fn(
             batch,
             self.target_means,
             self.target_stds,
-            _ctx_means,
-            _ctx_stds
+            ctx_means=_ctx_means,
+            ctx_std=_ctx_stds,
+            mask_threshold=self.threshold,
+            **aug_kw
         )
 
     def transform(
@@ -359,6 +443,7 @@ class ReinhardFastNormalizer:
         I: tf.Tensor,
         ctx_means: Optional[tf.Tensor] = None,
         ctx_stds: Optional[tf.Tensor] = None,
+        *,
         augment: bool = False
     ) -> tf.Tensor:
         """Normalize an H&E image.
@@ -375,17 +460,16 @@ class ReinhardFastNormalizer:
         Returns:
             tf.Tensor: Normalized image (uint8)
         """
-        if augment:
-            raise NotImplementedError
         _ctx_means, _ctx_stds = self._get_context_means(ctx_means, ctx_stds)
         if len(I.shape) == 3:
             return self._transform_batch(
                 tf.expand_dims(I, axis=0),
                 _ctx_means,
-                _ctx_stds
+                _ctx_stds,
+                augment=augment
             )[0]
         else:
-            return self._transform_batch(I, _ctx_means, _ctx_stds)
+            return self._transform_batch(I, _ctx_means, _ctx_stds, augment=augment)
 
     @contextmanager
     def image_context(self, I: Union[np.ndarray, tf.Tensor]):
@@ -407,19 +491,16 @@ class ReinhardFastNormalizer:
 
 class ReinhardNormalizer(ReinhardFastNormalizer):
 
+    """Reinhard H&E stain normalizer (Tensorflow implementation).
+
+    Normalizes an image as defined by:
+
+    Reinhard, Erik, et al. "Color transfer between images." IEEE
+    Computer graphics and applications 21.5 (2001): 34-41.
+
+    """
+
     preset_tag = 'reinhard'
-
-    def __init__(self) -> None:
-        """Reinhard H&E stain normalizer (Tensorflow implementation).
-
-        Normalizes an image as defined by:
-
-        Reinhard, Erik, et al. "Color transfer between images." IEEE
-        Computer graphics and applications 21.5 (2001): 34-41.
-
-        """
-        super().__init__()
-        self.set_fit(**ut.fit_presets[self.preset_tag]['v1'])  # type: ignore
 
     def fit(
         self,
@@ -451,25 +532,12 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
         self.target_stds = stds
         return means, stds
 
-    def fit_preset(self, preset: str) -> Dict[str, np.ndarray]:
-        """Fit normalizer to a preset in sf.norm.utils.fit_presets.
-
-        Args:
-            preset (str): Preset.
-
-        Returns:
-            Dict[str, np.ndarray]: Dictionary mapping fit keys to their
-                fitted values.
-        """
-        _fit = ut.fit_presets[self.preset_tag][preset]
-        self.set_fit(**_fit)
-        return _fit
-
     def transform(
         self,
         I: tf.Tensor,
         ctx_means: Optional[tf.Tensor] = None,
         ctx_stds: Optional[tf.Tensor] = None,
+        *,
         augment: bool = False
     ) -> tf.Tensor:
         """Normalize an H&E image.
@@ -486,20 +554,20 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
         Returns:
             tf.Tensor: Normalized image (uint8)
         """
-        if augment:
-            raise NotImplementedError
         _ctx_means, _ctx_stds = self._get_context_means(ctx_means, ctx_stds)
         if len(I.shape) == 3:
             return self._transform_batch(
                 standardize_brightness(tf.expand_dims(I, axis=0)),
                 _ctx_means,
-                _ctx_stds
+                _ctx_stds,
+                augment=augment
             )[0]
         else:
             return self._transform_batch(
                 standardize_brightness(I),
                 _ctx_means,
-                _ctx_stds
+                _ctx_stds,
+                augment=augment
             )
 
     def set_context(self, I: tf.Tensor):
@@ -540,36 +608,6 @@ class ReinhardFastMaskNormalizer(ReinhardFastNormalizer):
         super().__init__()
         self.threshold = threshold
 
-    def _transform_batch(
-        self,
-        batch: tf.Tensor,
-        ctx_means: Optional[tf.Tensor] = None,
-        ctx_stds: Optional[tf.Tensor] = None
-    ) -> tf.Tensor:
-        """Normalize a batch of images.
-
-        Args:
-            img (tf.Tensor): Image, RGB uint8 with dimensions BWHC.
-            ctx_means (tf.Tensor, optional): Context channel means (e.g. from
-                whole-slide image). If None, calculates means from the image.
-                Defaults to None.
-            ctx_stds (tf.Tensor, optional): Context channel standard deviations
-                (e.g. from whole-slide image). If None, calculates standard
-                deviations from the image. Defaults to None.
-
-        Returns:
-            tf.Tensor: Normalized image batch (uint8)
-        """
-        _ctx_means, _ctx_stds = self._get_context_means(ctx_means, ctx_stds)
-        return transform(
-            batch,
-            self.target_means,
-            self.target_stds,
-            _ctx_means,
-            _ctx_stds,
-            self.threshold,
-        )
-
 
 class ReinhardMaskNormalizer(ReinhardNormalizer):
 
@@ -595,33 +633,3 @@ class ReinhardMaskNormalizer(ReinhardNormalizer):
         """
         super().__init__()
         self.threshold = threshold
-
-    def _transform_batch(
-        self,
-        batch: tf.Tensor,
-        ctx_means: Optional[tf.Tensor] = None,
-        ctx_stds: Optional[tf.Tensor] = None
-    ) -> tf.Tensor:
-        """Normalize a batch of images.
-
-        Args:
-            img (tf.Tensor): Image, RGB uint8 with dimensions BWHC.
-            ctx_means (tf.Tensor, optional): Context channel means (e.g. from
-                whole-slide image). If None, calculates means from the image.
-                Defaults to None.
-            ctx_stds (tf.Tensor, optional): Context channel standard deviations
-                (e.g. from whole-slide image). If None, calculates standard
-                deviations from the image. Defaults to None.
-
-        Returns:
-            tf.Tensor: Normalized image batch (uint8)
-        """
-        _ctx_means, _ctx_stds = self._get_context_means(ctx_means, ctx_stds)
-        return transform(
-            batch,
-            self.target_means,
-            self.target_stds,
-            _ctx_means,
-            _ctx_stds,
-            self.threshold
-        )

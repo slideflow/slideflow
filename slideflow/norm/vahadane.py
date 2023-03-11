@@ -119,7 +119,7 @@ class VahadaneSklearnNormalizer:
         """
         self.threshold = threshold
         self.num_threads = num_threads
-        self.set_fit(**ut.fit_presets[self.preset_tag]['v1'])  # type: ignore
+        self.set_fit(**ut.fit_presets[self.preset_tag]['v2'])  # type: ignore
 
     def get_stain_matrix(self, image: np.ndarray) -> np.ndarray:
         return get_stain_matrix_sklearn(image, num_threads=self.num_threads)
@@ -179,7 +179,7 @@ class VahadaneSklearnNormalizer:
                              f"got {stain_matrix_target.shape}")
         self.stain_matrix_target = stain_matrix_target
 
-    def transform(self, I: np.ndarray) -> np.ndarray:
+    def transform(self, I: np.ndarray, *, augment: bool = False) -> np.ndarray:
         """Normalize an H&E image.
 
         Args:
@@ -188,6 +188,10 @@ class VahadaneSklearnNormalizer:
         Returns:
             np.ndarray: Normalized image.
         """
+        if augment:
+            raise NotImplementedError(
+                "Stain augmentation is not implemented for Vahadane normalization"
+            )
         if self.stain_matrix_target is None:
             raise ValueError("Normalizer has not been fit: call normalizer.fit()")
 
@@ -220,7 +224,7 @@ class VahadaneSpamsNormalizer(VahadaneSklearnNormalizer):
         This normalizer uses the SPAMS library for stain matrix extraction.
         """
         super().__init__(*args, **kwargs)
-        self.set_fit(**ut.fit_presets[self.preset_tag]['v1'])  # type: ignore
+        self.set_fit(**ut.fit_presets[self.preset_tag]['v2'])  # type: ignore
 
     def fit_preset(self, preset: str) -> Dict[str, np.ndarray]:
         """Fit normalizer to a preset in sf.norm.utils.fit_presets.

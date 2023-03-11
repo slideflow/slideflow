@@ -56,9 +56,12 @@ class ReinhardFastNormalizer:
         This normalizer contains inspiration from StainTools by Peter Byfield
         (https://github.com/Peter554/StainTools).
         """
-        self.set_fit(**ut.fit_presets[self.preset_tag]['v1'])  # type: ignore
+        self.set_fit(**ut.fit_presets[self.preset_tag]['v3'])  # type: ignore
+        self.set_augment(**ut.augment_presets[self.preset_tag]['v1'])  # type: ignore
+        self.threshold = None
         self._ctx_means = None
         self._ctx_stds = None
+        self._augment_params = dict()  # type: Dict[str, np.ndarray]
 
     def fit(self, img: np.ndarray, mask: bool = False) -> Tuple[np.ndarray, np.ndarray]:
         """Fit normalizer to a target image.
@@ -91,6 +94,20 @@ class ReinhardFastNormalizer:
         _fit = ut.fit_presets[self.preset_tag][preset]
         self.set_fit(**_fit)
         return _fit
+
+    def augment_preset(self, preset: str) -> Dict[str, np.ndarray]:
+        """Configure normalizer augmentation using a preset.
+
+        Args:
+            preset (str): Preset.
+
+        Returns:
+            Dict[str, np.ndarray]: Dictionary mapping fit keys to the
+                augmentation values (standard deviations).
+        """
+        _aug = ut.augment_presets[self.preset_tag][preset]
+        self.set_augment(**_aug)
+        return _aug
 
     def get_fit(self) -> Dict[str, np.ndarray]:
         """Get the current normalizer fit.
@@ -152,11 +169,35 @@ class ReinhardFastNormalizer:
         self.target_means = target_means
         self.target_stds = target_stds
 
+    def set_augment(
+        self,
+        means_stdev: Optional[np.ndarray] = None,
+        stds_stdev: Optional[np.ndarray] = None,
+    ) -> None:
+        """Set the normalizer augmentation to the given values.
+
+        Args:
+            means_stdev (np.ndarray, tf.Tensor): Standard deviation
+                of the stain matrix target. Must have the shape (3, 2).
+            concentrations_stdev (np.ndarray, tf.Tensor): Standard deviation
+                of the target concentrations. Must have the shape (2,).
+        """
+        if means_stdev is None and stds_stdev is None:
+            raise ValueError(
+                "One or both arguments 'means_stdev' and 'stds_stdev' are required."
+            )
+        if means_stdev is not None:
+            self._augment_params['means_stdev'] = ut._as_numpy(means_stdev).flatten()
+        if stds_stdev is not None:
+            self._augment_params['stds_stdev'] = ut._as_numpy(stds_stdev).flatten()
+
     def transform(
         self,
         I: np.ndarray,
         ctx_means: Optional[np.ndarray] = None,
         ctx_stds: Optional[np.ndarray] = None,
+        *,
+        augment: bool = False
     ) -> np.ndarray:
         """Normalize an H&E image.
 
@@ -169,15 +210,39 @@ class ReinhardFastNormalizer:
         if self.target_means is None or self.target_stds is None:
             raise ValueError("Normalizer has not been fit: call normalizer.fit()")
 
+        # Augmentation; optional
+        if augment and not any(m in self._augment_params
+                               for m in ('matrix_stdev', 'concentrations_stdev')):
+            raise ValueError("Augmentation space not configured.")
+        if augment and 'means_stdev' in self._augment_params:
+            target_means = np.random.normal(
+                self.target_means,
+                self._augment_params['means_stdev']
+            )
+        else:
+            target_means = self.target_means
+        if augment and 'stds_stdev' in self._augment_params:
+            target_stds = np.random.normal(
+                self.target_means,
+                self._augment_params['stds_stdev']
+            )
+        else:
+            target_stds = self.target_stds
+
         I1, I2, I3 = lab_split(I)
+        if self.threshold is not None:
+            mask = ((I3 + 128.) / 255. < self.threshold)[:, :, np.newaxis]
         means, stds = self._get_mean_std(I, ctx_means, ctx_stds)
 
-        norm1 = ((I1 - means[0]) * (self.target_stds[0] / stds[0])) + self.target_means[0]
-        norm2 = ((I2 - means[1]) * (self.target_stds[1] / stds[1])) + self.target_means[1]
-        norm3 = ((I3 - means[2]) * (self.target_stds[2] / stds[2])) + self.target_means[2]
+        norm1 = ((I1 - means[0]) * (target_stds[0] / stds[0])) + target_means[0]
+        norm2 = ((I2 - means[1]) * (target_stds[1] / stds[1])) + target_means[1]
+        norm3 = ((I3 - means[2]) * (target_stds[2] / stds[2])) + target_means[2]
 
         merged = merge_back(norm1, norm2, norm3)
-        return merged
+        if self.threshold is not None:
+            return np.where(mask, merged, I)
+        else:
+            return merged
 
     @contextmanager
     def image_context(self, I: np.ndarray):
@@ -209,7 +274,7 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
         (https://github.com/Peter554/StainTools).
         """
         super().__init__()
-        self.set_fit(**ut.fit_presets[self.preset_tag]['v1'])  # type: ignore
+        self.set_fit(**ut.fit_presets[self.preset_tag]['v3'])  # type: ignore
 
     def fit(self, target: np.ndarray, mask: bool = False) -> Tuple[np.ndarray, np.ndarray]:
         """Fit normalizer to a target image.
@@ -247,6 +312,8 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
         I: np.ndarray,
         ctx_means: Optional[np.ndarray] = None,
         ctx_stds: Optional[np.ndarray] = None,
+        *,
+        augment: bool = False
     ) -> np.ndarray:
         """Normalize an H&E image.
 
@@ -257,7 +324,7 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
             np.ndarray: Normalized image.
         """
         I = ut.standardize_brightness(I)
-        return super().transform(I, ctx_means, ctx_stds)
+        return super().transform(I, ctx_means, ctx_stds, augment=augment)
 
     def set_context(self, I: np.ndarray):
         I = ut.clip_size(I, 2048)
@@ -293,28 +360,6 @@ class ReinhardFastMaskNormalizer(ReinhardFastNormalizer):
         super().__init__()
         self.threshold = threshold
 
-    def transform(
-        self,
-        image: np.ndarray,
-        ctx_means: Optional[np.ndarray] = None,
-        ctx_stds: Optional[np.ndarray] = None,
-    ) -> np.ndarray:
-        """Normalize an H&E image.
-
-        Args:
-            img (np.ndarray): Image, RGB uint8 with dimensions W, H, C.
-
-        Returns:
-            np.ndarray: Normalized image.
-        """
-        I1, I2, I3 = lab_split(image)
-        mask = ((I3 + 128.) / 255. < self.threshold)[:, :, np.newaxis]
-        means, stds = self._get_mean_std(image, ctx_means, ctx_stds)
-        norm1 = ((I1 - means[0]) * (self.target_stds[0] / stds[0])) + self.target_means[0]
-        norm2 = ((I2 - means[1]) * (self.target_stds[1] / stds[1])) + self.target_means[1]
-        norm3 = ((I3 - means[2]) * (self.target_stds[2] / stds[2])) + self.target_means[2]
-        return np.where(mask, merge_back(norm1, norm2, norm3), image)
-
 
 class ReinhardMaskNormalizer(ReinhardNormalizer):
 
@@ -340,26 +385,3 @@ class ReinhardMaskNormalizer(ReinhardNormalizer):
         """
         super().__init__()
         self.threshold = threshold
-
-    def transform(
-        self,
-        image: np.ndarray,
-        ctx_means: Optional[np.ndarray] = None,
-        ctx_stds: Optional[np.ndarray] = None,
-    ) -> np.ndarray:
-        """Normalize an H&E image.
-
-        Args:
-            img (np.ndarray): Image, RGB uint8 with dimensions W, H, C.
-
-        Returns:
-            np.ndarray: Normalized image.
-        """
-        image = ut.standardize_brightness(image)
-        I1, I2, I3 = lab_split(image)
-        mask = ((I3 + 128.) / 255. < self.threshold)[:, :, np.newaxis]
-        means, stds = self._get_mean_std(image, ctx_means, ctx_stds)
-        norm1 = ((I1 - means[0]) * (self.target_stds[0] / stds[0])) + self.target_means[0]
-        norm2 = ((I2 - means[1]) * (self.target_stds[1] / stds[1])) + self.target_means[1]
-        norm3 = ((I3 - means[2]) * (self.target_stds[2] / stds[2])) + self.target_means[2]
-        return np.where(mask, merge_back(norm1, norm2, norm3), image)

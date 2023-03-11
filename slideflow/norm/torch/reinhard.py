@@ -107,11 +107,51 @@ def get_mean_std(
     stds = torch.stack([sd1, sd2, sd3])
     return means, stds
 
+# -----------------------------------------------------------------------------
+
+
+def augmented_transform(
+    I: torch.Tensor,
+    tgt_mean: torch.Tensor,
+    tgt_std: torch.Tensor,
+    means_stdev: Optional[torch.Tensor] = None,
+    stds_stdev: Optional[torch.Tensor] = None,
+    **kwargs
+) -> torch.Tensor:
+    """Transform an image using a given target means & stds, with augmentation.
+
+    Args:
+        img (torch.Tensor): Batch of uint8 images (B x W x H x C).
+        tgt_mean (torch.Tensor): Target channel means.
+        tgt_std (torch.Tensor): Target channel standard deviations.
+        means_stdev (torch.Tensor): Standard deviation of tgt_mean for
+            augmentation.
+        stds_stdev (torch.Tensor): Standard deviation of tgt_std for augmentation.
+        ctx_mean (torch.Tensor, optional): Context channel means (e.g. from
+            whole-slide image). If None, calculates means from the image.
+            Defaults to None.
+        ctx_std (torch.Tensor, optional): Context channel standard deviations
+            (e.g. from whole-slide image). If None, calculates standard
+            deviations from the image. Defaults to None.
+
+    Returns:
+        torch.Tensor:   Stain normalized image, with augmentation.
+
+    """
+    if means_stdev is None and stds_stdev is None:
+        raise ValueError("Must supply either means_stdev and/or stds_stdev")
+    if means_stdev is not None:
+        tgt_mean = torch.normal(tgt_mean, means_stdev)
+    if stds_stdev is not None:
+        tgt_std = torch.normal(tgt_std, stds_stdev)
+    return transform(I, tgt_mean, tgt_std, **kwargs)
+
 
 def transform(
     I: torch.Tensor,
     tgt_mean: torch.Tensor,
     tgt_std: torch.Tensor,
+    *,
     ctx_mean: Optional[torch.Tensor] = None,
     ctx_std: Optional[torch.Tensor] = None,
     mask_threshold: Optional[float] = None
@@ -217,10 +257,12 @@ class ReinhardFastNormalizer:
 
         This implementation does not include the brightness normalization step.
         """
-        self.set_fit(**ut.fit_presets[self.preset_tag]['v1'])  # type: ignore
+        self.set_fit(**ut.fit_presets[self.preset_tag]['v3'])  # type: ignore
+        self.set_augment(**ut.augment_presets[self.preset_tag]['v1'])  # type: ignore
+        self.threshold = None  # type: Optional[float]
         self._ctx_means = None  # type: Optional[torch.Tensor]
         self._ctx_stds = None  # type: Optional[torch.Tensor]
-        self.threshold = None  # type: Optional[float]
+        self._augment_params = dict()  # type: Dict[str, torch.Tensor]
 
     def fit(
         self,
@@ -250,6 +292,20 @@ class ReinhardFastNormalizer:
         self.target_means = means
         self.target_stds = stds
         return means, stds
+
+    def augment_preset(self, preset: str) -> Dict[str, np.ndarray]:
+        """Configure normalizer augmentation using a preset.
+
+        Args:
+            preset (str): Preset.
+
+        Returns:
+            Dict[str, np.ndarray]: Dictionary mapping fit keys to the
+                augmentation values (standard deviations).
+        """
+        _aug = ut.augment_presets[self.preset_tag][preset]
+        self.set_augment(**_aug)
+        return _aug
 
     def fit_preset(self, preset: str) -> Dict[str, np.ndarray]:
         """Fit normalizer to a preset in sf.norm.utils.fit_presets.
@@ -307,11 +363,35 @@ class ReinhardFastNormalizer:
         self.target_means = target_means
         self.target_stds = target_stds
 
+    def set_augment(
+        self,
+        means_stdev: Optional[Union[np.ndarray, torch.Tensor]] = None,
+        stds_stdev: Optional[Union[np.ndarray, torch.Tensor]] = None,
+    ) -> None:
+        """Set the normalizer augmentation to the given values.
+
+        Args:
+            means_stdev (np.ndarray, tf.Tensor): Standard deviation
+                of the stain matrix target. Must have the shape (3, 2).
+            concentrations_stdev (np.ndarray, tf.Tensor): Standard deviation
+                of the target concentrations. Must have the shape (2,).
+        """
+        if means_stdev is None and stds_stdev is None:
+            raise ValueError(
+                "One or both arguments 'means_stdev' and 'stds_stdev' are required."
+            )
+        if means_stdev is not None:
+            self._augment_params['means_stdev'] = torch.from_numpy(ut._as_numpy(means_stdev))
+        if stds_stdev is not None:
+            self._augment_params['stds_stdev'] = torch.from_numpy(ut._as_numpy(stds_stdev))
+
     def transform(
         self,
         I: torch.Tensor,
         ctx_means: Optional[torch.Tensor] = None,
         ctx_stds: Optional[torch.Tensor] = None,
+        *,
+        augment: bool = False
     ) -> torch.Tensor:
         """Normalize an H&E image.
 
@@ -321,25 +401,23 @@ class ReinhardFastNormalizer:
         Returns:
             torch.Tensor: Normalized image (uint8)
         """
+        _I = torch.unsqueeze(I, dim=0) if len(I.shape) == 3 else I
         _ctx_means, _ctx_stds = self._get_context_means(ctx_means, ctx_stds)
+        aug_kw = self._augment_params if augment else {}
+        fn = augmented_transform if augment else transform
+        transformed = fn(
+            _I,
+            self.target_means,
+            self.target_stds,
+            ctx_means=_ctx_means,
+            ctx_std=_ctx_stds,
+            mask_threshold=self.threshold,
+            **aug_kw
+        )
         if len(I.shape) == 3:
-            return transform(
-                torch.unsqueeze(I, dim=0),
-                self.target_means,
-                self.target_stds,
-                _ctx_means,
-                _ctx_stds,
-                mask_threshold=self.threshold
-            )[0]
+            return transformed[0]
         else:
-            return transform(
-                I,
-                self.target_means,
-                self.target_stds,
-                _ctx_means,
-                _ctx_stds,
-                mask_threshold=self.threshold
-            )
+            return transformed
 
     @contextmanager
     def image_context(self, I: Union[np.ndarray, torch.Tensor]):
@@ -399,7 +477,7 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
 
         """
         super().__init__()
-        self.set_fit(**ut.fit_presets[self.preset_tag]['v1'])  # type: ignore
+        self.set_fit(**ut.fit_presets[self.preset_tag]['v3'])  # type: ignore
 
     def fit(
         self,
@@ -450,6 +528,8 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
         I: torch.Tensor,
         ctx_means: Optional[torch.Tensor] = None,
         ctx_stds: Optional[torch.Tensor] = None,
+        *,
+        augment: bool = False
     ) -> torch.Tensor:
         """Normalize an H&E image.
 
@@ -459,25 +539,25 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
         Returns:
             torch.Tensor: Normalized image.
         """
+
+        _I = torch.unsqueeze(I, dim=0) if len(I.shape) == 3 else I
+        _I = standardize_brightness(_I)
         _ctx_means, _ctx_stds = self._get_context_means(ctx_means, ctx_stds)
+        aug_kw = self._augment_params if augment else {}
+        fn = augmented_transform if augment else transform
+        transformed = fn(
+            _I,
+            self.target_means,
+            self.target_stds,
+            ctx_means=_ctx_means,
+            ctx_std=_ctx_stds,
+            mask_threshold=self.threshold,
+            **aug_kw
+        )
         if len(I.shape) == 3:
-            return transform(
-                standardize_brightness(torch.unsqueeze(I, dim=0)),
-                self.target_means,
-                self.target_stds,
-                _ctx_means,
-                _ctx_stds,
-                mask_threshold=self.threshold
-            )[0]
+            return transformed[0]
         else:
-            return transform(
-                standardize_brightness(I),
-                self.target_means,
-                self.target_stds,
-                _ctx_means,
-                _ctx_stds,
-                mask_threshold=self.threshold
-            )
+            return transformed
 
     def set_context(self, I: Union[np.ndarray, torch.Tensor]):
         if not isinstance(I, torch.Tensor):

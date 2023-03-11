@@ -16,9 +16,9 @@ from typing import Union, List, Tuple
 # -----------------------------------------------------------------------------
 
 # Stain normalizer default fits.
-# v1 is the fit with target sf.norm.norm_tile.jpg (default)
+# v1 is the fit with target sf.norm.norm_tile.jpg (default in version <1.6)
 # v2 is a hand-tuned fit
-# v3 is fit using an average of ~50k tiles across ~450 slides from TCGA-HNSC
+# v3 is fit using an average of ~50k tiles across ~450 slides from TCGA (default for versions >=1.6)
 
 fit_presets = {
     'reinhard': {
@@ -78,6 +78,9 @@ fit_presets = {
                                                 [0.27688965, 0.8088818 , 0.5186929 ]])},
     }
 }
+
+# Stain normalizer default augmentation spaces.
+# v1 is derived from the standard deviation of fit values for ~50k tiles from ~450 slides in TCGA.
 
 augment_presets = {
     'reinhard': {

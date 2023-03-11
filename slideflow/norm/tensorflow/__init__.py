@@ -202,7 +202,7 @@ class TensorflowStainNormalizer(StainNormalizer):
         self,
         batch: Union[Dict, tf.Tensor],
         *args: Any,
-        augment: bool = False,
+        augment: bool = False
     ) -> Union[Dict, tf.Tensor, Tuple[Union[Dict, tf.Tensor], ...]]:
         """Normalize a Tensor image or batch of image Tensors.
 
@@ -225,7 +225,7 @@ class TensorflowStainNormalizer(StainNormalizer):
             else:
                 return detuple(self.n.transform(batch, augment=augment), args)
 
-    def tf_to_rgb(self, image: tf.Tensor) -> np.ndarray:
+    def tf_to_rgb(self, image: tf.Tensor, *, augment: bool = False) -> np.ndarray:
         """Normalize a tf.Tensor (uint8), returning a numpy array (uint8).
 
         Args:
@@ -234,9 +234,9 @@ class TensorflowStainNormalizer(StainNormalizer):
         Returns:
             np.ndarray: Normalized image, uint8, W x H x C.
         """
-        return self.tf_to_tf(image).numpy()
+        return self.tf_to_tf(image, augment=augment).numpy()
 
-    def rgb_to_rgb(self, image: np.ndarray) -> np.ndarray:
+    def rgb_to_rgb(self, image: np.ndarray, *, augment: bool = False) -> np.ndarray:
         """Normalize a numpy array (uint8), returning a numpy array (uint8).
 
         Args:
@@ -246,9 +246,14 @@ class TensorflowStainNormalizer(StainNormalizer):
             np.ndarray: Normalized image, uint8, W x H x C.
         """
         image = tf.convert_to_tensor(image)
-        return self.n.transform(image).numpy()
+        return self.n.transform(image, augment=augment).numpy()
 
-    def jpeg_to_rgb(self, jpeg_string: Union[str, bytes]) -> np.ndarray:
+    def jpeg_to_rgb(
+        self,
+        jpeg_string: Union[str, bytes],
+        *,
+        augment: bool = False
+    ) -> np.ndarray:
         """Normalize a JPEG image, returning a numpy uint8 array.
 
         Args:
@@ -257,9 +262,14 @@ class TensorflowStainNormalizer(StainNormalizer):
         Returns:
             np.ndarray: Normalized image, uint8, W x H x C.
         """
-        return self.tf_to_rgb(tf.image.decode_jpeg(jpeg_string))
+        return self.tf_to_rgb(tf.image.decode_jpeg(jpeg_string), augment=augment)
 
-    def png_to_rgb(self, png_string: Union[str, bytes]) -> np.ndarray:
+    def png_to_rgb(
+        self,
+        png_string: Union[str, bytes],
+        *,
+        augment: bool = False
+    ) -> np.ndarray:
         """Normalize a PNG image, returning a numpy uint8 array.
 
         Args:
@@ -268,12 +278,18 @@ class TensorflowStainNormalizer(StainNormalizer):
         Returns:
             np.ndarray: Normalized image, uint8, W x H x C.
         """
-        return self.tf_to_rgb(tf.image.decode_png(png_string, channels=3))
+        return self.tf_to_rgb(tf.image.decode_png(png_string, channels=3), augment=augment)
 
-    def preprocess(self, batch: tf.Tensor, standardize: bool = True, **kwargs) -> tf.Tensor:
+    def preprocess(
+        self,
+        batch: tf.Tensor,
+        *,
+        standardize: bool = True,
+        augment: bool = False
+    ) -> tf.Tensor:
         """Transform an image tensor (uint8) and preprocess (per image
         standarization)."""
-        batch = self.tf_to_tf(batch, **kwargs)
+        batch = self.tf_to_tf(batch, augment=augment)
         if standardize:
             batch = tf.image.per_image_standardization(batch)
         return batch

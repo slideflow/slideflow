@@ -42,9 +42,11 @@ class MacenkoNormalizer:
         self.alpha = alpha
         self.beta = beta
         self._ctx_maxC = None  # type: Optional[np.ndarray]
+        self._augment_params = dict()  # type: Dict[str, np.ndarray]
 
         # Default fit.
-        self.set_fit(**ut.fit_presets[self.preset_tag]['v1'])  # type: ignore
+        self.set_fit(**ut.fit_presets[self.preset_tag]['v3'])  # type: ignore
+        self.set_augment(**ut.augment_presets[self.preset_tag]['v1'])  # type: ignore
 
     def fit(self, img: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
         """Fit normalizer to a target image.
@@ -80,6 +82,20 @@ class MacenkoNormalizer:
         _fit = ut.fit_presets[self.preset_tag][preset]
         self.set_fit(**_fit)
         return _fit
+
+    def augment_preset(self, preset: str) -> Dict[str, np.ndarray]:
+        """Configure normalizer augmentation using a preset.
+
+        Args:
+            preset (str): Preset.
+
+        Returns:
+            Dict[str, np.ndarray]: Dictionary mapping fit keys to the
+                augmentation values (standard deviations).
+        """
+        _aug = ut.augment_presets[self.preset_tag][preset]
+        self.set_augment(**_aug)
+        return _aug
 
     def get_fit(self) -> Dict[str, np.ndarray]:
         """Get the current normalizer fit.
@@ -118,6 +134,28 @@ class MacenkoNormalizer:
 
         self.stain_matrix_target = stain_matrix_target
         self.target_concentrations = target_concentrations
+
+    def set_augment(
+        self,
+        matrix_stdev: Optional[np.ndarray] = None,
+        concentrations_stdev: Optional[np.ndarray] = None,
+    ) -> None:
+        """Set the normalizer augmentation to the given values.
+
+        Args:
+            matrix_stdev (np.ndarray, tf.Tensor): Standard deviation
+                of the stain matrix target. Must have the shape (3, 2).
+            concentrations_stdev (np.ndarray, tf.Tensor): Standard deviation
+                of the target concentrations. Must have the shape (2,).
+        """
+        if matrix_stdev is None and concentrations_stdev is None:
+            raise ValueError(
+                "One or both arguments 'matrix_stdev' and 'concentrations_stdev' are required."
+            )
+        if matrix_stdev is not None:
+            self._augment_params['matrix_stdev'] = ut._as_numpy(matrix_stdev)
+        if concentrations_stdev is not None:
+            self._augment_params['concentrations_stdev'] = ut._as_numpy(concentrations_stdev)
 
     def _matrix_and_concentrations(
         self,
@@ -217,7 +255,7 @@ class MacenkoNormalizer:
 
         return HE, maxC, C
 
-    def transform(self, img: np.ndarray) -> np.ndarray:
+    def transform(self, img: np.ndarray, *, augment: bool = False) -> np.ndarray:
         """Normalize an H&E image.
 
         Args:
@@ -228,8 +266,25 @@ class MacenkoNormalizer:
         """
 
         h, w, c = img.shape
-        HERef = self.stain_matrix_target
-        maxCRef = self.target_concentrations
+
+        # Augmentation; optional
+        if augment and not any(m in self._augment_params
+                               for m in ('matrix_stdev', 'concentrations_stdev')):
+            raise ValueError("Augmentation space not configured.")
+        if augment and 'matrix_stdev' in self._augment_params:
+            HERef = np.random.normal(
+                self.stain_matrix_target,
+                self._augment_params['matrix_stdev']
+            )
+        else:
+            HERef = self.stain_matrix_target
+        if augment and 'concentrations_stdev' in self._augment_params:
+            maxCRef = np.random.normal(
+                self.target_concentrations,
+                self._augment_params['concentrations_stdev']
+            )
+        else:
+            maxCRef = self.target_concentrations
 
         # Get stain matrix and concentrations from image.
         if self._ctx_maxC is not None:

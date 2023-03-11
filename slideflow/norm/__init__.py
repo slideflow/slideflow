@@ -32,6 +32,7 @@ import os
 import sys
 import multiprocessing as mp
 from io import BytesIO
+from functools import partial
 from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple, Union
 
 import cv2
@@ -300,9 +301,18 @@ class StainNormalizer:
         """
         self.n.set_fit(**{k:v for k, v in kwargs.items() if v is not None})
 
+    def set_augment(self, preset: Optional[str] = None, **kwargs) -> None:
+        """Set the normalizer augmentation space."""
+        if preset is not None:
+            return self.n.augment_preset(preset)
+        if kwargs:
+            self.n.set_augment(**{k:v for k, v in kwargs.items() if v is not None})
+
     def transform(
         self,
-        image: Union[str, bytes, np.ndarray, "tf.Tensor", "torch.Tensor"]
+        image: Union[str, bytes, np.ndarray, "tf.Tensor", "torch.Tensor"],
+        *,
+        augment: bool = False
     ) -> Union[str, bytes, np.ndarray, "tf.Tensor", "torch.Tensor"]:
         """Normalize a target image, attempting to preserve the original type.
 
@@ -318,20 +328,22 @@ class StainNormalizer:
         if 'tensorflow' in sys.modules:
             import tensorflow as tf
             if isinstance(image, tf.Tensor):
-                return self.tf_to_tf(image)
+                return self.tf_to_tf(image, augment=augment)
         if 'torch' in sys.modules:
             import torch
             if isinstance(image, torch.Tensor):
-                return self.torch_to_torch(image)
+                return self.torch_to_torch(image, augment=augment)
         if isinstance(image, np.ndarray):
-            return self.rgb_to_rgb(image)
+            return self.rgb_to_rgb(image, augment=augment)
         raise ValueError(f"Unrecognized image type {type(image)}; expected "
                          "np.ndarray, tf.Tensor, or torch.Tensor")
 
     def jpeg_to_jpeg(
         self,
         jpeg_string: Union[str, bytes],
-        quality: int = 100
+        *,
+        quality: int = 100,
+        augment: bool = False
     ) -> bytes:
         """Normalize a JPEG image, returning a JPEG image.
 
@@ -343,7 +355,7 @@ class StainNormalizer:
         Returns:
             bytes:  Normalized JPEG image.
         """
-        cv_image = self.jpeg_to_rgb(jpeg_string)
+        cv_image = self.jpeg_to_rgb(jpeg_string, augment=augment)
         with BytesIO() as output:
             Image.fromarray(cv_image).save(
                 output,
@@ -352,7 +364,12 @@ class StainNormalizer:
             )
             return output.getvalue()
 
-    def jpeg_to_rgb(self, jpeg_string: Union[str, bytes]) -> np.ndarray:
+    def jpeg_to_rgb(
+        self,
+        jpeg_string: Union[str, bytes],
+        *,
+        augment: bool = False
+    ) -> np.ndarray:
         """Normalize a JPEG image, returning a numpy uint8 array.
 
         Args:
@@ -366,9 +383,14 @@ class StainNormalizer:
             cv2.IMREAD_COLOR
         )
         cv_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB)
-        return self.rgb_to_rgb(cv_image)
+        return self.rgb_to_rgb(cv_image, augment=augment)
 
-    def png_to_png(self, png_string: Union[str, bytes]) -> bytes:
+    def png_to_png(
+        self,
+        png_string: Union[str, bytes],
+        *,
+        augment: bool = False
+    ) -> bytes:
         """Normalize a PNG image, returning a PNG image.
 
         Args:
@@ -377,12 +399,17 @@ class StainNormalizer:
         Returns:
             bytes: Normalized PNG image.
         """
-        cv_image = self.png_to_rgb(png_string)
+        cv_image = self.png_to_rgb(png_string, augment=augment)
         with BytesIO() as output:
             Image.fromarray(cv_image).save(output, format="PNG")
             return output.getvalue()
 
-    def png_to_rgb(self, png_string: Union[str, bytes]) -> np.ndarray:
+    def png_to_rgb(
+        self,
+        png_string: Union[str, bytes],
+        *,
+        augment: bool = False
+    ) -> np.ndarray:
         """Normalize a PNG image, returning a numpy uint8 array.
 
         Args:
@@ -391,9 +418,14 @@ class StainNormalizer:
         Returns:
             np.ndarray: Normalized image, uint8, W x H x C.
         """
-        return self.jpeg_to_rgb(png_string)  # It should auto-detect format
+        return self.jpeg_to_rgb(png_string, augment=augment)  # It should auto-detect format
 
-    def rgb_to_rgb(self, image: np.ndarray) -> np.ndarray:
+    def rgb_to_rgb(
+        self,
+        image: np.ndarray,
+        *,
+        augment: bool = False
+    ) -> np.ndarray:
         """Normalize a numpy array (uint8), returning a numpy array (uint8).
 
         Args:
@@ -402,9 +434,14 @@ class StainNormalizer:
         Returns:
             np.ndarray: Normalized image, uint8, W x H x C.
         """
-        return self.n.transform(image)
+        return self.n.transform(image, augment=augment)
 
-    def tf_to_rgb(self, image: "tf.Tensor") -> np.ndarray:
+    def tf_to_rgb(
+        self,
+        image: "tf.Tensor",
+        *,
+        augment: bool = False
+    ) -> np.ndarray:
         """Normalize a tf.Tensor (uint8), returning a numpy array (uint8).
 
         Args:
@@ -413,12 +450,13 @@ class StainNormalizer:
         Returns:
             np.ndarray: Normalized image, uint8, W x H x C.
         """
-        return self.rgb_to_rgb(np.array(image))
+        return self.rgb_to_rgb(np.array(image), augment=augment)
 
     def tf_to_tf(
         self,
         image: Union[Dict, "tf.Tensor"],
-        *args: Any
+        *args: Any,
+        augment: bool = False
     ) -> Tuple[Union[Dict, "tf.Tensor"], ...]:
         """Normalize a tf.Tensor (uint8), returning a numpy array (uint8).
 
@@ -436,20 +474,25 @@ class StainNormalizer:
 
         if isinstance(image, dict):
             image['tile_image'] = tf.py_function(
-                self.tf_to_rgb,
+                partial(self.tf_to_rgb, augment=augment),
                 [image['tile_image']],
                 tf.int32
             )
         elif len(image.shape) == 4:
-            image = tf.stack([self.tf_to_tf(_i) for _i in image])
+            image = tf.stack([self.tf_to_tf(_i, augment=augment) for _i in image])
         else:
-            image = tf.py_function(self.tf_to_rgb, [image], tf.int32)
+            image = tf.py_function(
+                partial(self.tf_to_rgb, augment=augment),
+                [image],
+                tf.int32
+            )
         return detuple(image, args)
 
     def torch_to_torch(
         self,
         image: Union[Dict, "torch.Tensor"],
-        *args
+        *args,
+        augment: bool = False
     ) -> Tuple[Union[Dict, "torch.Tensor"], ...]:
         """Normalize a torch.Tensor (uint8), returning a numpy array (uint8).
 
@@ -471,10 +514,13 @@ class StainNormalizer:
                 k: v for k, v in image.items()
                 if k != 'tile_image'
             }
-            to_return['tile_image'] = self._torch_transform(image['tile_image'])
+            to_return['tile_image'] = self._torch_transform(
+                image['tile_image'],
+                augment=augment
+            )
             return detuple(to_return, args)
         else:
-            return detuple(self._torch_transform(image), args)
+            return detuple(self._torch_transform(image, augment=augment), args)
 
     # --- Context management --------------------------------------------------
 
