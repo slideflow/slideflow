@@ -261,6 +261,7 @@ class StainNormalizer:
             ', '.join([f"{fit_key} = {fit_val}"
             for fit_key, fit_val in self.get_fit().items()])
         ))
+        return self
 
     def get_fit(self, as_list: bool = False):
         """Get the current normalizer fit.

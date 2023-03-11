@@ -193,6 +193,7 @@ class TensorflowStainNormalizer(StainNormalizer):
             ', '.join([f"{fit_key} = {fit_val}"
             for fit_key, fit_val in self.get_fit().items()])
         ))
+        return self
 
     @tf.function
     def tf_to_tf(

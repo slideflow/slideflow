@@ -1768,6 +1768,21 @@ class Dataset:
         else:
             return matching[0]
 
+    def get_tfrecord_by_location(
+        self,
+        slide: str,
+        loc: Tuple[int, int],
+        decode: bool = True
+    ) -> Any:
+        """Find the associated TFRecord for a slide, and return the record
+        inside which corresponds to a given tile location."""
+        tfr = self.find_tfrecord(slide=slide)
+        if tfr is None:
+            raise errors.TFRecordsError(
+                f"Could not find associated TFRecord for slide '{slide}'"
+            )
+        return sf.io.get_tfrecord_by_location(tfr, loc, decode=decode)
+
     def get_tfrecord_locations(self, slide: str) -> List[Tuple[int, int]]:
         '''Returns a list of locations stored in an associated TFRecord.'''
         tfr = self.find_tfrecord(slide=slide)

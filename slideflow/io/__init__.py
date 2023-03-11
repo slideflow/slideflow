@@ -3,6 +3,7 @@
 import copy
 import os
 import struct
+import numpy as np
 from multiprocessing.dummy import Pool as DPool
 from os.path import exists, isdir, isfile, join
 from random import shuffle
@@ -155,8 +156,8 @@ def get_tfrecord_by_location(
         location = tuple(location)
     if (not isinstance(location, tuple)
        or len(location) != 2
-       or not isinstance(location[0], int)
-       or not isinstance(location[1], int)):
+       or not isinstance(location[0], (int, np.integer))
+       or not isinstance(location[1], (int, np.integer))):
         raise IndexError(f"index must be a tuple of two ints. Got: {location}")
 
     dataset = TFRecordDataset(tfrecord)
