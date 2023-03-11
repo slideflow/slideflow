@@ -216,6 +216,7 @@ class ReinhardFastNormalizer:
 
     vectorized = True
     preferred_device = 'gpu'
+    preset_tag = 'reinhard_fast'
 
     def __init__(self) -> None:
         """Modified Reinhard H&E stain normalizer without brightness
@@ -237,7 +238,7 @@ class ReinhardFastNormalizer:
         self.transform_kw = {}  # type: Dict[str, Any]
         self._ctx_means = None  # type: Optional[tf.Tensor]
         self._ctx_stds = None  # type: Optional[tf.Tensor]
-        self.set_fit(**ut.fit_presets['reinhard_fast']['v1'])  # type: ignore
+        self.set_fit(**ut.fit_presets[self.preset_tag]['v1'])  # type: ignore
 
     def fit(
         self,
@@ -278,7 +279,7 @@ class ReinhardFastNormalizer:
             Dict[str, np.ndarray]: Dictionary mapping fit keys to their
             fitted values.
         """
-        _fit = ut.fit_presets['reinhard_fast'][preset]
+        _fit = ut.fit_presets[self.preset_tag][preset]
         self.set_fit(**_fit)
         return _fit
 
@@ -357,7 +358,8 @@ class ReinhardFastNormalizer:
         self,
         I: tf.Tensor,
         ctx_means: Optional[tf.Tensor] = None,
-        ctx_stds: Optional[tf.Tensor] = None
+        ctx_stds: Optional[tf.Tensor] = None,
+        augment: bool = False
     ) -> tf.Tensor:
         """Normalize an H&E image.
 
@@ -373,6 +375,8 @@ class ReinhardFastNormalizer:
         Returns:
             tf.Tensor: Normalized image (uint8)
         """
+        if augment:
+            raise NotImplementedError
         _ctx_means, _ctx_stds = self._get_context_means(ctx_means, ctx_stds)
         if len(I.shape) == 3:
             return self._transform_batch(
@@ -403,6 +407,8 @@ class ReinhardFastNormalizer:
 
 class ReinhardNormalizer(ReinhardFastNormalizer):
 
+    preset_tag = 'reinhard'
+
     def __init__(self) -> None:
         """Reinhard H&E stain normalizer (Tensorflow implementation).
 
@@ -413,7 +419,7 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
 
         """
         super().__init__()
-        self.set_fit(**ut.fit_presets['reinhard']['v1'])  # type: ignore
+        self.set_fit(**ut.fit_presets[self.preset_tag]['v1'])  # type: ignore
 
     def fit(
         self,
@@ -455,7 +461,7 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
             Dict[str, np.ndarray]: Dictionary mapping fit keys to their
                 fitted values.
         """
-        _fit = ut.fit_presets['reinhard'][preset]
+        _fit = ut.fit_presets[self.preset_tag][preset]
         self.set_fit(**_fit)
         return _fit
 
@@ -463,7 +469,8 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
         self,
         I: tf.Tensor,
         ctx_means: Optional[tf.Tensor] = None,
-        ctx_stds: Optional[tf.Tensor] = None
+        ctx_stds: Optional[tf.Tensor] = None,
+        augment: bool = False
     ) -> tf.Tensor:
         """Normalize an H&E image.
 
@@ -479,6 +486,8 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
         Returns:
             tf.Tensor: Normalized image (uint8)
         """
+        if augment:
+            raise NotImplementedError
         _ctx_means, _ctx_stds = self._get_context_means(ctx_means, ctx_stds)
         if len(I.shape) == 3:
             return self._transform_batch(
@@ -507,6 +516,8 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
 
 
 class ReinhardFastMaskNormalizer(ReinhardFastNormalizer):
+
+    preset_tag = 'reinhard_fast'
 
     def __init__(self, threshold: float = 0.93) -> None:
         """Modified Reinhard H&E stain normalizer only applied to
@@ -561,6 +572,8 @@ class ReinhardFastMaskNormalizer(ReinhardFastNormalizer):
 
 
 class ReinhardMaskNormalizer(ReinhardNormalizer):
+
+    preset_tag = 'reinhard'
 
     def __init__(self, threshold: float = 0.93) -> None:
         """Modified Reinhard H&E stain normalizer only applied to

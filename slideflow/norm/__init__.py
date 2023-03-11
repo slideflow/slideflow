@@ -243,7 +243,8 @@ class StainNormalizer:
             self.n.fit(arg1, **kwargs)
 
         # Fit to a preset
-        elif isinstance(arg1, str) and arg1 in ('v1', 'v2'):
+        elif (isinstance(arg1, str)
+              and arg1 in sf.norm.utils.fit_presets[self.n.preset_tag]):
             self.n.fit_preset(arg1, **kwargs)
 
         # Fit to a path to an image

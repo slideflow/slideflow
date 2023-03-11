@@ -40,6 +40,8 @@ def get_mean_std(I: np.ndarray, mask: bool = False) -> Tuple[np.ndarray, np.ndar
 
 class ReinhardFastNormalizer:
 
+    preset_tag = 'reinhard_fast'
+
     def __init__(self):
         """Modified Reinhard H&E stain normalizer without brightness
         standardization (numpy implementation).
@@ -54,7 +56,7 @@ class ReinhardFastNormalizer:
         This normalizer contains inspiration from StainTools by Peter Byfield
         (https://github.com/Peter554/StainTools).
         """
-        self.set_fit(**ut.fit_presets['reinhard_fast']['v1'])  # type: ignore
+        self.set_fit(**ut.fit_presets[self.preset_tag]['v1'])  # type: ignore
         self._ctx_means = None
         self._ctx_stds = None
 
@@ -86,7 +88,7 @@ class ReinhardFastNormalizer:
             Dict[str, np.ndarray]: Dictionary mapping fit keys to their
             fitted values.
         """
-        _fit = ut.fit_presets['reinhard_fast'][preset]
+        _fit = ut.fit_presets[self.preset_tag][preset]
         self.set_fit(**_fit)
         return _fit
 
@@ -193,6 +195,8 @@ class ReinhardFastNormalizer:
 
 class ReinhardNormalizer(ReinhardFastNormalizer):
 
+    preset_tag = 'reinhard'
+
     def __init__(self) -> None:
         """Reinhard H&E stain normalizer (numpy implementation).
 
@@ -205,7 +209,7 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
         (https://github.com/Peter554/StainTools).
         """
         super().__init__()
-        self.set_fit(**ut.fit_presets['reinhard']['v1'])  # type: ignore
+        self.set_fit(**ut.fit_presets[self.preset_tag]['v1'])  # type: ignore
 
     def fit(self, target: np.ndarray, mask: bool = False) -> Tuple[np.ndarray, np.ndarray]:
         """Fit normalizer to a target image.
@@ -234,7 +238,7 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
             Dict[str, np.ndarray]: Dictionary mapping fit keys to their
             fitted values.
         """
-        _fit = ut.fit_presets['reinhard'][preset]
+        _fit = ut.fit_presets[self.preset_tag][preset]
         self.set_fit(**_fit)
         return _fit
 
@@ -265,6 +269,8 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
 
 
 class ReinhardFastMaskNormalizer(ReinhardFastNormalizer):
+
+    preset_tag = 'reinhard_fast'
 
     def __init__(self, threshold: float = 0.93) -> None:
         """Modified Reinhard H&E stain normalizer only applied to
@@ -311,6 +317,8 @@ class ReinhardFastMaskNormalizer(ReinhardFastNormalizer):
 
 
 class ReinhardMaskNormalizer(ReinhardNormalizer):
+
+    preset_tag = 'reinhard'
 
     def __init__(self, threshold: float = 0.93) -> None:
         """Modified Reinhard H&E stain normalizer only applied to

@@ -132,6 +132,35 @@ def matrix_and_concentrations(
 
 
 @tf.function
+def augmented_transform(
+    img: tf.Tensor,
+    stain_matrix_target: tf.Tensor,
+    target_concentrations: tf.Tensor,
+    matrix_stdev: tf.Tensor,
+    concentrations_stdev: tf.Tensor,
+    **kwargs
+) -> tf.Tensor:
+    """Normalize an image.
+
+    Args:
+        img (tf.Tensor): Image to transform.
+        stain_matrix_target (tf.Tensor): Target stain matrix.
+        target_concentrations (tf.Tensor): Target concentrations.
+        Io (int, optional). Light transmission. Defaults to 255.
+        alpha (float): Percentile of angular coordinates to be selected
+            with respect to orthogonal eigenvectors. Defaults to 1.
+        beta (float): Luminosity threshold. Pixels with luminance above
+            this threshold will be ignored. Defaults to 0.15.
+
+    Returns:
+        tf.Tensor: Transformed image.
+    """
+    stain_matrix_target = tf.random.normal([3, 2], mean=stain_matrix_target, stddev=matrix_stdev)
+    target_concentrations = tf.random.normal([2], mean=target_concentrations, stddev=concentrations_stdev)
+    return transform(img, stain_matrix_target, target_concentrations, **kwargs)
+
+
+@tf.function
 def transform(
     img: tf.Tensor,
     stain_matrix_target: tf.Tensor,
@@ -140,7 +169,7 @@ def transform(
     alpha: float = 1,
     beta: float = 0.15,
     ctx_maxC: Optional[tf.Tensor] = None,
-    standardize: bool = True
+    standardize: bool = True,
 ) -> tf.Tensor:
     """Normalize an image.
 
@@ -221,6 +250,7 @@ class MacenkoNormalizer:
 
     vectorized = False
     preferred_device = 'cpu'
+    preset_tag = 'macenko'
 
     def __init__(
         self,
@@ -251,18 +281,33 @@ class MacenkoNormalizer:
         self.beta = beta
         self._ctx_maxC = None  # type: Optional[tf.Tensor]
 
-        self.set_fit(**ut.fit_presets['macenko']['v1'])  # type: ignore
+        self.set_fit(**ut.fit_presets[self.preset_tag]['v1'])  # type: ignore
+        self.set_augment(**ut.augment_presets[self.preset_tag]['v1'])  # type: ignore
 
     def _fit(self, target: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor]:
         return fit(target, self.Io, self.alpha, self.beta)
 
-    def _transform(self, I: tf.Tensor) -> tf.Tensor:
-        return transform(
-            I,
-            self.stain_matrix_target,
-            self.target_concentrations,
-            ctx_maxC=self._ctx_maxC,
-        )
+    def _transform(
+        self,
+        I: tf.Tensor,
+        *,
+        augment: bool = False
+    ) -> tf.Tensor:
+        if augment:
+            return augmented_transform(
+                I,
+                self.stain_matrix_target,
+                self.target_concentrations,
+                ctx_maxC=self._ctx_maxC,
+                **self.augment_params
+            )
+        else:
+            return transform(
+                I,
+                self.stain_matrix_target,
+                self.target_concentrations,
+                ctx_maxC=self._ctx_maxC,
+            )
 
     def fit(self, target: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor]:
         """Fit normalizer to a target image.
@@ -300,9 +345,23 @@ class MacenkoNormalizer:
             Dict[str, np.ndarray]: Dictionary mapping fit keys to their
             fitted values.
         """
-        _fit = ut.fit_presets['macenko'][preset]
+        _fit = ut.fit_presets[self.preset_tag][preset]
         self.set_fit(**_fit)
         return _fit
+
+    def augment_preset(self, preset: str) -> Dict[str, np.ndarray]:
+        """Configure normalizer augmentation using a preset.
+
+        Args:
+            preset (str): Preset.
+
+        Returns:
+            Dict[str, np.ndarray]: Dictionary mapping fit keys to the
+                augmentation values (standard deviations).
+        """
+        _aug = ut.augment_presets[self.preset_tag][preset]
+        self.set_augment(**_aug)
+        return _aug
 
     def get_fit(self) -> Dict[str, Optional[np.ndarray]]:
         """Get the current normalizer fit.
@@ -336,7 +395,25 @@ class MacenkoNormalizer:
         self.stain_matrix_target = stain_matrix_target
         self.target_concentrations = target_concentrations
 
-    def transform(self, I: tf.Tensor) -> tf.Tensor:
+    def set_augment(
+        self,
+        matrix_stdev: Union[np.ndarray, tf.Tensor],
+        concentrations_stdev: Union[np.ndarray, tf.Tensor],
+    ) -> None:
+        """Set the normalizer augmentation to the given values.
+
+        Args:
+            matrix_stdev (np.ndarray, tf.Tensor): Standard devaiation
+                of the stain matrix target. Must have the shape (3, 2).
+            concentrations_stdev (np.ndarray, tf.Tensor): Standard deviation
+                of the target concentrations. Must have the shape (2,).
+        """
+        self.augment_params = dict(
+            matrix_stdev=tf.convert_to_tensor(ut._as_numpy(matrix_stdev)),
+            concentrations_stdev=tf.convert_to_tensor(ut._as_numpy(concentrations_stdev))
+        )
+
+    def transform(self, I: tf.Tensor, **kwargs) -> tf.Tensor:
         """Normalize an H&E image.
 
         Args:
@@ -348,7 +425,7 @@ class MacenkoNormalizer:
         if len(I.shape) == 4:
             return tf.map_fn(self.transform, I)
         elif len(I.shape) == 3:
-            return self._transform(I)
+            return self._transform(I, **kwargs)
         else:
             raise ValueError(
                 f"Invalid shape for transform(): expected 3 or 4, got {I.shape}"
@@ -376,17 +453,28 @@ class MacenkoFastNormalizer(MacenkoNormalizer):
 
     """Macenko H&E stain normalizer, with brightness standardization disabled."""
 
+    preset_tag = 'macenko_fast'
+
     def _fit(self, target: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor]:
         return fit(
             target, self.Io, self.alpha, self.beta,
             standardize=False
         )
 
-    def _transform(self, I: tf.Tensor) -> tf.Tensor:
+    def _transform(
+        self,
+        I: tf.Tensor,
+        *,
+        stain_matrix_target: Optional[tf.Tensor] = None,
+        target_concentrations: Optional[tf.Tensor] = None,
+        augment: bool = False
+    ) -> tf.Tensor:
+        if augment:
+            raise NotImplementedError
         return transform(
             I,
-            self.stain_matrix_target,
-            self.target_concentrations,
+            self.stain_matrix_target if stain_matrix_target is None else stain_matrix_target,
+            self.target_concentrations if target_concentrations is None else target_concentrations,
             ctx_maxC=self._ctx_maxC,
             standardize=False
         )

@@ -32,6 +32,7 @@ class MacenkoNormalizer:
 
     vectorized = False
     preferred_device = 'cpu'
+    preset_tag = 'macenko'
 
     def __init__(
         self,
@@ -60,7 +61,7 @@ class MacenkoNormalizer:
         self.alpha = alpha
         self.beta = beta
         self._ctx_maxC = None  # type: Optional[torch.Tensor]
-        self.set_fit(**ut.fit_presets['macenko']['v1'])  # type: ignore
+        self.set_fit(**ut.fit_presets[self.preset_tag]['v1'])  # type: ignore
 
     def fit(self, target: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """Fit normalizer to a target image.
@@ -97,7 +98,7 @@ class MacenkoNormalizer:
             Dict[str, np.ndarray]: Dictionary mapping fit keys to their
             fitted values.
         """
-        _fit = ut.fit_presets['macenko'][preset]
+        _fit = ut.fit_presets[self.preset_tag][preset]
         self.set_fit(**_fit)
         return _fit
 
@@ -285,6 +286,8 @@ class MacenkoNormalizer:
 class MacenkoFastNormalizer(MacenkoNormalizer):
 
     """Macenko H&E stain normalizer, with brightness standardization disabled."""
+
+    preset_tag = 'macenko_fast'
 
     def _matrix_and_concentrations(
         self,

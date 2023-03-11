@@ -3,6 +3,7 @@ from typing import Dict, Optional, Tuple, Union
 import torch
 import numpy as np
 import torchvision
+import slideflow as sf
 from rich.progress import Progress
 
 from slideflow.dataset import Dataset
@@ -140,7 +141,8 @@ class TorchStainNormalizer(StainNormalizer):
             self.n.fit(torch.from_numpy(arg1))
 
         # Fit to a preset
-        elif isinstance(arg1, str) and arg1 in ('v1', 'v2'):
+        elif (isinstance(arg1, str)
+              and arg1 in sf.norm.utils.fit_presets[self.n.preset_tag]):
             self.n.fit_preset(arg1)
 
         elif isinstance(arg1, str):

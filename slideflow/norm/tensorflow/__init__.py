@@ -1,6 +1,7 @@
 from typing import Any, Dict, Optional, Tuple, Union
 
 import numpy as np
+import slideflow as sf
 from slideflow import errors
 from slideflow.dataset import Dataset
 from slideflow.norm import StainNormalizer
@@ -176,7 +177,8 @@ class TensorflowStainNormalizer(StainNormalizer):
             self.n.fit(tf.convert_to_tensor(arg1))
 
         # Fit to a preset
-        elif isinstance(arg1, str) and arg1 in ('v1', 'v2'):
+        elif (isinstance(arg1, str)
+              and arg1 in sf.norm.utils.fit_presets[self.n.preset_tag]):
             self.n.fit_preset(arg1)
 
         elif isinstance(arg1, str):
@@ -199,7 +201,8 @@ class TensorflowStainNormalizer(StainNormalizer):
     def tf_to_tf(
         self,
         batch: Union[Dict, tf.Tensor],
-        *args: Any
+        *args: Any,
+        augment: bool = False,
     ) -> Union[Dict, tf.Tensor, Tuple[Union[Dict, tf.Tensor], ...]]:
         """Normalize a Tensor image or batch of image Tensors.
 
@@ -217,10 +220,10 @@ class TensorflowStainNormalizer(StainNormalizer):
                     k: v for k, v in batch.items()
                     if k != 'tile_image'
                 }
-                to_return['tile_image'] = self.n.transform(batch['tile_image'])
+                to_return['tile_image'] = self.n.transform(batch['tile_image'], augment=augment)
                 return detuple(to_return, args)
             else:
-                return detuple(self.n.transform(batch), args)
+                return detuple(self.n.transform(batch, augment=augment), args)
 
     def tf_to_rgb(self, image: tf.Tensor) -> np.ndarray:
         """Normalize a tf.Tensor (uint8), returning a numpy array (uint8).
@@ -267,10 +270,10 @@ class TensorflowStainNormalizer(StainNormalizer):
         """
         return self.tf_to_rgb(tf.image.decode_png(png_string, channels=3))
 
-    def preprocess(self, batch: tf.Tensor, standardize: bool = True) -> tf.Tensor:
+    def preprocess(self, batch: tf.Tensor, standardize: bool = True, **kwargs) -> tf.Tensor:
         """Transform an image tensor (uint8) and preprocess (per image
         standarization)."""
-        batch = self.tf_to_tf(batch)
+        batch = self.tf_to_tf(batch, **kwargs)
         if standardize:
             batch = tf.image.per_image_standardization(batch)
         return batch

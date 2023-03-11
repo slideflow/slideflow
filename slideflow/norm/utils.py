@@ -18,19 +18,24 @@ from typing import Union, List, Tuple
 # Stain normalizer default fits.
 # v1 is the fit with target sf.norm.norm_tile.jpg (default)
 # v2 is a hand-tuned fit
+# v3 is fit using an average of ~50k tiles across ~450 slides from TCGA-HNSC
 
 fit_presets = {
     'reinhard': {
         'v1': {'target_means': np.array([ 72.272896,  22.99831 , -13.860236]),
                'target_stds': np.array([15.594496,  9.642087,  9.290526])},
         'v2': {'target_means': np.array([72.909996, 20.8268, -4.9465137]),
-               'target_stds': np.array([18.560713, 14.889295,  5.6756697])}
+               'target_stds': np.array([18.560713, 14.889295,  5.6756697])},
+        'v3': {'target_means': np.array([65.22132,  28.934267, -14.142519]),
+               'target_stds': np.array([15.800227,  9.263783,  6.0213304])}
     },
     'reinhard_fast': {
         'v1': {'target_means': np.array([63.71194 ,  20.716246, -12.290746]),
                'target_stds': np.array([14.52781 ,  8.344005,  8.300264])},
         'v2': {'target_means': np.array([69.20197, 19.82498, -4.690998]),
                'target_stds': np.array([17.71583, 14.156416,  5.4176064])},
+        'v3': {'target_means': np.array([58.12343,  26.483482, -12.701005]),
+               'target_stds': np.array([14.675022,  7.5744166,  5.226378])},
     },
     'macenko': {
         'v1': {'stain_matrix_target': np.array([[0.63111544, 0.24816133],
@@ -41,6 +46,24 @@ fit_presets = {
                                                 [0.7201, 0.8012],
                                                 [0.4062, 0.5581]]),
                'target_concentrations': np.array([1.9705, 1.0308])},
+        'v3': {'stain_matrix_target': np.array([[0.5062568, 0.2218694],
+                                                [0.75322306, 0.8652155],
+                                                [0.40691733, 0.42241502]]),
+               'target_concentrations': np.array([1.7656903, 1.2797493])},
+    },
+    'macenko_fast': {
+        'v1': {'stain_matrix_target': np.array([[0.6148019 , 0.21480364],
+                                                [0.7010872 , 0.82317936],
+                                                [0.36124164, 0.5255809 ]]),
+               'target_concentrations': np.array([1.8029537, 0.9606744])},
+        'v2': {'stain_matrix_target': np.array([[0.5626, 0.2159],
+                                                [0.7201, 0.8012],
+                                                [0.4062, 0.5581]]),
+               'target_concentrations': np.array([1.9705, 1.0308])},
+        'v3': {'stain_matrix_target': np.array([[0.52000326, 0.2623537 ],
+                                                [0.73508584, 0.83495414],
+                                                [0.4249617 , 0.4630997 ]]),
+               'target_concentrations': np.array([2.0259454, 1.4088874])},
     },
     'vahadane_sklearn': {
         'v1': {'stain_matrix_target': np.array([[0.9840825 , 0.17771211, 0.        ],
@@ -53,6 +76,27 @@ fit_presets = {
                                                 [0.17089975, 0.8640189 , 0.4735658 ]])},
         'v2': {'stain_matrix_target': np.array([[0.4435433 , 0.7502863 , 0.4902447 ],
                                                 [0.27688965, 0.8088818 , 0.5186929 ]])},
+    }
+}
+
+augment_presets = {
+    'reinhard': {
+
+    },
+    'reinhard_fast': {
+
+    },
+    'macenko': {
+        'v1': {'matrix_stdev': np.array([[0.00893346, 0.01153686],
+                                         [0.00659814, 0.00722771],
+                                         [0.00726339, 0.01352414]]) * 5,
+               'matrix_stdev': np.array([0.06665898, 0.06770515]) * 5}
+    },
+    'macenko_fast': {
+        'v1': {'matrix_stdev': np.array([[0.00794701, 0.01137106],
+                                         [0.00559027, 0.00642623],
+                                         [0.00609103, 0.01144302]]) * 5,
+               'concentrations_stdev': np.array([0.06623945, 0.08137263] * 5)}
     }
 }
 
