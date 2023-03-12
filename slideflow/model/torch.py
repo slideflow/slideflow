@@ -1274,7 +1274,11 @@ class Trainer:
 
                 # GPU normalization, if specified.
                 if self._has_gpu_normalizer():
-                    images = self.normalizer.preprocess(images)
+                    images = self.normalizer.preprocess(
+                        images,
+                        augment=(isinstance(self.hp.augment, str)
+                                 and 'n' in self.hp.augment)
+                    )
 
                 # Slide-level features
                 if self.num_slide_features:

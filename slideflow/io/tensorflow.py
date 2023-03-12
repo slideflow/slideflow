@@ -602,7 +602,8 @@ def interleave(
             else:
                 log.debug("Using per-image normalization")
             dataset = dataset.map(
-                partial(normalizer.tf_to_tf, augment=(isinstance(augment, str) and 'n' in augment)),
+                partial(normalizer.tf_to_tf, augment=(isinstance(augment, str)
+                                                      and 'n' in augment)),
                 num_parallel_calls=tf.data.AUTOTUNE,
                 deterministic=deterministic,
             )
