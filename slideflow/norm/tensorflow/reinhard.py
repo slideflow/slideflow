@@ -7,12 +7,11 @@ E. Reinhard, M. Adhikhmin, B. Gooch, and P. Shirley, ‘Color transfer between i
 from __future__ import division
 
 import numpy as np
+import tensorflow as tf
 from typing import Tuple, Dict, Union, Optional, Any
 from packaging import version
 from contextlib import contextmanager
 
-import tensorflow as tf
-import tensorflow_probability as tfp
 from slideflow.norm.tensorflow import color
 from slideflow.norm import utils as ut
 from slideflow.util import log
@@ -67,6 +66,21 @@ def merge_back(
 
 @tf.function
 def get_masked_mean_std(I: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor]:
+    """Get mean and standard deviation of each channel, with white pixels masked.
+
+    Args:
+        I1 (tf.Tensor): First channel (float32).
+        I2 (tf.Tensor): Second channel (float32).
+        I3 (tf.Tensor): Third channel (float32).
+        reduce (bool): Reduce batch to mean across images in the batch.
+
+    Returns:
+        A tuple containing
+
+            tf.Tensor:     Channel means, shape = (3,)
+
+            tf.Tensor:     Channel standard deviations, shape = (3,)
+    """
     ones = tf.math.reduce_all(I == 255, axis=len(I.shape)-1)
     I1, I2, I3 = lab_split(I)
     I1, I2, I3 = I1[~ ones], I2[~ ones], I3[~ ones]
@@ -136,6 +150,8 @@ def augmented_transform(
         means_stdev (tf.Tensor): Standard deviation of tgt_mean for
             augmentation.
         stds_stdev (tf.Tensor): Standard deviation of tgt_std for augmentation.
+
+    Keyword args:
         ctx_mean (torch.Tensor, optional): Context channel means (e.g. from
             whole-slide image). If None, calculates means from the image.
             Defaults to None.
@@ -171,6 +187,8 @@ def transform(
         I (tf.Tensor): Image to transform
         tgt_mean (tf.Tensor): Target means.
         tgt_std (tf.Tensor): Target means.
+
+    Keyword args:
         ctx_mean (torch.Tensor, optional): Context channel means (e.g. from
             whole-slide image). If None, calculates means from the image.
             Defaults to None.
@@ -293,8 +311,10 @@ class ReinhardFastNormalizer:
         Args:
             img (tf.Tensor): Target image (RGB uint8) with dimensions
                 W, H, c.
-            reduce (bool, optional): Reduce fit parameters across a batch of
+            reduce (bool): Reduce fit parameters across a batch of
                 images by average. Defaults to False.
+            mask (bool): Ignore white pixels (255, 255, 255) when fitting.
+                Defulats to False.
 
         Returns:
             A tuple containing
@@ -424,6 +444,10 @@ class ReinhardFastNormalizer:
                 (e.g. from whole-slide image). If None, calculates standard
                 deviations from the image. Defaults to None.
 
+        Keyword args:
+            augment (bool): Transform using stain augmentation.
+                Defaults to False.
+
         Returns:
             tf.Tensor: Normalized image batch (uint8)
         """
@@ -459,6 +483,9 @@ class ReinhardFastNormalizer:
                 (e.g. from whole-slide image). If None, calculates standard
                 deviations from the image. Defaults to None.
 
+        Keyword args:
+            augment (bool): Transform using stain augmentation.
+
         Returns:
             tf.Tensor: Normalized image (uint8)
         """
@@ -475,11 +502,51 @@ class ReinhardFastNormalizer:
 
     @contextmanager
     def image_context(self, I: Union[np.ndarray, tf.Tensor]):
+        """Set the whole-slide context for the stain normalizer.
+
+        With contextual normalization, max concentrations are determined
+        from the context (whole-slide image) rather than the image being
+        normalized. This may improve stain normalization for sections of
+        a slide that are predominantly eosin (e.g. necrosis or low cellularity).
+
+        When calculating max concentrations from the image context,
+        white pixels (255) will be masked.
+
+        This function is a context manager used for temporarily setting the
+        image context. For example:
+
+        .. code-block:: python
+
+            with normalizer.image_context(slide):
+                normalizer.transform(target)
+
+        Args:
+            I (np.ndarray, tf.Tensor): Context to use for normalization, e.g.
+                a whole-slide image thumbnail, optionally masked with masked
+                areas set to (255, 255, 255).
+
+        """
         self.set_context(I)
         yield
         self.clear_context()
 
     def set_context(self, I: Union[np.ndarray, tf.Tensor]):
+        """Set the whole-slide context for the stain normalizer.
+
+        With contextual normalization, max concentrations are determined
+        from the context (whole-slide image) rather than the image being
+        normalized. This may improve stain normalization for sections of
+        a slide that are predominantly eosin (e.g. necrosis or low cellularity).
+
+        When calculating max concentrations from the image context,
+        white pixels (255) will be masked.
+
+        Args:
+            I (np.ndarray, tf.Tensor): Context to use for normalization, e.g.
+                a whole-slide image thumbnail, optionally masked with masked
+                areas set to (255, 255, 255).
+
+        """
         if not isinstance(I, tf.Tensor):
             I = tf.convert_to_tensor(ut._as_numpy(I))
         if len(I.shape) == 3:
@@ -488,6 +555,7 @@ class ReinhardFastNormalizer:
         self._ctx_means, self._ctx_stds = get_masked_mean_std(I)
 
     def clear_context(self):
+        """Remove any previously set stain normalizer context."""
         self._ctx_means, self._ctx_stds = None, None
 
 
@@ -517,6 +585,9 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
                 W, H, c.
             reduce (bool, optional): Reduce fit parameters across a batch of
                 images by average. Defaults to False.
+            mask (bool): Mask out white pixels during fit. This will reduce
+                the means/stdevs across batches, and will only lead to desirable
+                results if a single image is provided.
 
         Returns:
             A tuple containing
@@ -553,6 +624,10 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
                 (e.g. from whole-slide image). If None, calculates standard
                 deviations from the image. Defaults to None.
 
+        Keyword args:
+            augment (bool): Transform using stain augmentation.
+                Defaults to False.
+
         Returns:
             tf.Tensor: Normalized image (uint8)
         """
@@ -573,6 +648,22 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
             )
 
     def set_context(self, I: tf.Tensor):
+        """Set the whole-slide context for the stain normalizer.
+
+        With contextual normalization, max concentrations are determined
+        from the context (whole-slide image) rather than the image being
+        normalized. This may improve stain normalization for sections of
+        a slide that are predominantly eosin (e.g. necrosis or low cellularity).
+
+        When calculating max concentrations from the image context,
+        white pixels (255) will be masked.
+
+        Args:
+            I (np.ndarray, tf.Tensor): Context to use for normalization, e.g.
+                a whole-slide image thumbnail, optionally masked with masked
+                areas set to (255, 255, 255).
+
+        """
         if not isinstance(I, tf.Tensor):
             I = tf.convert_to_tensor(ut._as_numpy(I))
         if len(I.shape) == 3:
@@ -582,6 +673,7 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
         super().set_context(I)
 
     def clear_context(self):
+        """Remove any previously set stain normalizer context."""
         super().clear_context()
 
 

@@ -68,6 +68,8 @@ class ReinhardFastNormalizer:
 
         Args:
             img (np.ndarray): Target image (RGB uint8) with dimensions W, H, C.
+            mask (bool): Ignore white pixels (255, 255, 255) when fitting.
+                Defulats to False.
 
         Returns:
             A tuple containing
@@ -205,6 +207,16 @@ class ReinhardFastNormalizer:
 
         Args:
             img (np.ndarray): Image, RGB uint8 with dimensions W, H, C.
+            ctx_means (np.ndarray, optional): Context channel means (e.g. from
+                whole-slide image). If None, calculates means from the image.
+                Defaults to None.
+            ctx_stds (np.ndarray, optional): Context channel standard deviations
+                (e.g. from whole-slide image). If None, calculates standard
+                deviations from the image. Defaults to None.
+
+        Keyword args:
+            augment (bool): Transform using stain augmentation.
+                Defaults to False.
 
         Returns:
             np.ndarray: Normalized image.
@@ -248,15 +260,56 @@ class ReinhardFastNormalizer:
 
     @contextmanager
     def image_context(self, I: np.ndarray):
+        """Set the whole-slide context for the stain normalizer.
+
+        With contextual normalization, max concentrations are determined
+        from the context (whole-slide image) rather than the image being
+        normalized. This may improve stain normalization for sections of
+        a slide that are predominantly eosin (e.g. necrosis or low cellularity).
+
+        When calculating max concentrations from the image context,
+        white pixels (255) will be masked.
+
+        This function is a context manager used for temporarily setting the
+        image context. For example:
+
+        .. code-block:: python
+
+            with normalizer.image_context(slide):
+                normalizer.transform(target)
+
+        Args:
+            I (np.ndarray): Context to use for normalization, e.g.
+                a whole-slide image thumbnail, optionally masked with masked
+                areas set to (255, 255, 255).
+
+        """
         self.set_context(I)
         yield
         self.clear_context()
 
     def set_context(self, I: np.ndarray):
+        """Set the whole-slide context for the stain normalizer.
+
+        With contextual normalization, max concentrations are determined
+        from the context (whole-slide image) rather than the image being
+        normalized. This may improve stain normalization for sections of
+        a slide that are predominantly eosin (e.g. necrosis or low cellularity).
+
+        When calculating max concentrations from the image context,
+        white pixels (255) will be masked.
+
+        Args:
+            I (np.ndarray): Context to use for normalization, e.g.
+                a whole-slide image thumbnail, optionally masked with masked
+                areas set to (255, 255, 255).
+
+        """
         I = ut.clip_size(I, 2048)
         self._ctx_means, self._ctx_stds = get_mean_std(I, mask=True)
 
     def clear_context(self):
+        """Remove any previously set stain normalizer context."""
         self._ctx_means, self._ctx_stds = None, None
 
 
@@ -283,6 +336,8 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
 
         Args:
             img (np.ndarray): Target image (RGB uint8) with dimensions W, H, C.
+            mask (bool): Ignore white pixels (255, 255, 255) when fitting.
+                Defulats to False.
 
         Returns:
             A tuple containing
@@ -321,6 +376,16 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
 
         Args:
             img (np.ndarray): Image, RGB uint8 with dimensions W, H, C.
+            ctx_means (np.ndarray, optional): Context channel means (e.g. from
+                whole-slide image). If None, calculates means from the image.
+                Defaults to None.
+            ctx_stds (np.ndarray, optional): Context channel standard deviations
+                (e.g. from whole-slide image). If None, calculates standard
+                deviations from the image. Defaults to None.
+
+        Keyword args:
+            augment (bool): Transform using stain augmentation.
+                Defaults to False.
 
         Returns:
             np.ndarray: Normalized image.
@@ -329,11 +394,28 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
         return super().transform(I, ctx_means, ctx_stds, augment=augment)
 
     def set_context(self, I: np.ndarray):
+        """Set the whole-slide context for the stain normalizer.
+
+        With contextual normalization, max concentrations are determined
+        from the context (whole-slide image) rather than the image being
+        normalized. This may improve stain normalization for sections of
+        a slide that are predominantly eosin (e.g. necrosis or low cellularity).
+
+        When calculating max concentrations from the image context,
+        white pixels (255) will be masked.
+
+        Args:
+            I (np.ndarray): Context to use for normalization, e.g.
+                a whole-slide image thumbnail, optionally masked with masked
+                areas set to (255, 255, 255).
+
+        """
         I = ut.clip_size(I, 2048)
         I = ut.standardize_brightness(I, mask=True)
         super().set_context(I)
 
     def clear_context(self):
+        """Remove any previously set stain normalizer context."""
         super().clear_context()
 
 

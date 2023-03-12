@@ -62,6 +62,18 @@ def merge_back(
 
 
 def get_masked_mean_std(I: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    """Get mean and standard deviation of each channel, with white pixels masked.
+
+    Args:
+        I1 (torch.Tensor): First channel (uint8).
+        I2 (torch.Tensor): Second channel (uint8).
+        I3 (torch.Tensor): Third channel (uint8).
+        reduce (bool): Reduce batch to mean across images in the batch.
+
+    Returns:
+        torch.Tensor:     Channel means, shape = (3,)
+        torch.Tensor:     Channel standard deviations, shape = (3,)
+    """
     ones = torch.all(I == 255, dim=3)
     I1, I2, I3 = lab_split(I)
     I1, I2, I3 = I1[~ones], I2[~ones], I3[~ones]
@@ -127,6 +139,8 @@ def augmented_transform(
         means_stdev (torch.Tensor): Standard deviation of tgt_mean for
             augmentation.
         stds_stdev (torch.Tensor): Standard deviation of tgt_std for augmentation.
+
+    Keyword args:
         ctx_mean (torch.Tensor, optional): Context channel means (e.g. from
             whole-slide image). If None, calculates means from the image.
             Defaults to None.
@@ -162,6 +176,8 @@ def transform(
         img (torch.Tensor): Batch of uint8 images (B x W x H x C).
         tgt_mean (torch.Tensor): Target channel means.
         tgt_std (torch.Tensor): Target channel standard deviations.
+
+    Keyword args:
         ctx_mean (torch.Tensor, optional): Context channel means (e.g. from
             whole-slide image). If None, calculates means from the image.
             Defaults to None.
@@ -226,6 +242,8 @@ def fit(
         reduce (bool, optional): Reduce the fit means/stds across the batch
             of images to a single mean/std array, reduced by average.
             Defaults to False (provides fit for each image in the batch).
+        mask (bool): Ignore white pixels (255, 255, 255) when fitting.
+                Defulats to False.
 
     Returns:
         A tuple containing
@@ -277,6 +295,8 @@ class ReinhardFastNormalizer:
                 W, H, C.
             reduce (bool, optional): Reduce fit parameters across a batch of
                 images by average. Defaults to False.
+            mask (bool): Ignore white pixels (255, 255, 255) when fitting.
+                Defulats to False.
 
         Returns:
             A tuple containing
@@ -399,6 +419,16 @@ class ReinhardFastNormalizer:
 
         Args:
             img (torch.Tensor): Image, RGB uint8 with dimensions W, H, C.
+            ctx_means (tf.Tensor, optional): Context channel means (e.g. from
+                whole-slide image). If None, calculates means from the image.
+                Defaults to None.
+            ctx_stds (tf.Tensor, optional): Context channel standard deviations
+                (e.g. from whole-slide image). If None, calculates standard
+                deviations from the image. Defaults to None.
+
+        Keyword args:
+            augment (bool): Transform using stain augmentation.
+                Defaults to False.
 
         Returns:
             torch.Tensor: Normalized image (uint8)
@@ -411,7 +441,7 @@ class ReinhardFastNormalizer:
             _I,
             self.target_means,
             self.target_stds,
-            ctx_means=_ctx_means,
+            ctx_mean=_ctx_means,
             ctx_std=_ctx_stds,
             mask_threshold=self.threshold,
             **aug_kw
@@ -423,11 +453,51 @@ class ReinhardFastNormalizer:
 
     @contextmanager
     def image_context(self, I: Union[np.ndarray, torch.Tensor]):
+        """Set the whole-slide context for the stain normalizer.
+
+        With contextual normalization, max concentrations are determined
+        from the context (whole-slide image) rather than the image being
+        normalized. This may improve stain normalization for sections of
+        a slide that are predominantly eosin (e.g. necrosis or low cellularity).
+
+        When calculating max concentrations from the image context,
+        white pixels (255) will be masked.
+
+        This function is a context manager used for temporarily setting the
+        image context. For example:
+
+        .. code-block:: python
+
+            with normalizer.image_context(slide):
+                normalizer.transform(target)
+
+        Args:
+            I (np.ndarray, torch.Tensor): Context to use for normalization, e.g.
+                a whole-slide image thumbnail, optionally masked with masked
+                areas set to (255, 255, 255).
+
+        """
         self.set_context(I)
         yield
         self.clear_context()
 
     def set_context(self, I: Union[np.ndarray, torch.Tensor]):
+        """Set the whole-slide context for the stain normalizer.
+
+        With contextual normalization, max concentrations are determined
+        from the context (whole-slide image) rather than the image being
+        normalized. This may improve stain normalization for sections of
+        a slide that are predominantly eosin (e.g. necrosis or low cellularity).
+
+        When calculating max concentrations from the image context,
+        white pixels (255) will be masked.
+
+        Args:
+            I (np.ndarray, torch.Tensor): Context to use for normalization, e.g.
+                a whole-slide image thumbnail, optionally masked with masked
+                areas set to (255, 255, 255).
+
+        """
         if not isinstance(I, torch.Tensor):
             I = torch.from_numpy(ut._as_numpy(I))
         if len(I.shape) == 3:
@@ -436,6 +506,7 @@ class ReinhardFastNormalizer:
         self._ctx_means, self._ctx_stds = get_masked_mean_std(I)
 
     def clear_context(self):
+        """Remove any previously set stain normalizer context."""
         self._ctx_means, self._ctx_stds = None, None
 
 
@@ -494,6 +565,8 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
                 W, H, C.
             reduce (bool, optional): Reduce fit parameters across a batch of
                 images by average. Defaults to False.
+            mask (bool): Ignore white pixels (255, 255, 255) when fitting.
+                Defulats to False.
 
         Returns:
             A tuple containing
@@ -537,6 +610,16 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
 
         Args:
             img (torch.Tensor): Image, uint8 with dimensions W, H, C.
+            ctx_means (tf.Tensor, optional): Context channel means (e.g. from
+                whole-slide image). If None, calculates means from the image.
+                Defaults to None.
+            ctx_stds (tf.Tensor, optional): Context channel standard deviations
+                (e.g. from whole-slide image). If None, calculates standard
+                deviations from the image. Defaults to None.
+
+        Keyword args:
+            augment (bool): Transform using stain augmentation.
+                Defaults to False.
 
         Returns:
             torch.Tensor: Normalized image.
@@ -551,7 +634,7 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
             _I,
             self.target_means,
             self.target_stds,
-            ctx_means=_ctx_means,
+            ctx_mean=_ctx_means,
             ctx_std=_ctx_stds,
             mask_threshold=self.threshold,
             **aug_kw
@@ -562,6 +645,22 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
             return transformed
 
     def set_context(self, I: Union[np.ndarray, torch.Tensor]):
+        """Set the whole-slide context for the stain normalizer.
+
+        With contextual normalization, max concentrations are determined
+        from the context (whole-slide image) rather than the image being
+        normalized. This may improve stain normalization for sections of
+        a slide that are predominantly eosin (e.g. necrosis or low cellularity).
+
+        When calculating max concentrations from the image context,
+        white pixels (255) will be masked.
+
+        Args:
+            I (np.ndarray, torch.Tensor): Context to use for normalization, e.g.
+                a whole-slide image thumbnail, optionally masked with masked
+                areas set to (255, 255, 255).
+
+        """
         if not isinstance(I, torch.Tensor):
             I = torch.from_numpy(ut._as_numpy(I))
         if len(I.shape) == 3:
@@ -571,6 +670,7 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
         super().set_context(I)
 
     def clear_context(self):
+        """Remove any previously set stain normalizer context."""
         super().clear_context()
 
 class ReinhardMaskNormalizer(ReinhardNormalizer):

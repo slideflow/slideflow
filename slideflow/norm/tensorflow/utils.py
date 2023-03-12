@@ -5,6 +5,7 @@ from typing import Optional
 # -----------------------------------------------------------------------------
 
 def clip_size(I: tf.Tensor, max_size: int = 2048) -> tf.Tensor:
+    """Crop an image to a maximum height/width."""
     if len(I.shape) == 3:
         w, h = I.shape[0], I.shape[1]
     else:
@@ -22,6 +23,7 @@ def clip_size(I: tf.Tensor, max_size: int = 2048) -> tf.Tensor:
 
 @tf.function
 def brightness_percentile(I: tf.Tensor) -> tf.Tensor:
+    """Calculate the brightness percentile for an image."""
     p = tfp.stats.percentile(I, 90)  # p = np.percentile(I, 90)
     return tf.cast(p, tf.float32)
 

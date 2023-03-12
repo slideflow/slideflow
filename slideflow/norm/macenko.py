@@ -169,6 +169,10 @@ class MacenkoNormalizer:
 
         Args:
             img (np.ndarray): Image (RGB uint8) with dimensions W, H, C.
+            mask (bool): Mask white pixels (255) during calculation.
+                Defaults to False.
+            standardize (bool): Perform brightness standardization.
+                Defaults to True.
 
         Returns:
             A tuple containing
@@ -238,6 +242,10 @@ class MacenkoNormalizer:
 
         Args:
             img (np.ndarray): Image (RGB uint8) with dimensions W, H, C.
+            mask (bool): Mask white pixels (255) during calculation.
+                Defaults to False.
+            standardize (bool): Perform brightness standardization.
+                Defaults to True.
 
         Returns:
             A tuple containing
@@ -262,6 +270,10 @@ class MacenkoNormalizer:
 
         Args:
             img (np.ndarray): Image, RGB uint8 with dimensions W, H, C.
+
+        Keyword args:
+            augment (bool): Perform random stain augmentation.
+                Defaults to False.
 
         Returns:
             np.ndarray: Normalized image.
@@ -307,16 +319,57 @@ class MacenkoNormalizer:
 
     @contextmanager
     def image_context(self, I: np.ndarray):
+        """Set the whole-slide context for the stain normalizer.
+
+        With contextual normalization, max concentrations are determined
+        from the context (whole-slide image) rather than the image being
+        normalized. This may improve stain normalization for sections of
+        a slide that are predominantly eosin (e.g. necrosis or low cellularity).
+
+        When calculating max concentrations from the image context,
+        white pixels (255) will be masked.
+
+        This function is a context manager used for temporarily setting the
+        image context. For example:
+
+        .. code-block:: python
+
+            with normalizer.image_context(slide):
+                normalizer.transform(target)
+
+        Args:
+            I (np.ndarray): Context to use for normalization, e.g.
+                a whole-slide image thumbnail, optionally masked with masked
+                areas set to (255, 255, 255).
+
+        """
         self.set_context(I)
         yield
         self.clear_context()
 
     def set_context(self, I: np.ndarray):
+        """Set the whole-slide context for the stain normalizer.
+
+        With contextual normalization, max concentrations are determined
+        from the context (whole-slide image) rather than the image being
+        normalized. This may improve stain normalization for sections of
+        a slide that are predominantly eosin (e.g. necrosis or low cellularity).
+
+        When calculating max concentrations from the image context,
+        white pixels (255) will be masked.
+
+        Args:
+            I (np.ndarray): Context to use for normalization, e.g.
+                a whole-slide image thumbnail, optionally masked with masked
+                areas set to (255, 255, 255).
+
+        """
         I = ut.clip_size(I, 2048)
         HE, maxC, C = self.matrix_and_concentrations(I, mask=True)
         self._ctx_maxC = maxC
 
     def clear_context(self):
+        """Remove any previously set stain normalizer context."""
         self._ctx_maxC = None
 
 

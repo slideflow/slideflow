@@ -27,6 +27,7 @@ def dot(a: torch.Tensor, b: torch.Tensor):
 def T(a: torch.Tensor):
     return a.permute(*torch.arange(a.ndim - 1, -1, -1))
 
+# -----------------------------------------------------------------------------
 
 class MacenkoNormalizer:
 
@@ -49,6 +50,7 @@ class MacenkoNormalizer:
         Symposium on Biomedical Imaging: From Nano to Macro. IEEE, 2009.
 
         Args:
+            Io (int). Light transmission. Defaults to 255.
             alpha (float): Percentile of angular coordinates to be selected
                 with respect to orthogonal eigenvectors. Defaults to 1.
             beta (float): Luminosity threshold. Pixels with luminance above
@@ -71,8 +73,6 @@ class MacenkoNormalizer:
         Args:
             img (torch.Tensor): Target image (RGB uint8) with dimensions
                 W, H, C.
-            reduce (bool, optional): Reduce fit parameters across a batch of
-                images by average. Defaults to False.
 
         Returns:
             A tuple containing
@@ -184,6 +184,10 @@ class MacenkoNormalizer:
 
         Args:
             img (torch.Tensor): Image (RGB uint8) with dimensions W, H, C.
+            mask (bool): Mask white pixels (255) during calculation.
+                Defaults to False.
+            standardize (bool): Perform brightness standardization.
+                Defaults to True.
 
         Returns:
             A tuple containing
@@ -201,7 +205,7 @@ class MacenkoNormalizer:
             img = standardize_brightness(img, mask=mask)
 
         # Calculate optical density.
-        OD = -torch.log((img.to(torch.float32) + 1) / 255)
+        OD = -torch.log((img.to(torch.float32) + 1) / self.Io)
 
         # Remove transparent pixles.
         if mask:
@@ -250,6 +254,8 @@ class MacenkoNormalizer:
 
         Args:
             img (torch.Tensor): Image (RGB uint8) with dimensions W, H, C.
+            mask (bool): Mask white pixels (255) during calculation.
+                Defaults to False.
 
         Returns:
             A tuple containing
@@ -272,6 +278,10 @@ class MacenkoNormalizer:
 
         Args:
             img (torch.Tensor): Image, RGB uint8 with dimensions W, H, C.
+
+        Keyword args:
+            augment (bool): Perform random stain augmentation.
+                Defaults to False.
 
         Returns:
             torch.Tensor: Normalized image (uint8)
@@ -319,7 +329,7 @@ class MacenkoNormalizer:
         C2 = torch.divide(C, tmp[:, None])
 
         # Recreate the image using reference mixing matrix.
-        Inorm = 255 * torch.exp(-HERef.matmul(C2))
+        Inorm = self.Io * torch.exp(-HERef.matmul(C2))
         Inorm = torch.clip(Inorm, 0, 255)
         Inorm = torch.reshape(Inorm.T, (h, w, 3)).to(torch.uint8)
 
@@ -327,11 +337,51 @@ class MacenkoNormalizer:
 
     @contextmanager
     def image_context(self, I: Union[np.ndarray, torch.Tensor]):
+        """Set the whole-slide context for the stain normalizer.
+
+        With contextual normalization, max concentrations are determined
+        from the context (whole-slide image) rather than the image being
+        normalized. This may improve stain normalization for sections of
+        a slide that are predominantly eosin (e.g. necrosis or low cellularity).
+
+        When calculating max concentrations from the image context,
+        white pixels (255) will be masked.
+
+        This function is a context manager used for temporarily setting the
+        image context. For example:
+
+        .. code-block:: python
+
+            with normalizer.image_context(slide):
+                normalizer.transform(target)
+
+        Args:
+            I (np.ndarray, torch.Tensor): Context to use for normalization, e.g.
+                a whole-slide image thumbnail, optionally masked with masked
+                areas set to (255, 255, 255).
+
+        """
         self.set_context(I)
         yield
         self.clear_context()
 
     def set_context(self, I: Union[np.ndarray, torch.Tensor]):
+        """Set the whole-slide context for the stain normalizer.
+
+        With contextual normalization, max concentrations are determined
+        from the context (whole-slide image) rather than the image being
+        normalized. This may improve stain normalization for sections of
+        a slide that are predominantly eosin (e.g. necrosis or low cellularity).
+
+        When calculating max concentrations from the image context,
+        white pixels (255) will be masked.
+
+        Args:
+            I (np.ndarray, torch.Tensor): Context to use for normalization, e.g.
+                a whole-slide image thumbnail, optionally masked with masked
+                areas set to (255, 255, 255).
+
+        """
         if not isinstance(I, torch.Tensor):
             I = torch.from_numpy(ut._as_numpy(I))
         I = clip_size(I, 2048)
@@ -339,6 +389,7 @@ class MacenkoNormalizer:
         self._ctx_maxC = maxC
 
     def clear_context(self):
+        """Remove any previously set stain normalizer context."""
         self._ctx_maxC = None
 
 

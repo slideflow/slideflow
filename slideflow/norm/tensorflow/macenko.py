@@ -1,10 +1,9 @@
 import numpy as np
 import tensorflow as tf
+import tensorflow_probability as tfp
+from tensorflow.experimental.numpy import dot
 from typing import Tuple, Dict, Optional, Union
 from contextlib import contextmanager
-
-from tensorflow.experimental.numpy import dot
-import tensorflow_probability as tfp
 
 from slideflow.norm import utils as ut
 from .utils import clip_size, standardize_brightness
@@ -199,7 +198,7 @@ def transform(
         target_concentrations (tf.Tensor): Target concentrations.
 
     Keyword args:
-        Io (int, optional). Light transmission. Defaults to 255.
+        Io (int). Light transmission. Defaults to 255.
         alpha (float): Percentile of angular coordinates to be selected
             with respect to orthogonal eigenvectors. Defaults to 1.
         beta (float): Luminosity threshold. Pixels with luminance above
@@ -468,11 +467,51 @@ class MacenkoNormalizer:
 
     @contextmanager
     def image_context(self, I: Union[np.ndarray, tf.Tensor]):
+        """Set the whole-slide context for the stain normalizer.
+
+        With contextual normalization, max concentrations are determined
+        from the context (whole-slide image) rather than the image being
+        normalized. This may improve stain normalization for sections of
+        a slide that are predominantly eosin (e.g. necrosis or low cellularity).
+
+        When calculating max concentrations from the image context,
+        white pixels (255) will be masked.
+
+        This function is a context manager used for temporarily setting the
+        image context. For example:
+
+        .. code-block:: python
+
+            with normalizer.image_context(slide):
+                normalizer.transform(target)
+
+        Args:
+            I (np.ndarray, tf.Tensor): Context to use for normalization, e.g.
+                a whole-slide image thumbnail, optionally masked with masked
+                areas set to (255, 255, 255).
+
+        """
         self.set_context(I)
         yield
         self.clear_context()
 
     def set_context(self, I: Union[np.ndarray, tf.Tensor]):
+        """Set the whole-slide context for the stain normalizer.
+
+        With contextual normalization, max concentrations are determined
+        from the context (whole-slide image) rather than the image being
+        normalized. This may improve stain normalization for sections of
+        a slide that are predominantly eosin (e.g. necrosis or low cellularity).
+
+        When calculating max concentrations from the image context,
+        white pixels (255) will be masked.
+
+        Args:
+            I (np.ndarray, tf.Tensor): Context to use for normalization, e.g.
+                a whole-slide image thumbnail, optionally masked with masked
+                areas set to (255, 255, 255).
+
+        """
         if not isinstance(I, tf.Tensor):
             I = tf.convert_to_tensor(ut._as_numpy(I))
 
@@ -481,12 +520,13 @@ class MacenkoNormalizer:
         self._ctx_maxC = maxC
 
     def clear_context(self):
+        """Remove any previously set stain normalizer context."""
         self._ctx_maxC = None
 
 
 class MacenkoFastNormalizer(MacenkoNormalizer):
 
-    """Macenko H&E stain normalizer, with brightness standardization disabled."""
+    """Macenko H&E stain normalizer, without brightness standardization."""
 
     preset_tag = 'macenko_fast'
 
@@ -515,6 +555,22 @@ class MacenkoFastNormalizer(MacenkoNormalizer):
         )
 
     def set_context(self, I: Union[np.ndarray, tf.Tensor]):
+        """Set the whole-slide context for the stain normalizer.
+
+        With contextual normalization, max concentrations are determined
+        from the context (whole-slide image) rather than the image being
+        normalized. This may improve stain normalization for sections of
+        a slide that are predominantly eosin (e.g. necrosis or low cellularity).
+
+        When calculating max concentrations from the image context,
+        white pixels (255) will be masked.
+
+        Args:
+            I (np.ndarray, tf.Tensor): Context to use for normalization, e.g.
+                a whole-slide image thumbnail, optionally masked with masked
+                areas set to (255, 255, 255).
+
+        """
         if not isinstance(I, tf.Tensor):
             I = tf.convert_to_tensor(ut._as_numpy(I))
         I = clip_size(I, 2048)

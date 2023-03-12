@@ -210,6 +210,10 @@ class TensorflowStainNormalizer(StainNormalizer):
             batch (Union[Dict, tf.Tensor]): Dict of tensors with image batches
                 (via key "tile_image") or a batch of images.
 
+        Keyword args:
+            augment (bool): Transform using stain aumentation.
+                Defaults to False.
+
         Returns:
             Tuple[Union[Dict, tf.Tensor], ...]: Normalized images in the same
             format as the input.
@@ -231,6 +235,10 @@ class TensorflowStainNormalizer(StainNormalizer):
         Args:
             image (tf.Tensor): Image (uint8).
 
+        Keyword args:
+            augment (bool): Transform using stain aumentation.
+                Defaults to False.
+
         Returns:
             np.ndarray: Normalized image, uint8, W x H x C.
         """
@@ -241,6 +249,10 @@ class TensorflowStainNormalizer(StainNormalizer):
 
         Args:
             image (np.ndarray): Image (uint8).
+
+        Keyword args:
+            augment (bool): Transform using stain aumentation.
+                Defaults to False.
 
         Returns:
             np.ndarray: Normalized image, uint8, W x H x C.
@@ -259,6 +271,10 @@ class TensorflowStainNormalizer(StainNormalizer):
         Args:
             jpeg_string (str, bytes): JPEG image data.
 
+        Keyword args:
+            augment (bool): Transform using stain aumentation.
+                Defaults to False.
+
         Returns:
             np.ndarray: Normalized image, uint8, W x H x C.
         """
@@ -275,6 +291,10 @@ class TensorflowStainNormalizer(StainNormalizer):
         Args:
             png_string (str, bytes): PNG image data.
 
+        Keyword args:
+            augment (bool): Transform using stain aumentation.
+                Defaults to False.
+
         Returns:
             np.ndarray: Normalized image, uint8, W x H x C.
         """
@@ -288,7 +308,18 @@ class TensorflowStainNormalizer(StainNormalizer):
         augment: bool = False
     ) -> tf.Tensor:
         """Transform an image tensor (uint8) and preprocess (per image
-        standarization)."""
+        standarization).
+
+        Args:
+            standardize (bool): Standardize the image after normalization
+                using ``tf.image.per_image_standardization()``.
+                Defaults to True.
+            augment (bool): Transform using stain aumentation.
+                Defaults to False.
+
+        Returns:
+            tf.Tensor: Normalized image.
+        """
         batch = self.tf_to_tf(batch, augment=augment)
         if standardize:
             batch = tf.image.per_image_standardization(batch)

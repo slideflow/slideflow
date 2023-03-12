@@ -71,6 +71,11 @@ class TorchStainNormalizer(StainNormalizer):
 
     @property
     def device(self) -> Union[str, torch.device]:
+        """Device (e.g. cpu, gpu) on which normalization should be performed.
+
+        Returns:
+            str: Device that will be used.
+        """
         if self._device is None:
             return self.n.preferred_device
         else:
@@ -208,6 +213,10 @@ class TorchStainNormalizer(StainNormalizer):
             args (Any, optional): Any additional arguments, which will be passed
                 and returned unmodified.
 
+        Keyword args:
+            augment (bool): Transform using stain aumentation.
+                Defaults to False.
+
         Returns:
             A tuple containing
 
@@ -231,6 +240,10 @@ class TorchStainNormalizer(StainNormalizer):
         Args:
             image (np.ndarray): Image (uint8), W x H x C.
 
+        Keyword args:
+            augment (bool): Transform using stain aumentation.
+                Defaults to False.
+
         Returns:
             np.ndarray: Normalized image, uint8, W x H x C.
         """
@@ -243,7 +256,17 @@ class TorchStainNormalizer(StainNormalizer):
         standardize: bool = True,
         augment: bool = False
     ) -> torch.Tensor:
-        """Transform an image tensor (uint8) and preprocess (127.5 - 1)."""
+        """Transform an image tensor (uint8) and preprocess (img / 127.5 - 1).
+
+        Args:
+            standardize (bool): Standardize the image after normalization
+                using ``(img / 127.5) - 1``. Defaults to True.
+            augment (bool): Transform using stain aumentation.
+                Defaults to False.
+
+        Returns:
+            torch.Tensor: Normalized image.
+        """
         orig_is_cwh = is_cwh(batch)
         if orig_is_cwh:
             batch = cwh_to_whc(batch)

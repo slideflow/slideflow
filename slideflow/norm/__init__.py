@@ -1,5 +1,5 @@
-"""This module provides H&E stain normalization tools, with numpy, PyTorch,
-and Tensorflow implementations for several stain normalization methods.
+"""This module provides H&E stain normalization and augmentation tools,
+with separate Numpy/OpenCV, PyTorch, and Tensorflow implementations.
 
 Overview
 --------
@@ -14,13 +14,10 @@ In addition to these numpy implementations, PyTorch-native and Tensorflow-native
 implementations are also provided, which offer performance improvements
 and/or vectorized application. The native normalizers are found in
 ``slideflow.norm.tensorflow`` and ``slideflow.norm.torch``, respectively.
-Tensorflow-native normalizer methods include Macenko, Reinhard, and
-Reinhard-fast. Torch-native normalizer methods include Reinhard and
-Reinhard-fast.
 
 The Vahadane normalizer has two numpy implementations available: SPAMS
-(``vahadane_spams``) and sklearn (``vahadane_sklearn``). As of version 1.2.3,
-the sklearn implementation will be used if unspecified (``method='vahadane'``).
+(``vahadane_spams``) and sklearn (``vahadane_sklearn``). By default,
+the SPAMS implementation will be used if unspecified (``method='vahadane'``).
 
 Use :func:`slideflow.norm.autoselect` to get the fastest available normalizer
 for a given method and active backend (Tensorflow/PyTorch).
@@ -342,6 +339,10 @@ class StainNormalizer:
         Args:
             image (np.ndarray, tf.Tensor, or torch.Tensor): Image.
 
+        Keyword args:
+            augment (bool): Transform using stain aumentation.
+                Defaults to False.
+
         Returns:
             Normalized image of the original type.
         """
@@ -372,6 +373,10 @@ class StainNormalizer:
 
         Args:
             jpeg_string (str, bytes): JPEG image data.
+
+        Keyword args:
+            augment (bool): Transform using stain aumentation.
+                Defaults to False.
             quality (int, optional): Quality level for creating the resulting
                 normalized JPEG image. Defaults to 100.
 
@@ -398,6 +403,10 @@ class StainNormalizer:
         Args:
             jpeg_string (str, bytes): JPEG image data.
 
+        Keyword args:
+            augment (bool): Transform using stain aumentation.
+                Defaults to False.
+
         Returns:
             np.ndarray: Normalized image, uint8, W x H x C.
         """
@@ -419,6 +428,10 @@ class StainNormalizer:
         Args:
             png_string (str, bytes): PNG image data.
 
+        Keyword args:
+            augment (bool): Transform using stain aumentation.
+                Defaults to False.
+
         Returns:
             bytes: Normalized PNG image.
         """
@@ -438,6 +451,10 @@ class StainNormalizer:
         Args:
             png_string (str, bytes): PNG image data.
 
+        Keyword args:
+            augment (bool): Transform using stain aumentation.
+                Defaults to False.
+
         Returns:
             np.ndarray: Normalized image, uint8, W x H x C.
         """
@@ -454,6 +471,10 @@ class StainNormalizer:
         Args:
             image (np.ndarray): Image (uint8).
 
+        Keyword args:
+            augment (bool): Transform using stain aumentation.
+                Defaults to False.
+
         Returns:
             np.ndarray: Normalized image, uint8, W x H x C.
         """
@@ -469,6 +490,10 @@ class StainNormalizer:
 
         Args:
             image (tf.Tensor): Image (uint8).
+
+        Keyword args:
+            augment (bool): Transform using stain aumentation.
+                Defaults to False.
 
         Returns:
             np.ndarray: Normalized image, uint8, W x H x C.
@@ -488,6 +513,10 @@ class StainNormalizer:
                 or a Dictionary with the image under the key 'tile_image'.
             args (Any, optional): Any additional arguments, which will be passed
                 and returned unmodified.
+
+        Keyword args:
+            augment (bool): Transform using stain aumentation.
+                Defaults to False.
 
         Returns:
             A tuple containing the normalized tf.Tensor image (uint8,
@@ -525,6 +554,10 @@ class StainNormalizer:
             args (Any, optional): Any additional arguments, which will be passed
                 and returned unmodified.
 
+        Keyword args:
+            augment (bool): Transform using stain aumentation.
+                Defaults to False.
+
         Returns:
             A tuple containing
 
@@ -552,6 +585,38 @@ class StainNormalizer:
         self,
         context: Union[str, "sf.WSI", np.ndarray, "tf.Tensor", "torch.Tensor"]
     ):
+        """Set the whole-slide context for the stain normalizer.
+
+        With contextual normalization, max concentrations are determined
+        from the context (whole-slide image) rather than the image being
+        normalized. This may improve stain normalization for sections of
+        a slide that are predominantly eosin (e.g. necrosis or low cellularity).
+
+        When calculating max concentrations from the image context,
+        white pixels (255) will be masked.
+
+        This function is a context manager used for temporarily setting the
+        image context. For example:
+
+        .. code-block:: python
+
+            with normalizer.image_context(slide):
+                normalizer.transform(target)
+
+        If a slide (``sf.WSI``) is used for context, any existing QC filters
+        and regions of interest will be used to mask out background as white
+        pixels, and the masked thumbnail will be used for creating the
+        normalizer context. If no QC has been applied to the slide and the
+        slide does not have any Regions of Interest, then both otsu's
+        thresholding and Gaussian blur filtering will be applied
+        to the thumbnail for masking.
+
+        Args:
+            I (np.ndarray, sf.WSI): Context to use for normalization, e.g.
+                a whole-slide image thumbnail, optionally masked with masked
+                areas set to (255, 255, 255).
+
+        """
         self.set_context(context)
         yield
         self.clear_context()
@@ -560,6 +625,30 @@ class StainNormalizer:
         self,
         context: Union[str, "sf.WSI", np.ndarray, "tf.Tensor", "torch.Tensor"]
     ) -> bool:
+        """Set the whole-slide context for the stain normalizer.
+
+        With contextual normalization, max concentrations are determined
+        from the context (whole-slide image) rather than the image being
+        normalized. This may improve stain normalization for sections of
+        a slide that are predominantly eosin (e.g. necrosis or low cellularity).
+
+        When calculating max concentrations from the image context,
+        white pixels (255) will be masked.
+
+         If a slide (``sf.WSI``) is used for context, any existing QC filters
+        and regions of interest will be used to mask out background as white
+        pixels, and the masked thumbnail will be used for creating the
+        normalizer context. If no QC has been applied to the slide and the
+        slide does not have any Regions of Interest, then both otsu's
+        thresholding and Gaussian blur filtering will be applied
+        to the thumbnail for masking.
+
+        Args:
+            I (np.ndarray, sf.WSI): Context to use for normalization, e.g.
+                a whole-slide image thumbnail, optionally masked with masked
+                areas set to (255, 255, 255).
+
+        """
         if hasattr(self.n, 'set_context'):
             if isinstance(context, str):
                 image = np.asarray(sf.WSI(context, 500, 500).thumb(mpp=4))
@@ -573,6 +662,7 @@ class StainNormalizer:
             return False
 
     def clear_context(self) -> None:
+        """Remove any previously set stain normalizer context."""
         if hasattr(self.n, 'clear_context'):
             self.n.clear_context()
 
