@@ -30,6 +30,8 @@ def get_mean_std(I: np.ndarray, mask: bool = False) -> Tuple[np.ndarray, np.ndar
     if mask:
         ones = np.all(I == 255, axis=2)
         I1, I2, I3 = I1[~ ones], I2[~ ones], I3[~ ones]
+    # Calculate mean and std for each channel.
+    # This is about 20% faster than using np.std and np.mean
     m1, sd1 = cv2.meanStdDev(I1)
     m2, sd2 = cv2.meanStdDev(I2)
     m3, sd3 = cv2.meanStdDev(I3)

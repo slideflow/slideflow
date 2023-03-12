@@ -51,7 +51,6 @@ if TYPE_CHECKING:
 class StainNormalizer:
 
     vectorized = False
-    device = 'cpu'
     normalizers = {
         'macenko':  macenko.MacenkoNormalizer,
         'macenko_fast':  macenko.MacenkoFastNormalizer,
@@ -148,7 +147,16 @@ class StainNormalizer:
         base += ")"
         return base
 
-    def _torch_transform(self, inp: "torch.Tensor") -> "torch.Tensor":
+    @property
+    def device(self) -> str:
+        return 'cpu'
+
+    def _torch_transform(
+        self,
+        inp: "torch.Tensor",
+        *,
+        augment: bool = False
+    ) -> "torch.Tensor":
         """Normalize a torch uint8 image (CWH), via intermediate
         conversion to WHC.
 
@@ -168,7 +176,14 @@ class StainNormalizer:
             return torch.stack([self._torch_transform(img) for img in inp])
         elif inp.shape[0] == 3:
             # Convert from CWH -> WHC (normalize) -> CWH
-            return whc_to_cwh(torch.from_numpy(self.rgb_to_rgb(cwh_to_whc(inp).cpu().numpy())))
+            return whc_to_cwh(
+                torch.from_numpy(
+                    self.rgb_to_rgb(
+                        cwh_to_whc(inp).cpu().numpy(),
+                        augment=augment
+                    )
+                )
+            )
         else:
             return torch.from_numpy(self.rgb_to_rgb(inp.cpu().numpy()))
 
@@ -178,7 +193,7 @@ class StainNormalizer:
         batch_size: int = 64,
         num_threads: Union[str, int] = 'auto',
         **kwargs,
-    ) -> None:
+    ) -> "StainNormalizer":
         """Fit the normalizer to a target image or dataset of images.
 
         Args:

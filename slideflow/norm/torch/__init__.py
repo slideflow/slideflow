@@ -70,7 +70,7 @@ class TorchStainNormalizer(StainNormalizer):
         self._device = device
 
     @property
-    def device(self) -> Union[str, torch.device]:
+    def device(self) -> str:
         """Device (e.g. cpu, gpu) on which normalization should be performed.
 
         Returns:
@@ -101,7 +101,7 @@ class TorchStainNormalizer(StainNormalizer):
         batch_size: int = 64,
         num_threads: Union[str, int] = 'auto',
         **kwargs
-    ):
+    ) -> "TorchStainNormalizer":
         """Fit the normalizer to a target image or dataset of images.
 
         Args:

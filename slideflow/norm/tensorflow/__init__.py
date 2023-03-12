@@ -135,7 +135,7 @@ class TensorflowStainNormalizer(StainNormalizer):
         batch_size: int = 64,
         num_threads: Union[str, int] = 'auto',
         **kwargs
-    ) -> None:
+    ) -> "TensorflowStainNormalizer":
         """Fit the normalizer to a target image or dataset of images.
 
         Args:
