@@ -78,7 +78,7 @@ def vips2jpg(
     vi: "vips.Image",
 ) -> np.ndarray:
     '''Converts a VIPS image into a numpy array'''
-    return vi.jpegsave_buffer()
+    return vi.jpegsave_buffer(Q=95)
 
 
 def vips2png(
@@ -212,7 +212,7 @@ def tile_worker(
         if args.img_format == 'png':
             image = region.pngsave_buffer()
         elif args.img_format in ('jpg', 'jpeg'):
-            image = region.jpegsave_buffer()
+            image = region.jpegsave_buffer(Q=95)
         else:
             raise ValueError(f"Unknown image format {args.img_format}")
 

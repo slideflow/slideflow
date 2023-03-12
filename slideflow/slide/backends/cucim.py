@@ -35,7 +35,7 @@ def cucim2jpg(img: "CuImage") -> str:
     if img.shape[-1] == 4:
         img = img[:, :, 0:3]
     img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
-    return cv2.imencode(".jpg", img)[1].tobytes()
+    return cv2.imencode(".jpg", img)[1].tobytes()   # Default quality = 95%
 
 
 def cucim2png(img: "CuImage") -> str:
@@ -156,6 +156,7 @@ def tile_worker(
 
     if args.img_format != 'numpy':
         image = cv2.cvtColor(region, cv2.COLOR_RGB2BGR)
+        # Default image quality for JPEG is 95%
         image = cv2.imencode("."+args.img_format, image)[1].tobytes()
     else:
         image = region
