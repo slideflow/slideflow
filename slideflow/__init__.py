@@ -33,4 +33,3 @@ from slideflow.project import create as create_project
 from slideflow.project import load as load_project
 from slideflow.slide import TMA, WSI
 from slideflow.stats import SlideMap
-from slideflow import biscuit
