@@ -174,7 +174,7 @@ class Workbench(ImguiWindow):
 
         # Initialize window.
         self.set_position(0, 0)
-        self._adjust_font_size()
+        self._set_default_font_size()
         self.skip_frame() # Layout may change after first frame.
         self.load_slide('')
 
@@ -227,12 +227,12 @@ class Workbench(ImguiWindow):
 
     # --- Internals -----------------------------------------------------------
 
-    def _adjust_font_size(self) -> None:
+    def _set_default_font_size(self) -> None:
         """Change the interface font size."""
         old = self.font_size
-        self.set_font_size(18)
+        self.set_font_size(int(18 / self.pixel_ratio))
         if self.font_size != old:
-            self.skip_frame() # Layout changed.
+            self.skip_frame()  # Layout changed.
 
     def _clear_textures(self) -> None:
         for tex in self._tex_to_delete:
@@ -268,6 +268,7 @@ class Workbench(ImguiWindow):
         self.mouse_y = None
         self.clear_result()
         self._async_renderer._live_updates = False
+        self.set_title("Slideflow Workbench")
 
     def _draw_about_dialog(self) -> None:
         """Draw the About dialog."""
@@ -547,7 +548,7 @@ class Workbench(ImguiWindow):
                     if imgui.menu_item('Tile Preview', 'Ctrl+Shift+T', selected=self._show_tile_preview)[0]:
                         self._show_tile_preview = not self._show_tile_preview
                     imgui.separator()
-                    if imgui.menu_item('WSI Scale', selected=(has_wsi and self.viewer.show_scale), enabled=has_wsi)[0]:
+                    if imgui.menu_item('Magnification Scale', selected=(has_wsi and self.viewer.show_scale), enabled=has_wsi)[0]:
                         self.viewer.show_scale = not self.viewer.show_scale
                     imgui.separator()
                     imgui.menu_item('Camera View', enabled=False)
@@ -786,6 +787,7 @@ class Workbench(ImguiWindow):
             verbose=False,
             **reader_kwargs)
         self.set_viewer(SlideViewer(self.wsi, **self._viewer_kwargs()))
+        self.set_title(os.path.basename(self.wsi.path))
 
     def _render_prediction_message(self, message: str) -> None:
         """Render a prediction string to below the tile bounding box.

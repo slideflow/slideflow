@@ -46,7 +46,7 @@ class GlfwWindow:
         print(f"Using OpenGL version {gl.glGetString(gl.GL_VERSION)}")
 
         # Adjust window.
-        self.set_vsync(False)
+        self.set_vsync(True)
         self.set_window_size(window_width, window_height)
         if not self._deferred_show:
             glfw.show_window(self._glfw_window)
