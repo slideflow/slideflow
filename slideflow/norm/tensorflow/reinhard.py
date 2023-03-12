@@ -165,9 +165,9 @@ def augmented_transform(
     if means_stdev is None and stds_stdev is None:
         raise ValueError("Must supply either means_stdev and/or stds_stdev")
     if means_stdev is not None:
-        tgt_mean = tf.random.normal([3, 2], mean=tgt_mean, stddev=means_stdev)
+        tgt_mean = tf.random.normal([3], mean=tgt_mean, stddev=means_stdev)
     if stds_stdev is not None:
-        tgt_std = tf.random.normal([2], mean=tgt_std, stddev=stds_stdev)
+        tgt_std = tf.random.normal([3], mean=tgt_std, stddev=stds_stdev)
     return transform(I, tgt_mean, tgt_std, **kwargs)
 
 
@@ -458,7 +458,7 @@ class ReinhardFastNormalizer:
             batch,
             self.target_means,
             self.target_stds,
-            ctx_means=_ctx_means,
+            ctx_mean=_ctx_means,
             ctx_std=_ctx_stds,
             mask_threshold=self.threshold,
             **aug_kw
@@ -489,6 +489,10 @@ class ReinhardFastNormalizer:
         Returns:
             tf.Tensor: Normalized image (uint8)
         """
+        if augment and not any(m in self._augment_params
+                               for m in ('means_stdev', 'stds_stdev')):
+            raise ValueError("Augmentation space not configured.")
+
         _ctx_means, _ctx_stds = self._get_context_means(ctx_means, ctx_stds)
         if len(I.shape) == 3:
             return self._transform_batch(
@@ -631,6 +635,10 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
         Returns:
             tf.Tensor: Normalized image (uint8)
         """
+        if augment and not any(m in self._augment_params
+                               for m in ('means_stdev', 'stds_stdev')):
+            raise ValueError("Augmentation space not configured.")
+
         _ctx_means, _ctx_stds = self._get_context_means(ctx_means, ctx_stds)
         if len(I.shape) == 3:
             return self._transform_batch(

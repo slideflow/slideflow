@@ -309,7 +309,6 @@ class MacenkoNormalizer:
         self.beta = beta
         self._ctx_maxC = None  # type: Optional[tf.Tensor]
         self._augment_params = dict()  # type: Dict[str, tf.Tensor]
-
         self.set_fit(**ut.fit_presets[self.preset_tag]['v3'])  # type: ignore
         self.set_augment(**ut.augment_presets[self.preset_tag]['v1'])  # type: ignore
 
@@ -323,6 +322,10 @@ class MacenkoNormalizer:
         augment: bool = False
     ) -> tf.Tensor:
         """Normalize an image."""
+        if augment and not any(m in self._augment_params
+                               for m in ('matrix_stdev', 'concentrations_stdev')):
+            raise ValueError("Augmentation space not configured.")
+
         fn = augmented_transform if augment else transform
         aug_kw = self._augment_params if augment else {}
         return fn(
@@ -540,18 +543,22 @@ class MacenkoFastNormalizer(MacenkoNormalizer):
         self,
         I: tf.Tensor,
         *,
-        stain_matrix_target: Optional[tf.Tensor] = None,
-        target_concentrations: Optional[tf.Tensor] = None,
         augment: bool = False
     ) -> tf.Tensor:
-        if augment:
-            raise NotImplementedError
-        return transform(
+        """Normalize an image."""
+        if augment and not any(m in self._augment_params
+                               for m in ('matrix_stdev', 'concentrations_stdev')):
+            raise ValueError("Augmentation space not configured.")
+
+        fn = augmented_transform if augment else transform
+        aug_kw = self._augment_params if augment else {}
+        return fn(
             I,
-            self.stain_matrix_target if stain_matrix_target is None else stain_matrix_target,
-            self.target_concentrations if target_concentrations is None else target_concentrations,
+            self.stain_matrix_target,
+            self.target_concentrations,
             ctx_maxC=self._ctx_maxC,
-            standardize=False
+            standardize=False,
+            **aug_kw
         )
 
     def set_context(self, I: Union[np.ndarray, tf.Tensor]):

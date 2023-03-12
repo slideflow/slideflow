@@ -275,12 +275,12 @@ class ReinhardFastNormalizer:
 
         This implementation does not include the brightness normalization step.
         """
-        self.set_fit(**ut.fit_presets[self.preset_tag]['v3'])  # type: ignore
-        self.set_augment(**ut.augment_presets[self.preset_tag]['v1'])  # type: ignore
         self.threshold = None  # type: Optional[float]
         self._ctx_means = None  # type: Optional[torch.Tensor]
         self._ctx_stds = None  # type: Optional[torch.Tensor]
         self._augment_params = dict()  # type: Dict[str, torch.Tensor]
+        self.set_fit(**ut.fit_presets[self.preset_tag]['v3'])  # type: ignore
+        self.set_augment(**ut.augment_presets[self.preset_tag]['v1'])  # type: ignore
 
     def fit(
         self,
@@ -433,6 +433,10 @@ class ReinhardFastNormalizer:
         Returns:
             torch.Tensor: Normalized image (uint8)
         """
+        if augment and not any(m in self._augment_params
+                               for m in ('means_stdev', 'stds_stdev')):
+            raise ValueError("Augmentation space not configured.")
+
         _I = torch.unsqueeze(I, dim=0) if len(I.shape) == 3 else I
         _ctx_means, _ctx_stds = self._get_context_means(ctx_means, ctx_stds)
         aug_kw = self._augment_params if augment else {}
@@ -624,6 +628,9 @@ class ReinhardNormalizer(ReinhardFastNormalizer):
         Returns:
             torch.Tensor: Normalized image.
         """
+        if augment and not any(m in self._augment_params
+                               for m in ('means_stdev', 'stds_stdev')):
+            raise ValueError("Augmentation space not configured.")
 
         _I = torch.unsqueeze(I, dim=0) if len(I.shape) == 3 else I
         _I = standardize_brightness(_I)

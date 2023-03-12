@@ -56,12 +56,12 @@ class ReinhardFastNormalizer:
         This normalizer contains inspiration from StainTools by Peter Byfield
         (https://github.com/Peter554/StainTools).
         """
-        self.set_fit(**ut.fit_presets[self.preset_tag]['v3'])  # type: ignore
-        self.set_augment(**ut.augment_presets[self.preset_tag]['v1'])  # type: ignore
         self.threshold = None
         self._ctx_means = None
         self._ctx_stds = None
         self._augment_params = dict()  # type: Dict[str, np.ndarray]
+        self.set_fit(**ut.fit_presets[self.preset_tag]['v3'])  # type: ignore
+        self.set_augment(**ut.augment_presets[self.preset_tag]['v1'])  # type: ignore
 
     def fit(self, img: np.ndarray, mask: bool = False) -> Tuple[np.ndarray, np.ndarray]:
         """Fit normalizer to a target image.
@@ -226,7 +226,7 @@ class ReinhardFastNormalizer:
 
         # Augmentation; optional
         if augment and not any(m in self._augment_params
-                               for m in ('matrix_stdev', 'concentrations_stdev')):
+                               for m in ('means_stdev', 'stds_stdev')):
             raise ValueError("Augmentation space not configured.")
         if augment and 'means_stdev' in self._augment_params:
             target_means = np.random.normal(
@@ -237,7 +237,7 @@ class ReinhardFastNormalizer:
             target_means = self.target_means
         if augment and 'stds_stdev' in self._augment_params:
             target_stds = np.random.normal(
-                self.target_means,
+                self.target_stds,
                 self._augment_params['stds_stdev']
             )
         else:
